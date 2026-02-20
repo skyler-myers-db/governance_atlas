@@ -1,0 +1,58 @@
+bundle:
+  name: governance-hub
+
+variables:
+  app_name:
+    description: "Name of the Databricks App"
+    default: governance-hub
+  warehouse_id:
+    description: "SQL Warehouse ID the app uses for Unity Catalog queries"
+  secret_scope:
+    description: "Secret scope that contains DataHub connection secrets"
+    default: governance_hub
+  datahub_gms_url_key:
+    description: "Secret key name for the DataHub GMS base URL"
+    default: datahub_gms_url
+  datahub_token_key:
+    description: "Secret key name for the DataHub API token"
+    default: datahub_token
+
+resources:
+  apps:
+    governance_hub:
+      name: ${var.app_name}
+      description: "Governance Hub (Unity Catalog + DataHub)"
+      source_code_path: ./app
+
+      # Resources injected into the app at runtime (secrets, warehouse, etc.)
+      resources:
+        - name: uc_warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+
+        - name: datahub_gms_url
+          secret:
+            scope: ${var.secret_scope}
+            key: ${var.datahub_gms_url_key}
+            permission: READ
+
+        - name: datahub_token
+          secret:
+            scope: ${var.secret_scope}
+            key: ${var.datahub_token_key}
+            permission: READ
+
+      # Example: allow all workspace users to access the app UI.
+      # Adjust group_name to match your workspace conventions.
+      permissions:
+        - level: CAN_USE
+          group_name: users
+
+targets:
+  dev:
+    default: true
+    workspace:
+      # Uses the Databricks CLI configured workspace by default.
+      # Optionally set host explicitly, e.g. https://adb-...azuredatabricks.net
+      host: ${env.DATABRICKS_HOST}
