@@ -8,21 +8,21 @@ variables:
   warehouse_id:
     description: "SQL Warehouse ID the app uses for Unity Catalog queries"
   secret_scope:
-    description: "Secret scope that contains DataHub connection secrets"
+    description: "Secret scope that contains OpenMetadata connection secrets"
     default: governance_hub
-  datahub_gms_url_key:
-    description: "Secret key name for the DataHub GMS base URL"
-    default: datahub_gms_url
-  datahub_token_key:
-    description: "Secret key name for the DataHub API token"
-    default: datahub_token
+  om_server_url_key:
+    description: "Secret key name for the OpenMetadata server URL"
+    default: om_server_url
+  om_jwt_token_key:
+    description: "Secret key name for the OpenMetadata JWT token"
+    default: om_jwt_token
 
 resources:
   apps:
     governance_hub:
       name: ${var.app_name}
-      description: "Governance Hub (Unity Catalog + DataHub)"
-      source_code_path: ./app
+      description: "Governance Hub (Unity Catalog + OpenMetadata)"
+      source_code_path: .
 
       # Resources injected into the app at runtime (secrets, warehouse, etc.)
       resources:
@@ -31,16 +31,16 @@ resources:
             id: ${var.warehouse_id}
             permission: CAN_USE
 
-        - name: datahub_gms_url
+        - name: om_server_url
           secret:
             scope: ${var.secret_scope}
-            key: ${var.datahub_gms_url_key}
+            key: ${var.om_server_url_key}
             permission: READ
 
-        - name: datahub_token
+        - name: om_jwt_token
           secret:
             scope: ${var.secret_scope}
-            key: ${var.datahub_token_key}
+            key: ${var.om_jwt_token_key}
             permission: READ
 
       # Example: allow all workspace users to access the app UI.
@@ -52,7 +52,4 @@ resources:
 targets:
   dev:
     default: true
-    workspace:
-      # Uses the Databricks CLI configured workspace by default.
-      # Optionally set host explicitly, e.g. https://adb-...azuredatabricks.net
-      host: ${env.DATABRICKS_HOST}
+    # Uses the Databricks CLI configured workspace/profile host.
