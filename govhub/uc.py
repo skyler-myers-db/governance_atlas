@@ -32,7 +32,7 @@ def _state_str(raw: Any) -> str:
     """
     if raw is None:
         return ""
-    if hasattr(raw, "value"):          # SDK enum
+    if hasattr(raw, "value"):  # SDK enum
         return str(raw.value).upper()
     return str(raw).upper()
 
