@@ -1,0 +1,26 @@
+# Databricks App configuration — single source of truth.
+# Docs: https://docs.databricks.com/en/dev-tools/databricks-apps/app-config.html
+command:
+  - streamlit
+  - run
+  - app.py
+
+env:
+  # ── Required ──────────────────────────────────────────────
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: "sql-warehouse"
+
+  # ── Governance Hub defaults ───────────────────────────────
+  - name: GOVHUB_CATALOG
+    value: prod
+  - name: GOVHUB_SCHEMA
+    value: governance_hub
+  - name: GOVHUB_ADMIN_EMAILS
+    value: "Skyler.Myers@tristategt.org,Sean.Holt@tristategt.org"
+
+  # ── Optional: OpenMetadata (self-hosted) ─────────────────
+  # Leave blank to run in UC-only mode (no external server).
+  - name: OPENMETADATA_SERVER_URL
+    value: ""
+  - name: OPENMETADATA_JWT_TOKEN
+    value: ""

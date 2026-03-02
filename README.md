@@ -1,73 +1,128 @@
-# Governance Hub (Databricks App + Unity Catalog + DataHub)
+# Governance Hub (Databricks Apps + Unity Catalog)
 
-This repo is a **Databricks Asset Bundles** project that deploys a **Databricks App** (Streamlit) that:
-- Browses Unity Catalog objects (catalogs/schemas/tables)
-- Links UC tables to **DataHub** datasets (by URN)
-- Displays and (for writers/admins) updates:
-  - UC table comments + UC tags
-  - DataHub dataset tags + glossary terms
-- Supports a lightweight **change request** workflow (readers submit → writers/admins approve)
+A **Databricks App** (Streamlit) that provides a governance portal on top of
+Unity Catalog — with an **optional** connector for self-hosted OpenMetadata OSS.
 
-## Prereqs
+No paid products or external servers are required to run the core app.
 
-1. **A DataHub instance** (self-hosted OSS) reachable from the Databricks Apps runtime network.
-2. A DataHub **access token** with permissions to:
-   - read/search datasets
-   - add tags / add glossary terms
-   - create glossary terms (optional)
-3. A Databricks SQL Warehouse (serverless or classic) that supports Unity Catalog.
-4. Databricks CLI configured + Asset Bundles enabled.
+---
 
-## Configure Databricks Secrets
+## What it does
 
-Create a secret scope (example scope name matches bundle defaults):
+| Feature | Powered by |
+|---|---|
+| Browse catalogs / schemas / tables | UC `SHOW` + `information_schema` |
+| Table & column lineage | UC system tables (`system.access.table_lineage`, `column_lineage`) |
+| Business glossary (create, search, manage terms) | UC Delta table (`glossary_terms`) |
+| Data ownership tracking | UC Delta table (`data_owners`) |
+| UC tags & comments editing | UC SQL DDL |
+| Change-request workflow (reader → writer/admin) | UC Delta table (`change_requests`) |
+| OpenMetadata search, tags, glossary, lineage | **Optional** — self-hosted OpenMetadata REST API |
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────┐
+│              Databricks App (Streamlit)          │
+│  app.py  →  govhub/                             │
+│     │           ├─ auth.py          (SSO)       │
+│     │           ├─ config.py        (env vars)  │
+│     │           ├─ uc.py            (SQL WH)    │
+│     │           ├─ store.py         (gov tables)│
+│     │           ├─ openmetadata.py  (optional)  │
+│     │           └─ util.py                      │
+└────┬───────────────────┬────────────────────────┘
+     │                   │
+     ▼                   ▼ (optional)
+Unity Catalog       OpenMetadata OSS
+ • metadata           • cross-platform
+ • lineage              lineage &
+ • governance           enrichment
+   tables
+```
+
+## Repository layout
+
+```
+governance_hub/
+├── app.py              Streamlit entry point
+├── app.yaml            Databricks Apps spec (single file)
+├── requirements.txt    Python deps (single file)
+├── databricks.yml      DAB bundle config
+├── govhub/             Application package
+│   ├── __init__.py
+│   ├── auth.py
+│   ├── config.py
+│   ├── openmetadata.py
+│   ├── store.py
+│   ├── uc.py
+│   └── util.py
+├── sql/
+│   └── bootstrap.sql   Manual DDL (if app SP lacks CREATE privileges)
+└── README.md
+```
+
+**One `app.yaml`. One `requirements.txt`. No duplicates.**
+
+## Configuration
+
+Edit `app.yaml` before deploying:
+
+| Variable | Required | Where to get it |
+|---|---|---|
+| `DATABRICKS_WAREHOUSE_ID` | **Yes** | SQL Warehouses → your warehouse → ID (in URL or detail panel) |
+| `GOVHUB_CATALOG` | No (default `main`) | The UC catalog for governance tables |
+| `GOVHUB_SCHEMA` | No (default `governance_hub`) | The UC schema for governance tables |
+| `GOVHUB_ADMIN_EMAILS` | No | Comma-separated bootstrap admin emails |
+| `OPENMETADATA_SERVER_URL` | No | Base URL of self-hosted OpenMetadata (e.g. `https://openmetadata.internal.company.com`) |
+| `OPENMETADATA_JWT_TOKEN` | No | OpenMetadata bot JWT token (see OM docs → Security → Enable JWT) |
+
+If `OPENMETADATA_SERVER_URL` / `OPENMETADATA_JWT_TOKEN` are blank, the app runs in **UC-only mode** —
+all features except the "OpenMetadata Connector" page work without any external server.
+
+## Deploy (Git-based — recommended for testing)
+
+1. Set your `DATABRICKS_WAREHOUSE_ID` in `app.yaml`.
+2. Push to GitHub.
+3. In Databricks → Apps → governance-hub → set Git source to this repo / branch.
+4. Click **Deploy**.
+
+## Deploy (Databricks Asset Bundles)
 
 ```bash
+# 1. Optionally store OpenMetadata secrets
 databricks secrets create-scope governance_hub
-```
+databricks secrets put-secret governance_hub om_server_url
+databricks secrets put-secret governance_hub om_jwt_token
 
-Create secrets:
+# 2. Deploy
+databricks bundle deploy -t dev --var warehouse_id=<WAREHOUSE_ID>
 
-```bash
-databricks secrets put-secret governance_hub datahub_gms_url
-databricks secrets put-secret governance_hub datahub_token
-```
-
-- `datahub_gms_url` should be the base URL, e.g. `https://datahub.company.com`
-- `datahub_token` is your DataHub API token
-
-## Deploy
-
-From this project folder:
-
-```bash
-databricks bundle validate
-databricks bundle deploy -t dev --var warehouse_id=<SQL_WAREHOUSE_ID>
-```
-
-Databricks Apps require an extra step to deploy the app to compute:
-
-```bash
+# 3. Start the app
 databricks apps deploy governance-hub
 ```
 
-## First Run / Bootstrap
+## First run
 
-The app will create the following UC tables (in `main.governance_hub` by default):
-- `user_roles`
-- `asset_links`
-- `change_requests`
+The app auto-creates governance tables on first load.
+If the app service principal lacks DDL privileges, run `sql/bootstrap.sql`
+as a workspace admin first.
 
-If the app service principal cannot create schemas/tables, run `app/sql/bootstrap.sql` once as an admin,
-or pre-create the schema + tables and grant the app principal rights to read/write them.
+## App roles
 
-## App Roles
+| Role | Permissions |
+|---|---|
+| `reader` | Browse, view lineage, submit change requests |
+| `writer` | All reader + edit UC metadata, manage glossary, manage OpenMetadata |
+| `admin` | All writer + manage user roles |
 
-The app enforces simple UI roles:
-- `reader`: can browse, submit change requests
-- `writer`: can update UC metadata + DataHub metadata
-- `admin`: can manage roles + links
+Bootstrap admins via `GOVHUB_ADMIN_EMAILS` in `app.yaml`, or insert directly
+into `main.governance_hub.user_roles`.
 
-Bootstrap: set `GOVHUB_ADMIN_EMAILS` in `app.yaml` to a comma-separated list of admin emails,
-or insert an admin row into `main.governance_hub.user_roles`.
+## About OpenMetadata
+
+- **OpenMetadata** (open-metadata.org) is 100% open source (Apache 2.0).
+- Self-host via Docker Compose or Kubernetes — single Java service + a database (MySQL / Postgres). Much lighter than alternatives that require Kafka, Elasticsearch, etc.
+- Has a native **Databricks / Unity Catalog connector** for automatic ingestion of metadata, lineage, and profiling.
+- If you don't have an OpenMetadata instance, leave the env vars blank. The app works fully on UC alone.
 
