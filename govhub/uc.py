@@ -10,6 +10,7 @@ from .util import quote_ident, quote_uc_3part, sql_literal
 
 
 def _get(obj: Any, *path: str) -> Any:
+    """Navigate nested SDK typed objects or dicts by attribute/key path."""
     cur = obj
     for p in path:
         if cur is None:
@@ -19,6 +20,21 @@ def _get(obj: Any, *path: str) -> Any:
         else:
             cur = getattr(cur, p, None)
     return cur
+
+
+def _state_str(raw: Any) -> str:
+    """Convert a StatementState enum (or plain string) to an uppercase string.
+
+    The Databricks SDK returns ``StatementState`` enum members from
+    ``resp.status.state``.  Enum members are truthy, don't have ``.upper()``,
+    and ``str()`` gives ``'StatementState.SUCCEEDED'``.  Using ``.value``
+    gives the raw ``'SUCCEEDED'`` string.
+    """
+    if raw is None:
+        return ""
+    if hasattr(raw, "value"):          # SDK enum
+        return str(raw.value).upper()
+    return str(raw).upper()
 
 
 class UCSQLClient:
@@ -56,9 +72,11 @@ class UCSQLClient:
             wait_timeout=f"{timeout_s}s",
         )
 
-        statement_id = _get(resp, "statement_id") or _get(resp, "statementId")
-        state = (_get(resp, "status", "state") or "").upper()
+        statement_id = _get(resp, "statement_id")
+        state = _state_str(_get(resp, "status", "state"))
 
+        # Server-side wait_timeout usually returns SUCCEEDED already, but
+        # poll as a safety net for long-running DDL statements.
         poll_deadline = time.time() + timeout_s
         while (
             state in {"PENDING", "RUNNING"}
@@ -67,37 +85,35 @@ class UCSQLClient:
         ):
             time.sleep(0.5)
             resp = self.w.statement_execution.get_statement(statement_id)
-            state = (_get(resp, "status", "state") or "").upper()
+            state = _state_str(_get(resp, "status", "state"))
 
         if state == "FAILED":
             raise RuntimeError(
                 _get(resp, "status", "error", "message") or "Statement failed"
             )
-        if state == "CANCELED":
-            raise RuntimeError("Statement was canceled")
+        if state in {"CANCELED", "CLOSED"}:
+            raise RuntimeError(f"Statement was {state.lower()}")
 
+        # Extract column metadata + row data from the typed SDK response.
         manifest = _get(resp, "manifest")
         result = _get(resp, "result")
-        data_array = _get(result, "data_array") or _get(result, "dataArray")
+        data_array = _get(result, "data_array")
         columns = _get(manifest, "schema", "columns")
 
+        # If the result wasn't inlined (rare for small payloads), re-fetch.
         if data_array is None and statement_id:
             try:
-                result_resp = self.w.statement_execution.get_statement_result(
-                    statement_id
-                )
-                data_array = _get(result_resp, "result", "data_array") or _get(
-                    result_resp, "result", "dataArray"
-                )
+                resp = self.w.statement_execution.get_statement(statement_id)
+                data_array = _get(resp, "result", "data_array")
                 if columns is None:
-                    columns = _get(_get(result_resp, "manifest"), "schema", "columns")
+                    columns = _get(resp, "manifest", "schema", "columns")
             except Exception:
                 data_array = None
 
         if not columns or data_array is None:
             return pd.DataFrame()
 
-        col_names = [_get(c, "name") or str(c) for c in columns]
+        col_names = [_get(c, "name") or f"col_{i}" for i, c in enumerate(columns)]
         return pd.DataFrame(data_array, columns=col_names)
 
     # ── UC metadata helpers ─────────────────────────────────

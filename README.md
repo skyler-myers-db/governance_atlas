@@ -9,15 +9,15 @@ No paid products or external servers are required to run the core app.
 
 ## What it does
 
-| Feature | Powered by |
-|---|---|
-| Browse catalogs / schemas / tables | UC `SHOW` + `information_schema` |
-| Table & column lineage | UC system tables (`system.access.table_lineage`, `column_lineage`) |
-| Business glossary (create, search, manage terms) | UC Delta table (`glossary_terms`) |
-| Data ownership tracking | UC Delta table (`data_owners`) |
-| UC tags & comments editing | UC SQL DDL |
-| Change-request workflow (reader → writer/admin) | UC Delta table (`change_requests`) |
-| OpenMetadata search, tags, glossary, lineage | **Optional** — self-hosted OpenMetadata REST API |
+| Feature                                          | Powered by                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------------ |
+| Browse catalogs / schemas / tables               | UC `SHOW` + `information_schema`                                   |
+| Table & column lineage                           | UC system tables (`system.access.table_lineage`, `column_lineage`) |
+| Business glossary (create, search, manage terms) | UC Delta table (`glossary_terms`)                                  |
+| Data ownership tracking                          | UC Delta table (`data_owners`)                                     |
+| UC tags & comments editing                       | UC SQL DDL                                                         |
+| Change-request workflow (reader → writer/admin)  | UC Delta table (`change_requests`)                                 |
+| OpenMetadata search, tags, glossary, lineage     | **Optional** — self-hosted OpenMetadata REST API                   |
 
 ## Architecture
 
@@ -68,14 +68,14 @@ governance_hub/
 
 Edit `app.yaml` before deploying:
 
-| Variable | Required | Where to get it |
-|---|---|---|
-| `DATABRICKS_WAREHOUSE_ID` | **Yes** | SQL Warehouses → your warehouse → ID (in URL or detail panel) |
-| `GOVHUB_CATALOG` | No (default `main`) | The UC catalog for governance tables |
-| `GOVHUB_SCHEMA` | No (default `governance_hub`) | The UC schema for governance tables |
-| `GOVHUB_ADMIN_EMAILS` | No | Comma-separated bootstrap admin emails |
-| `OPENMETADATA_SERVER_URL` | No | Base URL of self-hosted OpenMetadata (e.g. `https://openmetadata.internal.company.com`) |
-| `OPENMETADATA_JWT_TOKEN` | No | OpenMetadata bot JWT token (see OM docs → Security → Enable JWT) |
+| Variable                  | Required                      | Where to get it                                                                         |
+| ------------------------- | ----------------------------- | --------------------------------------------------------------------------------------- |
+| `DATABRICKS_WAREHOUSE_ID` | **Yes**                       | SQL Warehouses → your warehouse → ID (in URL or detail panel)                           |
+| `GOVHUB_CATALOG`          | No (default `main`)           | The UC catalog for governance tables                                                    |
+| `GOVHUB_SCHEMA`           | No (default `governance_hub`) | The UC schema for governance tables                                                     |
+| `GOVHUB_ADMIN_EMAILS`     | No                            | Comma-separated bootstrap admin emails                                                  |
+| `OPENMETADATA_SERVER_URL` | No                            | Base URL of self-hosted OpenMetadata (e.g. `https://openmetadata.internal.company.com`) |
+| `OPENMETADATA_JWT_TOKEN`  | No                            | OpenMetadata bot JWT token (see OM docs → Security → Enable JWT)                        |
 
 If `OPENMETADATA_SERVER_URL` / `OPENMETADATA_JWT_TOKEN` are blank, the app runs in **UC-only mode** —
 all features except the "OpenMetadata Connector" page work without any external server.
@@ -110,11 +110,11 @@ as a workspace admin first.
 
 ## App roles
 
-| Role | Permissions |
-|---|---|
-| `reader` | Browse, view lineage, submit change requests |
+| Role     | Permissions                                                         |
+| -------- | ------------------------------------------------------------------- |
+| `reader` | Browse, view lineage, submit change requests                        |
 | `writer` | All reader + edit UC metadata, manage glossary, manage OpenMetadata |
-| `admin` | All writer + manage user roles |
+| `admin`  | All writer + manage user roles                                      |
 
 Bootstrap admins via `GOVHUB_ADMIN_EMAILS` in `app.yaml`, or insert directly
 into `main.governance_hub.user_roles`.
