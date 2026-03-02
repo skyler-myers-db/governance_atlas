@@ -27,24 +27,24 @@ def _get_config() -> AppConfig:
 
 
 @st.cache_resource
-def _get_uc_client(cfg: AppConfig) -> UCSQLClient:
-    return UCSQLClient(warehouse_id=cfg.warehouse_id)
+def _get_uc_client(_cfg: AppConfig) -> UCSQLClient:
+    return UCSQLClient(warehouse_id=_cfg.warehouse_id)
 
 
 @st.cache_resource
-def _get_store(cfg: AppConfig, uc: UCSQLClient) -> GovernanceStore:
-    store = GovernanceStore(uc=uc, catalog=cfg.gov_catalog, schema=cfg.gov_schema)
+def _get_store(_cfg: AppConfig, _uc: UCSQLClient) -> GovernanceStore:
+    store = GovernanceStore(uc=_uc, catalog=_cfg.gov_catalog, schema=_cfg.gov_schema)
     store.ensure_tables()
     return store
 
 
 @st.cache_resource
-def _get_om_client(cfg: AppConfig) -> Optional[OpenMetadataClient]:
-    if not cfg.openmetadata_enabled:
+def _get_om_client(_cfg: AppConfig) -> Optional[OpenMetadataClient]:
+    if not _cfg.openmetadata_enabled:
         return None
     return OpenMetadataClient(
-        server_url=cfg.om_server_url,
-        jwt_token=cfg.om_jwt_token,
+        server_url=_cfg.om_server_url,
+        jwt_token=_cfg.om_jwt_token,
     )
 
 
