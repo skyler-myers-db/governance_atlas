@@ -192,19 +192,19 @@ ORDER BY tag_name"""
     ) -> pd.DataFrame:
         """Upstream lineage: what tables feed INTO this table."""
         q = f"""
-SELECT DISTINCT
+SELECT
     source_table_full_name,
     source_table_catalog,
     source_table_schema,
     source_table_name,
-    source_type,
-    created_by,
-    event_time
+    source_type
 FROM system.access.table_lineage
 WHERE target_table_catalog = {sql_literal(catalog)}
   AND target_table_schema  = {sql_literal(schema)}
   AND target_table_name    = {sql_literal(table)}
-ORDER BY event_time DESC
+  AND source_table_name IS NOT NULL
+GROUP BY ALL
+ORDER BY source_table_full_name
 LIMIT {int(limit)}
 """
         return self.query_df(q)
@@ -214,19 +214,19 @@ LIMIT {int(limit)}
     ) -> pd.DataFrame:
         """Downstream lineage: what tables does this table feed."""
         q = f"""
-SELECT DISTINCT
+SELECT
     target_table_full_name,
     target_table_catalog,
     target_table_schema,
     target_table_name,
-    target_type,
-    created_by,
-    event_time
+    target_type
 FROM system.access.table_lineage
 WHERE source_table_catalog = {sql_literal(catalog)}
   AND source_table_schema  = {sql_literal(schema)}
   AND source_table_name    = {sql_literal(table)}
-ORDER BY event_time DESC
+  AND target_table_name IS NOT NULL
+GROUP BY ALL
+ORDER BY target_table_full_name
 LIMIT {int(limit)}
 """
         return self.query_df(q)
@@ -236,12 +236,9 @@ LIMIT {int(limit)}
     ) -> pd.DataFrame:
         """Column-level lineage for a table (both directions)."""
         q = f"""
-SELECT DISTINCT
-    source_table_full_name, source_table_catalog, source_table_schema,
-    source_table_name, source_column_name,
-    target_table_full_name, target_table_catalog, target_table_schema,
-    target_table_name, target_column_name,
-    event_time
+SELECT
+    source_table_full_name, source_column_name,
+    target_table_full_name, target_column_name
 FROM system.access.column_lineage
 WHERE (
         target_table_catalog = {sql_literal(catalog)}
@@ -252,7 +249,10 @@ WHERE (
     AND source_table_schema  = {sql_literal(schema)}
     AND source_table_name    = {sql_literal(table)}
   )
-ORDER BY event_time DESC
+  AND source_column_name IS NOT NULL
+  AND target_column_name IS NOT NULL
+GROUP BY ALL
+ORDER BY source_table_full_name, source_column_name
 LIMIT {int(limit)}
 """
         return self.query_df(q)
