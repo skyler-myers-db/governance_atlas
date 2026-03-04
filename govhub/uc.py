@@ -232,7 +232,7 @@ LIMIT {int(limit)}
         return self.query_df(q)
 
     def get_column_lineage_upstream(
-        self, catalog: str, schema: str, table: str, limit: int = 100
+        self, catalog: str, schema: str, table: str, limit: int = 200
     ) -> pd.DataFrame:
         """Column-level upstream: which source columns feed into this table's columns."""
         q = f"""
@@ -247,6 +247,8 @@ WHERE target_table_catalog = {sql_literal(catalog)}
   AND source_table_full_name IS NOT NULL
   AND source_column_name IS NOT NULL
   AND target_column_name IS NOT NULL
+  AND LEFT(source_column_name, 2) <> '__'
+  AND LEFT(target_column_name, 2) <> '__'
 GROUP BY ALL
 ORDER BY target_column_name, source_table_full_name, source_column_name
 LIMIT {int(limit)}
@@ -254,7 +256,7 @@ LIMIT {int(limit)}
         return self.query_df(q)
 
     def get_column_lineage_downstream(
-        self, catalog: str, schema: str, table: str, limit: int = 100
+        self, catalog: str, schema: str, table: str, limit: int = 200
     ) -> pd.DataFrame:
         """Column-level downstream: which target columns are fed by this table's columns."""
         q = f"""
@@ -269,6 +271,8 @@ WHERE source_table_catalog = {sql_literal(catalog)}
   AND target_table_full_name IS NOT NULL
   AND source_column_name IS NOT NULL
   AND target_column_name IS NOT NULL
+  AND LEFT(source_column_name, 2) <> '__'
+  AND LEFT(target_column_name, 2) <> '__'
 GROUP BY ALL
 ORDER BY source_column_name, target_table_full_name, target_column_name
 LIMIT {int(limit)}

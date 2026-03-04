@@ -526,6 +526,61 @@ def page_uc_browser(
 # ─────────────────────────────────────────────────────────────
 
 
+def _render_column_lineage(
+    df: pd.DataFrame, *, direction: str, key: str
+) -> None:
+    """Smart display for column-lineage dataframes.
+
+    * Identifies the source-col and target-col columns dynamically.
+    * Offers a "direct name-matches only" toggle to cut operation-level noise.
+    * Shows summary metrics so users can evaluate data quality at a glance.
+    """
+    src_col = "source_column_name"
+    tgt_col = "target_column_name"
+
+    # Metrics row
+    total_rows = len(df)
+    direct_mask = df[src_col].str.lower() == df[tgt_col].str.lower()
+    n_direct = int(direct_mask.sum())
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total mappings", total_rows)
+    c2.metric("Direct name-matches", n_direct)
+    c3.metric("Indirect / broad", total_rows - n_direct)
+
+    direct_only = st.toggle(
+        "Show only direct name-matches",
+        value=False,
+        key=f"direct_{key}",
+        help=(
+            "When enabled, only shows rows where the source and target column "
+            "names match (case-insensitive).  These are the most likely real "
+            "column-to-column transformations."
+        ),
+    )
+
+    view_df = df[direct_mask] if direct_only else df
+
+    if view_df.empty:
+        st.info("No direct name-matches found for this table.")
+    else:
+        st.dataframe(view_df, use_container_width=True, hide_index=True)
+
+    with st.expander("ℹ️ How to interpret this data"):
+        st.markdown(
+            "Databricks `system.access.column_lineage` records which source "
+            "columns were **read** during each write operation — it does **not** "
+            "track precise column-to-column transformations.\n\n"
+            "For example, if a query reads columns A, B, C from table X and "
+            "writes columns D, E, F to table Y, the system logs all 9 "
+            "combinations (A→D, A→E, A→F, B→D, …).  This is why you may see "
+            "one source column mapped to many target columns.\n\n"
+            "**Direct name-matches** (where source and target column names are "
+            "identical) are the most reliable indicator of real lineage.  The "
+            "toggle above lets you filter to just those rows."
+        )
+
+
 def page_lineage(uc: UCSQLClient):
     st.header("Table Lineage (Unity Catalog)")
     st.caption(
@@ -578,14 +633,15 @@ def page_lineage(uc: UCSQLClient):
         st.caption(
             "Which source columns feed **into** this table's columns.  "
             "Reads `source_column → target_column` mappings from "
-            "`system.access.column_lineage`."
+            "`system.access.column_lineage`.  Internal columns (prefixed `__`) "
+            "are hidden."
         )
         try:
             df = _cached_col_lineage_up(uc, catalog, schema, table)
             if df.empty:
                 st.info("No upstream column lineage found.")
             else:
-                st.dataframe(df, use_container_width=True, hide_index=True)
+                _render_column_lineage(df, direction="upstream", key="col_up")
         except Exception as e:
             st.error(
                 f"**Error querying `system.access.column_lineage`:**\n\n`{e}`\n\n"
@@ -596,16 +652,24 @@ def page_lineage(uc: UCSQLClient):
     with tab_col_down:
         st.caption(
             "Which columns in **downstream** tables are fed by this table's columns.  "
-            "Note: Databricks records which source columns are *read* during a write — "
-            "some mappings may appear broader than expected if the ETL reads a column "
-            "without a direct 1:1 mapping to a single target column."
+            "Internal columns (prefixed `__`) are hidden."
+        )
+        st.info(
+            "💡 **About Databricks column lineage:** The system records which "
+            "source columns are *read* during a write operation — not which "
+            "source column transforms into which target column.  If an ETL "
+            "query reads column A and writes 20 columns, all 20 show A as a "
+            "source.  Use the **Direct name-matches** toggle to narrow results "
+            "to columns whose names match between source and target (the most "
+            "likely real mappings).",
+            icon="ℹ️",
         )
         try:
             df = _cached_col_lineage_down(uc, catalog, schema, table)
             if df.empty:
                 st.info("No downstream column lineage found.")
             else:
-                st.dataframe(df, use_container_width=True, hide_index=True)
+                _render_column_lineage(df, direction="downstream", key="col_dn")
         except Exception as e:
             st.error(f"**Error querying downstream column lineage:**\n\n`{e}`")
 
@@ -1009,20 +1073,25 @@ def main():
     ]
     page = st.sidebar.radio("Navigate", pages, index=0, label_visibility="collapsed")
 
-    if page == "🏠 Home":
-        page_home(cfg, uc, om, role, user_email)
-    elif page == "🗂️ UC Browser":
-        page_uc_browser(cfg, uc, store, role, user_email)
-    elif page == "🔀 Lineage":
-        page_lineage(uc)
-    elif page == "📘 Glossary":
-        page_glossary(uc, store, role, user_email)
-    elif page == "📋 Change Requests":
-        page_change_requests(cfg, uc, store, om, role, user_email)
-    elif page == "🔌 OpenMetadata":
-        page_openmetadata(om, store, role, user_email)
-    elif page == "⚙️ Admin":
-        page_admin(store, role, user_email)
+    # Render inside a single empty container so Streamlit fully clears the
+    # previous page's DOM subtree on every navigation switch, preventing
+    # visual remnants/ghosts of the old page from bleeding through.
+    _page_slot = st.empty()
+    with _page_slot.container():
+        if page == "🏠 Home":
+            page_home(cfg, uc, om, role, user_email)
+        elif page == "🗂️ UC Browser":
+            page_uc_browser(cfg, uc, store, role, user_email)
+        elif page == "🔀 Lineage":
+            page_lineage(uc)
+        elif page == "📘 Glossary":
+            page_glossary(uc, store, role, user_email)
+        elif page == "📋 Change Requests":
+            page_change_requests(cfg, uc, store, om, role, user_email)
+        elif page == "🔌 OpenMetadata":
+            page_openmetadata(om, store, role, user_email)
+        elif page == "⚙️ Admin":
+            page_admin(store, role, user_email)
 
 
 if __name__ == "__main__":
