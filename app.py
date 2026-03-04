@@ -102,6 +102,9 @@ def _table_picker(
         label_schema, schemas.iloc[:, 0].tolist(), key=f"{key_prefix}_sch"
     )
 
+    if not schema:
+        return None
+
     tables = uc.list_tables(catalog, schema)
     if tables.empty:
         st.info("No tables in this schema.")
@@ -109,10 +112,13 @@ def _table_picker(
     tcol = "tableName" if "tableName" in tables.columns else tables.columns[-1]
     table = st.selectbox(label_table, tables[tcol].tolist(), key=f"{key_prefix}_tbl")
 
+    if not table:
+        return None
+
     return catalog, schema, table
 
 
-def _tags_editor(existing: pd.DataFrame) -> pd.DataFrame:
+def _tags_editor(existing: pd.DataFrame, key: str = "tags") -> pd.DataFrame:
     if existing is None or existing.empty:
         df = pd.DataFrame([{"tag_name": "", "tag_value": ""}])
     else:
@@ -127,6 +133,7 @@ def _tags_editor(existing: pd.DataFrame) -> pd.DataFrame:
             "tag_value": st.column_config.TextColumn("Tag value"),
         },
         hide_index=True,
+        key=key,
     )
 
 
@@ -356,7 +363,7 @@ def page_uc_browser(
 
         # ── Table tags ─────────────────────────────────────
         st.markdown("##### Update table tags")
-        edited = _tags_editor(tags_df)
+        edited = _tags_editor(tags_df, key=f"tbl_tags_{uc_full}")
         if st.button("Save table tags", key=f"sv_tags_{uc_full}"):
             try:
                 uc.set_table_tags(catalog, schema, table, _df_to_tags_map(edited))
@@ -389,27 +396,31 @@ def page_uc_browser(
                 key=f"col_cmt_{uc_full}_{sel_col}",
             )
             if st.button("Save column comment", key=f"sv_ccmt_{uc_full}_{sel_col}"):
-                try:
-                    uc.set_column_comment(
-                        catalog, schema, table, sel_col, new_col_cmt
-                    )
-                    st.success(f"Comment updated for column `{sel_col}`.")
-                except Exception as e:
-                    st.error(str(e))
+                if sel_col:
+                    try:
+                        uc.set_column_comment(
+                            catalog, schema, table, sel_col, new_col_cmt
+                        )
+                        st.success(f"Comment updated for column `{sel_col}`.")
+                    except Exception as e:
+                        st.error(str(e))
+                else:
+                    st.error("Please select a column first.")
 
             # ── Column tags ────────────────────────────────
             st.markdown("##### Edit column tags")
-            col_tags_df = uc.get_column_tags(catalog, schema, table, sel_col)
-            edited_col_tags = _tags_editor(col_tags_df)
-            if st.button("Save column tags", key=f"sv_ctags_{uc_full}_{sel_col}"):
-                try:
-                    uc.set_column_tags(
-                        catalog, schema, table, sel_col,
-                        _df_to_tags_map(edited_col_tags),
-                    )
-                    st.success(f"Tags updated for column `{sel_col}`.")
-                except Exception as e:
-                    st.error(str(e))
+            if sel_col:
+                col_tags_df = uc.get_column_tags(catalog, schema, table, sel_col)
+                edited_col_tags = _tags_editor(col_tags_df, key=f"col_tags_{uc_full}_{sel_col}")
+                if st.button("Save column tags", key=f"sv_ctags_{uc_full}_{sel_col}"):
+                    try:
+                        uc.set_column_tags(
+                            catalog, schema, table, sel_col,
+                            _df_to_tags_map(edited_col_tags),
+                        )
+                        st.success(f"Tags updated for column `{sel_col}`.")
+                    except Exception as e:
+                        st.error(str(e))
         else:
             st.info("No columns found for this table.")
 
@@ -422,7 +433,7 @@ def page_uc_browser(
             req_comment = st.text_area(
                 "Proposed comment", value=comment or "", height=100, key=f"rc_{uc_full}"
             )
-            req_tags_df = _tags_editor(tags_df)
+            req_tags_df = _tags_editor(tags_df, key=f"req_tags_{uc_full}")
             if st.button("Submit change request", key=f"sub_{uc_full}"):
                 rid = store.create_change_request(
                     created_by=user_email,
@@ -567,77 +578,48 @@ def page_glossary(uc: UCSQLClient, store: GovernanceStore, role: str, user_email
         "Associating a term adds a UC tag `glossary_term = <term_id>` on the "
         "table or column, persisting the relationship in Unity Catalog."
     )
-    with st.form("link_term"):
-        link_tid = st.text_input("Term ID to link")
-        st.markdown("**Select the target table:**")
-        link_cats = _user_catalogs(uc)
-        link_cat = st.selectbox("Catalog", link_cats, key="gl_lnk_cat")
-        link_schemas = uc.list_schemas(link_cat) if link_cat else pd.DataFrame()
-        link_sch = st.selectbox(
-            "Schema",
-            link_schemas.iloc[:, 0].tolist() if not link_schemas.empty else [],
-            key="gl_lnk_sch",
-        )
-        link_tables = (
-            uc.list_tables(link_cat, link_sch)
-            if link_cat and link_sch
-            else pd.DataFrame()
-        )
-        link_tcol = (
-            "tableName"
-            if "tableName" in link_tables.columns
-            else (link_tables.columns[-1] if not link_tables.empty else "")
-        )
-        link_tbl = st.selectbox(
-            "Table",
-            link_tables[link_tcol].tolist()
-            if link_tcol and not link_tables.empty
-            else [],
-            key="gl_lnk_tbl",
-        )
 
-        # Optional: link to a specific column
-        link_columns: List[str] = []
-        if link_cat and link_sch and link_tbl:
+    # Cascading selectors OUTSIDE the form so they trigger reruns
+    link_tid = st.text_input("Term ID to link", key="gl_lnk_tid")
+    picked_link = _table_picker(uc, key_prefix="gl_lnk")
+
+    # Column selector (only if a table is picked)
+    link_col = "(table-level)"
+    if picked_link:
+        lc, ls, lt = picked_link
+        try:
+            cols_df = uc.get_table_columns(lc, ls, lt)
+            if not cols_df.empty:
+                link_col = st.selectbox(
+                    "Column (optional — leave as '(table-level)' to tag the table)",
+                    ["(table-level)"] + cols_df["column_name"].tolist(),
+                    key="gl_lnk_col",
+                )
+        except Exception:
+            pass
+
+    if st.button("Link term", key="gl_lnk_submit"):
+        if not link_tid or not picked_link:
+            st.error("Provide both a term ID and select a target table.")
+        else:
+            lc, ls, lt = picked_link
             try:
-                cols_df = uc.get_table_columns(link_cat, link_sch, link_tbl)
-                if not cols_df.empty:
-                    link_columns = cols_df["column_name"].tolist()
-            except Exception:
-                pass
-        link_col = st.selectbox(
-            "Column (optional — leave as '(table-level)' to tag the table)",
-            ["(table-level)"] + link_columns,
-            key="gl_lnk_col",
-        )
-
-        if st.form_submit_button("Link term"):
-            if not link_tid or not link_tbl:
-                st.error("Provide both a term ID and a target table.")
-            else:
-                try:
-                    if link_col and link_col != "(table-level)":
-                        uc.set_column_tags(
-                            link_cat,
-                            link_sch,
-                            link_tbl,
-                            link_col,
-                            {"glossary_term": link_tid},
-                        )
-                        st.success(
-                            f"Tagged column `{link_cat}.{link_sch}.{link_tbl}.{link_col}` "
-                            f"with `glossary_term = {link_tid}`."
-                        )
-                    else:
-                        uc.set_table_tags(
-                            link_cat, link_sch, link_tbl, {"glossary_term": link_tid}
-                        )
-                        st.success(
-                            f"Tagged `{link_cat}.{link_sch}.{link_tbl}` with "
-                            f"`glossary_term = {link_tid}`."
-                        )
-                except Exception as e:
-                    st.error(str(e))
+                if link_col and link_col != "(table-level)":
+                    uc.set_column_tags(
+                        lc, ls, lt, link_col, {"glossary_term": link_tid}
+                    )
+                    st.success(
+                        f"Tagged column `{lc}.{ls}.{lt}.{link_col}` "
+                        f"with `glossary_term = {link_tid}`."
+                    )
+                else:
+                    uc.set_table_tags(lc, ls, lt, {"glossary_term": link_tid})
+                    st.success(
+                        f"Tagged `{lc}.{ls}.{lt}` with "
+                        f"`glossary_term = {link_tid}`."
+                    )
+            except Exception as e:
+                st.error(str(e))
 
 
 # ─────────────────────────────────────────────────────────────
