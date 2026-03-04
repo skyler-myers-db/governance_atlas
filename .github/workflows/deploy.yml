@@ -1,0 +1,107 @@
+# ──────────────────────────────────────────────────────────────
+# Governance Hub — CI / CD with Databricks Asset Bundles
+# ──────────────────────────────────────────────────────────────
+# Deploys the Databricks App to dev / staging / prod targets
+# defined in databricks.yml.
+#
+# Prerequisites (GitHub repo → Settings → Secrets):
+#   DATABRICKS_HOST        – Workspace URL (https://<workspace>.cloud.databricks.com)
+#   DATABRICKS_TOKEN       – Personal access token or SP OAuth token
+#   DATABRICKS_WAREHOUSE_ID – SQL Warehouse ID for the target workspace
+#
+# Optional secrets (only if OpenMetadata is used):
+#   OM_SERVER_URL
+#   OM_JWT_TOKEN
+# ──────────────────────────────────────────────────────────────
+
+name: Deploy Governance Hub
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+    workflow_dispatch:
+        inputs:
+            target:
+                description: "DAB target (dev | staging | prod)"
+                required: true
+                default: dev
+                type: choice
+                options:
+                    - dev
+                    - staging
+                    - prod
+
+permissions:
+    contents: read
+    id-token: write # for OIDC-based service-principal auth (optional)
+
+env:
+    DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+    DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+jobs:
+    # ── Lint & validate ───────────────────────────────────────
+    validate:
+        name: Validate bundle
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install Databricks CLI
+              uses: databricks/setup-cli@main
+
+            - name: Validate bundle
+              run: databricks bundle validate -t dev
+
+    # ── Deploy ────────────────────────────────────────────────
+    deploy:
+        name: Deploy (${{ github.event.inputs.target || 'dev' }})
+        needs: validate
+        runs-on: ubuntu-latest
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        environment: ${{ github.event.inputs.target || 'dev' }}
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install Databricks CLI
+              uses: databricks/setup-cli@main
+
+            - name: Set target
+              id: target
+              run: |
+                  # Default to 'dev' on push to main, otherwise use manual input
+                  if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+                    echo "target=${{ github.event.inputs.target }}" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "target=dev" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Deploy bundle
+              run: |
+                  databricks bundle deploy \
+                    -t "${{ steps.target.outputs.target }}" \
+                    --var="warehouse_id=${{ secrets.DATABRICKS_WAREHOUSE_ID }}"
+
+            - name: Summary
+              run: |
+                  echo "### ✅ Deployed to **${{ steps.target.outputs.target }}**" >> "$GITHUB_STEP_SUMMARY"
+                  echo "" >> "$GITHUB_STEP_SUMMARY"
+                  echo "Bundle: governance-hub" >> "$GITHUB_STEP_SUMMARY"
+                  echo "Workspace: ${{ secrets.DATABRICKS_HOST }}" >> "$GITHUB_STEP_SUMMARY"
+
+    # ── PR check (validate only, no deploy) ───────────────────
+    pr-check:
+        name: PR validation
+        runs-on: ubuntu-latest
+        if: github.event_name == 'pull_request'
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Install Databricks CLI
+              uses: databricks/setup-cli@main
+
+            - name: Validate bundle
+              run: databricks bundle validate -t dev
