@@ -21,7 +21,8 @@ from govhub.uc import UCSQLClient
 # hive_metastore is the legacy non-UC metastore, samples/system are managed by
 # Databricks and not user-governed.
 _HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
-
+# Cache TTL for read-only metadata queries (seconds).
+_META_TTL = 120  # 2 minutes — keeps the UI snappy between tab switches
 
 # ── Cached singletons ──────────────────────────────────────
 
@@ -53,6 +54,86 @@ def _get_om_client(_cfg: AppConfig) -> Optional[OpenMetadataClient]:
     )
 
 
+# ── Cached read-only metadata queries ─────────────────────────
+# These avoid re-hitting the SQL Warehouse on every Streamlit rerun
+# (widget change, tab switch, etc.).
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_catalogs(_uc: UCSQLClient) -> List[str]:
+    df = _uc.list_catalogs()
+    if df.empty:
+        return []
+    names = df.iloc[:, 0].tolist()
+    return [c for c in names if c.lower() not in _HIDDEN_CATALOGS]
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_schemas(_uc: UCSQLClient, catalog: str) -> List[str]:
+    df = _uc.list_schemas(catalog)
+    if df.empty:
+        return []
+    return df.iloc[:, 0].tolist()
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_tables(_uc: UCSQLClient, catalog: str, schema: str) -> List[str]:
+    df = _uc.list_tables(catalog, schema)
+    if df.empty:
+        return []
+    tcol = "tableName" if "tableName" in df.columns else df.columns[-1]
+    return df[tcol].tolist()
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_columns(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    return _uc.get_table_columns(catalog, schema, table)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_comment(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> str:
+    return _uc.get_table_comment(catalog, schema, table)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_table_tags(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    return _uc.get_table_tags(catalog, schema, table)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_lineage_up(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    return _uc.get_table_lineage_upstream(catalog, schema, table)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_lineage_down(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    return _uc.get_table_lineage_downstream(catalog, schema, table)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_col_lineage_up(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    return _uc.get_column_lineage_upstream(catalog, schema, table)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_col_lineage_down(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    return _uc.get_column_lineage_downstream(catalog, schema, table)
+
+
 # ── Helpers ─────────────────────────────────────────────────
 
 
@@ -69,11 +150,7 @@ def _split_uc_name(name: str) -> Tuple[str, str, str]:
 
 def _user_catalogs(uc: UCSQLClient) -> List[str]:
     """Return catalog names with non-UC / internal catalogs filtered out."""
-    df = uc.list_catalogs()
-    if df.empty:
-        return []
-    names = df.iloc[:, 0].tolist()
-    return [c for c in names if c.lower() not in _HIDDEN_CATALOGS]
+    return _cached_catalogs(uc)
 
 
 def _table_picker(
@@ -87,30 +164,27 @@ def _table_picker(
 
     Returns ``(catalog, schema, table)`` when a table is selected, else ``None``.
     """
-    catalogs = _user_catalogs(uc)
+    catalogs = _cached_catalogs(uc)
     if not catalogs:
         st.warning("No Unity Catalog catalogs visible to this service principal.")
         return None
 
     catalog = st.selectbox(label_catalog, catalogs, key=f"{key_prefix}_cat")
 
-    schemas = uc.list_schemas(catalog)
-    if schemas.empty:
+    schemas = _cached_schemas(uc, catalog)
+    if not schemas:
         st.info("No schemas in this catalog.")
         return None
-    schema = st.selectbox(
-        label_schema, schemas.iloc[:, 0].tolist(), key=f"{key_prefix}_sch"
-    )
+    schema = st.selectbox(label_schema, schemas, key=f"{key_prefix}_sch")
 
     if not schema:
         return None
 
-    tables = uc.list_tables(catalog, schema)
-    if tables.empty:
+    tables = _cached_tables(uc, catalog, schema)
+    if not tables:
         st.info("No tables in this schema.")
         return None
-    tcol = "tableName" if "tableName" in tables.columns else tables.columns[-1]
-    table = st.selectbox(label_table, tables[tcol].tolist(), key=f"{key_prefix}_tbl")
+    table = st.selectbox(label_table, tables, key=f"{key_prefix}_tbl")
 
     if not table:
         return None
@@ -318,9 +392,9 @@ def page_uc_browser(
     st.caption(f"Selected: `{uc_full}`")
 
     # Details
-    cols_df = uc.get_table_columns(catalog, schema, table)
-    comment = uc.get_table_comment(catalog, schema, table)
-    tags_df = uc.get_table_tags(catalog, schema, table)
+    cols_df = _cached_columns(uc, catalog, schema, table)
+    comment = _cached_comment(uc, catalog, schema, table)
+    tags_df = _cached_table_tags(uc, catalog, schema, table)
 
     with st.expander("📋 Table details", expanded=True):
         st.markdown("**Table comment**")
@@ -466,13 +540,14 @@ def page_lineage(uc: UCSQLClient):
     catalog, schema, table = picked
     st.caption(f"Showing lineage for `{catalog}.{schema}.{table}`")
 
-    tab_up, tab_down, tab_col = st.tabs(
-        ["⬆️ Upstream", "⬇️ Downstream", "🔗 Column lineage"]
+    tab_up, tab_down, tab_col_up, tab_col_down = st.tabs(
+        ["⬆️ Upstream tables", "⬇️ Downstream tables",
+         "⬆️ Column sources", "⬇️ Column targets"]
     )
 
     with tab_up:
         try:
-            df = uc.get_table_lineage_upstream(catalog, schema, table)
+            df = _cached_lineage_up(uc, catalog, schema, table)
             if df.empty:
                 st.info(
                     "No upstream lineage found.  This table may not have any "
@@ -491,7 +566,7 @@ def page_lineage(uc: UCSQLClient):
 
     with tab_down:
         try:
-            df = uc.get_table_lineage_downstream(catalog, schema, table)
+            df = _cached_lineage_down(uc, catalog, schema, table)
             if df.empty:
                 st.info("No downstream consumers found for this table.")
             else:
@@ -499,11 +574,16 @@ def page_lineage(uc: UCSQLClient):
         except Exception as e:
             st.error(f"**Error querying downstream lineage:**\n\n`{e}`")
 
-    with tab_col:
+    with tab_col_up:
+        st.caption(
+            "Which source columns feed **into** this table's columns.  "
+            "Reads `source_column → target_column` mappings from "
+            "`system.access.column_lineage`."
+        )
         try:
-            df = uc.get_column_lineage(catalog, schema, table)
+            df = _cached_col_lineage_up(uc, catalog, schema, table)
             if df.empty:
-                st.info("No column-level lineage found.")
+                st.info("No upstream column lineage found.")
             else:
                 st.dataframe(df, use_container_width=True, hide_index=True)
         except Exception as e:
@@ -512,6 +592,22 @@ def page_lineage(uc: UCSQLClient):
                 "Grant `SELECT` on `system.access.column_lineage` "
                 "to the app's service principal."
             )
+
+    with tab_col_down:
+        st.caption(
+            "Which columns in **downstream** tables are fed by this table's columns.  "
+            "Note: Databricks records which source columns are *read* during a write — "
+            "some mappings may appear broader than expected if the ETL reads a column "
+            "without a direct 1:1 mapping to a single target column."
+        )
+        try:
+            df = _cached_col_lineage_down(uc, catalog, schema, table)
+            if df.empty:
+                st.info("No downstream column lineage found.")
+            else:
+                st.dataframe(df, use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.error(f"**Error querying downstream column lineage:**\n\n`{e}`")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -588,7 +684,7 @@ def page_glossary(uc: UCSQLClient, store: GovernanceStore, role: str, user_email
     if picked_link:
         lc, ls, lt = picked_link
         try:
-            cols_df = uc.get_table_columns(lc, ls, lt)
+            cols_df = _cached_columns(uc, lc, ls, lt)
             if not cols_df.empty:
                 link_col = st.selectbox(
                     "Column (optional — leave as '(table-level)' to tag the table)",
