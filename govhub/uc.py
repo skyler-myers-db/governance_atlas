@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import pandas as pd
 from databricks.sdk import WorkspaceClient
@@ -192,11 +192,13 @@ ORDER BY tag_name"""
     ) -> pd.DataFrame:
         """Upstream lineage: what tables feed INTO this table."""
         q = f"""
-SELECT
+SELECT DISTINCT
+    source_table_full_name,
     source_table_catalog,
     source_table_schema,
     source_table_name,
     source_type,
+    created_by,
     event_time
 FROM system.access.table_lineage
 WHERE target_table_catalog = {sql_literal(catalog)}
@@ -205,29 +207,20 @@ WHERE target_table_catalog = {sql_literal(catalog)}
 ORDER BY event_time DESC
 LIMIT {int(limit)}
 """
-        try:
-            return self.query_df(q)
-        except Exception:
-            return pd.DataFrame(
-                columns=[
-                    "source_table_catalog",
-                    "source_table_schema",
-                    "source_table_name",
-                    "source_type",
-                    "event_time",
-                ]
-            )
+        return self.query_df(q)
 
     def get_table_lineage_downstream(
         self, catalog: str, schema: str, table: str, limit: int = 50
     ) -> pd.DataFrame:
         """Downstream lineage: what tables does this table feed."""
         q = f"""
-SELECT
+SELECT DISTINCT
+    target_table_full_name,
     target_table_catalog,
     target_table_schema,
     target_table_name,
     target_type,
+    created_by,
     event_time
 FROM system.access.table_lineage
 WHERE source_table_catalog = {sql_literal(catalog)}
@@ -236,29 +229,18 @@ WHERE source_table_catalog = {sql_literal(catalog)}
 ORDER BY event_time DESC
 LIMIT {int(limit)}
 """
-        try:
-            return self.query_df(q)
-        except Exception:
-            return pd.DataFrame(
-                columns=[
-                    "target_table_catalog",
-                    "target_table_schema",
-                    "target_table_name",
-                    "target_type",
-                    "event_time",
-                ]
-            )
+        return self.query_df(q)
 
     def get_column_lineage(
         self, catalog: str, schema: str, table: str, limit: int = 100
     ) -> pd.DataFrame:
         """Column-level lineage for a table (both directions)."""
         q = f"""
-SELECT
-    source_table_catalog, source_table_schema, source_table_name,
-    source_column_name,
-    target_table_catalog, target_table_schema, target_table_name,
-    target_column_name,
+SELECT DISTINCT
+    source_table_full_name, source_table_catalog, source_table_schema,
+    source_table_name, source_column_name,
+    target_table_full_name, target_table_catalog, target_table_schema,
+    target_table_name, target_column_name,
     event_time
 FROM system.access.column_lineage
 WHERE (
@@ -273,19 +255,57 @@ WHERE (
 ORDER BY event_time DESC
 LIMIT {int(limit)}
 """
+        return self.query_df(q)
+
+    # ── Column-level metadata ───────────────────────────────
+
+    def set_column_comment(
+        self, catalog: str, schema: str, table: str, column: str, comment: str
+    ) -> None:
+        full = quote_uc_3part(catalog, schema, table)
+        self.execute(
+            f"ALTER TABLE {full} ALTER COLUMN {quote_ident(column)} "
+            f"COMMENT {sql_literal(comment)}"
+        )
+
+    def get_column_tags(
+        self, catalog: str, schema: str, table: str, column: str
+    ) -> pd.DataFrame:
+        q = f"""SELECT tag_name, tag_value
+FROM {quote_ident(catalog)}.information_schema.column_tags
+WHERE table_schema = {sql_literal(schema)}
+  AND table_name   = {sql_literal(table)}
+  AND column_name  = {sql_literal(column)}
+ORDER BY tag_name"""
         try:
             return self.query_df(q)
         except Exception:
-            return pd.DataFrame(
-                columns=[
-                    "source_table_catalog",
-                    "source_table_schema",
-                    "source_table_name",
-                    "source_column_name",
-                    "target_table_catalog",
-                    "target_table_schema",
-                    "target_table_name",
-                    "target_column_name",
-                    "event_time",
-                ]
-            )
+            return pd.DataFrame(columns=["tag_name", "tag_value"])
+
+    def set_column_tags(
+        self, catalog: str, schema: str, table: str, column: str,
+        tags: Dict[str, str],
+    ) -> None:
+        if not tags:
+            return
+        full = quote_uc_3part(catalog, schema, table)
+        parts = ", ".join(
+            f"{quote_ident(k)} = {sql_literal(v)}" for k, v in tags.items()
+        )
+        self.execute(
+            f"ALTER TABLE {full} ALTER COLUMN {quote_ident(column)} "
+            f"SET TAGS ({parts})"
+        )
+
+    def unset_column_tags(
+        self, catalog: str, schema: str, table: str, column: str,
+        tag_keys: List[str],
+    ) -> None:
+        if not tag_keys:
+            return
+        full = quote_uc_3part(catalog, schema, table)
+        parts = ", ".join(quote_ident(k) for k in tag_keys)
+        self.execute(
+            f"ALTER TABLE {full} ALTER COLUMN {quote_ident(column)} "
+            f"UNSET TAGS ({parts})"
+        )

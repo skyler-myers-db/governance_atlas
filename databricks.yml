@@ -1,55 +1,73 @@
 bundle:
   name: governance-hub
 
+# ── Variables ──────────────────────────────────────────────
+# Override per-target or via CLI: databricks bundle deploy -t prod
 variables:
-  app_name:
-    description: "Name of the Databricks App"
-    default: governance-hub
   warehouse_id:
-    description: "SQL Warehouse ID the app uses for Unity Catalog queries"
-  secret_scope:
-    description: "Secret scope that contains OpenMetadata connection secrets"
+    description: "SQL Warehouse ID the app uses for UC queries"
+  gov_catalog:
+    description: "UC catalog where governance tables are created"
+    default: main
+  gov_schema:
+    description: "UC schema within the catalog for governance tables"
     default: governance_hub
+  admin_emails:
+    description: "Comma-separated bootstrap admin emails"
+    default: ""
+  secret_scope:
+    description: "Secret scope for OpenMetadata connection secrets (set to empty to skip)"
+    default: ""
   om_server_url_key:
-    description: "Secret key name for the OpenMetadata server URL"
+    description: "Secret key for OpenMetadata server URL"
     default: om_server_url
   om_jwt_token_key:
-    description: "Secret key name for the OpenMetadata JWT token"
+    description: "Secret key for OpenMetadata JWT token"
     default: om_jwt_token
 
+# ── App resource ────────────────────────────────────────────
 resources:
   apps:
     governance_hub:
-      name: ${var.app_name}
-      description: "Governance Hub (Unity Catalog + OpenMetadata)"
+      name: governance-hub
+      description: >
+        Governance Hub — a self-service data governance portal extending
+        Unity Catalog, deployable to any Databricks workspace.
       source_code_path: .
-
-      # Resources injected into the app at runtime (secrets, warehouse, etc.)
       resources:
         - name: uc_warehouse
           sql_warehouse:
             id: ${var.warehouse_id}
             permission: CAN_USE
 
-        - name: om_server_url
-          secret:
-            scope: ${var.secret_scope}
-            key: ${var.om_server_url_key}
-            permission: READ
-
-        - name: om_jwt_token
-          secret:
-            scope: ${var.secret_scope}
-            key: ${var.om_jwt_token_key}
-            permission: READ
-
-      # Example: allow all workspace users to access the app UI.
-      # Adjust group_name to match your workspace conventions.
       permissions:
         - level: CAN_USE
           group_name: users
 
+# ── Targets (environments) ──────────────────────────────────
+# Each target maps to a Databricks workspace + profile.
+# `databricks bundle deploy -t <target>` selects the environment.
 targets:
   dev:
+    mode: development
     default: true
-    # Uses the Databricks CLI configured workspace/profile host.
+    variables:
+      gov_catalog: dev
+      gov_schema: governance_hub
+    workspace:
+      # Uses the DEFAULT profile in ~/.databrickscfg unless overridden
+      host: ${workspace.host}
+
+  staging:
+    variables:
+      gov_catalog: staging
+      gov_schema: governance_hub
+    workspace:
+      host: ${workspace.host}
+
+  prod:
+    variables:
+      gov_catalog: prod
+      gov_schema: governance_hub
+    workspace:
+      host: ${workspace.host}

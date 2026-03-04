@@ -316,7 +316,7 @@ def page_uc_browser(
     tags_df = uc.get_table_tags(catalog, schema, table)
 
     with st.expander("📋 Table details", expanded=True):
-        st.markdown("**Comment**")
+        st.markdown("**Table comment**")
         st.code(comment or "(none)")
         st.markdown("**Columns**")
         st.dataframe(cols_df, use_container_width=True, hide_index=True)
@@ -340,26 +340,79 @@ def page_uc_browser(
     is_writer = role in {"writer", "admin"}
     st.divider()
     st.subheader("Governance actions")
+
     if is_writer:
-        st.markdown("##### Update UC comment")
+        # ── Table comment ──────────────────────────────────
+        st.markdown("##### Update table comment")
         new_comment = st.text_area(
             "New comment", value=comment or "", height=100, key=f"cmt_{uc_full}"
         )
-        if st.button("Save comment", key=f"sv_cmt_{uc_full}"):
+        if st.button("Save table comment", key=f"sv_cmt_{uc_full}"):
             try:
                 uc.set_table_comment(catalog, schema, table, new_comment)
-                st.success("Comment updated.")
+                st.success("Table comment updated.")
             except Exception as e:
                 st.error(str(e))
 
-        st.markdown("##### Update UC tags")
+        # ── Table tags ─────────────────────────────────────
+        st.markdown("##### Update table tags")
         edited = _tags_editor(tags_df)
-        if st.button("Save tags", key=f"sv_tags_{uc_full}"):
+        if st.button("Save table tags", key=f"sv_tags_{uc_full}"):
             try:
                 uc.set_table_tags(catalog, schema, table, _df_to_tags_map(edited))
-                st.success("Tags updated.")
+                st.success("Table tags updated.")
             except Exception as e:
                 st.error(str(e))
+
+        # ── Column comments ────────────────────────────────
+        st.markdown("##### Edit column comments")
+        st.caption(
+            "Select a column and update its description.  "
+            "These are stored as column-level comments in Unity Catalog."
+        )
+        if not cols_df.empty:
+            col_name_list = cols_df["column_name"].tolist()
+            sel_col = st.selectbox(
+                "Column", col_name_list, key=f"col_sel_{uc_full}"
+            )
+            current_col_cmt = ""
+            if sel_col and not cols_df.empty:
+                row = cols_df[cols_df["column_name"] == sel_col]
+                if not row.empty:
+                    current_col_cmt = str(row.iloc[0].get("comment") or "")
+                    if current_col_cmt.lower() == "none":
+                        current_col_cmt = ""
+            new_col_cmt = st.text_area(
+                "Column comment",
+                value=current_col_cmt,
+                height=80,
+                key=f"col_cmt_{uc_full}_{sel_col}",
+            )
+            if st.button("Save column comment", key=f"sv_ccmt_{uc_full}_{sel_col}"):
+                try:
+                    uc.set_column_comment(
+                        catalog, schema, table, sel_col, new_col_cmt
+                    )
+                    st.success(f"Comment updated for column `{sel_col}`.")
+                except Exception as e:
+                    st.error(str(e))
+
+            # ── Column tags ────────────────────────────────
+            st.markdown("##### Edit column tags")
+            col_tags_df = uc.get_column_tags(catalog, schema, table, sel_col)
+            edited_col_tags = _tags_editor(col_tags_df)
+            if st.button("Save column tags", key=f"sv_ctags_{uc_full}_{sel_col}"):
+                try:
+                    uc.set_column_tags(
+                        catalog, schema, table, sel_col,
+                        _df_to_tags_map(edited_col_tags),
+                    )
+                    st.success(f"Tags updated for column `{sel_col}`.")
+                except Exception as e:
+                    st.error(str(e))
+        else:
+            st.info("No columns found for this table.")
+
     else:
         st.info(
             "📝 **Readers** can propose changes via a **Change Request**.  "
@@ -407,29 +460,47 @@ def page_lineage(uc: UCSQLClient):
     )
 
     with tab_up:
-        df = uc.get_table_lineage_upstream(catalog, schema, table)
-        if df.empty:
-            st.info(
-                "No upstream lineage found.  This table may not have any "
-                "recorded reads from other tables, or system tables may "
-                "not be enabled."
+        try:
+            df = uc.get_table_lineage_upstream(catalog, schema, table)
+            if df.empty:
+                st.info(
+                    "No upstream lineage found.  This table may not have any "
+                    "recorded reads from other tables."
+                )
+            else:
+                st.dataframe(df, use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.error(
+                f"**Error querying `system.access.table_lineage`:**\n\n`{e}`\n\n"
+                "This usually means the app's service principal has not been "
+                "granted `SELECT` on `system.access.table_lineage`. Run:\n\n"
+                "```sql\nGRANT SELECT ON TABLE system.access.table_lineage "
+                "TO `<service-principal-app-id>`;\n```"
             )
-        else:
-            st.dataframe(df, use_container_width=True, hide_index=True)
 
     with tab_down:
-        df = uc.get_table_lineage_downstream(catalog, schema, table)
-        if df.empty:
-            st.info("No downstream consumers found for this table.")
-        else:
-            st.dataframe(df, use_container_width=True, hide_index=True)
+        try:
+            df = uc.get_table_lineage_downstream(catalog, schema, table)
+            if df.empty:
+                st.info("No downstream consumers found for this table.")
+            else:
+                st.dataframe(df, use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.error(f"**Error querying downstream lineage:**\n\n`{e}`")
 
     with tab_col:
-        df = uc.get_column_lineage(catalog, schema, table)
-        if df.empty:
-            st.info("No column-level lineage found.")
-        else:
-            st.dataframe(df, use_container_width=True, hide_index=True)
+        try:
+            df = uc.get_column_lineage(catalog, schema, table)
+            if df.empty:
+                st.info("No column-level lineage found.")
+            else:
+                st.dataframe(df, use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.error(
+                f"**Error querying `system.access.column_lineage`:**\n\n`{e}`\n\n"
+                "Grant `SELECT` on `system.access.column_lineage` "
+                "to the app's service principal."
+            )
 
 
 # ─────────────────────────────────────────────────────────────
@@ -489,12 +560,12 @@ def page_glossary(uc: UCSQLClient, store: GovernanceStore, role: str, user_email
                 st.success(f"Saved term `{tid}`.")
                 st.rerun()
 
-    # ── Link term to a UC table ─────────────────────────
+    # ── Link term to a UC table or column ─────────────
     st.divider()
-    st.subheader("Link a glossary term to a UC table")
+    st.subheader("Link a glossary term to a UC table or column")
     st.caption(
-        "Associating a term with a table adds a UC tag `glossary_term = <term_id>` "
-        "so the relationship is persisted in Unity Catalog itself."
+        "Associating a term adds a UC tag `glossary_term = <term_id>` on the "
+        "table or column, persisting the relationship in Unity Catalog."
     )
     with st.form("link_term"):
         link_tid = st.text_input("Term ID to link")
@@ -524,18 +595,47 @@ def page_glossary(uc: UCSQLClient, store: GovernanceStore, role: str, user_email
             else [],
             key="gl_lnk_tbl",
         )
-        if st.form_submit_button("Link term → table"):
+
+        # Optional: link to a specific column
+        link_columns: List[str] = []
+        if link_cat and link_sch and link_tbl:
+            try:
+                cols_df = uc.get_table_columns(link_cat, link_sch, link_tbl)
+                if not cols_df.empty:
+                    link_columns = cols_df["column_name"].tolist()
+            except Exception:
+                pass
+        link_col = st.selectbox(
+            "Column (optional — leave as '(table-level)' to tag the table)",
+            ["(table-level)"] + link_columns,
+            key="gl_lnk_col",
+        )
+
+        if st.form_submit_button("Link term"):
             if not link_tid or not link_tbl:
                 st.error("Provide both a term ID and a target table.")
             else:
                 try:
-                    uc.set_table_tags(
-                        link_cat, link_sch, link_tbl, {"glossary_term": link_tid}
-                    )
-                    st.success(
-                        f"Tagged `{link_cat}.{link_sch}.{link_tbl}` with "
-                        f"`glossary_term = {link_tid}`."
-                    )
+                    if link_col and link_col != "(table-level)":
+                        uc.set_column_tags(
+                            link_cat,
+                            link_sch,
+                            link_tbl,
+                            link_col,
+                            {"glossary_term": link_tid},
+                        )
+                        st.success(
+                            f"Tagged column `{link_cat}.{link_sch}.{link_tbl}.{link_col}` "
+                            f"with `glossary_term = {link_tid}`."
+                        )
+                    else:
+                        uc.set_table_tags(
+                            link_cat, link_sch, link_tbl, {"glossary_term": link_tid}
+                        )
+                        st.success(
+                            f"Tagged `{link_cat}.{link_sch}.{link_tbl}` with "
+                            f"`glossary_term = {link_tid}`."
+                        )
                 except Exception as e:
                     st.error(str(e))
 
