@@ -548,21 +548,21 @@ def _render_column_lineage(
     c2.metric("Direct name-matches", n_direct)
     c3.metric("Indirect / broad", total_rows - n_direct)
 
-    direct_only = st.toggle(
-        "Show only direct name-matches",
+    show_all = st.toggle(
+        "Include indirect / broad mappings",
         value=False,
-        key=f"direct_{key}",
+        key=f"showall_{key}",
         help=(
-            "When enabled, only shows rows where the source and target column "
-            "names match (case-insensitive).  These are the most likely real "
-            "column-to-column transformations."
+            "By default only rows where source and target column names match "
+            "(case-insensitive) are shown — these are the most reliable lineage "
+            "signals.  Enable this to include the broader operation-level mappings."
         ),
     )
 
-    view_df = df[direct_mask] if direct_only else df
+    view_df = df if show_all else df[direct_mask]
 
     if view_df.empty:
-        st.info("No direct name-matches found for this table.")
+        st.info("No direct column name-matches found for this table.")
     else:
         st.dataframe(view_df, use_container_width=True, hide_index=True)
 
@@ -1073,25 +1073,27 @@ def main():
     ]
     page = st.sidebar.radio("Navigate", pages, index=0, label_visibility="collapsed")
 
-    # Render inside a single empty container so Streamlit fully clears the
-    # previous page's DOM subtree on every navigation switch, preventing
-    # visual remnants/ghosts of the old page from bleeding through.
-    _page_slot = st.empty()
-    with _page_slot.container():
-        if page == "🏠 Home":
-            page_home(cfg, uc, om, role, user_email)
-        elif page == "🗂️ UC Browser":
-            page_uc_browser(cfg, uc, store, role, user_email)
-        elif page == "🔀 Lineage":
-            page_lineage(uc)
-        elif page == "📘 Glossary":
-            page_glossary(uc, store, role, user_email)
-        elif page == "📋 Change Requests":
-            page_change_requests(cfg, uc, store, om, role, user_email)
-        elif page == "🔌 OpenMetadata":
-            page_openmetadata(om, store, role, user_email)
-        elif page == "⚙️ Admin":
-            page_admin(store, role, user_email)
+    # Detect page changes and force a clean rerun so Streamlit tears down
+    # all widgets from the previous page before rendering the new one.
+    # This prevents visual remnants of the old page from bleeding through.
+    if st.session_state.get("_prev_page") != page:
+        st.session_state["_prev_page"] = page
+        st.rerun()
+
+    if page == "🏠 Home":
+        page_home(cfg, uc, om, role, user_email)
+    elif page == "🗂️ UC Browser":
+        page_uc_browser(cfg, uc, store, role, user_email)
+    elif page == "🔀 Lineage":
+        page_lineage(uc)
+    elif page == "📘 Glossary":
+        page_glossary(uc, store, role, user_email)
+    elif page == "📋 Change Requests":
+        page_change_requests(cfg, uc, store, om, role, user_email)
+    elif page == "🔌 OpenMetadata":
+        page_openmetadata(om, store, role, user_email)
+    elif page == "⚙️ Admin":
+        page_admin(store, role, user_email)
 
 
 if __name__ == "__main__":
