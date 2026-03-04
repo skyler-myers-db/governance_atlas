@@ -231,28 +231,46 @@ LIMIT {int(limit)}
 """
         return self.query_df(q)
 
-    def get_column_lineage(
+    def get_column_lineage_upstream(
         self, catalog: str, schema: str, table: str, limit: int = 100
     ) -> pd.DataFrame:
-        """Column-level lineage for a table (both directions)."""
+        """Column-level upstream: which source columns feed into this table's columns."""
         q = f"""
 SELECT
-    source_table_full_name, source_column_name,
-    target_table_full_name, target_column_name
+    source_table_full_name,
+    source_column_name,
+    target_column_name
 FROM system.access.column_lineage
-WHERE (
-        target_table_catalog = {sql_literal(catalog)}
-    AND target_table_schema  = {sql_literal(schema)}
-    AND target_table_name    = {sql_literal(table)}
-  ) OR (
-        source_table_catalog = {sql_literal(catalog)}
-    AND source_table_schema  = {sql_literal(schema)}
-    AND source_table_name    = {sql_literal(table)}
-  )
+WHERE target_table_catalog = {sql_literal(catalog)}
+  AND target_table_schema  = {sql_literal(schema)}
+  AND target_table_name    = {sql_literal(table)}
+  AND source_table_full_name IS NOT NULL
   AND source_column_name IS NOT NULL
   AND target_column_name IS NOT NULL
 GROUP BY ALL
-ORDER BY source_table_full_name, source_column_name
+ORDER BY target_column_name, source_table_full_name, source_column_name
+LIMIT {int(limit)}
+"""
+        return self.query_df(q)
+
+    def get_column_lineage_downstream(
+        self, catalog: str, schema: str, table: str, limit: int = 100
+    ) -> pd.DataFrame:
+        """Column-level downstream: which target columns are fed by this table's columns."""
+        q = f"""
+SELECT
+    source_column_name,
+    target_table_full_name,
+    target_column_name
+FROM system.access.column_lineage
+WHERE source_table_catalog = {sql_literal(catalog)}
+  AND source_table_schema  = {sql_literal(schema)}
+  AND source_table_name    = {sql_literal(table)}
+  AND target_table_full_name IS NOT NULL
+  AND source_column_name IS NOT NULL
+  AND target_column_name IS NOT NULL
+GROUP BY ALL
+ORDER BY source_column_name, target_table_full_name, target_column_name
 LIMIT {int(limit)}
 """
         return self.query_df(q)
