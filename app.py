@@ -262,6 +262,23 @@ def _safe_badge(text: str, tone: str = "neutral") -> str:
     return f"<span class='gh-badge gh-badge-{tone}'>{html.escape(text)}</span>"
 
 
+def _button_nav(options: List[str], state_key: str) -> str:
+    current = st.session_state.get(state_key, options[0])
+    cols = st.columns(len(options))
+    for col, option in zip(cols, options):
+        with col:
+            if st.button(
+                option,
+                key=f"{state_key}_{option}",
+                use_container_width=True,
+                type="primary" if option == current else "secondary",
+            ):
+                if option != current:
+                    st.session_state[state_key] = option
+                    st.rerun()
+    return st.session_state.get(state_key, current)
+
+
 def _render_styles() -> None:
     st.markdown(
         """
@@ -563,12 +580,21 @@ def _render_styles() -> None:
   }
 
   div[data-testid="stMetricLabel"] {
-    color: var(--gh-muted);
+    color: #50627f;
     font-weight: 700;
   }
 
   div[data-testid="stMetricValue"] {
     color: var(--gh-text);
+  }
+
+  div[data-testid="stWidgetLabel"] p,
+  div[data-testid="stWidgetLabel"] span,
+  .stCaption,
+  label,
+  .stMarkdown p {
+    color: var(--gh-text) !important;
+    opacity: 1 !important;
   }
 
   .stButton > button {
@@ -604,6 +630,8 @@ def _render_styles() -> None:
     border: 1px solid var(--gh-border);
     padding: 0.5rem 0.9rem;
     font-weight: 700;
+    color: var(--gh-text) !important;
+    opacity: 1 !important;
   }
 
   .stTabs [aria-selected="true"] {
@@ -621,6 +649,28 @@ def _render_styles() -> None:
 
   .stRadio [role="radiogroup"] {
     gap: 0.35rem;
+  }
+
+  .gh-nav-spacer {
+    margin-top: 0.35rem;
+  }
+
+  .gh-mini-panel {
+    padding: 1rem 1.1rem;
+    border-radius: 18px;
+    border: 1px solid var(--gh-border);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
+    margin-bottom: 1rem;
+  }
+
+  .gh-kicker {
+    font-size: 0.76rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #617390;
+    font-weight: 800;
+    margin-bottom: 0.4rem;
   }
 
   @media (max-width: 900px) {
@@ -983,27 +1033,18 @@ def _profile_header_html(asset: pd.Series) -> str:
         _safe_badge(structured.get("sensitivity", ""), "warn"),
         _safe_badge(structured.get("criticality", ""), "danger"),
     ]
-    om_badge = _safe_badge(
-        "OpenMetadata linked" if _normalize_str(asset.get("om_table_fqn")) else "",
-        "good",
-    )
     description = _normalize_str(asset.get("comment")) or (
         "This asset has not been documented yet. Add a business-facing description "
         "and governance fields to move it toward enterprise-ready status."
     )
     return f"""
 <div class="gh-panel">
-  <div class="gh-profile-head">
-    <div>
-      <div class="gh-panel-label">Asset Profile</div>
-      <div class="gh-profile-title">{html.escape(_normalize_str(asset.get("table_name")))}</div>
-      <div class="gh-profile-fqn">{html.escape(_normalize_str(asset.get("fqn")))}</div>
-    </div>
-    <div class="gh-chip-row">
-      <span class="gh-chip">Coverage {int(asset.get("governance_score", 0))}</span>
-      <span class="gh-chip">{html.escape(_normalize_str(asset.get("governance_status")))}</span>
-      {om_badge}
-    </div>
+  <div class="gh-kicker">Asset Profile</div>
+  <div class="gh-profile-title">{html.escape(_normalize_str(asset.get("table_name")))}</div>
+  <div class="gh-profile-fqn">{html.escape(_normalize_str(asset.get("fqn")))}</div>
+  <div class="gh-chip-row gh-nav-spacer">
+    <span class="gh-chip">Coverage {int(asset.get("governance_score", 0))}</span>
+    <span class="gh-chip">{html.escape(_normalize_str(asset.get("governance_status")))}</span>
   </div>
   <div class="gh-badge-row">{"".join(badge for badge in badges if badge)}</div>
   <div class="gh-profile-copy">{html.escape(description)}</div>
@@ -1151,44 +1192,50 @@ def _filtered_inventory(inventory: pd.DataFrame) -> pd.DataFrame:
     if inventory.empty:
         return inventory
 
-    query_col, sort_col = st.columns([2.3, 1])
-    with query_col:
-        query = st.text_input(
-            "Search assets",
-            placeholder="customer, finance, PII, steward email, certified",
-            key="asset_search",
+    with st.form("discovery_filters", border=False):
+        query_col, sort_col = st.columns([2.3, 1])
+        with query_col:
+            query = st.text_input(
+                "Search assets",
+                placeholder="customer, finance, PII, steward email, certified",
+                key="asset_search",
+            )
+        with sort_col:
+            sort_mode = st.selectbox(
+                "Sort by",
+                ["Best match", "Governance coverage", "Open requests", "Alphabetical"],
+                key="asset_sort_mode",
+            )
+
+        filter_cols = st.columns(5)
+        catalogs = ["All"] + sorted(
+            inventory["table_catalog"].dropna().astype(str).unique().tolist()
         )
-    with sort_col:
-        sort_mode = st.selectbox(
-            "Sort by",
-            ["Best match", "Governance coverage", "Open requests", "Alphabetical"],
-            key="asset_sort_mode",
+        domains = ["All"] + sorted(
+            [v for v in inventory["domain"].unique().tolist() if v]
+        )
+        tiers = ["All"] + sorted([v for v in inventory["tier"].unique().tolist() if v])
+        certifications = ["All"] + sorted(
+            [v for v in inventory["certification"].unique().tolist() if v]
+        )
+        sensitivities = ["All"] + sorted(
+            [v for v in inventory["sensitivity"].unique().tolist() if v]
         )
 
-    filter_cols = st.columns(5)
-    catalogs = ["All"] + sorted(
-        inventory["table_catalog"].dropna().astype(str).unique().tolist()
-    )
-    domains = ["All"] + sorted([v for v in inventory["domain"].unique().tolist() if v])
-    tiers = ["All"] + sorted([v for v in inventory["tier"].unique().tolist() if v])
-    certifications = ["All"] + sorted(
-        [v for v in inventory["certification"].unique().tolist() if v]
-    )
-    sensitivities = ["All"] + sorted(
-        [v for v in inventory["sensitivity"].unique().tolist() if v]
-    )
-
-    selected_catalog = filter_cols[0].selectbox(
-        "Catalog", catalogs, key="asset_catalog"
-    )
-    selected_domain = filter_cols[1].selectbox("Domain", domains, key="asset_domain")
-    selected_tier = filter_cols[2].selectbox("Tier", tiers, key="asset_tier")
-    selected_cert = filter_cols[3].selectbox(
-        "Certification", certifications, key="asset_certification"
-    )
-    selected_sensitivity = filter_cols[4].selectbox(
-        "Sensitivity", sensitivities, key="asset_sensitivity"
-    )
+        selected_catalog = filter_cols[0].selectbox(
+            "Catalog", catalogs, key="asset_catalog"
+        )
+        selected_domain = filter_cols[1].selectbox(
+            "Domain", domains, key="asset_domain"
+        )
+        selected_tier = filter_cols[2].selectbox("Tier", tiers, key="asset_tier")
+        selected_cert = filter_cols[3].selectbox(
+            "Certification", certifications, key="asset_certification"
+        )
+        selected_sensitivity = filter_cols[4].selectbox(
+            "Sensitivity", sensitivities, key="asset_sensitivity"
+        )
+        st.form_submit_button("Apply discovery filters", type="primary")
 
     filtered = inventory.copy()
     if query:
@@ -1365,9 +1412,9 @@ def _render_asset_profile(
                     uc.set_column_comment(
                         catalog, schema, table, selected_col, new_comment
                     )
-                st.success(f"Updated description for `{selected_col}`.")
-                st.cache_data.clear()
-                st.rerun()
+                    st.success(f"Updated description for `{selected_col}`.")
+                    st.cache_data.clear()
+                    st.rerun()
 
                 existing_col_tags = uc.get_column_tags(
                     catalog, schema, table, selected_col
@@ -1863,11 +1910,13 @@ def page_governance(
     metrics[2].metric("Sensitive assets", int(inventory["sensitivity"].ne("").sum()))
     metrics[3].metric("Unowned assets", int(inventory["owner_count"].eq(0).sum()))
 
-    glossary_tab, coverage_tab, integration_tab = st.tabs(
-        ["Glossary", "Coverage & policy", "Integrations"]
+    section = _button_nav(
+        ["Glossary", "Coverage & policy", "Integrations"],
+        "governance_section",
     )
+    st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
-    with glossary_tab:
+    if section == "Glossary":
         search = st.text_input(
             "Search glossary terms",
             placeholder="revenue, customer, finance",
@@ -1878,14 +1927,26 @@ def page_governance(
             if search
             else store.list_glossary_terms(limit=500)
         )
-        left, right = st.columns([1, 1.2])
+        left, right = st.columns([0.9, 1.1])
         with left:
+            st.markdown(
+                "<div class='gh-kicker'>Glossary Directory</div>",
+                unsafe_allow_html=True,
+            )
             if terms.empty:
                 st.info("No glossary terms match the current search.")
             else:
-                st.dataframe(terms, use_container_width=True, hide_index=True)
+                st.dataframe(
+                    terms[["term_id", "name", "domain", "status"]],
+                    use_container_width=True,
+                    hide_index=True,
+                )
 
         with right:
+            st.markdown(
+                "<div class='gh-kicker'>Term Detail</div>",
+                unsafe_allow_html=True,
+            )
             if not terms.empty:
                 term_id = st.selectbox(
                     "Glossary term",
@@ -1898,7 +1959,21 @@ def page_governance(
                 else:
                     term = None
                 if term is not None:
-                    st.markdown("#### Term detail")
+                    linked_assets = inventory[inventory["glossary_term"] == term_id][
+                        [
+                            "fqn",
+                            "domain",
+                            "tier",
+                            "certification",
+                            "governance_score",
+                        ]
+                    ]
+                    header_cols = st.columns(2)
+                    header_cols[0].metric("Linked assets", len(linked_assets))
+                    header_cols[1].metric(
+                        "Approved terms",
+                        int((terms["status"] == "approved").sum()),
+                    )
                     detail_df = pd.DataFrame(
                         [
                             {
@@ -1924,15 +1999,6 @@ def page_governance(
                         ]
                     )
                     st.dataframe(detail_df, use_container_width=True, hide_index=True)
-                    linked_assets = inventory[inventory["glossary_term"] == term_id][
-                        [
-                            "fqn",
-                            "domain",
-                            "tier",
-                            "certification",
-                            "governance_score",
-                        ]
-                    ]
                     st.markdown("#### Linked assets")
                     if linked_assets.empty:
                         st.info("No assets are linked to this term yet.")
@@ -1940,35 +2006,40 @@ def page_governance(
                         st.dataframe(
                             linked_assets, use_container_width=True, hide_index=True
                         )
+            else:
+                st.info("Select or create a glossary term to start building business context.")
 
-            if role in {"writer", "admin"}:
-                st.divider()
-                st.markdown("#### Create or update term")
-                with st.form("upsert_term"):
-                    term_id = st.text_input("Term ID")
-                    name = st.text_input("Display name")
-                    definition = st.text_area("Definition", height=120)
-                    domain = st.text_input("Domain")
-                    owner = st.text_input("Owner email")
-                    status = st.selectbox("Status", ["draft", "approved", "deprecated"])
-                    if st.form_submit_button("Save term"):
-                        if not term_id or not name:
-                            st.error("Term ID and display name are required.")
-                        else:
-                            store.upsert_glossary_term(
-                                term_id=term_id,
-                                name=name,
-                                definition=definition or None,
-                                domain=domain or None,
-                                owner_email=owner or None,
-                                status=status,
-                                updated_by=user_email,
-                            )
-                            st.success(f"Saved glossary term `{term_id}`.")
-                            st.cache_data.clear()
-                            st.rerun()
+        if role in {"writer", "admin"}:
+            st.divider()
+            st.markdown(
+                "<div class='gh-kicker'>Create or Update Term</div>",
+                unsafe_allow_html=True,
+            )
+            with st.form("upsert_term"):
+                term_id = st.text_input("Term ID")
+                name = st.text_input("Display name")
+                definition = st.text_area("Definition", height=120)
+                domain = st.text_input("Domain")
+                owner = st.text_input("Owner email")
+                status = st.selectbox("Status", ["draft", "approved", "deprecated"])
+                if st.form_submit_button("Save term", type="primary"):
+                    if not term_id or not name:
+                        st.error("Term ID and display name are required.")
+                    else:
+                        store.upsert_glossary_term(
+                            term_id=term_id,
+                            name=name,
+                            definition=definition or None,
+                            domain=domain or None,
+                            owner_email=owner or None,
+                            status=status,
+                            updated_by=user_email,
+                        )
+                        st.success(f"Saved glossary term `{term_id}`.")
+                        st.cache_data.clear()
+                        st.rerun()
 
-    with coverage_tab:
+    elif section == "Coverage & policy":
         backlog = inventory.copy()
         backlog["missing_description"] = backlog["comment"].eq("")
         backlog["missing_owner"] = backlog["owner_count"].eq(0)
@@ -1989,6 +2060,8 @@ def page_governance(
                 "tier",
                 "certification",
                 "sensitivity",
+                "owners_summary",
+                "glossary_term",
                 "owner_count",
                 "pending_requests",
                 "governance_score",
@@ -1998,9 +2071,94 @@ def page_governance(
             ["gaps", "pending_requests", "governance_score"],
             ascending=[False, False, True],
         )
-        st.dataframe(coverage, use_container_width=True, hide_index=True)
 
-    with integration_tab:
+        coverage["search_blob"] = (
+            coverage[
+                [
+                    "fqn",
+                    "domain",
+                    "tier",
+                    "certification",
+                    "sensitivity",
+                    "owners_summary",
+                    "glossary_term",
+                ]
+            ]
+            .fillna("")
+            .astype(str)
+            .agg(" ".join, axis=1)
+            .str.lower()
+        )
+
+        search = st.text_input(
+            "Search coverage & policy",
+            placeholder="customer, finance, glossary term, steward, tier 1",
+            key="coverage_search",
+        )
+        filters = st.columns(4)
+        focus = filters[0].selectbox(
+            "Focus",
+            [
+                "All",
+                "Missing description",
+                "Missing owner",
+                "Missing certification",
+                "Open requests",
+            ],
+            key="coverage_focus",
+        )
+        domain_filter = filters[1].selectbox(
+            "Domain",
+            ["All"]
+            + sorted([v for v in backlog["domain"].unique().tolist() if v]),
+            key="coverage_domain",
+        )
+        cert_filter = filters[2].selectbox(
+            "Certification",
+            ["All"]
+            + sorted([v for v in backlog["certification"].unique().tolist() if v]),
+            key="coverage_cert",
+        )
+        tier_filter = filters[3].selectbox(
+            "Tier",
+            ["All"] + sorted([v for v in backlog["tier"].unique().tolist() if v]),
+            key="coverage_tier",
+        )
+
+        if search:
+            coverage = coverage[
+                coverage["search_blob"].str.contains(search.lower(), regex=False, na=False)
+            ]
+        if focus == "Missing description":
+            coverage = coverage[backlog.loc[coverage.index, "missing_description"]]
+        elif focus == "Missing owner":
+            coverage = coverage[backlog.loc[coverage.index, "missing_owner"]]
+        elif focus == "Missing certification":
+            coverage = coverage[backlog.loc[coverage.index, "missing_certification"]]
+        elif focus == "Open requests":
+            coverage = coverage[coverage["pending_requests"] > 0]
+        if domain_filter != "All":
+            coverage = coverage[coverage["domain"] == domain_filter]
+        if cert_filter != "All":
+            coverage = coverage[coverage["certification"] == cert_filter]
+        if tier_filter != "All":
+            coverage = coverage[coverage["tier"] == tier_filter]
+
+        gap_metrics = st.columns(4)
+        gap_metrics[0].metric("Missing descriptions", int(backlog["missing_description"].sum()))
+        gap_metrics[1].metric("Missing owners", int(backlog["missing_owner"].sum()))
+        gap_metrics[2].metric(
+            "Missing certifications", int(backlog["missing_certification"].sum())
+        )
+        gap_metrics[3].metric("Open policy issues", int((backlog["pending_requests"] > 0).sum()))
+
+        st.dataframe(
+            coverage.drop(columns=["search_blob"]),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    else:
         if om is None:
             st.info(
                 "OpenMetadata is not configured. The app is running in Databricks-native mode."
@@ -2272,13 +2430,11 @@ def main() -> None:
     if "app_page" not in st.session_state:
         st.session_state["app_page"] = "Discovery"
 
-    page = st.radio(
-        "Navigate",
+    page = _button_nav(
         ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"],
-        horizontal=True,
-        key="app_page",
-        label_visibility="collapsed",
+        "app_page",
     )
+    st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
     if page == "Discovery":
         page_discovery(uc, store, inventory, role, user_email)
