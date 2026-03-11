@@ -279,6 +279,34 @@ def _button_nav(options: List[str], state_key: str) -> str:
     return st.session_state.get(state_key, current)
 
 
+def _render_data_table(df: pd.DataFrame, *, max_rows: int = 200) -> None:
+    if df is None:
+        return
+    view = df.copy()
+    truncated = len(view) > max_rows
+    view = view.head(max_rows).fillna("")
+    header_html = "".join(f"<th>{html.escape(str(col))}</th>" for col in view.columns)
+    row_html = []
+    for _, row in view.iterrows():
+        cells = "".join(
+            f"<td>{html.escape(_normalize_str(value))}</td>" for value in row.tolist()
+        )
+        row_html.append(f"<tr>{cells}</tr>")
+    st.markdown(
+        f"""
+<div class="gh-table-wrap">
+  <table class="gh-table">
+    <thead><tr>{header_html}</tr></thead>
+    <tbody>{''.join(row_html)}</tbody>
+  </table>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if truncated:
+        st.caption(f"Showing first {max_rows} rows.")
+
+
 def _render_styles() -> None:
     st.markdown(
         """
@@ -338,6 +366,48 @@ def _render_styles() -> None:
     gap: 1rem;
     align-items: flex-start;
     flex-wrap: wrap;
+  }
+
+  .gh-brand {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .gh-brand-mark {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, #173a8c, #4e7cff);
+    box-shadow: 0 14px 28px rgba(34, 87, 216, 0.2);
+    color: #ffffff;
+    font-size: 1.15rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+  }
+
+  .gh-wordmark {
+    margin: 0;
+    font-size: 3rem;
+    line-height: 1;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    color: #13203a;
+  }
+
+  .gh-wordmark span {
+    color: #245bdc;
+  }
+
+  .gh-wordmark-rule {
+    width: 160px;
+    height: 6px;
+    border-radius: 999px;
+    margin-top: 0.8rem;
+    background: linear-gradient(90deg, #2149a8, #6ea2ff);
   }
 
   .gh-eyebrow {
@@ -597,6 +667,18 @@ def _render_styles() -> None:
     opacity: 1 !important;
   }
 
+  div[data-baseweb="notification"] {
+    background: #dcebfa !important;
+    border: 1px solid #bdd3ee !important;
+    border-radius: 16px !important;
+    box-shadow: none !important;
+  }
+
+  div[data-baseweb="notification"] * {
+    color: #17314f !important;
+    opacity: 1 !important;
+  }
+
   .stButton > button {
     border-radius: 14px;
     border: 1px solid var(--gh-border);
@@ -612,12 +694,46 @@ def _render_styles() -> None:
     border: none;
   }
 
-  .stTextInput input, .stTextArea textarea {
+  .stTextInput input, .stTextArea textarea,
+  div[data-baseweb="input"] input,
+  div[data-baseweb="base-input"] input {
     border-radius: 14px !important;
+    background: transparent !important;
+    color: #1d2940 !important;
+    -webkit-text-fill-color: #1d2940 !important;
+  }
+
+  .stTextInput > div > div,
+  .stTextArea > div > div,
+  div[data-baseweb="input"],
+  div[data-baseweb="base-input"],
+  div[data-testid="stFormSubmitButton"] > button {
+    background: #eef3fa !important;
+    border: 1px solid #ccd8ea !important;
+    color: #1d2940 !important;
   }
 
   [data-baseweb="select"] > div {
     border-radius: 14px !important;
+    background: #eef3fa !important;
+    border: 1px solid #ccd8ea !important;
+    color: #1d2940 !important;
+  }
+
+  [data-baseweb="select"] * {
+    color: #1d2940 !important;
+    fill: #1d2940 !important;
+  }
+
+  div[data-testid="stFormSubmitButton"] > button {
+    min-height: 2.8rem;
+    font-weight: 700;
+  }
+
+  div[data-testid="stFormSubmitButton"] > button[kind="primary"] {
+    background: linear-gradient(135deg, var(--gh-primary), #4c79ff) !important;
+    color: #ffffff !important;
+    border: none !important;
   }
 
   .stTabs [data-baseweb="tab-list"] {
@@ -673,8 +789,49 @@ def _render_styles() -> None:
     margin-bottom: 0.4rem;
   }
 
+  .gh-table-wrap {
+    overflow-x: auto;
+    border-radius: 16px;
+    border: 1px solid #d2dced;
+    background: #f7f9fd;
+    box-shadow: 0 10px 24px rgba(18, 32, 63, 0.03);
+  }
+
+  .gh-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+    color: #22304a;
+  }
+
+  .gh-table thead {
+    background: #ecf2fb;
+  }
+
+  .gh-table th {
+    text-align: left;
+    padding: 0.8rem 0.85rem;
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #5c6d89;
+    border-bottom: 1px solid #d2dced;
+  }
+
+  .gh-table td {
+    padding: 0.8rem 0.85rem;
+    border-top: 1px solid #e1e8f3;
+    vertical-align: top;
+    color: #22304a;
+    background: rgba(255, 255, 255, 0.88);
+  }
+
+  .gh-table tbody tr:nth-child(even) td {
+    background: #f3f7fd;
+  }
+
   @media (max-width: 900px) {
-    .gh-shell h1 {
+    .gh-wordmark {
       font-size: 2.3rem;
     }
   }
@@ -691,18 +848,23 @@ def _render_shell(
     om: Optional[OpenMetadataClient],
 ) -> None:
     om_class = "good" if om else ""
-    om_label = "OpenMetadata connected" if om else "Unity Catalog only"
+    om_label = "OpenMetadata linked" if om else "Unity Catalog only"
     st.markdown(
         f"""
 <div class="gh-shell">
   <div class="gh-shell-top">
     <div>
       <div class="gh-eyebrow">Enterprise Metadata For Databricks</div>
-      <h1>Governance Hub</h1>
+      <div class="gh-brand">
+        <div class="gh-brand-mark">GH</div>
+        <div>
+          <div class="gh-wordmark">Governance <span>Hub</span></div>
+          <div class="gh-wordmark-rule"></div>
+        </div>
+      </div>
       <div class="gh-shell-copy">
-        Discovery, lineage, and governance designed like a metadata product instead
-        of a utility screen. The shell is search-first, asset-centric, and built
-        to add stewardship workflows on top of Unity Catalog.
+        Use this workspace to find assets, review lineage, manage glossary terms,
+        and maintain metadata and ownership in Unity Catalog.
       </div>
     </div>
     <div class="gh-chip-row">
@@ -1034,8 +1196,8 @@ def _profile_header_html(asset: pd.Series) -> str:
         _safe_badge(structured.get("criticality", ""), "danger"),
     ]
     description = _normalize_str(asset.get("comment")) or (
-        "This asset has not been documented yet. Add a business-facing description "
-        "and governance fields to move it toward enterprise-ready status."
+        "This asset has not been documented yet. Add a description and governance "
+        "fields so other teams can understand how to use it."
     )
     return f"""
 <div class="gh-panel">
@@ -1108,7 +1270,7 @@ def _render_column_lineage(df: pd.DataFrame, key: str) -> None:
     if view_df.empty:
         st.info("No direct column matches are available for this asset.")
     else:
-        st.dataframe(view_df, use_container_width=True, hide_index=True)
+        _render_data_table(view_df)
 
 
 def _apply_table_tags(
@@ -1341,7 +1503,7 @@ def _render_asset_profile(
             if owners_df.empty:
                 st.info("No business, technical, or steward owners have been assigned.")
             else:
-                st.dataframe(owners_df, use_container_width=True, hide_index=True)
+                _render_data_table(owners_df)
 
         with right:
             structured = _structured_tags(asset.get("tags", {}))
@@ -1377,13 +1539,13 @@ def _render_asset_profile(
                 ]
             )
             st.markdown("#### Governance summary")
-            st.dataframe(summary_rows, use_container_width=True, hide_index=True)
+            _render_data_table(summary_rows)
             if not tags_df.empty:
                 st.markdown("#### Active tags")
-                st.dataframe(tags_df, use_container_width=True, hide_index=True)
+                _render_data_table(tags_df)
 
     with schema_tab:
-        st.dataframe(cols_df, use_container_width=True, hide_index=True)
+        _render_data_table(cols_df)
         if role in {"writer", "admin"} and not cols_df.empty:
             st.divider()
             st.markdown("#### Column metadata editor")
@@ -1455,11 +1617,7 @@ def _render_asset_profile(
             st.session_state[f"sample_loaded_{asset['fqn']}"] = True
         if st.session_state.get(f"sample_loaded_{asset['fqn']}"):
             try:
-                st.dataframe(
-                    _cached_sample_rows(uc, catalog, schema, table),
-                    use_container_width=True,
-                    hide_index=True,
-                )
+                _render_data_table(_cached_sample_rows(uc, catalog, schema, table))
             except Exception as exc:
                 st.error(f"Could not load sample data: {exc}")
         else:
@@ -1474,7 +1632,7 @@ def _render_asset_profile(
             elif lineage_up.empty:
                 st.info("No upstream lineage found.")
             else:
-                st.dataframe(lineage_up, use_container_width=True, hide_index=True)
+                _render_data_table(lineage_up)
         with lcol2:
             st.markdown("#### Downstream assets")
             if lineage_down_error:
@@ -1482,7 +1640,7 @@ def _render_asset_profile(
             elif lineage_down.empty:
                 st.info("No downstream lineage found.")
             else:
-                st.dataframe(lineage_down, use_container_width=True, hide_index=True)
+                _render_data_table(lineage_down)
         if st.button(
             "Open full lineage workspace",
             use_container_width=True,
@@ -1608,13 +1766,13 @@ def _render_asset_profile(
 
             st.divider()
             st.markdown("#### Owners")
-            st.dataframe(owners_df, use_container_width=True, hide_index=True)
+            _render_data_table(owners_df)
             with st.form(f"owners_{asset['fqn']}"):
                 owner_email = st.text_input("Owner email")
                 owner_type = st.selectbox(
                     "Owner type", ["technical", "business", "steward"]
                 )
-                if st.form_submit_button("Add or update owner"):
+                if st.form_submit_button("Add or update owner", type="primary"):
                     store.upsert_owner(
                         asset["fqn"], owner_email, owner_type, user_email
                     )
@@ -1706,7 +1864,7 @@ def page_discovery(
 ) -> None:
     _render_section_intro(
         "Discovery",
-        "Search and facet across the catalog, then pivot directly into an asset profile with business metadata, preview data, and governance controls.",
+        "Search the catalog, narrow the results with filters, and open an asset to review its metadata, sample data, ownership, and lineage.",
     )
 
     metrics = st.columns(4)
@@ -1765,7 +1923,7 @@ def page_lineage(
 ) -> None:
     _render_section_intro(
         "Lineage",
-        "Visualize upstream producers, downstream consumers, and column-level mappings in one workspace so impact is obvious before a change ships.",
+        "Review upstream producers, downstream consumers, and column mappings for the selected asset before making a schema or pipeline change.",
     )
     selected_fqn = _asset_selector(inventory, "lineage_selector", "Asset")
     if not selected_fqn:
@@ -1824,7 +1982,7 @@ def page_lineage(
 <div class="gh-panel">
   <div class="gh-panel-label">Impact Summary</div>
   <div class="gh-section-copy">
-    {html.escape(_normalize_str(asset.get("comment")) or "This asset still needs a business-facing description.")}
+    {html.escape(_normalize_str(asset.get("comment")) or "This asset does not have a description yet.")}
   </div>
   <div class="gh-badge-row">
     {_safe_badge(asset.get("tier", ""), "primary")}
@@ -1861,7 +2019,7 @@ def page_lineage(
             elif lineage_up.empty:
                 st.info("No upstream table lineage available.")
             else:
-                st.dataframe(lineage_up, use_container_width=True, hide_index=True)
+                _render_data_table(lineage_up)
         with col2:
             st.markdown("#### Downstream table detail")
             if lineage_down_error:
@@ -1869,7 +2027,7 @@ def page_lineage(
             elif lineage_down.empty:
                 st.info("No downstream table lineage available.")
             else:
-                st.dataframe(lineage_down, use_container_width=True, hide_index=True)
+                _render_data_table(lineage_down)
 
     with column_tab:
         ctab1, ctab2 = st.tabs(["Into this asset", "Out of this asset"])
@@ -1901,7 +2059,7 @@ def page_governance(
 ) -> None:
     _render_section_intro(
         "Governance",
-        "Run glossary, certification, and stewardship workflows in a single command center instead of scattering metadata work across Databricks screens.",
+        "Manage glossary terms, certification coverage, policy gaps, and external metadata links for the current catalog inventory.",
     )
 
     metrics = st.columns(4)
@@ -1936,10 +2094,8 @@ def page_governance(
             if terms.empty:
                 st.info("No glossary terms match the current search.")
             else:
-                st.dataframe(
+                _render_data_table(
                     terms[["term_id", "name", "domain", "status"]],
-                    use_container_width=True,
-                    hide_index=True,
                 )
 
         with right:
@@ -1998,14 +2154,12 @@ def page_governance(
                             },
                         ]
                     )
-                    st.dataframe(detail_df, use_container_width=True, hide_index=True)
+                    _render_data_table(detail_df)
                     st.markdown("#### Linked assets")
                     if linked_assets.empty:
                         st.info("No assets are linked to this term yet.")
                     else:
-                        st.dataframe(
-                            linked_assets, use_container_width=True, hide_index=True
-                        )
+                        _render_data_table(linked_assets)
             else:
                 st.info("Select or create a glossary term to start building business context.")
 
@@ -2152,11 +2306,7 @@ def page_governance(
         )
         gap_metrics[3].metric("Open policy issues", int((backlog["pending_requests"] > 0).sum()))
 
-        st.dataframe(
-            coverage.drop(columns=["search_blob"]),
-            use_container_width=True,
-            hide_index=True,
-        )
+        _render_data_table(coverage.drop(columns=["search_blob"]))
 
     else:
         if om is None:
@@ -2178,11 +2328,7 @@ def page_governance(
 
             results = st.session_state.get("om_results", [])
             if results:
-                st.dataframe(
-                    pd.DataFrame([row.__dict__ for row in results]),
-                    use_container_width=True,
-                    hide_index=True,
-                )
+                _render_data_table(pd.DataFrame([row.__dict__ for row in results]))
 
         if role in {"writer", "admin"}:
             st.divider()
@@ -2204,9 +2350,7 @@ def page_governance(
 
         st.divider()
         st.markdown("#### Current links")
-        st.dataframe(
-            store.list_asset_links(), use_container_width=True, hide_index=True
-        )
+        _render_data_table(store.list_asset_links())
 
 
 def page_stewardship(
@@ -2218,7 +2362,7 @@ def page_stewardship(
 ) -> None:
     _render_section_intro(
         "Stewardship",
-        "Review the metadata backlog, approve change requests, and focus stewards on the assets that are still missing enterprise coverage.",
+        "Review open metadata requests and work through the backlog for assets that still need descriptions, ownership, or certification.",
     )
 
     requests = store.list_change_requests(limit=300)
@@ -2254,7 +2398,7 @@ def page_stewardship(
             filtered = requests.copy()
             if status_filter != "all":
                 filtered = filtered[filtered["status"] == status_filter]
-            st.dataframe(filtered, use_container_width=True, hide_index=True)
+            _render_data_table(filtered)
 
             if role in {"writer", "admin"} and not filtered.empty:
                 pending_ids = filtered["request_id"].tolist()
@@ -2281,7 +2425,7 @@ def page_stewardship(
                             },
                         ]
                     )
-                    st.dataframe(detail_rows, use_container_width=True, hide_index=True)
+                    _render_data_table(detail_rows)
                     if request.status == "pending" and request_id is not None:
                         action = st.radio(
                             "Decision",
@@ -2359,13 +2503,13 @@ def page_stewardship(
             ["priority", "pending_requests", "governance_score"],
             ascending=[False, False, True],
         )
-        st.dataframe(backlog, use_container_width=True, hide_index=True)
+        _render_data_table(backlog)
 
 
 def page_admin(store: GovernanceStore, role: str, user_email: str) -> None:
     _render_section_intro(
         "Admin",
-        "Control user roles and keep governance operations bounded to the right people.",
+        "Manage access to this app by assigning reader, writer, and admin roles.",
     )
     if role != "admin":
         st.info("This workspace is restricted to admins.")
@@ -2385,11 +2529,11 @@ def page_admin(store: GovernanceStore, role: str, user_email: str) -> None:
         int((roles_df["role"] == "reader").sum()) if not roles_df.empty else 0,
     )
 
-    st.dataframe(roles_df, use_container_width=True, hide_index=True)
+    _render_data_table(roles_df)
     with st.form("role_editor"):
         email = st.text_input("User email")
         new_role = st.selectbox("Role", ["reader", "writer", "admin"])
-        if st.form_submit_button("Save role"):
+        if st.form_submit_button("Save role", type="primary"):
             store.upsert_role(email, new_role, user_email)
             st.success("Role updated.")
             st.cache_data.clear()
