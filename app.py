@@ -316,6 +316,9 @@ def _render_styles() -> None:
     --gh-surface: #ffffff;
     --gh-surface-alt: #edf3ff;
     --gh-border: #d8e2ef;
+    --gh-input-bg: #eef3fa;
+    --gh-input-border: #ccd8ea;
+    --gh-focus-ring: rgba(34, 87, 216, 0.14);
     --gh-primary: #2257d8;
     --gh-primary-strong: #143e9b;
     --gh-text: #162033;
@@ -686,6 +689,24 @@ def _render_styles() -> None:
     color: var(--gh-text);
     font-weight: 700;
     min-height: 2.8rem;
+    transition:
+      background 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      transform 0.18s ease;
+  }
+
+  .stButton > button:hover,
+  div[data-testid="stFormSubmitButton"] > button:hover {
+    border-color: rgba(34, 87, 216, 0.28);
+    box-shadow: 0 10px 22px rgba(34, 87, 216, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .stButton > button:focus-visible,
+  div[data-testid="stFormSubmitButton"] > button:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 3px var(--gh-focus-ring) !important;
   }
 
   .stButton > button[kind="primary"] {
@@ -701,6 +722,8 @@ def _render_styles() -> None:
     background: transparent !important;
     color: #1d2940 !important;
     -webkit-text-fill-color: #1d2940 !important;
+    caret-color: var(--gh-primary) !important;
+    font-weight: 500;
   }
 
   .stTextInput > div > div,
@@ -708,16 +731,43 @@ def _render_styles() -> None:
   div[data-baseweb="input"],
   div[data-baseweb="base-input"],
   div[data-testid="stFormSubmitButton"] > button {
-    background: #eef3fa !important;
-    border: 1px solid #ccd8ea !important;
+    background: var(--gh-input-bg) !important;
+    border: 1px solid var(--gh-input-border) !important;
     color: #1d2940 !important;
+    transition:
+      background 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease !important;
+  }
+
+  .stTextInput > div > div:hover,
+  .stTextArea > div > div:hover,
+  div[data-baseweb="input"]:hover,
+  div[data-baseweb="base-input"]:hover,
+  [data-baseweb="select"] > div:hover {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-color: #b8c8de !important;
+  }
+
+  .stTextInput > div > div:focus-within,
+  .stTextArea > div > div:focus-within,
+  div[data-baseweb="input"]:focus-within,
+  div[data-baseweb="base-input"]:focus-within,
+  [data-baseweb="select"] > div:focus-within {
+    background: #ffffff !important;
+    border-color: rgba(34, 87, 216, 0.44) !important;
+    box-shadow: 0 0 0 3px var(--gh-focus-ring) !important;
   }
 
   [data-baseweb="select"] > div {
     border-radius: 14px !important;
-    background: #eef3fa !important;
-    border: 1px solid #ccd8ea !important;
+    background: var(--gh-input-bg) !important;
+    border: 1px solid var(--gh-input-border) !important;
     color: #1d2940 !important;
+    transition:
+      background 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease !important;
   }
 
   [data-baseweb="select"] * {
@@ -725,9 +775,21 @@ def _render_styles() -> None:
     fill: #1d2940 !important;
   }
 
+  .stTextInput input::placeholder,
+  .stTextArea textarea::placeholder,
+  div[data-baseweb="input"] input::placeholder,
+  div[data-baseweb="base-input"] input::placeholder {
+    color: #7686a0 !important;
+    opacity: 1 !important;
+  }
+
   div[data-testid="stFormSubmitButton"] > button {
     min-height: 2.8rem;
     font-weight: 700;
+    background: linear-gradient(135deg, var(--gh-primary), #4c79ff) !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 14px 28px rgba(34, 87, 216, 0.18) !important;
   }
 
   div[data-testid="stFormSubmitButton"] > button[kind="primary"] {
@@ -738,6 +800,11 @@ def _render_styles() -> None:
 
   .stTabs [data-baseweb="tab-list"] {
     gap: 0.55rem;
+  }
+
+  .stTabs [data-baseweb="tab-highlight"],
+  .stTabs [data-baseweb="tab-border"] {
+    display: none !important;
   }
 
   .stTabs [data-baseweb="tab"] {
@@ -1251,24 +1318,35 @@ def _render_column_lineage(df: pd.DataFrame, key: str) -> None:
     src_col = "source_column_name"
     tgt_col = "target_column_name"
     direct_mask = df[src_col].str.lower() == df[tgt_col].str.lower()
-    show_all = st.toggle(
-        "Include indirect / broad mappings",
-        value=False,
-        key=f"showall_{key}",
-        help=(
-            "Databricks records source columns read by an operation, not exact "
-            "column-to-column transforms. This filter keeps only exact name matches."
-        ),
+    scope = _button_nav(
+        ["Direct matches", "Include indirect mappings"],
+        f"column_lineage_scope_{key}",
     )
+    with st.expander("How Unity Catalog column lineage works"):
+        st.write(
+            "Unity Catalog records which source columns were read by an operation. "
+            "That means some mappings are one-to-one name matches, while others are "
+            "broader dependencies captured from joins, expressions, or multi-column "
+            "logic."
+        )
+        st.write(
+            "`Direct matches` keeps source and target columns with the same name. "
+            "`Include indirect mappings` also shows broader dependencies that may "
+            "not map one source column to one target column."
+        )
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Total mappings", len(df))
     c2.metric("Direct matches", int(direct_mask.sum()))
     c3.metric("Indirect / broad", int((~direct_mask).sum()))
 
+    show_all = scope == "Include indirect mappings"
     view_df = df if show_all else df[direct_mask]
     if view_df.empty:
-        st.info("No direct column matches are available for this asset.")
+        if show_all:
+            st.info("No column mappings are available for this asset.")
+        else:
+            st.info("No direct column matches are available for this asset.")
     else:
         _render_data_table(view_df)
 
@@ -1487,11 +1565,13 @@ def _render_asset_profile(
     metrics[3].metric("Open requests", int(asset.get("pending_requests", 0)))
     metrics[4].metric("Owners", int(asset.get("owner_count", 0)))
 
-    overview_tab, schema_tab, preview_tab, lineage_tab, governance_tab = st.tabs(
-        ["Overview", "Schema", "Preview", "Lineage", "Governance"]
+    section = _button_nav(
+        ["Overview", "Schema", "Preview", "Lineage", "Governance"],
+        f"asset_profile_section_{asset['fqn']}",
     )
+    st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
-    with overview_tab:
+    if section == "Overview":
         left, right = st.columns([1.25, 1])
         with left:
             st.markdown("#### Context")
@@ -1544,7 +1624,7 @@ def _render_asset_profile(
                 st.markdown("#### Active tags")
                 _render_data_table(tags_df)
 
-    with schema_tab:
+    elif section == "Schema":
         _render_data_table(cols_df)
         if role in {"writer", "admin"} and not cols_df.empty:
             st.divider()
@@ -1581,16 +1661,15 @@ def _render_asset_profile(
                 existing_col_tags = uc.get_column_tags(
                     catalog, schema, table, selected_col
                 )
-            edited_col_tags = _tags_editor(
-                existing_col_tags,
-                key=f"column_tags_editor_{asset['fqn']}_{selected_col}",
-            )
-            if st.button(
-                "Save column tags",
-                use_container_width=True,
-                key=f"save_column_tags_{asset['fqn']}_{selected_col}",
-            ):
-                if selected_col is not None:
+                edited_col_tags = _tags_editor(
+                    existing_col_tags,
+                    key=f"column_tags_editor_{asset['fqn']}_{selected_col}",
+                )
+                if st.button(
+                    "Save column tags",
+                    use_container_width=True,
+                    key=f"save_column_tags_{asset['fqn']}_{selected_col}",
+                ):
                     _apply_column_tags(
                         uc,
                         catalog,
@@ -1604,7 +1683,7 @@ def _render_asset_profile(
                     st.cache_data.clear()
                     st.rerun()
 
-    with preview_tab:
+    elif section == "Preview":
         st.caption(
             "Sample data preview is intentionally small and cached to stay responsive."
         )
@@ -1623,7 +1702,7 @@ def _render_asset_profile(
         else:
             st.info("Load sample rows when you need a quick shape check for the asset.")
 
-    with lineage_tab:
+    elif section == "Lineage":
         lcol1, lcol2 = st.columns(2)
         with lcol1:
             st.markdown("#### Upstream assets")
@@ -1649,7 +1728,7 @@ def _render_asset_profile(
             st.session_state["app_page"] = "Lineage"
             st.rerun()
 
-    with governance_tab:
+    else:
         is_writer = role in {"writer", "admin"}
         existing_tags = _df_to_tags_map(tags_df)
         existing_structured = _structured_tags(existing_tags)
@@ -1883,37 +1962,73 @@ def page_discovery(
     )
 
     filtered = _filtered_inventory(inventory)
-    st.caption(f"{len(filtered)} assets match the current discovery filters.")
+    discovery_view = _button_nav(
+        ["Search", "Selected asset"],
+        "discovery_view_mode",
+    )
+    st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
+
     if filtered.empty:
-        st.warning("No assets match the current search and filter set.")
-        return
-
-    left, right = st.columns([1.05, 1.4])
-    with left:
-        st.markdown("#### Search results")
-        for _, asset in enumerate(filtered.head(12).iterrows()):
-            asset_series = asset[1]
-            active = asset_series["fqn"] == st.session_state.get("selected_asset_fqn")
-            st.markdown(_asset_card_html(asset_series, active), unsafe_allow_html=True)
-            if st.button(
-                "Open asset",
-                key=f"open_asset_{asset_series['fqn']}",
-                type="primary" if active else "secondary",
-                use_container_width=True,
-            ):
-                st.session_state["selected_asset_fqn"] = asset_series["fqn"]
-                st.rerun()
-
-    with right:
-        candidate_inventory = (
-            filtered
-            if st.session_state.get("selected_asset_fqn") in filtered["fqn"].values
-            else filtered
+        if discovery_view == "Search":
+            st.warning("No assets match the current search and filter set.")
+            return
+        st.caption(
+            "Current discovery filters do not match any assets. The selected asset stays open below so you can keep working."
         )
-        selected = _selected_asset(candidate_inventory)
+    else:
+        st.caption(f"{len(filtered)} assets match the current discovery filters.")
+
+    if discovery_view == "Search":
+        st.markdown("#### Search results")
+        if len(filtered) > 12:
+            st.caption("Showing the first 12 results. Narrow the search or open an asset to continue.")
+        result_cols = st.columns(2)
+        for idx, (_, asset_series) in enumerate(filtered.head(12).iterrows()):
+            with result_cols[idx % 2]:
+                active = asset_series["fqn"] == st.session_state.get("selected_asset_fqn")
+                st.markdown(_asset_card_html(asset_series, active), unsafe_allow_html=True)
+                if st.button(
+                    "Open asset",
+                    key=f"open_asset_{asset_series['fqn']}",
+                    type="primary" if active else "secondary",
+                    use_container_width=True,
+                ):
+                    st.session_state["selected_asset_fqn"] = asset_series["fqn"]
+                    st.session_state["discovery_view_mode"] = "Selected asset"
+                    st.session_state[f"asset_profile_section_{asset_series['fqn']}"] = (
+                        "Overview"
+                    )
+                    st.rerun()
+    else:
+        selected = _selected_asset(inventory)
         if selected is None:
             st.info("Select an asset from the results list.")
             return
+
+        if filtered.empty:
+            context_copy = (
+                "Return to Search when you want to pick a different asset from the current filters."
+            )
+        elif selected["fqn"] in filtered["fqn"].values:
+            context_copy = (
+                f"{len(filtered)} assets match the current filters. Return to Search to choose a different one."
+            )
+        else:
+            context_copy = (
+                f"{len(filtered)} assets match the current filters. The selected asset is outside that current result set."
+            )
+
+        st.markdown(
+            f"""
+<div class="gh-mini-panel">
+  <div class="gh-kicker">Selected Asset</div>
+  <div class="gh-asset-name">{html.escape(_normalize_str(selected.get("table_name")))}</div>
+  <div class="gh-asset-fqn">{html.escape(_normalize_str(selected.get("fqn")))}</div>
+  <div class="gh-section-copy">{html.escape(context_copy)}</div>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
         _render_asset_profile(selected, inventory, uc, store, role, user_email)
 
 
@@ -2009,8 +2124,13 @@ def page_lineage(
                     unsafe_allow_html=True,
                 )
 
-    table_tab, column_tab = st.tabs(["Table flow", "Column mappings"])
-    with table_tab:
+    detail_view = _button_nav(
+        ["Table flow", "Column mappings"],
+        "lineage_detail_view",
+    )
+    st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
+
+    if detail_view == "Table flow":
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("#### Upstream table detail")
@@ -2028,17 +2148,21 @@ def page_lineage(
                 st.info("No downstream table lineage available.")
             else:
                 _render_data_table(lineage_down)
+    else:
+        direction = _button_nav(
+            ["Into this asset", "Out of this asset"],
+            "lineage_mapping_direction",
+        )
+        st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
-    with column_tab:
-        ctab1, ctab2 = st.tabs(["Into this asset", "Out of this asset"])
-        with ctab1:
+        if direction == "Into this asset":
             if col_up_error:
                 st.warning(f"Could not query upstream column lineage: {col_up_error}")
             elif col_up.empty:
                 st.info("No upstream column mappings available.")
             else:
                 _render_column_lineage(col_up, key=f"col_up_{selected_fqn}")
-        with ctab2:
+        else:
             if col_down_error:
                 st.warning(
                     f"Could not query downstream column lineage: {col_down_error}"
