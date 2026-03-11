@@ -1,12 +1,14 @@
 """Governance Hub — Databricks App (Streamlit).
 
-UC-native governance portal with optional OpenMetadata OSS integration.
+Enterprise discovery, lineage, and governance shell on top of Unity Catalog.
 """
 
 from __future__ import annotations
 
+import html
 import json
-from typing import Dict, List, Optional, Tuple
+from textwrap import shorten
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 import streamlit as st
@@ -17,14 +19,38 @@ from govhub.openmetadata import OpenMetadataClient, OpenMetadataError
 from govhub.store import GovernanceStore
 from govhub.uc import UCSQLClient
 
-# Catalogs that should never appear in the governance browser or lineage picker.
-# hive_metastore is the legacy non-UC metastore, samples/system are managed by
-# Databricks and not user-governed.
 _HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
-# Cache TTL for read-only metadata queries (seconds).
-_META_TTL = 120  # 2 minutes — keeps the UI snappy between tab switches
+_META_TTL = 120
 
-# ── Cached singletons ──────────────────────────────────────
+_STANDARD_TAG_ALIASES = {
+    "domain": ("domain", "data_domain"),
+    "tier": ("tier", "data_tier"),
+    "certification": ("certification", "certified", "data_certification"),
+    "sensitivity": ("sensitivity", "classification", "data_classification"),
+    "criticality": ("criticality", "priority"),
+    "glossary_term": ("glossary_term", "glossary"),
+    "data_product": ("data_product", "product"),
+}
+_STANDARD_TAG_KEYS = {
+    key for aliases in _STANDARD_TAG_ALIASES.values() for key in aliases
+}.union({"contains_pii", "pii"})
+_TIER_OPTIONS = ["", "Tier 1", "Tier 2", "Tier 3", "Tier 4"]
+_CERTIFICATION_OPTIONS = ["", "Certified", "Approved", "Needs Review", "Deprecated"]
+_SENSITIVITY_OPTIONS = [
+    "",
+    "Public",
+    "Internal",
+    "Confidential",
+    "Restricted",
+    "Sensitive",
+]
+_CRITICALITY_OPTIONS = [
+    "",
+    "Mission Critical",
+    "Business Critical",
+    "Standard",
+    "Exploratory",
+]
 
 
 @st.cache_resource
@@ -54,18 +80,13 @@ def _get_om_client(_cfg: AppConfig) -> Optional[OpenMetadataClient]:
     )
 
 
-# ── Cached read-only metadata queries ─────────────────────────
-# These avoid re-hitting the SQL Warehouse on every Streamlit rerun
-# (widget change, tab switch, etc.).
-
-
 @st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_catalogs(_uc: UCSQLClient) -> List[str]:
     df = _uc.list_catalogs()
     if df.empty:
         return []
     names = df.iloc[:, 0].tolist()
-    return [c for c in names if c.lower() not in _HIDDEN_CATALOGS]
+    return [c for c in names if str(c).lower() not in _HIDDEN_CATALOGS]
 
 
 @st.cache_data(ttl=_META_TTL, show_spinner=False)
@@ -86,6 +107,16 @@ def _cached_tables(_uc: UCSQLClient, catalog: str, schema: str) -> List[str]:
 
 
 @st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_catalog_inventory(_uc: UCSQLClient, catalog: str) -> pd.DataFrame:
+    return _uc.get_catalog_table_inventory(catalog)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_catalog_table_tags(_uc: UCSQLClient, catalog: str) -> pd.DataFrame:
+    return _uc.get_catalog_table_tags(catalog)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_columns(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
@@ -93,9 +124,7 @@ def _cached_columns(
 
 
 @st.cache_data(ttl=_META_TTL, show_spinner=False)
-def _cached_comment(
-    _uc: UCSQLClient, catalog: str, schema: str, table: str
-) -> str:
+def _cached_comment(_uc: UCSQLClient, catalog: str, schema: str, table: str) -> str:
     return _uc.get_table_comment(catalog, schema, table)
 
 
@@ -134,11 +163,19 @@ def _cached_col_lineage_down(
     return _uc.get_column_lineage_downstream(catalog, schema, table)
 
 
-# ── Helpers ─────────────────────────────────────────────────
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_sample_rows(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    return _uc.get_table_sample(catalog, schema, table, limit=15)
 
 
-def _role_badge(role: str) -> str:
-    return {"admin": "🛡️ admin", "writer": "✍️ writer"}.get(role, "👀 reader")
+def _normalize_str(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float) and pd.isna(value):
+        return ""
+    return str(value).strip()
 
 
 def _split_uc_name(name: str) -> Tuple[str, str, str]:
@@ -148,58 +185,59 @@ def _split_uc_name(name: str) -> Tuple[str, str, str]:
     return parts[0], parts[1], parts[2]
 
 
-def _user_catalogs(uc: UCSQLClient) -> List[str]:
-    """Return catalog names with non-UC / internal catalogs filtered out."""
-    return _cached_catalogs(uc)
+def _tag_value(tags: Dict[str, str], key: str) -> str:
+    for alias in _STANDARD_TAG_ALIASES.get(key, (key,)):
+        value = _normalize_str(tags.get(alias))
+        if value:
+            return value
+    if key == "sensitivity":
+        pii_value = _normalize_str(tags.get("contains_pii") or tags.get("pii"))
+        if pii_value.lower() in {"1", "true", "yes", "pii", "sensitive"}:
+            return "Sensitive"
+    return ""
 
 
-def _table_picker(
-    uc: UCSQLClient,
-    key_prefix: str = "tp",
-    label_catalog: str = "Catalog",
-    label_schema: str = "Schema",
-    label_table: str = "Table",
-) -> Optional[Tuple[str, str, str]]:
-    """Render three cascading selectboxes for catalog → schema → table.
-
-    Returns ``(catalog, schema, table)`` when a table is selected, else ``None``.
-    """
-    catalogs = _cached_catalogs(uc)
-    if not catalogs:
-        st.warning("No Unity Catalog catalogs visible to this service principal.")
-        return None
-
-    catalog = st.selectbox(label_catalog, catalogs, key=f"{key_prefix}_cat")
-
-    schemas = _cached_schemas(uc, catalog)
-    if not schemas:
-        st.info("No schemas in this catalog.")
-        return None
-    schema = st.selectbox(label_schema, schemas, key=f"{key_prefix}_sch")
-
-    if not schema:
-        return None
-
-    tables = _cached_tables(uc, catalog, schema)
-    if not tables:
-        st.info("No tables in this schema.")
-        return None
-    table = st.selectbox(label_table, tables, key=f"{key_prefix}_tbl")
-
-    if not table:
-        return None
-
-    return catalog, schema, table
+def _structured_tags(tags: Dict[str, str]) -> Dict[str, str]:
+    return {
+        "domain": _tag_value(tags, "domain"),
+        "tier": _tag_value(tags, "tier"),
+        "certification": _tag_value(tags, "certification"),
+        "sensitivity": _tag_value(tags, "sensitivity"),
+        "criticality": _tag_value(tags, "criticality"),
+        "glossary_term": _tag_value(tags, "glossary_term"),
+        "data_product": _tag_value(tags, "data_product"),
+    }
 
 
-def _tags_editor(existing: pd.DataFrame, key: str = "tags") -> pd.DataFrame:
+def _custom_tags_df(existing: pd.DataFrame) -> pd.DataFrame:
     if existing is None or existing.empty:
-        df = pd.DataFrame([{"tag_name": "", "tag_value": ""}])
+        return pd.DataFrame(columns=["tag_name", "tag_value"])
+    view = existing[~existing["tag_name"].isin(_STANDARD_TAG_KEYS)].copy()
+    if view.empty:
+        return pd.DataFrame(columns=["tag_name", "tag_value"])
+    return view[["tag_name", "tag_value"]]
+
+
+def _df_to_tags_map(df: pd.DataFrame) -> Dict[str, str]:
+    tags: Dict[str, str] = {}
+    if df is None or df.empty:
+        return tags
+    for _, row in df.iterrows():
+        key = _normalize_str(row.get("tag_name"))
+        value = _normalize_str(row.get("tag_value"))
+        if key:
+            tags[key] = value
+    return tags
+
+
+def _tags_editor(existing: pd.DataFrame, key: str) -> pd.DataFrame:
+    if existing is None or existing.empty:
+        view = pd.DataFrame([{"tag_name": "", "tag_value": ""}])
     else:
-        df = existing[["tag_name", "tag_value"]].copy()
-        df.loc[len(df)] = {"tag_name": "", "tag_value": ""}
+        view = existing[["tag_name", "tag_value"]].copy()
+        view.loc[len(view)] = {"tag_name": "", "tag_value": ""}
     return st.data_editor(
-        df,
+        view,
         use_container_width=True,
         num_rows="dynamic",
         column_config={
@@ -211,888 +249,2046 @@ def _tags_editor(existing: pd.DataFrame, key: str = "tags") -> pd.DataFrame:
     )
 
 
-def _df_to_tags_map(df: pd.DataFrame) -> Dict[str, str]:
-    tags: Dict[str, str] = {}
-    for _, row in df.iterrows():
-        k = str(row.get("tag_name") or "").strip()
-        v = str(row.get("tag_value") or "").strip()
-        if k:
-            tags[k] = v
-    return tags
+def _select_index(options: List[str], current: str) -> int:
+    try:
+        return options.index(current)
+    except ValueError:
+        return 0
 
 
-# ── Pages ───────────────────────────────────────────────────
+def _safe_badge(text: str, tone: str = "neutral") -> str:
+    if not text:
+        return ""
+    return f"<span class='gh-badge gh-badge-{tone}'>{html.escape(text)}</span>"
 
 
-def page_home(
+def _render_styles() -> None:
+    st.markdown(
+        """
+<style>
+  :root {
+    --gh-bg: #f4f7fb;
+    --gh-surface: #ffffff;
+    --gh-surface-alt: #edf3ff;
+    --gh-border: #d8e2ef;
+    --gh-primary: #2257d8;
+    --gh-primary-strong: #143e9b;
+    --gh-text: #162033;
+    --gh-muted: #5e6c84;
+    --gh-good: #127863;
+    --gh-warn: #9a6b00;
+    --gh-danger: #b13a4b;
+    --gh-shadow: 0 16px 40px rgba(18, 32, 63, 0.08);
+  }
+
+  .stApp {
+    background:
+      radial-gradient(circle at top left, rgba(67, 106, 232, 0.10), transparent 28%),
+      radial-gradient(circle at top right, rgba(47, 128, 237, 0.08), transparent 24%),
+      var(--gh-bg);
+    color: var(--gh-text);
+  }
+
+  .block-container {
+    max-width: 1440px;
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
+  }
+
+  [data-testid="stSidebar"], [data-testid="collapsedControl"] {
+    display: none;
+  }
+
+  h1, h2, h3, h4 {
+    color: var(--gh-text);
+    letter-spacing: -0.02em;
+  }
+
+  .gh-shell {
+    padding: 1.5rem 1.7rem;
+    border-radius: 28px;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(240, 245, 255, 0.92)),
+      var(--gh-surface);
+    border: 1px solid var(--gh-border);
+    box-shadow: var(--gh-shadow);
+    margin-bottom: 1rem;
+  }
+
+  .gh-shell-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .gh-eyebrow {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.16em;
+    color: var(--gh-primary);
+    font-weight: 700;
+    margin-bottom: 0.65rem;
+  }
+
+  .gh-shell h1 {
+    margin: 0;
+    font-size: 3rem;
+    line-height: 1;
+  }
+
+  .gh-shell-copy {
+    max-width: 820px;
+    margin-top: 0.7rem;
+    color: var(--gh-muted);
+    font-size: 1.02rem;
+    line-height: 1.6;
+  }
+
+  .gh-chip-row {
+    display: flex;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .gh-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.55rem 0.85rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--gh-border);
+    color: var(--gh-text);
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
+
+  .gh-chip.good {
+    color: var(--gh-good);
+    border-color: rgba(18, 120, 99, 0.24);
+    background: rgba(18, 120, 99, 0.08);
+  }
+
+  .gh-panel {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid var(--gh-border);
+    border-radius: 22px;
+    padding: 1.1rem 1.2rem;
+    box-shadow: 0 12px 28px rgba(18, 32, 63, 0.05);
+    margin-bottom: 1rem;
+  }
+
+  .gh-panel h3, .gh-panel h4 {
+    margin-top: 0;
+  }
+
+  .gh-panel-label {
+    font-size: 0.82rem;
+    color: var(--gh-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    margin-bottom: 0.45rem;
+  }
+
+  .gh-section-title {
+    margin: 0 0 0.3rem 0;
+    font-size: 1.6rem;
+  }
+
+  .gh-section-copy {
+    margin: 0;
+    color: var(--gh-muted);
+  }
+
+  .gh-asset-card {
+    padding: 1rem 1rem 0.9rem;
+    border-radius: 18px;
+    border: 1px solid var(--gh-border);
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
+    margin-bottom: 0.6rem;
+  }
+
+  .gh-asset-card.active {
+    border-color: rgba(34, 87, 216, 0.34);
+    box-shadow: 0 18px 32px rgba(34, 87, 216, 0.12);
+    background: linear-gradient(135deg, rgba(242, 247, 255, 0.95), rgba(255, 255, 255, 0.98));
+  }
+
+  .gh-asset-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .gh-asset-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--gh-text);
+  }
+
+  .gh-asset-fqn {
+    font-size: 0.82rem;
+    color: var(--gh-muted);
+    margin-top: 0.15rem;
+  }
+
+  .gh-score {
+    min-width: 3rem;
+    text-align: center;
+    padding: 0.35rem 0.55rem;
+    border-radius: 12px;
+    background: rgba(34, 87, 216, 0.1);
+    color: var(--gh-primary);
+    font-weight: 800;
+    font-size: 0.9rem;
+  }
+
+  .gh-asset-copy {
+    color: var(--gh-muted);
+    font-size: 0.92rem;
+    line-height: 1.55;
+    min-height: 2.85rem;
+  }
+
+  .gh-badge-row {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+  }
+
+  .gh-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.3rem 0.58rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    background: rgba(21, 52, 108, 0.06);
+    color: var(--gh-text);
+  }
+
+  .gh-badge-primary {
+    background: rgba(34, 87, 216, 0.12);
+    color: var(--gh-primary);
+  }
+
+  .gh-badge-good {
+    background: rgba(18, 120, 99, 0.12);
+    color: var(--gh-good);
+  }
+
+  .gh-badge-warn {
+    background: rgba(154, 107, 0, 0.12);
+    color: var(--gh-warn);
+  }
+
+  .gh-badge-danger {
+    background: rgba(177, 58, 75, 0.12);
+    color: var(--gh-danger);
+  }
+
+  .gh-meta-row {
+    display: flex;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+    color: var(--gh-muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .gh-profile-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+  }
+
+  .gh-profile-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin: 0;
+  }
+
+  .gh-profile-fqn {
+    color: var(--gh-muted);
+    margin-top: 0.3rem;
+    font-size: 0.92rem;
+  }
+
+  .gh-profile-copy {
+    color: var(--gh-muted);
+    line-height: 1.65;
+    font-size: 0.96rem;
+    margin-top: 0.8rem;
+  }
+
+  .gh-lineage-node {
+    padding: 0.9rem 1rem;
+    border-radius: 18px;
+    border: 1px solid var(--gh-border);
+    background: rgba(255, 255, 255, 0.96);
+    margin-bottom: 0.7rem;
+  }
+
+  .gh-lineage-node.focus {
+    border-color: rgba(34, 87, 216, 0.3);
+    background: linear-gradient(135deg, rgba(237, 244, 255, 0.95), rgba(255, 255, 255, 0.98));
+  }
+
+  .gh-lineage-label {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gh-muted);
+    margin-bottom: 0.35rem;
+  }
+
+  div[data-testid="stMetric"] {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--gh-border);
+    border-radius: 18px;
+    padding: 0.9rem 1rem;
+    box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
+  }
+
+  div[data-testid="stMetricLabel"] {
+    color: var(--gh-muted);
+    font-weight: 700;
+  }
+
+  div[data-testid="stMetricValue"] {
+    color: var(--gh-text);
+  }
+
+  .stButton > button {
+    border-radius: 14px;
+    border: 1px solid var(--gh-border);
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--gh-text);
+    font-weight: 700;
+    min-height: 2.8rem;
+  }
+
+  .stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, var(--gh-primary), #4c79ff);
+    color: white;
+    border: none;
+  }
+
+  .stTextInput input, .stTextArea textarea {
+    border-radius: 14px !important;
+  }
+
+  [data-baseweb="select"] > div {
+    border-radius: 14px !important;
+  }
+
+  .stTabs [data-baseweb="tab-list"] {
+    gap: 0.55rem;
+  }
+
+  .stTabs [data-baseweb="tab"] {
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid var(--gh-border);
+    padding: 0.5rem 0.9rem;
+    font-weight: 700;
+  }
+
+  .stTabs [aria-selected="true"] {
+    background: rgba(34, 87, 216, 0.1);
+    border-color: rgba(34, 87, 216, 0.2);
+    color: var(--gh-primary);
+  }
+
+  .stRadio > div {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid var(--gh-border);
+    border-radius: 18px;
+    padding: 0.35rem 0.45rem;
+  }
+
+  .stRadio [role="radiogroup"] {
+    gap: 0.35rem;
+  }
+
+  @media (max-width: 900px) {
+    .gh-shell h1 {
+      font-size: 2.3rem;
+    }
+  }
+</style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_shell(
     cfg: AppConfig,
-    uc: UCSQLClient,
+    role: str,
+    user_email: str,
     om: Optional[OpenMetadataClient],
-    role: str,
-    user_email: str,
-):
-    # ── Hero ────────────────────────────────────────────
-    st.title("🏛️ Governance Hub")
-    st.markdown(
-        "> A self-service **data governance portal** built on top of "
-        "**Unity Catalog** — running as a native **Databricks App**."
-    )
-
-    # ── Health cards ────────────────────────────────────
-    st.markdown("---")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        try:
-            cats = _user_catalogs(uc)
-            st.metric("UC Catalogs", len(cats))
-        except Exception as e:
-            st.error(f"UC: {e}")
-    with col2:
-        st.metric("Gov. Catalog", cfg.gov_catalog)
-    with col3:
-        st.metric("Your Role", role)
-    with col4:
-        if om is None:
-            st.metric("OpenMetadata", "off")
-        else:
-            st.metric("OpenMetadata", "connected ✅")
-
-    # ── What is Governance Hub? ─────────────────────────
-    st.markdown("---")
-    st.header("📖 What is Governance Hub?")
-    st.markdown(
-        """
-Governance Hub is a **lightweight, self-service governance portal** that runs
-entirely inside your Databricks workspace.  It extends Unity Catalog with
-features that UC alone doesn't provide out-of-the-box:
-
-| Capability | How it works |
-|---|---|
-| **Browse & inspect** any catalog / schema / table | Reads UC `information_schema` via SQL Warehouse |
-| **Table & column lineage** | Queries `system.access.table_lineage` and `column_lineage` |
-| **Business glossary** | Stored in a UC Delta table — create, search, and manage terms |
-| **Data ownership tracking** | Associates one or more owners (technical / business / steward) per table |
-| **UC tag & comment editing** | Direct DDL through the SQL Warehouse |
-| **Change-request workflow** | Readers propose changes; writers / admins review and apply |
-| **OpenMetadata connector** *(optional)* | Bridges to a self-hosted OpenMetadata instance for cross-platform governance |
-
-No external servers, no Docker, no Kafka — just a SQL Warehouse and this app.
-"""
-    )
-
-    # ── Role guide ──────────────────────────────────────
-    st.header("👥 Roles & Permissions")
-    r1, r2, r3 = st.columns(3)
-    with r1:
-        st.markdown(
-            """
-#### 👀 Reader
-- Browse catalogs, schemas, tables
-- View lineage, glossary, owners
-- **Submit** change requests
-- Cannot directly edit metadata
-"""
-        )
-    with r2:
-        st.markdown(
-            """
-#### ✍️ Writer
-- Everything a Reader can do
-- Edit UC comments & tags directly
-- Manage glossary terms
-- Review & approve change requests
-"""
-        )
-    with r3:
-        st.markdown(
-            """
-#### 🛡️ Admin
-- Everything a Writer can do
-- Manage user roles (promote / demote)
-- Full access to Admin page
-- Bootstrap via `GOVHUB_ADMIN_EMAILS`
-"""
-        )
-
-    # ── Quick-start guide ───────────────────────────────
-    st.header("🚀 Quick-Start Guide")
-    st.markdown(
-        """
-1. **UC Browser** — Select a catalog → schema → table to inspect columns,
-   comments, tags, and owners.  Writers can edit directly; readers can submit
-   a change request.
-2. **Lineage** — Pick a table from the dropdowns to view upstream / downstream
-   table lineage and column-level lineage from UC system tables.
-3. **Glossary** — Search existing business terms or create new ones.  Terms
-   live in a Delta table inside your governance schema.
-4. **Change Requests** — Readers submit proposed metadata changes here.
-   Writers / admins review the queue, approve (auto-applies), or reject with
-   a note.
-5. **OpenMetadata Connector** — If you've deployed OpenMetadata OSS, link UC
-   tables to OM entities, search OM, and pull cross-platform lineage.
-6. **Admin** — Manage who has reader / writer / admin access.
-"""
-    )
-
-    # ── Architecture ────────────────────────────────────
-    with st.expander("🏗️ Architecture overview"):
-        st.code(
-            """
-┌─────────────────────────────────────────────────────┐
-│              Databricks App  (Streamlit)             │
-│  app.py  →  govhub/                                 │
-│     │           ├─ auth.py          (SSO identity)   │
-│     │           ├─ config.py        (env vars)       │
-│     │           ├─ uc.py            (SQL Warehouse)  │
-│     │           ├─ store.py         (gov Delta tbls) │
-│     │           ├─ openmetadata.py  (optional)       │
-│     │           └─ util.py                           │
-└────┬───────────────────┬────────────────────────────┘
-     │                   │
-     ▼                   ▼ (optional)
- Unity Catalog      OpenMetadata OSS
-  • metadata          • cross-platform
-  • lineage             lineage &
-  • gov tables          enrichment
-""",
-            language=None,
-        )
-
-    # ── Footer ──────────────────────────────────────────
-    st.markdown("---")
-    st.caption(
-        f"Signed in as **{user_email}** · Role: **{role}** · "
-        f"Governance schema: `{cfg.gov_catalog}.{cfg.gov_schema}`"
-    )
-
-
-# ─────────────────────────────────────────────────────────────
-# UC Browser
-# ─────────────────────────────────────────────────────────────
-
-
-def page_uc_browser(
-    cfg: AppConfig,
-    uc: UCSQLClient,
-    store: GovernanceStore,
-    role: str,
-    user_email: str,
-):
-    st.header("Unity Catalog Browser")
-    st.caption(
-        "Browse UC-managed catalogs, schemas, and tables.  "
-        "Non-UC catalogs (hive_metastore, samples, system) are excluded."
-    )
-
-    picked = _table_picker(uc, key_prefix="ucb")
-    if picked is None:
-        return
-    catalog, schema, table = picked
-    uc_full = f"{catalog}.{schema}.{table}"
-    st.caption(f"Selected: `{uc_full}`")
-
-    # Details
-    cols_df = _cached_columns(uc, catalog, schema, table)
-    comment = _cached_comment(uc, catalog, schema, table)
-    tags_df = _cached_table_tags(uc, catalog, schema, table)
-
-    with st.expander("📋 Table details", expanded=True):
-        st.markdown("**Table comment**")
-        st.code(comment or "(none)")
-        st.markdown("**Columns**")
-        st.dataframe(cols_df, use_container_width=True, hide_index=True)
-        st.markdown("**UC Tags**")
-        st.dataframe(tags_df, use_container_width=True, hide_index=True)
-
-    # Owners
-    with st.expander("👤 Data owners"):
-        owners = store.get_owners(uc_full)
-        st.dataframe(owners, use_container_width=True, hide_index=True)
-        if role in {"writer", "admin"}:
-            with st.form(f"owner_{uc_full}"):
-                oe = st.text_input("Owner email")
-                ot = st.selectbox("Type", ["technical", "business", "steward"])
-                if st.form_submit_button("Add / update owner"):
-                    store.upsert_owner(uc_full, oe, ot, user_email)
-                    st.success("Updated.")
-                    st.rerun()
-
-    # Governance actions
-    is_writer = role in {"writer", "admin"}
-    st.divider()
-    st.subheader("Governance actions")
-
-    if is_writer:
-        # ── Table comment ──────────────────────────────────
-        st.markdown("##### Update table comment")
-        new_comment = st.text_area(
-            "New comment", value=comment or "", height=100, key=f"cmt_{uc_full}"
-        )
-        if st.button("Save table comment", key=f"sv_cmt_{uc_full}"):
-            try:
-                uc.set_table_comment(catalog, schema, table, new_comment)
-                st.success("Table comment updated.")
-            except Exception as e:
-                st.error(str(e))
-
-        # ── Table tags ─────────────────────────────────────
-        st.markdown("##### Update table tags")
-        edited = _tags_editor(tags_df, key=f"tbl_tags_{uc_full}")
-        if st.button("Save table tags", key=f"sv_tags_{uc_full}"):
-            try:
-                uc.set_table_tags(catalog, schema, table, _df_to_tags_map(edited))
-                st.success("Table tags updated.")
-            except Exception as e:
-                st.error(str(e))
-
-        # ── Column comments ────────────────────────────────
-        st.markdown("##### Edit column comments")
-        st.caption(
-            "Select a column and update its description.  "
-            "These are stored as column-level comments in Unity Catalog."
-        )
-        if not cols_df.empty:
-            col_name_list = cols_df["column_name"].tolist()
-            sel_col = st.selectbox(
-                "Column", col_name_list, key=f"col_sel_{uc_full}"
-            )
-            current_col_cmt = ""
-            if sel_col and not cols_df.empty:
-                row = cols_df[cols_df["column_name"] == sel_col]
-                if not row.empty:
-                    current_col_cmt = str(row.iloc[0].get("comment") or "")
-                    if current_col_cmt.lower() == "none":
-                        current_col_cmt = ""
-            new_col_cmt = st.text_area(
-                "Column comment",
-                value=current_col_cmt,
-                height=80,
-                key=f"col_cmt_{uc_full}_{sel_col}",
-            )
-            if st.button("Save column comment", key=f"sv_ccmt_{uc_full}_{sel_col}"):
-                if sel_col:
-                    try:
-                        uc.set_column_comment(
-                            catalog, schema, table, sel_col, new_col_cmt
-                        )
-                        st.success(f"Comment updated for column `{sel_col}`.")
-                    except Exception as e:
-                        st.error(str(e))
-                else:
-                    st.error("Please select a column first.")
-
-            # ── Column tags ────────────────────────────────
-            st.markdown("##### Edit column tags")
-            if sel_col:
-                col_tags_df = uc.get_column_tags(catalog, schema, table, sel_col)
-                edited_col_tags = _tags_editor(col_tags_df, key=f"col_tags_{uc_full}_{sel_col}")
-                if st.button("Save column tags", key=f"sv_ctags_{uc_full}_{sel_col}"):
-                    try:
-                        uc.set_column_tags(
-                            catalog, schema, table, sel_col,
-                            _df_to_tags_map(edited_col_tags),
-                        )
-                        st.success(f"Tags updated for column `{sel_col}`.")
-                    except Exception as e:
-                        st.error(str(e))
-        else:
-            st.info("No columns found for this table.")
-
-    else:
-        st.info(
-            "📝 **Readers** can propose changes via a **Change Request**.  "
-            "A writer or admin will review and apply them."
-        )
-        with st.expander("Submit a change request for this table"):
-            req_comment = st.text_area(
-                "Proposed comment", value=comment or "", height=100, key=f"rc_{uc_full}"
-            )
-            req_tags_df = _tags_editor(tags_df, key=f"req_tags_{uc_full}")
-            if st.button("Submit change request", key=f"sub_{uc_full}"):
-                rid = store.create_change_request(
-                    created_by=user_email,
-                    uc_full_name=uc_full,
-                    new_comment=req_comment,
-                    new_uc_tags=_df_to_tags_map(req_tags_df),
-                )
-                st.success(
-                    f"✅ Submitted request `{rid}`.  "
-                    "Go to **Change Requests** to track its status."
-                )
-
-
-# ─────────────────────────────────────────────────────────────
-# Lineage
-# ─────────────────────────────────────────────────────────────
-
-
-def _render_column_lineage(
-    df: pd.DataFrame, *, direction: str, key: str
 ) -> None:
-    """Smart display for column-lineage dataframes.
+    om_class = "good" if om else ""
+    om_label = "OpenMetadata connected" if om else "Unity Catalog only"
+    st.markdown(
+        f"""
+<div class="gh-shell">
+  <div class="gh-shell-top">
+    <div>
+      <div class="gh-eyebrow">Enterprise Metadata For Databricks</div>
+      <h1>Governance Hub</h1>
+      <div class="gh-shell-copy">
+        Discovery, lineage, and governance designed like a metadata product instead
+        of a utility screen. The shell is search-first, asset-centric, and built
+        to add stewardship workflows on top of Unity Catalog.
+      </div>
+    </div>
+    <div class="gh-chip-row">
+      <span class="gh-chip">{html.escape(cfg.gov_catalog)}.{html.escape(cfg.gov_schema)}</span>
+      <span class="gh-chip">{html.escape(role.title())}</span>
+      <span class="gh-chip">{html.escape(user_email)}</span>
+      <span class="gh-chip {om_class}">{html.escape(om_label)}</span>
+    </div>
+  </div>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    * Identifies the source-col and target-col columns dynamically.
-    * Offers a "direct name-matches only" toggle to cut operation-level noise.
-    * Shows summary metrics so users can evaluate data quality at a glance.
+
+def _empty_inventory() -> pd.DataFrame:
+    return pd.DataFrame(
+        columns=[
+            "table_catalog",
+            "table_schema",
+            "table_name",
+            "table_type",
+            "comment",
+            "fqn",
+            "tags",
+            "domain",
+            "tier",
+            "certification",
+            "sensitivity",
+            "criticality",
+            "glossary_term",
+            "data_product",
+            "owner_count",
+            "owners_summary",
+            "business_owner",
+            "technical_owner",
+            "steward",
+            "pending_requests",
+            "approved_requests",
+            "rejected_requests",
+            "total_requests",
+            "om_table_fqn",
+            "governance_score",
+            "governance_status",
+            "search_text",
+        ]
+    )
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_asset_inventory(_uc: UCSQLClient, _store: GovernanceStore) -> pd.DataFrame:
+    catalogs = _cached_catalogs(_uc)
+    inventory_frames: List[pd.DataFrame] = []
+    tag_maps: Dict[str, Dict[str, str]] = {}
+
+    for catalog in catalogs:
+        inv = _cached_catalog_inventory(_uc, catalog)
+        if not inv.empty:
+            inv = inv.copy()
+            inv["comment"] = inv["comment"].map(_normalize_str)
+            inv["fqn"] = (
+                inv["table_catalog"].astype(str)
+                + "."
+                + inv["table_schema"].astype(str)
+                + "."
+                + inv["table_name"].astype(str)
+            )
+            inventory_frames.append(inv)
+
+        tags_df = _cached_catalog_table_tags(_uc, catalog)
+        if tags_df.empty:
+            continue
+        tags_df = tags_df.copy()
+        tags_df["fqn"] = (
+            tags_df["table_catalog"].astype(str)
+            + "."
+            + tags_df["table_schema"].astype(str)
+            + "."
+            + tags_df["table_name"].astype(str)
+        )
+        for fqn, group in tags_df.groupby("fqn"):
+            tag_maps[str(fqn)] = {
+                _normalize_str(row.tag_name): _normalize_str(row.tag_value)
+                for row in group.itertuples()
+                if _normalize_str(row.tag_name)
+            }
+
+    if not inventory_frames:
+        return _empty_inventory()
+
+    inventory = pd.concat(inventory_frames, ignore_index=True)
+    inventory["tags"] = inventory["fqn"].map(
+        lambda fqn: tag_maps.get(str(fqn), {}) if pd.notna(fqn) else {}
+    )
+    inventory["domain"] = inventory["tags"].map(
+        lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "domain")
+    )
+    inventory["tier"] = inventory["tags"].map(
+        lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "tier")
+    )
+    inventory["certification"] = inventory["tags"].map(
+        lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "certification")
+    )
+    inventory["sensitivity"] = inventory["tags"].map(
+        lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "sensitivity")
+    )
+    inventory["criticality"] = inventory["tags"].map(
+        lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "criticality")
+    )
+    inventory["glossary_term"] = inventory["tags"].map(
+        lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "glossary_term")
+    )
+    inventory["data_product"] = inventory["tags"].map(
+        lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "data_product")
+    )
+
+    owners_df = _store.list_owner_assignments()
+    if not owners_df.empty:
+        owner_rows = []
+        for fqn, group in owners_df.groupby("uc_full_name"):
+            owner_rows.append(
+                {
+                    "fqn": fqn,
+                    "owner_count": int(group["owner_email"].nunique()),
+                    "owners_summary": ", ".join(
+                        sorted(
+                            {
+                                _normalize_str(email)
+                                for email in group["owner_email"].tolist()
+                                if _normalize_str(email)
+                            }
+                        )[:3]
+                    ),
+                    "business_owner": ", ".join(
+                        sorted(
+                            {
+                                _normalize_str(email)
+                                for email in group.loc[
+                                    group["owner_type"] == "business", "owner_email"
+                                ].tolist()
+                                if _normalize_str(email)
+                            }
+                        )
+                    ),
+                    "technical_owner": ", ".join(
+                        sorted(
+                            {
+                                _normalize_str(email)
+                                for email in group.loc[
+                                    group["owner_type"] == "technical", "owner_email"
+                                ].tolist()
+                                if _normalize_str(email)
+                            }
+                        )
+                    ),
+                    "steward": ", ".join(
+                        sorted(
+                            {
+                                _normalize_str(email)
+                                for email in group.loc[
+                                    group["owner_type"] == "steward", "owner_email"
+                                ].tolist()
+                                if _normalize_str(email)
+                            }
+                        )
+                    ),
+                }
+            )
+        inventory = inventory.merge(pd.DataFrame(owner_rows), on="fqn", how="left")
+    else:
+        inventory["owner_count"] = 0
+        inventory["owners_summary"] = ""
+        inventory["business_owner"] = ""
+        inventory["technical_owner"] = ""
+        inventory["steward"] = ""
+
+    links_df = _store.list_asset_links()
+    if not links_df.empty:
+        links_df = links_df.rename(
+            columns={"uc_full_name": "fqn", "om_table_fqn": "om_table_fqn"}
+        )
+        inventory = inventory.merge(
+            links_df[["fqn", "om_table_fqn"]], on="fqn", how="left"
+        )
+    else:
+        inventory["om_table_fqn"] = ""
+
+    requests_df = _store.list_change_requests(limit=500)
+    if not requests_df.empty:
+        request_rollup = (
+            requests_df[requests_df["uc_full_name"].notna()]
+            .groupby("uc_full_name")
+            .agg(
+                pending_requests=("status", lambda s: int((s == "pending").sum())),
+                approved_requests=("status", lambda s: int((s == "approved").sum())),
+                rejected_requests=("status", lambda s: int((s == "rejected").sum())),
+                total_requests=("request_id", "count"),
+            )
+            .reset_index()
+            .rename(columns={"uc_full_name": "fqn"})
+        )
+        inventory = inventory.merge(request_rollup, on="fqn", how="left")
+    else:
+        inventory["pending_requests"] = 0
+        inventory["approved_requests"] = 0
+        inventory["rejected_requests"] = 0
+        inventory["total_requests"] = 0
+
+    for col in [
+        "owner_count",
+        "pending_requests",
+        "approved_requests",
+        "rejected_requests",
+        "total_requests",
+    ]:
+        if col not in inventory.columns:
+            inventory[col] = 0
+        inventory[col] = inventory[col].fillna(0).astype(int)
+
+    for col in [
+        "owners_summary",
+        "business_owner",
+        "technical_owner",
+        "steward",
+        "om_table_fqn",
+    ]:
+        if col not in inventory.columns:
+            inventory[col] = ""
+        inventory[col] = inventory[col].map(_normalize_str)
+
+    inventory["governance_score"] = (
+        35 * inventory["comment"].ne("").astype(int)
+        + 20 * inventory["owner_count"].gt(0).astype(int)
+        + 15 * inventory["domain"].ne("").astype(int)
+        + 15 * inventory["certification"].ne("").astype(int)
+        + 15 * inventory["glossary_term"].ne("").astype(int)
+    )
+    inventory["governance_status"] = "Needs Work"
+    inventory.loc[inventory["governance_score"] >= 55, "governance_status"] = (
+        "Operational"
+    )
+    inventory.loc[inventory["governance_score"] >= 80, "governance_status"] = (
+        "Enterprise Ready"
+    )
+
+    search_cols = [
+        "fqn",
+        "table_name",
+        "table_schema",
+        "comment",
+        "domain",
+        "tier",
+        "certification",
+        "sensitivity",
+        "criticality",
+        "glossary_term",
+        "data_product",
+        "owners_summary",
+        "business_owner",
+        "technical_owner",
+        "steward",
+    ]
+    inventory["search_text"] = (
+        inventory[search_cols].fillna("").astype(str).agg(" ".join, axis=1).str.lower()
+    )
+    return inventory.sort_values(
+        ["governance_score", "pending_requests", "fqn"],
+        ascending=[False, False, True],
+    ).reset_index(drop=True)
+
+
+def _inventory_metric(inventory: pd.DataFrame, expr: pd.Series) -> int:
+    if inventory.empty:
+        return 0
+    return int(expr.sum())
+
+
+def _safe_df_call(fetcher, *args) -> Tuple[pd.DataFrame, Optional[str]]:
+    try:
+        return fetcher(*args), None
+    except Exception as exc:
+        return pd.DataFrame(), str(exc)
+
+
+def _asset_card_html(asset: pd.Series, active: bool) -> str:
+    description = shorten(
+        asset.get("comment") or "No business description has been added yet.",
+        width=140,
+        placeholder="...",
+    )
+    badges = [
+        _safe_badge(asset.get("table_type", "Table"), "primary"),
+        _safe_badge(asset.get("tier", ""), "primary"),
+        _safe_badge(asset.get("certification", ""), "good"),
+        _safe_badge(asset.get("sensitivity", ""), "warn"),
+        _safe_badge(asset.get("domain", ""), "neutral"),
+    ]
+    badges = "".join(badge for badge in badges if badge)
+    active_class = "active" if active else ""
+    return f"""
+<div class="gh-asset-card {active_class}">
+  <div class="gh-asset-head">
+    <div>
+      <div class="gh-asset-name">{html.escape(_normalize_str(asset.get("table_name")))}</div>
+      <div class="gh-asset-fqn">{html.escape(_normalize_str(asset.get("fqn")))}</div>
+    </div>
+    <div class="gh-score">{int(asset.get("governance_score", 0))}</div>
+  </div>
+  <div class="gh-asset-copy">{html.escape(description)}</div>
+  <div class="gh-badge-row">{badges}</div>
+  <div class="gh-meta-row">
+    <span>{int(asset.get("owner_count", 0))} owners</span>
+    <span>{int(asset.get("pending_requests", 0))} open requests</span>
+    <span>{html.escape(_normalize_str(asset.get("governance_status")))}</span>
+  </div>
+</div>
     """
+
+
+def _profile_header_html(asset: pd.Series) -> str:
+    tags = asset.get("tags") if isinstance(asset.get("tags"), dict) else {}
+    structured = _structured_tags(tags or {})
+    badges = [
+        _safe_badge(asset.get("table_type", "Table"), "primary"),
+        _safe_badge(structured.get("domain", ""), "neutral"),
+        _safe_badge(structured.get("tier", ""), "primary"),
+        _safe_badge(structured.get("certification", ""), "good"),
+        _safe_badge(structured.get("sensitivity", ""), "warn"),
+        _safe_badge(structured.get("criticality", ""), "danger"),
+    ]
+    om_badge = _safe_badge(
+        "OpenMetadata linked" if _normalize_str(asset.get("om_table_fqn")) else "",
+        "good",
+    )
+    description = _normalize_str(asset.get("comment")) or (
+        "This asset has not been documented yet. Add a business-facing description "
+        "and governance fields to move it toward enterprise-ready status."
+    )
+    return f"""
+<div class="gh-panel">
+  <div class="gh-profile-head">
+    <div>
+      <div class="gh-panel-label">Asset Profile</div>
+      <div class="gh-profile-title">{html.escape(_normalize_str(asset.get("table_name")))}</div>
+      <div class="gh-profile-fqn">{html.escape(_normalize_str(asset.get("fqn")))}</div>
+    </div>
+    <div class="gh-chip-row">
+      <span class="gh-chip">Coverage {int(asset.get("governance_score", 0))}</span>
+      <span class="gh-chip">{html.escape(_normalize_str(asset.get("governance_status")))}</span>
+      {om_badge}
+    </div>
+  </div>
+  <div class="gh-badge-row">{"".join(badge for badge in badges if badge)}</div>
+  <div class="gh-profile-copy">{html.escape(description)}</div>
+</div>
+    """
+
+
+def _lineage_node_html(
+    label: str, fqn: str, tone: str = "neutral", focus: bool = False
+) -> str:
+    tone_class = {
+        "source": "warn",
+        "target": "good",
+        "focus": "primary",
+    }.get(tone, "neutral")
+    focus_class = "focus" if focus else ""
+    table_name = fqn.split(".")[-1] if fqn else "No asset"
+    return f"""
+<div class="gh-lineage-node {focus_class}">
+  <div class="gh-lineage-label">{html.escape(label)}</div>
+  <div class="gh-asset-name">{html.escape(table_name)}</div>
+  <div class="gh-asset-fqn">{html.escape(fqn)}</div>
+  <div class="gh-badge-row">{_safe_badge(tone.title(), tone_class)}</div>
+</div>
+    """
+
+
+def _render_section_intro(title: str, copy: str) -> None:
+    st.markdown(
+        f"""
+<div class="gh-panel">
+  <div class="gh-panel-label">Workspace Module</div>
+  <div class="gh-section-title">{html.escape(title)}</div>
+  <div class="gh-section-copy">{html.escape(copy)}</div>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_column_lineage(df: pd.DataFrame, key: str) -> None:
     src_col = "source_column_name"
     tgt_col = "target_column_name"
-
-    # Metrics row
-    total_rows = len(df)
     direct_mask = df[src_col].str.lower() == df[tgt_col].str.lower()
-    n_direct = int(direct_mask.sum())
-
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Total mappings", total_rows)
-    c2.metric("Direct name-matches", n_direct)
-    c3.metric("Indirect / broad", total_rows - n_direct)
-
     show_all = st.toggle(
         "Include indirect / broad mappings",
         value=False,
         key=f"showall_{key}",
         help=(
-            "By default only rows where source and target column names match "
-            "(case-insensitive) are shown — these are the most reliable lineage "
-            "signals.  Enable this to include the broader operation-level mappings."
+            "Databricks records source columns read by an operation, not exact "
+            "column-to-column transforms. This filter keeps only exact name matches."
         ),
     )
 
-    view_df = df if show_all else df[direct_mask]
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total mappings", len(df))
+    c2.metric("Direct matches", int(direct_mask.sum()))
+    c3.metric("Indirect / broad", int((~direct_mask).sum()))
 
+    view_df = df if show_all else df[direct_mask]
     if view_df.empty:
-        st.info("No direct column name-matches found for this table.")
+        st.info("No direct column matches are available for this asset.")
     else:
         st.dataframe(view_df, use_container_width=True, hide_index=True)
 
-    with st.expander("ℹ️ How to interpret this data"):
-        st.markdown(
-            "Databricks `system.access.column_lineage` records which source "
-            "columns were **read** during each write operation — it does **not** "
-            "track precise column-to-column transformations.\n\n"
-            "For example, if a query reads columns A, B, C from table X and "
-            "writes columns D, E, F to table Y, the system logs all 9 "
-            "combinations (A→D, A→E, A→F, B→D, …).  This is why you may see "
-            "one source column mapped to many target columns.\n\n"
-            "**Direct name-matches** (where source and target column names are "
-            "identical) are the most reliable indicator of real lineage.  The "
-            "toggle above lets you filter to just those rows."
+
+def _apply_table_tags(
+    uc: UCSQLClient,
+    catalog: str,
+    schema: str,
+    table: str,
+    existing_df: pd.DataFrame,
+    desired_tags: Dict[str, str],
+) -> None:
+    existing_tags = _df_to_tags_map(existing_df)
+    desired_tags = {
+        key: value for key, value in desired_tags.items() if _normalize_str(key)
+    }
+    to_unset = [key for key in existing_tags if key not in desired_tags]
+    to_set = {
+        key: value
+        for key, value in desired_tags.items()
+        if existing_tags.get(key) != value
+    }
+    if to_unset:
+        uc.unset_table_tags(catalog, schema, table, to_unset)
+    if to_set:
+        uc.set_table_tags(catalog, schema, table, to_set)
+
+
+def _apply_column_tags(
+    uc: UCSQLClient,
+    catalog: str,
+    schema: str,
+    table: str,
+    column: str,
+    existing_df: pd.DataFrame,
+    desired_tags: Dict[str, str],
+) -> None:
+    existing_tags = _df_to_tags_map(existing_df)
+    desired_tags = {
+        key: value for key, value in desired_tags.items() if _normalize_str(key)
+    }
+    to_unset = [key for key in existing_tags if key not in desired_tags]
+    to_set = {
+        key: value
+        for key, value in desired_tags.items()
+        if existing_tags.get(key) != value
+    }
+    if to_unset:
+        uc.unset_column_tags(catalog, schema, table, column, to_unset)
+    if to_set:
+        uc.set_column_tags(catalog, schema, table, column, to_set)
+
+
+def _selected_asset(inventory: pd.DataFrame) -> Optional[pd.Series]:
+    if inventory.empty:
+        return None
+    selected_fqn = st.session_state.get("selected_asset_fqn")
+    if selected_fqn and selected_fqn in inventory["fqn"].values:
+        row = inventory[inventory["fqn"] == selected_fqn]
+        if not row.empty:
+            return row.iloc[0]
+    st.session_state["selected_asset_fqn"] = inventory.iloc[0]["fqn"]
+    return inventory.iloc[0]
+
+
+def _asset_selector(inventory: pd.DataFrame, key: str, label: str) -> Optional[str]:
+    if inventory.empty:
+        return None
+    options = inventory["fqn"].tolist()
+    selected = st.selectbox(
+        label,
+        options,
+        index=_select_index(options, st.session_state.get("selected_asset_fqn", "")),
+        format_func=lambda fqn: fqn,
+        key=key,
+    )
+    if selected:
+        st.session_state["selected_asset_fqn"] = selected
+    return selected
+
+
+def _filtered_inventory(inventory: pd.DataFrame) -> pd.DataFrame:
+    if inventory.empty:
+        return inventory
+
+    query_col, sort_col = st.columns([2.3, 1])
+    with query_col:
+        query = st.text_input(
+            "Search assets",
+            placeholder="customer, finance, PII, steward email, certified",
+            key="asset_search",
+        )
+    with sort_col:
+        sort_mode = st.selectbox(
+            "Sort by",
+            ["Best match", "Governance coverage", "Open requests", "Alphabetical"],
+            key="asset_sort_mode",
         )
 
-
-def page_lineage(uc: UCSQLClient):
-    st.header("Table Lineage (Unity Catalog)")
-    st.caption(
-        "Lineage is read from `system.access.table_lineage` and "
-        "`system.access.column_lineage`.  Select a table below to explore "
-        "its upstream and downstream dependencies."
+    filter_cols = st.columns(5)
+    catalogs = ["All"] + sorted(
+        inventory["table_catalog"].dropna().astype(str).unique().tolist()
+    )
+    domains = ["All"] + sorted([v for v in inventory["domain"].unique().tolist() if v])
+    tiers = ["All"] + sorted([v for v in inventory["tier"].unique().tolist() if v])
+    certifications = ["All"] + sorted(
+        [v for v in inventory["certification"].unique().tolist() if v]
+    )
+    sensitivities = ["All"] + sorted(
+        [v for v in inventory["sensitivity"].unique().tolist() if v]
     )
 
-    picked = _table_picker(uc, key_prefix="lin")
-    if picked is None:
-        return
-    catalog, schema, table = picked
-    st.caption(f"Showing lineage for `{catalog}.{schema}.{table}`")
-
-    tab_up, tab_down, tab_col_up, tab_col_down = st.tabs(
-        ["⬆️ Upstream tables", "⬇️ Downstream tables",
-         "⬆️ Column sources", "⬇️ Column targets"]
+    selected_catalog = filter_cols[0].selectbox(
+        "Catalog", catalogs, key="asset_catalog"
+    )
+    selected_domain = filter_cols[1].selectbox("Domain", domains, key="asset_domain")
+    selected_tier = filter_cols[2].selectbox("Tier", tiers, key="asset_tier")
+    selected_cert = filter_cols[3].selectbox(
+        "Certification", certifications, key="asset_certification"
+    )
+    selected_sensitivity = filter_cols[4].selectbox(
+        "Sensitivity", sensitivities, key="asset_sensitivity"
     )
 
-    with tab_up:
-        try:
-            df = _cached_lineage_up(uc, catalog, schema, table)
-            if df.empty:
-                st.info(
-                    "No upstream lineage found.  This table may not have any "
-                    "recorded reads from other tables."
-                )
-            else:
-                st.dataframe(df, use_container_width=True, hide_index=True)
-        except Exception as e:
-            st.error(
-                f"**Error querying `system.access.table_lineage`:**\n\n`{e}`\n\n"
-                "This usually means the app's service principal has not been "
-                "granted `SELECT` on `system.access.table_lineage`. Run:\n\n"
-                "```sql\nGRANT SELECT ON TABLE system.access.table_lineage "
-                "TO `<service-principal-app-id>`;\n```"
-            )
-
-    with tab_down:
-        try:
-            df = _cached_lineage_down(uc, catalog, schema, table)
-            if df.empty:
-                st.info("No downstream consumers found for this table.")
-            else:
-                st.dataframe(df, use_container_width=True, hide_index=True)
-        except Exception as e:
-            st.error(f"**Error querying downstream lineage:**\n\n`{e}`")
-
-    with tab_col_up:
-        st.caption(
-            "Which source columns feed **into** this table's columns.  "
-            "Reads `source_column → target_column` mappings from "
-            "`system.access.column_lineage`.  Internal columns (prefixed `__`) "
-            "are hidden."
+    filtered = inventory.copy()
+    if query:
+        q = query.lower()
+        filtered["match_score"] = (
+            filtered["table_name"]
+            .str.lower()
+            .str.contains(q, regex=False, na=False)
+            .astype(int)
+            * 4
+            + filtered["table_schema"]
+            .str.lower()
+            .str.contains(q, regex=False, na=False)
+            .astype(int)
+            * 2
+            + filtered["comment"]
+            .str.lower()
+            .str.contains(q, regex=False, na=False)
+            .astype(int)
+            * 2
+            + filtered["search_text"].str.contains(q, regex=False, na=False).astype(int)
         )
-        try:
-            df = _cached_col_lineage_up(uc, catalog, schema, table)
-            if df.empty:
-                st.info("No upstream column lineage found.")
-            else:
-                _render_column_lineage(df, direction="upstream", key="col_up")
-        except Exception as e:
-            st.error(
-                f"**Error querying `system.access.column_lineage`:**\n\n`{e}`\n\n"
-                "Grant `SELECT` on `system.access.column_lineage` "
-                "to the app's service principal."
-            )
-
-    with tab_col_down:
-        st.caption(
-            "Which columns in **downstream** tables are fed by this table's columns.  "
-            "Internal columns (prefixed `__`) are hidden."
-        )
-        st.info(
-            "💡 **About Databricks column lineage:** The system records which "
-            "source columns are *read* during a write operation — not which "
-            "source column transforms into which target column.  If an ETL "
-            "query reads column A and writes 20 columns, all 20 show A as a "
-            "source.  Use the **Direct name-matches** toggle to narrow results "
-            "to columns whose names match between source and target (the most "
-            "likely real mappings).",
-            icon="ℹ️",
-        )
-        try:
-            df = _cached_col_lineage_down(uc, catalog, schema, table)
-            if df.empty:
-                st.info("No downstream column lineage found.")
-            else:
-                _render_column_lineage(df, direction="downstream", key="col_dn")
-        except Exception as e:
-            st.error(f"**Error querying downstream column lineage:**\n\n`{e}`")
-
-
-# ─────────────────────────────────────────────────────────────
-# Glossary
-# ─────────────────────────────────────────────────────────────
-
-
-def page_glossary(uc: UCSQLClient, store: GovernanceStore, role: str, user_email: str):
-    st.header("Business Glossary")
-    st.caption(
-        "Business glossary terms stored in Unity Catalog — no external "
-        "server required.  Writers / admins can create and manage terms."
-    )
-
-    # ── Browse / search ─────────────────────────────────
-    q = st.text_input("🔍 Search terms (by name or definition)")
-    if q:
-        df = store.search_glossary(q)
+        filtered = filtered[
+            filtered["search_text"].str.contains(q, regex=False, na=False)
+        ]
     else:
-        df = store.list_glossary_terms()
+        filtered["match_score"] = 0
 
-    if not df.empty:
-        st.dataframe(df, use_container_width=True, hide_index=True)
-    else:
-        st.info("No glossary terms found.  Create one below to get started.")
+    if selected_catalog != "All":
+        filtered = filtered[filtered["table_catalog"] == selected_catalog]
+    if selected_domain != "All":
+        filtered = filtered[filtered["domain"] == selected_domain]
+    if selected_tier != "All":
+        filtered = filtered[filtered["tier"] == selected_tier]
+    if selected_cert != "All":
+        filtered = filtered[filtered["certification"] == selected_cert]
+    if selected_sensitivity != "All":
+        filtered = filtered[filtered["sensitivity"] == selected_sensitivity]
 
-    if role not in {"writer", "admin"}:
-        st.info("Only **writers / admins** can create or edit glossary terms.")
-        return
-
-    # ── Create / update ─────────────────────────────────
-    st.divider()
-    st.subheader("Create / update a term")
-    with st.form("upsert_term"):
-        tid = st.text_input(
-            "Term ID",
-            help="A unique slug, e.g. `customer_lifetime_value`.",
+    if sort_mode == "Governance coverage":
+        filtered = filtered.sort_values(
+            ["governance_score", "pending_requests", "fqn"],
+            ascending=[False, False, True],
         )
-        name = st.text_input("Display name")
-        definition = st.text_area("Definition", height=100)
-        domain = st.text_input("Domain (optional, e.g. Finance, Marketing)")
-        owner = st.text_input("Owner email (optional)")
-        status = st.selectbox("Status", ["draft", "approved", "deprecated"])
-        if st.form_submit_button("Save term"):
-            if not tid or not name:
-                st.error("Term ID and name are required.")
+    elif sort_mode == "Open requests":
+        filtered = filtered.sort_values(
+            ["pending_requests", "governance_score", "fqn"],
+            ascending=[False, False, True],
+        )
+    elif sort_mode == "Alphabetical":
+        filtered = filtered.sort_values("fqn")
+    else:
+        filtered = filtered.sort_values(
+            ["match_score", "governance_score", "pending_requests", "fqn"],
+            ascending=[False, False, False, True],
+        )
+
+    return filtered.reset_index(drop=True)
+
+
+def _render_asset_profile(
+    asset: pd.Series,
+    inventory: pd.DataFrame,
+    uc: UCSQLClient,
+    store: GovernanceStore,
+    role: str,
+    user_email: str,
+) -> None:
+    catalog, schema, table = _split_uc_name(asset["fqn"])
+    cols_df = _cached_columns(uc, catalog, schema, table)
+    tags_df = _cached_table_tags(uc, catalog, schema, table)
+    comment = _cached_comment(uc, catalog, schema, table)
+    owners_df = store.get_owners(asset["fqn"])
+    lineage_up, lineage_up_error = _safe_df_call(
+        _cached_lineage_up, uc, catalog, schema, table
+    )
+    lineage_down, lineage_down_error = _safe_df_call(
+        _cached_lineage_down, uc, catalog, schema, table
+    )
+
+    st.markdown(_profile_header_html(asset), unsafe_allow_html=True)
+
+    metrics = st.columns(5)
+    metrics[0].metric("Columns", len(cols_df))
+    metrics[1].metric("Upstream assets", len(lineage_up))
+    metrics[2].metric("Downstream assets", len(lineage_down))
+    metrics[3].metric("Open requests", int(asset.get("pending_requests", 0)))
+    metrics[4].metric("Owners", int(asset.get("owner_count", 0)))
+
+    overview_tab, schema_tab, preview_tab, lineage_tab, governance_tab = st.tabs(
+        ["Overview", "Schema", "Preview", "Lineage", "Governance"]
+    )
+
+    with overview_tab:
+        left, right = st.columns([1.25, 1])
+        with left:
+            st.markdown("#### Context")
+            st.write(
+                comment
+                or "No description has been added. Use the governance editor to document this asset."
+            )
+            st.markdown("#### Ownership")
+            if owners_df.empty:
+                st.info("No business, technical, or steward owners have been assigned.")
             else:
-                store.upsert_glossary_term(
-                    term_id=tid,
-                    name=name,
-                    definition=definition or None,
-                    domain=domain or None,
-                    owner_email=owner or None,
-                    status=status,
-                    updated_by=user_email,
+                st.dataframe(owners_df, use_container_width=True, hide_index=True)
+
+        with right:
+            structured = _structured_tags(asset.get("tags", {}))
+            summary_rows = pd.DataFrame(
+                [
+                    {"Field": "Domain", "Value": structured["domain"] or "Unassigned"},
+                    {"Field": "Tier", "Value": structured["tier"] or "Unassigned"},
+                    {
+                        "Field": "Certification",
+                        "Value": structured["certification"] or "Unassigned",
+                    },
+                    {
+                        "Field": "Sensitivity",
+                        "Value": structured["sensitivity"] or "Unassigned",
+                    },
+                    {
+                        "Field": "Criticality",
+                        "Value": structured["criticality"] or "Unassigned",
+                    },
+                    {
+                        "Field": "Glossary term",
+                        "Value": structured["glossary_term"] or "Unassigned",
+                    },
+                    {
+                        "Field": "Data product",
+                        "Value": structured["data_product"] or "Unassigned",
+                    },
+                    {
+                        "Field": "OpenMetadata link",
+                        "Value": _normalize_str(asset.get("om_table_fqn"))
+                        or "Not linked",
+                    },
+                ]
+            )
+            st.markdown("#### Governance summary")
+            st.dataframe(summary_rows, use_container_width=True, hide_index=True)
+            if not tags_df.empty:
+                st.markdown("#### Active tags")
+                st.dataframe(tags_df, use_container_width=True, hide_index=True)
+
+    with schema_tab:
+        st.dataframe(cols_df, use_container_width=True, hide_index=True)
+        if role in {"writer", "admin"} and not cols_df.empty:
+            st.divider()
+            st.markdown("#### Column metadata editor")
+            selected_col = st.selectbox(
+                "Column",
+                cols_df["column_name"].tolist(),
+                key=f"column_picker_{asset['fqn']}",
+            )
+            if selected_col is None:
+                st.warning("No columns available for editing.")
+            else:
+                current_col = cols_df[cols_df["column_name"] == selected_col].iloc[0]
+                current_comment = _normalize_str(current_col.get("comment"))
+                new_comment = st.text_area(
+                    "Column description",
+                    value=current_comment,
+                    height=100,
+                    key=f"column_comment_{asset['fqn']}_{selected_col}",
                 )
-                st.success(f"Saved term `{tid}`.")
+                if st.button(
+                    "Save column description",
+                    type="primary",
+                    use_container_width=True,
+                    key=f"save_column_comment_{asset['fqn']}_{selected_col}",
+                ):
+                    uc.set_column_comment(
+                        catalog, schema, table, selected_col, new_comment
+                    )
+                st.success(f"Updated description for `{selected_col}`.")
+                st.cache_data.clear()
                 st.rerun()
 
-    # ── Link term to a UC table or column ─────────────
-    st.divider()
-    st.subheader("Link a glossary term to a UC table or column")
-    st.caption(
-        "Associating a term adds a UC tag `glossary_term = <term_id>` on the "
-        "table or column, persisting the relationship in Unity Catalog."
+                existing_col_tags = uc.get_column_tags(
+                    catalog, schema, table, selected_col
+                )
+            edited_col_tags = _tags_editor(
+                existing_col_tags,
+                key=f"column_tags_editor_{asset['fqn']}_{selected_col}",
+            )
+            if st.button(
+                "Save column tags",
+                use_container_width=True,
+                key=f"save_column_tags_{asset['fqn']}_{selected_col}",
+            ):
+                if selected_col is not None:
+                    _apply_column_tags(
+                        uc,
+                        catalog,
+                        schema,
+                        table,
+                        selected_col,
+                        existing_col_tags,
+                        _df_to_tags_map(edited_col_tags),
+                    )
+                    st.success(f"Updated tags for `{selected_col}`.")
+                    st.cache_data.clear()
+                    st.rerun()
+
+    with preview_tab:
+        st.caption(
+            "Sample data preview is intentionally small and cached to stay responsive."
+        )
+        if st.button(
+            "Load sample rows",
+            type="primary",
+            key=f"sample_button_{asset['fqn']}",
+            use_container_width=True,
+        ):
+            st.session_state[f"sample_loaded_{asset['fqn']}"] = True
+        if st.session_state.get(f"sample_loaded_{asset['fqn']}"):
+            try:
+                st.dataframe(
+                    _cached_sample_rows(uc, catalog, schema, table),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            except Exception as exc:
+                st.error(f"Could not load sample data: {exc}")
+        else:
+            st.info("Load sample rows when you need a quick shape check for the asset.")
+
+    with lineage_tab:
+        lcol1, lcol2 = st.columns(2)
+        with lcol1:
+            st.markdown("#### Upstream assets")
+            if lineage_up_error:
+                st.warning(f"Could not query upstream lineage: {lineage_up_error}")
+            elif lineage_up.empty:
+                st.info("No upstream lineage found.")
+            else:
+                st.dataframe(lineage_up, use_container_width=True, hide_index=True)
+        with lcol2:
+            st.markdown("#### Downstream assets")
+            if lineage_down_error:
+                st.warning(f"Could not query downstream lineage: {lineage_down_error}")
+            elif lineage_down.empty:
+                st.info("No downstream lineage found.")
+            else:
+                st.dataframe(lineage_down, use_container_width=True, hide_index=True)
+        if st.button(
+            "Open full lineage workspace",
+            use_container_width=True,
+            key=f"open_lineage_{asset['fqn']}",
+        ):
+            st.session_state["app_page"] = "Lineage"
+            st.rerun()
+
+    with governance_tab:
+        is_writer = role in {"writer", "admin"}
+        existing_tags = _df_to_tags_map(tags_df)
+        existing_structured = _structured_tags(existing_tags)
+        existing_custom = {
+            key: value
+            for key, value in existing_tags.items()
+            if key not in _STANDARD_TAG_KEYS
+        }
+
+        if is_writer:
+            st.markdown("#### Structured governance metadata")
+            gov_left, gov_right = st.columns(2)
+            with gov_left:
+                new_comment = st.text_area(
+                    "Business description",
+                    value=comment,
+                    height=140,
+                    key=f"table_comment_{asset['fqn']}",
+                )
+                domain = st.text_input(
+                    "Domain",
+                    value=existing_structured["domain"],
+                    key=f"domain_{asset['fqn']}",
+                )
+                data_product = st.text_input(
+                    "Data product",
+                    value=existing_structured["data_product"],
+                    key=f"product_{asset['fqn']}",
+                )
+                glossary_term = st.text_input(
+                    "Glossary term",
+                    value=existing_structured["glossary_term"],
+                    key=f"glossary_{asset['fqn']}",
+                )
+            with gov_right:
+                tier = st.selectbox(
+                    "Tier",
+                    _TIER_OPTIONS,
+                    index=_select_index(_TIER_OPTIONS, existing_structured["tier"]),
+                    key=f"tier_{asset['fqn']}",
+                )
+                certification = st.selectbox(
+                    "Certification",
+                    _CERTIFICATION_OPTIONS,
+                    index=_select_index(
+                        _CERTIFICATION_OPTIONS, existing_structured["certification"]
+                    ),
+                    key=f"certification_{asset['fqn']}",
+                )
+                sensitivity = st.selectbox(
+                    "Sensitivity",
+                    _SENSITIVITY_OPTIONS,
+                    index=_select_index(
+                        _SENSITIVITY_OPTIONS, existing_structured["sensitivity"]
+                    ),
+                    key=f"sensitivity_{asset['fqn']}",
+                )
+                criticality = st.selectbox(
+                    "Criticality",
+                    _CRITICALITY_OPTIONS,
+                    index=_select_index(
+                        _CRITICALITY_OPTIONS, existing_structured["criticality"]
+                    ),
+                    key=f"criticality_{asset['fqn']}",
+                )
+
+            if st.button(
+                "Save structured metadata",
+                type="primary",
+                use_container_width=True,
+                key=f"save_structured_{asset['fqn']}",
+            ):
+                desired_standard = {
+                    "domain": domain,
+                    "data_product": data_product,
+                    "glossary_term": glossary_term,
+                    "tier": tier,
+                    "certification": certification,
+                    "sensitivity": sensitivity,
+                    "criticality": criticality,
+                }
+                desired_tags = {
+                    **existing_custom,
+                    **{key: value for key, value in desired_standard.items() if value},
+                }
+                uc.set_table_comment(catalog, schema, table, new_comment)
+                _apply_table_tags(uc, catalog, schema, table, tags_df, desired_tags)
+                st.success("Governance metadata updated.")
+                st.cache_data.clear()
+                st.rerun()
+
+            st.divider()
+            st.markdown("#### Custom tags")
+            edited_custom_tags = _tags_editor(
+                _custom_tags_df(tags_df), key=f"custom_tags_{asset['fqn']}"
+            )
+            if st.button(
+                "Save custom tags",
+                use_container_width=True,
+                key=f"save_custom_tags_{asset['fqn']}",
+            ):
+                desired_tags = {
+                    **{
+                        key: value
+                        for key, value in existing_structured.items()
+                        if value
+                    },
+                    **_df_to_tags_map(edited_custom_tags),
+                }
+                _apply_table_tags(uc, catalog, schema, table, tags_df, desired_tags)
+                st.success("Custom tags updated.")
+                st.cache_data.clear()
+                st.rerun()
+
+            st.divider()
+            st.markdown("#### Owners")
+            st.dataframe(owners_df, use_container_width=True, hide_index=True)
+            with st.form(f"owners_{asset['fqn']}"):
+                owner_email = st.text_input("Owner email")
+                owner_type = st.selectbox(
+                    "Owner type", ["technical", "business", "steward"]
+                )
+                if st.form_submit_button("Add or update owner"):
+                    store.upsert_owner(
+                        asset["fqn"], owner_email, owner_type, user_email
+                    )
+                    st.success("Owner assignment saved.")
+                    st.cache_data.clear()
+                    st.rerun()
+        else:
+            st.info(
+                "Readers can propose metadata improvements here. Writers and admins apply them."
+            )
+            proposed_comment = st.text_area(
+                "Proposed business description",
+                value=comment,
+                height=140,
+                key=f"proposed_comment_{asset['fqn']}",
+            )
+            proposal_cols = st.columns(2)
+            proposed_domain = proposal_cols[0].text_input(
+                "Proposed domain",
+                value=existing_structured["domain"],
+                key=f"proposal_domain_{asset['fqn']}",
+            )
+            proposed_tier = proposal_cols[1].selectbox(
+                "Proposed tier",
+                _TIER_OPTIONS,
+                index=_select_index(_TIER_OPTIONS, existing_structured["tier"]),
+                key=f"proposal_tier_{asset['fqn']}",
+            )
+            proposed_certification = proposal_cols[0].selectbox(
+                "Proposed certification",
+                _CERTIFICATION_OPTIONS,
+                index=_select_index(
+                    _CERTIFICATION_OPTIONS, existing_structured["certification"]
+                ),
+                key=f"proposal_certification_{asset['fqn']}",
+            )
+            proposed_sensitivity = proposal_cols[1].selectbox(
+                "Proposed sensitivity",
+                _SENSITIVITY_OPTIONS,
+                index=_select_index(
+                    _SENSITIVITY_OPTIONS, existing_structured["sensitivity"]
+                ),
+                key=f"proposal_sensitivity_{asset['fqn']}",
+            )
+            proposed_custom_tags = _tags_editor(
+                _custom_tags_df(tags_df), key=f"proposal_tags_{asset['fqn']}"
+            )
+            if st.button(
+                "Submit metadata change request",
+                type="primary",
+                use_container_width=True,
+                key=f"submit_request_{asset['fqn']}",
+            ):
+                desired_tags = {
+                    **existing_custom,
+                    **{
+                        key: value
+                        for key, value in existing_structured.items()
+                        if value
+                    },
+                    **_df_to_tags_map(proposed_custom_tags),
+                    **{
+                        key: value
+                        for key, value in {
+                            "domain": proposed_domain,
+                            "tier": proposed_tier,
+                            "certification": proposed_certification,
+                            "sensitivity": proposed_sensitivity,
+                        }.items()
+                        if value
+                    },
+                }
+                request_id = store.create_change_request(
+                    created_by=user_email,
+                    uc_full_name=asset["fqn"],
+                    new_comment=proposed_comment,
+                    new_uc_tags=desired_tags,
+                )
+                st.success(f"Change request `{request_id}` submitted.")
+                st.cache_data.clear()
+
+
+def page_discovery(
+    uc: UCSQLClient,
+    store: GovernanceStore,
+    inventory: pd.DataFrame,
+    role: str,
+    user_email: str,
+) -> None:
+    _render_section_intro(
+        "Discovery",
+        "Search and facet across the catalog, then pivot directly into an asset profile with business metadata, preview data, and governance controls.",
     )
 
-    # Cascading selectors OUTSIDE the form so they trigger reruns
-    link_tid = st.text_input("Term ID to link", key="gl_lnk_tid")
-    picked_link = _table_picker(uc, key_prefix="gl_lnk")
+    metrics = st.columns(4)
+    metrics[0].metric("Inventoried assets", len(inventory))
+    metrics[1].metric(
+        "Certified assets",
+        _inventory_metric(inventory, inventory["certification"].ne("")),
+    )
+    metrics[2].metric(
+        "Assets with stewards",
+        _inventory_metric(inventory, inventory["steward"].ne("")),
+    )
+    metrics[3].metric(
+        "Open requests",
+        _inventory_metric(inventory, inventory["pending_requests"]),
+    )
 
-    # Column selector (only if a table is picked)
-    link_col = "(table-level)"
-    if picked_link:
-        lc, ls, lt = picked_link
-        try:
-            cols_df = _cached_columns(uc, lc, ls, lt)
-            if not cols_df.empty:
-                link_col = st.selectbox(
-                    "Column (optional — leave as '(table-level)' to tag the table)",
-                    ["(table-level)"] + cols_df["column_name"].tolist(),
-                    key="gl_lnk_col",
-                )
-        except Exception:
-            pass
+    filtered = _filtered_inventory(inventory)
+    st.caption(f"{len(filtered)} assets match the current discovery filters.")
+    if filtered.empty:
+        st.warning("No assets match the current search and filter set.")
+        return
 
-    if st.button("Link term", key="gl_lnk_submit"):
-        if not link_tid or not picked_link:
-            st.error("Provide both a term ID and select a target table.")
+    left, right = st.columns([1.05, 1.4])
+    with left:
+        st.markdown("#### Search results")
+        for _, asset in enumerate(filtered.head(12).iterrows()):
+            asset_series = asset[1]
+            active = asset_series["fqn"] == st.session_state.get("selected_asset_fqn")
+            st.markdown(_asset_card_html(asset_series, active), unsafe_allow_html=True)
+            if st.button(
+                "Open asset",
+                key=f"open_asset_{asset_series['fqn']}",
+                type="primary" if active else "secondary",
+                use_container_width=True,
+            ):
+                st.session_state["selected_asset_fqn"] = asset_series["fqn"]
+                st.rerun()
+
+    with right:
+        candidate_inventory = (
+            filtered
+            if st.session_state.get("selected_asset_fqn") in filtered["fqn"].values
+            else filtered
+        )
+        selected = _selected_asset(candidate_inventory)
+        if selected is None:
+            st.info("Select an asset from the results list.")
+            return
+        _render_asset_profile(selected, inventory, uc, store, role, user_email)
+
+
+def page_lineage(
+    uc: UCSQLClient,
+    inventory: pd.DataFrame,
+) -> None:
+    _render_section_intro(
+        "Lineage",
+        "Visualize upstream producers, downstream consumers, and column-level mappings in one workspace so impact is obvious before a change ships.",
+    )
+    selected_fqn = _asset_selector(inventory, "lineage_selector", "Asset")
+    if not selected_fqn:
+        st.info("Select an asset to explore lineage.")
+        return
+
+    asset = inventory[inventory["fqn"] == selected_fqn].iloc[0]
+    catalog, schema, table = _split_uc_name(selected_fqn)
+    lineage_up, lineage_up_error = _safe_df_call(
+        _cached_lineage_up, uc, catalog, schema, table
+    )
+    lineage_down, lineage_down_error = _safe_df_call(
+        _cached_lineage_down, uc, catalog, schema, table
+    )
+    col_up, col_up_error = _safe_df_call(
+        _cached_col_lineage_up, uc, catalog, schema, table
+    )
+    col_down, col_down_error = _safe_df_call(
+        _cached_col_lineage_down, uc, catalog, schema, table
+    )
+
+    metrics = st.columns(4)
+    metrics[0].metric("Upstream assets", len(lineage_up))
+    metrics[1].metric("Downstream assets", len(lineage_down))
+    metrics[2].metric("Upstream columns", len(col_up))
+    metrics[3].metric("Downstream columns", len(col_down))
+
+    l1, l2, l3 = st.columns([1.15, 0.9, 1.15])
+    with l1:
+        st.markdown("#### Upstream")
+        if lineage_up_error:
+            st.warning(f"Could not query upstream lineage: {lineage_up_error}")
+        elif lineage_up.empty:
+            st.info("No upstream dependencies found.")
         else:
-            lc, ls, lt = picked_link
-            try:
-                if link_col and link_col != "(table-level)":
-                    uc.set_column_tags(
-                        lc, ls, lt, link_col, {"glossary_term": link_tid}
-                    )
-                    st.success(
-                        f"Tagged column `{lc}.{ls}.{lt}.{link_col}` "
-                        f"with `glossary_term = {link_tid}`."
-                    )
-                else:
-                    uc.set_table_tags(lc, ls, lt, {"glossary_term": link_tid})
-                    st.success(
-                        f"Tagged `{lc}.{ls}.{lt}` with "
-                        f"`glossary_term = {link_tid}`."
-                    )
-            except Exception as e:
-                st.error(str(e))
+            for row in lineage_up.head(8).itertuples(index=False):
+                st.markdown(
+                    _lineage_node_html(
+                        "Source", _normalize_str(row.source_table_full_name), "source"
+                    ),
+                    unsafe_allow_html=True,
+                )
+
+    with l2:
+        st.markdown(
+            _lineage_node_html(
+                "Selected asset",
+                selected_fqn,
+                "focus",
+                focus=True,
+            ),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"""
+<div class="gh-panel">
+  <div class="gh-panel-label">Impact Summary</div>
+  <div class="gh-section-copy">
+    {html.escape(_normalize_str(asset.get("comment")) or "This asset still needs a business-facing description.")}
+  </div>
+  <div class="gh-badge-row">
+    {_safe_badge(asset.get("tier", ""), "primary")}
+    {_safe_badge(asset.get("certification", ""), "good")}
+    {_safe_badge(asset.get("sensitivity", ""), "warn")}
+  </div>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with l3:
+        st.markdown("#### Downstream")
+        if lineage_down_error:
+            st.warning(f"Could not query downstream lineage: {lineage_down_error}")
+        elif lineage_down.empty:
+            st.info("No downstream consumers found.")
+        else:
+            for row in lineage_down.head(8).itertuples(index=False):
+                st.markdown(
+                    _lineage_node_html(
+                        "Target", _normalize_str(row.target_table_full_name), "target"
+                    ),
+                    unsafe_allow_html=True,
+                )
+
+    table_tab, column_tab = st.tabs(["Table flow", "Column mappings"])
+    with table_tab:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### Upstream table detail")
+            if lineage_up_error:
+                st.warning(f"Could not query upstream lineage: {lineage_up_error}")
+            elif lineage_up.empty:
+                st.info("No upstream table lineage available.")
+            else:
+                st.dataframe(lineage_up, use_container_width=True, hide_index=True)
+        with col2:
+            st.markdown("#### Downstream table detail")
+            if lineage_down_error:
+                st.warning(f"Could not query downstream lineage: {lineage_down_error}")
+            elif lineage_down.empty:
+                st.info("No downstream table lineage available.")
+            else:
+                st.dataframe(lineage_down, use_container_width=True, hide_index=True)
+
+    with column_tab:
+        ctab1, ctab2 = st.tabs(["Into this asset", "Out of this asset"])
+        with ctab1:
+            if col_up_error:
+                st.warning(f"Could not query upstream column lineage: {col_up_error}")
+            elif col_up.empty:
+                st.info("No upstream column mappings available.")
+            else:
+                _render_column_lineage(col_up, key=f"col_up_{selected_fqn}")
+        with ctab2:
+            if col_down_error:
+                st.warning(
+                    f"Could not query downstream column lineage: {col_down_error}"
+                )
+            elif col_down.empty:
+                st.info("No downstream column mappings available.")
+            else:
+                _render_column_lineage(col_down, key=f"col_down_{selected_fqn}")
 
 
-# ─────────────────────────────────────────────────────────────
-# Change Requests
-# ─────────────────────────────────────────────────────────────
-
-
-def page_change_requests(
-    cfg: AppConfig,
+def page_governance(
     uc: UCSQLClient,
     store: GovernanceStore,
     om: Optional[OpenMetadataClient],
+    inventory: pd.DataFrame,
     role: str,
     user_email: str,
-):
-    st.header("Change Requests")
+) -> None:
+    _render_section_intro(
+        "Governance",
+        "Run glossary, certification, and stewardship workflows in a single command center instead of scattering metadata work across Databricks screens.",
+    )
 
-    # ── Explainer ───────────────────────────────────────
-    with st.expander("ℹ️ How do change requests work?", expanded=False):
-        st.markdown(
-            """
-**Change requests** provide a lightweight approval workflow for metadata
-modifications:
+    metrics = st.columns(4)
+    metrics[0].metric("Glossary terms", len(store.list_glossary_terms(limit=500)))
+    metrics[1].metric("Certified assets", int(inventory["certification"].ne("").sum()))
+    metrics[2].metric("Sensitive assets", int(inventory["sensitivity"].ne("").sum()))
+    metrics[3].metric("Unowned assets", int(inventory["owner_count"].eq(0).sum()))
 
-1. **A reader** navigates to the **UC Browser**, selects a table, and clicks
-   *"Submit a change request"*.  They can propose a new **comment** and/or
-   new **UC tags**.
-2. The request is saved with status **pending** in the governance Delta table.
-3. **A writer or admin** opens this **Change Requests** page, reviews the
-   proposal, and either:
-   - **Approves** — the proposed comment / tags are automatically applied to
-     the table in Unity Catalog.
-   - **Rejects** — with an optional note explaining why.
-4. The request's status is updated and visible to everyone.
+    glossary_tab, coverage_tab, integration_tab = st.tabs(
+        ["Glossary", "Coverage & policy", "Integrations"]
+    )
 
-This ensures that metadata changes go through a review process even when
-readers cannot edit Unity Catalog directly.
-"""
+    with glossary_tab:
+        search = st.text_input(
+            "Search glossary terms",
+            placeholder="revenue, customer, finance",
+            key="glossary_search",
         )
-
-    # ── Status filter ───────────────────────────────────
-    filter_col1, filter_col2 = st.columns([1, 3])
-    with filter_col1:
-        status_filter = st.selectbox(
-            "Filter by status",
-            ["all", "pending", "approved", "rejected"],
-            index=0,
+        terms = (
+            store.search_glossary(search)
+            if search
+            else store.list_glossary_terms(limit=500)
         )
+        left, right = st.columns([1, 1.2])
+        with left:
+            if terms.empty:
+                st.info("No glossary terms match the current search.")
+            else:
+                st.dataframe(terms, use_container_width=True, hide_index=True)
 
-    status_arg = None if status_filter == "all" else status_filter
-    df = store.list_change_requests(status=status_arg, limit=200)
+        with right:
+            if not terms.empty:
+                term_id = st.selectbox(
+                    "Glossary term",
+                    terms["term_id"].tolist(),
+                    format_func=lambda value: value,
+                    key="selected_glossary_term",
+                )
+                if term_id is not None:
+                    term = store.get_glossary_term(term_id)
+                else:
+                    term = None
+                if term is not None:
+                    st.markdown("#### Term detail")
+                    detail_df = pd.DataFrame(
+                        [
+                            {
+                                "Field": "Name",
+                                "Value": _normalize_str(term.get("name")),
+                            },
+                            {
+                                "Field": "Definition",
+                                "Value": _normalize_str(term.get("definition")),
+                            },
+                            {
+                                "Field": "Domain",
+                                "Value": _normalize_str(term.get("domain")),
+                            },
+                            {
+                                "Field": "Owner",
+                                "Value": _normalize_str(term.get("owner_email")),
+                            },
+                            {
+                                "Field": "Status",
+                                "Value": _normalize_str(term.get("status")),
+                            },
+                        ]
+                    )
+                    st.dataframe(detail_df, use_container_width=True, hide_index=True)
+                    linked_assets = inventory[inventory["glossary_term"] == term_id][
+                        [
+                            "fqn",
+                            "domain",
+                            "tier",
+                            "certification",
+                            "governance_score",
+                        ]
+                    ]
+                    st.markdown("#### Linked assets")
+                    if linked_assets.empty:
+                        st.info("No assets are linked to this term yet.")
+                    else:
+                        st.dataframe(
+                            linked_assets, use_container_width=True, hide_index=True
+                        )
 
-    if df.empty:
-        st.info(
-            "No change requests"
-            + (f" with status '{status_filter}'." if status_arg else " yet.")
+            if role in {"writer", "admin"}:
+                st.divider()
+                st.markdown("#### Create or update term")
+                with st.form("upsert_term"):
+                    term_id = st.text_input("Term ID")
+                    name = st.text_input("Display name")
+                    definition = st.text_area("Definition", height=120)
+                    domain = st.text_input("Domain")
+                    owner = st.text_input("Owner email")
+                    status = st.selectbox("Status", ["draft", "approved", "deprecated"])
+                    if st.form_submit_button("Save term"):
+                        if not term_id or not name:
+                            st.error("Term ID and display name are required.")
+                        else:
+                            store.upsert_glossary_term(
+                                term_id=term_id,
+                                name=name,
+                                definition=definition or None,
+                                domain=domain or None,
+                                owner_email=owner or None,
+                                status=status,
+                                updated_by=user_email,
+                            )
+                            st.success(f"Saved glossary term `{term_id}`.")
+                            st.cache_data.clear()
+                            st.rerun()
+
+    with coverage_tab:
+        backlog = inventory.copy()
+        backlog["missing_description"] = backlog["comment"].eq("")
+        backlog["missing_owner"] = backlog["owner_count"].eq(0)
+        backlog["missing_certification"] = backlog["certification"].eq("")
+        backlog["missing_domain"] = backlog["domain"].eq("")
+        backlog["gaps"] = backlog[
+            [
+                "missing_description",
+                "missing_owner",
+                "missing_certification",
+                "missing_domain",
+            ]
+        ].sum(axis=1)
+        coverage = backlog[
+            [
+                "fqn",
+                "domain",
+                "tier",
+                "certification",
+                "sensitivity",
+                "owner_count",
+                "pending_requests",
+                "governance_score",
+                "gaps",
+            ]
+        ].sort_values(
+            ["gaps", "pending_requests", "governance_score"],
+            ascending=[False, False, True],
         )
-        if role not in {"writer", "admin"}:
-            st.markdown(
-                "💡 **Tip:** Go to **UC Browser**, select a table, and use "
-                '*"Submit a change request"* to propose metadata changes.'
+        st.dataframe(coverage, use_container_width=True, hide_index=True)
+
+    with integration_tab:
+        if om is None:
+            st.info(
+                "OpenMetadata is not configured. The app is running in Databricks-native mode."
             )
-        return
-
-    st.dataframe(df, use_container_width=True, hide_index=True)
-
-    # ── Review section (writers / admins only) ──────────
-    if role not in {"writer", "admin"}:
-        st.info(
-            "💡 You can submit change requests from the **UC Browser** page.  "
-            "Writers / admins can review and approve them here."
-        )
-        return
-
-    st.divider()
-    st.subheader("Review a request")
-    request_id = st.text_input("Paste a Request ID from the table above")
-    if not request_id:
-        return
-
-    req = store.get_change_request(request_id)
-    if not req:
-        st.warning("Request not found — double-check the ID.")
-        return
-
-    # Show request details nicely
-    det_col1, det_col2 = st.columns(2)
-    with det_col1:
-        st.markdown(f"**Status:** `{req.status}`")
-        st.markdown(f"**Created by:** {req.created_by}")
-        st.markdown(f"**Created at:** {req.created_at}")
-    with det_col2:
-        st.markdown(f"**UC table:** `{req.uc_full_name or '—'}`")
-        st.markdown(f"**Proposed comment:** {req.new_comment or '—'}")
-        if req.new_uc_tags:
-            st.markdown(f"**Proposed tags:** `{json.dumps(req.new_uc_tags)}`")
-
-    if req.status != "pending":
-        st.info(f"This request has already been **{req.status}**.")
-        if req.reviewed_by:
-            st.caption(f"Reviewed by {req.reviewed_by} at {req.reviewed_at}")
-        if req.review_note:
-            st.caption(f"Note: {req.review_note}")
-        return
-
-    action = st.radio("Action", ["approve", "reject"], horizontal=True)
-    note = st.text_input("Review note (optional)")
-    if st.button("Apply decision", type="primary"):
-        if action == "reject":
-            store.set_request_status(request_id, "rejected", user_email, note or None)
-            st.success("Rejected.")
-            st.rerun()
-
-        errors: List[str] = []
-        try:
-            if req.uc_full_name:
-                c, s, t = _split_uc_name(req.uc_full_name)
-                if req.new_comment is not None:
-                    uc.set_table_comment(c, s, t, req.new_comment)
-                if req.new_uc_tags:
-                    uc.set_table_tags(c, s, t, req.new_uc_tags)
-        except Exception as e:
-            errors.append(f"UC: {e}")
-
-        if om and req.om_table_fqn:
-            try:
-                if req.add_om_tags:
-                    for tag in req.add_om_tags:
-                        om.add_tag_to_table(req.om_table_fqn, tag)
-            except Exception as e:
-                errors.append(f"OpenMetadata: {e}")
-
-        if errors:
-            store.set_request_status(
-                request_id, "rejected", user_email, "; ".join(errors)
-            )
-            st.error(f"Could not apply: {errors}")
         else:
-            store.set_request_status(request_id, "approved", user_email, note or None)
-            st.success("✅ Approved and applied to Unity Catalog.")
-            st.rerun()
+            st.success("OpenMetadata connector is active.")
+            query = st.text_input(
+                "Search OpenMetadata tables", value="*", key="om_query"
+            )
+            if st.button("Search OpenMetadata", key="om_search_button", type="primary"):
+                try:
+                    st.session_state["om_results"] = om.search(
+                        query, index="table_search_index", size=15
+                    )
+                except OpenMetadataError as exc:
+                    st.error(str(exc))
 
+            results = st.session_state.get("om_results", [])
+            if results:
+                st.dataframe(
+                    pd.DataFrame([row.__dict__ for row in results]),
+                    use_container_width=True,
+                    hide_index=True,
+                )
 
-# ─────────────────────────────────────────────────────────────
-# OpenMetadata Connector
-# ─────────────────────────────────────────────────────────────
+        if role in {"writer", "admin"}:
+            st.divider()
+            st.markdown("#### Link Databricks asset to OpenMetadata")
+            selected_fqn = _asset_selector(
+                inventory, "om_link_asset", "Databricks asset"
+            )
+            om_fqn = st.text_input("OpenMetadata table FQN", key="om_link_fqn")
+            if st.button("Save integration link", use_container_width=True):
+                if not selected_fqn or not om_fqn:
+                    st.error(
+                        "Provide both the Databricks asset and the OpenMetadata table FQN."
+                    )
+                else:
+                    store.upsert_asset_link(selected_fqn, om_fqn, user_email)
+                    st.success("Integration link saved.")
+                    st.cache_data.clear()
+                    st.rerun()
 
-
-def page_openmetadata(
-    om: Optional[OpenMetadataClient], store: GovernanceStore, role: str, user_email: str
-):
-    st.header("OpenMetadata Connector (Optional)")
-    if om is None:
-        st.info(
-            "OpenMetadata is **not configured**.  The app is running in "
-            "**UC-only mode** — all core features work without it.\n\n"
-            "To connect a self-hosted OpenMetadata instance, set "
-            "`OPENMETADATA_SERVER_URL` and `OPENMETADATA_JWT_TOKEN` in "
-            "`app.yaml` and redeploy."
-        )
-        return
-
-    st.success("Connected to OpenMetadata")
-
-    # ── Search ──────────────────────────────────────────
-    st.subheader("Search tables")
-    q = st.text_input("Query", value="*")
-    if st.button("Search"):
-        try:
-            results = om.search(q, index="table_search_index", size=15)
-            st.session_state["om_results"] = results
-        except OpenMetadataError as e:
-            st.error(str(e))
-
-    results = st.session_state.get("om_results", [])
-    if results:
+        st.divider()
+        st.markdown("#### Current links")
         st.dataframe(
-            pd.DataFrame([r.__dict__ for r in results]),
-            use_container_width=True,
-            hide_index=True,
+            store.list_asset_links(), use_container_width=True, hide_index=True
         )
 
-    # ── Table detail ────────────────────────────────────
-    st.divider()
-    st.subheader("Table detail")
-    fqn = st.text_input("OpenMetadata table FQN (e.g. `service.db.schema.table`)")
-    if fqn and st.button("Fetch detail", key="om_detail"):
-        try:
-            tbl = om.get_table_by_fqn(fqn)
-            st.json(tbl)
-        except OpenMetadataError as e:
-            st.error(str(e))
 
-    # ── Glossary terms ──────────────────────────────────
-    st.divider()
-    st.subheader("OpenMetadata glossary terms")
-    if st.button("List glossaries"):
-        try:
-            glossaries = om.list_glossaries()
-            st.json(glossaries)
-        except OpenMetadataError as e:
-            st.error(str(e))
+def page_stewardship(
+    uc: UCSQLClient,
+    store: GovernanceStore,
+    inventory: pd.DataFrame,
+    role: str,
+    user_email: str,
+) -> None:
+    _render_section_intro(
+        "Stewardship",
+        "Review the metadata backlog, approve change requests, and focus stewards on the assets that are still missing enterprise coverage.",
+    )
 
-    # ── Lineage ─────────────────────────────────────────
-    st.divider()
-    st.subheader("OpenMetadata lineage")
-    lin_fqn = st.text_input("Table FQN for lineage", key="om_lin_fqn")
-    if lin_fqn and st.button("Get lineage", key="om_lin"):
-        try:
-            lineage = om.get_table_lineage(lin_fqn)
-            st.json(lineage)
-        except OpenMetadataError as e:
-            st.error(str(e))
+    requests = store.list_change_requests(limit=300)
+    metrics = st.columns(4)
+    metrics[0].metric(
+        "Pending requests",
+        int((requests["status"] == "pending").sum()) if not requests.empty else 0,
+    )
+    metrics[1].metric(
+        "Approved requests",
+        int((requests["status"] == "approved").sum()) if not requests.empty else 0,
+    )
+    metrics[2].metric(
+        "Rejected requests",
+        int((requests["status"] == "rejected").sum()) if not requests.empty else 0,
+    )
+    metrics[3].metric(
+        "Assets needing stewardship",
+        int(((inventory["comment"] == "") | (inventory["owner_count"] == 0)).sum()),
+    )
 
-    # ── Link UC → OM ────────────────────────────────────
-    st.divider()
-    st.subheader("Link UC table → OpenMetadata table")
-    if role not in {"writer", "admin"}:
-        st.info("Only writers / admins can create links.")
-        return
-    with st.form("link"):
-        uc_name = st.text_input("UC table (catalog.schema.table)")
-        om_fqn = st.text_input("OpenMetadata table FQN")
-        if st.form_submit_button("Save link"):
-            store.upsert_asset_link(uc_name, om_fqn, user_email)
-            st.success("Linked.")
+    queue_tab, backlog_tab = st.tabs(["Request queue", "Stewardship backlog"])
 
-    st.divider()
-    st.subheader("All links")
-    st.dataframe(store.list_asset_links(), use_container_width=True, hide_index=True)
+    with queue_tab:
+        if requests.empty:
+            st.info("There are no metadata change requests yet.")
+        else:
+            status_filter = st.selectbox(
+                "Status",
+                ["all", "pending", "approved", "rejected"],
+                key="request_status_filter",
+            )
+            filtered = requests.copy()
+            if status_filter != "all":
+                filtered = filtered[filtered["status"] == status_filter]
+            st.dataframe(filtered, use_container_width=True, hide_index=True)
+
+            if role in {"writer", "admin"} and not filtered.empty:
+                pending_ids = filtered["request_id"].tolist()
+                request_id = st.selectbox(
+                    "Review request", pending_ids, key="request_picker"
+                )
+                if request_id is not None:
+                    request = store.get_change_request(request_id)
+                else:
+                    request = None
+                if request:
+                    st.markdown("#### Review")
+                    detail_rows = pd.DataFrame(
+                        [
+                            {"Field": "Status", "Value": request.status},
+                            {"Field": "Created by", "Value": request.created_by},
+                            {"Field": "Asset", "Value": request.uc_full_name or "—"},
+                            {"Field": "Comment", "Value": request.new_comment or "—"},
+                            {
+                                "Field": "Proposed tags",
+                                "Value": json.dumps(
+                                    request.new_uc_tags or {}, indent=2
+                                ),
+                            },
+                        ]
+                    )
+                    st.dataframe(detail_rows, use_container_width=True, hide_index=True)
+                    if request.status == "pending" and request_id is not None:
+                        action = st.radio(
+                            "Decision",
+                            ["approve", "reject"],
+                            horizontal=True,
+                            key="review_action",
+                        )
+                        note = st.text_input("Review note", key="review_note")
+                        if st.button(
+                            "Apply decision", type="primary", use_container_width=True
+                        ):
+                            if action == "reject":
+                                store.set_request_status(
+                                    request_id, "rejected", user_email, note or None
+                                )
+                                st.success("Request rejected.")
+                                st.cache_data.clear()
+                                st.rerun()
+
+                            try:
+                                if request.uc_full_name:
+                                    catalog, schema, table = _split_uc_name(
+                                        request.uc_full_name
+                                    )
+                                    if request.new_comment is not None:
+                                        uc.set_table_comment(
+                                            catalog, schema, table, request.new_comment
+                                        )
+                                    if request.new_uc_tags:
+                                        existing_tags = _cached_table_tags(
+                                            uc, catalog, schema, table
+                                        )
+                                        _apply_table_tags(
+                                            uc,
+                                            catalog,
+                                            schema,
+                                            table,
+                                            existing_tags,
+                                            request.new_uc_tags,
+                                        )
+                                store.set_request_status(
+                                    request_id, "approved", user_email, note or None
+                                )
+                                st.success("Request approved and applied.")
+                                st.cache_data.clear()
+                                st.rerun()
+                            except Exception as exc:
+                                store.set_request_status(
+                                    request_id, "rejected", user_email, str(exc)
+                                )
+                                st.error(f"Could not apply request: {exc}")
+
+    with backlog_tab:
+        backlog = inventory.copy()
+        backlog["needs_description"] = backlog["comment"].eq("")
+        backlog["needs_owner"] = backlog["owner_count"].eq(0)
+        backlog["needs_certification"] = backlog["certification"].eq("")
+        backlog["priority"] = (
+            backlog["needs_description"].astype(int)
+            + backlog["needs_owner"].astype(int)
+            + backlog["needs_certification"].astype(int)
+            + backlog["pending_requests"].gt(0).astype(int)
+        )
+        backlog = backlog[
+            [
+                "fqn",
+                "domain",
+                "tier",
+                "owner_count",
+                "pending_requests",
+                "governance_score",
+                "priority",
+            ]
+        ].sort_values(
+            ["priority", "pending_requests", "governance_score"],
+            ascending=[False, False, True],
+        )
+        st.dataframe(backlog, use_container_width=True, hide_index=True)
 
 
-# ─────────────────────────────────────────────────────────────
-# Admin
-# ─────────────────────────────────────────────────────────────
-
-
-def page_admin(store: GovernanceStore, role: str, user_email: str):
-    st.header("Admin")
+def page_admin(store: GovernanceStore, role: str, user_email: str) -> None:
+    _render_section_intro(
+        "Admin",
+        "Control user roles and keep governance operations bounded to the right people.",
+    )
     if role != "admin":
-        st.info("🔒 This page is restricted to **admins** only.")
+        st.info("This workspace is restricted to admins.")
         return
 
-    st.subheader("User roles")
-    st.dataframe(store.list_roles(), use_container_width=True, hide_index=True)
-    with st.form("role"):
+    roles_df = store.list_roles()
+    metrics = st.columns(3)
+    metrics[0].metric(
+        "Admins", int((roles_df["role"] == "admin").sum()) if not roles_df.empty else 0
+    )
+    metrics[1].metric(
+        "Writers",
+        int((roles_df["role"] == "writer").sum()) if not roles_df.empty else 0,
+    )
+    metrics[2].metric(
+        "Readers",
+        int((roles_df["role"] == "reader").sum()) if not roles_df.empty else 0,
+    )
+
+    st.dataframe(roles_df, use_container_width=True, hide_index=True)
+    with st.form("role_editor"):
         email = st.text_input("User email")
-        r = st.selectbox("Role", ["reader", "writer", "admin"])
-        if st.form_submit_button("Upsert"):
-            store.upsert_role(email, r, user_email)
-            st.success("Updated.")
+        new_role = st.selectbox("Role", ["reader", "writer", "admin"])
+        if st.form_submit_button("Save role"):
+            store.upsert_role(email, new_role, user_email)
+            st.success("Role updated.")
+            st.cache_data.clear()
             st.rerun()
 
 
-# ── Main ────────────────────────────────────────────────────
-
-
-def main():
+def main() -> None:
     st.set_page_config(
         page_title="Governance Hub",
         page_icon="🏛️",
         layout="wide",
+        initial_sidebar_state="collapsed",
     )
+    _render_styles()
 
     try:
         cfg = _get_config()
         uc = _get_uc_client(cfg)
         store = _get_store(cfg, uc)
         om = _get_om_client(cfg)
-    except Exception as e:
-        st.error(f"Configuration error: {e}")
+    except Exception as exc:
+        st.error(f"Configuration error: {exc}")
         st.stop()
 
     user_email = get_current_user_email() or "unknown"
     role = store.get_role(user_email, admin_emails=cfg.admin_emails)
+    inventory = _cached_asset_inventory(uc, store)
 
-    # Sidebar
-    st.sidebar.title("🏛️ Governance Hub")
-    st.sidebar.caption(f"Signed in as: **{user_email}**")
-    st.sidebar.markdown(_role_badge(role))
-    st.sidebar.divider()
+    _render_shell(cfg, role, user_email, om)
+    if inventory.empty:
+        st.warning(
+            "No Unity Catalog assets are visible to this app. Check warehouse access and catalog permissions."
+        )
+        return
 
-    pages = [
-        "🏠 Home",
-        "🗂️ UC Browser",
-        "🔀 Lineage",
-        "📘 Glossary",
-        "📋 Change Requests",
-        "🔌 OpenMetadata",
-        "⚙️ Admin",
-    ]
-    page = st.sidebar.radio("Navigate", pages, index=0, label_visibility="collapsed")
+    if "selected_asset_fqn" not in st.session_state:
+        st.session_state["selected_asset_fqn"] = inventory.iloc[0]["fqn"]
+    if "app_page" not in st.session_state:
+        st.session_state["app_page"] = "Discovery"
 
-    # Detect page changes and force a clean rerun so Streamlit tears down
-    # all widgets from the previous page before rendering the new one.
-    # This prevents visual remnants of the old page from bleeding through.
-    if st.session_state.get("_prev_page") != page:
-        st.session_state["_prev_page"] = page
-        st.rerun()
+    page = st.radio(
+        "Navigate",
+        ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"],
+        horizontal=True,
+        key="app_page",
+        label_visibility="collapsed",
+    )
 
-    if page == "🏠 Home":
-        page_home(cfg, uc, om, role, user_email)
-    elif page == "🗂️ UC Browser":
-        page_uc_browser(cfg, uc, store, role, user_email)
-    elif page == "🔀 Lineage":
-        page_lineage(uc)
-    elif page == "📘 Glossary":
-        page_glossary(uc, store, role, user_email)
-    elif page == "📋 Change Requests":
-        page_change_requests(cfg, uc, store, om, role, user_email)
-    elif page == "🔌 OpenMetadata":
-        page_openmetadata(om, store, role, user_email)
-    elif page == "⚙️ Admin":
+    if page == "Discovery":
+        page_discovery(uc, store, inventory, role, user_email)
+    elif page == "Lineage":
+        page_lineage(uc, inventory)
+    elif page == "Governance":
+        page_governance(uc, store, om, inventory, role, user_email)
+    elif page == "Stewardship":
+        page_stewardship(uc, store, inventory, role, user_email)
+    elif page == "Admin":
         page_admin(store, role, user_email)
 
 
