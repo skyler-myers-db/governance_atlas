@@ -212,6 +212,13 @@ WHEN NOT MATCHED THEN INSERT (
             f"ORDER BY owner_type"
         )
 
+    def list_owner_assignments(self) -> pd.DataFrame:
+        return self.uc.query_df(
+            f"SELECT uc_full_name, owner_email, owner_type, updated_at, updated_by "
+            f"FROM {self._fq('data_owners')} "
+            f"ORDER BY uc_full_name, owner_type, owner_email"
+        )
+
     def upsert_owner(
         self, uc_full_name: str, owner_email: str, owner_type: str, updated_by: str
     ) -> None:
@@ -313,12 +320,12 @@ WHEN NOT MATCHED THEN INSERT * """)
             if v is None or (isinstance(v, float) and pd.isna(v)):
                 return None
             try:
-                return json.loads(v)
+                return json.loads(str(v))
             except Exception:
                 return None
 
         return ChangeRequest(
-            request_id=row.get("request_id"),
+            request_id=str(row.get("request_id")),
             created_at=str(row.get("created_at")),
             created_by=str(row.get("created_by")),
             status=str(row.get("status")),

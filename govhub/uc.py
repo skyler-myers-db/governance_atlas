@@ -129,6 +129,46 @@ class UCSQLClient:
             f"SHOW TABLES IN {quote_ident(catalog)}.{quote_ident(schema)}"
         )
 
+    def get_catalog_table_inventory(self, catalog: str) -> pd.DataFrame:
+        q = f"""SELECT
+    table_schema,
+    table_name,
+    table_type,
+    comment
+FROM {quote_ident(catalog)}.information_schema.tables
+WHERE table_schema <> 'information_schema'
+ORDER BY table_schema, table_name"""
+        df = self.query_df(q)
+        if df.empty:
+            return pd.DataFrame(
+                columns=["table_catalog", "table_schema", "table_name", "table_type", "comment"]
+            )
+        df = df.copy()
+        df.insert(0, "table_catalog", catalog)
+        return df
+
+    def get_catalog_table_tags(self, catalog: str) -> pd.DataFrame:
+        q = f"""SELECT
+    table_schema,
+    table_name,
+    tag_name,
+    tag_value
+FROM {quote_ident(catalog)}.information_schema.table_tags
+ORDER BY table_schema, table_name, tag_name"""
+        try:
+            df = self.query_df(q)
+        except Exception:
+            return pd.DataFrame(
+                columns=["table_catalog", "table_schema", "table_name", "tag_name", "tag_value"]
+            )
+        if df.empty:
+            return pd.DataFrame(
+                columns=["table_catalog", "table_schema", "table_name", "tag_name", "tag_value"]
+            )
+        df = df.copy()
+        df.insert(0, "table_catalog", catalog)
+        return df
+
     def get_table_comment(self, catalog: str, schema: str, table: str) -> str:
         q = f"""SELECT comment
 FROM {quote_ident(catalog)}.information_schema.tables
@@ -331,3 +371,9 @@ ORDER BY tag_name"""
             f"ALTER TABLE {full} ALTER COLUMN {quote_ident(column)} "
             f"UNSET TAGS ({parts})"
         )
+
+    def get_table_sample(
+        self, catalog: str, schema: str, table: str, limit: int = 20
+    ) -> pd.DataFrame:
+        full = quote_uc_3part(catalog, schema, table)
+        return self.query_df(f"SELECT * FROM {full} LIMIT {int(limit)}")
