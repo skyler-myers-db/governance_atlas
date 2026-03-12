@@ -22,6 +22,7 @@ from govhub.uc import UCSQLClient
 
 _HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
 _META_TTL = 600
+_EXCLUDED_ASSET_MARKERS = ("__materialization_mat_",)
 
 _STANDARD_TAG_ALIASES = {
     "domain": ("domain", "data_domain"),
@@ -177,6 +178,35 @@ def _normalize_str(value: Any) -> str:
     if isinstance(value, float) and pd.isna(value):
         return ""
     return str(value).strip()
+
+
+def _is_excluded_asset_name(value: Any) -> bool:
+    lowered = _normalize_str(value).lower()
+    return any(marker in lowered for marker in _EXCLUDED_ASSET_MARKERS)
+
+
+def _filter_asset_rows(
+    df: pd.DataFrame,
+    columns: List[str],
+    *,
+    exclude_fqn: str = "",
+) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=df.columns if df is not None else [])
+
+    view = df.copy()
+    keep_mask = pd.Series(True, index=view.index)
+    excluded = _normalize_str(exclude_fqn).lower()
+
+    for column in columns:
+        if column not in view.columns:
+            continue
+        values = view[column].map(_normalize_str).str.lower()
+        keep_mask &= ~values.map(_is_excluded_asset_name)
+        if excluded:
+            keep_mask &= values != excluded
+
+    return view.loc[keep_mask].reset_index(drop=True)
 
 
 def _split_uc_name(name: str) -> Tuple[str, str, str]:
@@ -414,6 +444,8 @@ def _render_styles() -> None:
   }
 
   .stApp {
+    position: relative;
+    overflow-x: hidden;
     background:
       radial-gradient(circle at 0% 0%, rgba(43, 84, 208, 0.22), transparent 28%),
       radial-gradient(circle at 100% 0%, rgba(149, 111, 255, 0.18), transparent 26%),
@@ -424,10 +456,49 @@ def _render_styles() -> None:
     color: var(--gh-text);
   }
 
+  .stApp::before,
+  .stApp::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .stApp::before {
+    background:
+      linear-gradient(60deg, transparent 0 15%, rgba(90, 118, 199, 0.08) 15.15% 15.35%, transparent 15.55% 100%),
+      linear-gradient(122deg, transparent 0 24%, rgba(126, 109, 214, 0.07) 24.2% 24.4%, transparent 24.6% 100%),
+      linear-gradient(144deg, transparent 0 39%, rgba(76, 136, 227, 0.08) 39.1% 39.3%, transparent 39.5% 100%),
+      linear-gradient(168deg, transparent 0 63%, rgba(112, 85, 204, 0.06) 63.2% 63.35%, transparent 63.55% 100%),
+      radial-gradient(circle at 10% 18%, rgba(70, 105, 232, 0.18) 0 3px, transparent 4px),
+      radial-gradient(circle at 28% 28%, rgba(137, 110, 255, 0.15) 0 4px, transparent 5px),
+      radial-gradient(circle at 82% 22%, rgba(94, 173, 255, 0.17) 0 3px, transparent 4px),
+      radial-gradient(circle at 76% 70%, rgba(148, 111, 255, 0.14) 0 4px, transparent 5px),
+      radial-gradient(circle at 18% 76%, rgba(84, 190, 255, 0.13) 0 3px, transparent 4px);
+    opacity: 0.62;
+    animation: gh-network-drift 34s ease-in-out infinite alternate;
+  }
+
+  .stApp::after {
+    background:
+      radial-gradient(circle at 10% 14%, rgba(62, 109, 232, 0.14), transparent 22%),
+      radial-gradient(circle at 88% 12%, rgba(142, 103, 255, 0.15), transparent 24%),
+      radial-gradient(circle at 16% 86%, rgba(88, 196, 255, 0.12), transparent 28%),
+      radial-gradient(circle at 80% 78%, rgba(91, 53, 180, 0.12), transparent 24%);
+    filter: blur(42px);
+    opacity: 0.95;
+    animation: gh-glow-sway 18s ease-in-out infinite alternate;
+  }
+
   .block-container {
-    max-width: 1440px;
+    position: relative;
+    z-index: 1;
+    max-width: min(1820px, calc(100vw - 2.75rem));
     padding-top: 0.9rem;
     padding-bottom: 2rem;
+    padding-left: 1.35rem;
+    padding-right: 1.35rem;
   }
 
   [data-testid="stSidebar"],
@@ -1141,10 +1212,10 @@ def _render_styles() -> None:
     min-width: 44px !important;
     height: 24px !important;
     border-radius: 999px !important;
-    background: rgba(120, 142, 186, 0.26) !important;
-    border: 1px solid rgba(109, 129, 170, 0.4) !important;
+    background: rgba(120, 132, 154, 0.52) !important;
+    border: 1px solid rgba(96, 111, 139, 0.58) !important;
     position: relative !important;
-    box-shadow: inset 0 1px 2px rgba(16, 26, 48, 0.08) !important;
+    box-shadow: inset 0 1px 3px rgba(16, 26, 48, 0.16) !important;
   }
 
   div[data-testid="stToggle"] [data-baseweb="checkbox"] > div::before {
@@ -1155,7 +1226,8 @@ def _render_styles() -> None:
     width: 18px;
     height: 18px;
     border-radius: 999px;
-    background: #ffffff;
+    background: #f8fbff;
+    border: 1px solid rgba(161, 176, 205, 0.4);
     box-shadow: 0 3px 8px rgba(19, 32, 58, 0.18);
     transition: transform 0.18s ease;
   }
@@ -1247,9 +1319,33 @@ def _render_styles() -> None:
     }
   }
 
+  @keyframes gh-network-drift {
+    0% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    100% {
+      transform: translate3d(18px, -14px, 0) scale(1.02);
+    }
+  }
+
+  @keyframes gh-glow-sway {
+    0% {
+      transform: translate3d(0, 0, 0);
+    }
+    100% {
+      transform: translate3d(-14px, 16px, 0);
+    }
+  }
+
   @media (max-width: 900px) {
     .gh-wordmark {
       font-size: 2.3rem;
+    }
+
+    .block-container {
+      max-width: calc(100vw - 1.2rem);
+      padding-left: 0.35rem;
+      padding-right: 0.35rem;
     }
   }
 </style>
@@ -1445,6 +1541,9 @@ def _cached_asset_inventory(_uc: UCSQLClient, _store: GovernanceStore) -> pd.Dat
         return _empty_inventory()
 
     inventory = pd.concat(inventory_frames, ignore_index=True)
+    inventory = _filter_asset_rows(inventory, ["table_name", "fqn"])
+    if inventory.empty:
+        return _empty_inventory()
     inventory["tags"] = inventory["fqn"].map(
         lambda fqn: tag_maps.get(str(fqn), {}) if pd.notna(fqn) else {}
     )
@@ -2178,6 +2277,16 @@ def _render_asset_profile(
             lineage_down, lineage_down_error = _safe_df_call(
                 _cached_lineage_down, uc, catalog, schema, table
             )
+        lineage_up = _filter_asset_rows(
+            lineage_up,
+            ["source_table_full_name"],
+            exclude_fqn=asset["fqn"],
+        )
+        lineage_down = _filter_asset_rows(
+            lineage_down,
+            ["target_table_full_name"],
+            exclude_fqn=asset["fqn"],
+        )
         lcol1, lcol2 = st.columns(2)
         with lcol1:
             st.markdown("#### Upstream assets")
@@ -2528,6 +2637,27 @@ def page_lineage(
         col_down, col_down_error = _safe_df_call(
             _cached_col_lineage_down, uc, catalog, schema, table
         )
+
+    lineage_up = _filter_asset_rows(
+        lineage_up,
+        ["source_table_full_name"],
+        exclude_fqn=selected_fqn,
+    )
+    lineage_down = _filter_asset_rows(
+        lineage_down,
+        ["target_table_full_name"],
+        exclude_fqn=selected_fqn,
+    )
+    col_up = _filter_asset_rows(
+        col_up,
+        ["source_table_full_name"],
+        exclude_fqn=selected_fqn,
+    )
+    col_down = _filter_asset_rows(
+        col_down,
+        ["target_table_full_name"],
+        exclude_fqn=selected_fqn,
+    )
 
     metrics = st.columns(4)
     metrics[0].metric("Upstream assets", len(lineage_up))
