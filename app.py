@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from govhub.auth import get_current_user_email
 from govhub.config import AppConfig
@@ -20,7 +21,7 @@ from govhub.store import GovernanceStore
 from govhub.uc import UCSQLClient
 
 _HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
-_META_TTL = 120
+_META_TTL = 600
 
 _STANDARD_TAG_ALIASES = {
     "domain": ("domain", "data_domain"),
@@ -116,7 +117,7 @@ def _cached_catalog_table_tags(_uc: UCSQLClient, catalog: str) -> pd.DataFrame:
     return _uc.get_catalog_table_tags(catalog)
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner=False)
+@st.cache_data(ttl=_META_TTL, show_spinner="Loading schema details...")
 def _cached_columns(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
@@ -135,35 +136,35 @@ def _cached_table_tags(
     return _uc.get_table_tags(catalog, schema, table)
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner=False)
+@st.cache_data(ttl=_META_TTL, show_spinner="Loading lineage...")
 def _cached_lineage_up(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
     return _uc.get_table_lineage_upstream(catalog, schema, table)
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner=False)
+@st.cache_data(ttl=_META_TTL, show_spinner="Loading lineage...")
 def _cached_lineage_down(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
     return _uc.get_table_lineage_downstream(catalog, schema, table)
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner=False)
+@st.cache_data(ttl=_META_TTL, show_spinner="Loading column lineage...")
 def _cached_col_lineage_up(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
     return _uc.get_column_lineage_upstream(catalog, schema, table)
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner=False)
+@st.cache_data(ttl=_META_TTL, show_spinner="Loading column lineage...")
 def _cached_col_lineage_down(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
     return _uc.get_column_lineage_downstream(catalog, schema, table)
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner=False)
+@st.cache_data(ttl=_META_TTL, show_spinner="Loading sample rows...")
 def _cached_sample_rows(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
@@ -228,6 +229,17 @@ def _df_to_tags_map(df: pd.DataFrame) -> Dict[str, str]:
         if key:
             tags[key] = value
     return tags
+
+
+def _tags_map_to_df(tags: Dict[str, str]) -> pd.DataFrame:
+    rows = [
+        {"tag_name": _normalize_str(key), "tag_value": _normalize_str(value)}
+        for key, value in (tags or {}).items()
+        if _normalize_str(key)
+    ]
+    if not rows:
+        return pd.DataFrame(columns=["tag_name", "tag_value"])
+    return pd.DataFrame(rows).sort_values("tag_name").reset_index(drop=True)
 
 
 def _tags_editor(existing: pd.DataFrame, key: str) -> pd.DataFrame:
@@ -339,12 +351,51 @@ def _render_styles() -> None:
 
   .block-container {
     max-width: 1440px;
-    padding-top: 1.5rem;
+    padding-top: 0.9rem;
     padding-bottom: 2rem;
   }
 
-  [data-testid="stSidebar"], [data-testid="collapsedControl"] {
+  [data-testid="stSidebar"],
+  [data-testid="collapsedControl"],
+  [data-testid="stHeader"],
+  [data-testid="stDecoration"],
+  [data-testid="stStatusWidget"],
+  [data-testid="stToolbar"] {
     display: none;
+  }
+
+  .gh-loading-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.15rem;
+    margin-bottom: 1rem;
+    border-radius: 22px;
+    border: 1px solid var(--gh-border);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(237, 244, 255, 0.92));
+    box-shadow: var(--gh-shadow);
+  }
+
+  .gh-loading-spinner {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    border: 3px solid rgba(34, 87, 216, 0.16);
+    border-top-color: var(--gh-primary);
+    animation: gh-spin 0.85s linear infinite;
+    flex: 0 0 auto;
+  }
+
+  .gh-loading-title {
+    font-size: 0.96rem;
+    font-weight: 800;
+    color: var(--gh-text);
+  }
+
+  .gh-loading-copy {
+    color: var(--gh-muted);
+    font-size: 0.9rem;
+    margin-top: 0.15rem;
   }
 
   h1, h2, h3, h4 {
@@ -699,7 +750,7 @@ def _render_styles() -> None:
   .stButton > button:hover,
   div[data-testid="stFormSubmitButton"] > button:hover {
     border-color: rgba(34, 87, 216, 0.28);
-    box-shadow: 0 10px 22px rgba(34, 87, 216, 0.08);
+    box-shadow: 0 14px 28px rgba(34, 87, 216, 0.16);
     transform: translateY(-1px);
   }
 
@@ -713,6 +764,12 @@ def _render_styles() -> None:
     background: linear-gradient(135deg, var(--gh-primary), #4c79ff);
     color: white;
     border: none;
+  }
+
+  .stButton > button[kind="primary"]:hover,
+  div[data-testid="stFormSubmitButton"] > button:hover {
+    background: linear-gradient(135deg, var(--gh-primary-strong), #5d87ff) !important;
+    color: #ffffff !important;
   }
 
   .stTextInput input, .stTextArea textarea,
@@ -796,6 +853,18 @@ def _render_styles() -> None:
     background: linear-gradient(135deg, var(--gh-primary), #4c79ff) !important;
     color: #ffffff !important;
     border: none !important;
+  }
+
+  div[data-testid="stSpinner"] {
+    border-radius: 18px;
+    border: 1px solid var(--gh-border);
+    background: rgba(255, 255, 255, 0.94);
+    padding: 0.85rem 1rem;
+    box-shadow: 0 10px 24px rgba(18, 32, 63, 0.05);
+  }
+
+  div[data-testid="stSpinner"] * {
+    color: var(--gh-text) !important;
   }
 
   .stTabs [data-baseweb="tab-list"] {
@@ -897,6 +966,16 @@ def _render_styles() -> None:
     background: #f3f7fd;
   }
 
+  .gh-lineage-spacer {
+    height: 2.35rem;
+  }
+
+  @keyframes gh-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   @media (max-width: 900px) {
     .gh-wordmark {
       font-size: 2.3rem;
@@ -905,6 +984,78 @@ def _render_styles() -> None:
 </style>
         """,
         unsafe_allow_html=True,
+    )
+
+
+def _loading_card_html(title: str, copy: str) -> str:
+    return f"""
+<div class="gh-loading-card">
+  <div class="gh-loading-spinner"></div>
+  <div>
+    <div class="gh-loading-title">{html.escape(title)}</div>
+    <div class="gh-loading-copy">{html.escape(copy)}</div>
+  </div>
+</div>
+    """
+
+
+def _install_client_bootstrap() -> None:
+    components.html(
+        """
+<script>
+(function() {
+  try {
+    const rootWindow = window.parent || window;
+    const storage = rootWindow.sessionStorage;
+    const key = "gh-scroll-y";
+    const doc = rootWindow.document;
+    const nodes = [
+      doc.querySelector('[data-testid="stAppViewContainer"]'),
+      doc.querySelector('section.main'),
+      doc.scrollingElement,
+      doc.documentElement,
+      doc.body
+    ].filter(Boolean);
+
+    const restore = () => {
+      const saved = storage.getItem(key);
+      if (saved === null) {
+        return;
+      }
+      const y = parseInt(saved, 10) || 0;
+      setTimeout(() => {
+        nodes.forEach((node) => {
+          try {
+            if (typeof node.scrollTo === "function") {
+              node.scrollTo(0, y);
+            } else {
+              node.scrollTop = y;
+            }
+          } catch (error) {}
+        });
+      }, 40);
+    };
+
+    if (!rootWindow.__ghScrollInstalled) {
+      const capture = () => {
+        const node = nodes.find((item) => item && item.scrollTop > 0) || nodes[0];
+        if (node) {
+          storage.setItem(key, String(node.scrollTop || rootWindow.pageYOffset || 0));
+        }
+      };
+      rootWindow.addEventListener("scroll", capture, { passive: true });
+      doc.addEventListener("click", capture, true);
+      doc.addEventListener("input", capture, true);
+      rootWindow.__ghScrollInstalled = true;
+    }
+
+    restore();
+  } catch (error) {}
+})();
+</script>
+        """,
+        height=0,
+        width=0,
     )
 
 
@@ -981,7 +1132,7 @@ def _empty_inventory() -> pd.DataFrame:
     )
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner=False)
+@st.cache_data(ttl=_META_TTL, show_spinner="Loading workspace inventory...")
 def _cached_asset_inventory(_uc: UCSQLClient, _store: GovernanceStore) -> pd.DataFrame:
     catalogs = _cached_catalogs(_uc)
     inventory_frames: List[pd.DataFrame] = []
@@ -1318,29 +1469,23 @@ def _render_column_lineage(df: pd.DataFrame, key: str) -> None:
     src_col = "source_column_name"
     tgt_col = "target_column_name"
     direct_mask = df[src_col].str.lower() == df[tgt_col].str.lower()
-    scope = _button_nav(
-        ["Direct matches", "Include indirect mappings"],
-        f"column_lineage_scope_{key}",
+    show_all = st.toggle(
+        "Include indirect mappings",
+        value=False,
+        key=f"column_lineage_scope_{key}",
+        help=(
+            "Unity Catalog records the source columns read by an operation. Turn "
+            "this on to include broader dependencies from joins, expressions, and "
+            "multi-column logic instead of showing only same-name matches."
+        ),
     )
-    with st.expander("How Unity Catalog column lineage works"):
-        st.write(
-            "Unity Catalog records which source columns were read by an operation. "
-            "That means some mappings are one-to-one name matches, while others are "
-            "broader dependencies captured from joins, expressions, or multi-column "
-            "logic."
-        )
-        st.write(
-            "`Direct matches` keeps source and target columns with the same name. "
-            "`Include indirect mappings` also shows broader dependencies that may "
-            "not map one source column to one target column."
-        )
+    st.caption("Off shows same-name source and target columns only.")
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Total mappings", len(df))
     c2.metric("Direct matches", int(direct_mask.sum()))
     c3.metric("Indirect / broad", int((~direct_mask).sum()))
 
-    show_all = scope == "Include indirect mappings"
     view_df = df if show_all else df[direct_mask]
     if view_df.empty:
         if show_all:
@@ -1428,54 +1573,93 @@ def _asset_selector(inventory: pd.DataFrame, key: str, label: str) -> Optional[s
     return selected
 
 
-def _filtered_inventory(inventory: pd.DataFrame) -> pd.DataFrame:
+def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) -> pd.DataFrame:
     if inventory.empty:
         return inventory
 
-    with st.form("discovery_filters", border=False):
-        query_col, sort_col = st.columns([2.3, 1])
-        with query_col:
-            query = st.text_input(
-                "Search assets",
-                placeholder="customer, finance, PII, steward email, certified",
-                key="asset_search",
-            )
-        with sort_col:
-            sort_mode = st.selectbox(
-                "Sort by",
-                ["Best match", "Governance coverage", "Open requests", "Alphabetical"],
-                key="asset_sort_mode",
-            )
+    catalogs = ["All"] + sorted(
+        inventory["table_catalog"].dropna().astype(str).unique().tolist()
+    )
+    domains = ["All"] + sorted([v for v in inventory["domain"].unique().tolist() if v])
+    tiers = ["All"] + sorted([v for v in inventory["tier"].unique().tolist() if v])
+    certifications = ["All"] + sorted(
+        [v for v in inventory["certification"].unique().tolist() if v]
+    )
+    sensitivities = ["All"] + sorted(
+        [v for v in inventory["sensitivity"].unique().tolist() if v]
+    )
 
-        filter_cols = st.columns(5)
-        catalogs = ["All"] + sorted(
-            inventory["table_catalog"].dropna().astype(str).unique().tolist()
-        )
-        domains = ["All"] + sorted(
-            [v for v in inventory["domain"].unique().tolist() if v]
-        )
-        tiers = ["All"] + sorted([v for v in inventory["tier"].unique().tolist() if v])
-        certifications = ["All"] + sorted(
-            [v for v in inventory["certification"].unique().tolist() if v]
-        )
-        sensitivities = ["All"] + sorted(
-            [v for v in inventory["sensitivity"].unique().tolist() if v]
-        )
+    st.session_state.setdefault("asset_search", "")
+    st.session_state.setdefault("asset_sort_mode", "Best match")
+    st.session_state.setdefault("asset_catalog", "All")
+    st.session_state.setdefault("asset_domain", "All")
+    st.session_state.setdefault("asset_tier", "All")
+    st.session_state.setdefault("asset_certification", "All")
+    st.session_state.setdefault("asset_sensitivity", "All")
 
-        selected_catalog = filter_cols[0].selectbox(
-            "Catalog", catalogs, key="asset_catalog"
-        )
-        selected_domain = filter_cols[1].selectbox(
-            "Domain", domains, key="asset_domain"
-        )
-        selected_tier = filter_cols[2].selectbox("Tier", tiers, key="asset_tier")
-        selected_cert = filter_cols[3].selectbox(
-            "Certification", certifications, key="asset_certification"
-        )
-        selected_sensitivity = filter_cols[4].selectbox(
-            "Sensitivity", sensitivities, key="asset_sensitivity"
-        )
-        st.form_submit_button("Apply discovery filters", type="primary")
+    valid_sort_modes = {
+        "Best match",
+        "Governance coverage",
+        "Open requests",
+        "Alphabetical",
+    }
+    if st.session_state.get("asset_sort_mode") not in valid_sort_modes:
+        st.session_state["asset_sort_mode"] = "Best match"
+    if st.session_state.get("asset_catalog") not in catalogs:
+        st.session_state["asset_catalog"] = "All"
+    if st.session_state.get("asset_domain") not in domains:
+        st.session_state["asset_domain"] = "All"
+    if st.session_state.get("asset_tier") not in tiers:
+        st.session_state["asset_tier"] = "All"
+    if st.session_state.get("asset_certification") not in certifications:
+        st.session_state["asset_certification"] = "All"
+    if st.session_state.get("asset_sensitivity") not in sensitivities:
+        st.session_state["asset_sensitivity"] = "All"
+
+    if show_controls:
+        with st.form("discovery_filters", border=False):
+            query_col, sort_col = st.columns([2.3, 1])
+            with query_col:
+                query = st.text_input(
+                    "Search assets",
+                    placeholder="customer, finance, PII, steward email, certified",
+                    key="asset_search",
+                )
+            with sort_col:
+                sort_mode = st.selectbox(
+                    "Sort by",
+                    [
+                        "Best match",
+                        "Governance coverage",
+                        "Open requests",
+                        "Alphabetical",
+                    ],
+                    key="asset_sort_mode",
+                )
+
+            filter_cols = st.columns(5)
+            selected_catalog = filter_cols[0].selectbox(
+                "Catalog", catalogs, key="asset_catalog"
+            )
+            selected_domain = filter_cols[1].selectbox(
+                "Domain", domains, key="asset_domain"
+            )
+            selected_tier = filter_cols[2].selectbox("Tier", tiers, key="asset_tier")
+            selected_cert = filter_cols[3].selectbox(
+                "Certification", certifications, key="asset_certification"
+            )
+            selected_sensitivity = filter_cols[4].selectbox(
+                "Sensitivity", sensitivities, key="asset_sensitivity"
+            )
+            st.form_submit_button("Apply discovery filters", type="primary")
+    else:
+        query = st.session_state.get("asset_search", "")
+        sort_mode = st.session_state.get("asset_sort_mode", "Best match")
+        selected_catalog = st.session_state.get("asset_catalog", "All")
+        selected_domain = st.session_state.get("asset_domain", "All")
+        selected_tier = st.session_state.get("asset_tier", "All")
+        selected_cert = st.session_state.get("asset_certification", "All")
+        selected_sensitivity = st.session_state.get("asset_sensitivity", "All")
 
     filtered = inventory.copy()
     if query:
@@ -1545,25 +1729,18 @@ def _render_asset_profile(
     user_email: str,
 ) -> None:
     catalog, schema, table = _split_uc_name(asset["fqn"])
-    cols_df = _cached_columns(uc, catalog, schema, table)
-    tags_df = _cached_table_tags(uc, catalog, schema, table)
-    comment = _cached_comment(uc, catalog, schema, table)
-    owners_df = store.get_owners(asset["fqn"])
-    lineage_up, lineage_up_error = _safe_df_call(
-        _cached_lineage_up, uc, catalog, schema, table
-    )
-    lineage_down, lineage_down_error = _safe_df_call(
-        _cached_lineage_down, uc, catalog, schema, table
-    )
+    asset_tags = asset.get("tags") if isinstance(asset.get("tags"), dict) else {}
+    structured = _structured_tags(asset_tags)
+    comment = _normalize_str(asset.get("comment"))
 
     st.markdown(_profile_header_html(asset), unsafe_allow_html=True)
 
     metrics = st.columns(5)
-    metrics[0].metric("Columns", len(cols_df))
-    metrics[1].metric("Upstream assets", len(lineage_up))
-    metrics[2].metric("Downstream assets", len(lineage_down))
-    metrics[3].metric("Open requests", int(asset.get("pending_requests", 0)))
-    metrics[4].metric("Owners", int(asset.get("owner_count", 0)))
+    metrics[0].metric("Coverage", int(asset.get("governance_score", 0)))
+    metrics[1].metric("Open requests", int(asset.get("pending_requests", 0)))
+    metrics[2].metric("Owners", int(asset.get("owner_count", 0)))
+    metrics[3].metric("Domain", structured["domain"] or "—")
+    metrics[4].metric("Tier", structured["tier"] or "—")
 
     section = _button_nav(
         ["Overview", "Schema", "Preview", "Lineage", "Governance"],
@@ -1572,6 +1749,8 @@ def _render_asset_profile(
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
     if section == "Overview":
+        owners_df = store.get_owners(asset["fqn"])
+        tags_df = _tags_map_to_df(asset_tags)
         left, right = st.columns([1.25, 1])
         with left:
             st.markdown("#### Context")
@@ -1586,7 +1765,6 @@ def _render_asset_profile(
                 _render_data_table(owners_df)
 
         with right:
-            structured = _structured_tags(asset.get("tags", {}))
             summary_rows = pd.DataFrame(
                 [
                     {"Field": "Domain", "Value": structured["domain"] or "Unassigned"},
@@ -1625,6 +1803,7 @@ def _render_asset_profile(
                 _render_data_table(tags_df)
 
     elif section == "Schema":
+        cols_df = _cached_columns(uc, catalog, schema, table)
         _render_data_table(cols_df)
         if role in {"writer", "admin"} and not cols_df.empty:
             st.divider()
@@ -1703,6 +1882,12 @@ def _render_asset_profile(
             st.info("Load sample rows when you need a quick shape check for the asset.")
 
     elif section == "Lineage":
+        lineage_up, lineage_up_error = _safe_df_call(
+            _cached_lineage_up, uc, catalog, schema, table
+        )
+        lineage_down, lineage_down_error = _safe_df_call(
+            _cached_lineage_down, uc, catalog, schema, table
+        )
         lcol1, lcol2 = st.columns(2)
         with lcol1:
             st.markdown("#### Upstream assets")
@@ -1729,6 +1914,8 @@ def _render_asset_profile(
             st.rerun()
 
     else:
+        tags_df = _tags_map_to_df(asset_tags)
+        owners_df = store.get_owners(asset["fqn"])
         is_writer = role in {"writer", "admin"}
         existing_tags = _df_to_tags_map(tags_df)
         existing_structured = _structured_tags(existing_tags)
@@ -1946,51 +2133,47 @@ def page_discovery(
         "Search the catalog, narrow the results with filters, and open an asset to review its metadata, sample data, ownership, and lineage.",
     )
 
-    metrics = st.columns(4)
-    metrics[0].metric("Inventoried assets", len(inventory))
-    metrics[1].metric(
-        "Certified assets",
-        _inventory_metric(inventory, inventory["certification"].ne("")),
-    )
-    metrics[2].metric(
-        "Assets with stewards",
-        _inventory_metric(inventory, inventory["steward"].ne("")),
-    )
-    metrics[3].metric(
-        "Open requests",
-        _inventory_metric(inventory, inventory["pending_requests"]),
-    )
-
-    filtered = _filtered_inventory(inventory)
     discovery_view = _button_nav(
         ["Search", "Selected asset"],
         "discovery_view_mode",
     )
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
-    if filtered.empty:
-        if discovery_view == "Search":
+    if discovery_view == "Search":
+        metrics = st.columns(4)
+        metrics[0].metric("Inventoried assets", len(inventory))
+        metrics[1].metric(
+            "Certified assets",
+            _inventory_metric(inventory, inventory["certification"].ne("")),
+        )
+        metrics[2].metric(
+            "Assets with stewards",
+            _inventory_metric(inventory, inventory["steward"].ne("")),
+        )
+        metrics[3].metric(
+            "Open requests",
+            _inventory_metric(inventory, inventory["pending_requests"]),
+        )
+        filtered = _filtered_inventory(inventory, show_controls=True)
+
+        if filtered.empty:
             st.warning("No assets match the current search and filter set.")
             return
-        st.caption(
-            "Current discovery filters do not match any assets. The selected asset stays open below so you can keep working."
-        )
-    else:
-        st.caption(f"{len(filtered)} assets match the current discovery filters.")
 
-    if discovery_view == "Search":
+        st.caption(f"{len(filtered)} assets match the current discovery filters.")
         st.markdown("#### Search results")
         if len(filtered) > 12:
-            st.caption("Showing the first 12 results. Narrow the search or open an asset to continue.")
+            st.caption(
+                "Showing the first 12 results. Narrow the search or open an asset to continue."
+            )
         result_cols = st.columns(2)
         for idx, (_, asset_series) in enumerate(filtered.head(12).iterrows()):
             with result_cols[idx % 2]:
-                active = asset_series["fqn"] == st.session_state.get("selected_asset_fqn")
-                st.markdown(_asset_card_html(asset_series, active), unsafe_allow_html=True)
+                st.markdown(_asset_card_html(asset_series, False), unsafe_allow_html=True)
                 if st.button(
                     "Open asset",
                     key=f"open_asset_{asset_series['fqn']}",
-                    type="primary" if active else "secondary",
+                    type="secondary",
                     use_container_width=True,
                 ):
                     st.session_state["selected_asset_fqn"] = asset_series["fqn"]
@@ -2000,23 +2183,13 @@ def page_discovery(
                     )
                     st.rerun()
     else:
+        filtered = _filtered_inventory(inventory, show_controls=False)
         selected = _selected_asset(inventory)
         if selected is None:
             st.info("Select an asset from the results list.")
             return
 
-        if filtered.empty:
-            context_copy = (
-                "Return to Search when you want to pick a different asset from the current filters."
-            )
-        elif selected["fqn"] in filtered["fqn"].values:
-            context_copy = (
-                f"{len(filtered)} assets match the current filters. Return to Search to choose a different one."
-            )
-        else:
-            context_copy = (
-                f"{len(filtered)} assets match the current filters. The selected asset is outside that current result set."
-            )
+        context_copy = "Return to Search when you want to change filters or pick a different asset."
 
         st.markdown(
             f"""
@@ -2083,6 +2256,7 @@ def page_lineage(
                 )
 
     with l2:
+        st.markdown("<div class='gh-lineage-spacer'></div>", unsafe_allow_html=True)
         st.markdown(
             _lineage_node_html(
                 "Selected asset",
@@ -2672,6 +2846,16 @@ def main() -> None:
         initial_sidebar_state="collapsed",
     )
     _render_styles()
+    _install_client_bootstrap()
+
+    boot_placeholder = st.empty()
+    boot_placeholder.markdown(
+        _loading_card_html(
+            "Loading workspace",
+            "The first load can take a few seconds while Unity Catalog metadata and governance state are cached.",
+        ),
+        unsafe_allow_html=True,
+    )
 
     try:
         cfg = _get_config()
@@ -2679,12 +2863,14 @@ def main() -> None:
         store = _get_store(cfg, uc)
         om = _get_om_client(cfg)
     except Exception as exc:
+        boot_placeholder.empty()
         st.error(f"Configuration error: {exc}")
         st.stop()
 
     user_email = get_current_user_email() or "unknown"
     role = store.get_role(user_email, admin_emails=cfg.admin_emails)
     inventory = _cached_asset_inventory(uc, store)
+    boot_placeholder.empty()
 
     _render_shell(cfg, role, user_email, om)
     if inventory.empty:
