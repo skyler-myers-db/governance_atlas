@@ -207,4 +207,6 @@ marimo/_lsp/
 __marimo__/
 .vscode/
 AGENT*
+AGENTS.md
+AGENT_CHANGELOG.md
 .databricks/

@@ -444,9 +444,17 @@ def _render_styles() -> None:
   }
 
   .stApp {
-    position: relative;
     overflow-x: hidden;
     background:
+      linear-gradient(62deg, transparent 0 16%, rgba(81, 112, 212, 0.08) 16.2% 16.35%, transparent 16.55% 100%),
+      linear-gradient(118deg, transparent 0 23%, rgba(129, 105, 235, 0.07) 23.2% 23.38%, transparent 23.58% 100%),
+      linear-gradient(146deg, transparent 0 41%, rgba(90, 173, 245, 0.07) 41.2% 41.38%, transparent 41.58% 100%),
+      linear-gradient(171deg, transparent 0 66%, rgba(108, 79, 207, 0.06) 66.15% 66.3%, transparent 66.52% 100%),
+      radial-gradient(circle at 12% 18%, rgba(66, 103, 232, 0.14) 0 3px, transparent 4px),
+      radial-gradient(circle at 30% 30%, rgba(144, 112, 255, 0.12) 0 4px, transparent 5px),
+      radial-gradient(circle at 82% 22%, rgba(93, 181, 255, 0.13) 0 3px, transparent 4px),
+      radial-gradient(circle at 74% 72%, rgba(140, 110, 250, 0.11) 0 4px, transparent 5px),
+      radial-gradient(circle at 18% 82%, rgba(84, 190, 255, 0.1) 0 3px, transparent 4px),
       radial-gradient(circle at 0% 0%, rgba(43, 84, 208, 0.22), transparent 28%),
       radial-gradient(circle at 100% 0%, rgba(149, 111, 255, 0.18), transparent 26%),
       radial-gradient(circle at 18% 84%, rgba(103, 196, 255, 0.16), transparent 22%),
@@ -456,45 +464,8 @@ def _render_styles() -> None:
     color: var(--gh-text);
   }
 
-  .stApp::before,
-  .stApp::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .stApp::before {
-    background:
-      linear-gradient(60deg, transparent 0 15%, rgba(90, 118, 199, 0.08) 15.15% 15.35%, transparent 15.55% 100%),
-      linear-gradient(122deg, transparent 0 24%, rgba(126, 109, 214, 0.07) 24.2% 24.4%, transparent 24.6% 100%),
-      linear-gradient(144deg, transparent 0 39%, rgba(76, 136, 227, 0.08) 39.1% 39.3%, transparent 39.5% 100%),
-      linear-gradient(168deg, transparent 0 63%, rgba(112, 85, 204, 0.06) 63.2% 63.35%, transparent 63.55% 100%),
-      radial-gradient(circle at 10% 18%, rgba(70, 105, 232, 0.18) 0 3px, transparent 4px),
-      radial-gradient(circle at 28% 28%, rgba(137, 110, 255, 0.15) 0 4px, transparent 5px),
-      radial-gradient(circle at 82% 22%, rgba(94, 173, 255, 0.17) 0 3px, transparent 4px),
-      radial-gradient(circle at 76% 70%, rgba(148, 111, 255, 0.14) 0 4px, transparent 5px),
-      radial-gradient(circle at 18% 76%, rgba(84, 190, 255, 0.13) 0 3px, transparent 4px);
-    opacity: 0.62;
-    animation: gh-network-drift 34s ease-in-out infinite alternate;
-  }
-
-  .stApp::after {
-    background:
-      radial-gradient(circle at 10% 14%, rgba(62, 109, 232, 0.14), transparent 22%),
-      radial-gradient(circle at 88% 12%, rgba(142, 103, 255, 0.15), transparent 24%),
-      radial-gradient(circle at 16% 86%, rgba(88, 196, 255, 0.12), transparent 28%),
-      radial-gradient(circle at 80% 78%, rgba(91, 53, 180, 0.12), transparent 24%);
-    filter: blur(42px);
-    opacity: 0.95;
-    animation: gh-glow-sway 18s ease-in-out infinite alternate;
-  }
-
   .block-container {
-    position: relative;
-    z-index: 1;
-    max-width: min(1820px, calc(100vw - 2.75rem));
+    max-width: min(1760px, calc(100vw - 2rem));
     padding-top: 0.9rem;
     padding-bottom: 2rem;
     padding-left: 1.35rem;
@@ -1316,24 +1287,6 @@ def _render_styles() -> None:
   @keyframes gh-spin {
     to {
       transform: rotate(360deg);
-    }
-  }
-
-  @keyframes gh-network-drift {
-    0% {
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-    100% {
-      transform: translate3d(18px, -14px, 0) scale(1.02);
-    }
-  }
-
-  @keyframes gh-glow-sway {
-    0% {
-      transform: translate3d(0, 0, 0);
-    }
-    100% {
-      transform: translate3d(-14px, 16px, 0);
     }
   }
 
