@@ -54,24 +54,24 @@ _CRITICALITY_OPTIONS = [
 ]
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def _get_config() -> AppConfig:
     return AppConfig.from_env()
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def _get_uc_client(_cfg: AppConfig) -> UCSQLClient:
     return UCSQLClient(warehouse_id=_cfg.warehouse_id)
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def _get_store(_cfg: AppConfig, _uc: UCSQLClient) -> GovernanceStore:
     store = GovernanceStore(uc=_uc, catalog=_cfg.gov_catalog, schema=_cfg.gov_schema)
     store.ensure_tables()
     return store
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner=False)
 def _get_om_client(_cfg: AppConfig) -> Optional[OpenMetadataClient]:
     if not _cfg.openmetadata_enabled:
         return None
@@ -393,15 +393,18 @@ def _render_styles() -> None:
         """
 <style>
   :root {
-    --gh-bg: #f4f7fb;
-    --gh-surface: #ffffff;
-    --gh-surface-alt: #edf3ff;
-    --gh-border: #d8e2ef;
-    --gh-input-bg: #eef3fa;
-    --gh-input-border: #ccd8ea;
-    --gh-focus-ring: rgba(34, 87, 216, 0.14);
-    --gh-primary: #2257d8;
-    --gh-primary-strong: #143e9b;
+    --gh-bg: #edf2fb;
+    --gh-surface: rgba(255, 255, 255, 0.9);
+    --gh-surface-alt: rgba(240, 245, 255, 0.92);
+    --gh-border: #d4dff0;
+    --gh-input-bg: rgba(242, 247, 255, 0.92);
+    --gh-input-border: #c8d7ee;
+    --gh-focus-ring: rgba(70, 108, 237, 0.16);
+    --gh-primary: #315fd8;
+    --gh-primary-strong: #2246a8;
+    --gh-secondary: #6d8dff;
+    --gh-accent: #9472ff;
+    --gh-accent-soft: #efe7ff;
     --gh-text: #162033;
     --gh-muted: #5e6c84;
     --gh-good: #127863;
@@ -412,11 +415,11 @@ def _render_styles() -> None:
 
   .stApp {
     background:
-      radial-gradient(circle at top left, rgba(67, 106, 232, 0.12), transparent 26%),
-      radial-gradient(circle at top right, rgba(47, 128, 237, 0.10), transparent 24%),
-      radial-gradient(circle at 18% 82%, rgba(82, 183, 255, 0.08), transparent 24%),
-      radial-gradient(circle at 86% 24%, rgba(255, 210, 166, 0.08), transparent 18%),
-      linear-gradient(180deg, #f8fbff 0%, #f3f7fc 48%, #eef4fb 100%),
+      radial-gradient(circle at 0% 0%, rgba(43, 84, 208, 0.22), transparent 28%),
+      radial-gradient(circle at 100% 0%, rgba(149, 111, 255, 0.18), transparent 26%),
+      radial-gradient(circle at 18% 84%, rgba(103, 196, 255, 0.16), transparent 22%),
+      radial-gradient(circle at 86% 78%, rgba(79, 54, 170, 0.16), transparent 24%),
+      linear-gradient(135deg, #edf6ff 0%, #eef2ff 34%, #f4eeff 68%, #eef2ff 100%),
       var(--gh-bg);
     color: var(--gh-text);
   }
@@ -444,7 +447,13 @@ def _render_styles() -> None:
     margin-bottom: 1rem;
     border-radius: 22px;
     border: 1px solid var(--gh-border);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(237, 244, 255, 0.92));
+    background:
+      linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.96),
+        rgba(237, 244, 255, 0.92) 46%,
+        rgba(245, 238, 255, 0.9) 100%
+      );
     box-shadow: var(--gh-shadow);
   }
 
@@ -479,7 +488,12 @@ def _render_styles() -> None:
     padding: 1.5rem 1.7rem;
     border-radius: 28px;
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(240, 245, 255, 0.92)),
+      linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.96),
+        rgba(239, 245, 255, 0.92) 42%,
+        rgba(244, 238, 255, 0.9) 100%
+      ),
       var(--gh-surface);
     border: 1px solid var(--gh-border);
     box-shadow: var(--gh-shadow);
@@ -507,8 +521,8 @@ def _render_styles() -> None:
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(145deg, #173a8c, #4e7cff);
-    box-shadow: 0 14px 28px rgba(34, 87, 216, 0.2);
+    background: linear-gradient(145deg, #173a8c 0%, #4477ff 55%, #8d6df8 100%);
+    box-shadow: 0 16px 30px rgba(61, 91, 214, 0.24);
     color: #ffffff;
     font-size: 1.15rem;
     font-weight: 900;
@@ -525,7 +539,11 @@ def _render_styles() -> None:
   }
 
   .gh-wordmark span {
-    color: #245bdc;
+    background: linear-gradient(90deg, #2a58dd 0%, #5d85ff 48%, #8c6cf6 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
   }
 
   .gh-wordmark-rule {
@@ -533,7 +551,7 @@ def _render_styles() -> None:
     height: 6px;
     border-radius: 999px;
     margin-top: 0.8rem;
-    background: linear-gradient(90deg, #2149a8, #6ea2ff);
+    background: linear-gradient(90deg, #2149a8, #67a2ff 52%, #9073ff 100%);
   }
 
   .gh-eyebrow {
@@ -571,7 +589,7 @@ def _render_styles() -> None:
     align-items: center;
     padding: 0.55rem 0.85rem;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.86);
     border: 1px solid var(--gh-border);
     color: var(--gh-text);
     font-size: 0.86rem;
@@ -586,7 +604,12 @@ def _render_styles() -> None:
 
   .gh-panel {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(245, 249, 255, 0.92));
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.94),
+        rgba(241, 246, 255, 0.9) 56%,
+        rgba(245, 240, 255, 0.88) 100%
+      );
     border: 1px solid var(--gh-border);
     border-radius: 22px;
     padding: 1.1rem 1.2rem;
@@ -621,7 +644,7 @@ def _render_styles() -> None:
     padding: 1rem 1rem 0.9rem;
     border-radius: 18px;
     border: 1px solid var(--gh-border);
-    background: rgba(255, 255, 255, 0.94);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(247, 243, 255, 0.84));
     box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
     margin-bottom: 0.6rem;
   }
@@ -629,7 +652,13 @@ def _render_styles() -> None:
   .gh-asset-card.active {
     border-color: rgba(34, 87, 216, 0.34);
     box-shadow: 0 18px 32px rgba(34, 87, 216, 0.12);
-    background: linear-gradient(135deg, rgba(242, 247, 255, 0.95), rgba(255, 255, 255, 0.98));
+    background:
+      linear-gradient(
+        135deg,
+        rgba(242, 247, 255, 0.95),
+        rgba(248, 241, 255, 0.9) 68%,
+        rgba(255, 255, 255, 0.98)
+      );
   }
 
   .gh-asset-head {
@@ -750,13 +779,19 @@ def _render_styles() -> None:
     padding: 0.9rem 1rem;
     border-radius: 18px;
     border: 1px solid var(--gh-border);
-    background: rgba(255, 255, 255, 0.96);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(245, 240, 255, 0.82));
     margin-bottom: 0.7rem;
   }
 
   .gh-lineage-node.focus {
     border-color: rgba(34, 87, 216, 0.3);
-    background: linear-gradient(135deg, rgba(237, 244, 255, 0.95), rgba(255, 255, 255, 0.98));
+    background:
+      linear-gradient(
+        135deg,
+        rgba(237, 244, 255, 0.95),
+        rgba(244, 239, 255, 0.9) 72%,
+        rgba(255, 255, 255, 0.98)
+      );
   }
 
   .gh-lineage-label {
@@ -834,14 +869,24 @@ def _render_styles() -> None:
   }
 
   .stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, var(--gh-primary), #4c79ff);
+    background: linear-gradient(
+      135deg,
+      var(--gh-primary) 0%,
+      var(--gh-secondary) 52%,
+      var(--gh-accent) 100%
+    );
     color: white;
     border: none;
   }
 
   .stButton > button[kind="primary"]:hover,
   div[data-testid="stFormSubmitButton"] > button:hover {
-    background: linear-gradient(135deg, var(--gh-primary-strong), #5d87ff) !important;
+    background: linear-gradient(
+      135deg,
+      var(--gh-primary-strong) 0%,
+      #567eff 52%,
+      #8c6cf6 100%
+    ) !important;
     color: #ffffff !important;
   }
 
@@ -916,14 +961,24 @@ def _render_styles() -> None:
   div[data-testid="stFormSubmitButton"] > button {
     min-height: 2.8rem;
     font-weight: 700;
-    background: linear-gradient(135deg, var(--gh-primary), #4c79ff) !important;
+    background: linear-gradient(
+      135deg,
+      var(--gh-primary) 0%,
+      var(--gh-secondary) 52%,
+      var(--gh-accent) 100%
+    ) !important;
     color: #ffffff !important;
     border: none !important;
     box-shadow: 0 14px 28px rgba(34, 87, 216, 0.18) !important;
   }
 
   div[data-testid="stFormSubmitButton"] > button[kind="primary"] {
-    background: linear-gradient(135deg, var(--gh-primary), #4c79ff) !important;
+    background: linear-gradient(
+      135deg,
+      var(--gh-primary) 0%,
+      var(--gh-secondary) 52%,
+      var(--gh-accent) 100%
+    ) !important;
     color: #ffffff !important;
     border: none !important;
   }
@@ -985,7 +1040,12 @@ def _render_styles() -> None:
     border-radius: 18px;
     border: 1px solid var(--gh-border);
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(242, 247, 255, 0.9));
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.95),
+        rgba(242, 247, 255, 0.9) 54%,
+        rgba(245, 239, 255, 0.86) 100%
+      );
     box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
     margin-bottom: 1rem;
   }
@@ -1022,7 +1082,7 @@ def _render_styles() -> None:
     overflow-x: auto;
     border-radius: 16px;
     border: 1px solid #d2dced;
-    background: #f7f9fd;
+    background: linear-gradient(180deg, #f7f9fd, #f4f6fd);
     box-shadow: 0 10px 24px rgba(18, 32, 63, 0.03);
   }
 
@@ -1034,7 +1094,7 @@ def _render_styles() -> None:
   }
 
   .gh-table thead {
-    background: #ecf2fb;
+    background: linear-gradient(180deg, #edf3fe, #e8effb);
   }
 
   .gh-table th {
@@ -1056,33 +1116,129 @@ def _render_styles() -> None:
   }
 
   .gh-table tbody tr:nth-child(even) td {
-    background: #f3f7fd;
+    background: #f3f6fe;
   }
 
   div[data-testid="stFormSubmitButton"] > button {
     min-height: 3rem;
     padding-inline: 1.15rem;
     border-radius: 12px !important;
-    background: linear-gradient(135deg, #173f97, #2f63e4) !important;
+    background: linear-gradient(135deg, #173f97 0%, #2f63e4 52%, #896df8 100%) !important;
     border: 1px solid rgba(17, 54, 136, 0.28) !important;
     box-shadow: 0 18px 34px rgba(34, 87, 216, 0.22) !important;
   }
 
-  div[data-testid="stToggle"] label,
-  div[data-testid="stCheckbox"] label {
+  div[data-testid="stToggle"] label {
     padding: 0.2rem 0;
   }
 
-  div[data-testid="stToggle"] [data-baseweb="checkbox"] > div,
-  div[data-testid="stCheckbox"] [data-baseweb="checkbox"] > div {
-    background: rgba(91, 120, 168, 0.16) !important;
-    border: 1px solid rgba(87, 114, 162, 0.42) !important;
+  div[data-testid="stToggle"] [data-baseweb="checkbox"] {
+    gap: 0.72rem !important;
   }
 
-  div[data-testid="stToggle"] input:checked + div,
-  div[data-testid="stCheckbox"] input:checked + div {
-    background: rgba(34, 87, 216, 0.92) !important;
-    border-color: rgba(34, 87, 216, 0.92) !important;
+  div[data-testid="stToggle"] [data-baseweb="checkbox"] > div {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 24px !important;
+    border-radius: 999px !important;
+    background: rgba(120, 142, 186, 0.26) !important;
+    border: 1px solid rgba(109, 129, 170, 0.4) !important;
+    position: relative !important;
+    box-shadow: inset 0 1px 2px rgba(16, 26, 48, 0.08) !important;
+  }
+
+  div[data-testid="stToggle"] [data-baseweb="checkbox"] > div::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: #ffffff;
+    box-shadow: 0 3px 8px rgba(19, 32, 58, 0.18);
+    transition: transform 0.18s ease;
+  }
+
+  div[data-testid="stToggle"] input:checked + div {
+    background: linear-gradient(135deg, #315fd8 0%, #678eff 50%, #8e71ff 100%) !important;
+    border-color: transparent !important;
+  }
+
+  div[data-testid="stToggle"] input:checked + div::before {
+    transform: translateX(20px);
+  }
+
+  details[data-testid="stExpander"] {
+    border: 1px solid rgba(201, 214, 236, 0.9) !important;
+    border-radius: 16px !important;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.92), rgba(244, 239, 255, 0.84)) !important;
+    overflow: hidden;
+  }
+
+  details[data-testid="stExpander"] summary {
+    color: var(--gh-text) !important;
+    font-weight: 700 !important;
+  }
+
+  .stMarkdown code,
+  div[data-testid="stSpinner"] code,
+  p code,
+  li code {
+    background: rgba(98, 118, 172, 0.12) !important;
+    color: #1e3f91 !important;
+    border: 1px solid rgba(163, 181, 219, 0.32) !important;
+    border-radius: 8px !important;
+    padding: 0.12rem 0.42rem !important;
+    font-size: 0.88em !important;
+    box-shadow: none !important;
+  }
+
+  div[data-baseweb="popover"] > div {
+    background:
+      linear-gradient(
+        160deg,
+        rgba(255, 255, 255, 0.98),
+        rgba(240, 246, 255, 0.96) 44%,
+        rgba(246, 240, 255, 0.94) 100%
+      ) !important;
+    border: 1px solid rgba(198, 212, 237, 0.96) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 22px 48px rgba(28, 46, 92, 0.18) !important;
+    overflow: hidden !important;
+  }
+
+  div[data-baseweb="popover"] [role="listbox"],
+  div[data-baseweb="popover"] ul {
+    background: transparent !important;
+    padding: 0.35rem !important;
+  }
+
+  div[data-baseweb="popover"] [role="option"],
+  div[data-baseweb="popover"] li {
+    background: transparent !important;
+    color: #1a2740 !important;
+    border-radius: 12px !important;
+    margin: 0.08rem 0 !important;
+    transition: background 0.16s ease, color 0.16s ease;
+  }
+
+  div[data-baseweb="popover"] [role="option"]:hover,
+  div[data-baseweb="popover"] li:hover,
+  div[data-baseweb="popover"] [aria-selected="true"] {
+    background: rgba(52, 97, 220, 0.1) !important;
+    color: #173277 !important;
+  }
+
+  div[data-baseweb="popover"] input {
+    background: rgba(255, 255, 255, 0.94) !important;
+    color: #1d2940 !important;
+    -webkit-text-fill-color: #1d2940 !important;
+    border-radius: 12px !important;
+  }
+
+  div[data-baseweb="popover"] input::placeholder {
+    color: #7083a4 !important;
   }
 
   @keyframes gh-spin {
@@ -1584,38 +1740,40 @@ def _render_column_lineage(df: pd.DataFrame, key: str) -> None:
     src_col = "source_column_name"
     tgt_col = "target_column_name"
     direct_mask = df[src_col].str.lower() == df[tgt_col].str.lower()
-    show_all = st.checkbox(
-        "Include indirect mappings",
-        value=False,
-        key=f"column_lineage_scope_{key}",
-        help=(
-            "Unity Catalog records the source columns read by an operation. Turn "
-            "this on to include broader dependencies from joins, expressions, and "
-            "multi-column logic instead of showing only same-name matches."
-        ),
-    )
-    with st.expander("Info: how Unity Catalog column lineage works"):
-        st.write(
-            "Unity Catalog captures the source columns read by a transformation. "
-            "Some rows are exact source-to-target name matches, while others are "
-            "broader dependencies created by joins, expressions, or multi-column logic."
+    control_col, info_col = st.columns([0.76, 0.24], vertical_alignment="center")
+    with control_col:
+        show_all = st.toggle(
+            "Include indirect lineage",
+            value=False,
+            key=f"column_lineage_scope_{key}",
+            help=(
+                "Turn this on to include broader dependencies from joins, expressions, "
+                "and multi-column logic instead of showing only same-name lineage."
+            ),
         )
-        st.write(
-            "Leave indirect mappings off when you want a narrow review. Turn it on "
-            "when you need the full set of dependencies behind a target column."
-        )
+    with info_col:
+        with st.expander("ⓘ UC lineage"):
+            st.write(
+                "Unity Catalog records which source columns were read by a transformation. "
+                "Some rows are direct source-to-target lineage matches, while others are "
+                "broader dependencies created by joins, expressions, or multi-column logic."
+            )
+            st.write(
+                "Leave indirect lineage off for a narrow review. Turn it on when you need "
+                "the full dependency trail behind a target column."
+            )
 
     c1, c2, c3 = st.columns(3)
-    c1.metric("Total mappings", len(df))
-    c2.metric("Direct matches", int(direct_mask.sum()))
-    c3.metric("Indirect / broad", int((~direct_mask).sum()))
+    c1.metric("Total lineage", len(df))
+    c2.metric("Direct lineage", int(direct_mask.sum()))
+    c3.metric("Indirect lineage", int((~direct_mask).sum()))
 
     view_df = df if show_all else df[direct_mask]
     if view_df.empty:
         if show_all:
-            st.info("No column mappings are available for this asset.")
+            st.info("No column lineage is available for this asset.")
         else:
-            st.info("No direct column matches are available for this asset.")
+            st.info("No direct column lineage is available for this asset.")
     else:
         _render_data_table(view_df)
 
@@ -1859,7 +2017,7 @@ def _render_asset_profile(
 ) -> None:
     catalog, schema, table = _split_uc_name(asset["fqn"])
     asset_tags = asset.get("tags") if isinstance(asset.get("tags"), dict) else {}
-    structured = _structured_tags(asset_tags)
+    structured = _structured_tags(asset_tags or {})
     comment = _normalize_str(asset.get("comment"))
 
     st.markdown(_profile_header_html(asset), unsafe_allow_html=True)
@@ -1879,7 +2037,7 @@ def _render_asset_profile(
 
     if section == "Overview":
         owners_df = store.get_owners(asset["fqn"])
-        tags_df = _tags_map_to_df(asset_tags)
+        tags_df = _tags_map_to_df(asset_tags if isinstance(asset_tags, dict) else {})
         left, right = st.columns([1.25, 1])
         with left:
             st.markdown("#### Context")
@@ -2046,7 +2204,7 @@ def _render_asset_profile(
             st.rerun()
 
     else:
-        tags_df = _tags_map_to_df(asset_tags)
+        tags_df = _tags_map_to_df(asset_tags if isinstance(asset_tags, dict) else {})
         owners_df = store.get_owners(asset["fqn"])
         is_writer = role in {"writer", "admin"}
         existing_tags = _df_to_tags_map(tags_df)
@@ -2348,7 +2506,7 @@ def page_lineage(
 ) -> None:
     _render_section_intro(
         "Lineage",
-        "Review upstream producers, downstream consumers, and column mappings for the selected asset before making a schema or pipeline change.",
+        "Review upstream producers, downstream consumers, and column lineage for the selected asset before making a schema or pipeline change.",
     )
     selected_fqn = _asset_selector(inventory, "lineage_selector", "Asset")
     if not selected_fqn:
@@ -2468,7 +2626,7 @@ def page_lineage(
             if col_up_error:
                 st.warning(f"Could not query upstream column lineage: {col_up_error}")
             elif col_up.empty:
-                st.info("No upstream column mappings available.")
+                st.info("No upstream column lineage is available.")
             else:
                 _render_column_lineage(col_up, key=f"col_up_{selected_fqn}")
 
@@ -2478,7 +2636,7 @@ def page_lineage(
                     f"Could not query downstream column lineage: {col_down_error}"
                 )
             elif col_down.empty:
-                st.info("No downstream column mappings available.")
+                st.info("No downstream column lineage is available.")
             else:
                 _render_column_lineage(col_down, key=f"col_down_{selected_fqn}")
 
