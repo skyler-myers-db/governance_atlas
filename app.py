@@ -117,7 +117,7 @@ def _cached_catalog_table_tags(_uc: UCSQLClient, catalog: str) -> pd.DataFrame:
     return _uc.get_catalog_table_tags(catalog)
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner="Loading schema details...")
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_columns(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
@@ -136,35 +136,35 @@ def _cached_table_tags(
     return _uc.get_table_tags(catalog, schema, table)
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner="Loading lineage...")
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_lineage_up(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
     return _uc.get_table_lineage_upstream(catalog, schema, table)
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner="Loading lineage...")
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_lineage_down(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
     return _uc.get_table_lineage_downstream(catalog, schema, table)
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner="Loading column lineage...")
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_col_lineage_up(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
     return _uc.get_column_lineage_upstream(catalog, schema, table)
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner="Loading column lineage...")
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_col_lineage_down(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
     return _uc.get_column_lineage_downstream(catalog, schema, table)
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner="Loading sample rows...")
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_sample_rows(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
@@ -243,22 +243,81 @@ def _tags_map_to_df(tags: Dict[str, str]) -> pd.DataFrame:
 
 
 def _tags_editor(existing: pd.DataFrame, key: str) -> pd.DataFrame:
-    if existing is None or existing.empty:
-        view = pd.DataFrame([{"tag_name": "", "tag_value": ""}])
-    else:
-        view = existing[["tag_name", "tag_value"]].copy()
-        view.loc[len(view)] = {"tag_name": "", "tag_value": ""}
-    return st.data_editor(
-        view,
-        use_container_width=True,
-        num_rows="dynamic",
-        column_config={
-            "tag_name": st.column_config.TextColumn("Tag key"),
-            "tag_value": st.column_config.TextColumn("Tag value"),
-        },
-        hide_index=True,
-        key=key,
+    rows_key = f"{key}_rows"
+    sig_key = f"{key}_signature"
+    source = (
+        existing[["tag_name", "tag_value"]]
+        .fillna("")
+        .astype(str)
+        .sort_values(["tag_name", "tag_value"])
+        .reset_index(drop=True)
+        if existing is not None and not existing.empty
+        else pd.DataFrame(columns=["tag_name", "tag_value"])
     )
+    signature = json.dumps(source.to_dict("records"), sort_keys=True)
+    if st.session_state.get(sig_key) != signature:
+        rows = source.to_dict("records")
+        if not rows:
+            rows = [{"tag_name": "", "tag_value": ""}]
+        st.session_state[rows_key] = rows
+        st.session_state[sig_key] = signature
+
+    rows = list(st.session_state.get(rows_key, []))
+    st.markdown(
+        """
+<div class="gh-tags-header">
+  <div>Tag key</div>
+  <div>Tag value</div>
+  <div></div>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    remove_idx: Optional[int] = None
+    current_rows: List[Dict[str, str]] = []
+    for idx, row in enumerate(rows):
+        cols = st.columns([1.05, 1.05, 0.22])
+        name = cols[0].text_input(
+            "Tag key",
+            value=_normalize_str(row.get("tag_name")),
+            placeholder="domain_owner",
+            label_visibility="collapsed",
+            key=f"{key}_tag_name_{idx}",
+        )
+        value = cols[1].text_input(
+            "Tag value",
+            value=_normalize_str(row.get("tag_value")),
+            placeholder="finance",
+            label_visibility="collapsed",
+            key=f"{key}_tag_value_{idx}",
+        )
+        if cols[2].button("Remove", key=f"{key}_remove_{idx}", disabled=len(rows) == 1):
+            remove_idx = idx
+        current_rows.append({"tag_name": name, "tag_value": value})
+
+    if remove_idx is not None:
+        current_rows.pop(remove_idx)
+        if not current_rows:
+            current_rows = [{"tag_name": "", "tag_value": ""}]
+        st.session_state[rows_key] = current_rows
+        st.rerun()
+
+    if st.button("Add tag row", key=f"{key}_add_row", use_container_width=True):
+        current_rows.append({"tag_name": "", "tag_value": ""})
+        st.session_state[rows_key] = current_rows
+        st.rerun()
+
+    st.session_state[rows_key] = current_rows
+    cleaned_rows = [
+        {
+            "tag_name": _normalize_str(row.get("tag_name")),
+            "tag_value": _normalize_str(row.get("tag_value")),
+        }
+        for row in current_rows
+        if _normalize_str(row.get("tag_name"))
+    ]
+    return pd.DataFrame(cleaned_rows, columns=["tag_name", "tag_value"])
 
 
 def _select_index(options: List[str], current: str) -> int:
@@ -274,8 +333,17 @@ def _safe_badge(text: str, tone: str = "neutral") -> str:
     return f"<span class='gh-badge gh-badge-{tone}'>{html.escape(text)}</span>"
 
 
-def _button_nav(options: List[str], state_key: str) -> str:
+def _button_nav(
+    options: List[str],
+    state_key: str,
+    *,
+    disabled_options: Optional[List[str]] = None,
+) -> str:
+    disabled = set(disabled_options or [])
     current = st.session_state.get(state_key, options[0])
+    if current in disabled:
+        current = next((option for option in options if option not in disabled), options[0])
+        st.session_state[state_key] = current
     cols = st.columns(len(options))
     for col, option in zip(cols, options):
         with col:
@@ -284,6 +352,7 @@ def _button_nav(options: List[str], state_key: str) -> str:
                 key=f"{state_key}_{option}",
                 use_container_width=True,
                 type="primary" if option == current else "secondary",
+                disabled=option in disabled,
             ):
                 if option != current:
                     st.session_state[state_key] = option
@@ -343,8 +412,11 @@ def _render_styles() -> None:
 
   .stApp {
     background:
-      radial-gradient(circle at top left, rgba(67, 106, 232, 0.10), transparent 28%),
-      radial-gradient(circle at top right, rgba(47, 128, 237, 0.08), transparent 24%),
+      radial-gradient(circle at top left, rgba(67, 106, 232, 0.12), transparent 26%),
+      radial-gradient(circle at top right, rgba(47, 128, 237, 0.10), transparent 24%),
+      radial-gradient(circle at 18% 82%, rgba(82, 183, 255, 0.08), transparent 24%),
+      radial-gradient(circle at 86% 24%, rgba(255, 210, 166, 0.08), transparent 18%),
+      linear-gradient(180deg, #f8fbff 0%, #f3f7fc 48%, #eef4fb 100%),
       var(--gh-bg);
     color: var(--gh-text);
   }
@@ -513,7 +585,8 @@ def _render_styles() -> None:
   }
 
   .gh-panel {
-    background: rgba(255, 255, 255, 0.92);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(245, 249, 255, 0.92));
     border: 1px solid var(--gh-border);
     border-radius: 22px;
     padding: 1.1rem 1.2rem;
@@ -911,9 +984,29 @@ def _render_styles() -> None:
     padding: 1rem 1.1rem;
     border-radius: 18px;
     border: 1px solid var(--gh-border);
-    background: rgba(255, 255, 255, 0.9);
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(242, 247, 255, 0.9));
     box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
     margin-bottom: 1rem;
+  }
+
+  .gh-tags-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 84px;
+    gap: 0.85rem;
+    margin-bottom: 0.45rem;
+    color: #617390;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .stButton button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
   }
 
   .gh-kicker {
@@ -966,8 +1059,30 @@ def _render_styles() -> None:
     background: #f3f7fd;
   }
 
-  .gh-lineage-spacer {
-    height: 2.35rem;
+  div[data-testid="stFormSubmitButton"] > button {
+    min-height: 3rem;
+    padding-inline: 1.15rem;
+    border-radius: 12px !important;
+    background: linear-gradient(135deg, #173f97, #2f63e4) !important;
+    border: 1px solid rgba(17, 54, 136, 0.28) !important;
+    box-shadow: 0 18px 34px rgba(34, 87, 216, 0.22) !important;
+  }
+
+  div[data-testid="stToggle"] label,
+  div[data-testid="stCheckbox"] label {
+    padding: 0.2rem 0;
+  }
+
+  div[data-testid="stToggle"] [data-baseweb="checkbox"] > div,
+  div[data-testid="stCheckbox"] [data-baseweb="checkbox"] > div {
+    background: rgba(91, 120, 168, 0.16) !important;
+    border: 1px solid rgba(87, 114, 162, 0.42) !important;
+  }
+
+  div[data-testid="stToggle"] input:checked + div,
+  div[data-testid="stCheckbox"] input:checked + div {
+    background: rgba(34, 87, 216, 0.92) !important;
+    border-color: rgba(34, 87, 216, 0.92) !important;
   }
 
   @keyframes gh-spin {
@@ -1132,7 +1247,7 @@ def _empty_inventory() -> pd.DataFrame:
     )
 
 
-@st.cache_data(ttl=_META_TTL, show_spinner="Loading workspace inventory...")
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_asset_inventory(_uc: UCSQLClient, _store: GovernanceStore) -> pd.DataFrame:
     catalogs = _cached_catalogs(_uc)
     inventory_frames: List[pd.DataFrame] = []
@@ -1469,7 +1584,7 @@ def _render_column_lineage(df: pd.DataFrame, key: str) -> None:
     src_col = "source_column_name"
     tgt_col = "target_column_name"
     direct_mask = df[src_col].str.lower() == df[tgt_col].str.lower()
-    show_all = st.toggle(
+    show_all = st.checkbox(
         "Include indirect mappings",
         value=False,
         key=f"column_lineage_scope_{key}",
@@ -1479,7 +1594,16 @@ def _render_column_lineage(df: pd.DataFrame, key: str) -> None:
             "multi-column logic instead of showing only same-name matches."
         ),
     )
-    st.caption("Off shows same-name source and target columns only.")
+    with st.expander("Info: how Unity Catalog column lineage works"):
+        st.write(
+            "Unity Catalog captures the source columns read by a transformation. "
+            "Some rows are exact source-to-target name matches, while others are "
+            "broader dependencies created by joins, expressions, or multi-column logic."
+        )
+        st.write(
+            "Leave indirect mappings off when you want a narrow review. Turn it on "
+            "when you need the full set of dependencies behind a target column."
+        )
 
     c1, c2, c3 = st.columns(3)
     c1.metric("Total mappings", len(df))
@@ -1651,7 +1775,9 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
             selected_sensitivity = filter_cols[4].selectbox(
                 "Sensitivity", sensitivities, key="asset_sensitivity"
             )
-            st.form_submit_button("Apply discovery filters", type="primary")
+            submitted = st.form_submit_button("Apply discovery filters", type="primary")
+            if submitted:
+                st.session_state["discovery_filters_applied"] = True
     else:
         query = st.session_state.get("asset_search", "")
         sort_mode = st.session_state.get("asset_sort_mode", "Best match")
@@ -1716,6 +1842,9 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
             ["match_score", "governance_score", "pending_requests", "fqn"],
             ascending=[False, False, False, True],
         )
+
+    if show_controls and st.session_state.pop("discovery_filters_applied", False):
+        st.success(f"Filters applied. {len(filtered)} assets currently match.")
 
     return filtered.reset_index(drop=True)
 
@@ -1803,7 +1932,8 @@ def _render_asset_profile(
                 _render_data_table(tags_df)
 
     elif section == "Schema":
-        cols_df = _cached_columns(uc, catalog, schema, table)
+        with st.spinner("Loading schema details..."):
+            cols_df = _cached_columns(uc, catalog, schema, table)
         _render_data_table(cols_df)
         if role in {"writer", "admin"} and not cols_df.empty:
             st.divider()
@@ -1875,19 +2005,21 @@ def _render_asset_profile(
             st.session_state[f"sample_loaded_{asset['fqn']}"] = True
         if st.session_state.get(f"sample_loaded_{asset['fqn']}"):
             try:
-                _render_data_table(_cached_sample_rows(uc, catalog, schema, table))
+                with st.spinner("Loading sample rows..."):
+                    _render_data_table(_cached_sample_rows(uc, catalog, schema, table))
             except Exception as exc:
                 st.error(f"Could not load sample data: {exc}")
         else:
             st.info("Load sample rows when you need a quick shape check for the asset.")
 
     elif section == "Lineage":
-        lineage_up, lineage_up_error = _safe_df_call(
-            _cached_lineage_up, uc, catalog, schema, table
-        )
-        lineage_down, lineage_down_error = _safe_df_call(
-            _cached_lineage_down, uc, catalog, schema, table
-        )
+        with st.spinner("Loading lineage..."):
+            lineage_up, lineage_up_error = _safe_df_call(
+                _cached_lineage_up, uc, catalog, schema, table
+            )
+            lineage_down, lineage_down_error = _safe_df_call(
+                _cached_lineage_down, uc, catalog, schema, table
+            )
         lcol1, lcol2 = st.columns(2)
         with lcol1:
             st.markdown("#### Upstream assets")
@@ -2133,11 +2265,15 @@ def page_discovery(
         "Search the catalog, narrow the results with filters, and open an asset to review its metadata, sample data, ownership, and lineage.",
     )
 
+    has_selected_asset = bool(st.session_state.get("discovery_asset_opened"))
     discovery_view = _button_nav(
         ["Search", "Selected asset"],
         "discovery_view_mode",
+        disabled_options=[] if has_selected_asset else ["Selected asset"],
     )
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
+    if not has_selected_asset:
+        st.caption("Open an asset from Search to unlock the selected-asset workspace.")
 
     if discovery_view == "Search":
         metrics = st.columns(4)
@@ -2177,6 +2313,7 @@ def page_discovery(
                     use_container_width=True,
                 ):
                     st.session_state["selected_asset_fqn"] = asset_series["fqn"]
+                    st.session_state["discovery_asset_opened"] = True
                     st.session_state["discovery_view_mode"] = "Selected asset"
                     st.session_state[f"asset_profile_section_{asset_series['fqn']}"] = (
                         "Overview"
@@ -2220,18 +2357,19 @@ def page_lineage(
 
     asset = inventory[inventory["fqn"] == selected_fqn].iloc[0]
     catalog, schema, table = _split_uc_name(selected_fqn)
-    lineage_up, lineage_up_error = _safe_df_call(
-        _cached_lineage_up, uc, catalog, schema, table
-    )
-    lineage_down, lineage_down_error = _safe_df_call(
-        _cached_lineage_down, uc, catalog, schema, table
-    )
-    col_up, col_up_error = _safe_df_call(
-        _cached_col_lineage_up, uc, catalog, schema, table
-    )
-    col_down, col_down_error = _safe_df_call(
-        _cached_col_lineage_down, uc, catalog, schema, table
-    )
+    with st.spinner("Loading lineage..."):
+        lineage_up, lineage_up_error = _safe_df_call(
+            _cached_lineage_up, uc, catalog, schema, table
+        )
+        lineage_down, lineage_down_error = _safe_df_call(
+            _cached_lineage_down, uc, catalog, schema, table
+        )
+        col_up, col_up_error = _safe_df_call(
+            _cached_col_lineage_up, uc, catalog, schema, table
+        )
+        col_down, col_down_error = _safe_df_call(
+            _cached_col_lineage_down, uc, catalog, schema, table
+        )
 
     metrics = st.columns(4)
     metrics[0].metric("Upstream assets", len(lineage_up))
@@ -2256,10 +2394,10 @@ def page_lineage(
                 )
 
     with l2:
-        st.markdown("<div class='gh-lineage-spacer'></div>", unsafe_allow_html=True)
+        st.markdown("#### Selected asset")
         st.markdown(
             _lineage_node_html(
-                "Selected asset",
+                "Focus",
                 selected_fqn,
                 "focus",
                 focus=True,
@@ -2298,13 +2436,11 @@ def page_lineage(
                     unsafe_allow_html=True,
                 )
 
-    detail_view = _button_nav(
-        ["Table flow", "Column mappings"],
-        "lineage_detail_view",
+    table_lineage_tab, column_lineage_tab = st.tabs(
+        ["Table lineage", "Column lineage"]
     )
-    st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
-    if detail_view == "Table flow":
+    with table_lineage_tab:
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("#### Upstream table detail")
@@ -2322,21 +2458,21 @@ def page_lineage(
                 st.info("No downstream table lineage available.")
             else:
                 _render_data_table(lineage_down)
-    else:
-        direction = _button_nav(
-            ["Into this asset", "Out of this asset"],
-            "lineage_mapping_direction",
-        )
-        st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
-        if direction == "Into this asset":
+    with column_lineage_tab:
+        upstream_column_tab, downstream_column_tab = st.tabs(
+            ["Upstream lineage", "Downstream lineage"]
+        )
+
+        with upstream_column_tab:
             if col_up_error:
                 st.warning(f"Could not query upstream column lineage: {col_up_error}")
             elif col_up.empty:
                 st.info("No upstream column mappings available.")
             else:
                 _render_column_lineage(col_up, key=f"col_up_{selected_fqn}")
-        else:
+
+        with downstream_column_tab:
             if col_down_error:
                 st.warning(
                     f"Could not query downstream column lineage: {col_down_error}"
@@ -2883,6 +3019,8 @@ def main() -> None:
         st.session_state["selected_asset_fqn"] = inventory.iloc[0]["fqn"]
     if "app_page" not in st.session_state:
         st.session_state["app_page"] = "Discovery"
+    if "discovery_asset_opened" not in st.session_state:
+        st.session_state["discovery_asset_opened"] = False
 
     page = _button_nav(
         ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"],
