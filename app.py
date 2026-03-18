@@ -542,6 +542,43 @@ def _render_styles() -> None:
     margin-bottom: 1rem;
   }
 
+  .gh-shell-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .gh-shell-stat {
+    border-radius: 18px;
+    padding: 0.85rem 0.95rem;
+    border: 1px solid rgba(198, 212, 237, 0.94);
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.92),
+        rgba(241, 246, 255, 0.88) 58%,
+        rgba(246, 239, 255, 0.84) 100%
+      );
+    box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
+  }
+
+  .gh-shell-stat-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #617390;
+    margin-bottom: 0.3rem;
+  }
+
+  .gh-shell-stat-value {
+    font-size: 1.35rem;
+    font-weight: 850;
+    color: var(--gh-text);
+    letter-spacing: -0.03em;
+  }
+
   .gh-shell-top {
     display: flex;
     justify-content: space-between;
@@ -1295,6 +1332,10 @@ def _render_styles() -> None:
       font-size: 2.3rem;
     }
 
+    .gh-shell-metrics {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .block-container {
       max-width: calc(100vw - 1.2rem);
       padding-left: 0.35rem;
@@ -1384,9 +1425,27 @@ def _render_shell(
     role: str,
     user_email: str,
     om: Optional[OpenMetadataClient],
+    inventory: pd.DataFrame,
 ) -> None:
     om_class = "good" if om else ""
     om_label = "OpenMetadata linked" if om else "Unity Catalog only"
+    shell_stats = "".join(
+        [
+            _shell_stat_html("Assets", f"{len(inventory):,}"),
+            _shell_stat_html(
+                "Needs attention",
+                f"{_inventory_metric(inventory, _attention_mask(inventory)):,}",
+            ),
+            _shell_stat_html(
+                "Sensitive assets",
+                f"{_inventory_metric(inventory, inventory['sensitivity'].ne('')):,}",
+            ),
+            _shell_stat_html(
+                "Open requests",
+                f"{_inventory_metric(inventory, inventory['pending_requests'].gt(0)):,}",
+            ),
+        ]
+    )
     st.markdown(
         f"""
 <div class="gh-shell">
@@ -1412,6 +1471,7 @@ def _render_shell(
       <span class="gh-chip {om_class}">{html.escape(om_label)}</span>
     </div>
   </div>
+  <div class="gh-shell-metrics">{shell_stats}</div>
 </div>
         """,
         unsafe_allow_html=True,
@@ -1683,6 +1743,39 @@ def _inventory_metric(inventory: pd.DataFrame, expr: pd.Series) -> int:
     return int(expr.sum())
 
 
+def _attention_mask(inventory: pd.DataFrame) -> pd.Series:
+    if inventory.empty:
+        return pd.Series(dtype=bool)
+    return (
+        inventory["owner_count"].eq(0)
+        | inventory["comment"].eq("")
+        | inventory["pending_requests"].gt(0)
+    )
+
+
+def _discovery_focus_mask(inventory: pd.DataFrame, focus_mode: str) -> pd.Series:
+    if inventory.empty:
+        return pd.Series(dtype=bool)
+    if focus_mode == "Ownership gaps":
+        return inventory["owner_count"].eq(0)
+    if focus_mode == "Needs documentation":
+        return inventory["comment"].eq("")
+    if focus_mode == "Open requests":
+        return inventory["pending_requests"].gt(0)
+    if focus_mode == "Sensitive / uncertified":
+        return inventory["sensitivity"].ne("") & inventory["certification"].eq("")
+    return pd.Series(True, index=inventory.index)
+
+
+def _shell_stat_html(label: str, value: str) -> str:
+    return f"""
+<div class="gh-shell-stat">
+  <div class="gh-shell-stat-label">{html.escape(label)}</div>
+  <div class="gh-shell-stat-value">{html.escape(value)}</div>
+</div>
+    """
+
+
 def _safe_df_call(fetcher, *args) -> Tuple[pd.DataFrame, Optional[str]]:
     try:
         return fetcher(*args), None
@@ -1930,6 +2023,7 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
     st.session_state.setdefault("asset_tier", "All")
     st.session_state.setdefault("asset_certification", "All")
     st.session_state.setdefault("asset_sensitivity", "All")
+    st.session_state.setdefault("asset_focus_mode", "All assets")
 
     valid_sort_modes = {
         "Best match",
@@ -1937,8 +2031,17 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
         "Open requests",
         "Alphabetical",
     }
+    valid_focus_modes = {
+        "All assets",
+        "Ownership gaps",
+        "Needs documentation",
+        "Open requests",
+        "Sensitive / uncertified",
+    }
     if st.session_state.get("asset_sort_mode") not in valid_sort_modes:
         st.session_state["asset_sort_mode"] = "Best match"
+    if st.session_state.get("asset_focus_mode") not in valid_focus_modes:
+        st.session_state["asset_focus_mode"] = "All assets"
     if st.session_state.get("asset_catalog") not in catalogs:
         st.session_state["asset_catalog"] = "All"
     if st.session_state.get("asset_domain") not in domains:
@@ -2034,6 +2137,11 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
         filtered = filtered[filtered["certification"] == selected_cert]
     if selected_sensitivity != "All":
         filtered = filtered[filtered["sensitivity"] == selected_sensitivity]
+
+    focus_mode = st.session_state.get("asset_focus_mode", "All assets")
+    focus_mask = _discovery_focus_mask(filtered, focus_mode)
+    if not focus_mask.empty:
+        filtered = filtered[focus_mask]
 
     if sort_mode == "Governance coverage":
         filtered = filtered.sort_values(
@@ -2482,7 +2590,7 @@ def page_discovery(
 ) -> None:
     _render_section_intro(
         "Discovery",
-        "Search the catalog, narrow the results with filters, and open an asset to review its metadata, sample data, ownership, and lineage.",
+        "Search the catalog, narrow the results with filters, and open an asset to review metadata, ownership, sample data, and lineage.",
     )
 
     has_selected_asset = bool(st.session_state.get("discovery_asset_opened"))
@@ -2510,13 +2618,31 @@ def page_discovery(
             "Open requests",
             _inventory_metric(inventory, inventory["pending_requests"]),
         )
+        st.markdown("#### Views")
+        _button_nav(
+            [
+                "All assets",
+                "Ownership gaps",
+                "Needs documentation",
+                "Open requests",
+                "Sensitive / uncertified",
+            ],
+            "asset_focus_mode",
+        )
+        st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
         filtered = _filtered_inventory(inventory, show_controls=True)
 
         if filtered.empty:
             st.warning("No assets match the current search and filter set.")
             return
 
-        st.caption(f"{len(filtered)} assets match the current discovery filters.")
+        focus_mode = st.session_state.get("asset_focus_mode", "All assets")
+        if focus_mode == "All assets":
+            st.caption(f"{len(filtered)} assets match the current discovery filters.")
+        else:
+            st.caption(
+                f"{len(filtered)} assets match the current filters in the {focus_mode.lower()} view."
+            )
         st.markdown("#### Search results")
         if len(filtered) > 12:
             st.caption(
@@ -3249,7 +3375,7 @@ def main() -> None:
     inventory = _cached_asset_inventory(uc, store)
     boot_placeholder.empty()
 
-    _render_shell(cfg, role, user_email, om)
+    _render_shell(cfg, role, user_email, om, inventory)
     if inventory.empty:
         st.warning(
             "No Unity Catalog assets are visible to this app. Check warehouse access and catalog permissions."
