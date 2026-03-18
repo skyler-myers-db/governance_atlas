@@ -540,6 +540,18 @@ def _render_styles() -> None:
     border: 1px solid var(--gh-border);
     box-shadow: var(--gh-shadow);
     margin-bottom: 1rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .gh-shell::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 18% 22%, rgba(90, 161, 255, 0.12), transparent 22%),
+      radial-gradient(circle at 82% 18%, rgba(147, 114, 255, 0.12), transparent 24%);
   }
 
   .gh-shell-metrics {
@@ -547,6 +559,8 @@ def _render_styles() -> None:
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.75rem;
     margin-top: 1rem;
+    position: relative;
+    z-index: 1;
   }
 
   .gh-shell-stat {
@@ -561,6 +575,7 @@ def _render_styles() -> None:
         rgba(246, 239, 255, 0.84) 100%
       );
     box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
+    backdrop-filter: blur(12px);
   }
 
   .gh-shell-stat-label {
@@ -585,6 +600,8 @@ def _render_styles() -> None:
     gap: 1rem;
     align-items: flex-start;
     flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
   }
 
   .gh-brand {
@@ -654,6 +671,27 @@ def _render_styles() -> None:
     color: var(--gh-muted);
     font-size: 1.02rem;
     line-height: 1.6;
+  }
+
+  .gh-shell-subcopy {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-top: 0.8rem;
+  }
+
+  .gh-shell-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.36rem;
+    padding: 0.42rem 0.72rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.74);
+    border: 1px solid rgba(196, 211, 237, 0.9);
+    color: #33435f;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
   }
 
   .gh-chip-row {
@@ -726,6 +764,16 @@ def _render_styles() -> None:
     background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(247, 243, 255, 0.84));
     box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
     margin-bottom: 0.6rem;
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease,
+      border-color 0.18s ease;
+  }
+
+  .gh-asset-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(96, 126, 213, 0.34);
+    box-shadow: 0 18px 32px rgba(22, 40, 81, 0.1);
   }
 
   .gh-asset-card.active {
@@ -761,14 +809,34 @@ def _render_styles() -> None:
   }
 
   .gh-score {
-    min-width: 3rem;
+    min-width: 4.6rem;
+    padding: 0.42rem 0.58rem;
+    border-radius: 14px;
+    background: linear-gradient(
+      145deg,
+      rgba(49, 95, 216, 0.12),
+      rgba(149, 114, 255, 0.14)
+    );
+    border: 1px solid rgba(74, 111, 223, 0.18);
     text-align: center;
-    padding: 0.35rem 0.55rem;
-    border-radius: 12px;
-    background: rgba(34, 87, 216, 0.1);
-    color: var(--gh-primary);
+  }
+
+  .gh-score-label {
+    display: block;
+    font-size: 0.58rem;
     font-weight: 800;
-    font-size: 0.9rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #5771a5;
+    margin-bottom: 0.08rem;
+  }
+
+  .gh-score-value {
+    display: block;
+    color: var(--gh-primary);
+    font-weight: 850;
+    font-size: 1rem;
+    letter-spacing: -0.03em;
   }
 
   .gh-asset-copy {
@@ -776,6 +844,13 @@ def _render_styles() -> None:
     font-size: 0.92rem;
     line-height: 1.55;
     min-height: 2.85rem;
+  }
+
+  .gh-signal-row {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    margin-top: 0.78rem;
   }
 
   .gh-badge-row {
@@ -1129,6 +1204,12 @@ def _render_styles() -> None:
     margin-bottom: 1rem;
   }
 
+  .gh-mini-copy {
+    margin-top: 0.55rem;
+    color: var(--gh-muted);
+    line-height: 1.5;
+  }
+
   .gh-tags-header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 84px;
@@ -1460,8 +1541,13 @@ def _render_shell(
         </div>
       </div>
       <div class="gh-shell-copy">
-        Use this workspace to find assets, review lineage, manage glossary terms,
-        and maintain metadata and ownership in Unity Catalog.
+        Use this workspace to search the catalog, inspect lineage, and keep metadata,
+        ownership, and governance context current in Unity Catalog.
+      </div>
+      <div class="gh-shell-subcopy">
+        <span class="gh-shell-flag">Live Unity Catalog metadata</span>
+        <span class="gh-shell-flag">Search-first asset workflow</span>
+        <span class="gh-shell-flag">Minimal deployment footprint</span>
       </div>
     </div>
     <div class="gh-chip-row">
@@ -1767,6 +1853,26 @@ def _discovery_focus_mask(inventory: pd.DataFrame, focus_mode: str) -> pd.Series
     return pd.Series(True, index=inventory.index)
 
 
+def _asset_signal_badges(asset: pd.Series) -> str:
+    signals: List[str] = []
+    if int(asset.get("owner_count", 0)) == 0:
+        signals.append(_safe_badge("Needs owner", "danger"))
+    if not _normalize_str(asset.get("comment")):
+        signals.append(_safe_badge("Needs description", "warn"))
+    pending_requests = int(asset.get("pending_requests", 0))
+    if pending_requests > 0:
+        label = "Open request" if pending_requests == 1 else f"{pending_requests} open requests"
+        signals.append(_safe_badge(label, "primary"))
+    if (
+        _normalize_str(asset.get("sensitivity"))
+        and not _normalize_str(asset.get("certification"))
+    ):
+        signals.append(_safe_badge("Sensitive / uncertified", "danger"))
+    if not signals and int(asset.get("governance_score", 0)) >= 80:
+        signals.append(_safe_badge("Enterprise ready", "good"))
+    return "".join(signals[:3])
+
+
 def _shell_stat_html(label: str, value: str) -> str:
     return f"""
 <div class="gh-shell-stat">
@@ -1797,6 +1903,8 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
         _safe_badge(asset.get("domain", ""), "neutral"),
     ]
     badges = "".join(badge for badge in badges if badge)
+    signals = _asset_signal_badges(asset)
+    signals_html = f"<div class='gh-signal-row'>{signals}</div>" if signals else ""
     active_class = "active" if active else ""
     return f"""
 <div class="gh-asset-card {active_class}">
@@ -1805,9 +1913,13 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
       <div class="gh-asset-name">{html.escape(_normalize_str(asset.get("table_name")))}</div>
       <div class="gh-asset-fqn">{html.escape(_normalize_str(asset.get("fqn")))}</div>
     </div>
-    <div class="gh-score">{int(asset.get("governance_score", 0))}</div>
+    <div class="gh-score">
+      <span class="gh-score-label">Coverage</span>
+      <span class="gh-score-value">{int(asset.get("governance_score", 0))}</span>
+    </div>
   </div>
   <div class="gh-asset-copy">{html.escape(description)}</div>
+  {signals_html}
   <div class="gh-badge-row">{badges}</div>
   <div class="gh-meta-row">
     <span>{int(asset.get("owner_count", 0))} owners</span>
@@ -2600,8 +2712,6 @@ def page_discovery(
         disabled_options=[] if has_selected_asset else ["Selected asset"],
     )
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
-    if not has_selected_asset:
-        st.caption("Open an asset from Search to unlock the selected-asset workspace.")
 
     if discovery_view == "Search":
         metrics = st.columns(4)
@@ -2672,7 +2782,13 @@ def page_discovery(
             st.info("Select an asset from the results list.")
             return
 
-        context_copy = "Return to Search when you want to change filters or pick a different asset."
+        context_copy = (
+            "Switch back to Search whenever you need to change filters or open a different asset."
+        )
+        selected_signals = _asset_signal_badges(selected)
+        selected_signals_html = (
+            f"<div class='gh-signal-row'>{selected_signals}</div>" if selected_signals else ""
+        )
 
         st.markdown(
             f"""
@@ -2680,7 +2796,8 @@ def page_discovery(
   <div class="gh-kicker">Selected Asset</div>
   <div class="gh-asset-name">{html.escape(_normalize_str(selected.get("table_name")))}</div>
   <div class="gh-asset-fqn">{html.escape(_normalize_str(selected.get("fqn")))}</div>
-  <div class="gh-section-copy">{html.escape(context_copy)}</div>
+  {selected_signals_html}
+  <div class="gh-mini-copy">{html.escape(context_copy)}</div>
 </div>
             """,
             unsafe_allow_html=True,
