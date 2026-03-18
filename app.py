@@ -545,45 +545,38 @@ def _render_styles() -> None:
   .gh-shell-metrics {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.85rem;
+    gap: 0.75rem;
     margin-top: 1rem;
   }
 
   .gh-shell-stat {
     border-radius: 18px;
-    padding: 0.95rem 1rem;
-    border: 1px solid rgba(197, 212, 236, 0.95);
+    padding: 0.85rem 0.95rem;
+    border: 1px solid rgba(198, 212, 237, 0.94);
     background:
       linear-gradient(
         145deg,
-        rgba(255, 255, 255, 0.94),
-        rgba(241, 246, 255, 0.9) 58%,
-        rgba(246, 239, 255, 0.88) 100%
+        rgba(255, 255, 255, 0.92),
+        rgba(241, 246, 255, 0.88) 58%,
+        rgba(246, 239, 255, 0.84) 100%
       );
-    box-shadow: 0 12px 26px rgba(18, 32, 63, 0.05);
+    box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
   }
 
   .gh-shell-stat-label {
-    font-size: 0.76rem;
+    font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.12em;
     text-transform: uppercase;
     color: #617390;
-    margin-bottom: 0.38rem;
+    margin-bottom: 0.3rem;
   }
 
   .gh-shell-stat-value {
-    font-size: 1.45rem;
-    font-weight: 800;
+    font-size: 1.35rem;
+    font-weight: 850;
     color: var(--gh-text);
     letter-spacing: -0.03em;
-  }
-
-  .gh-shell-stat-copy {
-    margin-top: 0.28rem;
-    color: var(--gh-muted);
-    font-size: 0.86rem;
-    line-height: 1.45;
   }
 
   .gh-shell-top {
@@ -1136,75 +1129,6 @@ def _render_styles() -> None:
     margin-bottom: 1rem;
   }
 
-  .gh-guidance-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
-    gap: 1rem;
-    margin-bottom: 1rem;
-  }
-
-  .gh-guidance-list {
-    margin: 0.6rem 0 0 0;
-    padding-left: 1rem;
-    color: var(--gh-muted);
-  }
-
-  .gh-guidance-list li {
-    margin-bottom: 0.42rem;
-    line-height: 1.55;
-  }
-
-  .gh-focus-card {
-    min-height: 138px;
-    padding: 1rem 1rem 0.95rem;
-    border-radius: 18px;
-    border: 1px solid var(--gh-border);
-    background:
-      linear-gradient(
-        145deg,
-        rgba(255, 255, 255, 0.94),
-        rgba(241, 246, 255, 0.9) 56%,
-        rgba(245, 239, 255, 0.88) 100%
-      );
-    box-shadow: 0 10px 22px rgba(18, 32, 63, 0.04);
-    margin-bottom: 0.55rem;
-  }
-
-  .gh-focus-card.active {
-    border-color: rgba(49, 95, 216, 0.32);
-    box-shadow: 0 16px 28px rgba(49, 95, 216, 0.11);
-    background:
-      linear-gradient(
-        135deg,
-        rgba(238, 244, 255, 0.96),
-        rgba(246, 239, 255, 0.92) 70%,
-        rgba(255, 255, 255, 0.98)
-      );
-  }
-
-  .gh-focus-label {
-    font-size: 0.8rem;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #617390;
-    margin-bottom: 0.45rem;
-  }
-
-  .gh-focus-value {
-    font-size: 1.85rem;
-    font-weight: 850;
-    color: var(--gh-text);
-    letter-spacing: -0.04em;
-  }
-
-  .gh-focus-copy {
-    margin-top: 0.28rem;
-    color: var(--gh-muted);
-    font-size: 0.88rem;
-    line-height: 1.5;
-  }
-
   .gh-tags-header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 84px;
@@ -1408,9 +1332,8 @@ def _render_styles() -> None:
       font-size: 2.3rem;
     }
 
-    .gh-shell-metrics,
-    .gh-guidance-grid {
-      grid-template-columns: 1fr;
+    .gh-shell-metrics {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .block-container {
@@ -1506,29 +1429,20 @@ def _render_shell(
 ) -> None:
     om_class = "good" if om else ""
     om_label = "OpenMetadata linked" if om else "Unity Catalog only"
-    needs_action = _inventory_metric(inventory, _attention_mask(inventory))
-    open_requests = _inventory_metric(inventory, inventory["pending_requests"].gt(0))
     shell_stats = "".join(
         [
+            _shell_stat_html("Assets", f"{len(inventory):,}"),
             _shell_stat_html(
-                "Inventoried assets",
-                f"{len(inventory):,}",
-                "Live Unity Catalog assets enriched with governance context.",
+                "Needs attention",
+                f"{_inventory_metric(inventory, _attention_mask(inventory)):,}",
             ),
             _shell_stat_html(
-                "Needs action",
-                f"{needs_action:,}",
-                "Missing owners, documentation, or pending governance follow-up.",
+                "Sensitive assets",
+                f"{_inventory_metric(inventory, inventory['sensitivity'].ne('')):,}",
             ),
             _shell_stat_html(
                 "Open requests",
-                f"{open_requests:,}",
-                "Metadata changes currently waiting on review or resolution.",
-            ),
-            _shell_stat_html(
-                "Runtime model",
-                "Live-first",
-                "Direct Unity Catalog reads plus a small Delta-backed governance control plane.",
+                f"{_inventory_metric(inventory, inventory['pending_requests'].gt(0)):,}",
             ),
         ]
     )
@@ -1853,29 +1767,11 @@ def _discovery_focus_mask(inventory: pd.DataFrame, focus_mode: str) -> pd.Series
     return pd.Series(True, index=inventory.index)
 
 
-def _shell_stat_html(label: str, value: str, copy: str) -> str:
+def _shell_stat_html(label: str, value: str) -> str:
     return f"""
 <div class="gh-shell-stat">
   <div class="gh-shell-stat-label">{html.escape(label)}</div>
   <div class="gh-shell-stat-value">{html.escape(value)}</div>
-  <div class="gh-shell-stat-copy">{html.escape(copy)}</div>
-</div>
-    """
-
-
-def _discovery_focus_card_html(
-    title: str,
-    count: int,
-    copy: str,
-    *,
-    active: bool = False,
-) -> str:
-    active_class = "active" if active else ""
-    return f"""
-<div class="gh-focus-card {active_class}">
-  <div class="gh-focus-label">{html.escape(title)}</div>
-  <div class="gh-focus-value">{count:,}</div>
-  <div class="gh-focus-copy">{html.escape(copy)}</div>
 </div>
     """
 
@@ -2694,7 +2590,7 @@ def page_discovery(
 ) -> None:
     _render_section_intro(
         "Discovery",
-        "Search the catalog, start with a focused live view, and open an asset to review metadata, ownership, sample data, and lineage in one place.",
+        "Search the catalog, narrow the results with filters, and open an asset to review metadata, ownership, sample data, and lineage.",
     )
 
     has_selected_asset = bool(st.session_state.get("discovery_asset_opened"))
@@ -2722,108 +2618,30 @@ def page_discovery(
             "Open requests",
             _inventory_metric(inventory, inventory["pending_requests"]),
         )
-        active_focus = st.session_state.get("asset_focus_mode", "All assets")
-        walkthrough_copy = """
-<div class="gh-mini-panel">
-  <div class="gh-kicker">Suggested walkthrough</div>
-  <div class="gh-section-copy">Use this page as the fast operating view for both real work and executive demos. Start with a focus view, open an asset, then pivot into lineage or governance.</div>
-  <ol class="gh-guidance-list">
-    <li>Start with <strong>Ownership gaps</strong> or <strong>Open requests</strong> to surface immediate governance work.</li>
-    <li>Open an asset to move from the result set into the entity page.</li>
-    <li>Use lineage and governance tabs to show impact, ownership, and remediation context without leaving the product.</li>
-  </ol>
-</div>
-        """
-        if active_focus == "All assets":
-            focus_summary = """
-<div class="gh-mini-panel">
-  <div class="gh-kicker">Live operating view</div>
-  <div class="gh-section-copy">This workspace stays live-first on purpose. It reads Unity Catalog directly and layers governance state on top without requiring snapshot jobs, background services, or extra deployment overhead.</div>
-</div>
-            """
-        else:
-            focus_summary = f"""
-<div class="gh-mini-panel">
-  <div class="gh-kicker">Active focus</div>
-  <div class="gh-asset-name">{html.escape(active_focus)}</div>
-  <div class="gh-section-copy">Stay in this view when you want a tighter story for triage or demos. Switch back to <strong>All assets</strong> whenever you need the full catalog again.</div>
-</div>
-            """
-        st.markdown(
-            f"""
-<div class="gh-guidance-grid">
-  {walkthrough_copy}
-  {focus_summary}
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        focus_cards = [
-            (
+        st.markdown("#### Views")
+        _button_nav(
+            [
+                "All assets",
                 "Ownership gaps",
-                int(_discovery_focus_mask(inventory, "Ownership gaps").sum()),
-                "Assets without assigned owners or stewards.",
-            ),
-            (
                 "Needs documentation",
-                int(_discovery_focus_mask(inventory, "Needs documentation").sum()),
-                "Assets still missing a business-facing description.",
-            ),
-            (
                 "Open requests",
-                int(_discovery_focus_mask(inventory, "Open requests").sum()),
-                "Assets with metadata work waiting on review.",
-            ),
-            (
                 "Sensitive / uncertified",
-                int(_discovery_focus_mask(inventory, "Sensitive / uncertified").sum()),
-                "Sensitive assets that still lack certification context.",
-            ),
-        ]
-        st.markdown("#### Focus views")
-        focus_cols = st.columns(4)
-        for col, (label, count, copy) in zip(focus_cols, focus_cards):
-            with col:
-                st.markdown(
-                    _discovery_focus_card_html(
-                        label,
-                        count,
-                        copy,
-                        active=active_focus == label,
-                    ),
-                    unsafe_allow_html=True,
-                )
-                if st.button(
-                    "Viewing" if active_focus == label else "Use view",
-                    key=f"focus_{label}",
-                    type="primary" if active_focus == label else "secondary",
-                    use_container_width=True,
-                ):
-                    if active_focus != label:
-                        st.session_state["asset_focus_mode"] = label
-                        st.rerun()
-
-        if active_focus != "All assets":
-            if st.button(
-                "Show all assets",
-                key="focus_reset",
-                use_container_width=False,
-            ):
-                st.session_state["asset_focus_mode"] = "All assets"
-                st.rerun()
-
+            ],
+            "asset_focus_mode",
+        )
+        st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
         filtered = _filtered_inventory(inventory, show_controls=True)
 
         if filtered.empty:
             st.warning("No assets match the current search and filter set.")
             return
 
-        if active_focus == "All assets":
+        focus_mode = st.session_state.get("asset_focus_mode", "All assets")
+        if focus_mode == "All assets":
             st.caption(f"{len(filtered)} assets match the current discovery filters.")
         else:
             st.caption(
-                f"{len(filtered)} assets match the current filters inside the {active_focus.lower()} view."
+                f"{len(filtered)} assets match the current filters in the {focus_mode.lower()} view."
             )
         st.markdown("#### Search results")
         if len(filtered) > 12:
