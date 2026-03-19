@@ -2617,6 +2617,7 @@ def _catalog_scope_options(
     lineage_down: pd.DataFrame,
     col_up: pd.DataFrame,
     col_down: pd.DataFrame,
+    current_fqn: str = "",
 ) -> List[str]:
     values: set[str] = set()
     for df, column in [
@@ -2634,6 +2635,14 @@ def _catalog_scope_options(
                 continue
             if catalog:
                 values.add(catalog)
+    current_fqn = _normalize_str(current_fqn)
+    if current_fqn:
+        try:
+            current_catalog, _, _ = _split_uc_name(current_fqn)
+        except ValueError:
+            current_catalog = ""
+        if current_catalog:
+            values.add(current_catalog)
     return ["All Catalogs"] + sorted(values)
 
 
@@ -2643,6 +2652,7 @@ def _schema_name_scope_options(
     col_up: pd.DataFrame,
     col_down: pd.DataFrame,
     catalog_scope: str,
+    current_fqn: str = "",
 ) -> List[str]:
     values: set[str] = set()
     for df, column in [
@@ -2662,6 +2672,16 @@ def _schema_name_scope_options(
                 continue
             if schema:
                 values.add(schema)
+    current_fqn = _normalize_str(current_fqn)
+    if current_fqn:
+        try:
+            current_catalog, current_schema, _ = _split_uc_name(current_fqn)
+        except ValueError:
+            current_catalog, current_schema = "", ""
+        if current_schema and (
+            catalog_scope == "All Catalogs" or current_catalog == catalog_scope
+        ):
+            values.add(current_schema)
     return ["All Schemas"] + sorted(values)
 
 
@@ -3183,13 +3203,25 @@ def _asset_selector(
     return selected
 
 
-def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) -> pd.DataFrame:
+def _filtered_inventory(
+    inventory: pd.DataFrame,
+    *,
+    show_controls: bool = True,
+    available_catalogs: Optional[List[str]] = None,
+) -> pd.DataFrame:
     if inventory.empty:
         return inventory
 
-    catalogs = ["All"] + sorted(
+    catalog_values = set(
         inventory["table_catalog"].dropna().astype(str).unique().tolist()
     )
+    if available_catalogs:
+        catalog_values.update(
+            _normalize_str(catalog)
+            for catalog in available_catalogs
+            if _normalize_str(catalog)
+        )
+    catalogs = ["All"] + sorted(catalog_values)
     domains = ["All"] + sorted([v for v in inventory["domain"].unique().tolist() if v])
     tiers = ["All"] + sorted([v for v in inventory["tier"].unique().tolist() if v])
     certifications = ["All"] + sorted(
@@ -4010,7 +4042,11 @@ def page_discovery(
             },
         )
         st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
-        filtered = _filtered_inventory(inventory, show_controls=True)
+        filtered = _filtered_inventory(
+            inventory,
+            show_controls=True,
+            available_catalogs=_cached_catalogs(uc),
+        )
 
         if filtered.empty:
             st.warning("No assets match the current search and filter set.")
@@ -4105,7 +4141,13 @@ def page_lineage(
     filter_cols = st.columns(2)
     catalog_key = f"lineage_catalog_scope_{selected_fqn}"
     schema_key = f"lineage_schema_scope_{selected_fqn}"
-    catalog_options = _catalog_scope_options(lineage_up, lineage_down, col_up, col_down)
+    catalog_options = _catalog_scope_options(
+        lineage_up,
+        lineage_down,
+        col_up,
+        col_down,
+        current_fqn=selected_fqn,
+    )
     if st.session_state.get(catalog_key) not in catalog_options:
         st.session_state[catalog_key] = catalog_options[0]
     with filter_cols[0]:
@@ -4122,6 +4164,7 @@ def page_lineage(
         col_up,
         col_down,
         st.session_state[catalog_key],
+        current_fqn=selected_fqn,
     )
     if st.session_state.get(schema_key) not in schema_options:
         st.session_state[schema_key] = schema_options[0]
