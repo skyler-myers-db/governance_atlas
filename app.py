@@ -998,9 +998,10 @@ def _render_styles() -> None:
   }
 
   .gh-asset-name {
-    font-size: 1rem;
-    font-weight: 700;
+    font-size: 1.22rem;
+    font-weight: 820;
     color: var(--gh-text);
+    line-height: 1.22;
   }
 
   .gh-asset-fqn {
@@ -1271,7 +1272,7 @@ def _render_styles() -> None:
   }
 
   .gh-lineage-node .gh-asset-name {
-    font-size: 1.34rem;
+    font-size: 1.5rem;
     font-weight: 820;
     line-height: 1.2;
   }
@@ -2531,16 +2532,11 @@ def _profile_header_html(asset: pd.Series) -> str:
         _safe_badge(structured.get("sensitivity", ""), "warn"),
         _safe_badge(structured.get("criticality", ""), "danger"),
     ]
-    description = _normalize_str(asset.get("comment")) or (
-        "This asset has not been documented yet. Add a description and governance "
-        "fields so other teams can understand how to use it."
-    )
     return f"""
 <div class="gh-panel">
   <div class="gh-kicker">Asset Profile</div>
   <div class="gh-profile-title">{html.escape(_normalize_str(asset.get("table_name")))}</div>
   <div class="gh-badge-row">{"".join(badge for badge in badges if badge)}</div>
-  <div class="gh-profile-copy">{html.escape(description)}</div>
 </div>
     """
 
@@ -2549,16 +2545,13 @@ def _overview_context_html(asset: pd.Series, detail_df: pd.DataFrame) -> str:
     description = _normalize_str(asset.get("comment")) or (
         "No business description has been added yet. Use the governance editor to document what this asset contains and how it should be used."
     )
-    facts = [
-        ("Object Type", _format_object_type(_normalize_str(asset.get("table_type"))) or "Unavailable"),
-        ("Catalog / Schema", _catalog_schema_context(_normalize_str(asset.get("fqn"))) or "Unavailable"),
-    ]
+    facts: List[Tuple[str, str]] = []
     if detail_df is not None and not detail_df.empty:
         detail = detail_df.iloc[0]
         facts.extend(
             [
-                ("Format", _normalize_str(detail.get("format")) or "Unavailable"),
                 ("Rows", _format_count(detail.get("numRows"))),
+                ("Format", _normalize_str(detail.get("format")) or "Unavailable"),
                 ("Size", _format_bytes(detail.get("sizeInBytes"))),
                 ("Files", _format_count(detail.get("numFiles"))),
             ]
@@ -2666,16 +2659,7 @@ def _lineage_focus_summary_html(
 
 
 def _render_section_intro(title: str, copy: str) -> None:
-    st.markdown(
-        f"""
-<div class="gh-panel">
-  <div class="gh-panel-label">Workspace Module</div>
-  <div class="gh-section-title">{html.escape(title)}</div>
-  <div class="gh-section-copy">{html.escape(copy)}</div>
-</div>
-        """,
-        unsafe_allow_html=True,
-    )
+    return None
 
 
 def _render_column_lineage(df: pd.DataFrame, key: str) -> None:
@@ -2877,10 +2861,16 @@ def _asset_selector(inventory: pd.DataFrame, key: str, label: str) -> Optional[s
     if inventory.empty:
         return None
     options = inventory["fqn"].tolist()
+    current_value = _normalize_str(
+        st.session_state.get(key) or st.session_state.get("selected_asset_fqn", "")
+    )
+    if current_value not in options:
+        current_value = options[0]
+    if st.session_state.get(key) != current_value:
+        st.session_state[key] = current_value
     selected = st.selectbox(
         label,
         options,
-        index=_select_index(options, st.session_state.get("selected_asset_fqn", "")),
         format_func=lambda fqn: fqn,
         key=key,
     )
@@ -4588,37 +4578,42 @@ def main() -> None:
     st.session_state.pop("_last_module_nav_page", None)
     _sync_asset_query_state(inventory)
     _sync_lineage_query_state(inventory)
-    _sync_help_query_state()
 
     module_options = ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"]
-    current_page = st.session_state.get("app_page", "Discovery")
+    module_help = {
+        "Discovery": "Search the catalog, filter results, and open asset pages.",
+        "Lineage": "Review upstream and downstream dependencies before making changes.",
+        "Governance": "Manage glossary terms, metadata quality gaps, owners, and policy context.",
+        "Stewardship": "Review requests and work governance backlogs.",
+        "Admin": "Manage app access and roles.",
+    }
+    page = st.session_state.get("app_page", "Discovery")
 
-    nav_left, nav_right = st.columns([0.965, 0.035], vertical_alignment="center")
-    with nav_left:
-        nav_cols = st.columns(len(module_options))
-        for col, option in zip(nav_cols, module_options):
-            with col:
-                if st.button(
-                    option,
-                    key=f"app_page_{option}",
-                    use_container_width=True,
-                    type="primary" if current_page == option else "secondary",
-                ):
-                    if current_page != option:
-                        st.session_state["app_page"] = option
-                        st.rerun()
-    with nav_right:
-        help_class = " active" if current_page == "Help" else ""
-        st.markdown(
-            f"""
-<div class="gh-help-rail">
-  <a class="gh-help-link{help_class}" href="?help=1" title="Open help">?</a>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
+    nav_cols = st.columns([1, 1, 1, 1, 1, 0.16], vertical_alignment="center")
+    for col, option in zip(nav_cols[:5], module_options):
+        with col:
+            if st.button(
+                option,
+                key=f"app_page_{option}",
+                use_container_width=True,
+                type="primary" if page == option else "secondary",
+                help=module_help[option],
+            ):
+                if page != option:
+                    st.session_state["app_page"] = option
+                    st.rerun()
+    with nav_cols[5]:
+        if st.button(
+            "?",
+            key="app_page_help",
+            use_container_width=True,
+            type="primary" if page == "Help" else "secondary",
+            help="Open help",
+        ):
+            if page != "Help":
+                st.session_state["app_page"] = "Help"
+                st.rerun()
 
-    page = st.session_state.get("app_page", current_page)
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
     if page == "Discovery":
