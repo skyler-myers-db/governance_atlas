@@ -464,6 +464,7 @@ def _button_nav(
     state_key: str,
     *,
     disabled_options: Optional[List[str]] = None,
+    help_map: Optional[Dict[str, str]] = None,
 ) -> str:
     disabled = set(disabled_options or [])
     current = st.session_state.get(state_key, options[0])
@@ -479,6 +480,7 @@ def _button_nav(
                 use_container_width=True,
                 type="primary" if option == current else "secondary",
                 disabled=option in disabled,
+                help=(help_map or {}).get(option),
             ):
                 if option != current:
                     st.session_state[state_key] = option
@@ -998,7 +1000,7 @@ def _render_styles() -> None:
   }
 
   .gh-asset-name {
-    font-size: 1.22rem;
+    font-size: 1.34rem;
     font-weight: 820;
     color: var(--gh-text);
     line-height: 1.22;
@@ -1272,7 +1274,7 @@ def _render_styles() -> None:
   }
 
   .gh-lineage-node .gh-asset-name {
-    font-size: 1.5rem;
+    font-size: 1.34rem;
     font-weight: 820;
     line-height: 1.2;
   }
@@ -1357,11 +1359,12 @@ def _render_styles() -> None:
     opacity: 1 !important;
   }
 
-  .stButton > button {
+  .stButton > button,
+  div[data-testid="stButton"] > button {
     border-radius: 14px;
-    border: 1px solid var(--gh-border);
-    background: rgba(255, 255, 255, 0.95);
-    color: var(--gh-text);
+    border: 1px solid var(--gh-border) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: var(--gh-text) !important;
     font-weight: 700;
     min-height: 2.8rem;
     transition:
@@ -1372,30 +1375,41 @@ def _render_styles() -> None:
   }
 
   .stButton > button:hover,
+  div[data-testid="stButton"] > button:hover,
   div[data-testid="stFormSubmitButton"] > button:hover {
-    border-color: rgba(34, 87, 216, 0.28);
-    box-shadow: 0 14px 28px rgba(34, 87, 216, 0.16);
+    border-color: rgba(34, 87, 216, 0.28) !important;
+    box-shadow: 0 14px 28px rgba(34, 87, 216, 0.16) !important;
     transform: translateY(-1px);
   }
 
   .stButton > button:focus-visible,
+  div[data-testid="stButton"] > button:focus-visible,
   div[data-testid="stFormSubmitButton"] > button:focus-visible {
     outline: none !important;
     box-shadow: 0 0 0 3px var(--gh-focus-ring) !important;
   }
 
-  .stButton > button[kind="primary"] {
+  .stButton > button[kind="secondary"],
+  div[data-testid="stButton"] > button[kind="secondary"] {
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: var(--gh-text) !important;
+    border: 1px solid var(--gh-border) !important;
+  }
+
+  .stButton > button[kind="primary"],
+  div[data-testid="stButton"] > button[kind="primary"] {
     background: linear-gradient(
       135deg,
       var(--gh-primary) 0%,
       var(--gh-secondary) 52%,
       var(--gh-accent) 100%
-    );
-    color: white;
-    border: none;
+    ) !important;
+    color: white !important;
+    border: none !important;
   }
 
   .stButton > button[kind="primary"]:hover,
+  div[data-testid="stButton"] > button[kind="primary"]:hover,
   div[data-testid="stFormSubmitButton"] > button:hover {
     background: linear-gradient(
       135deg,
@@ -1977,8 +1991,33 @@ def _install_client_bootstrap() -> None:
           storage.setItem(key, String(node.scrollTop || rootWindow.pageYOffset || 0));
         }
       };
+      const routeClick = (event) => {
+        const target = event.target;
+        if (!target || typeof target.closest !== "function") {
+          return;
+        }
+        const anchor = target.closest("a.gh-route-link");
+        if (!anchor) {
+          return;
+        }
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+          return;
+        }
+        const href = anchor.getAttribute("href");
+        if (!href) {
+          return;
+        }
+        event.preventDefault();
+        capture();
+        try {
+          rootWindow.location.assign(href);
+        } catch (error) {
+          window.location.assign(href);
+        }
+      };
       rootWindow.addEventListener("scroll", capture, { passive: true });
       doc.addEventListener("click", capture, true);
+      doc.addEventListener("click", routeClick, true);
       doc.addEventListener("input", capture, true);
       rootWindow.__ghScrollInstalled = true;
     }
@@ -2317,7 +2356,7 @@ def _asset_query_href(
     focus: str = "",
     column_edit: str = "",
 ) -> str:
-    params = {"asset": asset_fqn}
+    params = {"page": "Discovery", "asset": asset_fqn}
     if section:
         params["asset_section"] = section
     if focus:
@@ -2328,7 +2367,7 @@ def _asset_query_href(
 
 
 def _lineage_query_href(asset_fqn: str) -> str:
-    return "?" + urlencode({"lineage_asset": asset_fqn})
+    return "?" + urlencode({"page": "Lineage", "lineage_asset": asset_fqn})
 
 
 def _split_request_tags(tags: Optional[Dict[str, str]]) -> Tuple[Dict[str, str], Dict[str, str]]:
@@ -2493,7 +2532,7 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
     active_class = "active" if active else ""
     return f"""
 <div class="gh-asset-card {active_class}">
-  <a class="gh-asset-main-link" href="{html.escape(asset_href)}">
+  <a class="gh-route-link gh-asset-main-link" href="{html.escape(asset_href)}" target="_self">
     <div class="gh-asset-head">
       <div>
         <div class="gh-asset-name">{html.escape(_normalize_str(asset.get("table_name")))}</div>
@@ -2508,7 +2547,7 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
   </a>
   {signals_html}
   <div class="gh-badge-row">{badges}</div>
-  <a class="gh-asset-footer-link" href="{html.escape(asset_href)}">
+  <a class="gh-route-link gh-asset-footer-link" href="{html.escape(asset_href)}" target="_self">
     <div class="gh-meta-row">
       <span>{int(asset.get("owner_count", 0))} Owners</span>
       <span>{int(asset.get("pending_requests", 0))} Open Requests</span>
@@ -2603,7 +2642,7 @@ def _lineage_node_html(
     """
     if href:
         return (
-            f"<a class='gh-lineage-link' href='{html.escape(href)}'>"
+            f"<a class='gh-route-link gh-lineage-link' href='{html.escape(href)}' target='_self'>"
             f"{node_html}</a>"
         )
     return node_html
@@ -2805,6 +2844,20 @@ def _sync_asset_query_state(inventory: pd.DataFrame) -> None:
     _clear_asset_query_state()
 
 
+def _sync_page_query_state() -> None:
+    try:
+        page = _normalize_str(st.query_params.get("page"))
+    except Exception:
+        page = ""
+    if page in {"Discovery", "Lineage", "Governance", "Stewardship", "Admin", "Help"}:
+        st.session_state["app_page"] = page
+    try:
+        if "page" in st.query_params:
+            del st.query_params["page"]
+    except Exception:
+        pass
+
+
 def _sync_lineage_query_state(inventory: pd.DataFrame) -> None:
     try:
         lineage_asset = _normalize_str(st.query_params.get("lineage_asset"))
@@ -2833,7 +2886,7 @@ def _sync_help_query_state() -> None:
 
 
 def _clear_asset_query_state() -> None:
-    for key in ["asset", "asset_section", "asset_focus", "column_edit"]:
+    for key in ["asset", "asset_section", "asset_focus", "column_edit", "page"]:
         try:
             if key in st.query_params:
                 del st.query_params[key]
@@ -2845,6 +2898,11 @@ def _clear_lineage_query_state() -> None:
     try:
         if "lineage_asset" in st.query_params:
             del st.query_params["lineage_asset"]
+    except Exception:
+        pass
+    try:
+        if "page" in st.query_params:
+            del st.query_params["page"]
     except Exception:
         pass
 
@@ -3693,6 +3751,13 @@ def page_discovery(
                 "Sensitive / Uncertified",
             ],
             "asset_focus_mode",
+            help_map={
+                "All Assets": "Show the full live catalog inventory that matches the current filters.",
+                "Ownership Gaps": "Focus on assets that do not yet have an assigned owner.",
+                "Needs Documentation": "Focus on assets that still need a business-facing description.",
+                "Open Requests": "Focus on assets with pending governance change requests.",
+                "Sensitive / Uncertified": "Focus on assets that are marked sensitive or still missing certification.",
+            },
         )
         st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
         filtered = _filtered_inventory(inventory, show_controls=True)
@@ -4577,6 +4642,7 @@ def main() -> None:
     st.session_state.pop("module_nav_page", None)
     st.session_state.pop("_last_module_nav_page", None)
     _sync_asset_query_state(inventory)
+    _sync_page_query_state()
     _sync_lineage_query_state(inventory)
 
     module_options = ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"]
