@@ -138,6 +138,27 @@ def _cached_table_tags(
 
 
 @st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_table_detail(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    return _uc.get_table_detail(catalog, schema, table)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_table_properties(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    return _uc.get_table_properties(catalog, schema, table)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_table_constraints(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    return _uc.get_table_constraints(catalog, schema, table)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_lineage_up(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
@@ -361,6 +382,24 @@ def _safe_badge(text: str, tone: str = "neutral") -> str:
     if not text:
         return ""
     return f"<span class='gh-badge gh-badge-{tone}'>{html.escape(text)}</span>"
+
+
+def _format_object_type(raw: str) -> str:
+    value = _normalize_str(raw).upper()
+    if not value:
+        return ""
+    labels = {
+        "MANAGED": "Managed Table",
+        "EXTERNAL": "External Table",
+        "VIEW": "View",
+        "MATERIALIZED_VIEW": "Materialized View",
+        "STREAMING_TABLE": "Streaming Table",
+        "TEMPORARY_VIEW": "Temporary View",
+        "FOREIGN": "Foreign Table",
+    }
+    if value in labels:
+        return labels[value]
+    return value.replace("_", " ").title()
 
 
 def _button_nav(
@@ -1502,27 +1541,23 @@ def _install_client_bootstrap() -> None:
 
 
 def _render_shell(
-    cfg: AppConfig,
     role: str,
     user_email: str,
-    om: Optional[OpenMetadataClient],
     inventory: pd.DataFrame,
 ) -> None:
-    om_class = "good" if om else ""
-    om_label = "OpenMetadata linked" if om else "Unity Catalog only"
     shell_stats = "".join(
         [
             _shell_stat_html("Assets", f"{len(inventory):,}"),
             _shell_stat_html(
-                "Needs attention",
+                "Needs Attention",
                 f"{_inventory_metric(inventory, _attention_mask(inventory)):,}",
             ),
             _shell_stat_html(
-                "Sensitive assets",
+                "Sensitive Assets",
                 f"{_inventory_metric(inventory, inventory['sensitivity'].ne('')):,}",
             ),
             _shell_stat_html(
-                "Open requests",
+                "Open Requests",
                 f"{_inventory_metric(inventory, inventory['pending_requests'].gt(0)):,}",
             ),
         ]
@@ -1544,17 +1579,10 @@ def _render_shell(
         Use this workspace to search the catalog, inspect lineage, and keep metadata,
         ownership, and governance context current in Unity Catalog.
       </div>
-      <div class="gh-shell-subcopy">
-        <span class="gh-shell-flag">Live Unity Catalog metadata</span>
-        <span class="gh-shell-flag">Search-first asset workflow</span>
-        <span class="gh-shell-flag">Minimal deployment footprint</span>
-      </div>
     </div>
     <div class="gh-chip-row">
-      <span class="gh-chip">{html.escape(cfg.gov_catalog)}.{html.escape(cfg.gov_schema)}</span>
       <span class="gh-chip">{html.escape(role.title())}</span>
       <span class="gh-chip">{html.escape(user_email)}</span>
-      <span class="gh-chip {om_class}">{html.escape(om_label)}</span>
     </div>
   </div>
   <div class="gh-shell-metrics">{shell_stats}</div>
@@ -1842,13 +1870,13 @@ def _attention_mask(inventory: pd.DataFrame) -> pd.Series:
 def _discovery_focus_mask(inventory: pd.DataFrame, focus_mode: str) -> pd.Series:
     if inventory.empty:
         return pd.Series(dtype=bool)
-    if focus_mode == "Ownership gaps":
+    if focus_mode == "Ownership Gaps":
         return inventory["owner_count"].eq(0)
-    if focus_mode == "Needs documentation":
+    if focus_mode == "Needs Documentation":
         return inventory["comment"].eq("")
-    if focus_mode == "Open requests":
+    if focus_mode == "Open Requests":
         return inventory["pending_requests"].gt(0)
-    if focus_mode == "Sensitive / uncertified":
+    if focus_mode == "Sensitive / Uncertified":
         return inventory["sensitivity"].ne("") & inventory["certification"].eq("")
     return pd.Series(True, index=inventory.index)
 
@@ -1867,10 +1895,34 @@ def _asset_signal_badges(asset: pd.Series) -> str:
         _normalize_str(asset.get("sensitivity"))
         and not _normalize_str(asset.get("certification"))
     ):
-        signals.append(_safe_badge("Sensitive / uncertified", "danger"))
+        signals.append(_safe_badge("Sensitive / Uncertified", "danger"))
     if not signals and int(asset.get("governance_score", 0)) >= 80:
         signals.append(_safe_badge("Enterprise ready", "good"))
     return "".join(signals[:3])
+
+
+def _format_count(value: Any) -> str:
+    try:
+        return f"{int(float(value)):,}"
+    except Exception:
+        return _normalize_str(value) or "—"
+
+
+def _format_bytes(value: Any) -> str:
+    try:
+        size = float(value)
+    except Exception:
+        return "—"
+    if size <= 0:
+        return "0 B"
+    units = ["B", "KB", "MB", "GB", "TB", "PB"]
+    idx = 0
+    while size >= 1024 and idx < len(units) - 1:
+        size /= 1024
+        idx += 1
+    if idx == 0:
+        return f"{int(size)} {units[idx]}"
+    return f"{size:.1f} {units[idx]}"
 
 
 def _shell_stat_html(label: str, value: str) -> str:
@@ -1896,7 +1948,7 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
         placeholder="...",
     )
     badges = [
-        _safe_badge(asset.get("table_type", "Table"), "primary"),
+        _safe_badge(_format_object_type(_normalize_str(asset.get("table_type"))), "primary"),
         _safe_badge(asset.get("tier", ""), "primary"),
         _safe_badge(asset.get("certification", ""), "good"),
         _safe_badge(asset.get("sensitivity", ""), "warn"),
@@ -1914,7 +1966,7 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
       <div class="gh-asset-fqn">{html.escape(_normalize_str(asset.get("fqn")))}</div>
     </div>
     <div class="gh-score">
-      <span class="gh-score-label">Coverage</span>
+      <span class="gh-score-label">Coverage Score</span>
       <span class="gh-score-value">{int(asset.get("governance_score", 0))}</span>
     </div>
   </div>
@@ -1922,8 +1974,8 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
   {signals_html}
   <div class="gh-badge-row">{badges}</div>
   <div class="gh-meta-row">
-    <span>{int(asset.get("owner_count", 0))} owners</span>
-    <span>{int(asset.get("pending_requests", 0))} open requests</span>
+    <span>{int(asset.get("owner_count", 0))} Owners</span>
+    <span>{int(asset.get("pending_requests", 0))} Open Requests</span>
     <span>{html.escape(_normalize_str(asset.get("governance_status")))}</span>
   </div>
 </div>
@@ -1934,7 +1986,7 @@ def _profile_header_html(asset: pd.Series) -> str:
     tags = asset.get("tags") if isinstance(asset.get("tags"), dict) else {}
     structured = _structured_tags(tags or {})
     badges = [
-        _safe_badge(asset.get("table_type", "Table"), "primary"),
+        _safe_badge(_format_object_type(_normalize_str(asset.get("table_type"))), "primary"),
         _safe_badge(structured.get("domain", ""), "neutral"),
         _safe_badge(structured.get("tier", ""), "primary"),
         _safe_badge(structured.get("certification", ""), "good"),
@@ -1951,7 +2003,7 @@ def _profile_header_html(asset: pd.Series) -> str:
   <div class="gh-profile-title">{html.escape(_normalize_str(asset.get("table_name")))}</div>
   <div class="gh-profile-fqn">{html.escape(_normalize_str(asset.get("fqn")))}</div>
   <div class="gh-chip-row gh-nav-spacer">
-    <span class="gh-chip">Coverage {int(asset.get("governance_score", 0))}</span>
+    <span class="gh-chip">Coverage Score {int(asset.get("governance_score", 0))}</span>
     <span class="gh-chip">{html.escape(_normalize_str(asset.get("governance_status")))}</span>
   </div>
   <div class="gh-badge-row">{"".join(badge for badge in badges if badge)}</div>
@@ -1961,7 +2013,11 @@ def _profile_header_html(asset: pd.Series) -> str:
 
 
 def _lineage_node_html(
-    label: str, fqn: str, tone: str = "neutral", focus: bool = False
+    label: str,
+    fqn: str,
+    tone: str = "neutral",
+    focus: bool = False,
+    object_type: str = "",
 ) -> str:
     tone_class = {
         "source": "warn",
@@ -1975,7 +2031,10 @@ def _lineage_node_html(
   <div class="gh-lineage-label">{html.escape(label)}</div>
   <div class="gh-asset-name">{html.escape(table_name)}</div>
   <div class="gh-asset-fqn">{html.escape(fqn)}</div>
-  <div class="gh-badge-row">{_safe_badge(tone.title(), tone_class)}</div>
+  <div class="gh-badge-row">
+    {_safe_badge(tone.title(), tone_class)}
+    {_safe_badge(_format_object_type(object_type), "neutral")}
+  </div>
 </div>
     """
 
@@ -2135,25 +2194,25 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
     st.session_state.setdefault("asset_tier", "All")
     st.session_state.setdefault("asset_certification", "All")
     st.session_state.setdefault("asset_sensitivity", "All")
-    st.session_state.setdefault("asset_focus_mode", "All assets")
+    st.session_state.setdefault("asset_focus_mode", "All Assets")
 
     valid_sort_modes = {
         "Best match",
-        "Governance coverage",
-        "Open requests",
+        "Coverage Score",
+        "Open Requests",
         "Alphabetical",
     }
     valid_focus_modes = {
-        "All assets",
-        "Ownership gaps",
-        "Needs documentation",
-        "Open requests",
-        "Sensitive / uncertified",
+        "All Assets",
+        "Ownership Gaps",
+        "Needs Documentation",
+        "Open Requests",
+        "Sensitive / Uncertified",
     }
     if st.session_state.get("asset_sort_mode") not in valid_sort_modes:
         st.session_state["asset_sort_mode"] = "Best match"
     if st.session_state.get("asset_focus_mode") not in valid_focus_modes:
-        st.session_state["asset_focus_mode"] = "All assets"
+        st.session_state["asset_focus_mode"] = "All Assets"
     if st.session_state.get("asset_catalog") not in catalogs:
         st.session_state["asset_catalog"] = "All"
     if st.session_state.get("asset_domain") not in domains:
@@ -2178,12 +2237,12 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
                 sort_mode = st.selectbox(
                     "Sort by",
                     [
-                        "Best match",
-                        "Governance coverage",
-                        "Open requests",
-                        "Alphabetical",
-                    ],
-                    key="asset_sort_mode",
+                    "Best match",
+                    "Coverage Score",
+                    "Open Requests",
+                    "Alphabetical",
+                ],
+                key="asset_sort_mode",
                 )
 
             filter_cols = st.columns(5)
@@ -2250,17 +2309,17 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
     if selected_sensitivity != "All":
         filtered = filtered[filtered["sensitivity"] == selected_sensitivity]
 
-    focus_mode = st.session_state.get("asset_focus_mode", "All assets")
+    focus_mode = st.session_state.get("asset_focus_mode", "All Assets")
     focus_mask = _discovery_focus_mask(filtered, focus_mode)
     if not focus_mask.empty:
         filtered = filtered[focus_mask]
 
-    if sort_mode == "Governance coverage":
+    if sort_mode == "Coverage Score":
         filtered = filtered.sort_values(
             ["governance_score", "pending_requests", "fqn"],
             ascending=[False, False, True],
         )
-    elif sort_mode == "Open requests":
+    elif sort_mode == "Open Requests":
         filtered = filtered.sort_values(
             ["pending_requests", "governance_score", "fqn"],
             ascending=[False, False, True],
@@ -2295,11 +2354,34 @@ def _render_asset_profile(
     st.markdown(_profile_header_html(asset), unsafe_allow_html=True)
 
     metrics = st.columns(5)
-    metrics[0].metric("Coverage", int(asset.get("governance_score", 0)))
-    metrics[1].metric("Open requests", int(asset.get("pending_requests", 0)))
+    metrics[0].metric("Coverage Score", int(asset.get("governance_score", 0)))
+    metrics[1].metric("Open Requests", int(asset.get("pending_requests", 0)))
     metrics[2].metric("Owners", int(asset.get("owner_count", 0)))
     metrics[3].metric("Domain", structured["domain"] or "—")
     metrics[4].metric("Tier", structured["tier"] or "—")
+
+    action_specs: List[Tuple[str, str]] = []
+    if not comment:
+        action_specs.append(("Add Description", "description"))
+    if int(asset.get("owner_count", 0)) == 0:
+        action_specs.append(("Assign Owner", "owner"))
+    if not structured["certification"]:
+        action_specs.append(("Set Certification", "certification"))
+    if action_specs:
+        st.markdown("#### Next Actions")
+        action_cols = st.columns(len(action_specs))
+        for col, (label, focus) in zip(action_cols, action_specs):
+            with col:
+                if st.button(
+                    label,
+                    key=f"asset_action_{focus}_{asset['fqn']}",
+                    use_container_width=True,
+                ):
+                    st.session_state[f"asset_profile_section_{asset['fqn']}"] = (
+                        "Governance"
+                    )
+                    st.session_state[f"asset_governance_focus_{asset['fqn']}"] = focus
+                    st.rerun()
 
     section = _button_nav(
         ["Overview", "Schema", "Preview", "Lineage", "Governance"],
@@ -2364,6 +2446,63 @@ def _render_asset_profile(
     elif section == "Schema":
         with st.spinner("Loading schema details..."):
             cols_df = _cached_columns(uc, catalog, schema, table)
+            detail_df = _cached_table_detail(uc, catalog, schema, table)
+            props_df = _cached_table_properties(uc, catalog, schema, table)
+            constraints_df = _cached_table_constraints(uc, catalog, schema, table)
+
+        if not detail_df.empty:
+            detail = detail_df.iloc[0]
+            detail_metrics: List[Tuple[str, str]] = [
+                ("Object Type", _format_object_type(_normalize_str(asset.get("table_type")))),
+                ("Format", _normalize_str(detail.get("format")) or "—"),
+                ("Size", _format_bytes(detail.get("sizeInBytes"))),
+                ("Files", _format_count(detail.get("numFiles"))),
+            ]
+            if _normalize_str(detail.get("numRows")):
+                detail_metrics.append(("Rows", _format_count(detail.get("numRows"))))
+            metric_cols = st.columns(len(detail_metrics))
+            for col, (label, value) in zip(metric_cols, detail_metrics):
+                col.metric(label, value)
+
+            detail_rows = pd.DataFrame(
+                [
+                    {
+                        "Field": "Partition Columns",
+                        "Value": _normalize_str(detail.get("partitionColumns")) or "None",
+                    },
+                    {
+                        "Field": "Clustering Columns",
+                        "Value": _normalize_str(detail.get("clusteringColumns")) or "None",
+                    },
+                    {
+                        "Field": "Table Features",
+                        "Value": _normalize_str(detail.get("tableFeatures")) or "None",
+                    },
+                    {
+                        "Field": "Location",
+                        "Value": _normalize_str(detail.get("location")) or "Unavailable",
+                    },
+                    {
+                        "Field": "Created",
+                        "Value": _normalize_str(detail.get("createdAt")) or "Unavailable",
+                    },
+                    {
+                        "Field": "Last Modified",
+                        "Value": _normalize_str(detail.get("lastModified")) or "Unavailable",
+                    },
+                ]
+            )
+            st.markdown("#### Table Details")
+            _render_data_table(detail_rows)
+
+        if not constraints_df.empty:
+            st.markdown("#### Constraints")
+            _render_data_table(constraints_df)
+
+        if not props_df.empty:
+            st.markdown("#### Delta / Table Properties")
+            _render_data_table(props_df)
+
         _render_data_table(cols_df)
         if role in {"writer", "admin"} and not cols_df.empty:
             st.divider()
@@ -2498,6 +2637,15 @@ def _render_asset_profile(
         }
 
         if is_writer:
+            focus_hint = st.session_state.pop(
+                f"asset_governance_focus_{asset['fqn']}", ""
+            )
+            if focus_hint == "description":
+                st.info("Update the business description below and save to improve the coverage score.")
+            elif focus_hint == "owner":
+                st.info("Assign an owner below to move this asset out of the ownership gap queue.")
+            elif focus_hint == "certification":
+                st.info("Set a certification below to mark the asset's current governance state.")
             st.markdown("#### Structured governance metadata")
             gov_left, gov_right = st.columns(2)
             with gov_left:
@@ -2705,37 +2853,32 @@ def page_discovery(
         "Search the catalog, narrow the results with filters, and open an asset to review metadata, ownership, sample data, and lineage.",
     )
 
-    has_selected_asset = bool(st.session_state.get("discovery_asset_opened"))
-    discovery_view = _button_nav(
-        ["Search", "Selected asset"],
-        "discovery_view_mode",
-        disabled_options=[] if has_selected_asset else ["Selected asset"],
-    )
-    st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
+    selected = _selected_asset(inventory)
+    has_selected_asset = bool(st.session_state.get("discovery_asset_opened")) and selected is not None
 
-    if discovery_view == "Search":
+    if not has_selected_asset:
         metrics = st.columns(4)
         metrics[0].metric("Inventoried assets", len(inventory))
         metrics[1].metric(
-            "Certified assets",
+            "Certified Assets",
             _inventory_metric(inventory, inventory["certification"].ne("")),
         )
         metrics[2].metric(
-            "Assets with stewards",
+            "Assets With Stewards",
             _inventory_metric(inventory, inventory["steward"].ne("")),
         )
         metrics[3].metric(
-            "Open requests",
-            _inventory_metric(inventory, inventory["pending_requests"]),
+            "Open Requests",
+            _inventory_metric(inventory, inventory["pending_requests"].gt(0)),
         )
         st.markdown("#### Views")
         _button_nav(
             [
-                "All assets",
-                "Ownership gaps",
-                "Needs documentation",
-                "Open requests",
-                "Sensitive / uncertified",
+                "All Assets",
+                "Ownership Gaps",
+                "Needs Documentation",
+                "Open Requests",
+                "Sensitive / Uncertified",
             ],
             "asset_focus_mode",
         )
@@ -2746,8 +2889,8 @@ def page_discovery(
             st.warning("No assets match the current search and filter set.")
             return
 
-        focus_mode = st.session_state.get("asset_focus_mode", "All assets")
-        if focus_mode == "All assets":
+        focus_mode = st.session_state.get("asset_focus_mode", "All Assets")
+        if focus_mode == "All Assets":
             st.caption(f"{len(filtered)} assets match the current discovery filters.")
         else:
             st.caption(
@@ -2770,17 +2913,20 @@ def page_discovery(
                 ):
                     st.session_state["selected_asset_fqn"] = asset_series["fqn"]
                     st.session_state["discovery_asset_opened"] = True
-                    st.session_state["discovery_view_mode"] = "Selected asset"
                     st.session_state[f"asset_profile_section_{asset_series['fqn']}"] = (
                         "Overview"
                     )
                     st.rerun()
     else:
-        filtered = _filtered_inventory(inventory, show_controls=False)
-        selected = _selected_asset(inventory)
-        if selected is None:
-            st.info("Select an asset from the results list.")
-            return
+        back_col, _ = st.columns([0.22, 0.78])
+        with back_col:
+            if st.button(
+                "← Back to Search",
+                key="discovery_back_to_search",
+                use_container_width=True,
+            ):
+                st.session_state["discovery_asset_opened"] = False
+                st.rerun()
 
         context_copy = (
             "Switch back to Search whenever you need to change filters or open a different asset."
@@ -2856,10 +3002,10 @@ def page_lineage(
     )
 
     metrics = st.columns(4)
-    metrics[0].metric("Upstream assets", len(lineage_up))
-    metrics[1].metric("Downstream assets", len(lineage_down))
-    metrics[2].metric("Upstream columns", len(col_up))
-    metrics[3].metric("Downstream columns", len(col_down))
+    metrics[0].metric("Upstream Assets", len(lineage_up))
+    metrics[1].metric("Downstream Assets", len(lineage_down))
+    metrics[2].metric("Upstream Columns", len(col_up))
+    metrics[3].metric("Downstream Columns", len(col_down))
 
     l1, l2, l3 = st.columns([1.15, 0.9, 1.15])
     with l1:
@@ -2872,19 +3018,23 @@ def page_lineage(
             for row in lineage_up.head(8).itertuples(index=False):
                 st.markdown(
                     _lineage_node_html(
-                        "Source", _normalize_str(row.source_table_full_name), "source"
+                        "Source",
+                        _normalize_str(row.source_table_full_name),
+                        "source",
+                        object_type=_normalize_str(getattr(row, "source_type", "")),
                     ),
                     unsafe_allow_html=True,
                 )
 
     with l2:
-        st.markdown("#### Selected asset")
+        st.markdown("#### Selected Asset")
         st.markdown(
             _lineage_node_html(
                 "Focus",
                 selected_fqn,
                 "focus",
                 focus=True,
+                object_type=_normalize_str(asset.get("table_type")),
             ),
             unsafe_allow_html=True,
         )
@@ -2915,7 +3065,10 @@ def page_lineage(
             for row in lineage_down.head(8).itertuples(index=False):
                 st.markdown(
                     _lineage_node_html(
-                        "Target", _normalize_str(row.target_table_full_name), "target"
+                        "Target",
+                        _normalize_str(row.target_table_full_name),
+                        "target",
+                        object_type=_normalize_str(getattr(row, "target_type", "")),
                     ),
                     unsafe_allow_html=True,
                 )
@@ -2981,13 +3134,13 @@ def page_governance(
     )
 
     metrics = st.columns(4)
-    metrics[0].metric("Glossary terms", len(store.list_glossary_terms(limit=500)))
-    metrics[1].metric("Certified assets", int(inventory["certification"].ne("").sum()))
-    metrics[2].metric("Sensitive assets", int(inventory["sensitivity"].ne("").sum()))
-    metrics[3].metric("Unowned assets", int(inventory["owner_count"].eq(0).sum()))
+    metrics[0].metric("Glossary Terms", len(store.list_glossary_terms(limit=500)))
+    metrics[1].metric("Certified Assets", int(inventory["certification"].ne("").sum()))
+    metrics[2].metric("Sensitive Assets", int(inventory["sensitivity"].ne("").sum()))
+    metrics[3].metric("Unowned Assets", int(inventory["owner_count"].eq(0).sum()))
 
     section = _button_nav(
-        ["Glossary", "Coverage & policy", "Integrations"],
+        ["Glossary", "Coverage & Policy", "Integrations"],
         "governance_section",
     )
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
@@ -3111,7 +3264,7 @@ def page_governance(
                         st.cache_data.clear()
                         st.rerun()
 
-    elif section == "Coverage & policy":
+    elif section == "Coverage & Policy":
         backlog = inventory.copy()
         backlog["missing_description"] = backlog["comment"].eq("")
         backlog["missing_owner"] = backlog["owner_count"].eq(0)
@@ -3163,7 +3316,7 @@ def page_governance(
         )
 
         search = st.text_input(
-            "Search coverage & policy",
+            "Search Coverage & Policy",
             placeholder="customer, finance, glossary term, steward, tier 1",
             key="coverage_search",
         )
@@ -3172,10 +3325,10 @@ def page_governance(
             "Focus",
             [
                 "All",
-                "Missing description",
-                "Missing owner",
-                "Missing certification",
-                "Open requests",
+                "Missing Description",
+                "Missing Owner",
+                "Missing Certification",
+                "Open Requests",
             ],
             key="coverage_focus",
         )
@@ -3201,13 +3354,13 @@ def page_governance(
             coverage = coverage[
                 coverage["search_blob"].str.contains(search.lower(), regex=False, na=False)
             ]
-        if focus == "Missing description":
+        if focus == "Missing Description":
             coverage = coverage[backlog.loc[coverage.index, "missing_description"]]
-        elif focus == "Missing owner":
+        elif focus == "Missing Owner":
             coverage = coverage[backlog.loc[coverage.index, "missing_owner"]]
-        elif focus == "Missing certification":
+        elif focus == "Missing Certification":
             coverage = coverage[backlog.loc[coverage.index, "missing_certification"]]
-        elif focus == "Open requests":
+        elif focus == "Open Requests":
             coverage = coverage[coverage["pending_requests"] > 0]
         if domain_filter != "All":
             coverage = coverage[coverage["domain"] == domain_filter]
@@ -3217,12 +3370,12 @@ def page_governance(
             coverage = coverage[coverage["tier"] == tier_filter]
 
         gap_metrics = st.columns(4)
-        gap_metrics[0].metric("Missing descriptions", int(backlog["missing_description"].sum()))
-        gap_metrics[1].metric("Missing owners", int(backlog["missing_owner"].sum()))
+        gap_metrics[0].metric("Missing Descriptions", int(backlog["missing_description"].sum()))
+        gap_metrics[1].metric("Missing Owners", int(backlog["missing_owner"].sum()))
         gap_metrics[2].metric(
-            "Missing certifications", int(backlog["missing_certification"].sum())
+            "Missing Certifications", int(backlog["missing_certification"].sum())
         )
-        gap_metrics[3].metric("Open policy issues", int((backlog["pending_requests"] > 0).sum()))
+        gap_metrics[3].metric("Open Policy Issues", int((backlog["pending_requests"] > 0).sum()))
 
         _render_data_table(coverage.drop(columns=["search_blob"]))
 
@@ -3269,6 +3422,112 @@ def page_governance(
         st.divider()
         st.markdown("#### Current links")
         _render_data_table(store.list_asset_links())
+
+
+def page_help() -> None:
+    _render_section_intro(
+        "Help",
+        "Understand the main workflows, how coverage is calculated, and what the key object and lineage terms mean.",
+    )
+
+    usage_tab, coverage_tab, lineage_tab = st.tabs(
+        ["Using the App", "Coverage Score", "Object Types & Lineage"]
+    )
+
+    with usage_tab:
+        left, right = st.columns([1.15, 0.85])
+        with left:
+            st.markdown("#### Core workflow")
+            _render_data_table(
+                pd.DataFrame(
+                    [
+                        {
+                            "Step": "Discovery",
+                            "Purpose": "Search the catalog, filter assets, and identify gaps in ownership or documentation.",
+                        },
+                        {
+                            "Step": "Asset Profile",
+                            "Purpose": "Review metadata, schema, sample data, lineage, and governance context in one place.",
+                        },
+                        {
+                            "Step": "Governance",
+                            "Purpose": "Add descriptions, assign owners, set certifications, manage glossary links, and submit changes.",
+                        },
+                        {
+                            "Step": "Lineage",
+                            "Purpose": "Inspect upstream and downstream dependencies before changing models, jobs, or downstream consumers.",
+                        },
+                    ]
+                ),
+                max_rows=20,
+            )
+        with right:
+            st.markdown("#### Status meanings")
+            _render_data_table(
+                pd.DataFrame(
+                    [
+                        {"Status": "Needs Work", "Meaning": "Important governance context is still missing."},
+                        {"Status": "Operational", "Meaning": "Core governance fields are in place for normal use."},
+                        {"Status": "Enterprise Ready", "Meaning": "The asset has strong coverage across the tracked governance fields."},
+                    ]
+                ),
+                max_rows=20,
+            )
+
+    with coverage_tab:
+        st.markdown("#### Coverage Score inputs")
+        _render_data_table(
+            pd.DataFrame(
+                [
+                    {"Component": "Business Description", "Weight": 35, "Description": "The table has a documented comment or description."},
+                    {"Component": "Owner Assigned", "Weight": 20, "Description": "At least one business, technical, or steward owner is assigned."},
+                    {"Component": "Domain", "Weight": 15, "Description": "A governance domain tag is set."},
+                    {"Component": "Certification", "Weight": 15, "Description": "The asset has a certification state."},
+                    {"Component": "Glossary Term", "Weight": 15, "Description": "The asset is linked to a glossary term."},
+                ]
+            ),
+            max_rows=20,
+        )
+        st.markdown("#### Score thresholds")
+        _render_data_table(
+            pd.DataFrame(
+                [
+                    {"Coverage Score": "0 - 54", "Result": "Needs Work"},
+                    {"Coverage Score": "55 - 79", "Result": "Operational"},
+                    {"Coverage Score": "80 - 100", "Result": "Enterprise Ready"},
+                ]
+            ),
+            max_rows=20,
+        )
+
+    with lineage_tab:
+        left, right = st.columns(2)
+        with left:
+            st.markdown("#### Object types")
+            _render_data_table(
+                pd.DataFrame(
+                    [
+                        {"Label": "Managed Table", "Meaning": "A Unity Catalog managed table."},
+                        {"Label": "Streaming Table", "Meaning": "A streaming table maintained by pipelines or streaming workloads."},
+                        {"Label": "Materialized View", "Meaning": "A derived view stored and maintained by the platform."},
+                        {"Label": "View", "Meaning": "A logical view defined over other objects."},
+                    ]
+                ),
+                max_rows=20,
+            )
+        with right:
+            st.markdown("#### Lineage terms")
+            _render_data_table(
+                pd.DataFrame(
+                    [
+                        {"Term": "Table Lineage", "Meaning": "Relationships between whole upstream and downstream objects."},
+                        {"Term": "Column Lineage", "Meaning": "Relationships between specific source and target columns."},
+                        {"Term": "Direct Lineage", "Meaning": "Same-name source-to-target lineage."},
+                        {"Term": "Indirect Lineage", "Meaning": "Broader dependencies created by joins, expressions, or multi-column logic."},
+                    ]
+                ),
+                max_rows=20,
+            )
 
 
 def page_stewardship(
@@ -3492,7 +3751,7 @@ def main() -> None:
     inventory = _cached_asset_inventory(uc, store)
     boot_placeholder.empty()
 
-    _render_shell(cfg, role, user_email, om, inventory)
+    _render_shell(role, user_email, inventory)
     if inventory.empty:
         st.warning(
             "No Unity Catalog assets are visible to this app. Check warehouse access and catalog permissions."
@@ -3507,7 +3766,7 @@ def main() -> None:
         st.session_state["discovery_asset_opened"] = False
 
     page = _button_nav(
-        ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"],
+        ["Discovery", "Lineage", "Governance", "Stewardship", "Admin", "Help"],
         "app_page",
     )
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
@@ -3522,6 +3781,8 @@ def main() -> None:
         page_stewardship(uc, store, inventory, role, user_email)
     elif page == "Admin":
         page_admin(store, role, user_email)
+    elif page == "Help":
+        page_help()
 
 
 if __name__ == "__main__":
