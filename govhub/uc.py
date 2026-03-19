@@ -199,6 +199,63 @@ ORDER BY tag_name"""
         except Exception:
             return pd.DataFrame(columns=["tag_name", "tag_value"])
 
+    def get_table_detail(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
+        full = quote_uc_3part(catalog, schema, table)
+        try:
+            return self.query_df(f"DESCRIBE DETAIL {full}")
+        except Exception:
+            return pd.DataFrame()
+
+    def get_table_properties(
+        self, catalog: str, schema: str, table: str
+    ) -> pd.DataFrame:
+        full = quote_uc_3part(catalog, schema, table)
+        try:
+            return self.query_df(f"SHOW TBLPROPERTIES {full}")
+        except Exception:
+            return pd.DataFrame(columns=["key", "value"])
+
+    def get_table_constraints(
+        self, catalog: str, schema: str, table: str
+    ) -> pd.DataFrame:
+        q = f"""SELECT
+    tc.constraint_name,
+    tc.constraint_type,
+    kcu.column_name,
+    rc.unique_constraint_name,
+    rc.match_option,
+    rc.update_rule,
+    rc.delete_rule
+FROM {quote_ident(catalog)}.information_schema.table_constraints tc
+LEFT JOIN {quote_ident(catalog)}.information_schema.key_column_usage kcu
+  ON tc.constraint_catalog = kcu.constraint_catalog
+ AND tc.constraint_schema  = kcu.constraint_schema
+ AND tc.constraint_name    = kcu.constraint_name
+ AND tc.table_catalog      = kcu.table_catalog
+ AND tc.table_schema       = kcu.table_schema
+ AND tc.table_name         = kcu.table_name
+LEFT JOIN {quote_ident(catalog)}.information_schema.referential_constraints rc
+  ON tc.constraint_catalog = rc.constraint_catalog
+ AND tc.constraint_schema  = rc.constraint_schema
+ AND tc.constraint_name    = rc.constraint_name
+WHERE tc.table_schema = {sql_literal(schema)}
+  AND tc.table_name   = {sql_literal(table)}
+ORDER BY tc.constraint_name, kcu.ordinal_position"""
+        try:
+            return self.query_df(q)
+        except Exception:
+            return pd.DataFrame(
+                columns=[
+                    "constraint_name",
+                    "constraint_type",
+                    "column_name",
+                    "unique_constraint_name",
+                    "match_option",
+                    "update_rule",
+                    "delete_rule",
+                ]
+            )
+
     def set_table_comment(
         self, catalog: str, schema: str, table: str, comment: str
     ) -> None:
