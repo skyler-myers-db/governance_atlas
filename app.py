@@ -151,6 +151,13 @@ def _cached_table_detail(
 
 
 @st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_table_row_count(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> Any:
+    return _uc.get_table_row_count(catalog, schema, table)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_table_properties(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
@@ -527,7 +534,22 @@ def _button_nav(
 def _route_link_attrs(href: str, classes: str) -> str:
     safe_href = html.escape(href, quote=True)
     safe_classes = html.escape(classes, quote=True)
-    return f'class="{safe_classes}" href="{safe_href}" data-gh-route="1"'
+    click_js = (
+        "if (event.button===0 && !event.metaKey && !event.ctrlKey && "
+        "!event.shiftKey && !event.altKey) { "
+        "try { "
+        "var w=(window.parent && window.parent.document) ? window.parent : window; "
+        "if (w.__ghSaveScroll) { w.__ghSaveScroll(); } "
+        "w.location.assign(this.href); "
+        "} catch (error) { window.location.assign(this.href); } "
+        "return false; "
+        "}"
+    )
+    safe_click_js = html.escape(click_js, quote=True)
+    return (
+        f'class="{safe_classes}" href="{safe_href}" data-gh-route="1" '
+        f'target="_self" onclick="{safe_click_js}"'
+    )
 
 
 def _render_data_table(df: pd.DataFrame, *, max_rows: int = 200) -> None:
@@ -1428,8 +1450,11 @@ def _render_styles() -> None:
       transform 0.18s ease;
   }
 
+  .stButton:hover > button,
   .stButton > button:hover,
+  div[data-testid="stButton"]:hover > button,
   div[data-testid="stButton"] > button:hover,
+  div[data-testid="stFormSubmitButton"]:hover > button,
   div[data-testid="stFormSubmitButton"] > button:hover {
     background: linear-gradient(
       145deg,
@@ -1483,8 +1508,11 @@ def _render_styles() -> None:
     border: none !important;
   }
 
+  .stButton:hover > button[kind="primary"],
   .stButton > button[kind="primary"]:hover,
+  div[data-testid="stButton"]:hover > button[kind="primary"],
   div[data-testid="stButton"] > button[kind="primary"]:hover,
+  div[data-testid="stFormSubmitButton"]:hover > button,
   div[data-testid="stFormSubmitButton"] > button:hover {
     background: linear-gradient(
       135deg,
@@ -2074,49 +2102,11 @@ def _install_client_bootstrap() -> None:
           storage.setItem(key, String(node.scrollTop || rootWindow.pageYOffset || 0));
         }
       };
+      rootWindow.__ghSaveScroll = capture;
       rootWindow.addEventListener("scroll", capture, { passive: true });
       doc.addEventListener("click", capture, true);
       doc.addEventListener("input", capture, true);
       rootWindow.__ghScrollInstalled = true;
-    }
-
-    const routeHandler = (event) => {
-      try {
-        const target = event.target;
-        const anchor =
-          target && typeof target.closest === "function"
-            ? target.closest('a.gh-route-link[data-gh-route="1"]')
-            : null;
-        if (!anchor || event.defaultPrevented) {
-          return;
-        }
-        if (
-          event.button !== 0 ||
-          event.metaKey ||
-          event.ctrlKey ||
-          event.shiftKey ||
-          event.altKey
-        ) {
-          return;
-        }
-        const href = anchor.getAttribute("href");
-        if (!href) {
-          return;
-        }
-        capture();
-        event.preventDefault();
-        event.stopPropagation();
-        if (typeof event.stopImmediatePropagation === "function") {
-          event.stopImmediatePropagation();
-        }
-        const resolved = new URL(href, rootWindow.location.href).toString();
-        rootWindow.location.assign(resolved);
-      } catch (error) {}
-    };
-
-    if (!rootWindow.__ghRouteInstalled) {
-      doc.addEventListener("click", routeHandler, true);
-      rootWindow.__ghRouteInstalled = true;
     }
 
     restore();
@@ -2555,6 +2545,73 @@ def _format_bytes(value: Any) -> str:
     return f"{size:.1f} {units[idx]}"
 
 
+def _resolved_row_count(
+    uc: UCSQLClient,
+    catalog: str,
+    schema: str,
+    table: str,
+    detail_df: pd.DataFrame,
+) -> Any:
+    if detail_df is not None and not detail_df.empty:
+        raw_value = detail_df.iloc[0].get("numRows")
+        if _normalize_str(raw_value):
+            return raw_value
+    return _cached_table_row_count(uc, catalog, schema, table)
+
+
+def _schema_scope_options(
+    lineage_up: pd.DataFrame,
+    lineage_down: pd.DataFrame,
+    col_up: pd.DataFrame,
+    col_down: pd.DataFrame,
+) -> List[str]:
+    values: set[str] = set()
+    for df, column in [
+        (lineage_up, "source_table_full_name"),
+        (lineage_down, "target_table_full_name"),
+        (col_up, "source_table_full_name"),
+        (col_down, "target_table_full_name"),
+    ]:
+        if df is None or df.empty or column not in df.columns:
+            continue
+        for raw in df[column].tolist():
+            context = _catalog_schema_context(_normalize_str(raw))
+            if context:
+                values.add(context)
+    return ["All Schemas"] + sorted(values)
+
+
+def _column_scope_options(col_up: pd.DataFrame, col_down: pd.DataFrame) -> List[str]:
+    values: set[str] = set()
+    if col_up is not None and not col_up.empty and "target_column_name" in col_up.columns:
+        values.update(
+            _normalize_str(value)
+            for value in col_up["target_column_name"].tolist()
+            if _normalize_str(value)
+        )
+    if col_down is not None and not col_down.empty and "source_column_name" in col_down.columns:
+        values.update(
+            _normalize_str(value)
+            for value in col_down["source_column_name"].tolist()
+            if _normalize_str(value)
+        )
+    return ["All Columns"] + sorted(values)
+
+
+def _apply_schema_scope(df: pd.DataFrame, column: str, scope: str) -> pd.DataFrame:
+    if df is None or df.empty or scope == "All Schemas" or column not in df.columns:
+        return df
+    mask = df[column].map(lambda value: _catalog_schema_context(_normalize_str(value)) == scope)
+    return df.loc[mask].reset_index(drop=True)
+
+
+def _apply_column_scope(df: pd.DataFrame, column: str, scope: str) -> pd.DataFrame:
+    if df is None or df.empty or scope == "All Columns" or column not in df.columns:
+        return df
+    mask = df[column].map(lambda value: _normalize_str(value) == scope)
+    return df.loc[mask].reset_index(drop=True)
+
+
 def _constraint_summary_df(df: pd.DataFrame) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
@@ -2684,7 +2741,12 @@ def _profile_header_html(asset: pd.Series) -> str:
     """
 
 
-def _overview_context_html(asset: pd.Series, detail_df: pd.DataFrame) -> str:
+def _overview_context_html(
+    asset: pd.Series,
+    detail_df: pd.DataFrame,
+    *,
+    row_count: Any = None,
+) -> str:
     description = _normalize_str(asset.get("comment")) or (
         "No business description has been added yet. Use the governance editor to document what this asset contains and how it should be used."
     )
@@ -2693,7 +2755,7 @@ def _overview_context_html(asset: pd.Series, detail_df: pd.DataFrame) -> str:
         detail = detail_df.iloc[0]
         facts.extend(
             [
-                ("Rows", _format_count(detail.get("numRows"))),
+                ("Rows", _format_count(row_count if row_count is not None else detail.get("numRows"))),
                 ("Format", _normalize_str(detail.get("format")) or "Unavailable"),
                 ("Size", _format_bytes(detail.get("sizeInBytes"))),
                 ("Files", _format_count(detail.get("numFiles"))),
@@ -3246,11 +3308,12 @@ def _render_asset_profile(
         owners_df = store.get_owners(asset["fqn"])
         tags_df = _tags_map_to_df(asset_tags if isinstance(asset_tags, dict) else {})
         detail_df = _cached_table_detail(uc, catalog, schema, table)
+        row_count = _resolved_row_count(uc, catalog, schema, table, detail_df)
         left, right = st.columns([1.25, 1])
         with left:
-            st.markdown("#### Description")
+            st.markdown("#### Table Information")
             st.markdown(
-                _overview_context_html(asset, detail_df),
+                _overview_context_html(asset, detail_df, row_count=row_count),
                 unsafe_allow_html=True,
             )
             st.markdown("#### Ownership")
@@ -3300,7 +3363,7 @@ def _render_asset_profile(
                             [
                                 {
                                     "Field": "Rows",
-                                    "Value": _format_count(detail.get("numRows")),
+                                    "Value": _format_count(row_count),
                                 },
                                 {
                                     "Field": "Size",
@@ -3331,6 +3394,7 @@ def _render_asset_profile(
             detail_df = _cached_table_detail(uc, catalog, schema, table)
             props_df = _cached_table_properties(uc, catalog, schema, table)
             constraints_df = _cached_table_constraints(uc, catalog, schema, table)
+        row_count = _resolved_row_count(uc, catalog, schema, table, detail_df)
 
         st.markdown("<div class='gh-subsection-title'>Table Metadata</div>", unsafe_allow_html=True)
         st.markdown(
@@ -3346,8 +3410,8 @@ def _render_asset_profile(
                 ("Size", _format_bytes(detail.get("sizeInBytes"))),
                 ("Files", _format_count(detail.get("numFiles"))),
             ]
-            if _normalize_str(detail.get("numRows")):
-                detail_metrics.append(("Rows", _format_count(detail.get("numRows"))))
+            if _normalize_str(row_count):
+                detail_metrics.append(("Rows", _format_count(row_count)))
             metric_cols = st.columns(len(detail_metrics))
             for col, (label, value) in zip(metric_cols, detail_metrics):
                 col.metric(label, value)
@@ -3963,15 +4027,38 @@ def page_lineage(
         exclude_fqn=selected_fqn,
     )
 
+    filter_cols = st.columns(2)
+    with filter_cols[0]:
+        schema_scope = st.selectbox(
+            "Schema Scope",
+            _schema_scope_options(lineage_up, lineage_down, col_up, col_down),
+            key=f"lineage_schema_scope_{selected_fqn}",
+            help="Limit lineage results to one catalog/schema context when reviewing multi-hop dependencies.",
+        )
+    with filter_cols[1]:
+        column_scope = st.selectbox(
+            "Column Scope",
+            _column_scope_options(col_up, col_down),
+            key=f"lineage_column_scope_{selected_fqn}",
+            help="Focus column lineage on one selected asset column.",
+        )
+
+    lineage_up_view = _apply_schema_scope(lineage_up, "source_table_full_name", schema_scope)
+    lineage_down_view = _apply_schema_scope(lineage_down, "target_table_full_name", schema_scope)
+    col_up_view = _apply_schema_scope(col_up, "source_table_full_name", schema_scope)
+    col_down_view = _apply_schema_scope(col_down, "target_table_full_name", schema_scope)
+    col_up_view = _apply_column_scope(col_up_view, "target_column_name", column_scope)
+    col_down_view = _apply_column_scope(col_down_view, "source_column_name", column_scope)
+
     l1, l2, l3 = st.columns([1.15, 0.9, 1.15])
     with l1:
         st.markdown("#### Upstream")
         if lineage_up_error:
             st.warning(f"Could not query upstream lineage: {lineage_up_error}")
-        elif lineage_up.empty:
+        elif lineage_up_view.empty:
             st.info("No upstream dependencies found.")
         else:
-            for row in lineage_up.head(8).itertuples(index=False):
+            for row in lineage_up_view.head(8).itertuples(index=False):
                 st.markdown(
                     _lineage_node_html(
                         "Source",
@@ -4001,10 +4088,10 @@ def page_lineage(
         st.markdown(
             _lineage_focus_summary_html(
                 asset,
-                lineage_up,
-                lineage_down,
-                col_up,
-                col_down,
+                lineage_up_view,
+                lineage_down_view,
+                col_up_view,
+                col_down_view,
             ),
             unsafe_allow_html=True,
         )
@@ -4013,10 +4100,10 @@ def page_lineage(
         st.markdown("#### Downstream")
         if lineage_down_error:
             st.warning(f"Could not query downstream lineage: {lineage_down_error}")
-        elif lineage_down.empty:
+        elif lineage_down_view.empty:
             st.info("No downstream consumers found.")
         else:
-            for row in lineage_down.head(8).itertuples(index=False):
+            for row in lineage_down_view.head(8).itertuples(index=False):
                 st.markdown(
                     _lineage_node_html(
                         "Target",
@@ -4041,18 +4128,18 @@ def page_lineage(
             st.markdown("#### Upstream Table Details")
             if lineage_up_error:
                 st.warning(f"Could not query upstream lineage: {lineage_up_error}")
-            elif lineage_up.empty:
+            elif lineage_up_view.empty:
                 st.info("No upstream table lineage available.")
             else:
-                _render_data_table(lineage_up)
+                _render_data_table(lineage_up_view)
         with col2:
             st.markdown("#### Downstream Table Details")
             if lineage_down_error:
                 st.warning(f"Could not query downstream lineage: {lineage_down_error}")
-            elif lineage_down.empty:
+            elif lineage_down_view.empty:
                 st.info("No downstream table lineage available.")
             else:
-                _render_data_table(lineage_down)
+                _render_data_table(lineage_down_view)
 
     with column_lineage_tab:
         upstream_column_tab, downstream_column_tab = st.tabs(
@@ -4062,20 +4149,20 @@ def page_lineage(
         with upstream_column_tab:
             if col_up_error:
                 st.warning(f"Could not query upstream column lineage: {col_up_error}")
-            elif col_up.empty:
+            elif col_up_view.empty:
                 st.info("No upstream column lineage is available.")
             else:
-                _render_column_lineage(col_up, key=f"col_up_{selected_fqn}")
+                _render_column_lineage(col_up_view, key=f"col_up_{selected_fqn}")
 
         with downstream_column_tab:
             if col_down_error:
                 st.warning(
                     f"Could not query downstream column lineage: {col_down_error}"
                 )
-            elif col_down.empty:
+            elif col_down_view.empty:
                 st.info("No downstream column lineage is available.")
             else:
-                _render_column_lineage(col_down, key=f"col_down_{selected_fqn}")
+                _render_column_lineage(col_down_view, key=f"col_down_{selected_fqn}")
 
 
 def page_governance(
