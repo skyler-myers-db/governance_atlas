@@ -847,6 +847,13 @@ def _render_styles() -> None:
     margin-top: 0.15rem;
   }
 
+  .gh-asset-context {
+    font-size: 0.8rem;
+    color: #627390;
+    margin-top: 0.18rem;
+    font-weight: 600;
+  }
+
   .gh-score {
     min-width: 4.6rem;
     padding: 0.42rem 0.58rem;
@@ -1247,6 +1254,86 @@ def _render_styles() -> None:
     margin-top: 0.55rem;
     color: var(--gh-muted);
     line-height: 1.5;
+  }
+
+  .gh-action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+  }
+
+  .gh-action-card {
+    position: relative;
+    border-radius: 18px;
+    padding: 0.92rem 1rem;
+    border: 1px solid var(--gh-border);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(245, 241, 255, 0.86));
+    box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
+    overflow: hidden;
+  }
+
+  .gh-action-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: rgba(34, 87, 216, 0.28);
+  }
+
+  .gh-action-card.danger {
+    border-color: rgba(177, 58, 75, 0.18);
+    background: linear-gradient(145deg, rgba(255, 247, 249, 0.96), rgba(255, 242, 245, 0.9));
+  }
+
+  .gh-action-card.danger::before {
+    background: rgba(177, 58, 75, 0.48);
+  }
+
+  .gh-action-card.warn {
+    border-color: rgba(154, 107, 0, 0.18);
+    background: linear-gradient(145deg, rgba(255, 251, 244, 0.96), rgba(255, 247, 234, 0.9));
+  }
+
+  .gh-action-card.warn::before {
+    background: rgba(154, 107, 0, 0.46);
+  }
+
+  .gh-action-card.primary {
+    border-color: rgba(49, 95, 216, 0.18);
+    background: linear-gradient(145deg, rgba(242, 247, 255, 0.97), rgba(242, 239, 255, 0.92));
+  }
+
+  .gh-action-card.primary::before {
+    background: rgba(49, 95, 216, 0.44);
+  }
+
+  .gh-action-title {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: var(--gh-text);
+    margin-bottom: 0.2rem;
+  }
+
+  .gh-action-copy {
+    color: var(--gh-muted);
+    font-size: 0.84rem;
+    line-height: 1.45;
+  }
+
+  .gh-subsection-title {
+    margin: 0.35rem 0 0.6rem 0;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--gh-text);
+  }
+
+  .gh-subsection-copy {
+    margin: -0.15rem 0 0.8rem 0;
+    color: var(--gh-muted);
+    font-size: 0.88rem;
   }
 
   .gh-tags-header {
@@ -1884,12 +1971,12 @@ def _discovery_focus_mask(inventory: pd.DataFrame, focus_mode: str) -> pd.Series
 def _asset_signal_badges(asset: pd.Series) -> str:
     signals: List[str] = []
     if int(asset.get("owner_count", 0)) == 0:
-        signals.append(_safe_badge("Needs owner", "danger"))
+        signals.append(_safe_badge("Needs Owner", "danger"))
     if not _normalize_str(asset.get("comment")):
-        signals.append(_safe_badge("Needs description", "warn"))
+        signals.append(_safe_badge("Needs Description", "warn"))
     pending_requests = int(asset.get("pending_requests", 0))
     if pending_requests > 0:
-        label = "Open request" if pending_requests == 1 else f"{pending_requests} open requests"
+        label = "Open Request" if pending_requests == 1 else f"{pending_requests} Open Requests"
         signals.append(_safe_badge(label, "primary"))
     if (
         _normalize_str(asset.get("sensitivity"))
@@ -1897,8 +1984,72 @@ def _asset_signal_badges(asset: pd.Series) -> str:
     ):
         signals.append(_safe_badge("Sensitive / Uncertified", "danger"))
     if not signals and int(asset.get("governance_score", 0)) >= 80:
-        signals.append(_safe_badge("Enterprise ready", "good"))
+        signals.append(_safe_badge("Enterprise Ready", "good"))
     return "".join(signals[:3])
+
+
+def _asset_action_specs(asset: pd.Series, structured: Dict[str, str], comment: str) -> List[Dict[str, str]]:
+    actions: List[Dict[str, str]] = []
+    if not comment:
+        actions.append(
+            {
+                "title": "Needs Description",
+                "copy": "Add a business description so other teams can understand how to use the asset.",
+                "focus": "description",
+                "tone": "warn",
+                "button": "Add Description",
+            }
+        )
+    if int(asset.get("owner_count", 0)) == 0:
+        actions.append(
+            {
+                "title": "Needs Owner",
+                "copy": "Assign a business, technical, or steward owner to remove the ownership gap.",
+                "focus": "owner",
+                "tone": "danger",
+                "button": "Assign Owner",
+            }
+        )
+    if not structured.get("certification"):
+        actions.append(
+            {
+                "title": "Needs Certification",
+                "copy": "Set the certification state so consumers know how much to trust the asset.",
+                "focus": "certification",
+                "tone": "primary",
+                "button": "Set Certification",
+            }
+        )
+    return actions
+
+
+def _render_action_cards(asset: pd.Series, structured: Dict[str, str], comment: str) -> None:
+    actions = _asset_action_specs(asset, structured, comment)
+    if not actions:
+        return
+    title = "Quick Action" if len(actions) == 1 else "Quick Actions"
+    st.markdown(f"#### {title}")
+    st.caption("Update the missing governance fields directly from this page.")
+    cols = st.columns(len(actions))
+    for col, action in zip(cols, actions):
+        with col:
+            st.markdown(
+                f"""
+<div class="gh-action-card {html.escape(action['tone'])}">
+  <div class="gh-action-title">{html.escape(action['title'])}</div>
+  <div class="gh-action-copy">{html.escape(action['copy'])}</div>
+</div>
+                """,
+                unsafe_allow_html=True,
+            )
+            if st.button(
+                action["button"],
+                key=f"asset_action_{action['focus']}_{asset['fqn']}",
+                use_container_width=True,
+            ):
+                st.session_state[f"asset_profile_section_{asset['fqn']}"] = "Governance"
+                st.session_state[f"asset_governance_focus_{asset['fqn']}"] = action["focus"]
+                st.rerun()
 
 
 def _format_count(value: Any) -> str:
@@ -1925,6 +2076,50 @@ def _format_bytes(value: Any) -> str:
     return f"{size:.1f} {units[idx]}"
 
 
+def _constraint_summary_df(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame()
+    rows: List[Dict[str, str]] = []
+    for name, group in df.fillna("").groupby("constraint_name", dropna=False):
+        columns = [c for c in group["column_name"].tolist() if _normalize_str(c)]
+        related = next(
+            (
+                _normalize_str(val)
+                for val in group["unique_constraint_name"].tolist()
+                if _normalize_str(val)
+            ),
+            "",
+        )
+        update_rule = next(
+            (_normalize_str(val) for val in group["update_rule"].tolist() if _normalize_str(val)),
+            "",
+        )
+        delete_rule = next(
+            (_normalize_str(val) for val in group["delete_rule"].tolist() if _normalize_str(val)),
+            "",
+        )
+        rows.append(
+            {
+                "Constraint Name": _normalize_str(name),
+                "Constraint Type": _normalize_str(group["constraint_type"].iloc[0]).title(),
+                "Columns": ", ".join(columns) or "—",
+                "Related Constraint": related or "—",
+                "Update Rule": update_rule or "—",
+                "Delete Rule": delete_rule or "—",
+            }
+        )
+    view = pd.DataFrame(rows)
+    optional_cols = ["Related Constraint", "Update Rule", "Delete Rule"]
+    drop_cols = [
+        col
+        for col in optional_cols
+        if col in view.columns and view[col].fillna("—").eq("—").all()
+    ]
+    if drop_cols:
+        view = view.drop(columns=drop_cols)
+    return view
+
+
 def _shell_stat_html(label: str, value: str) -> str:
     return f"""
 <div class="gh-shell-stat">
@@ -1947,6 +2142,7 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
         width=140,
         placeholder="...",
     )
+    catalog, schema, _ = _split_uc_name(_normalize_str(asset.get("fqn")))
     badges = [
         _safe_badge(_format_object_type(_normalize_str(asset.get("table_type"))), "primary"),
         _safe_badge(asset.get("tier", ""), "primary"),
@@ -1963,7 +2159,7 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
   <div class="gh-asset-head">
     <div>
       <div class="gh-asset-name">{html.escape(_normalize_str(asset.get("table_name")))}</div>
-      <div class="gh-asset-fqn">{html.escape(_normalize_str(asset.get("fqn")))}</div>
+      <div class="gh-asset-context">{html.escape(" / ".join(part for part in [catalog, schema] if part))}</div>
     </div>
     <div class="gh-score">
       <span class="gh-score-label">Coverage Score</span>
@@ -1985,9 +2181,11 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
 def _profile_header_html(asset: pd.Series) -> str:
     tags = asset.get("tags") if isinstance(asset.get("tags"), dict) else {}
     structured = _structured_tags(tags or {})
+    catalog, schema, _ = _split_uc_name(_normalize_str(asset.get("fqn")))
     badges = [
         _safe_badge(_format_object_type(_normalize_str(asset.get("table_type"))), "primary"),
-        _safe_badge(structured.get("domain", ""), "neutral"),
+        _safe_badge(catalog, "neutral"),
+        _safe_badge(schema, "neutral"),
         _safe_badge(structured.get("tier", ""), "primary"),
         _safe_badge(structured.get("certification", ""), "good"),
         _safe_badge(structured.get("sensitivity", ""), "warn"),
@@ -2001,7 +2199,6 @@ def _profile_header_html(asset: pd.Series) -> str:
 <div class="gh-panel">
   <div class="gh-kicker">Asset Profile</div>
   <div class="gh-profile-title">{html.escape(_normalize_str(asset.get("table_name")))}</div>
-  <div class="gh-profile-fqn">{html.escape(_normalize_str(asset.get("fqn")))}</div>
   <div class="gh-chip-row gh-nav-spacer">
     <span class="gh-chip">Coverage Score {int(asset.get("governance_score", 0))}</span>
     <span class="gh-chip">{html.escape(_normalize_str(asset.get("governance_status")))}</span>
@@ -2188,7 +2385,7 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
     )
 
     st.session_state.setdefault("asset_search", "")
-    st.session_state.setdefault("asset_sort_mode", "Best match")
+    st.session_state.setdefault("asset_sort_mode", "Best Match")
     st.session_state.setdefault("asset_catalog", "All")
     st.session_state.setdefault("asset_domain", "All")
     st.session_state.setdefault("asset_tier", "All")
@@ -2197,7 +2394,7 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
     st.session_state.setdefault("asset_focus_mode", "All Assets")
 
     valid_sort_modes = {
-        "Best match",
+        "Best Match",
         "Coverage Score",
         "Open Requests",
         "Alphabetical",
@@ -2210,7 +2407,7 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
         "Sensitive / Uncertified",
     }
     if st.session_state.get("asset_sort_mode") not in valid_sort_modes:
-        st.session_state["asset_sort_mode"] = "Best match"
+        st.session_state["asset_sort_mode"] = "Best Match"
     if st.session_state.get("asset_focus_mode") not in valid_focus_modes:
         st.session_state["asset_focus_mode"] = "All Assets"
     if st.session_state.get("asset_catalog") not in catalogs:
@@ -2237,12 +2434,12 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
                 sort_mode = st.selectbox(
                     "Sort by",
                     [
-                    "Best match",
-                    "Coverage Score",
-                    "Open Requests",
-                    "Alphabetical",
-                ],
-                key="asset_sort_mode",
+                        "Best Match",
+                        "Coverage Score",
+                        "Open Requests",
+                        "Alphabetical",
+                    ],
+                    key="asset_sort_mode",
                 )
 
             filter_cols = st.columns(5)
@@ -2264,7 +2461,7 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
                 st.session_state["discovery_filters_applied"] = True
     else:
         query = st.session_state.get("asset_search", "")
-        sort_mode = st.session_state.get("asset_sort_mode", "Best match")
+        sort_mode = st.session_state.get("asset_sort_mode", "Best Match")
         selected_catalog = st.session_state.get("asset_catalog", "All")
         selected_domain = st.session_state.get("asset_domain", "All")
         selected_tier = st.session_state.get("asset_tier", "All")
@@ -2360,28 +2557,7 @@ def _render_asset_profile(
     metrics[3].metric("Domain", structured["domain"] or "—")
     metrics[4].metric("Tier", structured["tier"] or "—")
 
-    action_specs: List[Tuple[str, str]] = []
-    if not comment:
-        action_specs.append(("Add Description", "description"))
-    if int(asset.get("owner_count", 0)) == 0:
-        action_specs.append(("Assign Owner", "owner"))
-    if not structured["certification"]:
-        action_specs.append(("Set Certification", "certification"))
-    if action_specs:
-        st.markdown("#### Next Actions")
-        action_cols = st.columns(len(action_specs))
-        for col, (label, focus) in zip(action_cols, action_specs):
-            with col:
-                if st.button(
-                    label,
-                    key=f"asset_action_{focus}_{asset['fqn']}",
-                    use_container_width=True,
-                ):
-                    st.session_state[f"asset_profile_section_{asset['fqn']}"] = (
-                        "Governance"
-                    )
-                    st.session_state[f"asset_governance_focus_{asset['fqn']}"] = focus
-                    st.rerun()
+    _render_action_cards(asset, structured, comment)
 
     section = _button_nav(
         ["Overview", "Schema", "Preview", "Lineage", "Governance"],
@@ -2450,6 +2626,12 @@ def _render_asset_profile(
             props_df = _cached_table_properties(uc, catalog, schema, table)
             constraints_df = _cached_table_constraints(uc, catalog, schema, table)
 
+        st.markdown("<div class='gh-subsection-title'>Table metadata</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='gh-subsection-copy'>Review live Unity Catalog details, physical properties, and enforced constraints for this asset.</div>",
+            unsafe_allow_html=True,
+        )
+
         if not detail_df.empty:
             detail = detail_df.iloc[0]
             detail_metrics: List[Tuple[str, str]] = [
@@ -2492,17 +2674,28 @@ def _render_asset_profile(
                     },
                 ]
             )
-            st.markdown("#### Table Details")
-            _render_data_table(detail_rows)
+            with st.expander("Table Details", expanded=False):
+                _render_data_table(detail_rows)
 
-        if not constraints_df.empty:
-            st.markdown("#### Constraints")
-            _render_data_table(constraints_df)
+        constraint_view = _constraint_summary_df(constraints_df)
+        if not constraint_view.empty:
+            with st.expander(f"Constraints ({len(constraint_view)})", expanded=False):
+                if "Related Constraint" in constraint_view.columns:
+                    st.caption(
+                        "Related Constraint is primarily populated for foreign key relationships."
+                    )
+                _render_data_table(constraint_view)
 
         if not props_df.empty:
-            st.markdown("#### Delta / Table Properties")
-            _render_data_table(props_df)
+            with st.expander(f"Delta / Table Properties ({len(props_df)})", expanded=False):
+                _render_data_table(props_df)
 
+        st.divider()
+        st.markdown("<div class='gh-subsection-title'>Columns</div>", unsafe_allow_html=True)
+        st.markdown(
+            "<div class='gh-subsection-copy'>Column comments and tags are editable below when you have writer or admin access.</div>",
+            unsafe_allow_html=True,
+        )
         _render_data_table(cols_df)
         if role in {"writer", "admin"} and not cols_df.empty:
             st.divider()
@@ -2927,27 +3120,6 @@ def page_discovery(
             ):
                 st.session_state["discovery_asset_opened"] = False
                 st.rerun()
-
-        context_copy = (
-            "Switch back to Search whenever you need to change filters or open a different asset."
-        )
-        selected_signals = _asset_signal_badges(selected)
-        selected_signals_html = (
-            f"<div class='gh-signal-row'>{selected_signals}</div>" if selected_signals else ""
-        )
-
-        st.markdown(
-            f"""
-<div class="gh-mini-panel">
-  <div class="gh-kicker">Selected Asset</div>
-  <div class="gh-asset-name">{html.escape(_normalize_str(selected.get("table_name")))}</div>
-  <div class="gh-asset-fqn">{html.escape(_normalize_str(selected.get("fqn")))}</div>
-  {selected_signals_html}
-  <div class="gh-mini-copy">{html.escape(context_copy)}</div>
-</div>
-            """,
-            unsafe_allow_html=True,
-        )
         _render_asset_profile(selected, inventory, uc, store, role, user_email)
 
 
@@ -3545,23 +3717,23 @@ def page_stewardship(
     requests = store.list_change_requests(limit=300)
     metrics = st.columns(4)
     metrics[0].metric(
-        "Pending requests",
+        "Pending Requests",
         int((requests["status"] == "pending").sum()) if not requests.empty else 0,
     )
     metrics[1].metric(
-        "Approved requests",
+        "Approved Requests",
         int((requests["status"] == "approved").sum()) if not requests.empty else 0,
     )
     metrics[2].metric(
-        "Rejected requests",
+        "Rejected Requests",
         int((requests["status"] == "rejected").sum()) if not requests.empty else 0,
     )
     metrics[3].metric(
-        "Assets needing stewardship",
+        "Assets Needing Stewardship",
         int(((inventory["comment"] == "") | (inventory["owner_count"] == 0)).sum()),
     )
 
-    queue_tab, backlog_tab = st.tabs(["Request queue", "Stewardship backlog"])
+    queue_tab, backlog_tab = st.tabs(["Request Queue", "Stewardship Backlog"])
 
     with queue_tab:
         if requests.empty:
