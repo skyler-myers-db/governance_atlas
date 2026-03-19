@@ -1194,6 +1194,48 @@ def _render_styles() -> None:
     margin-bottom: 0.35rem;
   }
 
+  .gh-lineage-summary {
+    padding: 0.95rem 1rem;
+    border-radius: 18px;
+    border: 1px solid var(--gh-border);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(244, 239, 255, 0.84));
+  }
+
+  .gh-lineage-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.7rem 0.9rem;
+    margin-top: 0.4rem;
+  }
+
+  .gh-lineage-summary-item {
+    border-radius: 14px;
+    padding: 0.7rem 0.78rem;
+    background: rgba(247, 250, 255, 0.92);
+    border: 1px solid rgba(204, 216, 238, 0.82);
+  }
+
+  .gh-lineage-summary-item-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #657794;
+    margin-bottom: 0.22rem;
+  }
+
+  .gh-lineage-summary-item-value {
+    color: var(--gh-text);
+    font-weight: 700;
+    line-height: 1.45;
+  }
+
+  .gh-lineage-summary-note {
+    margin-top: 0.75rem;
+    color: var(--gh-muted);
+    line-height: 1.55;
+  }
+
   div[data-testid="stMetric"] {
     background: rgba(255, 255, 255, 0.9);
     border: 1px solid var(--gh-border);
@@ -2401,6 +2443,55 @@ def _lineage_node_html(
     """
 
 
+def _lineage_focus_summary_html(
+    asset: pd.Series,
+    lineage_up: pd.DataFrame,
+    lineage_down: pd.DataFrame,
+    col_up: pd.DataFrame,
+    col_down: pd.DataFrame,
+) -> str:
+    description = _normalize_str(asset.get("comment"))
+    owner_count = int(asset.get("owner_count", 0) or 0)
+    certification = _normalize_str(asset.get("certification"))
+    priority_actions: List[str] = []
+    if not description:
+        priority_actions.append("add a business description")
+    if owner_count == 0:
+        priority_actions.append("assign an owner")
+    if not certification:
+        priority_actions.append("set certification")
+
+    if priority_actions:
+        review_note = "Start with " + ", then ".join(priority_actions[:2]) + "."
+    elif len(lineage_down) or len(col_down):
+        review_note = "Review downstream consumers before making schema or semantic changes."
+    else:
+        review_note = "Use the lineage detail below to inspect upstream sources and downstream consumers."
+
+    summary_items = [
+        ("Documentation", "Documented" if description else "Missing description"),
+        ("Ownership", f"{owner_count} owner{'s' if owner_count != 1 else ''}" if owner_count else "No owners assigned"),
+        ("Upstream Exposure", f"{len(lineage_up)} assets · {len(col_up)} columns"),
+        ("Downstream Exposure", f"{len(lineage_down)} assets · {len(col_down)} columns"),
+    ]
+    items_html = "".join(
+        f"""
+<div class="gh-lineage-summary-item">
+  <div class="gh-lineage-summary-item-label">{html.escape(label)}</div>
+  <div class="gh-lineage-summary-item-value">{html.escape(value)}</div>
+</div>
+        """
+        for label, value in summary_items
+    )
+    return f"""
+<div class="gh-lineage-summary">
+  <div class="gh-panel-label">Review Focus</div>
+  <div class="gh-lineage-summary-grid">{items_html}</div>
+  <div class="gh-lineage-summary-note">{html.escape(review_note)}</div>
+</div>
+    """
+
+
 def _render_section_intro(title: str, copy: str) -> None:
     st.markdown(
         f"""
@@ -3518,19 +3609,13 @@ def page_lineage(
             unsafe_allow_html=True,
         )
         st.markdown(
-            f"""
-<div class="gh-panel">
-  <div class="gh-panel-label">Impact Summary</div>
-  <div class="gh-section-copy">
-    {html.escape(_normalize_str(asset.get("comment")) or "This asset does not have a description yet.")}
-  </div>
-  <div class="gh-badge-row">
-    {_safe_badge(asset.get("tier", ""), "primary")}
-    {_safe_badge(asset.get("certification", ""), "good")}
-    {_safe_badge(asset.get("sensitivity", ""), "warn")}
-  </div>
-</div>
-            """,
+            _lineage_focus_summary_html(
+                asset,
+                lineage_up,
+                lineage_down,
+                col_up,
+                col_down,
+            ),
             unsafe_allow_html=True,
         )
 
@@ -4279,39 +4364,40 @@ def main() -> None:
         st.session_state["app_page"] = "Discovery"
     if "discovery_asset_opened" not in st.session_state:
         st.session_state["discovery_asset_opened"] = False
+    st.session_state.pop("module_nav_page", None)
+    st.session_state.pop("_last_module_nav_page", None)
     _sync_asset_query_state(inventory)
 
     module_options = ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"]
     current_page = st.session_state.get("app_page", "Discovery")
-    if "module_nav_page" not in st.session_state:
-        st.session_state["module_nav_page"] = (
-            current_page if current_page in module_options else "Discovery"
-        )
-    if current_page in module_options:
-        st.session_state["module_nav_page"] = current_page
-    previous_module_page = st.session_state.get(
-        "_last_module_nav_page", st.session_state["module_nav_page"]
-    )
 
-    nav_left, nav_right = st.columns([0.92, 0.08], vertical_alignment="center")
+    nav_left, nav_right = st.columns([0.965, 0.035], vertical_alignment="center")
     with nav_left:
-        selected_module_page = _button_nav(module_options, "module_nav_page")
+        nav_cols = st.columns(len(module_options))
+        for col, option in zip(nav_cols, module_options):
+            with col:
+                if st.button(
+                    option,
+                    key=f"app_page_{option}",
+                    use_container_width=True,
+                    type="primary" if current_page == option else "secondary",
+                ):
+                    if current_page != option:
+                        st.session_state["app_page"] = option
+                        st.rerun()
     with nav_right:
         if st.button(
-            "Help",
+            "?",
             key="utility_help",
             use_container_width=True,
-            type="primary" if current_page == "Help" else "secondary",
+            type="secondary",
+            help="Open help",
         ):
             if current_page != "Help":
                 st.session_state["app_page"] = "Help"
                 st.rerun()
 
-    st.session_state["_last_module_nav_page"] = selected_module_page
-    if current_page != "Help" or selected_module_page != previous_module_page:
-        st.session_state["app_page"] = selected_module_page
-
-    page = st.session_state.get("app_page", selected_module_page)
+    page = st.session_state.get("app_page", current_page)
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
     if page == "Discovery":
