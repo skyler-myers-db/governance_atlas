@@ -199,6 +199,11 @@ def _cached_sample_rows(
     return _uc.get_table_sample(catalog, schema, table, limit=15)
 
 
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_workspace_principals(_uc: UCSQLClient) -> pd.DataFrame:
+    return _uc.list_workspace_principals()
+
+
 def _normalize_str(value: Any) -> str:
     if value is None:
         return ""
@@ -299,7 +304,12 @@ def _tags_map_to_df(tags: Dict[str, str]) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values("tag_name").reset_index(drop=True)
 
 
-def _tags_editor(existing: pd.DataFrame, key: str) -> pd.DataFrame:
+def _tags_editor(
+    existing: pd.DataFrame,
+    key: str,
+    *,
+    suggestions: Optional[Dict[str, List[str]]] = None,
+) -> pd.DataFrame:
     rows_key = f"{key}_rows"
     sig_key = f"{key}_signature"
     source = (
@@ -320,6 +330,37 @@ def _tags_editor(existing: pd.DataFrame, key: str) -> pd.DataFrame:
         st.session_state[sig_key] = signature
 
     rows = list(st.session_state.get(rows_key, []))
+    if suggestions:
+        suggestion_keys = [""] + list(suggestions.keys())
+        add_cols = st.columns([0.42, 0.42, 0.16])
+        selected_key = add_cols[0].selectbox(
+            "Existing tag key",
+            suggestion_keys,
+            format_func=lambda value: value or "Suggested tag key",
+            key=f"{key}_suggest_key",
+        )
+        suggested_values = [""] + suggestions.get(selected_key, [])
+        selected_value = add_cols[1].selectbox(
+            "Existing tag value",
+            suggested_values,
+            format_func=lambda value: value or "Suggested value",
+            key=f"{key}_suggest_value",
+            disabled=not selected_key,
+        )
+        if add_cols[2].button(
+            "Add",
+            key=f"{key}_suggest_add",
+            disabled=not selected_key,
+            use_container_width=True,
+        ):
+            candidate = {
+                "tag_name": selected_key,
+                "tag_value": selected_value,
+            }
+            if candidate not in rows:
+                rows.append(candidate)
+                st.session_state[rows_key] = rows
+            st.rerun()
     st.markdown(
         """
 <div class="gh-tags-header">
@@ -519,6 +560,42 @@ def _render_columns_table(
     )
     if truncated:
         st.caption(f"Showing first {max_rows} rows.")
+
+
+def _tag_suggestion_map(inventory: pd.DataFrame) -> Dict[str, List[str]]:
+    suggestions: Dict[str, set[str]] = {}
+    if inventory is None or inventory.empty:
+        return {}
+    for tags in inventory.get("tags", pd.Series(dtype=object)).tolist():
+        if not isinstance(tags, dict):
+            continue
+        for key, value in tags.items():
+            tag_key = _normalize_str(key)
+            tag_value = _normalize_str(value)
+            if not tag_key or tag_key in _STANDARD_TAG_KEYS:
+                continue
+            suggestions.setdefault(tag_key, set())
+            if tag_value:
+                suggestions[tag_key].add(tag_value)
+    return {
+        key: sorted(values)
+        for key, values in sorted(suggestions.items(), key=lambda item: item[0])
+    }
+
+
+def _principal_option_map(principals_df: pd.DataFrame) -> Dict[str, str]:
+    if principals_df is None or principals_df.empty:
+        return {}
+    labels: Dict[str, str] = {}
+    for row in principals_df.to_dict("records"):
+        email = _normalize_str(row.get("email"))
+        display_name = _normalize_str(row.get("display_name")) or email
+        principal_type = _normalize_str(row.get("principal_type")).replace("_", " ")
+        if not email:
+            continue
+        suffix = f" · {principal_type}" if principal_type else ""
+        labels[email] = f"{display_name} ({email}){suffix}"
+    return labels
 
 
 def _render_styles() -> None:
@@ -2441,26 +2518,43 @@ def _selected_asset(inventory: pd.DataFrame) -> Optional[pd.Series]:
 
 
 def _sync_asset_query_state(inventory: pd.DataFrame) -> None:
-    if inventory.empty:
+    query_keys = ["asset", "asset_section", "asset_focus", "column_edit"]
+    try:
+        query_sig = tuple(_normalize_str(st.query_params.get(key)) for key in query_keys)
+    except Exception:
+        query_sig = ("", "", "", "")
+    if not any(query_sig):
         return
-    asset_fqn = _normalize_str(st.query_params.get("asset"))
+    consumed_sig = st.session_state.get("_consumed_asset_query_sig")
+    if consumed_sig == query_sig and st.session_state.get("discovery_asset_opened"):
+        _clear_asset_query_state()
+        return
+    if inventory.empty:
+        st.session_state["_consumed_asset_query_sig"] = query_sig
+        _clear_asset_query_state()
+        return
+    asset_fqn = query_sig[0]
     if not asset_fqn or asset_fqn not in inventory["fqn"].values:
+        st.session_state["_consumed_asset_query_sig"] = query_sig
+        _clear_asset_query_state()
         return
 
     st.session_state["app_page"] = "Discovery"
     st.session_state["selected_asset_fqn"] = asset_fqn
     st.session_state["discovery_asset_opened"] = True
 
-    section = _normalize_str(st.query_params.get("asset_section")) or "Overview"
+    section = query_sig[1] or "Overview"
     st.session_state[f"asset_profile_section_{asset_fqn}"] = section
 
-    focus = _normalize_str(st.query_params.get("asset_focus"))
+    focus = query_sig[2]
     if focus:
         st.session_state[f"asset_governance_focus_{asset_fqn}"] = focus
 
-    column_edit = _normalize_str(st.query_params.get("column_edit"))
+    column_edit = query_sig[3]
     if column_edit:
         st.session_state[f"schema_comment_target_{asset_fqn}"] = column_edit
+    st.session_state["_consumed_asset_query_sig"] = query_sig
+    _clear_asset_query_state()
 
 
 def _clear_asset_query_state() -> None:
@@ -2667,6 +2761,7 @@ def _render_asset_profile(
     asset_tags = asset.get("tags") if isinstance(asset.get("tags"), dict) else {}
     structured = _structured_tags(asset_tags or {})
     comment = _normalize_str(asset.get("comment"))
+    tag_suggestions = _tag_suggestion_map(inventory)
 
     st.markdown(_profile_header_html(asset), unsafe_allow_html=True)
 
@@ -2884,6 +2979,7 @@ def _render_asset_profile(
                     edited_col_tags = _tags_editor(
                         existing_col_tags,
                         key=f"column_tags_editor_{asset['fqn']}_{selected_col}",
+                        suggestions=tag_suggestions,
                     )
                     if st.button(
                         "Save column tags",
@@ -2986,6 +3082,9 @@ def _render_asset_profile(
     else:
         tags_df = _tags_map_to_df(asset_tags if isinstance(asset_tags, dict) else {})
         owners_df = store.get_owners(asset["fqn"])
+        principals_df = _cached_workspace_principals(uc)
+        principal_labels = _principal_option_map(principals_df)
+        principal_options = [""] + list(principal_labels.keys())
         is_writer = role in {"writer", "admin"}
         existing_tags = _df_to_tags_map(tags_df)
         existing_structured = _structured_tags(existing_tags)
@@ -3089,7 +3188,9 @@ def _render_asset_profile(
             st.divider()
             st.markdown("#### Custom tags")
             edited_custom_tags = _tags_editor(
-                _custom_tags_df(tags_df), key=f"custom_tags_{asset['fqn']}"
+                _custom_tags_df(tags_df),
+                key=f"custom_tags_{asset['fqn']}",
+                suggestions=tag_suggestions,
             )
             if st.button(
                 "Save custom tags",
@@ -3111,19 +3212,40 @@ def _render_asset_profile(
 
             st.divider()
             st.markdown("#### Owners")
-            _render_data_table(owners_df)
+            if owners_df.empty:
+                st.info("No owners have been assigned yet.")
+            else:
+                _render_data_table(owners_df)
             with st.form(f"owners_{asset['fqn']}"):
-                owner_email = st.text_input("Owner email")
+                selected_principal = ""
+                if len(principal_options) > 1:
+                    selected_principal = st.selectbox(
+                        "Workspace principal",
+                        principal_options,
+                        format_func=lambda value: principal_labels.get(
+                            value, "Select a workspace principal"
+                        ),
+                        key=f"owner_principal_{asset['fqn']}",
+                    )
+                owner_email = st.text_input(
+                    "Owner email",
+                    placeholder="name@company.com",
+                    key=f"owner_email_{asset['fqn']}",
+                )
                 owner_type = st.selectbox(
                     "Owner type", ["technical", "business", "steward"]
                 )
                 if st.form_submit_button("Add or update owner", type="primary"):
-                    store.upsert_owner(
-                        asset["fqn"], owner_email, owner_type, user_email
-                    )
-                    st.success("Owner assignment saved.")
-                    st.cache_data.clear()
-                    st.rerun()
+                    resolved_owner_email = selected_principal or owner_email
+                    if not _normalize_str(resolved_owner_email):
+                        st.error("Select a workspace principal or enter an owner email.")
+                    else:
+                        store.upsert_owner(
+                            asset["fqn"], resolved_owner_email, owner_type, user_email
+                        )
+                        st.success("Owner assignment saved.")
+                        st.cache_data.clear()
+                        st.rerun()
         else:
             if focus_hint == "description":
                 st.info("Propose a business description below for writer or admin review.")
@@ -3168,6 +3290,16 @@ def _render_asset_profile(
                 ),
                 key=f"proposal_sensitivity_{asset['fqn']}",
             )
+            proposed_owner_principal = ""
+            if len(principal_options) > 1:
+                proposed_owner_principal = proposal_cols[0].selectbox(
+                    "Proposed workspace principal",
+                    principal_options,
+                    format_func=lambda value: principal_labels.get(
+                        value, "Select a workspace principal"
+                    ),
+                    key=f"proposal_owner_principal_{asset['fqn']}",
+                )
             proposed_owner_email = proposal_cols[0].text_input(
                 "Proposed owner email",
                 key=f"proposal_owner_email_{asset['fqn']}",
@@ -3178,7 +3310,9 @@ def _render_asset_profile(
                 key=f"proposal_owner_type_{asset['fqn']}",
             )
             proposed_custom_tags = _tags_editor(
-                _custom_tags_df(tags_df), key=f"proposal_tags_{asset['fqn']}"
+                _custom_tags_df(tags_df),
+                key=f"proposal_tags_{asset['fqn']}",
+                suggestions=tag_suggestions,
             )
             if st.button(
                 "Submit metadata change request",
@@ -3186,6 +3320,7 @@ def _render_asset_profile(
                 use_container_width=True,
                 key=f"submit_request_{asset['fqn']}",
             ):
+                resolved_proposed_owner = proposed_owner_principal or proposed_owner_email
                 desired_tags = {
                     **existing_custom,
                     **{
@@ -3201,7 +3336,7 @@ def _render_asset_profile(
                             "tier": proposed_tier,
                             "certification": proposed_certification,
                             "sensitivity": proposed_sensitivity,
-                            _REQUEST_OWNER_EMAIL_KEY: proposed_owner_email,
+                            _REQUEST_OWNER_EMAIL_KEY: resolved_proposed_owner,
                             _REQUEST_OWNER_TYPE_KEY: proposed_owner_type,
                         }.items()
                         if value
@@ -4146,32 +4281,37 @@ def main() -> None:
         st.session_state["discovery_asset_opened"] = False
     _sync_asset_query_state(inventory)
 
-    nav_cols = st.columns([1, 1, 1, 1, 1, 0.8])
+    module_options = ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"]
     current_page = st.session_state.get("app_page", "Discovery")
-    for col, option in zip(
-        nav_cols[:5], ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"]
-    ):
-        with col:
-            if st.button(
-                option,
-                key=f"app_page_{option}",
-                use_container_width=True,
-                type="primary" if option == current_page else "secondary",
-            ):
-                if option != current_page:
-                    st.session_state["app_page"] = option
-                    st.rerun()
-    with nav_cols[5]:
+    if "module_nav_page" not in st.session_state:
+        st.session_state["module_nav_page"] = (
+            current_page if current_page in module_options else "Discovery"
+        )
+    if current_page in module_options:
+        st.session_state["module_nav_page"] = current_page
+    previous_module_page = st.session_state.get(
+        "_last_module_nav_page", st.session_state["module_nav_page"]
+    )
+
+    nav_left, nav_right = st.columns([0.92, 0.08], vertical_alignment="center")
+    with nav_left:
+        selected_module_page = _button_nav(module_options, "module_nav_page")
+    with nav_right:
         if st.button(
             "Help",
-            key="app_page_Help",
+            key="utility_help",
             use_container_width=True,
             type="primary" if current_page == "Help" else "secondary",
         ):
             if current_page != "Help":
                 st.session_state["app_page"] = "Help"
                 st.rerun()
-    page = st.session_state.get("app_page", current_page)
+
+    st.session_state["_last_module_nav_page"] = selected_module_page
+    if current_page != "Help" or selected_module_page != previous_module_page:
+        st.session_state["app_page"] = selected_module_page
+
+    page = st.session_state.get("app_page", selected_module_page)
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
     if page == "Discovery":
