@@ -23,7 +23,7 @@ from govhub.uc import UCSQLClient
 
 _HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
 _META_TTL = 600
-_EXCLUDED_ASSET_MARKERS = ("__materialization_mat_",)
+_EXCLUDED_ASSET_MARKERS = ("__materialization_mat_", "temp_metric_view_")
 
 _STANDARD_TAG_ALIASES = {
     "domain": ("domain", "data_domain"),
@@ -598,14 +598,78 @@ def _short_identifier(value: str) -> str:
     return f"{text[:8]}…{text[-4:]}"
 
 
+def _path_leaf(value: str) -> str:
+    text = _normalize_str(value).rstrip("/")
+    if not text:
+        return ""
+    return text.split("/")[-1] or text
+
+
+def _operational_display_payload(row: pd.Series) -> Dict[str, str]:
+    metadata = _parse_metadata_dict(row.get("entity_metadata"))
+    flat = _flatten_metadata(metadata)
+    entity_label = _format_entity_type(row.get("entity_type"))
+    path_value = _metadata_value(flat, ["notebook_path", "workspace_path", "path"])
+    named_value = _metadata_value(
+        flat,
+        [
+            "display_name",
+            "displayName",
+            "job_name",
+            "pipeline_name",
+            "dashboard_name",
+            "query_name",
+            "notebook_name",
+            "task_name",
+            "title",
+            "name",
+        ],
+    )
+    statement_value = _metadata_value(flat, ["statement_text", "query_text", "query"])
+
+    if path_value:
+        title = _path_leaf(path_value)
+        primary_subtitle = path_value
+    elif named_value:
+        title = named_value
+        primary_subtitle = ""
+    elif statement_value:
+        title = shorten(statement_value.splitlines()[0], width=76, placeholder="…")
+        primary_subtitle = ""
+    else:
+        fallback_id = (
+            _normalize_str(row.get("entity_id"))
+            or _normalize_str(row.get("statement_id"))
+            or _normalize_str(row.get("entity_run_id"))
+        )
+        title = (
+            f"{entity_label} {_short_identifier(fallback_id)}".strip()
+            if fallback_id
+            else entity_label
+        )
+        primary_subtitle = ""
+
+    return {
+        "entity_label": entity_label,
+        "title": shorten(title, width=80, placeholder="…"),
+        "primary_subtitle": primary_subtitle,
+        "statement": statement_value,
+        "flat_metadata": flat,
+    }
+
+
 def _operational_group_key(row: pd.Series) -> str:
     entity_type = _normalize_str(row.get("entity_type"))
+    display = _operational_display_payload(row)
     entity_id = _normalize_str(row.get("entity_id"))
-    run_id = _normalize_str(row.get("entity_run_id"))
     statement_id = _normalize_str(row.get("statement_id"))
-    metadata = _normalize_str(row.get("entity_metadata"))
-    if any([entity_id, run_id, statement_id, metadata]):
-        return "||".join([entity_type, entity_id, run_id, statement_id, metadata])
+    stable_key = (
+        _normalize_str(display.get("title")).lower()
+        or entity_id
+        or statement_id
+    )
+    if stable_key:
+        return "||".join([entity_type, stable_key])
     return "||".join(
         [
             entity_type,
@@ -627,64 +691,39 @@ def _summarize_operational_context(
     cards: List[Dict[str, Any]] = []
     for _, group in view.groupby("_group_key", sort=False):
         row = group.iloc[0]
-        metadata = _parse_metadata_dict(row.get("entity_metadata"))
-        flat = _flatten_metadata(metadata)
-        entity_label = _format_entity_type(row.get("entity_type"))
-        title = _metadata_value(
-            flat,
-            [
-                "display_name",
-                "displayName",
-                "name",
-                "job_name",
-                "pipeline_name",
-                "dashboard_name",
-                "query_name",
-                "notebook_path",
-                "path",
-                "workspace_path",
-                "statement_text",
-                "query_text",
-                "title",
-            ],
-        )
-        if not title:
-            fallback_id = (
-                _normalize_str(row.get("entity_id"))
-                or _normalize_str(row.get("statement_id"))
-                or _normalize_str(row.get("entity_run_id"))
+        payload = _operational_display_payload(row)
+        entity_label = payload["entity_label"]
+        title = payload["title"]
+        flat = payload["flat_metadata"]
+        run_ids = {
+            _normalize_str(value)
+            for value in group["entity_run_id"].tolist()
+            if _normalize_str(value)
+        }
+        statement_ids = {
+            _normalize_str(value)
+            for value in group["statement_id"].tolist()
+            if _normalize_str(value)
+        }
+        subtitle_parts: List[str] = []
+        if payload["primary_subtitle"]:
+            subtitle_parts.append(payload["primary_subtitle"])
+        if _normalize_str(row.get("entity_id")) and not payload["primary_subtitle"]:
+            subtitle_parts.append(
+                f"ID {_short_identifier(_normalize_str(row.get('entity_id')))}"
             )
-            title = (
-                f"{entity_label} {_short_identifier(fallback_id)}".strip()
-                if fallback_id
-                else entity_label
+        if len(run_ids) > 1:
+            subtitle_parts.append(f"{len(run_ids)} runs")
+        elif len(run_ids) == 1:
+            subtitle_parts.append(f"Run {_short_identifier(next(iter(run_ids)))}")
+        elif len(statement_ids) > 1:
+            subtitle_parts.append(f"{len(statement_ids)} statements")
+        elif len(statement_ids) == 1:
+            subtitle_parts.append(
+                f"Stmt {_short_identifier(next(iter(statement_ids)))}"
             )
-        title = shorten(title, width=80, placeholder="…")
-        subtitle = _metadata_value(
-            flat,
-            [
-                "notebook_path",
-                "workspace_path",
-                "path",
-                "pipeline_id",
-                "job_id",
-                "dashboard_id",
-                "warehouse_id",
-            ],
-        )
-        if not subtitle:
-            parts = []
-            if _normalize_str(row.get("entity_id")):
-                parts.append(f"ID {_short_identifier(_normalize_str(row.get('entity_id')))}")
-            if _normalize_str(row.get("entity_run_id")):
-                parts.append(f"Run {_short_identifier(_normalize_str(row.get('entity_run_id')))}")
-            if _normalize_str(row.get("statement_id")):
-                parts.append(f"Stmt {_short_identifier(_normalize_str(row.get('statement_id')))}")
-            subtitle = " · ".join(parts[:2])
-        note = _metadata_value(
-            flat,
-            ["description", "query_text", "statement_text", "details", "query"]
-        )
+        subtitle = " · ".join(part for part in subtitle_parts if part)
+        note = _metadata_value(flat, ["description", "details"])
         related_assets = [
             _normalize_str(value)
             for value in group["related_table_full_name"].tolist()
@@ -692,7 +731,14 @@ def _summarize_operational_context(
         ]
         related_assets = list(dict.fromkeys(related_assets))
         related_context = [
-            _catalog_schema_context(fqn) or fqn.split(".")[-1]
+            " • ".join(
+                part
+                for part in [
+                    fqn.split(".")[-1],
+                    _catalog_schema_context(fqn),
+                ]
+                if part
+            )
             for fqn in related_assets[:3]
         ]
         cards.append(
@@ -1759,8 +1805,8 @@ def _render_styles() -> None:
 
   .gh-operational-title {
     color: var(--gh-text);
-    font-size: 1.04rem;
-    font-weight: 780;
+    font-size: 1.16rem;
+    font-weight: 810;
     line-height: 1.35;
   }
 
@@ -3001,6 +3047,8 @@ def _catalog_scope_options(
     lineage_down: pd.DataFrame,
     col_up: pd.DataFrame,
     col_down: pd.DataFrame,
+    op_up: Optional[pd.DataFrame] = None,
+    op_down: Optional[pd.DataFrame] = None,
     current_fqn: str = "",
 ) -> List[str]:
     values: set[str] = set()
@@ -3009,6 +3057,8 @@ def _catalog_scope_options(
         (lineage_down, "target_table_full_name"),
         (col_up, "source_table_full_name"),
         (col_down, "target_table_full_name"),
+        (op_up, "related_table_full_name"),
+        (op_down, "related_table_full_name"),
     ]:
         if df is None or df.empty or column not in df.columns:
             continue
@@ -3036,6 +3086,8 @@ def _schema_name_scope_options(
     col_up: pd.DataFrame,
     col_down: pd.DataFrame,
     catalog_scope: str,
+    op_up: Optional[pd.DataFrame] = None,
+    op_down: Optional[pd.DataFrame] = None,
     current_fqn: str = "",
 ) -> List[str]:
     values: set[str] = set()
@@ -3044,6 +3096,8 @@ def _schema_name_scope_options(
         (lineage_down, "target_table_full_name"),
         (col_up, "source_table_full_name"),
         (col_down, "target_table_full_name"),
+        (op_up, "related_table_full_name"),
+        (op_down, "related_table_full_name"),
     ]:
         if df is None or df.empty or column not in df.columns:
             continue
@@ -3335,7 +3389,7 @@ def _lineage_focus_summary_html(
     )
     return f"""
 <div class="gh-lineage-summary">
-  <div class="gh-panel-label">Review Focus</div>
+  <div class="gh-panel-label">Summary</div>
   <div class="gh-lineage-summary-grid">{items_html}</div>
   <div class="gh-lineage-summary-note">{html.escape(review_note)}</div>
 </div>
@@ -4407,25 +4461,22 @@ def page_discovery(
             "Open Requests",
             _inventory_metric(inventory, inventory["pending_requests"].gt(0)),
         )
-        st.markdown("#### Views")
-        _button_nav(
-            [
-                "All Assets",
-                "Ownership Gaps",
-                "Needs Documentation",
-                "Open Requests",
-                "Sensitive / Uncertified",
-            ],
-            "asset_focus_mode",
-            help_map={
-                "All Assets": "Show the full live catalog inventory that matches the current filters.",
-                "Ownership Gaps": "Focus on assets that do not yet have an assigned owner.",
-                "Needs Documentation": "Focus on assets that still need a business-facing description.",
-                "Open Requests": "Focus on assets with pending governance change requests.",
-                "Sensitive / Uncertified": "Focus on assets that are marked sensitive or still missing certification.",
-            },
-        )
-        st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
+        focus_descriptions = {
+            "All Assets": "Show the full live catalog inventory that matches the current filters.",
+            "Ownership Gaps": "Focus on assets that do not yet have an assigned owner.",
+            "Needs Documentation": "Focus on assets that still need a business-facing description.",
+            "Open Requests": "Focus on assets with pending governance change requests.",
+            "Sensitive / Uncertified": "Focus on sensitive assets and assets still missing certification.",
+        }
+        view_left, _ = st.columns([0.38, 0.62])
+        with view_left:
+            focus_mode = st.selectbox(
+                "View",
+                list(focus_descriptions.keys()),
+                key="asset_focus_mode",
+                help="Apply a governance-focused lens to the current Discovery results.",
+            )
+        st.caption(focus_descriptions[focus_mode])
         filtered = _filtered_inventory(
             inventory,
             show_controls=True,
@@ -4436,7 +4487,6 @@ def page_discovery(
             st.warning("No assets match the current search and filter set.")
             return
 
-        focus_mode = st.session_state.get("asset_focus_mode", "All Assets")
         if focus_mode == "All Assets":
             st.caption(f"{len(filtered)} assets match the current discovery filters.")
         else:
@@ -4546,6 +4596,8 @@ def page_lineage(
         lineage_down,
         col_up,
         col_down,
+        op_up,
+        op_down,
         current_fqn=selected_fqn,
     )
     if st.session_state.get(catalog_key) not in catalog_options:
@@ -4564,6 +4616,8 @@ def page_lineage(
         col_up,
         col_down,
         st.session_state[catalog_key],
+        op_up,
+        op_down,
         current_fqn=selected_fqn,
     )
     if st.session_state.get(schema_key) not in schema_options:
@@ -4657,58 +4711,67 @@ def page_lineage(
                     unsafe_allow_html=True,
                 )
 
-    _render_operational_context_section(
-        op_up_view,
-        op_down_view,
-        op_up_error,
-        op_down_error,
+    st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
+    data_lineage_tab, operational_tab = st.tabs(
+        ["Data Lineage", "Operational Context"]
     )
 
-    table_lineage_tab, column_lineage_tab = st.tabs(
-        ["Table Lineage", "Column Lineage"]
-    )
-
-    with table_lineage_tab:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("#### Upstream Table Details")
-            if lineage_up_error:
-                st.warning(f"Could not query upstream lineage: {lineage_up_error}")
-            elif lineage_up_view.empty:
-                st.info("No upstream table lineage available.")
-            else:
-                _render_data_table(lineage_up_view)
-        with col2:
-            st.markdown("#### Downstream Table Details")
-            if lineage_down_error:
-                st.warning(f"Could not query downstream lineage: {lineage_down_error}")
-            elif lineage_down_view.empty:
-                st.info("No downstream table lineage available.")
-            else:
-                _render_data_table(lineage_down_view)
-
-    with column_lineage_tab:
-        upstream_column_tab, downstream_column_tab = st.tabs(
-            ["Upstream lineage", "Downstream lineage"]
+    with data_lineage_tab:
+        table_lineage_tab, column_lineage_tab = st.tabs(
+            ["Table Lineage", "Column Lineage"]
         )
 
-        with upstream_column_tab:
-            if col_up_error:
-                st.warning(f"Could not query upstream column lineage: {col_up_error}")
-            elif col_up_view.empty:
-                st.info("No upstream column lineage is available.")
-            else:
-                _render_column_lineage(col_up_view, key=f"col_up_{selected_fqn}")
+        with table_lineage_tab:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("#### Upstream Table Details")
+                if lineage_up_error:
+                    st.warning(f"Could not query upstream lineage: {lineage_up_error}")
+                elif lineage_up_view.empty:
+                    st.info("No upstream table lineage available.")
+                else:
+                    _render_data_table(lineage_up_view)
+            with col2:
+                st.markdown("#### Downstream Table Details")
+                if lineage_down_error:
+                    st.warning(f"Could not query downstream lineage: {lineage_down_error}")
+                elif lineage_down_view.empty:
+                    st.info("No downstream table lineage available.")
+                else:
+                    _render_data_table(lineage_down_view)
 
-        with downstream_column_tab:
-            if col_down_error:
-                st.warning(
-                    f"Could not query downstream column lineage: {col_down_error}"
-                )
-            elif col_down_view.empty:
-                st.info("No downstream column lineage is available.")
-            else:
-                _render_column_lineage(col_down_view, key=f"col_down_{selected_fqn}")
+        with column_lineage_tab:
+            upstream_column_tab, downstream_column_tab = st.tabs(
+                ["Upstream Lineage", "Downstream Lineage"]
+            )
+
+            with upstream_column_tab:
+                if col_up_error:
+                    st.warning(
+                        f"Could not query upstream column lineage: {col_up_error}"
+                    )
+                elif col_up_view.empty:
+                    st.info("No upstream column lineage is available.")
+                else:
+                    _render_column_lineage(col_up_view, key=f"col_up_{selected_fqn}")
+
+            with downstream_column_tab:
+                if col_down_error:
+                    st.warning(
+                        f"Could not query downstream column lineage: {col_down_error}"
+                    )
+                elif col_down_view.empty:
+                    st.info("No downstream column lineage is available.")
+                else:
+                    _render_column_lineage(col_down_view, key=f"col_down_{selected_fqn}")
+
+    with operational_tab:
+        _render_operational_context_section(
+            op_up_view,
+            op_down_view,
+            op_up_error,
+            op_down_error,
+        )
 
 
 def page_governance(
