@@ -1000,7 +1000,7 @@ def _render_styles() -> None:
   }
 
   .gh-asset-name {
-    font-size: 1.34rem;
+    font-size: 1.42rem;
     font-weight: 820;
     color: var(--gh-text);
     line-height: 1.22;
@@ -1360,10 +1360,14 @@ def _render_styles() -> None:
   }
 
   .stButton > button,
-  div[data-testid="stButton"] > button {
+  div[data-testid="stButton"] > button,
+  button[kind="secondary"],
+  button[kind="primary"] {
     border-radius: 14px;
     border: 1px solid var(--gh-border) !important;
     background: rgba(255, 255, 255, 0.95) !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    background-image: none !important;
     color: var(--gh-text) !important;
     font-weight: 700;
     min-height: 2.8rem;
@@ -1390,15 +1394,26 @@ def _render_styles() -> None:
   }
 
   .stButton > button[kind="secondary"],
-  div[data-testid="stButton"] > button[kind="secondary"] {
+  div[data-testid="stButton"] > button[kind="secondary"],
+  button[kind="secondary"] {
     background: rgba(255, 255, 255, 0.95) !important;
+    background-color: rgba(255, 255, 255, 0.95) !important;
+    background-image: none !important;
     color: var(--gh-text) !important;
     border: 1px solid var(--gh-border) !important;
   }
 
   .stButton > button[kind="primary"],
-  div[data-testid="stButton"] > button[kind="primary"] {
+  div[data-testid="stButton"] > button[kind="primary"],
+  button[kind="primary"] {
     background: linear-gradient(
+      135deg,
+      var(--gh-primary) 0%,
+      var(--gh-secondary) 52%,
+      var(--gh-accent) 100%
+    ) !important;
+    background-color: var(--gh-primary) !important;
+    background-image: linear-gradient(
       135deg,
       var(--gh-primary) 0%,
       var(--gh-secondary) 52%,
@@ -1991,33 +2006,8 @@ def _install_client_bootstrap() -> None:
           storage.setItem(key, String(node.scrollTop || rootWindow.pageYOffset || 0));
         }
       };
-      const routeClick = (event) => {
-        const target = event.target;
-        if (!target || typeof target.closest !== "function") {
-          return;
-        }
-        const anchor = target.closest("a.gh-route-link");
-        if (!anchor) {
-          return;
-        }
-        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
-          return;
-        }
-        const href = anchor.getAttribute("href");
-        if (!href) {
-          return;
-        }
-        event.preventDefault();
-        capture();
-        try {
-          rootWindow.location.assign(href);
-        } catch (error) {
-          window.location.assign(href);
-        }
-      };
       rootWindow.addEventListener("scroll", capture, { passive: true });
       doc.addEventListener("click", capture, true);
-      doc.addEventListener("click", routeClick, true);
       doc.addEventListener("input", capture, true);
       rootWindow.__ghScrollInstalled = true;
     }
@@ -2532,7 +2522,7 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
     active_class = "active" if active else ""
     return f"""
 <div class="gh-asset-card {active_class}">
-  <a class="gh-route-link gh-asset-main-link" href="{html.escape(asset_href)}" target="_self">
+  <a class="gh-route-link gh-asset-main-link" href="{html.escape(asset_href)}">
     <div class="gh-asset-head">
       <div>
         <div class="gh-asset-name">{html.escape(_normalize_str(asset.get("table_name")))}</div>
@@ -2547,7 +2537,7 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
   </a>
   {signals_html}
   <div class="gh-badge-row">{badges}</div>
-  <a class="gh-route-link gh-asset-footer-link" href="{html.escape(asset_href)}" target="_self">
+  <a class="gh-route-link gh-asset-footer-link" href="{html.escape(asset_href)}">
     <div class="gh-meta-row">
       <span>{int(asset.get("owner_count", 0))} Owners</span>
       <span>{int(asset.get("pending_requests", 0))} Open Requests</span>
@@ -2642,7 +2632,7 @@ def _lineage_node_html(
     """
     if href:
         return (
-            f"<a class='gh-route-link gh-lineage-link' href='{html.escape(href)}' target='_self'>"
+            f"<a class='gh-route-link gh-lineage-link' href='{html.escape(href)}'>"
             f"{node_html}</a>"
         )
     return node_html
@@ -3919,7 +3909,7 @@ def page_lineage(
     with table_lineage_tab:
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("#### Upstream table detail")
+            st.markdown("#### Upstream Table Detail")
             if lineage_up_error:
                 st.warning(f"Could not query upstream lineage: {lineage_up_error}")
             elif lineage_up.empty:
@@ -3927,7 +3917,7 @@ def page_lineage(
             else:
                 _render_data_table(lineage_up)
         with col2:
-            st.markdown("#### Downstream table detail")
+            st.markdown("#### Downstream Table Detail")
             if lineage_down_error:
                 st.warning(f"Could not query downstream lineage: {lineage_down_error}")
             elif lineage_down.empty:
