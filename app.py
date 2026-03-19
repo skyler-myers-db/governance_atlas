@@ -488,6 +488,19 @@ def _button_nav(
     return st.session_state.get(state_key, current)
 
 
+def _route_link_attrs(href: str, classes: str) -> str:
+    safe_href = html.escape(href, quote=True)
+    safe_classes = html.escape(classes, quote=True)
+    return (
+        f'class="{safe_classes}" '
+        f'href="{safe_href}" '
+        'onclick="if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { '
+        'return window.__ghNavigate ? '
+        "window.__ghNavigate(event, this.getAttribute('href')) : (event.preventDefault(), window.location.assign(this.getAttribute('href')), false);"
+        '} return true;"'
+    )
+
+
 def _render_data_table(df: pd.DataFrame, *, max_rows: int = 200) -> None:
     if df is None:
         return
@@ -545,7 +558,7 @@ def _render_columns_table(
                 column_edit=column_name,
             )
             comment_html = (
-                f"<a class='gh-action-badge primary' href='{html.escape(href)}'>"
+                f"<a {_route_link_attrs(href, 'gh-action-badge primary')}>"
                 f"{html.escape(shorten(action_label, width=90, placeholder='...'))}"
                 "</a>"
             )
@@ -1000,7 +1013,7 @@ def _render_styles() -> None:
   }
 
   .gh-asset-name {
-    font-size: 1.42rem;
+    font-size: 1.48rem;
     font-weight: 820;
     color: var(--gh-text);
     line-height: 1.22;
@@ -1274,7 +1287,7 @@ def _render_styles() -> None:
   }
 
   .gh-lineage-node .gh-asset-name {
-    font-size: 1.34rem;
+    font-size: 1.26rem;
     font-weight: 820;
     line-height: 1.2;
   }
@@ -1381,6 +1394,13 @@ def _render_styles() -> None:
   .stButton > button:hover,
   div[data-testid="stButton"] > button:hover,
   div[data-testid="stFormSubmitButton"] > button:hover {
+    background: linear-gradient(
+      145deg,
+      rgba(248, 251, 255, 0.98),
+      rgba(241, 246, 255, 0.96) 56%,
+      rgba(245, 240, 255, 0.94) 100%
+    ) !important;
+    background-color: rgba(247, 250, 255, 0.97) !important;
     border-color: rgba(34, 87, 216, 0.28) !important;
     box-shadow: 0 14px 28px rgba(34, 87, 216, 0.16) !important;
     transform: translateY(-1px);
@@ -1432,6 +1452,7 @@ def _render_styles() -> None:
       #567eff 52%,
       #8c6cf6 100%
     ) !important;
+    background-color: var(--gh-primary-strong) !important;
     color: #ffffff !important;
   }
 
@@ -1971,7 +1992,7 @@ def _install_client_bootstrap() -> None:
     const rootWindow = window.parent || window;
     const storage = rootWindow.sessionStorage;
     const key = "gh-scroll-y";
-    const doc = rootWindow.document;
+    const doc = window.document;
     const nodes = [
       doc.querySelector('[data-testid="stAppViewContainer"]'),
       doc.querySelector('section.main'),
@@ -2011,6 +2032,37 @@ def _install_client_bootstrap() -> None:
       doc.addEventListener("input", capture, true);
       rootWindow.__ghScrollInstalled = true;
     }
+
+    const navigate = (event, href) => {
+      try {
+        if (!href) {
+          return true;
+        }
+        if (
+          event &&
+          (event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey)
+        ) {
+          return true;
+        }
+        capture();
+        if (event) {
+          event.preventDefault();
+        }
+        window.location.assign(href);
+        return false;
+      } catch (error) {
+        return true;
+      }
+    };
+
+    window.__ghNavigate = navigate;
+    try {
+      rootWindow.__ghNavigate = navigate;
+    } catch (error) {}
 
     restore();
   } catch (error) {}
@@ -2402,17 +2454,17 @@ def _asset_signal_action_badges(asset: pd.Series) -> str:
     if int(asset.get("owner_count", 0)) == 0:
         href = _asset_query_href(asset["fqn"], section="Governance", focus="owner")
         actions.append(
-            f"<a class='gh-action-badge danger' href='{html.escape(href)}'>Needs Owner</a>"
+            f"<a {_route_link_attrs(href, 'gh-action-badge danger')}>Needs Owner</a>"
         )
     if not _normalize_str(asset.get("comment")):
         href = _asset_query_href(asset["fqn"], section="Governance", focus="description")
         actions.append(
-            f"<a class='gh-action-badge warn' href='{html.escape(href)}'>Needs Description</a>"
+            f"<a {_route_link_attrs(href, 'gh-action-badge warn')}>Needs Description</a>"
         )
     if not _normalize_str(_structured_tags(asset.get("tags") if isinstance(asset.get("tags"), dict) else {}).get("certification")):
         href = _asset_query_href(asset["fqn"], section="Governance", focus="certification")
         actions.append(
-            f"<a class='gh-action-badge primary' href='{html.escape(href)}'>Needs Certification</a>"
+            f"<a {_route_link_attrs(href, 'gh-action-badge primary')}>Needs Certification</a>"
         )
     return "".join(actions)
 
@@ -2522,7 +2574,7 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
     active_class = "active" if active else ""
     return f"""
 <div class="gh-asset-card {active_class}">
-  <a class="gh-route-link gh-asset-main-link" href="{html.escape(asset_href)}">
+  <a {_route_link_attrs(asset_href, "gh-route-link gh-asset-main-link")}>
     <div class="gh-asset-head">
       <div>
         <div class="gh-asset-name">{html.escape(_normalize_str(asset.get("table_name")))}</div>
@@ -2537,7 +2589,7 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
   </a>
   {signals_html}
   <div class="gh-badge-row">{badges}</div>
-  <a class="gh-route-link gh-asset-footer-link" href="{html.escape(asset_href)}">
+  <a {_route_link_attrs(asset_href, "gh-route-link gh-asset-footer-link")}>
     <div class="gh-meta-row">
       <span>{int(asset.get("owner_count", 0))} Owners</span>
       <span>{int(asset.get("pending_requests", 0))} Open Requests</span>
@@ -2632,7 +2684,7 @@ def _lineage_node_html(
     """
     if href:
         return (
-            f"<a class='gh-route-link gh-lineage-link' href='{html.escape(href)}'>"
+            f"<a {_route_link_attrs(href, 'gh-route-link gh-lineage-link')}>"
             f"{node_html}</a>"
         )
     return node_html
@@ -2650,11 +2702,11 @@ def _lineage_focus_summary_html(
     certification = _normalize_str(asset.get("certification"))
     priority_actions: List[str] = []
     if not description:
-        priority_actions.append("add a business description")
+        priority_actions.append("adding a business description")
     if owner_count == 0:
-        priority_actions.append("assign an owner")
+        priority_actions.append("assigning an owner")
     if not certification:
-        priority_actions.append("set certification")
+        priority_actions.append("setting certification")
 
     if priority_actions:
         review_note = "Start by " + ", then ".join(priority_actions[:2]) + "."
@@ -3401,7 +3453,7 @@ def _render_asset_profile(
         )
         lcol1, lcol2 = st.columns(2)
         with lcol1:
-            st.markdown("#### Upstream assets")
+            st.markdown("#### Upstream Assets")
             if lineage_up_error:
                 st.warning(f"Could not query upstream lineage: {lineage_up_error}")
             elif lineage_up.empty:
@@ -3409,17 +3461,19 @@ def _render_asset_profile(
             else:
                 _render_data_table(lineage_up)
         with lcol2:
-            st.markdown("#### Downstream assets")
+            st.markdown("#### Downstream Assets")
             if lineage_down_error:
                 st.warning(f"Could not query downstream lineage: {lineage_down_error}")
             elif lineage_down.empty:
                 st.info("No downstream lineage found.")
             else:
                 _render_data_table(lineage_down)
+        st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
         if st.button(
-            "Open full lineage workspace",
+            "Open Full Lineage Workspace",
             use_container_width=True,
             key=f"open_lineage_{asset['fqn']}",
+            help="Open the dedicated Lineage workspace for interactive upstream and downstream review.",
         ):
             st.session_state["app_page"] = "Lineage"
             st.rerun()
@@ -3903,13 +3957,13 @@ def page_lineage(
                 )
 
     table_lineage_tab, column_lineage_tab = st.tabs(
-        ["Table lineage", "Column lineage"]
+        ["Table Lineage", "Column Lineage"]
     )
 
     with table_lineage_tab:
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown("#### Upstream Table Detail")
+            st.markdown("#### Upstream Table Details")
             if lineage_up_error:
                 st.warning(f"Could not query upstream lineage: {lineage_up_error}")
             elif lineage_up.empty:
@@ -3917,7 +3971,7 @@ def page_lineage(
             else:
                 _render_data_table(lineage_up)
         with col2:
-            st.markdown("#### Downstream Table Detail")
+            st.markdown("#### Downstream Table Details")
             if lineage_down_error:
                 st.warning(f"Could not query downstream lineage: {lineage_down_error}")
             elif lineage_down.empty:
