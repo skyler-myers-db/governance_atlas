@@ -248,6 +248,14 @@ def _split_uc_name(name: str) -> Tuple[str, str, str]:
     return parts[0], parts[1], parts[2]
 
 
+def _catalog_schema_context(name: str) -> str:
+    try:
+        catalog, schema, _ = _split_uc_name(name)
+    except ValueError:
+        return ""
+    return " / ".join(part for part in [catalog, schema] if part)
+
+
 def _tag_value(tags: Dict[str, str], key: str) -> str:
     for alias in _STANDARD_TAG_ALIASES.get(key, (key,)):
         value = _normalize_str(tags.get(alias))
@@ -361,6 +369,8 @@ def _tags_editor(
                 rows.append(candidate)
                 st.session_state[rows_key] = rows
             st.rerun()
+    elif suggestions is not None:
+        st.caption("No existing workspace custom tags were found yet.")
     st.markdown(
         """
 <div class="gh-tags-header">
@@ -590,11 +600,9 @@ def _principal_option_map(principals_df: pd.DataFrame) -> Dict[str, str]:
     for row in principals_df.to_dict("records"):
         email = _normalize_str(row.get("email"))
         display_name = _normalize_str(row.get("display_name")) or email
-        principal_type = _normalize_str(row.get("principal_type")).replace("_", " ")
         if not email:
             continue
-        suffix = f" · {principal_type}" if principal_type else ""
-        labels[email] = f"{display_name} ({email}){suffix}"
+        labels[email] = f"{display_name} ({email})"
     return labels
 
 
@@ -1166,12 +1174,80 @@ def _render_styles() -> None:
     margin-top: 0.8rem;
   }
 
+  .gh-context-panel {
+    border-radius: 18px;
+    border: 1px solid var(--gh-border);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(244, 248, 255, 0.88));
+    padding: 1rem 1.05rem;
+    box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
+    margin-bottom: 1rem;
+  }
+
+  .gh-context-description {
+    color: var(--gh-text);
+    line-height: 1.65;
+    font-size: 0.96rem;
+    margin: 0 0 0.85rem 0;
+  }
+
+  .gh-context-facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem 0.85rem;
+  }
+
+  .gh-context-fact {
+    border-radius: 14px;
+    padding: 0.72rem 0.82rem;
+    background: rgba(247, 250, 255, 0.9);
+    border: 1px solid rgba(206, 218, 239, 0.8);
+  }
+
+  .gh-context-fact-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #657794;
+    margin-bottom: 0.22rem;
+  }
+
+  .gh-context-fact-value {
+    color: var(--gh-text);
+    font-weight: 700;
+    line-height: 1.4;
+  }
+
   .gh-lineage-node {
     padding: 0.9rem 1rem;
     border-radius: 18px;
     border: 1px solid var(--gh-border);
     background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(245, 240, 255, 0.82));
     margin-bottom: 0.7rem;
+  }
+
+  .gh-lineage-link {
+    display: block;
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  .gh-lineage-link:hover {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  .gh-lineage-link .gh-lineage-node {
+    transition:
+      transform 0.16s ease,
+      box-shadow 0.16s ease,
+      border-color 0.16s ease;
+  }
+
+  .gh-lineage-link:hover .gh-lineage-node {
+    transform: translateY(-1px);
+    border-color: rgba(96, 126, 213, 0.34);
+    box-shadow: 0 16px 28px rgba(22, 40, 81, 0.1);
   }
 
   .gh-lineage-node.focus {
@@ -1192,6 +1268,12 @@ def _render_styles() -> None:
     text-transform: uppercase;
     color: var(--gh-muted);
     margin-bottom: 0.35rem;
+  }
+
+  .gh-lineage-node .gh-asset-name {
+    font-size: 1.34rem;
+    font-weight: 820;
+    line-height: 1.2;
   }
 
   .gh-lineage-summary {
@@ -1557,23 +1639,66 @@ def _render_styles() -> None:
   }
 
   .gh-subsection-title {
-    margin: 0.35rem 0 0.6rem 0;
-    font-size: 1.28rem;
+    margin: 0.2rem 0 0.45rem 0;
+    font-size: 1.48rem;
     font-weight: 800;
     color: var(--gh-text);
     letter-spacing: -0.02em;
   }
 
   .gh-subsection-copy {
-    margin: -0.05rem 0 0.9rem 0;
+    margin: 0 0 0.55rem 0;
     color: var(--gh-muted);
     font-size: 0.88rem;
+  }
+
+  .gh-subsection-break {
+    height: 0.4rem;
   }
 
   .gh-help-rail {
     display: flex;
     justify-content: flex-end;
-    margin: -0.2rem 0 0.55rem 0;
+    align-items: center;
+    margin: 0;
+  }
+
+  .gh-help-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.45rem;
+    height: 2.45rem;
+    border-radius: 14px;
+    border: 1px solid var(--gh-border);
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--gh-text) !important;
+    font-weight: 800;
+    text-decoration: none !important;
+    box-shadow: 0 8px 20px rgba(18, 32, 63, 0.06);
+    transition:
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      transform 0.18s ease,
+      background 0.18s ease;
+  }
+
+  .gh-help-link:hover {
+    border-color: rgba(34, 87, 216, 0.28);
+    box-shadow: 0 14px 28px rgba(34, 87, 216, 0.16);
+    transform: translateY(-1px);
+    text-decoration: none !important;
+  }
+
+  .gh-help-link.active {
+    background: linear-gradient(
+      135deg,
+      rgba(49, 95, 216, 0.14) 0%,
+      rgba(109, 141, 255, 0.14) 52%,
+      rgba(148, 114, 255, 0.16) 100%
+    );
+    border-color: rgba(49, 95, 216, 0.22);
+    color: var(--gh-primary) !important;
   }
 
   .gh-tags-header {
@@ -2201,6 +2326,10 @@ def _asset_query_href(
     return "?" + urlencode(params)
 
 
+def _lineage_query_href(asset_fqn: str) -> str:
+    return "?" + urlencode({"lineage_asset": asset_fqn})
+
+
 def _split_request_tags(tags: Optional[Dict[str, str]]) -> Tuple[Dict[str, str], Dict[str, str]]:
     raw = dict(tags or {})
     special_keys = {
@@ -2416,12 +2545,49 @@ def _profile_header_html(asset: pd.Series) -> str:
     """
 
 
+def _overview_context_html(asset: pd.Series, detail_df: pd.DataFrame) -> str:
+    description = _normalize_str(asset.get("comment")) or (
+        "No business description has been added yet. Use the governance editor to document what this asset contains and how it should be used."
+    )
+    facts = [
+        ("Object Type", _format_object_type(_normalize_str(asset.get("table_type"))) or "Unavailable"),
+        ("Catalog / Schema", _catalog_schema_context(_normalize_str(asset.get("fqn"))) or "Unavailable"),
+    ]
+    if detail_df is not None and not detail_df.empty:
+        detail = detail_df.iloc[0]
+        facts.extend(
+            [
+                ("Format", _normalize_str(detail.get("format")) or "Unavailable"),
+                ("Rows", _format_count(detail.get("numRows"))),
+                ("Size", _format_bytes(detail.get("sizeInBytes"))),
+                ("Files", _format_count(detail.get("numFiles"))),
+            ]
+        )
+
+    facts_html = "".join(
+        f"""
+<div class="gh-context-fact">
+  <div class="gh-context-fact-label">{html.escape(label)}</div>
+  <div class="gh-context-fact-value">{html.escape(value)}</div>
+</div>
+        """
+        for label, value in facts
+    )
+    return f"""
+<div class="gh-context-panel">
+  <div class="gh-context-description">{html.escape(description)}</div>
+  <div class="gh-context-facts">{facts_html}</div>
+</div>
+    """
+
+
 def _lineage_node_html(
     label: str,
     fqn: str,
     tone: str = "neutral",
     focus: bool = False,
     object_type: str = "",
+    href: str = "",
 ) -> str:
     tone_class = {
         "source": "warn",
@@ -2430,17 +2596,24 @@ def _lineage_node_html(
     }.get(tone, "neutral")
     focus_class = "focus" if focus else ""
     table_name = fqn.split(".")[-1] if fqn else "No asset"
-    return f"""
+    context = _catalog_schema_context(fqn) or "External lineage asset"
+    node_html = f"""
 <div class="gh-lineage-node {focus_class}">
   <div class="gh-lineage-label">{html.escape(label)}</div>
   <div class="gh-asset-name">{html.escape(table_name)}</div>
-  <div class="gh-asset-fqn">{html.escape(fqn)}</div>
+  <div class="gh-asset-context">{html.escape(context)}</div>
   <div class="gh-badge-row">
     {_safe_badge(tone.title(), tone_class)}
     {_safe_badge(_format_object_type(object_type), "neutral")}
   </div>
 </div>
     """
+    if href:
+        return (
+            f"<a class='gh-lineage-link' href='{html.escape(href)}'>"
+            f"{node_html}</a>"
+        )
+    return node_html
 
 
 def _lineage_focus_summary_html(
@@ -2462,7 +2635,7 @@ def _lineage_focus_summary_html(
         priority_actions.append("set certification")
 
     if priority_actions:
-        review_note = "Start with " + ", then ".join(priority_actions[:2]) + "."
+        review_note = "Start by " + ", then ".join(priority_actions[:2]) + "."
     elif len(lineage_down) or len(col_down):
         review_note = "Review downstream consumers before making schema or semantic changes."
     else:
@@ -2648,6 +2821,33 @@ def _sync_asset_query_state(inventory: pd.DataFrame) -> None:
     _clear_asset_query_state()
 
 
+def _sync_lineage_query_state(inventory: pd.DataFrame) -> None:
+    try:
+        lineage_asset = _normalize_str(st.query_params.get("lineage_asset"))
+    except Exception:
+        lineage_asset = ""
+    if not lineage_asset:
+        return
+    if inventory.empty or lineage_asset not in inventory["fqn"].values:
+        _clear_lineage_query_state()
+        return
+    st.session_state["app_page"] = "Lineage"
+    st.session_state["selected_asset_fqn"] = lineage_asset
+    st.session_state["lineage_selector"] = lineage_asset
+    _clear_lineage_query_state()
+
+
+def _sync_help_query_state() -> None:
+    try:
+        open_help = _normalize_str(st.query_params.get("help"))
+    except Exception:
+        open_help = ""
+    if not open_help:
+        return
+    st.session_state["app_page"] = "Help"
+    _clear_help_query_state()
+
+
 def _clear_asset_query_state() -> None:
     for key in ["asset", "asset_section", "asset_focus", "column_edit"]:
         try:
@@ -2655,6 +2855,22 @@ def _clear_asset_query_state() -> None:
                 del st.query_params[key]
         except Exception:
             pass
+
+
+def _clear_lineage_query_state() -> None:
+    try:
+        if "lineage_asset" in st.query_params:
+            del st.query_params["lineage_asset"]
+    except Exception:
+        pass
+
+
+def _clear_help_query_state() -> None:
+    try:
+        if "help" in st.query_params:
+            del st.query_params["help"]
+    except Exception:
+        pass
 
 
 def _asset_selector(inventory: pd.DataFrame, key: str, label: str) -> Optional[str]:
@@ -2875,10 +3091,10 @@ def _render_asset_profile(
         detail_df = _cached_table_detail(uc, catalog, schema, table)
         left, right = st.columns([1.25, 1])
         with left:
-            st.markdown("#### Context")
-            st.write(
-                comment
-                or "No description has been added. Use the governance editor to document this asset."
+            st.markdown("#### Description")
+            st.markdown(
+                _overview_context_html(asset, detail_df),
+                unsafe_allow_html=True,
             )
             st.markdown("#### Ownership")
             if owners_df.empty:
@@ -3023,7 +3239,7 @@ def _render_asset_profile(
             with st.expander(f"Delta / Table Properties ({len(props_df)})", expanded=False):
                 _render_data_table(props_df)
 
-        st.divider()
+        st.markdown("<div class='gh-subsection-break'></div>", unsafe_allow_html=True)
         st.markdown("<div class='gh-subsection-title'>Columns</div>", unsafe_allow_html=True)
         st.markdown(
             "<div class='gh-subsection-copy'>Use the comment cell to add or update documentation for a specific column.</div>",
@@ -3174,8 +3390,12 @@ def _render_asset_profile(
         tags_df = _tags_map_to_df(asset_tags if isinstance(asset_tags, dict) else {})
         owners_df = store.get_owners(asset["fqn"])
         principals_df = _cached_workspace_principals(uc)
+        if not principals_df.empty and "principal_type" in principals_df.columns:
+            principals_df = principals_df[
+                principals_df["principal_type"].fillna("").astype(str).str.lower() == "user"
+            ].reset_index(drop=True)
         principal_labels = _principal_option_map(principals_df)
-        principal_options = [""] + list(principal_labels.keys())
+        principal_options = list(principal_labels.keys())
         is_writer = role in {"writer", "admin"}
         existing_tags = _df_to_tags_map(tags_df)
         existing_structured = _structured_tags(existing_tags)
@@ -3309,27 +3529,27 @@ def _render_asset_profile(
                 _render_data_table(owners_df)
             with st.form(f"owners_{asset['fqn']}"):
                 selected_principal = ""
-                if len(principal_options) > 1:
+                owner_email = ""
+                if principal_options:
                     selected_principal = st.selectbox(
-                        "Workspace principal",
+                        "Workspace user",
                         principal_options,
-                        format_func=lambda value: principal_labels.get(
-                            value, "Select a workspace principal"
-                        ),
+                        format_func=lambda value: principal_labels.get(value, value),
                         key=f"owner_principal_{asset['fqn']}",
                     )
-                owner_email = st.text_input(
-                    "Owner email",
-                    placeholder="name@company.com",
-                    key=f"owner_email_{asset['fqn']}",
-                )
+                else:
+                    owner_email = st.text_input(
+                        "Owner email",
+                        placeholder="name@company.com",
+                        key=f"owner_email_{asset['fqn']}",
+                    )
                 owner_type = st.selectbox(
                     "Owner type", ["technical", "business", "steward"]
                 )
                 if st.form_submit_button("Add or update owner", type="primary"):
                     resolved_owner_email = selected_principal or owner_email
                     if not _normalize_str(resolved_owner_email):
-                        st.error("Select a workspace principal or enter an owner email.")
+                        st.error("Select a workspace user or enter an owner email.")
                     else:
                         store.upsert_owner(
                             asset["fqn"], resolved_owner_email, owner_type, user_email
@@ -3382,19 +3602,19 @@ def _render_asset_profile(
                 key=f"proposal_sensitivity_{asset['fqn']}",
             )
             proposed_owner_principal = ""
-            if len(principal_options) > 1:
+            proposed_owner_email = ""
+            if principal_options:
                 proposed_owner_principal = proposal_cols[0].selectbox(
-                    "Proposed workspace principal",
+                    "Proposed workspace user",
                     principal_options,
-                    format_func=lambda value: principal_labels.get(
-                        value, "Select a workspace principal"
-                    ),
+                    format_func=lambda value: principal_labels.get(value, value),
                     key=f"proposal_owner_principal_{asset['fqn']}",
                 )
-            proposed_owner_email = proposal_cols[0].text_input(
-                "Proposed owner email",
-                key=f"proposal_owner_email_{asset['fqn']}",
-            )
+            else:
+                proposed_owner_email = proposal_cols[0].text_input(
+                    "Proposed owner email",
+                    key=f"proposal_owner_email_{asset['fqn']}",
+                )
             proposed_owner_type = proposal_cols[1].selectbox(
                 "Proposed owner type",
                 ["", "technical", "business", "steward"],
@@ -3571,12 +3791,6 @@ def page_lineage(
         exclude_fqn=selected_fqn,
     )
 
-    metrics = st.columns(4)
-    metrics[0].metric("Upstream Assets", len(lineage_up))
-    metrics[1].metric("Downstream Assets", len(lineage_down))
-    metrics[2].metric("Upstream Columns", len(col_up))
-    metrics[3].metric("Downstream Columns", len(col_down))
-
     l1, l2, l3 = st.columns([1.15, 0.9, 1.15])
     with l1:
         st.markdown("#### Upstream")
@@ -3592,6 +3806,9 @@ def page_lineage(
                         _normalize_str(row.source_table_full_name),
                         "source",
                         object_type=_normalize_str(getattr(row, "source_type", "")),
+                        href=_lineage_query_href(
+                            _normalize_str(row.source_table_full_name)
+                        ),
                     ),
                     unsafe_allow_html=True,
                 )
@@ -3633,6 +3850,9 @@ def page_lineage(
                         _normalize_str(row.target_table_full_name),
                         "target",
                         object_type=_normalize_str(getattr(row, "target_type", "")),
+                        href=_lineage_query_href(
+                            _normalize_str(row.target_table_full_name)
+                        ),
                     ),
                     unsafe_allow_html=True,
                 )
@@ -4367,6 +4587,8 @@ def main() -> None:
     st.session_state.pop("module_nav_page", None)
     st.session_state.pop("_last_module_nav_page", None)
     _sync_asset_query_state(inventory)
+    _sync_lineage_query_state(inventory)
+    _sync_help_query_state()
 
     module_options = ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"]
     current_page = st.session_state.get("app_page", "Discovery")
@@ -4386,16 +4608,15 @@ def main() -> None:
                         st.session_state["app_page"] = option
                         st.rerun()
     with nav_right:
-        if st.button(
-            "?",
-            key="utility_help",
-            use_container_width=True,
-            type="secondary",
-            help="Open help",
-        ):
-            if current_page != "Help":
-                st.session_state["app_page"] = "Help"
-                st.rerun()
+        help_class = " active" if current_page == "Help" else ""
+        st.markdown(
+            f"""
+<div class="gh-help-rail">
+  <a class="gh-help-link{help_class}" href="?help=1" title="Open help">?</a>
+</div>
+            """,
+            unsafe_allow_html=True,
+        )
 
     page = st.session_state.get("app_page", current_page)
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
