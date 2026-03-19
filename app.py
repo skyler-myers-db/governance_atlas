@@ -256,6 +256,42 @@ def _catalog_schema_context(name: str) -> str:
     return " / ".join(part for part in [catalog, schema] if part)
 
 
+def _lineage_asset_stub(inventory: pd.DataFrame, asset_fqn: str) -> pd.Series:
+    if not inventory.empty:
+        match = inventory[inventory["fqn"] == asset_fqn]
+        if not match.empty:
+            return match.iloc[0]
+    try:
+        catalog, schema, table = _split_uc_name(asset_fqn)
+    except ValueError:
+        catalog, schema, table = "", "", asset_fqn
+    base: Dict[str, Any] = {}
+    if not inventory.empty:
+        base = {column: "" for column in inventory.columns}
+    base.update(
+        {
+            "fqn": asset_fqn,
+            "table_catalog": catalog,
+            "table_schema": schema,
+            "table_name": table,
+            "table_type": "",
+            "comment": "",
+            "governance_score": 0,
+            "pending_requests": 0,
+            "owner_count": 0,
+            "governance_status": "Needs Work",
+            "tags": {},
+            "domain": "",
+            "tier": "",
+            "certification": "",
+            "sensitivity": "",
+            "criticality": "",
+            "steward": "",
+        }
+    )
+    return pd.Series(base)
+
+
 def _tag_value(tags: Dict[str, str], key: str) -> str:
     for alias in _STANDARD_TAG_ALIASES.get(key, (key,)):
         value = _normalize_str(tags.get(alias))
@@ -491,14 +527,7 @@ def _button_nav(
 def _route_link_attrs(href: str, classes: str) -> str:
     safe_href = html.escape(href, quote=True)
     safe_classes = html.escape(classes, quote=True)
-    return (
-        f'class="{safe_classes}" '
-        f'href="{safe_href}" '
-        'onclick="if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { '
-        'return window.__ghNavigate ? '
-        "window.__ghNavigate(event, this.getAttribute('href')) : (event.preventDefault(), window.location.assign(this.getAttribute('href')), false);"
-        '} return true;"'
-    )
+    return f'class="{safe_classes}" href="{safe_href}" data-gh-route="1"'
 
 
 def _render_data_table(df: pd.DataFrame, *, max_rows: int = 200) -> None:
@@ -978,6 +1007,7 @@ def _render_styles() -> None:
     display: block;
     color: inherit !important;
     text-decoration: none !important;
+    cursor: pointer;
   }
 
   .gh-asset-main-link:hover,
@@ -988,8 +1018,11 @@ def _render_styles() -> None:
 
   .gh-asset-card:hover {
     transform: translateY(-1px);
-    border-color: rgba(96, 126, 213, 0.34);
-    box-shadow: 0 18px 32px rgba(22, 40, 81, 0.1);
+    border-color: rgba(255, 133, 96, 0.36);
+    box-shadow:
+      0 0 0 2px rgba(255, 146, 110, 0.24),
+      0 18px 32px rgba(22, 40, 81, 0.1),
+      0 0 24px rgba(255, 146, 110, 0.12);
   }
 
   .gh-asset-card.active {
@@ -1013,7 +1046,7 @@ def _render_styles() -> None:
   }
 
   .gh-asset-name {
-    font-size: 1.48rem;
+    font-size: 1.56rem;
     font-weight: 820;
     color: var(--gh-text);
     line-height: 1.22;
@@ -1246,6 +1279,7 @@ def _render_styles() -> None:
     display: block;
     text-decoration: none !important;
     color: inherit !important;
+    cursor: pointer;
   }
 
   .gh-lineage-link:hover {
@@ -1262,8 +1296,11 @@ def _render_styles() -> None:
 
   .gh-lineage-link:hover .gh-lineage-node {
     transform: translateY(-1px);
-    border-color: rgba(96, 126, 213, 0.34);
-    box-shadow: 0 16px 28px rgba(22, 40, 81, 0.1);
+    border-color: rgba(255, 133, 96, 0.34);
+    box-shadow:
+      0 0 0 2px rgba(255, 146, 110, 0.2),
+      0 16px 28px rgba(22, 40, 81, 0.1),
+      0 0 22px rgba(255, 146, 110, 0.1);
   }
 
   .gh-lineage-node.focus {
@@ -1287,7 +1324,7 @@ def _render_styles() -> None:
   }
 
   .gh-lineage-node .gh-asset-name {
-    font-size: 1.26rem;
+    font-size: 1.18rem;
     font-weight: 820;
     line-height: 1.2;
   }
@@ -1401,8 +1438,11 @@ def _render_styles() -> None:
       rgba(249, 238, 255, 0.94) 100%
     ) !important;
     background-color: rgba(255, 246, 241, 0.97) !important;
-    border-color: rgba(255, 118, 82, 0.34) !important;
-    box-shadow: 0 14px 28px rgba(255, 118, 82, 0.16) !important;
+    border-color: rgba(255, 118, 82, 0.48) !important;
+    box-shadow:
+      0 0 0 2px rgba(255, 142, 104, 0.26),
+      0 14px 28px rgba(255, 118, 82, 0.16),
+      0 0 18px rgba(255, 142, 104, 0.14) !important;
     transform: translateY(-1px);
   }
 
@@ -1455,7 +1495,9 @@ def _render_styles() -> None:
     background-color: var(--gh-primary-strong) !important;
     color: #ffffff !important;
     box-shadow:
+      0 0 0 2px rgba(255, 145, 108, 0.34),
       0 14px 28px rgba(42, 86, 219, 0.18),
+      0 0 20px rgba(255, 145, 108, 0.18),
       0 0 0 1px rgba(255, 124, 92, 0.18) inset !important;
   }
 
@@ -1993,10 +2035,11 @@ def _install_client_bootstrap() -> None:
 <script>
 (function() {
   try {
-    const rootWindow = window.parent || window;
+    const rootWindow =
+      window.parent && window.parent.document ? window.parent : window;
     const storage = rootWindow.sessionStorage;
     const key = "gh-scroll-y";
-    const doc = window.document;
+    const doc = rootWindow.document || window.document;
     const nodes = [
       doc.querySelector('[data-testid="stAppViewContainer"]'),
       doc.querySelector('section.main'),
@@ -2037,36 +2080,44 @@ def _install_client_bootstrap() -> None:
       rootWindow.__ghScrollInstalled = true;
     }
 
-    const navigate = (event, href) => {
+    const routeHandler = (event) => {
       try {
-        if (!href) {
-          return true;
+        const target = event.target;
+        const anchor =
+          target && typeof target.closest === "function"
+            ? target.closest('a.gh-route-link[data-gh-route="1"]')
+            : null;
+        if (!anchor || event.defaultPrevented) {
+          return;
         }
         if (
-          event &&
-          (event.button !== 0 ||
-            event.metaKey ||
-            event.ctrlKey ||
-            event.shiftKey ||
-            event.altKey)
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
         ) {
-          return true;
+          return;
+        }
+        const href = anchor.getAttribute("href");
+        if (!href) {
+          return;
         }
         capture();
-        if (event) {
-          event.preventDefault();
+        event.preventDefault();
+        event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === "function") {
+          event.stopImmediatePropagation();
         }
-        window.location.assign(href);
-        return false;
-      } catch (error) {
-        return true;
-      }
+        const resolved = new URL(href, rootWindow.location.href).toString();
+        rootWindow.location.assign(resolved);
+      } catch (error) {}
     };
 
-    window.__ghNavigate = navigate;
-    try {
-      rootWindow.__ghNavigate = navigate;
-    } catch (error) {}
+    if (!rootWindow.__ghRouteInstalled) {
+      doc.addEventListener("click", routeHandler, true);
+      rootWindow.__ghRouteInstalled = true;
+    }
 
     restore();
   } catch (error) {}
@@ -2418,9 +2469,7 @@ def _lineage_query_href(asset_fqn: str) -> str:
 
 def _lineage_href_if_known(asset_fqn: str, visible_assets: set[str]) -> str:
     normalized = _normalize_str(asset_fqn)
-    if not normalized or not visible_assets:
-        return ""
-    if normalized not in visible_assets:
+    if not normalized:
         return ""
     return _lineage_query_href(normalized)
 
@@ -2920,9 +2969,6 @@ def _sync_lineage_query_state(inventory: pd.DataFrame) -> None:
         lineage_asset = ""
     if not lineage_asset:
         return
-    if inventory.empty or lineage_asset not in inventory["fqn"].values:
-        _clear_lineage_query_state()
-        return
     st.session_state["app_page"] = "Lineage"
     st.session_state["selected_asset_fqn"] = lineage_asset
     st.session_state["lineage_selector"] = lineage_asset
@@ -2970,13 +3016,21 @@ def _clear_help_query_state() -> None:
         pass
 
 
-def _asset_selector(inventory: pd.DataFrame, key: str, label: str) -> Optional[str]:
-    if inventory.empty:
-        return None
-    options = inventory["fqn"].tolist()
+def _asset_selector(
+    inventory: pd.DataFrame,
+    key: str,
+    label: str,
+    *,
+    allow_external_current: bool = False,
+) -> Optional[str]:
+    options = inventory["fqn"].tolist() if not inventory.empty else []
     current_value = _normalize_str(
         st.session_state.get(key) or st.session_state.get("selected_asset_fqn", "")
     )
+    if allow_external_current and current_value and current_value not in options:
+        options = [current_value] + options
+    if not options:
+        return None
     if current_value not in options:
         current_value = options[0]
     if st.session_state.get(key) != current_value:
@@ -3861,12 +3915,17 @@ def page_lineage(
         "Lineage",
         "Review upstream producers, downstream consumers, and column lineage for the selected asset before making a schema or pipeline change.",
     )
-    selected_fqn = _asset_selector(inventory, "lineage_selector", "Asset")
+    selected_fqn = _asset_selector(
+        inventory,
+        "lineage_selector",
+        "Asset",
+        allow_external_current=True,
+    )
     if not selected_fqn:
         st.info("Select an asset to explore lineage.")
         return
 
-    asset = inventory[inventory["fqn"] == selected_fqn].iloc[0]
+    asset = _lineage_asset_stub(inventory, selected_fqn)
     visible_assets = set(inventory["fqn"].tolist())
     catalog, schema, table = _split_uc_name(selected_fqn)
     with st.spinner("Loading lineage..."):
