@@ -282,6 +282,47 @@ ORDER BY tc.constraint_name, kcu.ordinal_position"""
         parts = ", ".join(quote_ident(k) for k in tag_keys)
         self.execute(f"ALTER TABLE {full} UNSET TAGS ({parts})")
 
+    def list_workspace_principals(self) -> pd.DataFrame:
+        rows: List[Dict[str, str]] = []
+        try:
+            for user in self.w.users.list():
+                email = _get(user, "user_name") or _get(user, "emails", "value")
+                display = _get(user, "display_name") or email
+                if email:
+                    rows.append(
+                        {
+                            "email": str(email),
+                            "display_name": str(display or email),
+                            "principal_type": "user",
+                        }
+                    )
+        except Exception:
+            pass
+        try:
+            for sp in self.w.service_principals.list():
+                app_id = _get(sp, "application_id") or _get(sp, "id")
+                display = _get(sp, "display_name") or app_id
+                if app_id:
+                    rows.append(
+                        {
+                            "email": str(app_id),
+                            "display_name": str(display or app_id),
+                            "principal_type": "service_principal",
+                        }
+                    )
+        except Exception:
+            pass
+        if not rows:
+            return pd.DataFrame(
+                columns=["email", "display_name", "principal_type"]
+            )
+        return (
+            pd.DataFrame(rows)
+            .drop_duplicates(subset=["email"])
+            .sort_values(["display_name", "email"])
+            .reset_index(drop=True)
+        )
+
     # ── Lineage from UC system tables ───────────────────────
 
     def get_table_lineage_upstream(
