@@ -523,12 +523,43 @@ def _button_nav(
                 use_container_width=True,
                 type="primary" if option == current else "secondary",
                 disabled=option in disabled,
-                help=(help_map or {}).get(option),
             ):
                 if option != current:
                     st.session_state[state_key] = option
                     st.rerun()
+    if help_map:
+        _attach_button_titles(help_map)
     return st.session_state.get(state_key, current)
+
+
+def _attach_button_titles(title_map: Optional[Dict[str, str]]) -> None:
+    if not title_map:
+        return
+    payload = json.dumps({key: value for key, value in title_map.items() if value})
+    components.html(
+        f"""
+<script>
+(function() {{
+  try {{
+    const rootWindow =
+      window.parent && window.parent.document ? window.parent : window;
+    const doc = rootWindow.document || window.document;
+    const titleMap = {payload};
+    Object.entries(titleMap).forEach(([label, title]) => {{
+      doc.querySelectorAll('button').forEach((button) => {{
+        const text = (button.innerText || button.textContent || '').trim();
+        if (text === label) {{
+          button.setAttribute('title', title);
+        }}
+      }});
+    }});
+  }} catch (error) {{}}
+}})();
+</script>
+        """,
+        height=0,
+        width=0,
+    )
 
 
 def _route_link_attrs(href: str, classes: str) -> str:
@@ -2581,34 +2612,78 @@ def _schema_scope_options(
     return ["All Schemas"] + sorted(values)
 
 
-def _column_scope_options(col_up: pd.DataFrame, col_down: pd.DataFrame) -> List[str]:
+def _catalog_scope_options(
+    lineage_up: pd.DataFrame,
+    lineage_down: pd.DataFrame,
+    col_up: pd.DataFrame,
+    col_down: pd.DataFrame,
+) -> List[str]:
     values: set[str] = set()
-    if col_up is not None and not col_up.empty and "target_column_name" in col_up.columns:
-        values.update(
-            _normalize_str(value)
-            for value in col_up["target_column_name"].tolist()
-            if _normalize_str(value)
-        )
-    if col_down is not None and not col_down.empty and "source_column_name" in col_down.columns:
-        values.update(
-            _normalize_str(value)
-            for value in col_down["source_column_name"].tolist()
-            if _normalize_str(value)
-        )
-    return ["All Columns"] + sorted(values)
+    for df, column in [
+        (lineage_up, "source_table_full_name"),
+        (lineage_down, "target_table_full_name"),
+        (col_up, "source_table_full_name"),
+        (col_down, "target_table_full_name"),
+    ]:
+        if df is None or df.empty or column not in df.columns:
+            continue
+        for raw in df[column].tolist():
+            try:
+                catalog, _, _ = _split_uc_name(_normalize_str(raw))
+            except ValueError:
+                continue
+            if catalog:
+                values.add(catalog)
+    return ["All Catalogs"] + sorted(values)
 
 
-def _apply_schema_scope(df: pd.DataFrame, column: str, scope: str) -> pd.DataFrame:
-    if df is None or df.empty or scope == "All Schemas" or column not in df.columns:
+def _schema_name_scope_options(
+    lineage_up: pd.DataFrame,
+    lineage_down: pd.DataFrame,
+    col_up: pd.DataFrame,
+    col_down: pd.DataFrame,
+    catalog_scope: str,
+) -> List[str]:
+    values: set[str] = set()
+    for df, column in [
+        (lineage_up, "source_table_full_name"),
+        (lineage_down, "target_table_full_name"),
+        (col_up, "source_table_full_name"),
+        (col_down, "target_table_full_name"),
+    ]:
+        if df is None or df.empty or column not in df.columns:
+            continue
+        for raw in df[column].tolist():
+            try:
+                catalog, schema, _ = _split_uc_name(_normalize_str(raw))
+            except ValueError:
+                continue
+            if catalog_scope != "All Catalogs" and catalog != catalog_scope:
+                continue
+            if schema:
+                values.add(schema)
+    return ["All Schemas"] + sorted(values)
+
+
+def _apply_catalog_scope(df: pd.DataFrame, column: str, scope: str) -> pd.DataFrame:
+    if df is None or df.empty or scope == "All Catalogs" or column not in df.columns:
         return df
-    mask = df[column].map(lambda value: _catalog_schema_context(_normalize_str(value)) == scope)
+    mask = df[column].map(
+        lambda value: _split_uc_name(_normalize_str(value))[0]
+        if _normalize_str(value).count(".") == 2
+        else ""
+    ) == scope
     return df.loc[mask].reset_index(drop=True)
 
 
-def _apply_column_scope(df: pd.DataFrame, column: str, scope: str) -> pd.DataFrame:
-    if df is None or df.empty or scope == "All Columns" or column not in df.columns:
+def _apply_schema_name_scope(df: pd.DataFrame, column: str, scope: str) -> pd.DataFrame:
+    if df is None or df.empty or scope == "All Schemas" or column not in df.columns:
         return df
-    mask = df[column].map(lambda value: _normalize_str(value) == scope)
+    mask = df[column].map(
+        lambda value: _split_uc_name(_normalize_str(value))[1]
+        if _normalize_str(value).count(".") == 2
+        else ""
+    ) == scope
     return df.loc[mask].reset_index(drop=True)
 
 
@@ -4028,27 +4103,44 @@ def page_lineage(
     )
 
     filter_cols = st.columns(2)
+    catalog_key = f"lineage_catalog_scope_{selected_fqn}"
+    schema_key = f"lineage_schema_scope_{selected_fqn}"
+    catalog_options = _catalog_scope_options(lineage_up, lineage_down, col_up, col_down)
+    if st.session_state.get(catalog_key) not in catalog_options:
+        st.session_state[catalog_key] = catalog_options[0]
     with filter_cols[0]:
-        schema_scope = st.selectbox(
-            "Schema Scope",
-            _schema_scope_options(lineage_up, lineage_down, col_up, col_down),
-            key=f"lineage_schema_scope_{selected_fqn}",
-            help="Limit lineage results to one catalog/schema context when reviewing multi-hop dependencies.",
-        )
-    with filter_cols[1]:
-        column_scope = st.selectbox(
-            "Column Scope",
-            _column_scope_options(col_up, col_down),
-            key=f"lineage_column_scope_{selected_fqn}",
-            help="Focus column lineage on one selected asset column.",
+        catalog_scope = st.selectbox(
+            "Catalog Scope",
+            catalog_options,
+            key=catalog_key,
+            help="Limit lineage results to one catalog when reviewing dependencies across environments.",
         )
 
-    lineage_up_view = _apply_schema_scope(lineage_up, "source_table_full_name", schema_scope)
-    lineage_down_view = _apply_schema_scope(lineage_down, "target_table_full_name", schema_scope)
-    col_up_view = _apply_schema_scope(col_up, "source_table_full_name", schema_scope)
-    col_down_view = _apply_schema_scope(col_down, "target_table_full_name", schema_scope)
-    col_up_view = _apply_column_scope(col_up_view, "target_column_name", column_scope)
-    col_down_view = _apply_column_scope(col_down_view, "source_column_name", column_scope)
+    schema_options = _schema_name_scope_options(
+        lineage_up,
+        lineage_down,
+        col_up,
+        col_down,
+        st.session_state[catalog_key],
+    )
+    if st.session_state.get(schema_key) not in schema_options:
+        st.session_state[schema_key] = schema_options[0]
+    with filter_cols[1]:
+        schema_scope = st.selectbox(
+            "Schema Scope",
+            schema_options,
+            key=schema_key,
+            help="Refine the lineage view to one schema inside the selected catalog.",
+        )
+
+    lineage_up_view = _apply_catalog_scope(lineage_up, "source_table_full_name", catalog_scope)
+    lineage_down_view = _apply_catalog_scope(lineage_down, "target_table_full_name", catalog_scope)
+    col_up_view = _apply_catalog_scope(col_up, "source_table_full_name", catalog_scope)
+    col_down_view = _apply_catalog_scope(col_down, "target_table_full_name", catalog_scope)
+    lineage_up_view = _apply_schema_name_scope(lineage_up_view, "source_table_full_name", schema_scope)
+    lineage_down_view = _apply_schema_name_scope(lineage_down_view, "target_table_full_name", schema_scope)
+    col_up_view = _apply_schema_name_scope(col_up_view, "source_table_full_name", schema_scope)
+    col_down_view = _apply_schema_name_scope(col_down_view, "target_table_full_name", schema_scope)
 
     l1, l2, l3 = st.columns([1.15, 0.9, 1.15])
     with l1:
@@ -4869,7 +4961,6 @@ def main() -> None:
                 key=f"app_page_{option}",
                 use_container_width=True,
                 type="primary" if page == option else "secondary",
-                help=module_help[option],
             ):
                 if page != option:
                     st.session_state["app_page"] = option
@@ -4885,6 +4976,7 @@ def main() -> None:
             if page != "Help":
                 st.session_state["app_page"] = "Help"
                 st.rerun()
+    _attach_button_titles({**module_help, "?": "Open Help"})
 
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
