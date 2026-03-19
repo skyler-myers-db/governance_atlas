@@ -206,6 +206,16 @@ ORDER BY tag_name"""
         except Exception:
             return pd.DataFrame()
 
+    def get_table_row_count(self, catalog: str, schema: str, table: str) -> Any:
+        full = quote_uc_3part(catalog, schema, table)
+        try:
+            df = self.query_df(f"SELECT COUNT(*) AS row_count FROM {full}")
+        except Exception:
+            return None
+        if df.empty or "row_count" not in df.columns:
+            return None
+        return df.iloc[0]["row_count"]
+
     def get_table_properties(
         self, catalog: str, schema: str, table: str
     ) -> pd.DataFrame:
