@@ -427,6 +427,141 @@ LIMIT {int(limit)}
 """
         return self.query_df(q)
 
+    def _empty_operational_context_df(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            columns=[
+                "related_table_full_name",
+                "related_table_catalog",
+                "related_table_schema",
+                "related_table_name",
+                "related_type",
+                "entity_type",
+                "entity_id",
+                "entity_run_id",
+                "statement_id",
+                "entity_metadata",
+            ]
+        )
+
+    def get_operational_context_upstream(
+        self, catalog: str, schema: str, table: str, limit: int = 200
+    ) -> pd.DataFrame:
+        """Operational context for workloads that produced this table.
+
+        This stays live-first and queries the same Unity Catalog lineage plane the app
+        already uses for table and column lineage. When richer workload fields are not
+        available in a workspace, return an empty frame instead of failing the page.
+        """
+        queries = [
+            f"""
+SELECT
+    source_table_full_name AS related_table_full_name,
+    source_table_catalog   AS related_table_catalog,
+    source_table_schema    AS related_table_schema,
+    source_table_name      AS related_table_name,
+    source_type            AS related_type,
+    CAST(entity_type AS STRING)      AS entity_type,
+    CAST(entity_id AS STRING)        AS entity_id,
+    CAST(entity_run_id AS STRING)    AS entity_run_id,
+    CAST(statement_id AS STRING)     AS statement_id,
+    CAST(entity_metadata AS STRING)  AS entity_metadata
+FROM system.access.table_lineage
+WHERE target_table_catalog = {sql_literal(catalog)}
+  AND target_table_schema  = {sql_literal(schema)}
+  AND target_table_name    = {sql_literal(table)}
+  AND source_table_name IS NOT NULL
+  AND entity_type IS NOT NULL
+GROUP BY ALL
+ORDER BY entity_type, statement_id, entity_id, entity_run_id, related_table_full_name
+LIMIT {int(limit)}
+""",
+            f"""
+SELECT
+    source_table_full_name AS related_table_full_name,
+    source_table_catalog   AS related_table_catalog,
+    source_table_schema    AS related_table_schema,
+    source_table_name      AS related_table_name,
+    source_type            AS related_type,
+    CAST(entity_type AS STRING)      AS entity_type,
+    CAST(entity_id AS STRING)        AS entity_id,
+    CAST(entity_run_id AS STRING)    AS entity_run_id,
+    CAST(statement_id AS STRING)     AS statement_id,
+    '' AS entity_metadata
+FROM system.access.table_lineage
+WHERE target_table_catalog = {sql_literal(catalog)}
+  AND target_table_schema  = {sql_literal(schema)}
+  AND target_table_name    = {sql_literal(table)}
+  AND source_table_name IS NOT NULL
+  AND entity_type IS NOT NULL
+GROUP BY ALL
+ORDER BY entity_type, statement_id, entity_id, entity_run_id, related_table_full_name
+LIMIT {int(limit)}
+""",
+        ]
+        for query in queries:
+            try:
+                return self.query_df(query)
+            except Exception:
+                continue
+        return self._empty_operational_context_df()
+
+    def get_operational_context_downstream(
+        self, catalog: str, schema: str, table: str, limit: int = 200
+    ) -> pd.DataFrame:
+        """Operational context for workloads that consume this table downstream."""
+        queries = [
+            f"""
+SELECT
+    target_table_full_name AS related_table_full_name,
+    target_table_catalog   AS related_table_catalog,
+    target_table_schema    AS related_table_schema,
+    target_table_name      AS related_table_name,
+    target_type            AS related_type,
+    CAST(entity_type AS STRING)      AS entity_type,
+    CAST(entity_id AS STRING)        AS entity_id,
+    CAST(entity_run_id AS STRING)    AS entity_run_id,
+    CAST(statement_id AS STRING)     AS statement_id,
+    CAST(entity_metadata AS STRING)  AS entity_metadata
+FROM system.access.table_lineage
+WHERE source_table_catalog = {sql_literal(catalog)}
+  AND source_table_schema  = {sql_literal(schema)}
+  AND source_table_name    = {sql_literal(table)}
+  AND target_table_name IS NOT NULL
+  AND entity_type IS NOT NULL
+GROUP BY ALL
+ORDER BY entity_type, statement_id, entity_id, entity_run_id, related_table_full_name
+LIMIT {int(limit)}
+""",
+            f"""
+SELECT
+    target_table_full_name AS related_table_full_name,
+    target_table_catalog   AS related_table_catalog,
+    target_table_schema    AS related_table_schema,
+    target_table_name      AS related_table_name,
+    target_type            AS related_type,
+    CAST(entity_type AS STRING)      AS entity_type,
+    CAST(entity_id AS STRING)        AS entity_id,
+    CAST(entity_run_id AS STRING)    AS entity_run_id,
+    CAST(statement_id AS STRING)     AS statement_id,
+    '' AS entity_metadata
+FROM system.access.table_lineage
+WHERE source_table_catalog = {sql_literal(catalog)}
+  AND source_table_schema  = {sql_literal(schema)}
+  AND source_table_name    = {sql_literal(table)}
+  AND target_table_name IS NOT NULL
+  AND entity_type IS NOT NULL
+GROUP BY ALL
+ORDER BY entity_type, statement_id, entity_id, entity_run_id, related_table_full_name
+LIMIT {int(limit)}
+""",
+        ]
+        for query in queries:
+            try:
+                return self.query_df(query)
+            except Exception:
+                continue
+        return self._empty_operational_context_df()
+
     # ── Column-level metadata ───────────────────────────────
 
     def set_column_comment(
