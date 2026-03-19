@@ -200,6 +200,20 @@ def _cached_col_lineage_down(
 
 
 @st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_operational_context_up(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    return _uc.get_operational_context_upstream(catalog, schema, table)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_operational_context_down(
+    _uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    return _uc.get_operational_context_downstream(catalog, schema, table)
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_sample_rows(
     _uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:
@@ -500,6 +514,284 @@ def _format_object_type(raw: str) -> str:
     if value in labels:
         return labels[value]
     return value.replace("_", " ").title()
+
+
+def _format_entity_type(raw: str) -> str:
+    value = _normalize_str(raw).upper()
+    if not value:
+        return "Workload"
+    labels = {
+        "JOB": "Job",
+        "WORKFLOW": "Workflow",
+        "PIPELINE": "Pipeline",
+        "LAKEFLOW_PIPELINE": "Lakeflow Pipeline",
+        "DLT_PIPELINE": "DLT Pipeline",
+        "NOTEBOOK": "Notebook",
+        "SQL": "SQL",
+        "SQL_QUERY": "SQL Query",
+        "QUERY": "Query",
+        "STATEMENT": "Statement",
+        "DASHBOARD": "Dashboard",
+    }
+    if value in labels:
+        return labels[value]
+    return value.replace("_", " ").title()
+
+
+def _parse_metadata_dict(raw: Any) -> Dict[str, Any]:
+    if isinstance(raw, dict):
+        return raw
+    text = _normalize_str(raw)
+    if not text:
+        return {}
+    try:
+        parsed = json.loads(text)
+    except Exception:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _flatten_metadata(metadata: Any, prefix: str = "") -> Dict[str, str]:
+    flattened: Dict[str, str] = {}
+    if isinstance(metadata, dict):
+        for key, value in metadata.items():
+            next_prefix = f"{prefix}.{key}" if prefix else str(key)
+            flattened.update(_flatten_metadata(value, next_prefix))
+        return flattened
+    if isinstance(metadata, list):
+        simple_values = [
+            _normalize_str(value)
+            for value in metadata
+            if not isinstance(value, (dict, list)) and _normalize_str(value)
+        ]
+        if simple_values and prefix:
+            flattened[prefix] = ", ".join(simple_values[:5])
+        for idx, value in enumerate(metadata[:5]):
+            if isinstance(value, (dict, list)):
+                next_prefix = f"{prefix}[{idx}]" if prefix else f"[{idx}]"
+                flattened.update(_flatten_metadata(value, next_prefix))
+        return flattened
+    text = _normalize_str(metadata)
+    if prefix and text:
+        flattened[prefix] = text
+    return flattened
+
+
+def _metadata_value(flattened: Dict[str, str], candidates: List[str]) -> str:
+    if not flattened:
+        return ""
+    lowered = {key.lower(): value for key, value in flattened.items()}
+    for candidate in candidates:
+        candidate_l = candidate.lower()
+        if candidate_l in lowered and _normalize_str(lowered[candidate_l]):
+            return _normalize_str(lowered[candidate_l])
+    for key, value in lowered.items():
+        if any(key.endswith(candidate.lower()) for candidate in candidates) and _normalize_str(value):
+            return _normalize_str(value)
+    return ""
+
+
+def _short_identifier(value: str) -> str:
+    text = _normalize_str(value)
+    if len(text) <= 16:
+        return text
+    return f"{text[:8]}…{text[-4:]}"
+
+
+def _operational_group_key(row: pd.Series) -> str:
+    entity_type = _normalize_str(row.get("entity_type"))
+    entity_id = _normalize_str(row.get("entity_id"))
+    run_id = _normalize_str(row.get("entity_run_id"))
+    statement_id = _normalize_str(row.get("statement_id"))
+    metadata = _normalize_str(row.get("entity_metadata"))
+    if any([entity_id, run_id, statement_id, metadata]):
+        return "||".join([entity_type, entity_id, run_id, statement_id, metadata])
+    return "||".join(
+        [
+            entity_type,
+            _normalize_str(row.get("related_table_full_name")),
+            _normalize_str(row.get("related_type")),
+        ]
+    )
+
+
+def _summarize_operational_context(
+    df: pd.DataFrame,
+    *,
+    direction: str,
+) -> List[Dict[str, Any]]:
+    if df is None or df.empty:
+        return []
+    view = df.fillna("").copy()
+    view["_group_key"] = view.apply(_operational_group_key, axis=1)
+    cards: List[Dict[str, Any]] = []
+    for _, group in view.groupby("_group_key", sort=False):
+        row = group.iloc[0]
+        metadata = _parse_metadata_dict(row.get("entity_metadata"))
+        flat = _flatten_metadata(metadata)
+        entity_label = _format_entity_type(row.get("entity_type"))
+        title = _metadata_value(
+            flat,
+            [
+                "display_name",
+                "displayName",
+                "name",
+                "job_name",
+                "pipeline_name",
+                "dashboard_name",
+                "query_name",
+                "notebook_path",
+                "path",
+                "workspace_path",
+                "statement_text",
+                "query_text",
+                "title",
+            ],
+        )
+        if not title:
+            fallback_id = (
+                _normalize_str(row.get("entity_id"))
+                or _normalize_str(row.get("statement_id"))
+                or _normalize_str(row.get("entity_run_id"))
+            )
+            title = (
+                f"{entity_label} {_short_identifier(fallback_id)}".strip()
+                if fallback_id
+                else entity_label
+            )
+        title = shorten(title, width=80, placeholder="…")
+        subtitle = _metadata_value(
+            flat,
+            [
+                "notebook_path",
+                "workspace_path",
+                "path",
+                "pipeline_id",
+                "job_id",
+                "dashboard_id",
+                "warehouse_id",
+            ],
+        )
+        if not subtitle:
+            parts = []
+            if _normalize_str(row.get("entity_id")):
+                parts.append(f"ID {_short_identifier(_normalize_str(row.get('entity_id')))}")
+            if _normalize_str(row.get("entity_run_id")):
+                parts.append(f"Run {_short_identifier(_normalize_str(row.get('entity_run_id')))}")
+            if _normalize_str(row.get("statement_id")):
+                parts.append(f"Stmt {_short_identifier(_normalize_str(row.get('statement_id')))}")
+            subtitle = " · ".join(parts[:2])
+        note = _metadata_value(
+            flat,
+            ["description", "query_text", "statement_text", "details", "query"]
+        )
+        related_assets = [
+            _normalize_str(value)
+            for value in group["related_table_full_name"].tolist()
+            if _normalize_str(value)
+        ]
+        related_assets = list(dict.fromkeys(related_assets))
+        related_context = [
+            _catalog_schema_context(fqn) or fqn.split(".")[-1]
+            for fqn in related_assets[:3]
+        ]
+        cards.append(
+            {
+                "entity_label": entity_label,
+                "title": title,
+                "subtitle": subtitle,
+                "note": shorten(note, width=150, placeholder="…") if note else "",
+                "asset_count": len(related_assets),
+                "assets_label": (
+                    "upstream assets" if direction == "upstream" else "downstream assets"
+                ),
+                "related_context": related_context,
+            }
+        )
+    cards.sort(key=lambda item: (item["entity_label"], item["title"]))
+    return cards[:8]
+
+
+def _operational_context_card_html(item: Dict[str, Any]) -> str:
+    related_html = "".join(
+        f"<span class='gh-operational-pill'>{html.escape(value)}</span>"
+        for value in item.get("related_context", [])
+    )
+    note_html = (
+        f"<div class='gh-operational-note'>{html.escape(item['note'])}</div>"
+        if _normalize_str(item.get("note"))
+        else ""
+    )
+    subtitle_html = (
+        f"<div class='gh-operational-subtitle'>{html.escape(item['subtitle'])}</div>"
+        if _normalize_str(item.get("subtitle"))
+        else ""
+    )
+    return f"""
+<div class="gh-operational-card">
+  <div class="gh-operational-head">
+    <div>
+      <div class="gh-operational-type">{html.escape(item['entity_label'])}</div>
+      <div class="gh-operational-title">{html.escape(item['title'])}</div>
+      {subtitle_html}
+    </div>
+    <div class="gh-operational-count">
+      {int(item['asset_count'])} {html.escape(item['assets_label'])}
+    </div>
+  </div>
+  {note_html}
+  <div class="gh-operational-pill-row">{related_html}</div>
+</div>
+    """
+
+
+def _render_operational_context_section(
+    upstream_df: pd.DataFrame,
+    downstream_df: pd.DataFrame,
+    upstream_error: Optional[str],
+    downstream_error: Optional[str],
+) -> None:
+    upstream_cards = _summarize_operational_context(upstream_df, direction="upstream")
+    downstream_cards = _summarize_operational_context(
+        downstream_df, direction="downstream"
+    )
+    st.markdown(
+        """
+<div class="gh-operational-section">
+  <div class="gh-panel-label">Operational Context</div>
+  <div class="gh-section-copy">
+    Review the workload context behind this lineage, including jobs, pipelines,
+    notebooks, statements, and other execution entities captured by Unity Catalog.
+  </div>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+    left, right = st.columns(2)
+    with left:
+        st.markdown("#### Upstream Workloads")
+        if upstream_error:
+            st.warning(f"Could not query upstream workload context: {upstream_error}")
+        elif not upstream_cards:
+            st.info("No upstream workload context is available for this asset.")
+        else:
+            st.markdown(
+                f"<div class='gh-operational-grid'>{''.join(_operational_context_card_html(item) for item in upstream_cards)}</div>",
+                unsafe_allow_html=True,
+            )
+    with right:
+        st.markdown("#### Downstream Consumers")
+        if downstream_error:
+            st.warning(
+                f"Could not query downstream workload context: {downstream_error}"
+            )
+        elif not downstream_cards:
+            st.info("No downstream workload context is available for this asset.")
+        else:
+            st.markdown(
+                f"<div class='gh-operational-grid'>{''.join(_operational_context_card_html(item) for item in downstream_cards)}</div>",
+                unsafe_allow_html=True,
+            )
 
 
 def _button_nav(
@@ -1422,6 +1714,98 @@ def _render_styles() -> None:
     margin-top: 0.75rem;
     color: var(--gh-muted);
     line-height: 1.55;
+  }
+
+  .gh-operational-section {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .gh-operational-grid {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .gh-operational-card {
+    padding: 0.95rem 1rem;
+    border-radius: 18px;
+    border: 1px solid var(--gh-border);
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.95),
+        rgba(241, 246, 255, 0.9) 58%,
+        rgba(246, 239, 255, 0.86) 100%
+      );
+    box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
+  }
+
+  .gh-operational-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.85rem;
+    align-items: flex-start;
+    margin-bottom: 0.45rem;
+  }
+
+  .gh-operational-type {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #657794;
+    margin-bottom: 0.2rem;
+  }
+
+  .gh-operational-title {
+    color: var(--gh-text);
+    font-size: 1.04rem;
+    font-weight: 780;
+    line-height: 1.35;
+  }
+
+  .gh-operational-subtitle {
+    color: var(--gh-muted);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    margin-top: 0.22rem;
+  }
+
+  .gh-operational-count {
+    flex-shrink: 0;
+    border-radius: 999px;
+    padding: 0.34rem 0.62rem;
+    background: rgba(34, 87, 216, 0.1);
+    color: var(--gh-primary);
+    font-size: 0.74rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .gh-operational-note {
+    color: var(--gh-muted);
+    font-size: 0.88rem;
+    line-height: 1.55;
+    margin-bottom: 0.55rem;
+  }
+
+  .gh-operational-pill-row {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .gh-operational-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.28rem 0.52rem;
+    border-radius: 999px;
+    background: rgba(246, 248, 253, 0.94);
+    border: 1px solid rgba(207, 219, 240, 0.85);
+    color: #546684;
+    font-size: 0.74rem;
+    font-weight: 700;
   }
 
   div[data-testid="stMetric"] {
@@ -4116,6 +4500,12 @@ def page_lineage(
         col_down, col_down_error = _safe_df_call(
             _cached_col_lineage_down, uc, catalog, schema, table
         )
+        op_up, op_up_error = _safe_df_call(
+            _cached_operational_context_up, uc, catalog, schema, table
+        )
+        op_down, op_down_error = _safe_df_call(
+            _cached_operational_context_down, uc, catalog, schema, table
+        )
 
     lineage_up = _filter_asset_rows(
         lineage_up,
@@ -4135,6 +4525,16 @@ def page_lineage(
     col_down = _filter_asset_rows(
         col_down,
         ["target_table_full_name"],
+        exclude_fqn=selected_fqn,
+    )
+    op_up = _filter_asset_rows(
+        op_up,
+        ["related_table_full_name"],
+        exclude_fqn=selected_fqn,
+    )
+    op_down = _filter_asset_rows(
+        op_down,
+        ["related_table_full_name"],
         exclude_fqn=selected_fqn,
     )
 
@@ -4180,10 +4580,14 @@ def page_lineage(
     lineage_down_view = _apply_catalog_scope(lineage_down, "target_table_full_name", catalog_scope)
     col_up_view = _apply_catalog_scope(col_up, "source_table_full_name", catalog_scope)
     col_down_view = _apply_catalog_scope(col_down, "target_table_full_name", catalog_scope)
+    op_up_view = _apply_catalog_scope(op_up, "related_table_full_name", catalog_scope)
+    op_down_view = _apply_catalog_scope(op_down, "related_table_full_name", catalog_scope)
     lineage_up_view = _apply_schema_name_scope(lineage_up_view, "source_table_full_name", schema_scope)
     lineage_down_view = _apply_schema_name_scope(lineage_down_view, "target_table_full_name", schema_scope)
     col_up_view = _apply_schema_name_scope(col_up_view, "source_table_full_name", schema_scope)
     col_down_view = _apply_schema_name_scope(col_down_view, "target_table_full_name", schema_scope)
+    op_up_view = _apply_schema_name_scope(op_up_view, "related_table_full_name", schema_scope)
+    op_down_view = _apply_schema_name_scope(op_down_view, "related_table_full_name", schema_scope)
 
     l1, l2, l3 = st.columns([1.15, 0.9, 1.15])
     with l1:
@@ -4252,6 +4656,13 @@ def page_lineage(
                     ),
                     unsafe_allow_html=True,
                 )
+
+    _render_operational_context_section(
+        op_up_view,
+        op_down_view,
+        op_up_error,
+        op_down_error,
+    )
 
     table_lineage_tab, column_lineage_tab = st.tabs(
         ["Table Lineage", "Column Lineage"]
