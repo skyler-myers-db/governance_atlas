@@ -1396,13 +1396,13 @@ def _render_styles() -> None:
   div[data-testid="stFormSubmitButton"] > button:hover {
     background: linear-gradient(
       145deg,
-      rgba(248, 251, 255, 0.98),
-      rgba(241, 246, 255, 0.96) 56%,
-      rgba(245, 240, 255, 0.94) 100%
+      rgba(255, 248, 244, 0.98),
+      rgba(255, 241, 235, 0.96) 56%,
+      rgba(249, 238, 255, 0.94) 100%
     ) !important;
-    background-color: rgba(247, 250, 255, 0.97) !important;
-    border-color: rgba(34, 87, 216, 0.28) !important;
-    box-shadow: 0 14px 28px rgba(34, 87, 216, 0.16) !important;
+    background-color: rgba(255, 246, 241, 0.97) !important;
+    border-color: rgba(255, 118, 82, 0.34) !important;
+    box-shadow: 0 14px 28px rgba(255, 118, 82, 0.16) !important;
     transform: translateY(-1px);
   }
 
@@ -1454,6 +1454,9 @@ def _render_styles() -> None:
     ) !important;
     background-color: var(--gh-primary-strong) !important;
     color: #ffffff !important;
+    box-shadow:
+      0 14px 28px rgba(42, 86, 219, 0.18),
+      0 0 0 1px rgba(255, 124, 92, 0.18) inset !important;
   }
 
   .stTextInput input, .stTextArea textarea,
@@ -1598,7 +1601,8 @@ def _render_styles() -> None:
   }
 
   .gh-nav-spacer {
-    margin-top: 0.35rem;
+    margin-top: 0.55rem;
+    margin-bottom: 0.15rem;
   }
 
   .gh-mini-panel {
@@ -2412,6 +2416,15 @@ def _lineage_query_href(asset_fqn: str) -> str:
     return "?" + urlencode({"page": "Lineage", "lineage_asset": asset_fqn})
 
 
+def _lineage_href_if_known(asset_fqn: str, visible_assets: set[str]) -> str:
+    normalized = _normalize_str(asset_fqn)
+    if not normalized or not visible_assets:
+        return ""
+    if normalized not in visible_assets:
+        return ""
+    return _lineage_query_href(normalized)
+
+
 def _split_request_tags(tags: Optional[Dict[str, str]]) -> Tuple[Dict[str, str], Dict[str, str]]:
     raw = dict(tags or {})
     special_keys = {
@@ -3037,13 +3050,13 @@ def _filtered_inventory(inventory: pd.DataFrame, *, show_controls: bool = True) 
             query_col, sort_col = st.columns([2.3, 1])
             with query_col:
                 query = st.text_input(
-                    "Search assets",
+                    "Search Assets",
                     placeholder="customer, finance, PII, steward email, certified",
                     key="asset_search",
                 )
             with sort_col:
                 sort_mode = st.selectbox(
-                    "Sort by",
+                    "Sort By",
                     [
                         "Best Match",
                         "Coverage Score",
@@ -3817,7 +3830,7 @@ def page_discovery(
             st.caption(
                 f"{len(filtered)} assets match the current filters in the {focus_mode.lower()} view."
             )
-        st.markdown("#### Search results")
+        st.markdown("#### Search Results")
         if len(filtered) > 12:
             st.caption(
                 "Showing the first 12 results. Narrow the search or open an asset to continue."
@@ -3854,6 +3867,7 @@ def page_lineage(
         return
 
     asset = inventory[inventory["fqn"] == selected_fqn].iloc[0]
+    visible_assets = set(inventory["fqn"].tolist())
     catalog, schema, table = _split_uc_name(selected_fqn)
     with st.spinner("Loading lineage..."):
         lineage_up, lineage_up_error = _safe_df_call(
@@ -3905,8 +3919,9 @@ def page_lineage(
                         _normalize_str(row.source_table_full_name),
                         "source",
                         object_type=_normalize_str(getattr(row, "source_type", "")),
-                        href=_lineage_query_href(
-                            _normalize_str(row.source_table_full_name)
+                        href=_lineage_href_if_known(
+                            _normalize_str(row.source_table_full_name),
+                            visible_assets,
                         ),
                     ),
                     unsafe_allow_html=True,
@@ -3949,8 +3964,9 @@ def page_lineage(
                         _normalize_str(row.target_table_full_name),
                         "target",
                         object_type=_normalize_str(getattr(row, "target_type", "")),
-                        href=_lineage_query_href(
-                            _normalize_str(row.target_table_full_name)
+                        href=_lineage_href_if_known(
+                            _normalize_str(row.target_table_full_name),
+                            visible_assets,
                         ),
                     ),
                     unsafe_allow_html=True,
