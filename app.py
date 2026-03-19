@@ -9,6 +9,7 @@ import html
 import json
 from textwrap import shorten
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlencode
 
 import pandas as pd
 import streamlit as st
@@ -53,6 +54,11 @@ _CRITICALITY_OPTIONS = [
     "Standard",
     "Exploratory",
 ]
+
+_REQUEST_OWNER_EMAIL_KEY = "__request_owner_email"
+_REQUEST_OWNER_TYPE_KEY = "__request_owner_type"
+_REQUEST_COLUMN_NAME_KEY = "__request_column_name"
+_REQUEST_COLUMN_COMMENT_KEY = "__request_column_comment"
 
 
 @st.cache_resource(show_spinner=False)
@@ -457,6 +463,64 @@ def _render_data_table(df: pd.DataFrame, *, max_rows: int = 200) -> None:
         st.caption(f"Showing first {max_rows} rows.")
 
 
+def _render_columns_table(
+    df: pd.DataFrame,
+    asset_fqn: str,
+    role: str,
+    *,
+    max_rows: int = 200,
+) -> None:
+    if df is None:
+        return
+    view = df.copy()
+    truncated = len(view) > max_rows
+    view = view.head(max_rows).fillna("")
+    headers = ["Ordinal Position", "Column Name", "Data Type", "Comment"]
+    header_html = "".join(f"<th>{html.escape(col)}</th>" for col in headers)
+    rows_html: List[str] = []
+    can_propose = role in {"reader", "writer", "admin"}
+    for _, row in view.iterrows():
+        column_name = _normalize_str(row.get("column_name"))
+        raw_comment = _normalize_str(row.get("comment"))
+        if can_propose and column_name:
+            action_label = raw_comment or (
+                "Add comment" if role in {"writer", "admin"} else "Suggest comment"
+            )
+            href = _asset_query_href(
+                asset_fqn,
+                section="Schema",
+                column_edit=column_name,
+            )
+            comment_html = (
+                f"<a class='gh-action-badge primary' href='{html.escape(href)}'>"
+                f"{html.escape(shorten(action_label, width=90, placeholder='...'))}"
+                "</a>"
+            )
+        else:
+            comment_html = html.escape(raw_comment)
+        rows_html.append(
+            "<tr>"
+            f"<td>{html.escape(_normalize_str(row.get('ordinal_position')))}</td>"
+            f"<td>{html.escape(column_name)}</td>"
+            f"<td>{html.escape(_normalize_str(row.get('data_type')))}</td>"
+            f"<td>{comment_html}</td>"
+            "</tr>"
+        )
+    st.markdown(
+        f"""
+<div class="gh-table-wrap">
+  <table class="gh-table">
+    <thead><tr>{header_html}</tr></thead>
+    <tbody>{''.join(rows_html)}</tbody>
+  </table>
+</div>
+        """,
+        unsafe_allow_html=True,
+    )
+    if truncated:
+        st.caption(f"Showing first {max_rows} rows.")
+
+
 def _render_styles() -> None:
     st.markdown(
         """
@@ -809,6 +873,19 @@ def _render_styles() -> None:
       border-color 0.18s ease;
   }
 
+  .gh-asset-main-link,
+  .gh-asset-footer-link {
+    display: block;
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
+  .gh-asset-main-link:hover,
+  .gh-asset-footer-link:hover {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+
   .gh-asset-card:hover {
     transform: translateY(-1px);
     border-color: rgba(96, 126, 213, 0.34);
@@ -897,6 +974,43 @@ def _render_styles() -> None:
     gap: 0.45rem;
     flex-wrap: wrap;
     margin-top: 0.78rem;
+  }
+
+  .gh-action-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 999px;
+    padding: 0.32rem 0.62rem;
+    font-size: 0.74rem;
+    font-weight: 800;
+    text-decoration: none !important;
+    border: 1px solid transparent;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  }
+
+  .gh-action-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(21, 36, 72, 0.08);
+    text-decoration: none !important;
+  }
+
+  .gh-action-badge.warn {
+    background: rgba(255, 242, 218, 0.9);
+    color: #9a6b00 !important;
+    border-color: rgba(154, 107, 0, 0.16);
+  }
+
+  .gh-action-badge.danger {
+    background: rgba(255, 236, 240, 0.92);
+    color: #b13a4b !important;
+    border-color: rgba(177, 58, 75, 0.16);
+  }
+
+  .gh-action-badge.primary {
+    background: rgba(234, 242, 255, 0.94);
+    color: #2457d8 !important;
+    border-color: rgba(36, 87, 216, 0.18);
   }
 
   .gh-badge-row {
@@ -1325,15 +1439,22 @@ def _render_styles() -> None:
 
   .gh-subsection-title {
     margin: 0.35rem 0 0.6rem 0;
-    font-size: 1.05rem;
+    font-size: 1.28rem;
     font-weight: 800;
     color: var(--gh-text);
+    letter-spacing: -0.02em;
   }
 
   .gh-subsection-copy {
-    margin: -0.15rem 0 0.8rem 0;
+    margin: -0.05rem 0 0.9rem 0;
     color: var(--gh-muted);
     font-size: 0.88rem;
+  }
+
+  .gh-help-rail {
+    display: flex;
+    justify-content: flex-end;
+    margin: -0.2rem 0 0.55rem 0;
   }
 
   .gh-tags-header {
@@ -1944,6 +2065,36 @@ def _inventory_metric(inventory: pd.DataFrame, expr: pd.Series) -> int:
     return int(expr.sum())
 
 
+def _asset_query_href(
+    asset_fqn: str,
+    *,
+    section: str = "Overview",
+    focus: str = "",
+    column_edit: str = "",
+) -> str:
+    params = {"asset": asset_fqn}
+    if section:
+        params["asset_section"] = section
+    if focus:
+        params["asset_focus"] = focus
+    if column_edit:
+        params["column_edit"] = column_edit
+    return "?" + urlencode(params)
+
+
+def _split_request_tags(tags: Optional[Dict[str, str]]) -> Tuple[Dict[str, str], Dict[str, str]]:
+    raw = dict(tags or {})
+    special_keys = {
+        _REQUEST_OWNER_EMAIL_KEY,
+        _REQUEST_OWNER_TYPE_KEY,
+        _REQUEST_COLUMN_NAME_KEY,
+        _REQUEST_COLUMN_COMMENT_KEY,
+    }
+    special = {key: raw.get(key, "") for key in special_keys if _normalize_str(raw.get(key))}
+    regular = {key: value for key, value in raw.items() if key not in special_keys}
+    return regular, special
+
+
 def _attention_mask(inventory: pd.DataFrame) -> pd.Series:
     if inventory.empty:
         return pd.Series(dtype=bool)
@@ -1968,88 +2119,24 @@ def _discovery_focus_mask(inventory: pd.DataFrame, focus_mode: str) -> pd.Series
     return pd.Series(True, index=inventory.index)
 
 
-def _asset_signal_badges(asset: pd.Series) -> str:
-    signals: List[str] = []
+def _asset_signal_action_badges(asset: pd.Series) -> str:
+    actions: List[str] = []
     if int(asset.get("owner_count", 0)) == 0:
-        signals.append(_safe_badge("Needs Owner", "danger"))
+        href = _asset_query_href(asset["fqn"], section="Governance", focus="owner")
+        actions.append(
+            f"<a class='gh-action-badge danger' href='{html.escape(href)}'>Needs Owner</a>"
+        )
     if not _normalize_str(asset.get("comment")):
-        signals.append(_safe_badge("Needs Description", "warn"))
-    pending_requests = int(asset.get("pending_requests", 0))
-    if pending_requests > 0:
-        label = "Open Request" if pending_requests == 1 else f"{pending_requests} Open Requests"
-        signals.append(_safe_badge(label, "primary"))
-    if (
-        _normalize_str(asset.get("sensitivity"))
-        and not _normalize_str(asset.get("certification"))
-    ):
-        signals.append(_safe_badge("Sensitive / Uncertified", "danger"))
-    if not signals and int(asset.get("governance_score", 0)) >= 80:
-        signals.append(_safe_badge("Enterprise Ready", "good"))
-    return "".join(signals[:3])
-
-
-def _asset_action_specs(asset: pd.Series, structured: Dict[str, str], comment: str) -> List[Dict[str, str]]:
-    actions: List[Dict[str, str]] = []
-    if not comment:
+        href = _asset_query_href(asset["fqn"], section="Governance", focus="description")
         actions.append(
-            {
-                "title": "Needs Description",
-                "copy": "Add a business description so other teams can understand how to use the asset.",
-                "focus": "description",
-                "tone": "warn",
-                "button": "Add Description",
-            }
+            f"<a class='gh-action-badge warn' href='{html.escape(href)}'>Needs Description</a>"
         )
-    if int(asset.get("owner_count", 0)) == 0:
+    if not _normalize_str(_structured_tags(asset.get("tags") if isinstance(asset.get("tags"), dict) else {}).get("certification")):
+        href = _asset_query_href(asset["fqn"], section="Governance", focus="certification")
         actions.append(
-            {
-                "title": "Needs Owner",
-                "copy": "Assign a business, technical, or steward owner to remove the ownership gap.",
-                "focus": "owner",
-                "tone": "danger",
-                "button": "Assign Owner",
-            }
+            f"<a class='gh-action-badge primary' href='{html.escape(href)}'>Needs Certification</a>"
         )
-    if not structured.get("certification"):
-        actions.append(
-            {
-                "title": "Needs Certification",
-                "copy": "Set the certification state so consumers know how much to trust the asset.",
-                "focus": "certification",
-                "tone": "primary",
-                "button": "Set Certification",
-            }
-        )
-    return actions
-
-
-def _render_action_cards(asset: pd.Series, structured: Dict[str, str], comment: str) -> None:
-    actions = _asset_action_specs(asset, structured, comment)
-    if not actions:
-        return
-    title = "Quick Action" if len(actions) == 1 else "Quick Actions"
-    st.markdown(f"#### {title}")
-    st.caption("Update the missing governance fields directly from this page.")
-    cols = st.columns(len(actions))
-    for col, action in zip(cols, actions):
-        with col:
-            st.markdown(
-                f"""
-<div class="gh-action-card {html.escape(action['tone'])}">
-  <div class="gh-action-title">{html.escape(action['title'])}</div>
-  <div class="gh-action-copy">{html.escape(action['copy'])}</div>
-</div>
-                """,
-                unsafe_allow_html=True,
-            )
-            if st.button(
-                action["button"],
-                key=f"asset_action_{action['focus']}_{asset['fqn']}",
-                use_container_width=True,
-            ):
-                st.session_state[f"asset_profile_section_{asset['fqn']}"] = "Governance"
-                st.session_state[f"asset_governance_focus_{asset['fqn']}"] = action["focus"]
-                st.rerun()
+    return "".join(actions)
 
 
 def _format_count(value: Any) -> str:
@@ -2143,6 +2230,7 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
         placeholder="...",
     )
     catalog, schema, _ = _split_uc_name(_normalize_str(asset.get("fqn")))
+    asset_href = _asset_query_href(asset["fqn"])
     badges = [
         _safe_badge(_format_object_type(_normalize_str(asset.get("table_type"))), "primary"),
         _safe_badge(asset.get("tier", ""), "primary"),
@@ -2151,29 +2239,33 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
         _safe_badge(asset.get("domain", ""), "neutral"),
     ]
     badges = "".join(badge for badge in badges if badge)
-    signals = _asset_signal_badges(asset)
-    signals_html = f"<div class='gh-signal-row'>{signals}</div>" if signals else ""
+    signal_actions = _asset_signal_action_badges(asset)
+    signals_html = f"<div class='gh-signal-row'>{signal_actions}</div>" if signal_actions else ""
     active_class = "active" if active else ""
     return f"""
 <div class="gh-asset-card {active_class}">
-  <div class="gh-asset-head">
-    <div>
-      <div class="gh-asset-name">{html.escape(_normalize_str(asset.get("table_name")))}</div>
-      <div class="gh-asset-context">{html.escape(" / ".join(part for part in [catalog, schema] if part))}</div>
+  <a class="gh-asset-main-link" href="{html.escape(asset_href)}">
+    <div class="gh-asset-head">
+      <div>
+        <div class="gh-asset-name">{html.escape(_normalize_str(asset.get("table_name")))}</div>
+        <div class="gh-asset-context">{html.escape(" / ".join(part for part in [catalog, schema] if part))}</div>
+      </div>
+      <div class="gh-score">
+        <span class="gh-score-label">Coverage Score</span>
+        <span class="gh-score-value">{int(asset.get("governance_score", 0))}</span>
+      </div>
     </div>
-    <div class="gh-score">
-      <span class="gh-score-label">Coverage Score</span>
-      <span class="gh-score-value">{int(asset.get("governance_score", 0))}</span>
-    </div>
-  </div>
-  <div class="gh-asset-copy">{html.escape(description)}</div>
+    <div class="gh-asset-copy">{html.escape(description)}</div>
+  </a>
   {signals_html}
   <div class="gh-badge-row">{badges}</div>
-  <div class="gh-meta-row">
-    <span>{int(asset.get("owner_count", 0))} Owners</span>
-    <span>{int(asset.get("pending_requests", 0))} Open Requests</span>
-    <span>{html.escape(_normalize_str(asset.get("governance_status")))}</span>
-  </div>
+  <a class="gh-asset-footer-link" href="{html.escape(asset_href)}">
+    <div class="gh-meta-row">
+      <span>{int(asset.get("owner_count", 0))} Owners</span>
+      <span>{int(asset.get("pending_requests", 0))} Open Requests</span>
+      <span>{html.escape(_normalize_str(asset.get("governance_status")))}</span>
+    </div>
+  </a>
 </div>
     """
 
@@ -2199,10 +2291,6 @@ def _profile_header_html(asset: pd.Series) -> str:
 <div class="gh-panel">
   <div class="gh-kicker">Asset Profile</div>
   <div class="gh-profile-title">{html.escape(_normalize_str(asset.get("table_name")))}</div>
-  <div class="gh-chip-row gh-nav-spacer">
-    <span class="gh-chip">Coverage Score {int(asset.get("governance_score", 0))}</span>
-    <span class="gh-chip">{html.escape(_normalize_str(asset.get("governance_status")))}</span>
-  </div>
   <div class="gh-badge-row">{"".join(badge for badge in badges if badge)}</div>
   <div class="gh-profile-copy">{html.escape(description)}</div>
 </div>
@@ -2350,6 +2438,38 @@ def _selected_asset(inventory: pd.DataFrame) -> Optional[pd.Series]:
             return row.iloc[0]
     st.session_state["selected_asset_fqn"] = inventory.iloc[0]["fqn"]
     return inventory.iloc[0]
+
+
+def _sync_asset_query_state(inventory: pd.DataFrame) -> None:
+    if inventory.empty:
+        return
+    asset_fqn = _normalize_str(st.query_params.get("asset"))
+    if not asset_fqn or asset_fqn not in inventory["fqn"].values:
+        return
+
+    st.session_state["app_page"] = "Discovery"
+    st.session_state["selected_asset_fqn"] = asset_fqn
+    st.session_state["discovery_asset_opened"] = True
+
+    section = _normalize_str(st.query_params.get("asset_section")) or "Overview"
+    st.session_state[f"asset_profile_section_{asset_fqn}"] = section
+
+    focus = _normalize_str(st.query_params.get("asset_focus"))
+    if focus:
+        st.session_state[f"asset_governance_focus_{asset_fqn}"] = focus
+
+    column_edit = _normalize_str(st.query_params.get("column_edit"))
+    if column_edit:
+        st.session_state[f"schema_comment_target_{asset_fqn}"] = column_edit
+
+
+def _clear_asset_query_state() -> None:
+    for key in ["asset", "asset_section", "asset_focus", "column_edit"]:
+        try:
+            if key in st.query_params:
+                del st.query_params[key]
+        except Exception:
+            pass
 
 
 def _asset_selector(inventory: pd.DataFrame, key: str, label: str) -> Optional[str]:
@@ -2557,8 +2677,6 @@ def _render_asset_profile(
     metrics[3].metric("Domain", structured["domain"] or "—")
     metrics[4].metric("Tier", structured["tier"] or "—")
 
-    _render_action_cards(asset, structured, comment)
-
     section = _button_nav(
         ["Overview", "Schema", "Preview", "Lineage", "Governance"],
         f"asset_profile_section_{asset['fqn']}",
@@ -2568,6 +2686,7 @@ def _render_asset_profile(
     if section == "Overview":
         owners_df = store.get_owners(asset["fqn"])
         tags_df = _tags_map_to_df(asset_tags if isinstance(asset_tags, dict) else {})
+        detail_df = _cached_table_detail(uc, catalog, schema, table)
         left, right = st.columns([1.25, 1])
         with left:
             st.markdown("#### Context")
@@ -2613,6 +2732,34 @@ def _render_asset_profile(
                     },
                 ]
             )
+            if not detail_df.empty:
+                detail = detail_df.iloc[0]
+                summary_rows = pd.concat(
+                    [
+                        summary_rows,
+                        pd.DataFrame(
+                            [
+                                {
+                                    "Field": "Rows",
+                                    "Value": _format_count(detail.get("numRows")),
+                                },
+                                {
+                                    "Field": "Size",
+                                    "Value": _format_bytes(detail.get("sizeInBytes")),
+                                },
+                                {
+                                    "Field": "Files",
+                                    "Value": _format_count(detail.get("numFiles")),
+                                },
+                                {
+                                    "Field": "Format",
+                                    "Value": _normalize_str(detail.get("format")) or "Unavailable",
+                                },
+                            ]
+                        ),
+                    ],
+                    ignore_index=True,
+                )
             st.markdown("#### Governance summary")
             _render_data_table(summary_rows)
             if not tags_df.empty:
@@ -2626,7 +2773,7 @@ def _render_asset_profile(
             props_df = _cached_table_properties(uc, catalog, schema, table)
             constraints_df = _cached_table_constraints(uc, catalog, schema, table)
 
-        st.markdown("<div class='gh-subsection-title'>Table metadata</div>", unsafe_allow_html=True)
+        st.markdown("<div class='gh-subsection-title'>Table Metadata</div>", unsafe_allow_html=True)
         st.markdown(
             "<div class='gh-subsection-copy'>Review live Unity Catalog details, physical properties, and enforced constraints for this asset.</div>",
             unsafe_allow_html=True,
@@ -2693,66 +2840,85 @@ def _render_asset_profile(
         st.divider()
         st.markdown("<div class='gh-subsection-title'>Columns</div>", unsafe_allow_html=True)
         st.markdown(
-            "<div class='gh-subsection-copy'>Column comments and tags are editable below when you have writer or admin access.</div>",
+            "<div class='gh-subsection-copy'>Use the comment cell to add or update documentation for a specific column.</div>",
             unsafe_allow_html=True,
         )
-        _render_data_table(cols_df)
-        if role in {"writer", "admin"} and not cols_df.empty:
-            st.divider()
-            st.markdown("#### Column metadata editor")
-            selected_col = st.selectbox(
-                "Column",
-                cols_df["column_name"].tolist(),
-                key=f"column_picker_{asset['fqn']}",
-            )
-            if selected_col is None:
-                st.warning("No columns available for editing.")
-            else:
-                current_col = cols_df[cols_df["column_name"] == selected_col].iloc[0]
+        _render_columns_table(cols_df, asset["fqn"], role)
+
+        selected_col = _normalize_str(
+            st.session_state.get(f"schema_comment_target_{asset['fqn']}", "")
+        )
+        if not selected_col and not cols_df.empty:
+            selected_col = _normalize_str(cols_df.iloc[0].get("column_name"))
+
+        if selected_col and not cols_df.empty:
+            current_match = cols_df[cols_df["column_name"] == selected_col]
+            if not current_match.empty:
+                st.divider()
+                current_col = current_match.iloc[0]
                 current_comment = _normalize_str(current_col.get("comment"))
+                st.markdown(f"#### Column Comment: `{selected_col}`")
                 new_comment = st.text_area(
                     "Column description",
                     value=current_comment,
                     height=100,
                     key=f"column_comment_{asset['fqn']}_{selected_col}",
                 )
-                if st.button(
-                    "Save column description",
-                    type="primary",
-                    use_container_width=True,
-                    key=f"save_column_comment_{asset['fqn']}_{selected_col}",
-                ):
-                    uc.set_column_comment(
-                        catalog, schema, table, selected_col, new_comment
-                    )
-                    st.success(f"Updated description for `{selected_col}`.")
-                    st.cache_data.clear()
-                    st.rerun()
+                if role in {"writer", "admin"}:
+                    if st.button(
+                        "Save column description",
+                        type="primary",
+                        use_container_width=True,
+                        key=f"save_column_comment_{asset['fqn']}_{selected_col}",
+                    ):
+                        uc.set_column_comment(
+                            catalog, schema, table, selected_col, new_comment
+                        )
+                        st.success(f"Updated description for `{selected_col}`.")
+                        st.cache_data.clear()
+                        st.rerun()
 
-                existing_col_tags = uc.get_column_tags(
-                    catalog, schema, table, selected_col
-                )
-                edited_col_tags = _tags_editor(
-                    existing_col_tags,
-                    key=f"column_tags_editor_{asset['fqn']}_{selected_col}",
-                )
-                if st.button(
-                    "Save column tags",
-                    use_container_width=True,
-                    key=f"save_column_tags_{asset['fqn']}_{selected_col}",
-                ):
-                    _apply_column_tags(
-                        uc,
-                        catalog,
-                        schema,
-                        table,
-                        selected_col,
-                        existing_col_tags,
-                        _df_to_tags_map(edited_col_tags),
+                    existing_col_tags = uc.get_column_tags(
+                        catalog, schema, table, selected_col
                     )
-                    st.success(f"Updated tags for `{selected_col}`.")
-                    st.cache_data.clear()
-                    st.rerun()
+                    edited_col_tags = _tags_editor(
+                        existing_col_tags,
+                        key=f"column_tags_editor_{asset['fqn']}_{selected_col}",
+                    )
+                    if st.button(
+                        "Save column tags",
+                        use_container_width=True,
+                        key=f"save_column_tags_{asset['fqn']}_{selected_col}",
+                    ):
+                        _apply_column_tags(
+                            uc,
+                            catalog,
+                            schema,
+                            table,
+                            selected_col,
+                            existing_col_tags,
+                            _df_to_tags_map(edited_col_tags),
+                        )
+                        st.success(f"Updated tags for `{selected_col}`.")
+                        st.cache_data.clear()
+                        st.rerun()
+                else:
+                    if st.button(
+                        "Submit column comment request",
+                        type="primary",
+                        use_container_width=True,
+                        key=f"submit_column_comment_{asset['fqn']}_{selected_col}",
+                    ):
+                        request_id = store.create_change_request(
+                            created_by=user_email,
+                            uc_full_name=asset["fqn"],
+                            new_uc_tags={
+                                _REQUEST_COLUMN_NAME_KEY: selected_col,
+                                _REQUEST_COLUMN_COMMENT_KEY: new_comment,
+                            },
+                        )
+                        st.success(f"Change request `{request_id}` submitted.")
+                        st.cache_data.clear()
 
     elif section == "Preview":
         st.caption(
@@ -2828,11 +2994,11 @@ def _render_asset_profile(
             for key, value in existing_tags.items()
             if key not in _STANDARD_TAG_KEYS
         }
+        focus_hint = st.session_state.pop(
+            f"asset_governance_focus_{asset['fqn']}", ""
+        )
 
         if is_writer:
-            focus_hint = st.session_state.pop(
-                f"asset_governance_focus_{asset['fqn']}", ""
-            )
             if focus_hint == "description":
                 st.info("Update the business description below and save to improve the coverage score.")
             elif focus_hint == "owner":
@@ -2959,6 +3125,12 @@ def _render_asset_profile(
                     st.cache_data.clear()
                     st.rerun()
         else:
+            if focus_hint == "description":
+                st.info("Propose a business description below for writer or admin review.")
+            elif focus_hint == "owner":
+                st.info("Propose an owner below to route the ownership update for review.")
+            elif focus_hint == "certification":
+                st.info("Propose a certification below to send it for review.")
             st.info(
                 "Readers can propose metadata improvements here. Writers and admins apply them."
             )
@@ -2996,6 +3168,15 @@ def _render_asset_profile(
                 ),
                 key=f"proposal_sensitivity_{asset['fqn']}",
             )
+            proposed_owner_email = proposal_cols[0].text_input(
+                "Proposed owner email",
+                key=f"proposal_owner_email_{asset['fqn']}",
+            )
+            proposed_owner_type = proposal_cols[1].selectbox(
+                "Proposed owner type",
+                ["", "technical", "business", "steward"],
+                key=f"proposal_owner_type_{asset['fqn']}",
+            )
             proposed_custom_tags = _tags_editor(
                 _custom_tags_df(tags_df), key=f"proposal_tags_{asset['fqn']}"
             )
@@ -3020,6 +3201,8 @@ def _render_asset_profile(
                             "tier": proposed_tier,
                             "certification": proposed_certification,
                             "sensitivity": proposed_sensitivity,
+                            _REQUEST_OWNER_EMAIL_KEY: proposed_owner_email,
+                            _REQUEST_OWNER_TYPE_KEY: proposed_owner_type,
                         }.items()
                         if value
                     },
@@ -3098,18 +3281,6 @@ def page_discovery(
         for idx, (_, asset_series) in enumerate(filtered.head(12).iterrows()):
             with result_cols[idx % 2]:
                 st.markdown(_asset_card_html(asset_series, False), unsafe_allow_html=True)
-                if st.button(
-                    "Open asset",
-                    key=f"open_asset_{asset_series['fqn']}",
-                    type="secondary",
-                    use_container_width=True,
-                ):
-                    st.session_state["selected_asset_fqn"] = asset_series["fqn"]
-                    st.session_state["discovery_asset_opened"] = True
-                    st.session_state[f"asset_profile_section_{asset_series['fqn']}"] = (
-                        "Overview"
-                    )
-                    st.rerun()
     else:
         back_col, _ = st.columns([0.22, 0.78])
         with back_col:
@@ -3119,6 +3290,7 @@ def page_discovery(
                 use_container_width=True,
             ):
                 st.session_state["discovery_asset_opened"] = False
+                _clear_asset_query_state()
                 st.rerun()
         _render_asset_profile(selected, inventory, uc, store, role, user_email)
 
@@ -3759,21 +3931,38 @@ def page_stewardship(
                 else:
                     request = None
                 if request:
+                    request_tag_payload, request_special = _split_request_tags(
+                        request.new_uc_tags
+                    )
                     st.markdown("#### Review")
-                    detail_rows = pd.DataFrame(
-                        [
-                            {"Field": "Status", "Value": request.status},
-                            {"Field": "Created by", "Value": request.created_by},
-                            {"Field": "Asset", "Value": request.uc_full_name or "—"},
-                            {"Field": "Comment", "Value": request.new_comment or "—"},
+                    detail_rows_list = [
+                        {"Field": "Status", "Value": request.status},
+                        {"Field": "Created by", "Value": request.created_by},
+                        {"Field": "Asset", "Value": request.uc_full_name or "—"},
+                        {"Field": "Comment", "Value": request.new_comment or "—"},
+                    ]
+                    if request_special.get(_REQUEST_OWNER_EMAIL_KEY):
+                        detail_rows_list.append(
+                            {
+                                "Field": "Proposed owner",
+                                "Value": f"{request_special.get(_REQUEST_OWNER_EMAIL_KEY)} ({request_special.get(_REQUEST_OWNER_TYPE_KEY) or 'unspecified'})",
+                            }
+                        )
+                    if request_special.get(_REQUEST_COLUMN_NAME_KEY):
+                        detail_rows_list.append(
+                            {
+                                "Field": "Column update",
+                                "Value": f"{request_special.get(_REQUEST_COLUMN_NAME_KEY)} -> {request_special.get(_REQUEST_COLUMN_COMMENT_KEY) or 'Clear comment'}",
+                            }
+                        )
+                    if request_tag_payload:
+                        detail_rows_list.append(
                             {
                                 "Field": "Proposed tags",
-                                "Value": json.dumps(
-                                    request.new_uc_tags or {}, indent=2
-                                ),
-                            },
-                        ]
-                    )
+                                "Value": json.dumps(request_tag_payload, indent=2),
+                            }
+                        )
+                    detail_rows = pd.DataFrame(detail_rows_list)
                     _render_data_table(detail_rows)
                     if request.status == "pending" and request_id is not None:
                         action = st.radio(
@@ -3799,11 +3988,30 @@ def page_stewardship(
                                     catalog, schema, table = _split_uc_name(
                                         request.uc_full_name
                                     )
+                                    request_tags, request_special = _split_request_tags(
+                                        request.new_uc_tags
+                                    )
                                     if request.new_comment is not None:
                                         uc.set_table_comment(
                                             catalog, schema, table, request.new_comment
                                         )
-                                    if request.new_uc_tags:
+                                    if request_special.get(_REQUEST_OWNER_EMAIL_KEY):
+                                        store.upsert_owner(
+                                            request.uc_full_name,
+                                            request_special[_REQUEST_OWNER_EMAIL_KEY],
+                                            request_special.get(_REQUEST_OWNER_TYPE_KEY)
+                                            or "technical",
+                                            user_email,
+                                        )
+                                    if request_special.get(_REQUEST_COLUMN_NAME_KEY):
+                                        uc.set_column_comment(
+                                            catalog,
+                                            schema,
+                                            table,
+                                            request_special[_REQUEST_COLUMN_NAME_KEY],
+                                            request_special.get(_REQUEST_COLUMN_COMMENT_KEY, ""),
+                                        )
+                                    if request_tags:
                                         existing_tags = _cached_table_tags(
                                             uc, catalog, schema, table
                                         )
@@ -3813,7 +4021,7 @@ def page_stewardship(
                                             schema,
                                             table,
                                             existing_tags,
-                                            request.new_uc_tags,
+                                            request_tags,
                                         )
                                 store.set_request_status(
                                     request_id, "approved", user_email, note or None
@@ -3936,11 +4144,34 @@ def main() -> None:
         st.session_state["app_page"] = "Discovery"
     if "discovery_asset_opened" not in st.session_state:
         st.session_state["discovery_asset_opened"] = False
+    _sync_asset_query_state(inventory)
 
-    page = _button_nav(
-        ["Discovery", "Lineage", "Governance", "Stewardship", "Admin", "Help"],
-        "app_page",
-    )
+    nav_cols = st.columns([1, 1, 1, 1, 1, 0.8])
+    current_page = st.session_state.get("app_page", "Discovery")
+    for col, option in zip(
+        nav_cols[:5], ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"]
+    ):
+        with col:
+            if st.button(
+                option,
+                key=f"app_page_{option}",
+                use_container_width=True,
+                type="primary" if option == current_page else "secondary",
+            ):
+                if option != current_page:
+                    st.session_state["app_page"] = option
+                    st.rerun()
+    with nav_cols[5]:
+        if st.button(
+            "Help",
+            key="app_page_Help",
+            use_container_width=True,
+            type="primary" if current_page == "Help" else "secondary",
+        ):
+            if current_page != "Help":
+                st.session_state["app_page"] = "Help"
+                st.rerun()
+    page = st.session_state.get("app_page", current_page)
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
     if page == "Discovery":
