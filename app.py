@@ -1565,6 +1565,9 @@ def _render_styles() -> None:
   }
 
   .stApp {
+    position: relative;
+    isolation: isolate;
+    min-height: 100vh;
     overflow-x: hidden;
     background:
       linear-gradient(62deg, transparent 0 16%, rgba(81, 112, 212, 0.08) 16.2% 16.35%, transparent 16.55% 100%),
@@ -1585,12 +1588,72 @@ def _render_styles() -> None:
     color: var(--gh-text);
   }
 
+  .stApp::before,
+  .stApp::after {
+    content: "";
+    position: fixed;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .stApp::before {
+    top: -10vh;
+    left: -8vw;
+    right: -8vw;
+    height: 58vh;
+    background:
+      radial-gradient(circle at 16% 24%, rgba(72, 127, 255, 0.2), transparent 34%),
+      radial-gradient(circle at 82% 18%, rgba(153, 118, 255, 0.18), transparent 36%),
+      radial-gradient(circle at 48% 2%, rgba(97, 196, 255, 0.15), transparent 38%);
+    opacity: 0.82;
+    transform: translate3d(0, 0, 0) scale(1.03);
+    animation:
+      gh-ambient-drift 32s ease-in-out infinite alternate,
+      gh-ambient-breathe 18s ease-in-out infinite;
+  }
+
+  .stApp::after {
+    top: 0;
+    left: -2vw;
+    right: -2vw;
+    height: 44vh;
+    background:
+      linear-gradient(
+        rgba(94, 122, 222, 0.028) 1px,
+        transparent 1px
+      ) 0 0 / 100% 132px,
+      linear-gradient(
+        90deg,
+        rgba(135, 150, 234, 0.024) 1px,
+        transparent 1px
+      ) 0 0 / 148px 100%,
+      radial-gradient(circle at 18% 26%, rgba(105, 150, 255, 0.08) 0 2px, transparent 3px),
+      radial-gradient(circle at 72% 16%, rgba(145, 117, 255, 0.075) 0 2px, transparent 3px),
+      radial-gradient(circle at 44% 12%, rgba(97, 194, 255, 0.068) 0 2px, transparent 3px);
+    opacity: 0.42;
+    mask-image: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.88) 0%,
+      rgba(0, 0, 0, 0.58) 68%,
+      transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.88) 0%,
+      rgba(0, 0, 0, 0.58) 68%,
+      transparent 100%
+    );
+    animation: gh-ambient-grid 42s ease-in-out infinite alternate;
+  }
+
   .block-container {
     max-width: min(1760px, calc(100vw - 2rem));
     padding-top: 0.9rem;
     padding-bottom: 2rem;
     padding-left: 1.35rem;
     padding-right: 1.35rem;
+    position: relative;
+    z-index: 1;
   }
 
   [data-testid="stSidebar"],
@@ -2262,6 +2325,8 @@ def _render_styles() -> None:
         rgba(246, 239, 255, 0.88) 100%
       );
     box-shadow: 0 12px 28px rgba(18, 32, 63, 0.05);
+    position: relative;
+    z-index: 1;
   }
 
   .gh-module-shell-head {
@@ -2517,27 +2582,30 @@ def _render_styles() -> None:
   .gh-profile-stat {
     min-width: 0;
     border-radius: 18px;
-    min-height: 4.95rem;
-    padding: 0.96rem 0.92rem;
+    min-height: clamp(5.55rem, 5rem + 0.9vw, 6.25rem);
+    padding: 1.02rem 0.96rem 0.98rem;
     border: 1px solid rgba(205, 217, 239, 0.88);
     background: rgba(250, 252, 255, 0.92);
     box-shadow: 0 10px 22px rgba(18, 32, 63, 0.03);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
   }
 
   .gh-profile-stat-label {
-    font-size: 0.74rem;
+    font-size: clamp(0.82rem, 0.78rem + 0.12vw, 0.94rem);
     font-weight: 800;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: #617390;
-    margin-bottom: 0.24rem;
+    margin-bottom: 0.32rem;
   }
 
   .gh-profile-stat-value {
     color: var(--gh-text);
-    font-size: 1.72rem;
+    font-size: clamp(2.1rem, 1.68rem + 0.82vw, 2.72rem);
     font-weight: 840;
-    line-height: 1.12;
+    line-height: 1.02;
     letter-spacing: -0.04em;
     word-break: break-word;
   }
@@ -3518,6 +3586,33 @@ def _render_styles() -> None:
     }
   }
 
+  @keyframes gh-ambient-drift {
+    0% {
+      transform: translate3d(-1.6vw, -1vh, 0) scale(1.02);
+    }
+    100% {
+      transform: translate3d(2.4vw, 2.2vh, 0) scale(1.08);
+    }
+  }
+
+  @keyframes gh-ambient-breathe {
+    0%, 100% {
+      opacity: 0.76;
+    }
+    50% {
+      opacity: 0.94;
+    }
+  }
+
+  @keyframes gh-ambient-grid {
+    0% {
+      transform: translate3d(0, 0, 0);
+    }
+    100% {
+      transform: translate3d(1.8vw, 1.2vh, 0);
+    }
+  }
+
   @keyframes gh-button-hop {
     0% {
       transform: translateY(0);
@@ -3531,6 +3626,18 @@ def _render_styles() -> None:
   }
 
   @media (max-width: 900px) {
+    .stApp::before {
+      height: 34vh;
+      opacity: 0.58;
+      animation-duration: 40s, 24s;
+    }
+
+    .stApp::after {
+      height: 24vh;
+      opacity: 0.18;
+      animation-duration: 54s;
+    }
+
     .gh-wordmark {
       font-size: 2.3rem;
     }
@@ -3564,6 +3671,15 @@ def _render_styles() -> None:
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .gh-profile-stat {
+      min-height: 5.05rem;
+      padding: 0.92rem 0.88rem;
+    }
+
+    .gh-profile-stat-value {
+      font-size: clamp(1.82rem, 6vw, 2.28rem);
+    }
+
     [data-gh-tooltip]::after {
       left: 0;
       right: auto;
@@ -3581,6 +3697,14 @@ def _render_styles() -> None:
       max-width: calc(100vw - 1.2rem);
       padding-left: 0.35rem;
       padding-right: 0.35rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stApp::before,
+    .stApp::after {
+      animation: none !important;
+      transform: none !important;
     }
   }
 </style>
