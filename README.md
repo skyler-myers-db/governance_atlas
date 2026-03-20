@@ -27,8 +27,8 @@ three secrets, and `databricks bundle deploy` to any Databricks workspace.
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│              Databricks App  (Streamlit)             │
-│  app.py  →  govhub/                                 │
+│      Databricks App  (switchable launcher)          │
+│  run_app.py → app.py / modern_app.py                │
 │     │           ├─ auth.py          (SSO identity)   │
 │     │           ├─ config.py        (env vars)       │
 │     │           ├─ uc.py            (SQL Warehouse)  │
@@ -86,12 +86,15 @@ targets:
 ```
 
 Edit `app.yaml` — set `GOVHUB_ADMIN_EMAILS` to the bootstrap admin(s) for the
-workspace:
+workspace. The app defaults to `GOVHUB_APP_MODE=legacy`, which preserves the
+current Streamlit implementation. Switch to `modern` after the new frontend lands.
 
 ```yaml
 env:
   - name: GOVHUB_ADMIN_EMAILS
     value: "admin1@company.com,admin2@company.com"
+  - name: GOVHUB_APP_MODE
+    value: legacy
 ```
 
 ### 3. Deploy with DAB
@@ -151,6 +154,7 @@ The repo ships with `.github/workflows/deploy.yml`:
 | `GOVHUB_CATALOG` | — | `main` | Catalog where governance tables are stored |
 | `GOVHUB_SCHEMA` | — | `governance_hub` | Schema within the catalog |
 | `GOVHUB_ADMIN_EMAILS` | — | `""` | Comma-separated admin emails (bootstrap) |
+| `GOVHUB_APP_MODE` | — | `legacy` | `legacy` runs Streamlit, `modern` runs `modern_app:app` via `uvicorn` |
 | `OPENMETADATA_SERVER_URL` | — | `""` | OM server URL (leave blank for UC-only) |
 | `OPENMETADATA_JWT_TOKEN` | — | `""` | OM JWT token |
 
@@ -190,6 +194,8 @@ required.
 - `pandas >= 2.0`
 - `requests >= 2.31`
 - `databricks-sdk >= 0.95.0`
+- `fastapi >= 0.115`
+- `uvicorn >= 0.30`
 
 ---
 

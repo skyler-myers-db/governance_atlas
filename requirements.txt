@@ -2,3 +2,5 @@ streamlit>=1.38
 pandas>=2.0
 requests>=2.31
 databricks-sdk>=0.95.0
+fastapi>=0.115
+uvicorn>=0.30
