@@ -121,6 +121,23 @@ class UCSQLClient:
     def list_catalogs(self) -> pd.DataFrame:
         return self.query_df("SHOW CATALOGS")
 
+    def list_lineage_catalogs(self) -> pd.DataFrame:
+        query = """
+SELECT DISTINCT catalog
+FROM (
+    SELECT CAST(source_table_catalog AS STRING) AS catalog
+    FROM system.access.table_lineage
+    WHERE source_table_catalog IS NOT NULL
+    UNION ALL
+    SELECT CAST(target_table_catalog AS STRING) AS catalog
+    FROM system.access.table_lineage
+    WHERE target_table_catalog IS NOT NULL
+)
+WHERE catalog IS NOT NULL
+ORDER BY catalog
+"""
+        return self.query_df(query)
+
     def list_schemas(self, catalog: str) -> pd.DataFrame:
         return self.query_df(f"SHOW SCHEMAS IN {quote_ident(catalog)}")
 
@@ -563,7 +580,9 @@ LIMIT {int(limit)}
         return self._empty_operational_context_df()
 
     def resolve_operational_entity_name(self, entity_type: str, entity_id: str) -> str:
-        entity_type_n = str(entity_type or "").strip().upper()
+        entity_type_n = (
+            str(entity_type or "").strip().upper().replace(" ", "_").replace("-", "_")
+        )
         entity_id_n = str(entity_id or "").strip()
         if not entity_type_n or not entity_id_n:
             return ""
