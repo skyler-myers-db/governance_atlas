@@ -286,6 +286,36 @@ def _catalog_schema_context(name: str) -> str:
     return " / ".join(part for part in [catalog, schema] if part)
 
 
+def _catalog_filter_options(
+    inventory: pd.DataFrame,
+    *,
+    available_catalogs: Optional[List[str]] = None,
+) -> List[str]:
+    values: set[str] = set()
+    if inventory is not None and not inventory.empty:
+        if "table_catalog" in inventory.columns:
+            values.update(
+                _normalize_str(value)
+                for value in inventory["table_catalog"].dropna().astype(str).tolist()
+                if _normalize_str(value)
+            )
+        if "fqn" in inventory.columns:
+            for raw in inventory["fqn"].dropna().astype(str).tolist():
+                try:
+                    catalog, _, _ = _split_uc_name(_normalize_str(raw))
+                except ValueError:
+                    continue
+                if catalog:
+                    values.add(catalog)
+    if available_catalogs:
+        values.update(
+            _normalize_str(catalog)
+            for catalog in available_catalogs
+            if _normalize_str(catalog)
+        )
+    return sorted(values)
+
+
 def _lineage_asset_stub(inventory: pd.DataFrame, asset_fqn: str) -> pd.Series:
     if not inventory.empty:
         match = inventory[inventory["fqn"] == asset_fqn]
@@ -889,17 +919,6 @@ def _summarize_operational_context(
             if _normalize_str(value)
         ]
         related_assets = list(dict.fromkeys(related_assets))
-        related_context = [
-            " • ".join(
-                part
-                for part in [
-                    fqn.split(".")[-1],
-                    _catalog_schema_context(fqn),
-                ]
-                if part
-            )
-            for fqn in related_assets[:3]
-        ]
         detail_rows: List[Tuple[str, str]] = []
         entity_id = _normalize_str(row.get("entity_id"))
         if entity_id:
@@ -914,13 +933,6 @@ def _summarize_operational_context(
             detail_rows.append(("Statements", f"{len(statement_ids)} statements"))
         elif len(statement_ids) == 1:
             detail_rows.append(("Statement ID", next(iter(statement_ids))))
-        if related_assets:
-            detail_rows.append(
-                (
-                    "Related Assets",
-                    ", ".join(related_assets[:4]),
-                )
-            )
         if note:
             detail_rows.append(("Description", note))
         if payload["statement"]:
@@ -985,7 +997,7 @@ def _summarize_operational_context(
                 "assets_label": (
                     "upstream assets" if direction == "upstream" else "downstream assets"
                 ),
-                "related_context": related_context,
+                "related_assets": related_assets[:6],
                 "detail_rows": detail_rows,
                 "direction": direction,
             }
@@ -1101,11 +1113,21 @@ def _profile_stat_html(label: str, value: str) -> str:
     """
 
 
-def _operational_context_card_html(item: Dict[str, Any]) -> str:
-    related_html = "".join(
-        f"<span class='gh-operational-pill'>{html.escape(value)}</span>"
-        for value in item.get("related_context", [])
+def _operational_related_asset_link_html(asset_fqn: str) -> str:
+    normalized = _normalize_str(asset_fqn)
+    if not normalized:
+        return ""
+    label = normalized.split(".")[-1]
+    context = _catalog_schema_context(normalized)
+    if context:
+        label = f"{label} · {context}"
+    return (
+        f"<a {_route_link_attrs(_lineage_query_href(normalized, context='Operational Context'), 'gh-operational-pill gh-operational-pill-link')}>"
+        f"{html.escape(label)}</a>"
     )
+
+
+def _operational_context_card_html(item: Dict[str, Any]) -> str:
     note_html = (
         f"<div class='gh-operational-note'>{html.escape(item['note'])}</div>"
         if _normalize_str(item.get("note"))
@@ -1127,7 +1149,32 @@ def _operational_context_card_html(item: Dict[str, Any]) -> str:
         for label, value in detail_rows
         if _normalize_str(label) and _normalize_str(value)
     )
-    expandable_class = " expandable" if detail_html else ""
+    related_assets_html = "".join(
+        _operational_related_asset_link_html(asset_fqn)
+        for asset_fqn in item.get("related_assets", [])
+        if _normalize_str(asset_fqn)
+    )
+    related_section_html = (
+        f"""
+  <div class="gh-operational-related">
+    <div class="gh-operational-detail-label">Related Assets</div>
+    <div class="gh-operational-pill-row">{related_assets_html}</div>
+  </div>
+        """
+        if related_assets_html
+        else ""
+    )
+    detail_body_html = related_section_html
+    if detail_html:
+        detail_body_html += f"""
+  <div class="gh-operational-detail-grid">{detail_html}</div>
+        """
+    expandable_class = " expandable" if detail_body_html else ""
+    expand_hint_html = (
+        "<div class='gh-operational-summary-footer'>Expand workload details</div>"
+        if detail_body_html
+        else ""
+    )
     return f"""
 <details class="gh-operational-card{expandable_class}">
   <summary class="gh-operational-summary">
@@ -1142,10 +1189,9 @@ def _operational_context_card_html(item: Dict[str, Any]) -> str:
       </div>
     </div>
     {note_html}
-    <div class="gh-operational-pill-row">{related_html}</div>
-    <div class="gh-operational-expand-hint">Click to expand workload details</div>
+    {expand_hint_html}
   </summary>
-  <div class="gh-operational-detail-grid">{detail_html}</div>
+  <div class="gh-operational-detail-body">{detail_body_html}</div>
 </details>
     """
 
@@ -2534,12 +2580,12 @@ def _render_styles() -> None:
     color: var(--gh-muted);
     font-size: 0.88rem;
     line-height: 1.55;
-    margin-bottom: 0.55rem;
+    margin-bottom: 0.4rem;
   }
 
-  .gh-operational-expand-hint {
-    margin-top: 0.62rem;
-    color: #7081a1;
+  .gh-operational-summary-footer {
+    margin-top: 0.52rem;
+    color: #6f80a0;
     font-size: 0.76rem;
     font-weight: 760;
     letter-spacing: 0.04em;
@@ -2563,10 +2609,33 @@ def _render_styles() -> None:
     font-weight: 700;
   }
 
+  .gh-operational-pill-link {
+    text-decoration: none !important;
+    transition:
+      background 0.16s ease,
+      border-color 0.16s ease,
+      color 0.16s ease,
+      box-shadow 0.16s ease;
+  }
+
+  .gh-operational-pill-link:hover {
+    background: rgba(235, 240, 255, 0.98);
+    border-color: rgba(100, 120, 221, 0.34);
+    color: #3650ba;
+    box-shadow: 0 0 0 2px rgba(115, 132, 228, 0.08);
+  }
+
+  .gh-operational-detail-body {
+    padding: 0.95rem 1rem 1rem;
+  }
+
+  .gh-operational-related {
+    margin-bottom: 0.8rem;
+  }
+
   .gh-operational-detail-grid {
     display: grid;
     gap: 0.68rem;
-    padding: 0.95rem 1rem 1rem;
   }
 
   .gh-operational-detail-item {
@@ -2821,7 +2890,7 @@ def _render_styles() -> None:
     border: none !important;
   }
 
-  div[data-testid="stForm"]:has(button.gh-button-peach) {
+  div[data-testid="stForm"]:has(button.gh-button-filter) {
     border-radius: 24px !important;
     border: 1px solid rgba(198, 212, 237, 0.94) !important;
     background:
@@ -2832,68 +2901,79 @@ def _render_styles() -> None:
         rgba(246, 239, 255, 0.88) 100%
       ) !important;
     box-shadow: 0 12px 28px rgba(18, 32, 63, 0.05) !important;
-    padding: 0.95rem 1rem 0.82rem !important;
+    padding: 1.15rem 1.15rem 1rem !important;
   }
 
-  div[data-testid="stForm"]:has(button.gh-button-peach) div[data-testid="stMarkdownContainer"] h4 {
+  div[data-testid="stForm"]:has(button.gh-button-filter) div[data-testid="stMarkdownContainer"] h4 {
     font-size: 1.48rem !important;
     font-weight: 860 !important;
     letter-spacing: -0.03em !important;
     color: var(--gh-text) !important;
-    margin-bottom: 0.28rem !important;
+    margin-bottom: 0.34rem !important;
   }
 
-  div[data-testid="stForm"]:has(button.gh-button-peach) [data-testid="stCaptionContainer"] p {
+  div[data-testid="stForm"]:has(button.gh-button-filter) [data-testid="stCaptionContainer"] p {
     color: #5d6d86 !important;
     line-height: 1.55 !important;
-    margin-bottom: 0.3rem !important;
+    margin-bottom: 0.42rem !important;
   }
 
-  div[data-testid="stForm"]:has(button.gh-button-peach) > div {
-    gap: 0.35rem !important;
+  div[data-testid="stForm"]:has(button.gh-button-filter) > div {
+    gap: 0.52rem !important;
   }
 
-  div[data-testid="stForm"]:has(button.gh-button-peach) [data-baseweb="tag"],
-  div[data-testid="stForm"]:has(button.gh-button-peach) span[data-baseweb="tag"],
-  div[data-testid="stForm"]:has(button.gh-button-peach) [data-baseweb="tag"] > span,
-  div[data-testid="stForm"]:has(button.gh-button-peach) [data-baseweb="tag"] > div {
+  div[data-testid="stMultiSelect"] [data-baseweb="tag"],
+  div[data-testid="stMultiSelect"] span[data-baseweb="tag"],
+  div[data-testid="stMultiSelect"] [data-baseweb="tag"] > span,
+  div[data-testid="stMultiSelect"] [data-baseweb="tag"] > div,
+  [data-baseweb="select"] [data-baseweb="tag"],
+  [data-baseweb="select"] span[data-baseweb="tag"],
+  [data-baseweb="select"] [data-baseweb="tag"] > span,
+  [data-baseweb="select"] [data-baseweb="tag"] > div {
     border-radius: 999px !important;
-    background: rgba(255, 240, 232, 0.94) !important;
-    background-color: rgba(255, 240, 232, 0.94) !important;
-    border: 1px solid rgba(255, 157, 126, 0.36) !important;
-    color: #a35435 !important;
-    fill: #a35435 !important;
-    box-shadow: inset 0 0 0 1px rgba(255, 147, 110, 0.08);
+    background: linear-gradient(
+      145deg,
+      rgba(238, 243, 255, 0.98),
+      rgba(233, 239, 255, 0.96) 58%,
+      rgba(240, 236, 255, 0.96) 100%
+    ) !important;
+    background-color: rgba(236, 241, 255, 0.97) !important;
+    border: 1px solid rgba(133, 152, 234, 0.34) !important;
+    color: #4b61c6 !important;
+    fill: #4b61c6 !important;
+    box-shadow: inset 0 0 0 1px rgba(120, 142, 229, 0.06);
   }
 
-  div[data-testid="stForm"]:has(button.gh-button-peach) [data-baseweb="tag"] * {
-    color: #a35435 !important;
-    fill: #a35435 !important;
+  div[data-testid="stMultiSelect"] [data-baseweb="tag"] *,
+  [data-baseweb="select"] [data-baseweb="tag"] * {
+    color: #4b61c6 !important;
+    fill: #4b61c6 !important;
     font-weight: 700 !important;
   }
 
-  div[data-testid="stFormSubmitButton"] > button.gh-button-peach {
+  div[data-testid="stFormSubmitButton"] > button.gh-button-filter {
     background: linear-gradient(
       145deg,
-      rgba(255, 245, 240, 0.98),
-      rgba(255, 232, 221, 0.98) 100%
+      rgba(242, 246, 255, 0.98),
+      rgba(235, 240, 255, 0.98) 100%
     ) !important;
-    color: #a15537 !important;
-    border: 1px solid rgba(255, 156, 125, 0.42) !important;
-    box-shadow: 0 10px 22px rgba(255, 146, 110, 0.12) !important;
+    color: #4860c6 !important;
+    border: 1px solid rgba(138, 157, 233, 0.4) !important;
+    box-shadow: 0 10px 22px rgba(91, 110, 213, 0.08) !important;
   }
 
-  div[data-testid="stFormSubmitButton"] > button.gh-button-peach:hover {
+  div[data-testid="stFormSubmitButton"] > button.gh-button-filter:hover {
     background: linear-gradient(
-      135deg,
-      rgba(94, 121, 255, 0.96) 0%,
-      rgba(145, 113, 255, 0.96) 100%
+      145deg,
+      rgba(245, 248, 255, 0.99),
+      rgba(238, 243, 255, 0.99) 100%
     ) !important;
-    color: #ffffff !important;
-    border-color: rgba(97, 118, 239, 0.42) !important;
+    color: #3f57be !important;
+    border-color: rgba(96, 117, 220, 0.54) !important;
     box-shadow:
-      0 0 0 2px rgba(122, 126, 250, 0.16),
-      0 14px 26px rgba(84, 101, 228, 0.18) !important;
+      0 0 0 2px rgba(116, 133, 228, 0.12),
+      0 10px 18px rgba(86, 104, 208, 0.08) !important;
+    transform: none !important;
   }
 
   [data-gh-tooltip] {
@@ -2920,13 +3000,15 @@ def _render_styles() -> None:
     opacity: 0;
     pointer-events: none;
     z-index: 40;
-    transition: opacity 0.08s ease, transform 0.08s ease;
+    transition: opacity 0.1s ease, transform 0.1s ease;
+    transition-delay: 0s;
   }
 
   [data-gh-tooltip]:hover::after,
   [data-gh-tooltip]:focus-visible::after {
     opacity: 1;
     transform: translate(-50%, 0);
+    transition-delay: 0.22s;
   }
 
   div[data-testid="stSpinner"] {
@@ -4707,16 +4789,10 @@ def _filtered_inventory(
     if inventory.empty:
         return inventory
 
-    catalog_values = set(
-        inventory["table_catalog"].dropna().astype(str).unique().tolist()
+    catalogs = _catalog_filter_options(
+        inventory,
+        available_catalogs=available_catalogs,
     )
-    if available_catalogs:
-        catalog_values.update(
-            _normalize_str(catalog)
-            for catalog in available_catalogs
-            if _normalize_str(catalog)
-        )
-    catalogs = sorted(catalog_values)
     domains = sorted([v for v in inventory["domain"].unique().tolist() if v])
     tiers = sorted([v for v in inventory["tier"].unique().tolist() if v])
     certifications = sorted(
@@ -4763,7 +4839,7 @@ def _filtered_inventory(
             st.caption(
                 "Combine search, view, and metadata filters in one pane before scanning the matching assets."
             )
-            query_col, sort_col = st.columns([2.3, 1])
+            query_col, sort_col = st.columns([2, 1])
             with query_col:
                 query = st.text_input(
                     "Search Assets",
@@ -4846,7 +4922,7 @@ def _filtered_inventory(
             {
                 "Apply discovery filters": {
                     "tooltip": "Apply the current discovery filter set.",
-                    "classes": "gh-button-peach",
+                    "classes": "gh-button-filter",
                 }
             }
         )
@@ -5700,15 +5776,17 @@ def page_lineage(
         filter_cols = st.columns(2)
         catalog_key = f"lineage_catalog_scopes_{selected_fqn}"
         schema_key = f"lineage_schema_scopes_{selected_fqn}"
-        catalog_options = _catalog_scope_options(
-            lineage_up,
-            lineage_down,
-            col_up,
-            col_down,
-            op_up,
-            op_down,
-            current_fqn=selected_fqn,
+        catalog_options = _catalog_filter_options(
+            inventory,
+            available_catalogs=_cached_catalogs(uc),
         )
+        current_catalog = ""
+        try:
+            current_catalog, _, _ = _split_uc_name(selected_fqn)
+        except ValueError:
+            current_catalog = ""
+        if current_catalog and current_catalog not in catalog_options:
+            catalog_options = sorted(catalog_options + [current_catalog])
         selected_catalogs = _clean_multiselect_state(catalog_key, catalog_options)
         with filter_cols[0]:
             selected_catalogs = _render_filter_multiselect(
@@ -5985,6 +6063,11 @@ def page_governance(
     section = _button_nav(
         ["Glossary", "Coverage & Policy", "Integrations"],
         "governance_section",
+        help_map={
+            "Glossary": "Define business terms and review which assets are linked to them.",
+            "Coverage & Policy": "Inspect governance gaps, policy issues, and coverage backlogs across the catalog.",
+            "Integrations": "Review and manage external metadata links such as OpenMetadata connections.",
+        },
     )
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
@@ -6273,11 +6356,18 @@ def page_help() -> None:
         "Understand the main workflows, how coverage is calculated, and what the key object and lineage terms mean.",
     )
 
-    usage_tab, coverage_tab, lineage_tab = st.tabs(
-        ["Using the App", "Coverage Score", "Object Types & Lineage"]
+    section = _button_nav(
+        ["Using the App", "Coverage Score", "Object Types & Lineage"],
+        "help_section",
+        help_map={
+            "Using the App": "Review the main workflow across Discovery, asset profiles, governance, and lineage.",
+            "Coverage Score": "See which metadata inputs contribute to the governance coverage score and status thresholds.",
+            "Object Types & Lineage": "Understand the core Unity Catalog object types and lineage terminology used across the app.",
+        },
     )
+    st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
-    with usage_tab:
+    if section == "Using the App":
         left, right = st.columns([1.15, 0.85])
         with left:
             st.markdown("#### Core workflow")
@@ -6317,7 +6407,7 @@ def page_help() -> None:
                 max_rows=20,
             )
 
-    with coverage_tab:
+    elif section == "Coverage Score":
         st.markdown("#### Coverage Score inputs")
         _render_data_table(
             pd.DataFrame(
@@ -6343,7 +6433,7 @@ def page_help() -> None:
             max_rows=20,
         )
 
-    with lineage_tab:
+    else:
         left, right = st.columns(2)
         with left:
             st.markdown("#### Object types")
