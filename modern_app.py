@@ -666,6 +666,200 @@ def _base_asset_payload(row: pd.Series) -> Dict[str, Any]:
     }
 
 
+def _discovery_result_haystack(asset: Dict[str, Any]) -> str:
+    return " ".join(
+        [
+            _normalize_str(asset.get("name")),
+            _normalize_str(asset.get("description")),
+            _normalize_str(asset.get("catalog")),
+            _normalize_str(asset.get("schema")),
+            _normalize_str(asset.get("domain")),
+            _normalize_str(asset.get("tier")),
+            _normalize_str(asset.get("certification")),
+            _normalize_str(asset.get("sensitivity")),
+            _normalize_str(asset.get("objectType")),
+            " ".join(_normalize_str(tag) for tag in asset.get("tags", []) if _normalize_str(tag)),
+        ]
+    ).lower()
+
+
+def _discovery_match_score(asset: Dict[str, Any], query: str) -> int:
+    q = _normalize_str(query).lower()
+    if not q:
+        return 0
+    score = 0
+    if q in _normalize_str(asset.get("name")).lower():
+        score += 4
+    if q in _normalize_str(asset.get("schema")).lower():
+        score += 2
+    if q in _normalize_str(asset.get("catalog")).lower():
+        score += 2
+    if q in _normalize_str(asset.get("description")).lower():
+        score += 2
+    if q in _discovery_result_haystack(asset):
+        score += 1
+    return score
+
+
+def _view_matches(asset: Dict[str, Any], view: str) -> bool:
+    normalized = _normalize_str(view)
+    if not normalized or normalized == "All assets":
+        return True
+    if normalized == "Needs owner":
+        return len(asset.get("owners", [])) == 0
+    if normalized == "Needs certification":
+        return _normalize_str(asset.get("certification")) == "Unassigned"
+    if normalized == "Certified":
+        return _normalize_str(asset.get("certification")) != "Unassigned"
+    if normalized == "High coverage":
+        return _safe_int(asset.get("coverageScore")) >= 75
+    return True
+
+
+def _normalize_filter_values(values: Optional[List[str]], all_label: str) -> List[str]:
+    if not values:
+        return []
+    normalized = [
+        _normalize_str(value)
+        for value in values
+        if _normalize_str(value) and _normalize_str(value) != all_label
+    ]
+    return normalized
+
+
+def _facet_payload(
+    assets: List[Dict[str, Any]],
+    field: str,
+    *,
+    all_label: str,
+) -> List[Dict[str, Any]]:
+    counts: Dict[str, int] = {}
+    for asset in assets:
+        value = _normalize_str(asset.get(field))
+        if not value or value == "Unassigned":
+            continue
+        counts[value] = counts.get(value, 0) + 1
+    items = [{"value": all_label, "count": len(assets)}]
+    items.extend(
+        {"value": value, "count": counts[value]}
+        for value in sorted(counts)
+    )
+    return items
+
+
+def _sort_discovery_assets(
+    assets: List[Dict[str, Any]],
+    *,
+    sort_by: str,
+    query: str,
+) -> List[Dict[str, Any]]:
+    normalized_sort = _normalize_str(sort_by)
+
+    def _best_match_key(asset: Dict[str, Any]) -> Tuple[int, int, int, str]:
+        return (
+            _discovery_match_score(asset, query),
+            _safe_int(asset.get("coverageScore")),
+            _safe_int(asset.get("openRequests")),
+            _normalize_str(asset.get("fqn")),
+        )
+
+    if normalized_sort == "Coverage score":
+        return sorted(
+            assets,
+            key=lambda asset: (
+                _safe_int(asset.get("coverageScore")),
+                _safe_int(asset.get("openRequests")),
+                _normalize_str(asset.get("fqn")),
+            ),
+            reverse=True,
+        )
+    if normalized_sort == "Open requests":
+        return sorted(
+            assets,
+            key=lambda asset: (
+                _safe_int(asset.get("openRequests")),
+                _safe_int(asset.get("coverageScore")),
+                _normalize_str(asset.get("fqn")),
+            ),
+            reverse=True,
+        )
+    if normalized_sort == "Recently updated":
+        return sorted(assets, key=lambda asset: _normalize_str(asset.get("name")).lower())
+    return sorted(assets, key=_best_match_key, reverse=True)
+
+
+def _discovery_search_payload(
+    *,
+    query: str = "",
+    view: str = "All assets",
+    asset_type: str = "All types",
+    catalogs: Optional[List[str]] = None,
+    domains: Optional[List[str]] = None,
+    tiers: Optional[List[str]] = None,
+    certifications: Optional[List[str]] = None,
+    sensitivities: Optional[List[str]] = None,
+    sort_by: str = "Best match",
+    limit: int = 60,
+    offset: int = 0,
+) -> Dict[str, Any]:
+    assets = [_base_asset_payload(row) for _, row in _visible_assets().iterrows()]
+    query_text = _normalize_str(query)
+    selected_catalogs = _normalize_filter_values(catalogs, "All catalogs")
+    selected_domains = _normalize_filter_values(domains, "All domains")
+    selected_tiers = _normalize_filter_values(tiers, "All tiers")
+    selected_certifications = _normalize_filter_values(certifications, "All certifications")
+    selected_sensitivities = _normalize_filter_values(sensitivities, "All sensitivities")
+    selected_type = _normalize_str(asset_type)
+
+    scoped_assets: List[Dict[str, Any]] = []
+    for asset in assets:
+        if query_text and _discovery_match_score(asset, query_text) <= 0:
+            continue
+        if not _view_matches(asset, view):
+            continue
+        if selected_type and selected_type != "All types" and asset.get("objectType") != selected_type:
+            continue
+        if selected_catalogs and asset.get("catalog") not in selected_catalogs:
+            continue
+        if selected_domains and asset.get("domain") not in selected_domains:
+            continue
+        if selected_tiers and asset.get("tier") not in selected_tiers:
+            continue
+        if selected_certifications and asset.get("certification") not in selected_certifications:
+            continue
+        if selected_sensitivities and asset.get("sensitivity") not in selected_sensitivities:
+            continue
+        scoped_assets.append(asset)
+
+    sorted_assets = _sort_discovery_assets(scoped_assets, sort_by=sort_by, query=query_text)
+    safe_limit = max(1, min(limit, 200))
+    safe_offset = max(0, offset)
+    window = sorted_assets[safe_offset : safe_offset + safe_limit]
+
+    facets = {
+        "assetTypes": _facet_payload(sorted_assets, "objectType", all_label="All types"),
+        "catalogs": _facet_payload(sorted_assets, "catalog", all_label="All catalogs"),
+        "domains": _facet_payload(sorted_assets, "domain", all_label="All domains"),
+        "tiers": _facet_payload(sorted_assets, "tier", all_label="All tiers"),
+        "certifications": _facet_payload(
+            sorted_assets, "certification", all_label="All certifications"
+        ),
+        "sensitivities": _facet_payload(
+            sorted_assets, "sensitivity", all_label="All sensitivities"
+        ),
+    }
+
+    return {
+        "assets": window,
+        "count": len(sorted_assets),
+        "facets": facets,
+        "selection": {
+            "primaryAssetFqn": window[0]["fqn"] if window else "",
+            "reason": "top_result" if window else "none",
+        },
+    }
+
+
 def _related_assets(catalog: str, schema: str, table: str, focus_fqn: str) -> List[str]:
     try:
         upstream = _filter_asset_rows(
@@ -1086,6 +1280,7 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
             "sortOptions": DISCOVERY_SORTS,
             "defaultQuery": "",
         },
+        "initialSelection": {"primaryAssetFqn": selected_fqn},
         "governance": governance,
         "shell": {
             "metrics": governance["metrics"],
@@ -1266,43 +1461,33 @@ def api_bootstrap(request: Request) -> JSONResponse:
 @app.get("/api/discovery/search")
 def api_discovery_search(
     query: str = "",
+    view: str = "All assets",
+    asset_type: str = Query(default="All types", alias="type"),
     catalogs: Optional[List[str]] = Query(default=None),
     domains: Optional[List[str]] = Query(default=None),
     tiers: Optional[List[str]] = Query(default=None),
     certifications: Optional[List[str]] = Query(default=None),
     sensitivities: Optional[List[str]] = Query(default=None),
+    sort_by: str = Query(default="Best match", alias="sortBy"),
+    limit: int = 60,
+    offset: int = 0,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    rows = [_base_asset_payload(row) for _, row in _visible_assets().iterrows()]
-    q = _normalize_str(query).lower()
-    result: List[Dict[str, Any]] = []
-    for asset in rows:
-        haystack = " ".join(
-            [
-                asset["name"],
-                asset["description"],
-                asset["catalog"],
-                asset["schema"],
-                asset["domain"],
-                asset["tier"],
-                asset["certification"],
-                asset["sensitivity"],
-            ]
-        ).lower()
-        if q and q not in haystack:
-            continue
-        if catalogs and asset["catalog"] not in catalogs:
-            continue
-        if domains and asset["domain"] not in domains:
-            continue
-        if tiers and asset["tier"] not in tiers:
-            continue
-        if certifications and asset["certification"] not in certifications:
-            continue
-        if sensitivities and asset["sensitivity"] not in sensitivities:
-            continue
-        result.append(asset)
-    return JSONResponse({"assets": result, "count": len(result)})
+    return JSONResponse(
+        _discovery_search_payload(
+            query=query,
+            view=view,
+            asset_type=asset_type,
+            catalogs=catalogs,
+            domains=domains,
+            tiers=tiers,
+            certifications=certifications,
+            sensitivities=sensitivities,
+            sort_by=sort_by,
+            limit=limit,
+            offset=offset,
+        )
+    )
 
 
 @app.get("/api/assets/{asset_fqn:path}")
@@ -1316,8 +1501,10 @@ def api_asset_detail(asset_fqn: str) -> JSONResponse:
 @app.get("/api/lineage/{asset_fqn:path}")
 def api_lineage(asset_fqn: str) -> JSONResponse:
     _ensure_live_runtime()
-    if not _asset_exists(asset_fqn):
-        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    try:
+        _split_uc_name(asset_fqn)
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail="Asset not found.") from exc
     return JSONResponse(_lineage_payload(asset_fqn))
 
 

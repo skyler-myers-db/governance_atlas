@@ -15,11 +15,11 @@ export function useLineage(assetFqn, seededGraph = null) {
     }
 
     let canceled = false;
-    setState((prev) => ({
+    setState({
       loading: !seededGraph,
       error: "",
-      graph: seededGraph || prev.graph || null,
-    }));
+      graph: seededGraph || null,
+    });
     fetchLineage(assetFqn)
       .then((payload) => {
         if (canceled) return;
