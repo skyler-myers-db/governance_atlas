@@ -26,11 +26,11 @@ function unavailableWorkspace(message) {
   return (
     <section className="gh-workspace gh-unavailable-workspace">
       <div className="gh-panel gh-unavailable-panel">
-        <div className="gh-panel-title">Modern Workspace Unavailable</div>
+        <div className="gh-panel-title">Workspace Unavailable</div>
         <h2>The live metadata workspace could not initialize.</h2>
         <p>
           {message ||
-            "Verify warehouse access, Unity Catalog permissions, and governance configuration, then retry modern mode."}
+            "Verify warehouse access, Unity Catalog permissions, and governance configuration, then retry."}
         </p>
       </div>
     </section>
@@ -75,8 +75,8 @@ export default function App() {
     return (
       <div className="gh-boot-screen">
         <div className="gh-boot-card gh-error-card">
-          <div className="gh-eyebrow">Modern Mode Unavailable</div>
-          <h1>The React workspace could not load.</h1>
+          <div className="gh-eyebrow">Workspace Unavailable</div>
+          <h1>The workspace could not load.</h1>
           <p>{error || "Bootstrap payload was unavailable."}</p>
         </div>
       </div>
@@ -120,7 +120,7 @@ export default function App() {
           }}
         />
       ) : (
-        unavailableWorkspace("No visible assets are available for lineage yet.")
+        unavailableWorkspace("Select an asset from discovery to inspect its lineage workspace.")
       );
     } else {
       content = <GovernanceWorkspace governance={data.governance} />;
