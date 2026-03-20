@@ -932,27 +932,33 @@ def _summarize_operational_context(
         row = group.iloc[0]
         payload = _operational_display_payload(row)
         entity_label = payload["entity_label"]
-    title = payload["title"]
-    has_specific_identifier = bool(
-        _normalize_str(row.get("entity_id")) or statement_ids or run_ids
-    )
-    if payload.get("title_source") == "fallback" and not has_specific_identifier:
-        title = _operational_fallback_title(
-            entity_label,
-            direction=direction,
-            focus_asset_name=focus_asset_name,
-        )
         flat = payload["flat_metadata"]
         run_ids = {
             _normalize_str(value)
-            for value in group["entity_run_id"].tolist()
+            for value in (
+                group["entity_run_id"].tolist()
+                if "entity_run_id" in group.columns
+                else []
+            )
             if _normalize_str(value)
         }
         statement_ids = {
             _normalize_str(value)
-            for value in group["statement_id"].tolist()
+            for value in (
+                group["statement_id"].tolist() if "statement_id" in group.columns else []
+            )
             if _normalize_str(value)
         }
+        title = payload["title"]
+        has_specific_identifier = bool(
+            _normalize_str(row.get("entity_id")) or statement_ids or run_ids
+        )
+        if payload.get("title_source") == "fallback" and not has_specific_identifier:
+            title = _operational_fallback_title(
+                entity_label,
+                direction=direction,
+                focus_asset_name=focus_asset_name,
+            )
         subtitle_parts: List[str] = []
         if payload["primary_subtitle"]:
             subtitle_parts.append(payload["primary_subtitle"])
@@ -3025,36 +3031,49 @@ def _render_styles() -> None:
     background:
       linear-gradient(
         145deg,
-        rgba(230, 238, 255, 0.98),
-        rgba(220, 230, 255, 0.98) 100%
+        rgba(219, 230, 255, 0.98),
+        rgba(210, 222, 255, 0.98) 100%
       ) padding-box,
       linear-gradient(
         135deg,
-        rgba(124, 145, 232, 0.58),
-        rgba(146, 124, 239, 0.54)
+        rgba(96, 122, 222, 0.74),
+        rgba(140, 117, 244, 0.68)
       ) border-box !important;
-    color: #3d55c0 !important;
-    border: 1px solid transparent !important;
-    box-shadow: 0 10px 22px rgba(91, 110, 213, 0.1) !important;
+    background-clip: padding-box, border-box !important;
+    background-origin: border-box !important;
+    color: #3049b4 !important;
+    border: 1.5px solid transparent !important;
+    box-shadow: 0 10px 22px rgba(91, 110, 213, 0.12) !important;
   }
 
   div[data-testid="stFormSubmitButton"] > button.gh-button-filter:hover {
     background:
       linear-gradient(
         145deg,
-        rgba(234, 241, 255, 0.99),
-        rgba(225, 233, 255, 0.99) 100%
+        rgba(240, 246, 255, 0.99),
+        rgba(233, 240, 255, 0.99) 100%
       ) padding-box,
       linear-gradient(
         135deg,
-        rgba(58, 95, 221, 0.86),
-        rgba(141, 114, 255, 0.84)
+        rgba(56, 95, 224, 0.98),
+        rgba(142, 116, 255, 0.95)
       ) border-box !important;
+    background-clip: padding-box, border-box !important;
+    background-origin: border-box !important;
     color: #3049b4 !important;
+    border: 1.5px solid transparent !important;
+    border-color: transparent !important;
     box-shadow:
-      0 0 0 1px rgba(97, 118, 222, 0.08),
-      0 12px 20px rgba(86, 104, 208, 0.1) !important;
+      0 0 0 1px rgba(97, 118, 222, 0.12),
+      0 0 0 3px rgba(109, 131, 236, 0.12),
+      0 14px 24px rgba(86, 104, 208, 0.12) !important;
     transform: none !important;
+  }
+
+  .stButton > button.gh-button-lineage-launch:hover,
+  div[data-testid="stButton"] > button.gh-button-lineage-launch:hover {
+    animation: gh-button-hop 0.2s ease-out 1;
+    transform: translateY(-2px) !important;
   }
 
   [data-gh-tooltip] {
@@ -3085,11 +3104,16 @@ def _render_styles() -> None:
     transition-delay: 0s;
   }
 
-  [data-gh-tooltip]:hover::after,
+  [data-gh-tooltip]:hover::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    transition-delay: 0.46s;
+  }
+
   [data-gh-tooltip]:focus-visible::after {
     opacity: 1;
     transform: translate(-50%, 0);
-    transition-delay: 0.32s;
+    transition-delay: 0.18s;
   }
 
   div[data-testid="stSpinner"] {
@@ -3491,6 +3515,18 @@ def _render_styles() -> None:
   @keyframes gh-spin {
     to {
       transform: rotate(360deg);
+    }
+  }
+
+  @keyframes gh-button-hop {
+    0% {
+      transform: translateY(0);
+    }
+    55% {
+      transform: translateY(-2.5px);
+    }
+    100% {
+      transform: translateY(-2px);
     }
   }
 
@@ -5424,6 +5460,7 @@ def _render_asset_profile(
             {
                 "Open Full Lineage Workspace": {
                     "tooltip": "Open the dedicated lineage workspace for interactive upstream and downstream review.",
+                    "classes": "gh-button-lineage-launch",
                 }
             }
         )
