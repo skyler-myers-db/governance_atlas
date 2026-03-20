@@ -37,6 +37,23 @@ def _state_str(raw: Any) -> str:
     return str(raw).upper()
 
 
+def _is_skippable_metadata_error(exc: Exception) -> bool:
+    message = str(exc or "").upper()
+    if not message:
+        return False
+    markers = {
+        "TABLE_OR_VIEW_NOT_FOUND",
+        "SCHEMA_NOT_FOUND",
+        "CATALOG_NOT_FOUND",
+        "PERMISSION_DENIED",
+        "INSUFFICIENT_PRIVILEGES",
+        "UNAUTHORIZED",
+        "ACCESS_DENIED",
+        "OBJECT_NOT_FOUND",
+    }
+    return any(marker in message for marker in markers)
+
+
 class UCSQLClient:
     """Run SQL via Statement Execution API against a Databricks SQL Warehouse."""
 
@@ -155,7 +172,20 @@ ORDER BY catalog
 FROM {quote_ident(catalog)}.information_schema.tables
 WHERE table_schema <> 'information_schema'
 ORDER BY table_schema, table_name"""
-        df = self.query_df(q)
+        try:
+            df = self.query_df(q)
+        except Exception as exc:
+            if not _is_skippable_metadata_error(exc):
+                raise
+            return pd.DataFrame(
+                columns=[
+                    "table_catalog",
+                    "table_schema",
+                    "table_name",
+                    "table_type",
+                    "comment",
+                ]
+            )
         if df.empty:
             return pd.DataFrame(
                 columns=["table_catalog", "table_schema", "table_name", "table_type", "comment"]
