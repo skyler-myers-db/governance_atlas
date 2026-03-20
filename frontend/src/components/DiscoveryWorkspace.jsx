@@ -384,7 +384,7 @@ export default function DiscoveryWorkspace({
         <div>
           <div className="gh-panel-title">Discovery</div>
           <div className="gh-support-copy">
-            Search, facet, and inspect metadata assets through a catalog workspace.
+            Search assets, narrow the scope, and inspect the strongest result immediately.
           </div>
         </div>
         <div className="gh-discovery-toolbar-controls">
