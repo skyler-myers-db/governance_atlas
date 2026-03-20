@@ -58,7 +58,9 @@ export default function App() {
     [assets, selectedAssetFqn]
   );
   const assetDetail = useAssetDetail(selectedSummary?.fqn || "");
-  const lineage = useLineage(selectedSummary?.fqn || "");
+  const seededGraph =
+    (selectedSummary?.fqn && data?.graphs?.[selectedSummary.fqn]) || null;
+  const lineage = useLineage(selectedSummary?.fqn || "", seededGraph);
 
   if (loading) {
     return (

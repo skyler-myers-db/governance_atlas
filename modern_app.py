@@ -26,7 +26,7 @@ from fastapi.staticfiles import StaticFiles
 import app as legacy_streamlit
 from govhub.config import AppConfig
 from govhub.store import GovernanceStore
-from govhub.uc import UCSQLClient
+from govhub.uc import UCSQLClient, _is_skippable_metadata_error
 
 
 ROOT = Path(__file__).resolve().parent
@@ -248,7 +248,12 @@ def _inventory() -> pd.DataFrame:
         tag_maps: Dict[str, Dict[str, str]] = {}
 
         for catalog in catalogs:
-            inv = _cached_catalog_inventory(_uc(), catalog)
+            try:
+                inv = _cached_catalog_inventory(_uc(), catalog)
+            except Exception as exc:
+                if _is_skippable_metadata_error(exc):
+                    continue
+                raise
             if not inv.empty:
                 inv = inv.copy()
                 inv["comment"] = inv["comment"].map(_normalize_str)
@@ -261,7 +266,12 @@ def _inventory() -> pd.DataFrame:
                 )
                 inventory_frames.append(inv)
 
-            tags_df = _cached_catalog_table_tags(_uc(), catalog)
+            try:
+                tags_df = _cached_catalog_table_tags(_uc(), catalog)
+            except Exception as exc:
+                if _is_skippable_metadata_error(exc):
+                    continue
+                raise
             if tags_df.empty:
                 continue
             tags_df = tags_df.copy()
@@ -1024,11 +1034,10 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
     inventory = _visible_assets()
     assets = [_base_asset_payload(row) for _, row in inventory.iterrows()]
     asset_index = {asset["fqn"]: asset for asset in assets}
-    observed_catalogs = _lineage_observed_catalogs()
     catalogs = _catalog_filter_options(
         inventory,
         available_catalogs=list(inventory["table_catalog"].dropna().astype(str).unique()),
-        observed_catalogs=observed_catalogs,
+        observed_catalogs=None,
     )
     asset_types = sorted({asset["objectType"] for asset in assets if asset["objectType"]})
     domains = sorted({asset["domain"] for asset in assets if asset["domain"] and asset["domain"] != "Unassigned"})
@@ -1052,12 +1061,7 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
     boot_message = "" if store_status["state"] == "live" else store_status["message"]
     if not assets:
         boot_state = "degraded"
-        if observed_catalogs:
-            boot_message = (
-                "Catalog scope loaded, but live asset inventory is still warming up or only partially available. "
-                "Retry after the current warehouse session finishes loading metadata."
-            )
-        elif not boot_message:
+        if not boot_message:
             boot_message = (
                 "The workspace connected successfully, but no visible metadata assets were returned yet. "
                 "Confirm the current principal can enumerate Unity Catalog objects in the selected workspace."
