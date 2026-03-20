@@ -1169,11 +1169,31 @@ def _lineage_asset_option_label(inventory: pd.DataFrame, fqn: str) -> str:
     return f"{table_name} ({context})" if context else table_name
 
 
+def _countup_attrs(value: str) -> str:
+    normalized = _normalize_str(value)
+    if not normalized or normalized in {"—", "-"}:
+        return ""
+    cleaned = normalized.replace(",", "")
+    try:
+        float(cleaned)
+    except ValueError:
+        return ""
+    precision = len(cleaned.split(".", 1)[1]) if "." in cleaned else 0
+    return (
+        f' data-gh-countup="{html.escape(cleaned, quote=True)}"'
+        f' data-gh-countup-display="{html.escape(normalized, quote=True)}"'
+        f' data-gh-countup-precision="{precision}"'
+    )
+
+
 def _profile_stat_html(label: str, value: str) -> str:
+    attrs = _countup_attrs(value)
     return f"""
 <div class="gh-profile-stat">
   <div class="gh-profile-stat-label">{html.escape(label)}</div>
-  <div class="gh-profile-stat-value">{html.escape(value)}</div>
+  <div class="gh-profile-stat-value-wrap">
+    <div class="gh-profile-stat-value"{attrs}>{html.escape(value)}</div>
+  </div>
 </div>
     """
 
@@ -1600,16 +1620,23 @@ def _render_styles() -> None:
     top: -10vh;
     left: -8vw;
     right: -8vw;
-    height: 58vh;
+    height: 62vh;
     background:
+      linear-gradient(
+        118deg,
+        rgba(255, 255, 255, 0) 8%,
+        rgba(113, 158, 255, 0.16) 38%,
+        rgba(150, 118, 255, 0.12) 58%,
+        rgba(255, 255, 255, 0) 82%
+      ),
       radial-gradient(circle at 16% 24%, rgba(72, 127, 255, 0.2), transparent 34%),
       radial-gradient(circle at 82% 18%, rgba(153, 118, 255, 0.18), transparent 36%),
       radial-gradient(circle at 48% 2%, rgba(97, 196, 255, 0.15), transparent 38%);
-    opacity: 0.82;
-    transform: translate3d(0, 0, 0) scale(1.03);
+    opacity: 0.92;
+    transform: translate3d(0, 0, 0) scale(1.05);
     animation:
-      gh-ambient-drift 32s ease-in-out infinite alternate,
-      gh-ambient-breathe 18s ease-in-out infinite;
+      gh-ambient-drift 24s ease-in-out infinite alternate,
+      gh-ambient-breathe 14s ease-in-out infinite;
   }
 
   .stApp::after {
@@ -1619,18 +1646,18 @@ def _render_styles() -> None:
     height: 44vh;
     background:
       linear-gradient(
-        rgba(94, 122, 222, 0.028) 1px,
+        rgba(94, 122, 222, 0.04) 1px,
         transparent 1px
       ) 0 0 / 100% 132px,
       linear-gradient(
         90deg,
-        rgba(135, 150, 234, 0.024) 1px,
+        rgba(135, 150, 234, 0.032) 1px,
         transparent 1px
       ) 0 0 / 148px 100%,
-      radial-gradient(circle at 18% 26%, rgba(105, 150, 255, 0.08) 0 2px, transparent 3px),
-      radial-gradient(circle at 72% 16%, rgba(145, 117, 255, 0.075) 0 2px, transparent 3px),
-      radial-gradient(circle at 44% 12%, rgba(97, 194, 255, 0.068) 0 2px, transparent 3px);
-    opacity: 0.42;
+      radial-gradient(circle at 18% 26%, rgba(105, 150, 255, 0.11) 0 2px, transparent 3px),
+      radial-gradient(circle at 72% 16%, rgba(145, 117, 255, 0.1) 0 2px, transparent 3px),
+      radial-gradient(circle at 44% 12%, rgba(97, 194, 255, 0.09) 0 2px, transparent 3px);
+    opacity: 0.56;
     mask-image: linear-gradient(
       180deg,
       rgba(0, 0, 0, 0.88) 0%,
@@ -1643,7 +1670,7 @@ def _render_styles() -> None:
       rgba(0, 0, 0, 0.58) 68%,
       transparent 100%
     );
-    animation: gh-ambient-grid 42s ease-in-out infinite alternate;
+    animation: gh-ambient-grid 30s ease-in-out infinite alternate;
   }
 
   .block-container {
@@ -1728,6 +1755,33 @@ def _render_styles() -> None:
     overflow: hidden;
   }
 
+  .gh-shell::before,
+  .gh-module-shell::before {
+    content: "";
+    position: absolute;
+    top: -18%;
+    bottom: -18%;
+    left: -26%;
+    width: 30%;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(
+      118deg,
+      rgba(255, 255, 255, 0) 8%,
+      rgba(140, 196, 255, 0.08) 34%,
+      rgba(255, 255, 255, 0.38) 48%,
+      rgba(164, 133, 255, 0.12) 62%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    transform: translateX(-160%) rotate(15deg);
+  }
+
+  .stApp.gh-ui-live .gh-shell::before,
+  .stApp.gh-ui-live .gh-module-shell::before {
+    opacity: 0.78;
+    animation: gh-sheen-sweep 11.6s ease-in-out infinite;
+  }
+
   .gh-shell::after {
     content: "";
     position: absolute;
@@ -1808,11 +1862,12 @@ def _render_styles() -> None:
     padding: 0.78rem 0.82rem;
     border: 1px solid rgba(206, 218, 239, 0.88);
     background: rgba(250, 252, 255, 0.92);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    justify-items: stretch;
+    align-items: stretch;
     text-align: center;
+    position: relative;
   }
 
   .gh-estate-stat-label {
@@ -1823,6 +1878,8 @@ def _render_styles() -> None:
     color: #617390;
     margin-bottom: 0.24rem;
     text-align: center;
+    position: relative;
+    z-index: 1;
   }
 
   .gh-estate-stat-value {
@@ -1831,6 +1888,16 @@ def _render_styles() -> None:
     color: var(--gh-text);
     letter-spacing: -0.03em;
     text-align: center;
+  }
+
+  .gh-estate-stat-value-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    width: 100%;
+    grid-column: 1;
+    grid-row: 1 / -1;
   }
 
   .gh-brand {
@@ -2333,6 +2400,7 @@ def _render_styles() -> None:
       );
     box-shadow: 0 12px 28px rgba(18, 32, 63, 0.05);
     position: relative;
+    overflow: hidden;
     z-index: 1;
   }
 
@@ -2342,6 +2410,8 @@ def _render_styles() -> None:
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 0.82rem;
+    position: relative;
+    z-index: 1;
   }
 
   .gh-module-shell-title {
@@ -2356,6 +2426,8 @@ def _render_styles() -> None:
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 0.7rem;
+    position: relative;
+    z-index: 1;
   }
 
   .gh-module-link,
@@ -2594,11 +2666,12 @@ def _render_styles() -> None:
     border: 1px solid rgba(205, 217, 239, 0.88);
     background: rgba(250, 252, 255, 0.92);
     box-shadow: 0 10px 22px rgba(18, 32, 63, 0.03);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    justify-items: stretch;
+    align-items: stretch;
     text-align: center;
+    position: relative;
   }
 
   .gh-profile-stat-label {
@@ -2609,6 +2682,8 @@ def _render_styles() -> None:
     color: #617390;
     margin-bottom: 0.32rem;
     text-align: center;
+    position: relative;
+    z-index: 1;
   }
 
   .gh-profile-stat-value {
@@ -2619,6 +2694,47 @@ def _render_styles() -> None:
     letter-spacing: -0.04em;
     word-break: break-word;
     text-align: center;
+  }
+
+  .gh-profile-stat-value-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    width: 100%;
+    grid-column: 1;
+    grid-row: 1 / -1;
+  }
+
+  .gh-orbit-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .gh-orbit-node {
+    position: absolute;
+    top: var(--gh-orbit-top);
+    left: var(--gh-orbit-left);
+    width: var(--gh-orbit-size);
+    height: var(--gh-orbit-size);
+    border-radius: 999px;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.96) 0 20%,
+      rgba(119, 169, 255, 0.44) 48%,
+      rgba(147, 117, 255, 0.14) 72%,
+      transparent 100%
+    );
+    box-shadow:
+      0 0 18px rgba(110, 160, 255, 0.18),
+      0 0 28px rgba(147, 117, 255, 0.08);
+    opacity: 0.48;
+    transform: translate(-50%, -50%) scale(0.92);
+    animation: gh-orbit-node 7.8s ease-in-out infinite;
+    animation-delay: var(--gh-orbit-delay);
   }
 
   .gh-operational-section {
@@ -3624,6 +3740,35 @@ def _render_styles() -> None:
     }
   }
 
+  @keyframes gh-sheen-sweep {
+    0%, 14% {
+      transform: translateX(-160%) rotate(15deg);
+      opacity: 0;
+    }
+    28% {
+      opacity: 0.62;
+    }
+    56% {
+      transform: translateX(420%) rotate(15deg);
+      opacity: 0.34;
+    }
+    100% {
+      transform: translateX(420%) rotate(15deg);
+      opacity: 0;
+    }
+  }
+
+  @keyframes gh-orbit-node {
+    0%, 100% {
+      transform: translate(-50%, -50%) scale(0.9);
+      opacity: 0.34;
+    }
+    50% {
+      transform: translate(-50%, calc(-50% - 6px)) scale(1.08);
+      opacity: 0.72;
+    }
+  }
+
   @keyframes gh-button-hop {
     0% {
       transform: translateY(0);
@@ -3639,14 +3784,14 @@ def _render_styles() -> None:
   @media (max-width: 900px) {
     .stApp::before {
       height: 34vh;
-      opacity: 0.58;
-      animation-duration: 40s, 24s;
+      opacity: 0.66;
+      animation-duration: 34s, 20s;
     }
 
     .stApp::after {
       height: 24vh;
-      opacity: 0.18;
-      animation-duration: 54s;
+      opacity: 0.22;
+      animation-duration: 40s;
     }
 
     .gh-wordmark {
@@ -3691,6 +3836,10 @@ def _render_styles() -> None:
       font-size: clamp(1.82rem, 6vw, 2.28rem);
     }
 
+    .gh-orbit-layer {
+      opacity: 0.72;
+    }
+
     [data-gh-tooltip]::after {
       left: 0;
       right: auto;
@@ -3713,7 +3862,10 @@ def _render_styles() -> None:
 
   @media (prefers-reduced-motion: reduce) {
     .stApp::before,
-    .stApp::after {
+    .stApp::after,
+    .gh-shell::before,
+    .gh-module-shell::before,
+    .gh-orbit-node {
       animation: none !important;
       transform: none !important;
     }
@@ -3789,6 +3941,123 @@ def _install_client_bootstrap() -> None:
     }
 
     restore();
+  } catch (error) {}
+})();
+</script>
+        """,
+        height=0,
+        width=0,
+    )
+
+
+def _install_ui_enhancements() -> None:
+    components.html(
+        """
+<script>
+(function() {
+  try {
+    const rootWindow =
+      window.parent && window.parent.document ? window.parent : window;
+    const doc = rootWindow.document || window.document;
+    const appRoot = doc.querySelector('.stApp');
+    if (appRoot) {
+      appRoot.classList.add('gh-ui-live');
+    }
+
+    const prefersReducedMotion =
+      !!(rootWindow.matchMedia &&
+         rootWindow.matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+    const formatNumber = (value, precision) =>
+      new rootWindow.Intl.NumberFormat('en-US', {
+        minimumFractionDigits: precision,
+        maximumFractionDigits: precision
+      }).format(value);
+
+    const animateCount = (node) => {
+      if (!node || node.dataset.ghCounted === '1') {
+        return;
+      }
+      const rawTarget = node.getAttribute('data-gh-countup') || '';
+      const target = Number(rawTarget);
+      if (!Number.isFinite(target)) {
+        return;
+      }
+      const precision =
+        Number.parseInt(node.getAttribute('data-gh-countup-precision') || '0', 10) || 0;
+      const finalDisplay =
+        node.getAttribute('data-gh-countup-display') ||
+        (node.textContent || '').trim() ||
+        rawTarget;
+      node.dataset.ghCounted = '1';
+      if (prefersReducedMotion || !rootWindow.requestAnimationFrame) {
+        node.textContent = finalDisplay;
+        return;
+      }
+      const duration = 960 + Math.min(Math.abs(target), 900) * 0.22;
+      const start = rootWindow.performance && rootWindow.performance.now
+        ? rootWindow.performance.now()
+        : Date.now();
+      const step = (timestamp) => {
+        const progress = Math.min((timestamp - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        node.textContent = formatNumber(target * eased, precision);
+        if (progress < 1) {
+          rootWindow.requestAnimationFrame(step);
+        } else {
+          node.textContent = finalDisplay;
+        }
+      };
+      rootWindow.requestAnimationFrame(step);
+    };
+
+    doc.querySelectorAll('[data-gh-countup]').forEach(animateCount);
+
+    if (prefersReducedMotion) {
+      return;
+    }
+
+    const orbitConfigs = {
+      shell: [
+        { top: '18%', left: '11%', size: '11px', delay: '-0.4s' },
+        { top: '24%', left: '87%', size: '12px', delay: '-2.0s' },
+        { top: '70%', left: '19%', size: '9px', delay: '-3.2s' },
+        { top: '62%', left: '78%', size: '10px', delay: '-4.4s' }
+      ],
+      module: [
+        { top: '22%', left: '14%', size: '8px', delay: '-0.9s' },
+        { top: '70%', left: '86%', size: '10px', delay: '-2.7s' },
+        { top: '48%', left: '56%', size: '7px', delay: '-4.1s' }
+      ]
+    };
+
+    const mountOrbitLayer = (target, kind) => {
+      if (!target || target.dataset.ghOrbitMounted === '1') {
+        return;
+      }
+      const configs = orbitConfigs[kind] || [];
+      if (!configs.length) {
+        return;
+      }
+      target.dataset.ghOrbitMounted = '1';
+      const layer = doc.createElement('div');
+      layer.className = 'gh-orbit-layer';
+      configs.forEach((config) => {
+        const node = doc.createElement('span');
+        node.className = 'gh-orbit-node';
+        node.style.setProperty('--gh-orbit-top', config.top);
+        node.style.setProperty('--gh-orbit-left', config.left);
+        node.style.setProperty('--gh-orbit-size', config.size);
+        node.style.setProperty('--gh-orbit-delay', config.delay);
+        layer.appendChild(node);
+      });
+      target.appendChild(layer);
+    };
+
+    mountOrbitLayer(doc.querySelector('.gh-shell'), 'shell');
+    doc.querySelectorAll('.gh-module-shell').forEach((target) => {
+      mountOrbitLayer(target, 'module');
+    });
   } catch (error) {}
 })();
 </script>
@@ -4540,10 +4809,13 @@ def _constraint_summary_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _shell_stat_html(label: str, value: str) -> str:
+    attrs = _countup_attrs(value)
     return f"""
 <div class="gh-estate-stat">
   <div class="gh-estate-stat-label">{html.escape(label)}</div>
-  <div class="gh-estate-stat-value">{html.escape(value)}</div>
+  <div class="gh-estate-stat-value-wrap">
+    <div class="gh-estate-stat-value"{attrs}>{html.escape(value)}</div>
+  </div>
 </div>
     """
 
@@ -4574,6 +4846,8 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
     signal_actions = _asset_signal_action_badges(asset)
     signals_html = f"<div class='gh-signal-row'>{signal_actions}</div>" if signal_actions else ""
     active_class = "active" if active else ""
+    score_value = str(int(asset.get("governance_score", 0)))
+    score_attrs = _countup_attrs(score_value)
     return f"""
 <div class="gh-asset-card {active_class}">
   <a {_route_link_attrs(asset_href, "gh-route-link gh-asset-main-link")}>
@@ -4584,7 +4858,7 @@ def _asset_card_html(asset: pd.Series, active: bool) -> str:
       </div>
       <div class="gh-score">
         <span class="gh-score-label">Coverage Score</span>
-        <span class="gh-score-value">{int(asset.get("governance_score", 0))}</span>
+        <span class="gh-score-value"{score_attrs}>{score_value}</span>
       </div>
     </div>
     <div class="gh-asset-copy">{html.escape(description)}</div>
@@ -7084,6 +7358,8 @@ def main() -> None:
         page_admin(store, role, user_email)
     elif page == "Help":
         page_help()
+
+    _install_ui_enhancements()
 
 
 if __name__ == "__main__":
