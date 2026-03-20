@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LineageGraph from "./LineageGraph";
 
 function selectGraph(graphBundle, context) {
@@ -14,32 +14,76 @@ export default function LineageWorkspace({
   context,
   onContextChange,
   onSelectAsset,
+  onOpenAsset,
+  assetSearchQuery,
+  onAssetSearchQueryChange,
+  assetSearchResults,
+  assetSearchLoading,
 }) {
   const graph = selectGraph(graphBundle, context);
   const [selectedNodeId, setSelectedNodeId] = useState("focus");
   const nodes = graph?.nodes || [];
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) || nodes[0] || null;
 
+  useEffect(() => {
+    setSelectedNodeId("focus");
+  }, [asset?.fqn, context, graph?.nodes?.length, graph?.edges?.length]);
+
   return (
     <section className="gh-lineage-workspace">
       <div className="gh-lineage-toolbar gh-panel">
-        <div>
+        <div className="gh-lineage-toolbar-copy">
           <div className="gh-panel-title">Lineage Workspace</div>
           <div className="gh-support-copy">
-            Trace upstream and downstream dependencies around the selected asset.
+            Trace dependencies around the selected asset without leaving the graph workflow.
           </div>
         </div>
-        <div className="gh-segment-row">
-          {["Data Lineage", "Operational Context"].map((option) => (
-            <button
-              className={`gh-segment-button ${context === option ? "is-active" : ""}`}
-              key={option}
-              onClick={() => onContextChange(option)}
-              type="button"
-            >
-              {option}
-            </button>
-          ))}
+        <div className="gh-lineage-toolbar-controls">
+          <div className="gh-lineage-asset-picker">
+            <label className="gh-filter-title" htmlFor="gh-lineage-asset-search">
+              Focus Asset
+            </label>
+            <input
+              className="gh-input"
+              id="gh-lineage-asset-search"
+              onChange={(event) => onAssetSearchQueryChange(event.target.value)}
+              placeholder={asset?.name ? `Search around ${asset.name}` : "Search for an asset"}
+              value={assetSearchQuery}
+            />
+            <div className="gh-lineage-search-list">
+              {assetSearchLoading ? (
+                <div className="gh-lineage-search-empty">Searching assets…</div>
+              ) : assetSearchResults.length ? (
+                assetSearchResults.map((candidate) => (
+                  <button
+                    className={`gh-lineage-search-row ${candidate.fqn === asset?.fqn ? "is-active" : ""}`}
+                    key={candidate.fqn}
+                    onClick={() => onSelectAsset(candidate.fqn)}
+                    type="button"
+                  >
+                    <span>{candidate.name}</span>
+                    <span>
+                      {candidate.catalog} / {candidate.schema}
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <div className="gh-lineage-search-empty">No matching assets.</div>
+              )}
+            </div>
+          </div>
+          <div className="gh-segment-row">
+            {["Data Lineage", "Operational Context"].map((option) => (
+              <button
+                className={`gh-segment-button ${context === option ? "is-active" : ""}`}
+                key={option}
+                onClick={() => onContextChange(option)}
+                type="button"
+              >
+                {option}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -71,13 +115,22 @@ export default function LineageWorkspace({
                 <span className="gh-chip">{selectedNode.kicker || selectedNode.role}</span>
               </div>
               {selectedNode.assetFqn ? (
-                <button
-                  className="gh-primary-button"
-                  onClick={() => onSelectAsset(selectedNode.assetFqn)}
-                  type="button"
-                >
-                  Open Related Asset
-                </button>
+                <div className="gh-action-row">
+                  <button
+                    className="gh-primary-button"
+                    onClick={() => onSelectAsset(selectedNode.assetFqn)}
+                    type="button"
+                  >
+                    Refocus graph
+                  </button>
+                  <button
+                    className="gh-secondary-button"
+                    onClick={() => onOpenAsset(selectedNode.assetFqn)}
+                    type="button"
+                  >
+                    Open asset page
+                  </button>
+                </div>
               ) : null}
             </>
           ) : (

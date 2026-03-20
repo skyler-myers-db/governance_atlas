@@ -18,13 +18,13 @@ function transformGraph(graph) {
       data: node,
       style: {
         width: 248,
-        borderRadius: 18,
-        border: node.role === "focus" ? "2px solid #5b6af7" : "1px solid #d4def7",
-        background: "rgba(255,255,255,0.98)",
+        borderRadius: 16,
+        border: node.role === "focus" ? "2px solid #5b6af7" : "1px solid #c9d6ee",
+        background: "#ffffff",
         boxShadow:
           node.role === "focus"
-            ? "0 24px 48px rgba(74,95,206,0.18)"
-            : "0 14px 28px rgba(19,31,65,0.08)",
+            ? "0 14px 28px rgba(74,95,206,0.16)"
+            : "0 8px 20px rgba(19,31,65,0.06)",
         padding: 16,
       },
       type: "default",
@@ -69,6 +69,7 @@ export default function LineageGraph({ graph, onSelectNode, selectedNodeId }) {
       <ReactFlow
         edges={transformed.edges}
         fitView
+        fitViewOptions={{ padding: 0.18 }}
         minZoom={0.3}
         nodes={transformed.nodes.map((node) => ({
           ...node,
