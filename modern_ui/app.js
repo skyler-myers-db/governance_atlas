@@ -303,17 +303,19 @@
   function renderShellMetrics() {
     const target = els.shellMetrics;
     if (!target) return;
-    renderMetricCards(target, DATA.shell.metrics || []);
+    const shell = (DATA && DATA.shell) || {};
+    renderMetricCards(target, shell.metrics || []);
     const roleNode = document.getElementById("shell-role");
     const userNode = document.getElementById("shell-user-email");
-    if (roleNode) roleNode.textContent = (DATA.shell && DATA.shell.role) || "Reader";
-    if (userNode) userNode.textContent = (DATA.shell && DATA.shell.userEmail) || "unknown";
+    if (roleNode) roleNode.textContent = shell.role || "Reader";
+    if (userNode) userNode.textContent = shell.userEmail || "unknown";
     animateCounters(target);
   }
 
   function renderHelpGrid() {
     if (!els.helpGrid) return;
-    els.helpGrid.innerHTML = (DATA.help || [])
+    const items = (DATA && DATA.help) || [];
+    els.helpGrid.innerHTML = items
       .map(
         (item) => `
           <div class="help-item">
@@ -332,12 +334,34 @@
     els.helpGrid = els.helpGrid || document.getElementById("help-grid");
     els.shellMetrics = els.shellMetrics || document.getElementById("shell-metrics");
 
+    renderShellMetrics();
+    renderHelpGrid();
+
     if (!DATA || !DATA.assets || !DATA.assets.length) {
+      const bootState = (DATA && DATA.bootState) || "";
+      const bootMessage = (DATA && DATA.bootMessage) || "";
+      const title =
+        bootState === "unavailable"
+          ? "Modern workspace unavailable"
+          : bootState === "error"
+            ? "Modern workspace failed to load"
+            : DATA
+              ? "No visible assets"
+              : "Loading workspace";
+      const copy =
+        bootMessage ||
+        (bootState === "unavailable"
+          ? "The modern runtime could not access the live metadata plane."
+          : bootState === "error"
+            ? "The modern frontend failed to load its bootstrap payload."
+            : DATA
+              ? "No visible assets are currently available to seed the modern workspace."
+              : "Preparing the modern metadata workspace.");
       els.appMain.innerHTML = `
         <section class="section-shell workspace-shell">
           <section class="results-panel">
-            <div class="panel-title">Loading workspace</div>
-            <div class="copy">Preparing the modern metadata workspace.</div>
+            <div class="panel-title">${escapeHtml(title)}</div>
+            <div class="copy">${escapeHtml(copy)}</div>
           </section>
         </section>
       `;
@@ -356,9 +380,6 @@
     } else {
       els.appMain.innerHTML = renderGovernance();
     }
-
-    renderShellMetrics();
-    renderHelpGrid();
     requestAnimationFrame(() => animateCounters(document));
     syncUrl();
   }
@@ -1132,7 +1153,7 @@
     const asset = params.get("asset");
     const context = params.get("context");
     if (module && ["discovery", "lineage", "governance"].includes(module)) state.module = module;
-    if (asset && DATA.assetIndex[asset]) state.selectedAssetFqn = asset;
+    if (asset && DATA && DATA.assetIndex && DATA.assetIndex[asset]) state.selectedAssetFqn = asset;
     if (context && ["Data Lineage", "Operational Context"].includes(context)) {
       state.lineage.context = context;
     }
@@ -1165,6 +1186,19 @@
     ensureBootstrap()
       .catch((error) => {
         console.error("Failed to load modern bootstrap payload", error);
+        DATA = {
+          ...(DATA || {}),
+          bootState: "error",
+          bootMessage:
+            (error && error.message) || "Failed to load the modern workspace bootstrap payload.",
+          assets: (DATA && DATA.assets) || [],
+          assetIndex: (DATA && DATA.assetIndex) || {},
+          graphs: (DATA && DATA.graphs) || {},
+          discovery: (DATA && DATA.discovery) || {},
+          governance: (DATA && DATA.governance) || { metrics: [], backlog: [], glossary: [] },
+          shell: (DATA && DATA.shell) || { metrics: [], role: "Reader", userEmail: "unknown" },
+          help: (DATA && DATA.help) || [],
+        };
       })
       .finally(() => {
         state = mergeState(defaultState(), state);
