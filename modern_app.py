@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 import math
 import os
+import shutil
+import subprocess
 import time
 from functools import lru_cache
 from pathlib import Path
@@ -28,6 +30,7 @@ from govhub.uc import UCSQLClient
 
 
 ROOT = Path(__file__).resolve().parent
+FRONTEND_DIR = ROOT / "frontend"
 LEGACY_UI_DIR = ROOT / "modern_ui"
 REACT_DIST_DIR = ROOT / "frontend" / "dist"
 LEGACY_INDEX_TEMPLATE = (LEGACY_UI_DIR / "index.html").read_text(encoding="utf-8")
@@ -66,8 +69,42 @@ DISCOVERY_SORTS = [
 
 app = FastAPI(title="Governance Hub Modern Runtime")
 app.mount("/static", StaticFiles(directory=str(LEGACY_UI_DIR)), name="static")
-if (REACT_DIST_DIR / "assets").exists():
-    app.mount("/assets", StaticFiles(directory=str(REACT_DIST_DIR / "assets")), name="react-assets")
+app.mount(
+    "/assets",
+    StaticFiles(directory=str(REACT_DIST_DIR / "assets"), check_dir=False),
+    name="react-assets",
+)
+
+
+class _NullGovernanceStore:
+    def list_owner_assignments(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            columns=["uc_full_name", "owner_email", "owner_type", "updated_at", "updated_by"]
+        )
+
+    def list_asset_links(self) -> pd.DataFrame:
+        return pd.DataFrame(columns=["uc_full_name", "om_table_fqn", "updated_at", "updated_by"])
+
+    def list_change_requests(
+        self, status: Optional[str] = None, limit: int = 200
+    ) -> pd.DataFrame:
+        return pd.DataFrame(
+            columns=[
+                "request_id",
+                "created_at",
+                "created_by",
+                "status",
+                "uc_full_name",
+                "new_comment",
+                "review_note",
+            ]
+        )
+
+    def list_glossary_terms(self, limit: int = 200) -> pd.DataFrame:
+        return pd.DataFrame(columns=["term_id", "name", "definition"])
+
+    def get_role(self, email: str, admin_emails: Optional[List[str]] = None) -> str:
+        return "reader"
 
 
 def _raw(fn: Callable[..., Any]) -> Callable[..., Any]:
@@ -126,12 +163,44 @@ def _store() -> GovernanceStore:
     return store
 
 
+def _uc_runtime_status() -> Dict[str, str]:
+    def _loader() -> Dict[str, str]:
+        try:
+            _uc().list_catalogs()
+            return {"state": "live", "message": ""}
+        except Exception as exc:
+            return {
+                "state": "unavailable",
+                "message": _normalize_str(exc) or "Live Databricks metadata runtime is unavailable.",
+            }
+
+    return _ttl_value("modern_uc_runtime_status", 30, _loader)
+
+
+def _store_status() -> Dict[str, str]:
+    def _loader() -> Dict[str, str]:
+        try:
+            _store()
+            return {"state": "live", "message": ""}
+        except Exception as exc:
+            return {
+                "state": "degraded",
+                "message": _normalize_str(exc)
+                or "Governance control plane is unavailable; falling back to read-only metadata.",
+            }
+
+    return _ttl_value("modern_store_status", 60, _loader)
+
+
 def _live_runtime_available() -> bool:
-    try:
-        _store()
-    except Exception:
-        return False
-    return True
+    return _uc_runtime_status()["state"] == "live"
+
+
+def _store_for_read() -> GovernanceStore | _NullGovernanceStore:
+    status = _store_status()
+    if status["state"] == "live":
+        return _store()
+    return _NullGovernanceStore()
 
 
 def _allow_demo_fallback() -> bool:
@@ -141,7 +210,9 @@ def _allow_demo_fallback() -> bool:
     return raw.lower() in {"1", "true", "yes"}
 
 
-def _user_email(request: Request) -> str:
+def _user_email(request: Optional[Request]) -> str:
+    if request is None:
+        return "unknown"
     email = (
         request.headers.get("x-forwarded-email")
         or request.headers.get("x-forwarded-preferred-username")
@@ -150,19 +221,24 @@ def _user_email(request: Request) -> str:
     return email.strip() or "unknown"
 
 
-def _user_role(request: Request) -> str:
+def _user_role(request: Optional[Request]) -> str:
     email = _user_email(request)
     if email == "unknown":
         return "Reader"
+    store = _store_for_read()
     try:
-        role = _store().get_role(email, admin_emails=_config().admin_emails)
+        role = store.get_role(email, admin_emails=_config().admin_emails)
     except Exception:
         return "Reader"
     return (role or "reader").title()
 
 
 def _inventory() -> pd.DataFrame:
-    return _ttl_value("modern_inventory", 600, lambda: _cached_asset_inventory(_uc(), _store()))
+    return _ttl_value(
+        "modern_inventory",
+        600,
+        lambda: _cached_asset_inventory(_uc(), _store_for_read()),
+    )
 
 
 def _visible_assets() -> pd.DataFrame:
@@ -629,7 +705,7 @@ def _lineage_payload(asset_fqn: str) -> Dict[str, Any]:
 def _governance_summary() -> Dict[str, Any]:
     def _loader() -> Dict[str, Any]:
         inventory = _visible_assets()
-        store = _store()
+        store = _store_for_read()
         try:
             pending = store.list_change_requests(status="pending", limit=200)
         except Exception:
@@ -696,6 +772,7 @@ def _governance_summary() -> Dict[str, Any]:
 
 
 def _bootstrap_payload(request: Request) -> Dict[str, Any]:
+    store_status = _store_status()
     inventory = _visible_assets()
     assets = [_base_asset_payload(row) for _, row in inventory.iterrows()]
     asset_index = {asset["fqn"]: asset for asset in assets}
@@ -704,6 +781,7 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
         available_catalogs=list(inventory["table_catalog"].dropna().astype(str).unique()),
         observed_catalogs=_lineage_observed_catalogs(),
     )
+    asset_types = sorted({asset["objectType"] for asset in assets if asset["objectType"]})
     domains = sorted({asset["domain"] for asset in assets if asset["domain"] and asset["domain"] != "Unassigned"})
     tiers = sorted({asset["tier"] for asset in assets if asset["tier"] and asset["tier"] != "Unassigned"})
     certifications = sorted({asset["certification"] for asset in assets if asset["certification"] and asset["certification"] != "Unassigned"})
@@ -722,9 +800,9 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
         graphs[selected_fqn] = _lineage_payload(selected_fqn)["graphs"]
 
     return {
-        "version": "modern-ui-live-1",
-        "bootState": "live",
-        "bootMessage": "",
+        "version": "modern-ui-live-2",
+        "bootState": "live" if store_status["state"] == "live" else "degraded",
+        "bootMessage": "" if store_status["state"] == "live" else store_status["message"],
         "apiBase": "/api",
         "assets": assets,
         "assetIndex": asset_index,
@@ -735,6 +813,7 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
             "tiers": ["All tiers", *tiers],
             "certifications": ["All certifications", *certifications],
             "sensitivities": ["All sensitivities", *sensitivities],
+            "assetTypes": ["All types", *asset_types],
             "views": DISCOVERY_VIEWS,
             "sortOptions": DISCOVERY_SORTS,
             "defaultQuery": "",
@@ -762,84 +841,158 @@ def _ensure_live_runtime() -> None:
         raise HTTPException(status_code=503, detail="Live Databricks runtime is not available.")
 
 
-def _render_index(live_payload: Optional[Dict[str, Any]] = None) -> str:
-    if (REACT_DIST_DIR / "index.html").exists():
-        return (REACT_DIST_DIR / "index.html").read_text(encoding="utf-8")
-    html_text = (
-        LEGACY_INDEX_TEMPLATE.replace("./styles.css", "/static/styles.css")
-        .replace("./app.js", "/static/app.js")
+def _bootstrap_unavailable_payload(
+    request: Optional[Request], message: str, *, state: str = "unavailable"
+) -> Dict[str, Any]:
+    role = _user_role(request) if request is not None else "Unavailable"
+    email = _user_email(request) if request is not None else "offline"
+    return {
+        "version": "modern-ui-unavailable-2",
+        "bootState": state,
+        "bootMessage": message,
+        "apiBase": "/api",
+        "assets": [],
+        "assetIndex": {},
+        "graphs": {},
+        "discovery": {
+            "catalogs": ["All catalogs"],
+            "domains": ["All domains"],
+            "tiers": ["All tiers"],
+            "certifications": ["All certifications"],
+            "sensitivities": ["All sensitivities"],
+            "views": DISCOVERY_VIEWS,
+            "sortOptions": DISCOVERY_SORTS,
+            "assetTypes": ["All types"],
+            "defaultQuery": "",
+        },
+        "governance": {"metrics": [], "backlog": [], "glossary": []},
+        "shell": {
+            "metrics": [],
+            "role": role,
+            "userEmail": email,
+        },
+        "help": [
+            {
+                "title": "Modern mode unavailable",
+                "body": message,
+            }
+        ],
+    }
+
+
+def _ensure_react_bundle() -> Path:
+    index_path = REACT_DIST_DIR / "index.html"
+    assets_dir = REACT_DIST_DIR / "assets"
+    if index_path.exists() and assets_dir.exists():
+        return index_path
+    if (
+        (FRONTEND_DIR / "package.json").exists()
+        and (FRONTEND_DIR / "node_modules").exists()
+        and shutil.which("npm")
+    ):
+        subprocess.run(
+            ["npm", "run", "build"],
+            cwd=str(FRONTEND_DIR),
+            check=True,
+        )
+    if index_path.exists() and assets_dir.exists():
+        return index_path
+    raise RuntimeError(
+        "Modern React bundle is missing. Build frontend/dist before running GOVHUB_APP_MODE=modern."
     )
-    if live_payload is None:
-        html_text = html_text.replace("./data.js", "/static/data.js")
-        return html_text
-    bootstrap = json.dumps(live_payload, default=str).replace("</", "<\\/")
+
+
+def _inject_bootstrap(html_text: str, payload: Dict[str, Any]) -> str:
+    bootstrap = json.dumps(payload, default=str).replace("</", "<\\/")
     inline_bootstrap = (
         "<script>"
-        "window.GOVHUB_API_BASE = '/api';"
-        "window.GOVHUB_USE_REMOTE_API = true;"
-        f"window.GOVHUB_DATA = {bootstrap};"
+        "window.__GOVHUB_BOOTSTRAP__ = "
+        f"{bootstrap};"
         "</script>"
     )
-    return html_text.replace(STATIC_INDEX_BOOTSTRAP, inline_bootstrap)
+    return html_text.replace("</head>", f"{inline_bootstrap}\n  </head>")
+
+
+def _render_index(live_payload: Optional[Dict[str, Any]] = None) -> str:
+    try:
+        react_index = _ensure_react_bundle().read_text(encoding="utf-8")
+    except Exception as exc:
+        return f"""<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Governance Hub Modern Bundle Missing</title>
+    <style>
+      body {{ font-family: Inter, system-ui, sans-serif; background: #f5f7ff; color: #1d2740; padding: 40px; }}
+      .card {{ max-width: 920px; margin: 40px auto; background: #fff; border: 1px solid #d8e1f5; border-radius: 24px; padding: 32px; box-shadow: 0 20px 44px rgba(21, 32, 65, 0.08); }}
+      h1 {{ margin: 0 0 12px; font-size: 2rem; }}
+      p {{ color: #5d6c8c; line-height: 1.6; }}
+      code {{ background: #eef1ff; padding: 0.15rem 0.4rem; border-radius: 8px; }}
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Modern React bundle is missing</h1>
+      <p>The app is running in <code>GOVHUB_APP_MODE=modern</code>, but the compiled frontend assets were not found.</p>
+      <p>Build <code>frontend/dist</code> with <code>npm install</code> and <code>npm run build</code> inside <code>frontend/</code>, then redeploy.</p>
+      <p>Runtime detail: {json.dumps(_normalize_str(exc) or 'unknown error')}</p>
+    </div>
+  </body>
+</html>"""
+    return _inject_bootstrap(react_index, live_payload or {})
 
 
 def _render_unavailable_index(message: str) -> str:
-    if (REACT_DIST_DIR / "index.html").exists():
-        return (REACT_DIST_DIR / "index.html").read_text(encoding="utf-8")
-    html_text = (
-        LEGACY_INDEX_TEMPLATE.replace("./styles.css", "/static/styles.css")
-        .replace("./app.js", "/static/app.js")
-        .replace(STATIC_INDEX_BOOTSTRAP, "")
-    )
-    unavailable = (
-        "<script>"
-        "window.GOVHUB_API_BASE = '/api';"
-        "window.GOVHUB_USE_REMOTE_API = false;"
-        "window.GOVHUB_DATA = {"
-        "\"version\":\"modern-ui-unavailable-1\","
-        "\"bootState\":\"unavailable\","
-        f"\"bootMessage\":{json.dumps(message)},"
-        "\"assets\":[],"
-        "\"assetIndex\":{},"
-        "\"graphs\":{},"
-        "\"discovery\":{\"catalogs\":[\"All catalogs\"],\"domains\":[\"All domains\"],\"tiers\":[\"All tiers\"],\"certifications\":[\"All certifications\"],\"sensitivities\":[\"All sensitivities\"],\"views\":[],\"sortOptions\":[],\"defaultQuery\":\"\"},"
-        "\"governance\":{\"metrics\":[],\"backlog\":[],\"glossary\":[]},"
-        "\"shell\":{\"metrics\":[],\"role\":\"Unavailable\",\"userEmail\":\"offline\"},"
-        f"\"help\":[{{\"title\":\"Modern mode unavailable\",\"body\":{json.dumps(message)}}}]"
-        "};"
-        "</script>"
-    )
-    return html_text.replace("</head>", f"{unavailable}\n  </head>")
+    return _render_index(_bootstrap_unavailable_payload(None, message))
 
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request) -> HTMLResponse:
     if not _live_runtime_available():
-        if _allow_demo_fallback():
-            return HTMLResponse(_render_index())
         return HTMLResponse(
-            _render_unavailable_index(
-                "Live Databricks metadata runtime is unavailable. Fix the warehouse or governance configuration, or re-enable legacy mode."
+            _render_index(
+                _bootstrap_unavailable_payload(
+                    request,
+                    "Live Databricks metadata runtime is unavailable. Fix the warehouse or governance configuration or warehouse access, then retry modern mode.",
+                )
             ),
-            status_code=503,
+            status_code=200,
         )
     try:
         return HTMLResponse(_render_index(_bootstrap_payload(request)))
     except Exception as exc:
-        if _allow_demo_fallback():
-            return HTMLResponse(_render_index())
         return HTMLResponse(
-            _render_unavailable_index(
-                f"Modern bootstrap failed: {_normalize_str(exc) or 'unknown error'}."
+            _render_index(
+                _bootstrap_unavailable_payload(
+                    request,
+                    f"Modern bootstrap failed: {_normalize_str(exc) or 'unknown error'}.",
+                    state="error",
+                )
             ),
-            status_code=503,
+            status_code=200,
         )
 
 
 @app.get("/api/bootstrap")
 def api_bootstrap(request: Request) -> JSONResponse:
-    _ensure_live_runtime()
-    return JSONResponse(_bootstrap_payload(request))
+    if not _live_runtime_available():
+        return JSONResponse(
+            _bootstrap_unavailable_payload(
+                request,
+                "Live Databricks metadata runtime is unavailable. Fix the warehouse or governance configuration or warehouse access, then retry modern mode.",
+            )
+        )
+    try:
+        return JSONResponse(_bootstrap_payload(request))
+    except Exception as exc:
+        return JSONResponse(
+            _bootstrap_unavailable_payload(
+                request,
+                f"Modern bootstrap failed: {_normalize_str(exc) or 'unknown error'}.",
+                state="error",
+            )
+        )
 
 
 @app.get("/api/discovery/search")
