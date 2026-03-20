@@ -512,12 +512,14 @@ def _route_subnav_html(
     current: str,
     *,
     label: str = "",
+    help_text: Optional[Dict[str, str]] = None,
 ) -> str:
     links: List[str] = []
     for item_label, href in items:
         classes = "gh-subnav-link active" if item_label == current else "gh-subnav-link"
+        tooltip = _normalize_str((help_text or {}).get(item_label))
         links.append(
-            f"<a {_route_link_attrs(href, f'gh-route-link {classes}')}>"
+            f"<a {_route_link_attrs(href, f'gh-route-link {classes}', tooltip=tooltip)}>"
             f"{html.escape(item_label)}"
             "</a>"
         )
@@ -540,16 +542,16 @@ def _module_switcher_html(
     links: List[str] = []
     for item in items:
         classes = "gh-module-link active" if item == current_page else "gh-module-link"
-        title_attr = html.escape(help_text.get(item, ""), quote=True)
+        tooltip = _normalize_str(help_text.get(item))
         links.append(
-            f"<a {_route_link_attrs('?' + urlencode({'page': item}), classes)} title=\"{title_attr}\">"
+            f"<a {_route_link_attrs('?' + urlencode({'page': item}), classes, tooltip=tooltip)}>"
             f"{html.escape(item)}"
             "</a>"
         )
     help_classes = "gh-module-help active" if current_page == "Help" else "gh-module-help"
-    help_title = html.escape(help_text.get("?", "Open Help"), quote=True)
+    help_title = _normalize_str(help_text.get("?", "Open Help"))
     help_link = (
-        f"<a {_route_link_attrs('?' + urlencode({'page': 'Help'}), help_classes)} title=\"{help_title}\">?</a>"
+        f"<a {_route_link_attrs('?' + urlencode({'page': 'Help'}), help_classes, tooltip=help_title)}>?</a>"
     )
     return f"""
 <div class="gh-module-shell">
@@ -592,14 +594,25 @@ def _format_entity_type(raw: str) -> str:
         "DLT_PIPELINE": "DLT Pipeline",
         "NOTEBOOK": "Notebook",
         "SQL": "SQL",
+        "DBSQL_QUERY": "DBSQL Query",
         "SQL_QUERY": "SQL Query",
         "QUERY": "Query",
         "STATEMENT": "Statement",
+        "STATEMENT_EXECUTION": "Statement",
         "DASHBOARD": "Dashboard",
+        "DBSQL_DASHBOARD": "DBSQL Dashboard",
     }
     if value in labels:
         return labels[value]
     return value.replace("_", " ").title()
+
+
+def _friendly_metadata_label(raw: str) -> str:
+    text = _normalize_str(raw)
+    if not text:
+        return ""
+    base = text.split(".")[-1].split("[")[0]
+    return base.replace("_", " ").title()
 
 
 def _parse_metadata_dict(raw: Any) -> Dict[str, Any]:
@@ -715,12 +728,16 @@ def _operational_display_payload(row: pd.Series) -> Dict[str, str]:
             "pipeline_name",
             "pipelineName",
             "spec.name",
+            "entity_name",
+            "entityName",
             "dashboard_name",
             "dashboardName",
             "query_name",
             "queryName",
             "notebook_name",
             "notebookName",
+            "workspace_object_name",
+            "workspaceObjectName",
             "resource_name",
             "resourceName",
             "task_name",
@@ -883,6 +900,81 @@ def _summarize_operational_context(
             )
             for fqn in related_assets[:3]
         ]
+        detail_rows: List[Tuple[str, str]] = []
+        entity_id = _normalize_str(row.get("entity_id"))
+        if entity_id:
+            detail_rows.append(("Entity ID", entity_id))
+        if payload["primary_subtitle"]:
+            detail_rows.append(("Workspace Path", payload["primary_subtitle"]))
+        if len(run_ids) > 1:
+            detail_rows.append(("Runs", f"{len(run_ids)} runs"))
+        elif len(run_ids) == 1:
+            detail_rows.append(("Run ID", next(iter(run_ids))))
+        if len(statement_ids) > 1:
+            detail_rows.append(("Statements", f"{len(statement_ids)} statements"))
+        elif len(statement_ids) == 1:
+            detail_rows.append(("Statement ID", next(iter(statement_ids))))
+        if related_assets:
+            detail_rows.append(
+                (
+                    "Related Assets",
+                    ", ".join(related_assets[:4]),
+                )
+            )
+        if note:
+            detail_rows.append(("Description", note))
+        if payload["statement"]:
+            detail_rows.append(
+                (
+                    "Statement Text",
+                    shorten(payload["statement"], width=240, placeholder="…"),
+                )
+            )
+        metadata_details = [
+            (
+                _friendly_metadata_label(key),
+                value,
+            )
+            for key, value in flat.items()
+            if _normalize_str(value)
+            and key.lower()
+            not in {
+                "display_name",
+                "displayname",
+                "settings.name",
+                "job_settings.name",
+                "job_name",
+                "jobname",
+                "workflow_name",
+                "workflowname",
+                "pipeline_name",
+                "pipelinename",
+                "spec.name",
+                "entity_name",
+                "entityname",
+                "dashboard_name",
+                "dashboardname",
+                "query_name",
+                "queryname",
+                "notebook_name",
+                "notebookname",
+                "workspace_object_name",
+                "workspaceobjectname",
+                "resource_name",
+                "resourcename",
+                "path",
+                "workspace_path",
+                "workspacepath",
+                "notebook_path",
+                "notebookpath",
+                "statement_text",
+                "query_text",
+                "query",
+                "description",
+                "details",
+            }
+        ]
+        detail_rows.extend(metadata_details[:4])
         cards.append(
             {
                 "entity_label": entity_label,
@@ -894,6 +986,8 @@ def _summarize_operational_context(
                     "upstream assets" if direction == "upstream" else "downstream assets"
                 ),
                 "related_context": related_context,
+                "detail_rows": detail_rows,
+                "direction": direction,
             }
         )
     cards.sort(key=lambda item: (item["entity_label"], item["title"]))
@@ -1022,21 +1116,37 @@ def _operational_context_card_html(item: Dict[str, Any]) -> str:
         if _normalize_str(item.get("subtitle"))
         else ""
     )
-    return f"""
-<div class="gh-operational-card">
-  <div class="gh-operational-head">
-    <div>
-      <div class="gh-operational-type">{html.escape(item['entity_label'])}</div>
-      <div class="gh-operational-title">{html.escape(item['title'])}</div>
-      {subtitle_html}
-    </div>
-    <div class="gh-operational-count">
-      {int(item['asset_count'])} {html.escape(item['assets_label'])}
-    </div>
-  </div>
-  {note_html}
-  <div class="gh-operational-pill-row">{related_html}</div>
+    detail_rows = item.get("detail_rows", [])
+    detail_html = "".join(
+        f"""
+<div class="gh-operational-detail-item">
+  <div class="gh-operational-detail-label">{html.escape(label)}</div>
+  <div class="gh-operational-detail-value">{html.escape(value)}</div>
 </div>
+        """
+        for label, value in detail_rows
+        if _normalize_str(label) and _normalize_str(value)
+    )
+    expandable_class = " expandable" if detail_html else ""
+    return f"""
+<details class="gh-operational-card{expandable_class}">
+  <summary class="gh-operational-summary">
+    <div class="gh-operational-head">
+      <div>
+        <div class="gh-operational-type">{html.escape(item['entity_label'])}</div>
+        <div class="gh-operational-title">{html.escape(item['title'])}</div>
+        {subtitle_html}
+      </div>
+      <div class="gh-operational-count">
+        {int(item['asset_count'])} {html.escape(item['assets_label'])}
+      </div>
+    </div>
+    {note_html}
+    <div class="gh-operational-pill-row">{related_html}</div>
+    <div class="gh-operational-expand-hint">Click to expand workload details</div>
+  </summary>
+  <div class="gh-operational-detail-grid">{detail_html}</div>
+</details>
     """
 
 
@@ -1119,10 +1229,20 @@ def _button_nav(
     return st.session_state.get(state_key, current)
 
 
-def _attach_button_titles(title_map: Optional[Dict[str, str]]) -> None:
-    if not title_map:
+def _decorate_buttons(config_map: Optional[Dict[str, Dict[str, str]]]) -> None:
+    if not config_map:
         return
-    payload = json.dumps({key: value for key, value in title_map.items() if value})
+    normalized: Dict[str, Dict[str, str]] = {}
+    for label, config in config_map.items():
+        if not _normalize_str(label):
+            continue
+        normalized[label] = {
+            "tooltip": _normalize_str(config.get("tooltip")),
+            "classes": _normalize_str(config.get("classes")),
+        }
+    if not normalized:
+        return
+    payload = json.dumps(normalized)
     components.html(
         f"""
 <script>
@@ -1131,12 +1251,17 @@ def _attach_button_titles(title_map: Optional[Dict[str, str]]) -> None:
     const rootWindow =
       window.parent && window.parent.document ? window.parent : window;
     const doc = rootWindow.document || window.document;
-    const titleMap = {payload};
-    Object.entries(titleMap).forEach(([label, title]) => {{
+    const configMap = {payload};
+    Object.entries(configMap).forEach(([label, config]) => {{
       doc.querySelectorAll('button').forEach((button) => {{
         const text = (button.innerText || button.textContent || '').trim();
         if (text === label) {{
-          button.setAttribute('title', title);
+          if (config.tooltip) {{
+            button.setAttribute('data-gh-tooltip', config.tooltip);
+          }}
+          if (config.classes) {{
+            config.classes.split(/\\s+/).filter(Boolean).forEach((name) => button.classList.add(name));
+          }}
         }}
       }});
     }});
@@ -1149,7 +1274,19 @@ def _attach_button_titles(title_map: Optional[Dict[str, str]]) -> None:
     )
 
 
-def _route_link_attrs(href: str, classes: str) -> str:
+def _attach_button_titles(title_map: Optional[Dict[str, str]]) -> None:
+    if not title_map:
+        return
+    _decorate_buttons(
+        {
+            key: {"tooltip": value}
+            for key, value in title_map.items()
+            if _normalize_str(key) and _normalize_str(value)
+        }
+    )
+
+
+def _route_link_attrs(href: str, classes: str, *, tooltip: str = "") -> str:
     safe_href = html.escape(href, quote=True)
     safe_classes = html.escape(classes, quote=True)
     click_js = (
@@ -1164,9 +1301,13 @@ def _route_link_attrs(href: str, classes: str) -> str:
         "}"
     )
     safe_click_js = html.escape(click_js, quote=True)
+    tooltip_attrs = ""
+    if _normalize_str(tooltip):
+        safe_tooltip = html.escape(_normalize_str(tooltip), quote=True)
+        tooltip_attrs = f' data-gh-tooltip="{safe_tooltip}"'
     return (
         f'class="{safe_classes}" href="{safe_href}" data-gh-route="1" '
-        f'target="_self" onclick="{safe_click_js}"'
+        f'target="_self" onclick="{safe_click_js}"{tooltip_attrs}'
     )
 
 
@@ -1431,8 +1572,8 @@ def _render_styles() -> None:
 
   .gh-shell-top {
     display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(360px, 0.95fr);
-    gap: 1.2rem;
+    grid-template-columns: minmax(0, 1.02fr) minmax(560px, 0.98fr);
+    gap: 1.35rem;
     align-items: stretch;
     position: relative;
     z-index: 1;
@@ -1454,7 +1595,7 @@ def _render_styles() -> None:
     flex-direction: column;
     justify-content: space-between;
     border-radius: 22px;
-    padding: 1.05rem 1.08rem 1.12rem;
+    padding: 1.1rem 1.16rem 1.2rem;
     border: 1px solid rgba(198, 212, 237, 0.94);
     background:
       linear-gradient(
@@ -1476,6 +1617,10 @@ def _render_styles() -> None:
 
   .gh-estate-title {
     margin-bottom: 0;
+    font-size: 0.92rem;
+    font-weight: 880;
+    letter-spacing: 0.15em;
+    color: #526682;
   }
 
   .gh-estate-chip-row {
@@ -1927,19 +2072,19 @@ def _render_styles() -> None:
   }
 
   .gh-subnav-label {
-    font-size: 0.8rem;
-    font-weight: 800;
+    font-size: 0.88rem;
+    font-weight: 880;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: #657794;
-    margin-bottom: 0.52rem;
+    margin-bottom: 0.6rem;
   }
 
   .gh-subnav {
     display: inline-flex;
     flex-wrap: wrap;
-    gap: 0.42rem;
-    padding: 0.34rem;
+    gap: 0.46rem;
+    padding: 0.38rem;
     border-radius: 999px;
     border: 1px solid rgba(198, 212, 237, 0.94);
     background: rgba(255, 255, 255, 0.72);
@@ -1950,13 +2095,13 @@ def _render_styles() -> None:
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 2.6rem;
-    padding: 0.62rem 1.15rem;
+    min-height: 2.9rem;
+    padding: 0.7rem 1.28rem;
     border-radius: 999px;
     color: #50627f !important;
     text-decoration: none !important;
-    font-size: 0.96rem;
-    font-weight: 760;
+    font-size: 1.02rem;
+    font-weight: 790;
     letter-spacing: -0.01em;
     transition:
       background 0.18s ease,
@@ -1987,7 +2132,7 @@ def _render_styles() -> None:
 
   .gh-module-shell {
     margin-bottom: 1rem;
-    padding: 0.95rem 1rem 1.02rem;
+    padding: 1.05rem 1.1rem 1.12rem;
     border-radius: 24px;
     border: 1px solid rgba(196, 211, 237, 0.96);
     background:
@@ -2005,15 +2150,15 @@ def _render_styles() -> None:
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 0.7rem;
+    margin-bottom: 0.82rem;
   }
 
   .gh-module-shell-title {
-    font-size: 0.82rem;
-    font-weight: 800;
-    letter-spacing: 0.14em;
+    font-size: 1.14rem;
+    font-weight: 920;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: #5f7190;
+    color: #41597e;
   }
 
   .gh-module-nav {
@@ -2027,14 +2172,14 @@ def _render_styles() -> None:
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 3.2rem;
+    min-height: 3.35rem;
     border-radius: 18px;
     border: 1px solid rgba(194, 209, 236, 0.96);
     background: rgba(255, 255, 255, 0.92);
     color: #1f2e48 !important;
     text-decoration: none !important;
-    font-size: 1.04rem;
-    font-weight: 760;
+    font-size: 1.08rem;
+    font-weight: 800;
     box-shadow: 0 10px 22px rgba(18, 32, 63, 0.03);
     transition:
       transform 0.18s ease,
@@ -2136,6 +2281,7 @@ def _render_styles() -> None:
 
   .gh-lineage-node.focus {
     border-color: rgba(34, 87, 216, 0.3);
+    padding: 1.18rem 1.15rem;
     background:
       linear-gradient(
         135deg,
@@ -2143,6 +2289,9 @@ def _render_styles() -> None:
         rgba(244, 239, 255, 0.9) 72%,
         rgba(255, 255, 255, 0.98)
       );
+    box-shadow:
+      0 0 0 2px rgba(76, 118, 236, 0.14),
+      0 18px 34px rgba(34, 87, 216, 0.12);
   }
 
   .gh-lineage-label {
@@ -2158,6 +2307,16 @@ def _render_styles() -> None:
     font-size: 1.18rem;
     font-weight: 820;
     line-height: 1.2;
+  }
+
+  .gh-lineage-node.focus .gh-asset-name {
+    font-size: 1.52rem;
+    line-height: 1.16;
+  }
+
+  .gh-lineage-node.focus .gh-asset-context {
+    font-size: 0.92rem;
+    margin-top: 0.26rem;
   }
 
   .gh-lineage-summary {
@@ -2203,22 +2362,26 @@ def _render_styles() -> None:
   }
 
   .gh-profile-panel {
-    padding: 1.18rem 1.2rem 1.08rem;
+    padding: 1.22rem 1.25rem 1.12rem;
   }
 
   .gh-profile-shell {
     display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(540px, 1fr);
-    gap: 1rem 1.15rem;
-    align-items: start;
+    grid-template-columns: minmax(0, 0.95fr) minmax(760px, 1.18fr);
+    gap: 1rem 1.2rem;
+    align-items: stretch;
   }
 
   .gh-profile-main {
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 9.3rem;
   }
 
   .gh-profile-title {
-    font-size: 2.35rem;
+    font-size: 2.55rem;
     font-weight: 860;
     margin: 0;
     line-height: 1.08;
@@ -2228,20 +2391,22 @@ def _render_styles() -> None:
   .gh-profile-stats {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 0.72rem;
+    gap: 0.82rem;
+    align-content: stretch;
   }
 
   .gh-profile-stat {
     min-width: 0;
     border-radius: 18px;
-    padding: 0.8rem 0.82rem;
+    min-height: 4.95rem;
+    padding: 0.96rem 0.92rem;
     border: 1px solid rgba(205, 217, 239, 0.88);
     background: rgba(250, 252, 255, 0.92);
     box-shadow: 0 10px 22px rgba(18, 32, 63, 0.03);
   }
 
   .gh-profile-stat-label {
-    font-size: 0.7rem;
+    font-size: 0.74rem;
     font-weight: 800;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -2251,7 +2416,7 @@ def _render_styles() -> None:
 
   .gh-profile-stat-value {
     color: var(--gh-text);
-    font-size: 1.52rem;
+    font-size: 1.72rem;
     font-weight: 840;
     line-height: 1.12;
     letter-spacing: -0.04em;
@@ -2269,7 +2434,7 @@ def _render_styles() -> None:
   }
 
   .gh-operational-card {
-    padding: 0.95rem 1rem;
+    padding: 0;
     border-radius: 18px;
     border: 1px solid var(--gh-border);
     background:
@@ -2280,6 +2445,46 @@ def _render_styles() -> None:
         rgba(246, 239, 255, 0.86) 100%
       );
     box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
+    overflow: hidden;
+  }
+
+  .gh-operational-summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 0.98rem 1rem 0.95rem;
+  }
+
+  .gh-operational-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .gh-operational-summary::marker {
+    content: "";
+  }
+
+  .gh-operational-card.expandable .gh-operational-summary {
+    transition:
+      background 0.18s ease,
+      box-shadow 0.18s ease,
+      border-color 0.18s ease;
+  }
+
+  .gh-operational-card.expandable .gh-operational-summary:hover {
+    background: linear-gradient(
+      145deg,
+      rgba(255, 248, 244, 0.96),
+      rgba(247, 239, 255, 0.88)
+    );
+    box-shadow: inset 0 0 0 1px rgba(255, 147, 110, 0.16);
+  }
+
+  .gh-operational-card[open] .gh-operational-summary {
+    border-bottom: 1px solid rgba(202, 214, 237, 0.86);
+    background: linear-gradient(
+      145deg,
+      rgba(248, 251, 255, 0.97),
+      rgba(246, 241, 255, 0.9)
+    );
   }
 
   .gh-operational-head {
@@ -2332,6 +2537,14 @@ def _render_styles() -> None:
     margin-bottom: 0.55rem;
   }
 
+  .gh-operational-expand-hint {
+    margin-top: 0.62rem;
+    color: #7081a1;
+    font-size: 0.76rem;
+    font-weight: 760;
+    letter-spacing: 0.04em;
+  }
+
   .gh-operational-pill-row {
     display: flex;
     gap: 0.4rem;
@@ -2348,6 +2561,35 @@ def _render_styles() -> None:
     color: #546684;
     font-size: 0.74rem;
     font-weight: 700;
+  }
+
+  .gh-operational-detail-grid {
+    display: grid;
+    gap: 0.68rem;
+    padding: 0.95rem 1rem 1rem;
+  }
+
+  .gh-operational-detail-item {
+    border-radius: 14px;
+    padding: 0.78rem 0.84rem;
+    border: 1px solid rgba(205, 217, 239, 0.86);
+    background: rgba(250, 252, 255, 0.92);
+  }
+
+  .gh-operational-detail-label {
+    font-size: 0.7rem;
+    font-weight: 820;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #607290;
+    margin-bottom: 0.18rem;
+  }
+
+  .gh-operational-detail-value {
+    color: var(--gh-text);
+    font-size: 0.9rem;
+    line-height: 1.5;
+    word-break: break-word;
   }
 
   div[data-testid="stMetric"] {
@@ -2579,7 +2821,7 @@ def _render_styles() -> None:
     border: none !important;
   }
 
-  div[data-testid="stForm"] {
+  div[data-testid="stForm"]:has(button.gh-button-peach) {
     border-radius: 24px !important;
     border: 1px solid rgba(198, 212, 237, 0.94) !important;
     background:
@@ -2590,20 +2832,101 @@ def _render_styles() -> None:
         rgba(246, 239, 255, 0.88) 100%
       ) !important;
     box-shadow: 0 12px 28px rgba(18, 32, 63, 0.05) !important;
-    padding: 0.3rem 0.35rem 0.15rem !important;
+    padding: 0.95rem 1rem 0.82rem !important;
   }
 
-  div[data-baseweb="tag"] {
+  div[data-testid="stForm"]:has(button.gh-button-peach) div[data-testid="stMarkdownContainer"] h4 {
+    font-size: 1.48rem !important;
+    font-weight: 860 !important;
+    letter-spacing: -0.03em !important;
+    color: var(--gh-text) !important;
+    margin-bottom: 0.28rem !important;
+  }
+
+  div[data-testid="stForm"]:has(button.gh-button-peach) [data-testid="stCaptionContainer"] p {
+    color: #5d6d86 !important;
+    line-height: 1.55 !important;
+    margin-bottom: 0.3rem !important;
+  }
+
+  div[data-testid="stForm"]:has(button.gh-button-peach) > div {
+    gap: 0.35rem !important;
+  }
+
+  div[data-testid="stForm"]:has(button.gh-button-peach) [data-baseweb="tag"],
+  div[data-testid="stForm"]:has(button.gh-button-peach) span[data-baseweb="tag"],
+  div[data-testid="stForm"]:has(button.gh-button-peach) [data-baseweb="tag"] > span,
+  div[data-testid="stForm"]:has(button.gh-button-peach) [data-baseweb="tag"] > div {
     border-radius: 999px !important;
-    background: rgba(255, 241, 236, 0.9) !important;
-    border: 1px solid var(--gh-peach-border) !important;
+    background: rgba(255, 240, 232, 0.94) !important;
+    background-color: rgba(255, 240, 232, 0.94) !important;
+    border: 1px solid rgba(255, 157, 126, 0.36) !important;
+    color: #a35435 !important;
+    fill: #a35435 !important;
     box-shadow: inset 0 0 0 1px rgba(255, 147, 110, 0.08);
   }
 
-  div[data-baseweb="tag"] * {
-    color: #9e4f2f !important;
-    fill: #9e4f2f !important;
+  div[data-testid="stForm"]:has(button.gh-button-peach) [data-baseweb="tag"] * {
+    color: #a35435 !important;
+    fill: #a35435 !important;
     font-weight: 700 !important;
+  }
+
+  div[data-testid="stFormSubmitButton"] > button.gh-button-peach {
+    background: linear-gradient(
+      145deg,
+      rgba(255, 245, 240, 0.98),
+      rgba(255, 232, 221, 0.98) 100%
+    ) !important;
+    color: #a15537 !important;
+    border: 1px solid rgba(255, 156, 125, 0.42) !important;
+    box-shadow: 0 10px 22px rgba(255, 146, 110, 0.12) !important;
+  }
+
+  div[data-testid="stFormSubmitButton"] > button.gh-button-peach:hover {
+    background: linear-gradient(
+      135deg,
+      rgba(94, 121, 255, 0.96) 0%,
+      rgba(145, 113, 255, 0.96) 100%
+    ) !important;
+    color: #ffffff !important;
+    border-color: rgba(97, 118, 239, 0.42) !important;
+    box-shadow:
+      0 0 0 2px rgba(122, 126, 250, 0.16),
+      0 14px 26px rgba(84, 101, 228, 0.18) !important;
+  }
+
+  [data-gh-tooltip] {
+    position: relative;
+  }
+
+  [data-gh-tooltip]::after {
+    content: attr(data-gh-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 0.55rem);
+    transform: translate(-50%, 8px);
+    min-width: 180px;
+    max-width: 280px;
+    padding: 0.46rem 0.58rem;
+    border-radius: 10px;
+    background: rgba(28, 38, 60, 0.96);
+    color: #f7fbff;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    font-weight: 600;
+    text-align: left;
+    box-shadow: 0 16px 28px rgba(18, 32, 63, 0.24);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 40;
+    transition: opacity 0.08s ease, transform 0.08s ease;
+  }
+
+  [data-gh-tooltip]:hover::after,
+  [data-gh-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
   }
 
   div[data-testid="stSpinner"] {
@@ -3040,6 +3363,19 @@ def _render_styles() -> None:
 
     .gh-profile-stats {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    [data-gh-tooltip]::after {
+      left: 0;
+      right: auto;
+      transform: translate(0, 8px);
+      min-width: 160px;
+      max-width: 220px;
+    }
+
+    [data-gh-tooltip]:hover::after,
+    [data-gh-tooltip]:focus-visible::after {
+      transform: translate(0, 0);
     }
 
     .block-container {
@@ -3599,6 +3935,75 @@ def _resolved_row_count(
     return _cached_table_row_count(uc, catalog, schema, table)
 
 
+def _table_properties_map(props_df: pd.DataFrame) -> Dict[str, str]:
+    if props_df is None or props_df.empty:
+        return {}
+    key_col = "key" if "key" in props_df.columns else props_df.columns[0]
+    value_col = "value" if "value" in props_df.columns else props_df.columns[-1]
+    return {
+        _normalize_str(row.get(key_col)): _normalize_str(row.get(value_col))
+        for _, row in props_df.iterrows()
+        if _normalize_str(row.get(key_col))
+    }
+
+
+def _resolved_runtime_fact_values(
+    asset: pd.Series,
+    detail_df: pd.DataFrame,
+    props_df: pd.DataFrame,
+    *,
+    row_count: Any = None,
+) -> List[Tuple[str, str]]:
+    detail = detail_df.iloc[0] if detail_df is not None and not detail_df.empty else {}
+    props = _table_properties_map(props_df)
+    table_type = _normalize_str(asset.get("table_type")).upper().replace(" ", "_")
+    is_view_like = table_type in {"VIEW", "MATERIALIZED_VIEW", "TEMPORARY_VIEW"}
+
+    format_value = _normalize_str(detail.get("format"))
+    if not format_value:
+        format_value = _normalize_str(props.get("provider"))
+    if not format_value and any(key.startswith("delta.") for key in props):
+        format_value = "delta"
+    if not format_value:
+        if table_type == "MATERIALIZED_VIEW":
+            format_value = "Managed refresh"
+        elif table_type == "VIEW":
+            format_value = "Logical view"
+        elif table_type == "STREAMING_TABLE":
+            format_value = "streaming"
+        else:
+            format_value = "Unavailable"
+
+    raw_size = detail.get("sizeInBytes")
+    size_value = (
+        _format_bytes(raw_size)
+        if _normalize_str(raw_size)
+        else ("Not exposed" if is_view_like else "Unavailable")
+    )
+
+    raw_files = detail.get("numFiles")
+    files_value = (
+        _format_count(raw_files)
+        if _normalize_str(raw_files)
+        else ("Not exposed" if is_view_like else "Unavailable")
+    )
+
+    rows_value = _format_count(
+        row_count if row_count is not None else detail.get("numRows")
+    )
+
+    return [
+        ("Rows", rows_value),
+        ("Format", format_value),
+        ("Size", size_value),
+        ("Files", files_value),
+        (
+            "Object Type",
+            _format_object_type(_normalize_str(asset.get("table_type"))) or "Unavailable",
+        ),
+    ]
+
+
 def _schema_scope_options(
     lineage_up: pd.DataFrame,
     lineage_down: pd.DataFrame,
@@ -3895,20 +4300,19 @@ def _profile_header_html(asset: pd.Series) -> str:
 def _overview_context_html(
     asset: pd.Series,
     detail_df: pd.DataFrame,
+    props_df: pd.DataFrame,
     *,
     row_count: Any = None,
 ) -> str:
     description = _normalize_str(asset.get("comment")) or (
         "No business description has been added yet. Use the governance editor to document what this asset contains and how it should be used."
     )
-    detail = detail_df.iloc[0] if detail_df is not None and not detail_df.empty else {}
-    facts: List[Tuple[str, str]] = [
-        ("Rows", _format_count(row_count if row_count is not None else detail.get("numRows"))),
-        ("Format", _normalize_str(detail.get("format")) or "Unavailable"),
-        ("Size", _format_bytes(detail.get("sizeInBytes"))),
-        ("Files", _format_count(detail.get("numFiles"))),
-        ("Object Type", _format_object_type(_normalize_str(asset.get("table_type"))) or "Unavailable"),
-    ]
+    facts = _resolved_runtime_fact_values(
+        asset,
+        detail_df,
+        props_df,
+        row_count=row_count,
+    )
 
     facts_html = "".join(
         f"""
@@ -4268,6 +4672,32 @@ def _asset_selector(
     return selected
 
 
+def _render_filter_multiselect(
+    container,
+    label: str,
+    options: List[str],
+    *,
+    key: str,
+    placeholder: str,
+    empty_label: str,
+) -> List[str]:
+    if options:
+        return container.multiselect(
+            label,
+            options,
+            key=key,
+            placeholder=placeholder,
+        )
+    st.session_state[key] = []
+    container.text_input(
+        label,
+        value=empty_label,
+        key=f"{key}_empty",
+        disabled=True,
+    )
+    return []
+
+
 def _filtered_inventory(
     inventory: pd.DataFrame,
     *,
@@ -4353,47 +4783,73 @@ def _filtered_inventory(
                 )
 
             filter_row_one = st.columns(3)
-            selected_views = filter_row_one[0].multiselect(
+            selected_views = _render_filter_multiselect(
+                filter_row_one[0],
                 "Asset View",
                 focus_options,
                 key="asset_view_filters",
                 placeholder="All asset views",
+                empty_label="No asset views available",
             )
-            selected_catalogs = filter_row_one[1].multiselect(
+            selected_catalogs = _render_filter_multiselect(
+                filter_row_one[1],
                 "Catalogs",
                 catalogs,
                 key="asset_catalog_filters",
                 placeholder="All catalogs",
+                empty_label="No catalogs available",
             )
-            selected_domains = filter_row_one[2].multiselect(
+            selected_domains = _render_filter_multiselect(
+                filter_row_one[2],
                 "Domains",
                 domains,
                 key="asset_domain_filters",
                 placeholder="All domains",
+                empty_label="No domains available yet",
             )
 
             filter_row_two = st.columns(3)
-            selected_tiers = filter_row_two[0].multiselect(
+            selected_tiers = _render_filter_multiselect(
+                filter_row_two[0],
                 "Tiers",
                 tiers,
                 key="asset_tier_filters",
                 placeholder="All tiers",
+                empty_label="No tiers available yet",
             )
-            selected_certs = filter_row_two[1].multiselect(
+            selected_certs = _render_filter_multiselect(
+                filter_row_two[1],
                 "Certifications",
                 certifications,
                 key="asset_certification_filters",
                 placeholder="All certifications",
+                empty_label="No certifications available yet",
             )
-            selected_sensitivities = filter_row_two[2].multiselect(
+            selected_sensitivities = _render_filter_multiselect(
+                filter_row_two[2],
                 "Sensitivities",
                 sensitivities,
                 key="asset_sensitivity_filters",
                 placeholder="All sensitivities",
+                empty_label="No sensitivities available yet",
             )
-            submitted = st.form_submit_button("Apply discovery filters", type="primary")
+            st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
+            action_col, _ = st.columns([0.19, 0.81])
+            with action_col:
+                submitted = st.form_submit_button(
+                    "Apply discovery filters",
+                    type="primary",
+                )
             if submitted:
                 st.session_state["discovery_filters_applied"] = True
+        _decorate_buttons(
+            {
+                "Apply discovery filters": {
+                    "tooltip": "Apply the current discovery filter set.",
+                    "classes": "gh-button-peach",
+                }
+            }
+        )
     else:
         query = st.session_state.get("asset_search", "")
         sort_mode = st.session_state.get("asset_sort_mode", "Best Match")
@@ -4499,6 +4955,13 @@ def _render_asset_profile(
             ],
             section,
             label="Asset View",
+            help_text={
+                "Overview": "Review business context, runtime facts, ownership, and governance summary.",
+                "Schema": "Inspect live columns, constraints, table properties, and documentation entry points.",
+                "Preview": "Load a small cached sample to verify data shape and semantics.",
+                "Lineage": "Inspect upstream and downstream table dependencies for this asset.",
+                "Governance": "Edit or request metadata, owners, tags, certification, and governance context.",
+            },
         ),
         unsafe_allow_html=True,
     )
@@ -4508,12 +4971,18 @@ def _render_asset_profile(
         owners_df = store.get_owners(asset["fqn"])
         tags_df = _tags_map_to_df(asset_tags if isinstance(asset_tags, dict) else {})
         detail_df = _cached_table_detail(uc, catalog, schema, table)
+        props_df = _cached_table_properties(uc, catalog, schema, table)
         row_count = _resolved_row_count(uc, catalog, schema, table, detail_df)
         left, right = st.columns([1.25, 1])
         with left:
             st.markdown("#### Table Information")
             st.markdown(
-                _overview_context_html(asset, detail_df, row_count=row_count),
+                _overview_context_html(
+                    asset,
+                    detail_df,
+                    props_df,
+                    row_count=row_count,
+                ),
                 unsafe_allow_html=True,
             )
             st.markdown("#### Ownership")
@@ -4775,11 +5244,17 @@ def _render_asset_profile(
             "Open Full Lineage Workspace",
             use_container_width=True,
             key=f"open_lineage_{asset['fqn']}",
-            help="Open the dedicated Lineage workspace for interactive upstream and downstream review.",
         ):
             st.session_state["app_page"] = "Lineage"
             st.session_state["lineage_workspace_context"] = "Data Lineage"
             st.rerun()
+        _decorate_buttons(
+            {
+                "Open Full Lineage Workspace": {
+                    "tooltip": "Open the dedicated lineage workspace for interactive upstream and downstream review.",
+                }
+            }
+        )
 
     else:
         tags_df = _tags_map_to_df(asset_tags if isinstance(asset_tags, dict) else {})
@@ -5205,6 +5680,10 @@ def page_lineage(
             ],
             current_context,
             label="Workspace View",
+            help_text={
+                "Data Lineage": "Trace upstream tables, downstream consumers, and column-level dependencies.",
+                "Operational Context": "Inspect jobs, pipelines, notebooks, and queries that produce or consume this asset.",
+            },
         ),
         unsafe_allow_html=True,
     )
@@ -5232,12 +5711,13 @@ def page_lineage(
         )
         selected_catalogs = _clean_multiselect_state(catalog_key, catalog_options)
         with filter_cols[0]:
-            selected_catalogs = st.multiselect(
+            selected_catalogs = _render_filter_multiselect(
+                filter_cols[0],
                 "Catalog Scope",
                 catalog_options,
                 key=catalog_key,
                 placeholder="All catalogs",
-                help="Limit lineage results to one or more catalogs when reviewing dependencies across environments.",
+                empty_label="No lineage catalogs available",
             )
 
         schema_options = _schema_name_scope_options(
@@ -5252,12 +5732,13 @@ def page_lineage(
         )
         selected_schemas = _clean_multiselect_state(schema_key, schema_options)
         with filter_cols[1]:
-            selected_schemas = st.multiselect(
+            selected_schemas = _render_filter_multiselect(
+                filter_cols[1],
                 "Schema Scope",
                 schema_options,
                 key=schema_key,
                 placeholder="All schemas",
-                help="Refine the lineage view to one or more schemas inside the selected catalogs.",
+                empty_label="No lineage schemas available",
             )
 
         lineage_up_view = _apply_catalog_scope(
@@ -5288,12 +5769,13 @@ def page_lineage(
         type_key = f"lineage_operational_types_{selected_fqn}"
         type_options = _operational_type_options(op_up, op_down)
         _clean_multiselect_state(type_key, type_options)
-        selected_types = st.multiselect(
+        selected_types = _render_filter_multiselect(
+            st,
             "Asset Types",
             type_options,
             key=type_key,
             placeholder="All workload types",
-            help="Limit the operational context workspace to one or more workload types.",
+            empty_label="No workload types available",
         )
         op_up_view = _apply_operational_type_scope(op_up, selected_types)
         op_down_view = _apply_operational_type_scope(op_down, selected_types)
@@ -5310,8 +5792,8 @@ def page_lineage(
         focus_asset_name=focus_asset_name,
     )
 
-    l1, l2, l3 = st.columns([1.15, 0.9, 1.15])
     if current_context == "Data Lineage":
+        l1, l2, l3 = st.columns([1.15, 0.9, 1.15])
         with l1:
             st.markdown("#### Upstream")
             if lineage_up_error:
@@ -5430,6 +5912,7 @@ def page_lineage(
                 else:
                     _render_column_lineage(col_down_view, key=f"col_down_{selected_fqn}")
     else:
+        l1, l2, l3 = st.columns([1.02, 1.18, 1.12])
         with l1:
             st.markdown("#### Upstream Workloads")
             if op_up_error:
