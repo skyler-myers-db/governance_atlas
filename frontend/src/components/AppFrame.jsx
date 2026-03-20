@@ -23,7 +23,7 @@ export default function AppFrame({
           <div className="gh-brand-copy">
             <div className="gh-eyebrow">Enterprise metadata for Databricks</div>
             <h1>Governance Hub</h1>
-            <p>OpenMetadata-style discovery, lineage, and governance on top of Unity Catalog.</p>
+            <p>Search trusted assets, inspect lineage, and keep governance context in one workspace.</p>
           </div>
         </div>
         <div className="gh-topbar-side">
@@ -61,8 +61,8 @@ export default function AppFrame({
             {bootState === "degraded"
               ? "Read-only mode"
               : bootState === "error"
-                ? "Modern bootstrap failed"
-                : "Modern mode unavailable"}
+                ? "Workspace failed to load"
+                : "Workspace unavailable"}
           </div>
           <p>{bootMessage}</p>
         </section>

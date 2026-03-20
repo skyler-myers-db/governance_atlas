@@ -112,6 +112,9 @@ def _raw(fn: Callable[..., Any]) -> Callable[..., Any]:
 
 
 _cached_asset_inventory = _raw(legacy_streamlit._cached_asset_inventory)
+_cached_catalog_inventory = _raw(legacy_streamlit._cached_catalog_inventory)
+_cached_catalog_table_tags = _raw(legacy_streamlit._cached_catalog_table_tags)
+_cached_catalogs = _raw(legacy_streamlit._cached_catalogs)
 _cached_comment = _raw(legacy_streamlit._cached_comment)
 _cached_columns = _raw(legacy_streamlit._cached_columns)
 _cached_table_detail = _raw(legacy_streamlit._cached_table_detail)
@@ -130,6 +133,7 @@ _tag_value = legacy_streamlit._tag_value
 _lineage_asset_stub = legacy_streamlit._lineage_asset_stub
 _enrich_operational_context_names = legacy_streamlit._enrich_operational_context_names
 _summarize_operational_context = legacy_streamlit._summarize_operational_context
+_empty_inventory = legacy_streamlit._empty_inventory
 
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
@@ -234,10 +238,239 @@ def _user_role(request: Optional[Request]) -> str:
 
 
 def _inventory() -> pd.DataFrame:
+    def _loader() -> pd.DataFrame:
+        store = _store_for_read()
+        catalogs = _inventory_catalogs()
+        if not catalogs:
+            return _cached_asset_inventory(_uc(), store)
+
+        inventory_frames: List[pd.DataFrame] = []
+        tag_maps: Dict[str, Dict[str, str]] = {}
+
+        for catalog in catalogs:
+            inv = _cached_catalog_inventory(_uc(), catalog)
+            if not inv.empty:
+                inv = inv.copy()
+                inv["comment"] = inv["comment"].map(_normalize_str)
+                inv["fqn"] = (
+                    inv["table_catalog"].astype(str)
+                    + "."
+                    + inv["table_schema"].astype(str)
+                    + "."
+                    + inv["table_name"].astype(str)
+                )
+                inventory_frames.append(inv)
+
+            tags_df = _cached_catalog_table_tags(_uc(), catalog)
+            if tags_df.empty:
+                continue
+            tags_df = tags_df.copy()
+            tags_df["fqn"] = (
+                tags_df["table_catalog"].astype(str)
+                + "."
+                + tags_df["table_schema"].astype(str)
+                + "."
+                + tags_df["table_name"].astype(str)
+            )
+            for fqn, group in tags_df.groupby("fqn"):
+                tag_maps[str(fqn)] = {
+                    _normalize_str(row.tag_name): _normalize_str(row.tag_value)
+                    for row in group.itertuples()
+                    if _normalize_str(row.tag_name)
+                }
+
+        if not inventory_frames:
+            fallback = _cached_asset_inventory(_uc(), store)
+            return fallback if fallback is not None and not fallback.empty else _empty_inventory()
+
+        inventory = pd.concat(inventory_frames, ignore_index=True)
+        inventory = _filter_asset_rows(inventory, ["table_name", "fqn"])
+        if inventory.empty:
+            return _empty_inventory()
+
+        inventory["tags"] = inventory["fqn"].map(
+            lambda fqn: tag_maps.get(str(fqn), {}) if pd.notna(fqn) else {}
+        )
+        inventory["domain"] = inventory["tags"].map(
+            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "domain")
+        )
+        inventory["tier"] = inventory["tags"].map(
+            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "tier")
+        )
+        inventory["certification"] = inventory["tags"].map(
+            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "certification")
+        )
+        inventory["sensitivity"] = inventory["tags"].map(
+            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "sensitivity")
+        )
+        inventory["criticality"] = inventory["tags"].map(
+            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "criticality")
+        )
+        inventory["glossary_term"] = inventory["tags"].map(
+            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "glossary_term")
+        )
+        inventory["data_product"] = inventory["tags"].map(
+            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "data_product")
+        )
+
+        owners_df = store.list_owner_assignments()
+        if not owners_df.empty:
+            owner_rows = []
+            for fqn, group in owners_df.groupby("uc_full_name"):
+                owner_rows.append(
+                    {
+                        "fqn": fqn,
+                        "owner_count": int(group["owner_email"].nunique()),
+                        "owners_summary": ", ".join(
+                            sorted(
+                                {
+                                    _normalize_str(email)
+                                    for email in group["owner_email"].tolist()
+                                    if _normalize_str(email)
+                                }
+                            )[:3]
+                        ),
+                        "business_owner": ", ".join(
+                            sorted(
+                                {
+                                    _normalize_str(email)
+                                    for email in group.loc[
+                                        group["owner_type"] == "business", "owner_email"
+                                    ].tolist()
+                                    if _normalize_str(email)
+                                }
+                            )
+                        ),
+                        "technical_owner": ", ".join(
+                            sorted(
+                                {
+                                    _normalize_str(email)
+                                    for email in group.loc[
+                                        group["owner_type"] == "technical", "owner_email"
+                                    ].tolist()
+                                    if _normalize_str(email)
+                                }
+                            )
+                        ),
+                        "steward": ", ".join(
+                            sorted(
+                                {
+                                    _normalize_str(email)
+                                    for email in group.loc[
+                                        group["owner_type"] == "steward", "owner_email"
+                                    ].tolist()
+                                    if _normalize_str(email)
+                                }
+                            )
+                        ),
+                    }
+                )
+            inventory = inventory.merge(pd.DataFrame(owner_rows), on="fqn", how="left")
+        else:
+            inventory["owner_count"] = 0
+            inventory["owners_summary"] = ""
+            inventory["business_owner"] = ""
+            inventory["technical_owner"] = ""
+            inventory["steward"] = ""
+
+        links_df = store.list_asset_links()
+        if not links_df.empty:
+            links_df = links_df.rename(
+                columns={"uc_full_name": "fqn", "om_table_fqn": "om_table_fqn"}
+            )
+            inventory = inventory.merge(
+                links_df[["fqn", "om_table_fqn"]], on="fqn", how="left"
+            )
+        else:
+            inventory["om_table_fqn"] = ""
+
+        requests_df = store.list_change_requests(limit=500)
+        if not requests_df.empty:
+            request_rollup = (
+                requests_df[requests_df["uc_full_name"].notna()]
+                .groupby("uc_full_name")
+                .agg(
+                    pending_requests=("status", lambda s: int((s == "pending").sum())),
+                    approved_requests=("status", lambda s: int((s == "approved").sum())),
+                    rejected_requests=("status", lambda s: int((s == "rejected").sum())),
+                    total_requests=("request_id", "count"),
+                )
+                .reset_index()
+                .rename(columns={"uc_full_name": "fqn"})
+            )
+            inventory = inventory.merge(request_rollup, on="fqn", how="left")
+        else:
+            inventory["pending_requests"] = 0
+            inventory["approved_requests"] = 0
+            inventory["rejected_requests"] = 0
+            inventory["total_requests"] = 0
+
+        for col in [
+            "owner_count",
+            "pending_requests",
+            "approved_requests",
+            "rejected_requests",
+            "total_requests",
+        ]:
+            if col not in inventory.columns:
+                inventory[col] = 0
+            inventory[col] = inventory[col].fillna(0).astype(int)
+
+        for col in [
+            "owners_summary",
+            "business_owner",
+            "technical_owner",
+            "steward",
+            "om_table_fqn",
+        ]:
+            if col not in inventory.columns:
+                inventory[col] = ""
+            inventory[col] = inventory[col].map(_normalize_str)
+
+        inventory["governance_score"] = (
+            35 * inventory["comment"].ne("").astype(int)
+            + 20 * inventory["owner_count"].gt(0).astype(int)
+            + 15 * inventory["domain"].ne("").astype(int)
+            + 15 * inventory["certification"].ne("").astype(int)
+            + 15 * inventory["glossary_term"].ne("").astype(int)
+        )
+        inventory["governance_status"] = "Needs Work"
+        inventory.loc[inventory["governance_score"] >= 55, "governance_status"] = (
+            "Operational"
+        )
+        inventory.loc[inventory["governance_score"] >= 80, "governance_status"] = (
+            "Enterprise Ready"
+        )
+
+        search_cols = [
+            "fqn",
+            "table_name",
+            "table_schema",
+            "comment",
+            "domain",
+            "tier",
+            "certification",
+            "sensitivity",
+            "criticality",
+            "glossary_term",
+            "data_product",
+            "owners_summary",
+            "business_owner",
+            "technical_owner",
+            "steward",
+        ]
+        inventory["search_text"] = (
+            inventory[search_cols].fillna("").astype(str).agg(" ".join, axis=1).str.lower()
+        )
+        return inventory.sort_values(
+            ["governance_score", "pending_requests", "fqn"],
+            ascending=[False, False, True],
+        ).reset_index(drop=True)
+
     return _ttl_value(
         "modern_inventory",
         600,
-        lambda: _cached_asset_inventory(_uc(), _store_for_read()),
+        _loader,
     )
 
 
@@ -248,6 +481,21 @@ def _visible_assets() -> pd.DataFrame:
     return inventory[
         ~inventory["table_catalog"].fillna("").astype(str).str.lower().isin(HIDDEN_CATALOGS)
     ].reset_index(drop=True)
+
+
+def _inventory_catalogs() -> List[str]:
+    values: set[str] = set()
+    try:
+        values.update(_cached_catalogs(_uc()))
+    except Exception:
+        pass
+    try:
+        values.update(_lineage_observed_catalogs())
+    except Exception:
+        pass
+    return sorted(
+        value for value in values if value and value.lower() not in HIDDEN_CATALOGS
+    )
 
 
 def _lineage_observed_catalogs() -> List[str]:
@@ -776,10 +1024,11 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
     inventory = _visible_assets()
     assets = [_base_asset_payload(row) for _, row in inventory.iterrows()]
     asset_index = {asset["fqn"]: asset for asset in assets}
+    observed_catalogs = _lineage_observed_catalogs()
     catalogs = _catalog_filter_options(
         inventory,
         available_catalogs=list(inventory["table_catalog"].dropna().astype(str).unique()),
-        observed_catalogs=_lineage_observed_catalogs(),
+        observed_catalogs=observed_catalogs,
     )
     asset_types = sorted({asset["objectType"] for asset in assets if asset["objectType"]})
     domains = sorted({asset["domain"] for asset in assets if asset["domain"] and asset["domain"] != "Unassigned"})
@@ -799,10 +1048,25 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
                 break
         graphs[selected_fqn] = _lineage_payload(selected_fqn)["graphs"]
 
+    boot_state = "live" if store_status["state"] == "live" else "degraded"
+    boot_message = "" if store_status["state"] == "live" else store_status["message"]
+    if not assets:
+        boot_state = "degraded"
+        if observed_catalogs:
+            boot_message = (
+                "Catalog scope loaded, but live asset inventory is still warming up or only partially available. "
+                "Retry after the current warehouse session finishes loading metadata."
+            )
+        elif not boot_message:
+            boot_message = (
+                "The workspace connected successfully, but no visible metadata assets were returned yet. "
+                "Confirm the current principal can enumerate Unity Catalog objects in the selected workspace."
+            )
+
     return {
         "version": "modern-ui-live-2",
-        "bootState": "live" if store_status["state"] == "live" else "degraded",
-        "bootMessage": "" if store_status["state"] == "live" else store_status["message"],
+        "bootState": boot_state,
+        "bootMessage": boot_message,
         "apiBase": "/api",
         "assets": assets,
         "assetIndex": asset_index,
@@ -873,7 +1137,7 @@ def _bootstrap_unavailable_payload(
         },
         "help": [
             {
-                "title": "Modern mode unavailable",
+                "title": "Workspace unavailable",
                 "body": message,
             }
         ],
@@ -898,7 +1162,7 @@ def _ensure_react_bundle() -> Path:
     if index_path.exists() and assets_dir.exists():
         return index_path
     raise RuntimeError(
-        "Modern React bundle is missing. Build frontend/dist before running GOVHUB_APP_MODE=modern."
+        "The workspace bundle is missing. Build frontend/dist before running the JS workspace."
     )
 
 
@@ -922,7 +1186,7 @@ def _render_index(live_payload: Optional[Dict[str, Any]] = None) -> str:
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Governance Hub Modern Bundle Missing</title>
+    <title>Governance Hub Bundle Missing</title>
     <style>
       body {{ font-family: Inter, system-ui, sans-serif; background: #f5f7ff; color: #1d2740; padding: 40px; }}
       .card {{ max-width: 920px; margin: 40px auto; background: #fff; border: 1px solid #d8e1f5; border-radius: 24px; padding: 32px; box-shadow: 0 20px 44px rgba(21, 32, 65, 0.08); }}
@@ -933,7 +1197,7 @@ def _render_index(live_payload: Optional[Dict[str, Any]] = None) -> str:
   </head>
   <body>
     <div class="card">
-      <h1>Modern React bundle is missing</h1>
+      <h1>Workspace bundle is missing</h1>
       <p>The app is running in <code>GOVHUB_APP_MODE=modern</code>, but the compiled frontend assets were not found.</p>
       <p>Build <code>frontend/dist</code> with <code>npm install</code> and <code>npm run build</code> inside <code>frontend/</code>, then redeploy.</p>
       <p>Runtime detail: {json.dumps(_normalize_str(exc) or 'unknown error')}</p>
@@ -954,7 +1218,7 @@ def index(request: Request) -> HTMLResponse:
             _render_index(
                 _bootstrap_unavailable_payload(
                     request,
-                    "Live Databricks metadata runtime is unavailable. Fix the warehouse or governance configuration or warehouse access, then retry modern mode.",
+                    "Live Databricks metadata runtime is unavailable. Fix the warehouse or governance configuration or warehouse access, then retry.",
                 )
             ),
             status_code=200,
@@ -966,7 +1230,7 @@ def index(request: Request) -> HTMLResponse:
             _render_index(
                 _bootstrap_unavailable_payload(
                     request,
-                    f"Modern bootstrap failed: {_normalize_str(exc) or 'unknown error'}.",
+                    f"Workspace bootstrap failed: {_normalize_str(exc) or 'unknown error'}.",
                     state="error",
                 )
             ),
@@ -980,7 +1244,7 @@ def api_bootstrap(request: Request) -> JSONResponse:
         return JSONResponse(
             _bootstrap_unavailable_payload(
                 request,
-                "Live Databricks metadata runtime is unavailable. Fix the warehouse or governance configuration or warehouse access, then retry modern mode.",
+                "Live Databricks metadata runtime is unavailable. Fix the warehouse or governance configuration or warehouse access, then retry.",
             )
         )
     try:
@@ -989,7 +1253,7 @@ def api_bootstrap(request: Request) -> JSONResponse:
         return JSONResponse(
             _bootstrap_unavailable_payload(
                 request,
-                f"Modern bootstrap failed: {_normalize_str(exc) or 'unknown error'}.",
+                f"Workspace bootstrap failed: {_normalize_str(exc) or 'unknown error'}.",
                 state="error",
             )
         )
