@@ -586,7 +586,12 @@ LIMIT {int(limit)}
                     or ""
                 ).strip()
 
-            if entity_type_n in {"SQL", "SQL_QUERY", "QUERY", "STATEMENT"}:
+            if entity_type_n in {
+                "SQL",
+                "DBSQL_QUERY",
+                "SQL_QUERY",
+                "QUERY",
+            }:
                 response = self.w.queries.get(entity_id_n)
                 return str(
                     _get(response, "display_name")
@@ -594,7 +599,7 @@ LIMIT {int(limit)}
                     or ""
                 ).strip()
 
-            if entity_type_n == "DASHBOARD":
+            if entity_type_n in {"DASHBOARD", "DBSQL_DASHBOARD"}:
                 response = self.w.dashboards.get(entity_id_n)
                 return str(
                     _get(response, "display_name")
