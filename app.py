@@ -498,6 +498,31 @@ def _safe_badge(text: str, tone: str = "neutral") -> str:
     return f"<span class='gh-badge gh-badge-{tone}'>{html.escape(text)}</span>"
 
 
+def _route_subnav_html(
+    items: List[Tuple[str, str]],
+    current: str,
+    *,
+    label: str = "",
+) -> str:
+    links: List[str] = []
+    for item_label, href in items:
+        classes = "gh-subnav-link active" if item_label == current else "gh-subnav-link"
+        links.append(
+            f"<a {_route_link_attrs(href, f'gh-route-link {classes}')}>"
+            f"{html.escape(item_label)}"
+            "</a>"
+        )
+    label_html = (
+        f"<div class='gh-subnav-label'>{html.escape(label)}</div>" if label else ""
+    )
+    return f"""
+<div class="gh-subnav-shell">
+  {label_html}
+  <div class="gh-subnav">{"".join(links)}</div>
+</div>
+    """
+
+
 def _format_object_type(raw: str) -> str:
     value = _normalize_str(raw).upper()
     if not value:
@@ -605,37 +630,65 @@ def _path_leaf(value: str) -> str:
     return text.split("/")[-1] or text
 
 
+def _operational_fallback_title(
+    entity_label: str,
+    *,
+    direction: str,
+    focus_asset_name: str,
+) -> str:
+    asset_name = _normalize_str(focus_asset_name) or "this asset"
+    verb = "producing" if direction == "upstream" else "consuming"
+    return f"{entity_label} {verb} {asset_name}".strip()
+
+
 def _operational_display_payload(row: pd.Series) -> Dict[str, str]:
     metadata = _parse_metadata_dict(row.get("entity_metadata"))
     flat = _flatten_metadata(metadata)
     entity_label = _format_entity_type(row.get("entity_type"))
-    path_value = _metadata_value(flat, ["notebook_path", "workspace_path", "path"])
+    path_value = _metadata_value(
+        flat,
+        ["notebook_path", "notebookPath", "workspace_path", "workspacePath", "path"],
+    )
     named_value = _metadata_value(
         flat,
         [
             "display_name",
             "displayName",
             "job_name",
+            "jobName",
+            "workflow_name",
+            "workflowName",
             "pipeline_name",
+            "pipelineName",
             "dashboard_name",
+            "dashboardName",
             "query_name",
+            "queryName",
             "notebook_name",
+            "notebookName",
             "task_name",
+            "taskName",
             "title",
+            "object_name",
+            "objectName",
             "name",
         ],
     )
     statement_value = _metadata_value(flat, ["statement_text", "query_text", "query"])
 
+    title_source = "fallback"
     if path_value:
         title = _path_leaf(path_value)
         primary_subtitle = path_value
+        title_source = "path"
     elif named_value:
         title = named_value
         primary_subtitle = ""
+        title_source = "name"
     elif statement_value:
         title = shorten(statement_value.splitlines()[0], width=76, placeholder="…")
         primary_subtitle = ""
+        title_source = "statement"
     else:
         fallback_id = (
             _normalize_str(row.get("entity_id"))
@@ -655,6 +708,7 @@ def _operational_display_payload(row: pd.Series) -> Dict[str, str]:
         "primary_subtitle": primary_subtitle,
         "statement": statement_value,
         "flat_metadata": flat,
+        "title_source": title_source,
     }
 
 
@@ -683,6 +737,7 @@ def _summarize_operational_context(
     df: pd.DataFrame,
     *,
     direction: str,
+    focus_asset_name: str = "",
 ) -> List[Dict[str, Any]]:
     if df is None or df.empty:
         return []
@@ -694,6 +749,12 @@ def _summarize_operational_context(
         payload = _operational_display_payload(row)
         entity_label = payload["entity_label"]
         title = payload["title"]
+        if payload.get("title_source") == "fallback":
+            title = _operational_fallback_title(
+                entity_label,
+                direction=direction,
+                focus_asset_name=focus_asset_name,
+            )
         flat = payload["flat_metadata"]
         run_ids = {
             _normalize_str(value)
@@ -756,6 +817,104 @@ def _summarize_operational_context(
         )
     cards.sort(key=lambda item: (item["entity_label"], item["title"]))
     return cards[:8]
+
+
+def _operational_focus_summary_html(
+    asset: pd.Series,
+    upstream_cards: List[Dict[str, Any]],
+    downstream_cards: List[Dict[str, Any]],
+    upstream_df: pd.DataFrame,
+    downstream_df: pd.DataFrame,
+) -> str:
+    selected_name = _normalize_str(asset.get("table_name")) or "Selected asset"
+    upstream_assets = (
+        upstream_df["related_table_full_name"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .replace("", pd.NA)
+        .dropna()
+        .nunique()
+        if upstream_df is not None
+        and not upstream_df.empty
+        and "related_table_full_name" in upstream_df.columns
+        else 0
+    )
+    downstream_assets = (
+        downstream_df["related_table_full_name"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .replace("", pd.NA)
+        .dropna()
+        .nunique()
+        if downstream_df is not None
+        and not downstream_df.empty
+        and "related_table_full_name" in downstream_df.columns
+        else 0
+    )
+    if not upstream_cards and not downstream_cards:
+        note = (
+            f"No workload-level operational context is currently available for {selected_name}."
+        )
+    elif not downstream_cards:
+        note = (
+            "Use upstream workloads to find the job, pipeline, notebook, or query that produces this asset."
+        )
+    elif not upstream_cards:
+        note = (
+            "Use downstream consumers to understand where this asset is read before making changes."
+        )
+    else:
+        note = (
+            "Review producer workloads and downstream consumers together before changing schema, logic, or ownership."
+        )
+
+    summary_items = [
+        ("Upstream Workloads", f"{len(upstream_cards)} entities"),
+        ("Downstream Consumers", f"{len(downstream_cards)} entities"),
+        ("Upstream Assets Touched", f"{upstream_assets} assets"),
+        ("Downstream Assets Touched", f"{downstream_assets} assets"),
+    ]
+    items_html = "".join(
+        f"""
+<div class="gh-lineage-summary-item">
+  <div class="gh-lineage-summary-item-label">{html.escape(label)}</div>
+  <div class="gh-lineage-summary-item-value">{html.escape(value)}</div>
+</div>
+        """
+        for label, value in summary_items
+    )
+    return f"""
+<div class="gh-lineage-summary">
+  <div class="gh-panel-label">Operational Summary</div>
+  <div class="gh-lineage-summary-grid">{items_html}</div>
+  <div class="gh-lineage-summary-note">{html.escape(note)}</div>
+</div>
+    """
+
+
+def _lineage_asset_option_label(inventory: pd.DataFrame, fqn: str) -> str:
+    normalized = _normalize_str(fqn)
+    if not normalized:
+        return ""
+    if inventory is not None and not inventory.empty:
+        match = inventory[inventory["fqn"] == normalized]
+        if not match.empty:
+            row = match.iloc[0]
+            table_name = _normalize_str(row.get("table_name")) or normalized.split(".")[-1]
+            context = " / ".join(
+                part
+                for part in [
+                    _normalize_str(row.get("table_catalog")),
+                    _normalize_str(row.get("table_schema")),
+                ]
+                if part
+            )
+            return f"{table_name} ({context})" if context else table_name
+    table_name = normalized.split(".")[-1]
+    context = _catalog_schema_context(normalized)
+    return f"{table_name} ({context})" if context else table_name
 
 
 def _operational_context_card_html(item: Dict[str, Any]) -> str:
@@ -1177,54 +1336,68 @@ def _render_styles() -> None:
       radial-gradient(circle at 82% 18%, rgba(147, 114, 255, 0.12), transparent 24%);
   }
 
-  .gh-shell-metrics {
+  .gh-shell-top {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.75rem;
-    margin-top: 1rem;
+    grid-template-columns: minmax(0, 1.3fr) minmax(360px, 0.95fr);
+    gap: 1.2rem;
+    align-items: stretch;
     position: relative;
     z-index: 1;
   }
 
-  .gh-shell-stat {
-    border-radius: 18px;
-    padding: 0.85rem 0.95rem;
+  .gh-shell-intro {
+    min-width: 0;
+  }
+
+  .gh-shell-side {
+    display: grid;
+    gap: 0.9rem;
+    min-width: 0;
+  }
+
+  .gh-estate-overview {
+    border-radius: 22px;
+    padding: 1rem 1.05rem;
     border: 1px solid rgba(198, 212, 237, 0.94);
     background:
       linear-gradient(
         145deg,
         rgba(255, 255, 255, 0.92),
-        rgba(241, 246, 255, 0.88) 58%,
-        rgba(246, 239, 255, 0.84) 100%
+        rgba(241, 246, 255, 0.9) 56%,
+        rgba(246, 239, 255, 0.86) 100%
       );
     box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
     backdrop-filter: blur(12px);
   }
 
-  .gh-shell-stat-label {
-    font-size: 0.72rem;
+  .gh-estate-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.7rem;
+    margin-top: 0.55rem;
+  }
+
+  .gh-estate-stat {
+    border-radius: 16px;
+    padding: 0.78rem 0.82rem;
+    border: 1px solid rgba(206, 218, 239, 0.88);
+    background: rgba(250, 252, 255, 0.92);
+  }
+
+  .gh-estate-stat-label {
+    font-size: 0.67rem;
     font-weight: 800;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: #617390;
-    margin-bottom: 0.3rem;
+    margin-bottom: 0.24rem;
   }
 
-  .gh-shell-stat-value {
-    font-size: 1.35rem;
-    font-weight: 850;
+  .gh-estate-stat-value {
+    font-size: 1.18rem;
+    font-weight: 840;
     color: var(--gh-text);
     letter-spacing: -0.03em;
-  }
-
-  .gh-shell-top {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    position: relative;
-    z-index: 1;
   }
 
   .gh-brand {
@@ -1632,8 +1805,68 @@ def _render_styles() -> None:
 
   .gh-context-facts {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 0.6rem 0.85rem;
+  }
+
+  .gh-subnav-shell {
+    margin-top: 0.25rem;
+  }
+
+  .gh-subnav-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #657794;
+    margin-bottom: 0.4rem;
+  }
+
+  .gh-subnav {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.28rem;
+    border-radius: 999px;
+    border: 1px solid rgba(198, 212, 237, 0.94);
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 10px 24px rgba(18, 32, 63, 0.04);
+  }
+
+  .gh-subnav-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.2rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: 999px;
+    color: #50627f !important;
+    text-decoration: none !important;
+    font-size: 0.84rem;
+    font-weight: 700;
+    transition:
+      background 0.18s ease,
+      color 0.18s ease,
+      box-shadow 0.18s ease,
+      transform 0.18s ease;
+  }
+
+  .gh-subnav-link:hover {
+    background: rgba(255, 255, 255, 0.88);
+    color: var(--gh-text) !important;
+    text-decoration: none !important;
+    transform: translateY(-1px);
+  }
+
+  .gh-subnav-link.active {
+    background: linear-gradient(
+      135deg,
+      rgba(49, 95, 216, 0.12),
+      rgba(109, 141, 255, 0.12) 52%,
+      rgba(148, 114, 255, 0.14) 100%
+    );
+    color: var(--gh-primary) !important;
+    box-shadow: inset 0 0 0 1px rgba(49, 95, 216, 0.12);
   }
 
   .gh-context-fact {
@@ -2490,7 +2723,15 @@ def _render_styles() -> None:
       font-size: 2.3rem;
     }
 
-    .gh-shell-metrics {
+    .gh-shell-top {
+      grid-template-columns: 1fr;
+    }
+
+    .gh-chip-row {
+      justify-content: flex-start;
+    }
+
+    .gh-estate-grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -2593,6 +2834,14 @@ def _render_shell(
                 f"{_inventory_metric(inventory, _attention_mask(inventory)):,}",
             ),
             _shell_stat_html(
+                "Certified",
+                f"{_inventory_metric(inventory, inventory['certification'].ne('')):,}",
+            ),
+            _shell_stat_html(
+                "With Stewards",
+                f"{_inventory_metric(inventory, inventory['steward'].ne('')):,}",
+            ),
+            _shell_stat_html(
                 "Sensitive Assets",
                 f"{_inventory_metric(inventory, inventory['sensitivity'].ne('')):,}",
             ),
@@ -2606,7 +2855,7 @@ def _render_shell(
         f"""
 <div class="gh-shell">
   <div class="gh-shell-top">
-    <div>
+    <div class="gh-shell-intro">
       <div class="gh-eyebrow">Enterprise Metadata For Databricks</div>
       <div class="gh-brand">
         <div class="gh-brand-mark">GH</div>
@@ -2616,16 +2865,21 @@ def _render_shell(
         </div>
       </div>
       <div class="gh-shell-copy">
-        Use this workspace to search the catalog, inspect lineage, and keep metadata,
-        ownership, and governance context current in Unity Catalog.
+        Search assets, inspect lineage, and keep ownership, documentation, and governance
+        context current across Unity Catalog.
       </div>
     </div>
-    <div class="gh-chip-row">
-      <span class="gh-chip">{html.escape(role.title())}</span>
-      <span class="gh-chip">{html.escape(user_email)}</span>
+    <div class="gh-shell-side">
+      <div class="gh-chip-row">
+        <span class="gh-chip">{html.escape(role.title())}</span>
+        <span class="gh-chip">{html.escape(user_email)}</span>
+      </div>
+      <div class="gh-estate-overview">
+        <div class="gh-panel-label">Governance Estate Overview</div>
+        <div class="gh-estate-grid">{shell_stats}</div>
+      </div>
     </div>
   </div>
-  <div class="gh-shell-metrics">{shell_stats}</div>
 </div>
         """,
         unsafe_allow_html=True,
@@ -2914,15 +3168,23 @@ def _asset_query_href(
     return "?" + urlencode(params)
 
 
-def _lineage_query_href(asset_fqn: str) -> str:
-    return "?" + urlencode({"page": "Lineage", "lineage_asset": asset_fqn})
+def _lineage_query_href(asset_fqn: str, *, context: str = "") -> str:
+    params = {"page": "Lineage", "lineage_asset": asset_fqn}
+    if context:
+        params["lineage_context"] = context
+    return "?" + urlencode(params)
 
 
-def _lineage_href_if_known(asset_fqn: str, visible_assets: set[str]) -> str:
+def _lineage_href_if_known(
+    asset_fqn: str,
+    visible_assets: set[str],
+    *,
+    context: str = "",
+) -> str:
     normalized = _normalize_str(asset_fqn)
     if not normalized:
         return ""
-    return _lineage_query_href(normalized)
+    return _lineage_query_href(normalized, context=context)
 
 
 def _split_request_tags(tags: Optional[Dict[str, str]]) -> Tuple[Dict[str, str], Dict[str, str]]:
@@ -3191,9 +3453,9 @@ def _constraint_summary_df(df: pd.DataFrame) -> pd.DataFrame:
 
 def _shell_stat_html(label: str, value: str) -> str:
     return f"""
-<div class="gh-shell-stat">
-  <div class="gh-shell-stat-label">{html.escape(label)}</div>
-  <div class="gh-shell-stat-value">{html.escape(value)}</div>
+<div class="gh-estate-stat">
+  <div class="gh-estate-stat-label">{html.escape(label)}</div>
+  <div class="gh-estate-stat-value">{html.escape(value)}</div>
 </div>
     """
 
@@ -3283,17 +3545,14 @@ def _overview_context_html(
     description = _normalize_str(asset.get("comment")) or (
         "No business description has been added yet. Use the governance editor to document what this asset contains and how it should be used."
     )
-    facts: List[Tuple[str, str]] = []
-    if detail_df is not None and not detail_df.empty:
-        detail = detail_df.iloc[0]
-        facts.extend(
-            [
-                ("Rows", _format_count(row_count if row_count is not None else detail.get("numRows"))),
-                ("Format", _normalize_str(detail.get("format")) or "Unavailable"),
-                ("Size", _format_bytes(detail.get("sizeInBytes"))),
-                ("Files", _format_count(detail.get("numFiles"))),
-            ]
-        )
+    detail = detail_df.iloc[0] if detail_df is not None and not detail_df.empty else {}
+    facts: List[Tuple[str, str]] = [
+        ("Rows", _format_count(row_count if row_count is not None else detail.get("numRows"))),
+        ("Format", _normalize_str(detail.get("format")) or "Unavailable"),
+        ("Size", _format_bytes(detail.get("sizeInBytes"))),
+        ("Files", _format_count(detail.get("numFiles"))),
+        ("Object Type", _format_object_type(_normalize_str(asset.get("table_type"))) or "Unavailable"),
+    ]
 
     facts_html = "".join(
         f"""
@@ -3562,11 +3821,17 @@ def _sync_lineage_query_state(inventory: pd.DataFrame) -> None:
         lineage_asset = _normalize_str(st.query_params.get("lineage_asset"))
     except Exception:
         lineage_asset = ""
+    try:
+        lineage_context = _normalize_str(st.query_params.get("lineage_context"))
+    except Exception:
+        lineage_context = ""
     if not lineage_asset:
         return
     st.session_state["app_page"] = "Lineage"
     st.session_state["selected_asset_fqn"] = lineage_asset
     st.session_state["lineage_selector"] = lineage_asset
+    if lineage_context in {"Data Lineage", "Operational Context"}:
+        st.session_state["lineage_workspace_context"] = lineage_context
     _clear_lineage_query_state()
 
 
@@ -3591,16 +3856,12 @@ def _clear_asset_query_state() -> None:
 
 
 def _clear_lineage_query_state() -> None:
-    try:
-        if "lineage_asset" in st.query_params:
-            del st.query_params["lineage_asset"]
-    except Exception:
-        pass
-    try:
-        if "page" in st.query_params:
-            del st.query_params["page"]
-    except Exception:
-        pass
+    for key in ["lineage_asset", "lineage_context", "page"]:
+        try:
+            if key in st.query_params:
+                del st.query_params[key]
+        except Exception:
+            pass
 
 
 def _clear_help_query_state() -> None:
@@ -3633,7 +3894,7 @@ def _asset_selector(
     selected = st.selectbox(
         label,
         options,
-        format_func=lambda fqn: fqn,
+        format_func=lambda fqn: _lineage_asset_option_label(inventory, fqn),
         key=key,
     )
     if selected:
@@ -3843,9 +4104,21 @@ def _render_asset_profile(
     metrics[3].metric("Domain", structured["domain"] or "—")
     metrics[4].metric("Tier", structured["tier"] or "—")
 
-    section = _button_nav(
-        ["Overview", "Schema", "Preview", "Lineage", "Governance"],
-        f"asset_profile_section_{asset['fqn']}",
+    section_key = f"asset_profile_section_{asset['fqn']}"
+    section = _normalize_str(st.session_state.get(section_key)) or "Overview"
+    if section not in {"Overview", "Schema", "Preview", "Lineage", "Governance"}:
+        section = "Overview"
+    st.session_state[section_key] = section
+    st.markdown(
+        _route_subnav_html(
+            [
+                (name, _asset_query_href(asset["fqn"], section=name))
+                for name in ["Overview", "Schema", "Preview", "Lineage", "Governance"]
+            ],
+            section,
+            label="Asset View",
+        ),
+        unsafe_allow_html=True,
     )
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
@@ -3899,34 +4172,6 @@ def _render_asset_profile(
                     },
                 ]
             )
-            if not detail_df.empty:
-                detail = detail_df.iloc[0]
-                summary_rows = pd.concat(
-                    [
-                        summary_rows,
-                        pd.DataFrame(
-                            [
-                                {
-                                    "Field": "Rows",
-                                    "Value": _format_count(row_count),
-                                },
-                                {
-                                    "Field": "Size",
-                                    "Value": _format_bytes(detail.get("sizeInBytes")),
-                                },
-                                {
-                                    "Field": "Files",
-                                    "Value": _format_count(detail.get("numFiles")),
-                                },
-                                {
-                                    "Field": "Format",
-                                    "Value": _normalize_str(detail.get("format")) or "Unavailable",
-                                },
-                            ]
-                        ),
-                    ],
-                    ignore_index=True,
-                )
             st.markdown("#### Governance summary")
             _render_data_table(summary_rows)
             if not tags_df.empty:
@@ -4152,6 +4397,7 @@ def _render_asset_profile(
             help="Open the dedicated Lineage workspace for interactive upstream and downstream review.",
         ):
             st.session_state["app_page"] = "Lineage"
+            st.session_state["lineage_workspace_context"] = "Data Lineage"
             st.rerun()
 
     else:
@@ -4447,20 +4693,6 @@ def page_discovery(
     has_selected_asset = bool(st.session_state.get("discovery_asset_opened")) and selected is not None
 
     if not has_selected_asset:
-        metrics = st.columns(4)
-        metrics[0].metric("Inventoried assets", len(inventory))
-        metrics[1].metric(
-            "Certified Assets",
-            _inventory_metric(inventory, inventory["certification"].ne("")),
-        )
-        metrics[2].metric(
-            "Assets With Stewards",
-            _inventory_metric(inventory, inventory["steward"].ne("")),
-        )
-        metrics[3].metric(
-            "Open Requests",
-            _inventory_metric(inventory, inventory["pending_requests"].gt(0)),
-        )
         focus_descriptions = {
             "All Assets": "Show the full live catalog inventory that matches the current filters.",
             "Ownership Gaps": "Focus on assets that do not yet have an assigned owner.",
@@ -4642,81 +4874,112 @@ def page_lineage(
     col_down_view = _apply_schema_name_scope(col_down_view, "target_table_full_name", schema_scope)
     op_up_view = _apply_schema_name_scope(op_up_view, "related_table_full_name", schema_scope)
     op_down_view = _apply_schema_name_scope(op_down_view, "related_table_full_name", schema_scope)
-
-    l1, l2, l3 = st.columns([1.15, 0.9, 1.15])
-    with l1:
-        st.markdown("#### Upstream")
-        if lineage_up_error:
-            st.warning(f"Could not query upstream lineage: {lineage_up_error}")
-        elif lineage_up_view.empty:
-            st.info("No upstream dependencies found.")
-        else:
-            for row in lineage_up_view.head(8).itertuples(index=False):
-                st.markdown(
-                    _lineage_node_html(
-                        "Source",
-                        _normalize_str(row.source_table_full_name),
-                        "source",
-                        object_type=_normalize_str(getattr(row, "source_type", "")),
-                        href=_lineage_href_if_known(
-                            _normalize_str(row.source_table_full_name),
-                            visible_assets,
-                        ),
-                    ),
-                    unsafe_allow_html=True,
+    current_context = _normalize_str(
+        st.session_state.get("lineage_workspace_context")
+    ) or "Data Lineage"
+    if current_context not in {"Data Lineage", "Operational Context"}:
+        current_context = "Data Lineage"
+    st.session_state["lineage_workspace_context"] = current_context
+    st.markdown(
+        _route_subnav_html(
+            [
+                (
+                    name,
+                    _lineage_query_href(selected_fqn, context=name),
                 )
-
-    with l2:
-        st.markdown("#### Selected Asset")
-        st.markdown(
-            _lineage_node_html(
-                "Focus",
-                selected_fqn,
-                "focus",
-                focus=True,
-                object_type=_normalize_str(asset.get("table_type")),
-            ),
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            _lineage_focus_summary_html(
-                asset,
-                lineage_up_view,
-                lineage_down_view,
-                col_up_view,
-                col_down_view,
-            ),
-            unsafe_allow_html=True,
-        )
-
-    with l3:
-        st.markdown("#### Downstream")
-        if lineage_down_error:
-            st.warning(f"Could not query downstream lineage: {lineage_down_error}")
-        elif lineage_down_view.empty:
-            st.info("No downstream consumers found.")
-        else:
-            for row in lineage_down_view.head(8).itertuples(index=False):
-                st.markdown(
-                    _lineage_node_html(
-                        "Target",
-                        _normalize_str(row.target_table_full_name),
-                        "target",
-                        object_type=_normalize_str(getattr(row, "target_type", "")),
-                        href=_lineage_href_if_known(
-                            _normalize_str(row.target_table_full_name),
-                            visible_assets,
-                        ),
-                    ),
-                    unsafe_allow_html=True,
-                )
-
+                for name in ["Data Lineage", "Operational Context"]
+            ],
+            current_context,
+            label="Workspace View",
+        ),
+        unsafe_allow_html=True,
+    )
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
-    data_lineage_tab, operational_tab = st.tabs(
-        ["Data Lineage", "Operational Context"]
+
+    focus_asset_name = _normalize_str(asset.get("table_name")) or selected_fqn.split(".")[-1]
+    op_up_cards = _summarize_operational_context(
+        op_up_view,
+        direction="upstream",
+        focus_asset_name=focus_asset_name,
+    )
+    op_down_cards = _summarize_operational_context(
+        op_down_view,
+        direction="downstream",
+        focus_asset_name=focus_asset_name,
     )
 
-    with data_lineage_tab:
+    l1, l2, l3 = st.columns([1.15, 0.9, 1.15])
+    if current_context == "Data Lineage":
+        with l1:
+            st.markdown("#### Upstream")
+            if lineage_up_error:
+                st.warning(f"Could not query upstream lineage: {lineage_up_error}")
+            elif lineage_up_view.empty:
+                st.info("No upstream dependencies found.")
+            else:
+                for row in lineage_up_view.head(8).itertuples(index=False):
+                    st.markdown(
+                        _lineage_node_html(
+                            "Source",
+                            _normalize_str(row.source_table_full_name),
+                            "source",
+                            object_type=_normalize_str(getattr(row, "source_type", "")),
+                            href=_lineage_href_if_known(
+                                _normalize_str(row.source_table_full_name),
+                                visible_assets,
+                                context=current_context,
+                            ),
+                        ),
+                        unsafe_allow_html=True,
+                    )
+
+        with l2:
+            st.markdown("#### Selected Asset")
+            st.markdown(
+                _lineage_node_html(
+                    "Focus",
+                    selected_fqn,
+                    "focus",
+                    focus=True,
+                    object_type=_normalize_str(asset.get("table_type")),
+                ),
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                _lineage_focus_summary_html(
+                    asset,
+                    lineage_up_view,
+                    lineage_down_view,
+                    col_up_view,
+                    col_down_view,
+                ),
+                unsafe_allow_html=True,
+            )
+
+        with l3:
+            st.markdown("#### Downstream")
+            if lineage_down_error:
+                st.warning(f"Could not query downstream lineage: {lineage_down_error}")
+            elif lineage_down_view.empty:
+                st.info("No downstream consumers found.")
+            else:
+                for row in lineage_down_view.head(8).itertuples(index=False):
+                    st.markdown(
+                        _lineage_node_html(
+                            "Target",
+                            _normalize_str(row.target_table_full_name),
+                            "target",
+                            object_type=_normalize_str(getattr(row, "target_type", "")),
+                            href=_lineage_href_if_known(
+                                _normalize_str(row.target_table_full_name),
+                                visible_assets,
+                                context=current_context,
+                            ),
+                        ),
+                        unsafe_allow_html=True,
+                    )
+
+        st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
         table_lineage_tab, column_lineage_tab = st.tabs(
             ["Table Lineage", "Column Lineage"]
         )
@@ -4764,14 +5027,55 @@ def page_lineage(
                     st.info("No downstream column lineage is available.")
                 else:
                     _render_column_lineage(col_down_view, key=f"col_down_{selected_fqn}")
+    else:
+        with l1:
+            st.markdown("#### Upstream Workloads")
+            if op_up_error:
+                st.warning(f"Could not query upstream workload context: {op_up_error}")
+            elif not op_up_cards:
+                st.info("No upstream workload context is available for this asset.")
+            else:
+                st.markdown(
+                    f"<div class='gh-operational-grid'>{''.join(_operational_context_card_html(item) for item in op_up_cards)}</div>",
+                    unsafe_allow_html=True,
+                )
 
-    with operational_tab:
-        _render_operational_context_section(
-            op_up_view,
-            op_down_view,
-            op_up_error,
-            op_down_error,
-        )
+        with l2:
+            st.markdown("#### Selected Asset")
+            st.markdown(
+                _lineage_node_html(
+                    "Focus",
+                    selected_fqn,
+                    "focus",
+                    focus=True,
+                    object_type=_normalize_str(asset.get("table_type")),
+                ),
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                _operational_focus_summary_html(
+                    asset,
+                    op_up_cards,
+                    op_down_cards,
+                    op_up_view,
+                    op_down_view,
+                ),
+                unsafe_allow_html=True,
+            )
+
+        with l3:
+            st.markdown("#### Downstream Consumers")
+            if op_down_error:
+                st.warning(
+                    f"Could not query downstream workload context: {op_down_error}"
+                )
+            elif not op_down_cards:
+                st.info("No downstream workload context is available for this asset.")
+            else:
+                st.markdown(
+                    f"<div class='gh-operational-grid'>{''.join(_operational_context_card_html(item) for item in op_down_cards)}</div>",
+                    unsafe_allow_html=True,
+                )
 
 
 def page_governance(
