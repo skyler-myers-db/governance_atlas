@@ -225,6 +225,15 @@ def _cached_workspace_principals(_uc: UCSQLClient) -> pd.DataFrame:
     return _uc.list_workspace_principals()
 
 
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_operational_entity_name(
+    _uc: UCSQLClient,
+    entity_type: str,
+    entity_id: str,
+) -> str:
+    return _uc.resolve_operational_entity_name(entity_type, entity_id)
+
+
 def _normalize_str(value: Any) -> str:
     if value is None:
         return ""
@@ -523,6 +532,36 @@ def _route_subnav_html(
     """
 
 
+def _module_switcher_html(
+    current_page: str,
+    help_text: Dict[str, str],
+) -> str:
+    items = ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"]
+    links: List[str] = []
+    for item in items:
+        classes = "gh-module-link active" if item == current_page else "gh-module-link"
+        title_attr = html.escape(help_text.get(item, ""), quote=True)
+        links.append(
+            f"<a {_route_link_attrs('?' + urlencode({'page': item}), classes)} title=\"{title_attr}\">"
+            f"{html.escape(item)}"
+            "</a>"
+        )
+    help_classes = "gh-module-help active" if current_page == "Help" else "gh-module-help"
+    help_title = html.escape(help_text.get("?", "Open Help"), quote=True)
+    help_link = (
+        f"<a {_route_link_attrs('?' + urlencode({'page': 'Help'}), help_classes)} title=\"{help_title}\">?</a>"
+    )
+    return f"""
+<div class="gh-module-shell">
+  <div class="gh-module-shell-head">
+    <div class="gh-module-shell-title">Module Switcher</div>
+    {help_link}
+  </div>
+  <div class="gh-module-nav">{"".join(links)}</div>
+</div>
+    """
+
+
 def _format_object_type(raw: str) -> str:
     value = _normalize_str(raw).upper()
     if not value:
@@ -645,27 +684,45 @@ def _operational_display_payload(row: pd.Series) -> Dict[str, str]:
     metadata = _parse_metadata_dict(row.get("entity_metadata"))
     flat = _flatten_metadata(metadata)
     entity_label = _format_entity_type(row.get("entity_type"))
+    resolved_value = _normalize_str(row.get("resolved_entity_name"))
     path_value = _metadata_value(
         flat,
-        ["notebook_path", "notebookPath", "workspace_path", "workspacePath", "path"],
+        [
+            "notebook_path",
+            "notebookPath",
+            "workspace_path",
+            "workspacePath",
+            "object_path",
+            "objectPath",
+            "parent_path",
+            "parentPath",
+            "resource_path",
+            "resourcePath",
+            "path",
+        ],
     )
     named_value = _metadata_value(
         flat,
         [
             "display_name",
             "displayName",
+            "settings.name",
+            "job_settings.name",
             "job_name",
             "jobName",
             "workflow_name",
             "workflowName",
             "pipeline_name",
             "pipelineName",
+            "spec.name",
             "dashboard_name",
             "dashboardName",
             "query_name",
             "queryName",
             "notebook_name",
             "notebookName",
+            "resource_name",
+            "resourceName",
             "task_name",
             "taskName",
             "title",
@@ -677,14 +734,18 @@ def _operational_display_payload(row: pd.Series) -> Dict[str, str]:
     statement_value = _metadata_value(flat, ["statement_text", "query_text", "query"])
 
     title_source = "fallback"
-    if path_value:
+    if resolved_value:
+        title = resolved_value
+        primary_subtitle = path_value if path_value and path_value != resolved_value else ""
+        title_source = "resolved"
+    elif named_value:
+        title = named_value
+        primary_subtitle = path_value if path_value and path_value != named_value else ""
+        title_source = "name"
+    elif path_value:
         title = _path_leaf(path_value)
         primary_subtitle = path_value
         title_source = "path"
-    elif named_value:
-        title = named_value
-        primary_subtitle = ""
-        title_source = "name"
     elif statement_value:
         title = shorten(statement_value.splitlines()[0], width=76, placeholder="…")
         primary_subtitle = ""
@@ -710,6 +771,26 @@ def _operational_display_payload(row: pd.Series) -> Dict[str, str]:
         "flat_metadata": flat,
         "title_source": title_source,
     }
+
+
+def _enrich_operational_context_names(
+    uc: UCSQLClient,
+    df: pd.DataFrame,
+) -> pd.DataFrame:
+    if df is None or df.empty or "entity_type" not in df.columns:
+        return df
+    view = df.copy()
+    resolved_names: List[str] = []
+    for row in view.itertuples(index=False):
+        entity_type = _normalize_str(getattr(row, "entity_type", ""))
+        entity_id = _normalize_str(getattr(row, "entity_id", ""))
+        resolved_names.append(
+            _cached_operational_entity_name(uc, entity_type, entity_id)
+            if entity_type and entity_id
+            else ""
+        )
+    view["resolved_entity_name"] = resolved_names
+    return view
 
 
 def _operational_group_key(row: pd.Series) -> str:
@@ -915,6 +996,15 @@ def _lineage_asset_option_label(inventory: pd.DataFrame, fqn: str) -> str:
     table_name = normalized.split(".")[-1]
     context = _catalog_schema_context(normalized)
     return f"{table_name} ({context})" if context else table_name
+
+
+def _profile_stat_html(label: str, value: str) -> str:
+    return f"""
+<div class="gh-profile-stat">
+  <div class="gh-profile-stat-label">{html.escape(label)}</div>
+  <div class="gh-profile-stat-value">{html.escape(value)}</div>
+</div>
+    """
 
 
 def _operational_context_card_html(item: Dict[str, Any]) -> str:
@@ -1217,6 +1307,9 @@ def _render_styles() -> None:
     --gh-secondary: #6d8dff;
     --gh-accent: #9472ff;
     --gh-accent-soft: #efe7ff;
+    --gh-peach: #ff936e;
+    --gh-peach-soft: rgba(255, 147, 110, 0.14);
+    --gh-peach-border: rgba(255, 147, 110, 0.28);
     --gh-text: #162033;
     --gh-muted: #5e6c84;
     --gh-good: #127863;
@@ -1351,13 +1444,17 @@ def _render_styles() -> None:
 
   .gh-shell-side {
     display: grid;
-    gap: 0.9rem;
     min-width: 0;
+    height: 100%;
   }
 
   .gh-estate-overview {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     border-radius: 22px;
-    padding: 1rem 1.05rem;
+    padding: 1.05rem 1.08rem 1.12rem;
     border: 1px solid rgba(198, 212, 237, 0.94);
     background:
       linear-gradient(
@@ -1370,11 +1467,27 @@ def _render_styles() -> None:
     backdrop-filter: blur(12px);
   }
 
+  .gh-estate-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .gh-estate-title {
+    margin-bottom: 0;
+  }
+
+  .gh-estate-chip-row {
+    justify-content: flex-end;
+    gap: 0.55rem;
+  }
+
   .gh-estate-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.7rem;
-    margin-top: 0.55rem;
+    margin-top: 0.8rem;
   }
 
   .gh-estate-stat {
@@ -1814,19 +1927,19 @@ def _render_styles() -> None:
   }
 
   .gh-subnav-label {
-    font-size: 0.72rem;
+    font-size: 0.8rem;
     font-weight: 800;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: #657794;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.52rem;
   }
 
   .gh-subnav {
     display: inline-flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
-    padding: 0.28rem;
+    gap: 0.42rem;
+    padding: 0.34rem;
     border-radius: 999px;
     border: 1px solid rgba(198, 212, 237, 0.94);
     background: rgba(255, 255, 255, 0.72);
@@ -1837,23 +1950,26 @@ def _render_styles() -> None:
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 2.2rem;
-    padding: 0.5rem 0.9rem;
+    min-height: 2.6rem;
+    padding: 0.62rem 1.15rem;
     border-radius: 999px;
     color: #50627f !important;
     text-decoration: none !important;
-    font-size: 0.84rem;
-    font-weight: 700;
+    font-size: 0.96rem;
+    font-weight: 760;
+    letter-spacing: -0.01em;
     transition:
       background 0.18s ease,
       color 0.18s ease,
+      border-color 0.18s ease,
       box-shadow 0.18s ease,
       transform 0.18s ease;
   }
 
   .gh-subnav-link:hover {
-    background: rgba(255, 255, 255, 0.88);
-    color: var(--gh-text) !important;
+    background: rgba(255, 241, 236, 0.92);
+    color: #9e4f2f !important;
+    box-shadow: 0 0 0 1px var(--gh-peach-border) inset;
     text-decoration: none !important;
     transform: translateY(-1px);
   }
@@ -1867,6 +1983,97 @@ def _render_styles() -> None:
     );
     color: var(--gh-primary) !important;
     box-shadow: inset 0 0 0 1px rgba(49, 95, 216, 0.12);
+  }
+
+  .gh-module-shell {
+    margin-bottom: 1rem;
+    padding: 0.95rem 1rem 1.02rem;
+    border-radius: 24px;
+    border: 1px solid rgba(196, 211, 237, 0.96);
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.96),
+        rgba(240, 246, 255, 0.92) 54%,
+        rgba(246, 239, 255, 0.88) 100%
+      );
+    box-shadow: 0 12px 28px rgba(18, 32, 63, 0.05);
+  }
+
+  .gh-module-shell-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.7rem;
+  }
+
+  .gh-module-shell-title {
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #5f7190;
+  }
+
+  .gh-module-nav {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.7rem;
+  }
+
+  .gh-module-link,
+  .gh-module-help {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 3.2rem;
+    border-radius: 18px;
+    border: 1px solid rgba(194, 209, 236, 0.96);
+    background: rgba(255, 255, 255, 0.92);
+    color: #1f2e48 !important;
+    text-decoration: none !important;
+    font-size: 1.04rem;
+    font-weight: 760;
+    box-shadow: 0 10px 22px rgba(18, 32, 63, 0.03);
+    transition:
+      transform 0.18s ease,
+      border-color 0.18s ease,
+      box-shadow 0.18s ease,
+      background 0.18s ease,
+      color 0.18s ease;
+  }
+
+  .gh-module-link:hover,
+  .gh-module-help:hover {
+    background: rgba(255, 241, 236, 0.94);
+    color: #9e4f2f !important;
+    border-color: var(--gh-peach-border);
+    box-shadow:
+      0 0 0 2px rgba(255, 146, 110, 0.16),
+      0 16px 30px rgba(22, 40, 81, 0.09);
+    transform: translateY(-1px);
+    text-decoration: none !important;
+  }
+
+  .gh-module-link.active,
+  .gh-module-help.active {
+    border-color: rgba(49, 95, 216, 0.22);
+    background: linear-gradient(
+      135deg,
+      #315fd8 0%,
+      #5c87ff 56%,
+      #8f71ff 100%
+    );
+    color: #ffffff !important;
+    box-shadow: 0 18px 34px rgba(47, 86, 204, 0.2);
+  }
+
+  .gh-module-help {
+    width: 3.2rem;
+    flex-shrink: 0;
+    font-size: 1.15rem;
+    font-weight: 860;
   }
 
   .gh-context-fact {
@@ -1993,6 +2200,62 @@ def _render_styles() -> None:
     margin-top: 0.75rem;
     color: var(--gh-muted);
     line-height: 1.55;
+  }
+
+  .gh-profile-panel {
+    padding: 1.18rem 1.2rem 1.08rem;
+  }
+
+  .gh-profile-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(540px, 1fr);
+    gap: 1rem 1.15rem;
+    align-items: start;
+  }
+
+  .gh-profile-main {
+    min-width: 0;
+  }
+
+  .gh-profile-title {
+    font-size: 2.35rem;
+    font-weight: 860;
+    margin: 0;
+    line-height: 1.08;
+    letter-spacing: -0.04em;
+  }
+
+  .gh-profile-stats {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.72rem;
+  }
+
+  .gh-profile-stat {
+    min-width: 0;
+    border-radius: 18px;
+    padding: 0.8rem 0.82rem;
+    border: 1px solid rgba(205, 217, 239, 0.88);
+    background: rgba(250, 252, 255, 0.92);
+    box-shadow: 0 10px 22px rgba(18, 32, 63, 0.03);
+  }
+
+  .gh-profile-stat-label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #617390;
+    margin-bottom: 0.24rem;
+  }
+
+  .gh-profile-stat-value {
+    color: var(--gh-text);
+    font-size: 1.52rem;
+    font-weight: 840;
+    line-height: 1.12;
+    letter-spacing: -0.04em;
+    word-break: break-word;
   }
 
   .gh-operational-section {
@@ -2314,6 +2577,33 @@ def _render_styles() -> None:
     ) !important;
     color: #ffffff !important;
     border: none !important;
+  }
+
+  div[data-testid="stForm"] {
+    border-radius: 24px !important;
+    border: 1px solid rgba(198, 212, 237, 0.94) !important;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(255, 255, 255, 0.95),
+        rgba(240, 246, 255, 0.92) 56%,
+        rgba(246, 239, 255, 0.88) 100%
+      ) !important;
+    box-shadow: 0 12px 28px rgba(18, 32, 63, 0.05) !important;
+    padding: 0.3rem 0.35rem 0.15rem !important;
+  }
+
+  div[data-baseweb="tag"] {
+    border-radius: 999px !important;
+    background: rgba(255, 241, 236, 0.9) !important;
+    border: 1px solid var(--gh-peach-border) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 147, 110, 0.08);
+  }
+
+  div[data-baseweb="tag"] * {
+    color: #9e4f2f !important;
+    fill: #9e4f2f !important;
+    font-weight: 700 !important;
   }
 
   div[data-testid="stSpinner"] {
@@ -2731,7 +3021,24 @@ def _render_styles() -> None:
       justify-content: flex-start;
     }
 
+    .gh-estate-head {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
     .gh-estate-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .gh-module-nav {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .gh-profile-shell {
+      grid-template-columns: 1fr;
+    }
+
+    .gh-profile-stats {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
@@ -2870,12 +3177,14 @@ def _render_shell(
       </div>
     </div>
     <div class="gh-shell-side">
-      <div class="gh-chip-row">
-        <span class="gh-chip">{html.escape(role.title())}</span>
-        <span class="gh-chip">{html.escape(user_email)}</span>
-      </div>
       <div class="gh-estate-overview">
-        <div class="gh-panel-label">Governance Estate Overview</div>
+        <div class="gh-estate-head">
+          <div class="gh-panel-label gh-estate-title">Governance Estate Overview</div>
+          <div class="gh-chip-row gh-estate-chip-row">
+            <span class="gh-chip">{html.escape(role.title())}</span>
+            <span class="gh-chip">{html.escape(user_email)}</span>
+          </div>
+        </div>
         <div class="gh-estate-grid">{shell_stats}</div>
       </div>
     </div>
@@ -3210,18 +3519,26 @@ def _attention_mask(inventory: pd.DataFrame) -> pd.Series:
     )
 
 
-def _discovery_focus_mask(inventory: pd.DataFrame, focus_mode: str) -> pd.Series:
+def _discovery_focus_mask(
+    inventory: pd.DataFrame,
+    focus_modes: List[str],
+) -> pd.Series:
     if inventory.empty:
         return pd.Series(dtype=bool)
-    if focus_mode == "Ownership Gaps":
-        return inventory["owner_count"].eq(0)
-    if focus_mode == "Needs Documentation":
-        return inventory["comment"].eq("")
-    if focus_mode == "Open Requests":
-        return inventory["pending_requests"].gt(0)
-    if focus_mode == "Sensitive / Uncertified":
-        return inventory["sensitivity"].ne("") & inventory["certification"].eq("")
-    return pd.Series(True, index=inventory.index)
+    active_modes = [mode for mode in focus_modes if _normalize_str(mode)]
+    if not active_modes or "All Assets" in active_modes:
+        return pd.Series(True, index=inventory.index)
+    mask = pd.Series(False, index=inventory.index)
+    for focus_mode in active_modes:
+        if focus_mode == "Ownership Gaps":
+            mask |= inventory["owner_count"].eq(0)
+        elif focus_mode == "Needs Documentation":
+            mask |= inventory["comment"].eq("")
+        elif focus_mode == "Open Requests":
+            mask |= inventory["pending_requests"].gt(0)
+        elif focus_mode == "Sensitive / Uncertified":
+            mask |= inventory["sensitivity"].ne("") & inventory["certification"].eq("")
+    return mask
 
 
 def _asset_signal_action_badges(asset: pd.Series) -> str:
@@ -3339,7 +3656,7 @@ def _catalog_scope_options(
             current_catalog = ""
         if current_catalog:
             values.add(current_catalog)
-    return ["All Catalogs"] + sorted(values)
+    return sorted(values)
 
 
 def _schema_name_scope_options(
@@ -3347,7 +3664,7 @@ def _schema_name_scope_options(
     lineage_down: pd.DataFrame,
     col_up: pd.DataFrame,
     col_down: pd.DataFrame,
-    catalog_scope: str,
+    catalog_scopes: List[str],
     op_up: Optional[pd.DataFrame] = None,
     op_down: Optional[pd.DataFrame] = None,
     current_fqn: str = "",
@@ -3368,7 +3685,7 @@ def _schema_name_scope_options(
                 catalog, schema, _ = _split_uc_name(_normalize_str(raw))
             except ValueError:
                 continue
-            if catalog_scope != "All Catalogs" and catalog != catalog_scope:
+            if catalog_scopes and catalog not in catalog_scopes:
                 continue
             if schema:
                 values.add(schema)
@@ -3379,31 +3696,56 @@ def _schema_name_scope_options(
         except ValueError:
             current_catalog, current_schema = "", ""
         if current_schema and (
-            catalog_scope == "All Catalogs" or current_catalog == catalog_scope
+            not catalog_scopes or current_catalog in catalog_scopes
         ):
             values.add(current_schema)
-    return ["All Schemas"] + sorted(values)
+    return sorted(values)
 
 
-def _apply_catalog_scope(df: pd.DataFrame, column: str, scope: str) -> pd.DataFrame:
-    if df is None or df.empty or scope == "All Catalogs" or column not in df.columns:
+def _apply_catalog_scope(df: pd.DataFrame, column: str, scopes: List[str]) -> pd.DataFrame:
+    if df is None or df.empty or not scopes or column not in df.columns:
         return df
     mask = df[column].map(
         lambda value: _split_uc_name(_normalize_str(value))[0]
         if _normalize_str(value).count(".") == 2
         else ""
-    ) == scope
+    ).isin(scopes)
     return df.loc[mask].reset_index(drop=True)
 
 
-def _apply_schema_name_scope(df: pd.DataFrame, column: str, scope: str) -> pd.DataFrame:
-    if df is None or df.empty or scope == "All Schemas" or column not in df.columns:
+def _apply_schema_name_scope(df: pd.DataFrame, column: str, scopes: List[str]) -> pd.DataFrame:
+    if df is None or df.empty or not scopes or column not in df.columns:
         return df
     mask = df[column].map(
         lambda value: _split_uc_name(_normalize_str(value))[1]
         if _normalize_str(value).count(".") == 2
         else ""
-    ) == scope
+    ).isin(scopes)
+    return df.loc[mask].reset_index(drop=True)
+
+
+def _operational_type_options(
+    upstream_df: pd.DataFrame,
+    downstream_df: pd.DataFrame,
+) -> List[str]:
+    values: set[str] = set()
+    for df in [upstream_df, downstream_df]:
+        if df is None or df.empty or "entity_type" not in df.columns:
+            continue
+        for raw in df["entity_type"].tolist():
+            label = _format_entity_type(raw)
+            if label:
+                values.add(label)
+    return sorted(values)
+
+
+def _apply_operational_type_scope(
+    df: pd.DataFrame,
+    selected_types: List[str],
+) -> pd.DataFrame:
+    if df is None or df.empty or not selected_types or "entity_type" not in df.columns:
+        return df
+    mask = df["entity_type"].map(_format_entity_type).isin(selected_types)
     return df.loc[mask].reset_index(drop=True)
 
 
@@ -3527,11 +3869,25 @@ def _profile_header_html(asset: pd.Series) -> str:
         _safe_badge(structured.get("sensitivity", ""), "warn"),
         _safe_badge(structured.get("criticality", ""), "danger"),
     ]
+    stats_html = "".join(
+        [
+            _profile_stat_html("Coverage Score", _format_count(asset.get("governance_score", 0))),
+            _profile_stat_html("Open Requests", _format_count(asset.get("pending_requests", 0))),
+            _profile_stat_html("Owners", _format_count(asset.get("owner_count", 0))),
+            _profile_stat_html("Domain", structured["domain"] or "—"),
+            _profile_stat_html("Tier", structured["tier"] or "—"),
+        ]
+    )
     return f"""
-<div class="gh-panel">
-  <div class="gh-kicker">Asset Profile</div>
-  <div class="gh-profile-title">{html.escape(_normalize_str(asset.get("table_name")))}</div>
-  <div class="gh-badge-row">{"".join(badge for badge in badges if badge)}</div>
+<div class="gh-panel gh-profile-panel">
+  <div class="gh-profile-shell">
+    <div class="gh-profile-main">
+      <div class="gh-kicker">Asset Profile</div>
+      <div class="gh-profile-title">{html.escape(_normalize_str(asset.get("table_name")))}</div>
+      <div class="gh-badge-row">{"".join(badge for badge in badges if badge)}</div>
+    </div>
+    <div class="gh-profile-stats">{stats_html}</div>
+  </div>
 </div>
     """
 
@@ -3762,6 +4118,16 @@ def _selected_asset(inventory: pd.DataFrame) -> Optional[pd.Series]:
     return inventory.iloc[0]
 
 
+def _clean_multiselect_state(state_key: str, options: List[str]) -> List[str]:
+    current = st.session_state.get(state_key, [])
+    if not isinstance(current, list):
+        current = [current] if _normalize_str(current) else []
+    option_set = set(options)
+    cleaned = [value for value in current if value in option_set]
+    st.session_state[state_key] = cleaned
+    return cleaned
+
+
 def _sync_asset_query_state(inventory: pd.DataFrame) -> None:
     query_keys = ["asset", "asset_section", "asset_focus", "column_edit"]
     try:
@@ -3920,24 +4286,31 @@ def _filtered_inventory(
             for catalog in available_catalogs
             if _normalize_str(catalog)
         )
-    catalogs = ["All"] + sorted(catalog_values)
-    domains = ["All"] + sorted([v for v in inventory["domain"].unique().tolist() if v])
-    tiers = ["All"] + sorted([v for v in inventory["tier"].unique().tolist() if v])
-    certifications = ["All"] + sorted(
+    catalogs = sorted(catalog_values)
+    domains = sorted([v for v in inventory["domain"].unique().tolist() if v])
+    tiers = sorted([v for v in inventory["tier"].unique().tolist() if v])
+    certifications = sorted(
         [v for v in inventory["certification"].unique().tolist() if v]
     )
-    sensitivities = ["All"] + sorted(
+    sensitivities = sorted(
         [v for v in inventory["sensitivity"].unique().tolist() if v]
     )
+    focus_options = [
+        "All Assets",
+        "Ownership Gaps",
+        "Needs Documentation",
+        "Open Requests",
+        "Sensitive / Uncertified",
+    ]
 
     st.session_state.setdefault("asset_search", "")
     st.session_state.setdefault("asset_sort_mode", "Best Match")
-    st.session_state.setdefault("asset_catalog", "All")
-    st.session_state.setdefault("asset_domain", "All")
-    st.session_state.setdefault("asset_tier", "All")
-    st.session_state.setdefault("asset_certification", "All")
-    st.session_state.setdefault("asset_sensitivity", "All")
-    st.session_state.setdefault("asset_focus_mode", "All Assets")
+    st.session_state.setdefault("asset_view_filters", [])
+    st.session_state.setdefault("asset_catalog_filters", [])
+    st.session_state.setdefault("asset_domain_filters", [])
+    st.session_state.setdefault("asset_tier_filters", [])
+    st.session_state.setdefault("asset_certification_filters", [])
+    st.session_state.setdefault("asset_sensitivity_filters", [])
 
     valid_sort_modes = {
         "Best Match",
@@ -3945,30 +4318,21 @@ def _filtered_inventory(
         "Open Requests",
         "Alphabetical",
     }
-    valid_focus_modes = {
-        "All Assets",
-        "Ownership Gaps",
-        "Needs Documentation",
-        "Open Requests",
-        "Sensitive / Uncertified",
-    }
     if st.session_state.get("asset_sort_mode") not in valid_sort_modes:
         st.session_state["asset_sort_mode"] = "Best Match"
-    if st.session_state.get("asset_focus_mode") not in valid_focus_modes:
-        st.session_state["asset_focus_mode"] = "All Assets"
-    if st.session_state.get("asset_catalog") not in catalogs:
-        st.session_state["asset_catalog"] = "All"
-    if st.session_state.get("asset_domain") not in domains:
-        st.session_state["asset_domain"] = "All"
-    if st.session_state.get("asset_tier") not in tiers:
-        st.session_state["asset_tier"] = "All"
-    if st.session_state.get("asset_certification") not in certifications:
-        st.session_state["asset_certification"] = "All"
-    if st.session_state.get("asset_sensitivity") not in sensitivities:
-        st.session_state["asset_sensitivity"] = "All"
+    _clean_multiselect_state("asset_view_filters", focus_options)
+    _clean_multiselect_state("asset_catalog_filters", catalogs)
+    _clean_multiselect_state("asset_domain_filters", domains)
+    _clean_multiselect_state("asset_tier_filters", tiers)
+    _clean_multiselect_state("asset_certification_filters", certifications)
+    _clean_multiselect_state("asset_sensitivity_filters", sensitivities)
 
     if show_controls:
-        with st.form("discovery_filters", border=False):
+        with st.form("discovery_filters", border=True):
+            st.markdown("#### Discovery Filters")
+            st.caption(
+                "Combine search, view, and metadata filters in one pane before scanning the matching assets."
+            )
             query_col, sort_col = st.columns([2.3, 1])
             with query_col:
                 query = st.text_input(
@@ -3988,19 +4352,44 @@ def _filtered_inventory(
                     key="asset_sort_mode",
                 )
 
-            filter_cols = st.columns(5)
-            selected_catalog = filter_cols[0].selectbox(
-                "Catalog", catalogs, key="asset_catalog"
+            filter_row_one = st.columns(3)
+            selected_views = filter_row_one[0].multiselect(
+                "Asset View",
+                focus_options,
+                key="asset_view_filters",
+                placeholder="All asset views",
             )
-            selected_domain = filter_cols[1].selectbox(
-                "Domain", domains, key="asset_domain"
+            selected_catalogs = filter_row_one[1].multiselect(
+                "Catalogs",
+                catalogs,
+                key="asset_catalog_filters",
+                placeholder="All catalogs",
             )
-            selected_tier = filter_cols[2].selectbox("Tier", tiers, key="asset_tier")
-            selected_cert = filter_cols[3].selectbox(
-                "Certification", certifications, key="asset_certification"
+            selected_domains = filter_row_one[2].multiselect(
+                "Domains",
+                domains,
+                key="asset_domain_filters",
+                placeholder="All domains",
             )
-            selected_sensitivity = filter_cols[4].selectbox(
-                "Sensitivity", sensitivities, key="asset_sensitivity"
+
+            filter_row_two = st.columns(3)
+            selected_tiers = filter_row_two[0].multiselect(
+                "Tiers",
+                tiers,
+                key="asset_tier_filters",
+                placeholder="All tiers",
+            )
+            selected_certs = filter_row_two[1].multiselect(
+                "Certifications",
+                certifications,
+                key="asset_certification_filters",
+                placeholder="All certifications",
+            )
+            selected_sensitivities = filter_row_two[2].multiselect(
+                "Sensitivities",
+                sensitivities,
+                key="asset_sensitivity_filters",
+                placeholder="All sensitivities",
             )
             submitted = st.form_submit_button("Apply discovery filters", type="primary")
             if submitted:
@@ -4008,11 +4397,12 @@ def _filtered_inventory(
     else:
         query = st.session_state.get("asset_search", "")
         sort_mode = st.session_state.get("asset_sort_mode", "Best Match")
-        selected_catalog = st.session_state.get("asset_catalog", "All")
-        selected_domain = st.session_state.get("asset_domain", "All")
-        selected_tier = st.session_state.get("asset_tier", "All")
-        selected_cert = st.session_state.get("asset_certification", "All")
-        selected_sensitivity = st.session_state.get("asset_sensitivity", "All")
+        selected_views = st.session_state.get("asset_view_filters", [])
+        selected_catalogs = st.session_state.get("asset_catalog_filters", [])
+        selected_domains = st.session_state.get("asset_domain_filters", [])
+        selected_tiers = st.session_state.get("asset_tier_filters", [])
+        selected_certs = st.session_state.get("asset_certification_filters", [])
+        selected_sensitivities = st.session_state.get("asset_sensitivity_filters", [])
 
     filtered = inventory.copy()
     if query:
@@ -4041,19 +4431,18 @@ def _filtered_inventory(
     else:
         filtered["match_score"] = 0
 
-    if selected_catalog != "All":
-        filtered = filtered[filtered["table_catalog"] == selected_catalog]
-    if selected_domain != "All":
-        filtered = filtered[filtered["domain"] == selected_domain]
-    if selected_tier != "All":
-        filtered = filtered[filtered["tier"] == selected_tier]
-    if selected_cert != "All":
-        filtered = filtered[filtered["certification"] == selected_cert]
-    if selected_sensitivity != "All":
-        filtered = filtered[filtered["sensitivity"] == selected_sensitivity]
+    if selected_catalogs:
+        filtered = filtered[filtered["table_catalog"].isin(selected_catalogs)]
+    if selected_domains:
+        filtered = filtered[filtered["domain"].isin(selected_domains)]
+    if selected_tiers:
+        filtered = filtered[filtered["tier"].isin(selected_tiers)]
+    if selected_certs:
+        filtered = filtered[filtered["certification"].isin(selected_certs)]
+    if selected_sensitivities:
+        filtered = filtered[filtered["sensitivity"].isin(selected_sensitivities)]
 
-    focus_mode = st.session_state.get("asset_focus_mode", "All Assets")
-    focus_mask = _discovery_focus_mask(filtered, focus_mode)
+    focus_mask = _discovery_focus_mask(filtered, selected_views)
     if not focus_mask.empty:
         filtered = filtered[focus_mask]
 
@@ -4096,13 +4485,6 @@ def _render_asset_profile(
     tag_suggestions = _tag_suggestion_map(inventory)
 
     st.markdown(_profile_header_html(asset), unsafe_allow_html=True)
-
-    metrics = st.columns(5)
-    metrics[0].metric("Coverage Score", int(asset.get("governance_score", 0)))
-    metrics[1].metric("Open Requests", int(asset.get("pending_requests", 0)))
-    metrics[2].metric("Owners", int(asset.get("owner_count", 0)))
-    metrics[3].metric("Domain", structured["domain"] or "—")
-    metrics[4].metric("Tier", structured["tier"] or "—")
 
     section_key = f"asset_profile_section_{asset['fqn']}"
     section = _normalize_str(st.session_state.get(section_key)) or "Overview"
@@ -4194,20 +4576,15 @@ def _render_asset_profile(
 
         if not detail_df.empty:
             detail = detail_df.iloc[0]
-            detail_metrics: List[Tuple[str, str]] = [
-                ("Object Type", _format_object_type(_normalize_str(asset.get("table_type")))),
-                ("Format", _normalize_str(detail.get("format")) or "—"),
-                ("Size", _format_bytes(detail.get("sizeInBytes"))),
-                ("Files", _format_count(detail.get("numFiles"))),
-            ]
-            if _normalize_str(row_count):
-                detail_metrics.append(("Rows", _format_count(row_count)))
-            metric_cols = st.columns(len(detail_metrics))
-            for col, (label, value) in zip(metric_cols, detail_metrics):
-                col.metric(label, value)
-
             detail_rows = pd.DataFrame(
                 [
+                    {
+                        "Field": "Object Type",
+                        "Value": _format_object_type(
+                            _normalize_str(asset.get("table_type"))
+                        )
+                        or "Unavailable",
+                    },
                     {
                         "Field": "Partition Columns",
                         "Value": _normalize_str(detail.get("partitionColumns")) or "None",
@@ -4231,6 +4608,10 @@ def _render_asset_profile(
                     {
                         "Field": "Last Modified",
                         "Value": _normalize_str(detail.get("lastModified")) or "Unavailable",
+                    },
+                    {
+                        "Field": "Row Count",
+                        "Value": _format_count(row_count),
                     },
                 ]
             )
@@ -4693,22 +5074,6 @@ def page_discovery(
     has_selected_asset = bool(st.session_state.get("discovery_asset_opened")) and selected is not None
 
     if not has_selected_asset:
-        focus_descriptions = {
-            "All Assets": "Show the full live catalog inventory that matches the current filters.",
-            "Ownership Gaps": "Focus on assets that do not yet have an assigned owner.",
-            "Needs Documentation": "Focus on assets that still need a business-facing description.",
-            "Open Requests": "Focus on assets with pending governance change requests.",
-            "Sensitive / Uncertified": "Focus on sensitive assets and assets still missing certification.",
-        }
-        view_left, _ = st.columns([0.38, 0.62])
-        with view_left:
-            focus_mode = st.selectbox(
-                "View",
-                list(focus_descriptions.keys()),
-                key="asset_focus_mode",
-                help="Apply a governance-focused lens to the current Discovery results.",
-            )
-        st.caption(focus_descriptions[focus_mode])
         filtered = _filtered_inventory(
             inventory,
             show_controls=True,
@@ -4719,12 +5084,13 @@ def page_discovery(
             st.warning("No assets match the current search and filter set.")
             return
 
-        if focus_mode == "All Assets":
-            st.caption(f"{len(filtered)} assets match the current discovery filters.")
-        else:
+        selected_views = st.session_state.get("asset_view_filters", [])
+        if selected_views and "All Assets" not in selected_views:
             st.caption(
-                f"{len(filtered)} assets match the current filters in the {focus_mode.lower()} view."
+                f"{len(filtered)} assets match the current filters across {', '.join(selected_views)}."
             )
+        else:
+            st.caption(f"{len(filtered)} assets match the current discovery filters.")
         st.markdown("#### Search Results")
         if len(filtered) > 12:
             st.caption(
@@ -4788,6 +5154,8 @@ def page_lineage(
         op_down, op_down_error = _safe_df_call(
             _cached_operational_context_down, uc, catalog, schema, table
         )
+    op_up = _enrich_operational_context_names(uc, op_up)
+    op_down = _enrich_operational_context_names(uc, op_down)
 
     lineage_up = _filter_asset_rows(
         lineage_up,
@@ -4820,60 +5188,6 @@ def page_lineage(
         exclude_fqn=selected_fqn,
     )
 
-    filter_cols = st.columns(2)
-    catalog_key = f"lineage_catalog_scope_{selected_fqn}"
-    schema_key = f"lineage_schema_scope_{selected_fqn}"
-    catalog_options = _catalog_scope_options(
-        lineage_up,
-        lineage_down,
-        col_up,
-        col_down,
-        op_up,
-        op_down,
-        current_fqn=selected_fqn,
-    )
-    if st.session_state.get(catalog_key) not in catalog_options:
-        st.session_state[catalog_key] = catalog_options[0]
-    with filter_cols[0]:
-        catalog_scope = st.selectbox(
-            "Catalog Scope",
-            catalog_options,
-            key=catalog_key,
-            help="Limit lineage results to one catalog when reviewing dependencies across environments.",
-        )
-
-    schema_options = _schema_name_scope_options(
-        lineage_up,
-        lineage_down,
-        col_up,
-        col_down,
-        st.session_state[catalog_key],
-        op_up,
-        op_down,
-        current_fqn=selected_fqn,
-    )
-    if st.session_state.get(schema_key) not in schema_options:
-        st.session_state[schema_key] = schema_options[0]
-    with filter_cols[1]:
-        schema_scope = st.selectbox(
-            "Schema Scope",
-            schema_options,
-            key=schema_key,
-            help="Refine the lineage view to one schema inside the selected catalog.",
-        )
-
-    lineage_up_view = _apply_catalog_scope(lineage_up, "source_table_full_name", catalog_scope)
-    lineage_down_view = _apply_catalog_scope(lineage_down, "target_table_full_name", catalog_scope)
-    col_up_view = _apply_catalog_scope(col_up, "source_table_full_name", catalog_scope)
-    col_down_view = _apply_catalog_scope(col_down, "target_table_full_name", catalog_scope)
-    op_up_view = _apply_catalog_scope(op_up, "related_table_full_name", catalog_scope)
-    op_down_view = _apply_catalog_scope(op_down, "related_table_full_name", catalog_scope)
-    lineage_up_view = _apply_schema_name_scope(lineage_up_view, "source_table_full_name", schema_scope)
-    lineage_down_view = _apply_schema_name_scope(lineage_down_view, "target_table_full_name", schema_scope)
-    col_up_view = _apply_schema_name_scope(col_up_view, "source_table_full_name", schema_scope)
-    col_down_view = _apply_schema_name_scope(col_down_view, "target_table_full_name", schema_scope)
-    op_up_view = _apply_schema_name_scope(op_up_view, "related_table_full_name", schema_scope)
-    op_down_view = _apply_schema_name_scope(op_down_view, "related_table_full_name", schema_scope)
     current_context = _normalize_str(
         st.session_state.get("lineage_workspace_context")
     ) or "Data Lineage"
@@ -4895,6 +5209,94 @@ def page_lineage(
         unsafe_allow_html=True,
     )
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
+
+    lineage_up_view = lineage_up
+    lineage_down_view = lineage_down
+    col_up_view = col_up
+    col_down_view = col_down
+    op_up_view = op_up
+    op_down_view = op_down
+
+    if current_context == "Data Lineage":
+        filter_cols = st.columns(2)
+        catalog_key = f"lineage_catalog_scopes_{selected_fqn}"
+        schema_key = f"lineage_schema_scopes_{selected_fqn}"
+        catalog_options = _catalog_scope_options(
+            lineage_up,
+            lineage_down,
+            col_up,
+            col_down,
+            op_up,
+            op_down,
+            current_fqn=selected_fqn,
+        )
+        selected_catalogs = _clean_multiselect_state(catalog_key, catalog_options)
+        with filter_cols[0]:
+            selected_catalogs = st.multiselect(
+                "Catalog Scope",
+                catalog_options,
+                key=catalog_key,
+                placeholder="All catalogs",
+                help="Limit lineage results to one or more catalogs when reviewing dependencies across environments.",
+            )
+
+        schema_options = _schema_name_scope_options(
+            lineage_up,
+            lineage_down,
+            col_up,
+            col_down,
+            selected_catalogs,
+            op_up,
+            op_down,
+            current_fqn=selected_fqn,
+        )
+        selected_schemas = _clean_multiselect_state(schema_key, schema_options)
+        with filter_cols[1]:
+            selected_schemas = st.multiselect(
+                "Schema Scope",
+                schema_options,
+                key=schema_key,
+                placeholder="All schemas",
+                help="Refine the lineage view to one or more schemas inside the selected catalogs.",
+            )
+
+        lineage_up_view = _apply_catalog_scope(
+            lineage_up, "source_table_full_name", selected_catalogs
+        )
+        lineage_down_view = _apply_catalog_scope(
+            lineage_down, "target_table_full_name", selected_catalogs
+        )
+        col_up_view = _apply_catalog_scope(
+            col_up, "source_table_full_name", selected_catalogs
+        )
+        col_down_view = _apply_catalog_scope(
+            col_down, "target_table_full_name", selected_catalogs
+        )
+        lineage_up_view = _apply_schema_name_scope(
+            lineage_up_view, "source_table_full_name", selected_schemas
+        )
+        lineage_down_view = _apply_schema_name_scope(
+            lineage_down_view, "target_table_full_name", selected_schemas
+        )
+        col_up_view = _apply_schema_name_scope(
+            col_up_view, "source_table_full_name", selected_schemas
+        )
+        col_down_view = _apply_schema_name_scope(
+            col_down_view, "target_table_full_name", selected_schemas
+        )
+    else:
+        type_key = f"lineage_operational_types_{selected_fqn}"
+        type_options = _operational_type_options(op_up, op_down)
+        _clean_multiselect_state(type_key, type_options)
+        selected_types = st.multiselect(
+            "Asset Types",
+            type_options,
+            key=type_key,
+            placeholder="All workload types",
+            help="Limit the operational context workspace to one or more workload types.",
+        )
+        op_up_view = _apply_operational_type_scope(op_up, selected_types)
+        op_down_view = _apply_operational_type_scope(op_down, selected_types)
 
     focus_asset_name = _normalize_str(asset.get("table_name")) or selected_fqn.split(".")[-1]
     op_up_cards = _summarize_operational_context(
@@ -5764,7 +6166,6 @@ def main() -> None:
     _sync_page_query_state()
     _sync_lineage_query_state(inventory)
 
-    module_options = ["Discovery", "Lineage", "Governance", "Stewardship", "Admin"]
     module_help = {
         "Discovery": "Search the catalog, filter results, and open asset pages.",
         "Lineage": "Review upstream and downstream dependencies before making changes.",
@@ -5773,31 +6174,10 @@ def main() -> None:
         "Admin": "Manage app access and roles.",
     }
     page = st.session_state.get("app_page", "Discovery")
-
-    nav_cols = st.columns([1, 1, 1, 1, 1, 0.16], vertical_alignment="center")
-    for col, option in zip(nav_cols[:5], module_options):
-        with col:
-            if st.button(
-                option,
-                key=f"app_page_{option}",
-                use_container_width=True,
-                type="primary" if page == option else "secondary",
-            ):
-                if page != option:
-                    st.session_state["app_page"] = option
-                    st.rerun()
-    with nav_cols[5]:
-        if st.button(
-            "?",
-            key="app_page_help",
-            use_container_width=True,
-            type="primary" if page == "Help" else "secondary",
-            help="Open help",
-        ):
-            if page != "Help":
-                st.session_state["app_page"] = "Help"
-                st.rerun()
-    _attach_button_titles({**module_help, "?": "Open Help"})
+    st.markdown(
+        _module_switcher_html(page, {**module_help, "?": "Open Help"}),
+        unsafe_allow_html=True,
+    )
 
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
