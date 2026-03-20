@@ -562,6 +562,51 @@ LIMIT {int(limit)}
                 continue
         return self._empty_operational_context_df()
 
+    def resolve_operational_entity_name(self, entity_type: str, entity_id: str) -> str:
+        entity_type_n = str(entity_type or "").strip().upper()
+        entity_id_n = str(entity_id or "").strip()
+        if not entity_type_n or not entity_id_n:
+            return ""
+
+        try:
+            if entity_type_n in {"JOB", "WORKFLOW"}:
+                job_ref = int(entity_id_n) if entity_id_n.isdigit() else entity_id_n
+                response = self.w.jobs.get(job_ref)
+                return str(
+                    _get(response, "settings", "name")
+                    or _get(response, "settings", "job_name")
+                    or ""
+                ).strip()
+
+            if entity_type_n in {"PIPELINE", "DLT_PIPELINE", "LAKEFLOW_PIPELINE"}:
+                response = self.w.pipelines.get(entity_id_n)
+                return str(
+                    _get(response, "name")
+                    or _get(response, "spec", "name")
+                    or ""
+                ).strip()
+
+            if entity_type_n in {"SQL", "SQL_QUERY", "QUERY", "STATEMENT"}:
+                response = self.w.queries.get(entity_id_n)
+                return str(
+                    _get(response, "display_name")
+                    or _get(response, "name")
+                    or ""
+                ).strip()
+
+            if entity_type_n == "DASHBOARD":
+                response = self.w.dashboards.get(entity_id_n)
+                return str(
+                    _get(response, "display_name")
+                    or _get(response, "name")
+                    or _get(response, "title")
+                    or ""
+                ).strip()
+        except Exception:
+            return ""
+
+        return ""
+
     # ── Column-level metadata ───────────────────────────────
 
     def set_column_comment(
