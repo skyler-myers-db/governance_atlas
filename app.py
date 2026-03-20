@@ -1808,6 +1808,11 @@ def _render_styles() -> None:
     padding: 0.78rem 0.82rem;
     border: 1px solid rgba(206, 218, 239, 0.88);
     background: rgba(250, 252, 255, 0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
   }
 
   .gh-estate-stat-label {
@@ -1817,6 +1822,7 @@ def _render_styles() -> None:
     text-transform: uppercase;
     color: #617390;
     margin-bottom: 0.24rem;
+    text-align: center;
   }
 
   .gh-estate-stat-value {
@@ -1824,6 +1830,7 @@ def _render_styles() -> None:
     font-weight: 840;
     color: var(--gh-text);
     letter-spacing: -0.03em;
+    text-align: center;
   }
 
   .gh-brand {
@@ -2589,7 +2596,9 @@ def _render_styles() -> None:
     box-shadow: 0 10px 22px rgba(18, 32, 63, 0.03);
     display: flex;
     flex-direction: column;
+    align-items: center;
     justify-content: space-between;
+    text-align: center;
   }
 
   .gh-profile-stat-label {
@@ -2599,6 +2608,7 @@ def _render_styles() -> None:
     text-transform: uppercase;
     color: #617390;
     margin-bottom: 0.32rem;
+    text-align: center;
   }
 
   .gh-profile-stat-value {
@@ -2608,6 +2618,7 @@ def _render_styles() -> None:
     line-height: 1.02;
     letter-spacing: -0.04em;
     word-break: break-word;
+    text-align: center;
   }
 
   .gh-operational-section {
