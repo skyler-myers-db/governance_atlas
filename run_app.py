@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import shutil
+import subprocess
 import sys
+from pathlib import Path
 from typing import Final
 
 
@@ -17,6 +20,9 @@ LEGACY_MODE: Final[str] = "legacy"
 MODERN_MODE: Final[str] = "modern"
 MODERN_ENTRYPOINT: Final[str] = "modern_app:app"
 MODERN_MODULE: Final[str] = "modern_app"
+ROOT: Final[Path] = Path(__file__).resolve().parent
+FRONTEND_DIR: Final[Path] = ROOT / "frontend"
+FRONTEND_DIST: Final[Path] = FRONTEND_DIR / "dist" / "index.html"
 
 
 def _normalized_mode() -> str:
@@ -79,6 +85,15 @@ def _run_modern() -> None:
         raise SystemExit(
             "GOVHUB_APP_MODE=modern requires uvicorn to be installed."
         )
+    if not FRONTEND_DIST.exists():
+        npm = shutil.which("npm")
+        if npm and (FRONTEND_DIR / "node_modules").exists():
+            subprocess.run([npm, "run", "build"], cwd=str(FRONTEND_DIR), check=True)
+        if not FRONTEND_DIST.exists():
+            raise SystemExit(
+                "GOVHUB_APP_MODE=modern requires a built React frontend. "
+                "Build frontend/dist before launching modern mode."
+            )
     _exec(
         [
             sys.executable,
