@@ -28,8 +28,9 @@ from govhub.uc import UCSQLClient
 
 
 ROOT = Path(__file__).resolve().parent
-UI_DIR = ROOT / "modern_ui"
-INDEX_TEMPLATE = (UI_DIR / "index.html").read_text(encoding="utf-8")
+LEGACY_UI_DIR = ROOT / "modern_ui"
+REACT_DIST_DIR = ROOT / "frontend" / "dist"
+LEGACY_INDEX_TEMPLATE = (LEGACY_UI_DIR / "index.html").read_text(encoding="utf-8")
 STATIC_INDEX_BOOTSTRAP = '<script id="govhub-bootstrap-script" src="./data.js" defer></script>'
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
 
@@ -64,7 +65,9 @@ DISCOVERY_SORTS = [
 
 
 app = FastAPI(title="Governance Hub Modern Runtime")
-app.mount("/static", StaticFiles(directory=str(UI_DIR)), name="static")
+app.mount("/static", StaticFiles(directory=str(LEGACY_UI_DIR)), name="static")
+if (REACT_DIST_DIR / "assets").exists():
+    app.mount("/assets", StaticFiles(directory=str(REACT_DIST_DIR / "assets")), name="react-assets")
 
 
 def _raw(fn: Callable[..., Any]) -> Callable[..., Any]:
@@ -720,6 +723,8 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
 
     return {
         "version": "modern-ui-live-1",
+        "bootState": "live",
+        "bootMessage": "",
         "apiBase": "/api",
         "assets": assets,
         "assetIndex": asset_index,
@@ -758,8 +763,10 @@ def _ensure_live_runtime() -> None:
 
 
 def _render_index(live_payload: Optional[Dict[str, Any]] = None) -> str:
+    if (REACT_DIST_DIR / "index.html").exists():
+        return (REACT_DIST_DIR / "index.html").read_text(encoding="utf-8")
     html_text = (
-        INDEX_TEMPLATE.replace("./styles.css", "/static/styles.css")
+        LEGACY_INDEX_TEMPLATE.replace("./styles.css", "/static/styles.css")
         .replace("./app.js", "/static/app.js")
     )
     if live_payload is None:
@@ -777,8 +784,10 @@ def _render_index(live_payload: Optional[Dict[str, Any]] = None) -> str:
 
 
 def _render_unavailable_index(message: str) -> str:
+    if (REACT_DIST_DIR / "index.html").exists():
+        return (REACT_DIST_DIR / "index.html").read_text(encoding="utf-8")
     html_text = (
-        INDEX_TEMPLATE.replace("./styles.css", "/static/styles.css")
+        LEGACY_INDEX_TEMPLATE.replace("./styles.css", "/static/styles.css")
         .replace("./app.js", "/static/app.js")
         .replace(STATIC_INDEX_BOOTSTRAP, "")
     )
@@ -788,6 +797,8 @@ def _render_unavailable_index(message: str) -> str:
         "window.GOVHUB_USE_REMOTE_API = false;"
         "window.GOVHUB_DATA = {"
         "\"version\":\"modern-ui-unavailable-1\","
+        "\"bootState\":\"unavailable\","
+        f"\"bootMessage\":{json.dumps(message)},"
         "\"assets\":[],"
         "\"assetIndex\":{},"
         "\"graphs\":{},"
