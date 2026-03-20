@@ -89,6 +89,22 @@ def _get_om_client(_cfg: AppConfig) -> Optional[OpenMetadataClient]:
 
 
 @st.cache_data(ttl=_META_TTL, show_spinner=False)
+def _cached_bootstrap_catalogs(_uc: UCSQLClient) -> List[str]:
+    try:
+        df = _uc.list_catalogs()
+    except Exception:
+        return []
+    if df is None or df.empty:
+        return []
+    return sorted(
+        _normalize_str(value)
+        for value in df.iloc[:, 0].tolist()
+        if _normalize_str(value)
+        and _normalize_str(value).lower() not in _HIDDEN_CATALOGS
+    )
+
+
+@st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_catalogs(_uc: UCSQLClient) -> List[str]:
     values: set[str] = set()
     for loader in (_uc.list_catalogs, getattr(_uc, "list_lineage_catalogs", None)):
@@ -3714,7 +3730,7 @@ def _empty_inventory() -> pd.DataFrame:
 
 @st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_asset_inventory(_uc: UCSQLClient, _store: GovernanceStore) -> pd.DataFrame:
-    catalogs = _cached_catalogs(_uc)
+    catalogs = _cached_bootstrap_catalogs(_uc)
     inventory_frames: List[pd.DataFrame] = []
     tag_maps: Dict[str, Dict[str, str]] = {}
 
