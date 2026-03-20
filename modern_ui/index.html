@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Governance Hub modern frontend prototype for discovery, lineage, and governance."
+    />
+    <title>Governance Hub</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script>
+      window.GOVHUB_API_BASE = window.GOVHUB_API_BASE || "/api";
+      window.GOVHUB_USE_REMOTE_API = Boolean(window.GOVHUB_USE_REMOTE_API);
+    </script>
+    <script id="govhub-bootstrap-script" src="./data.js" defer></script>
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero-shell panel">
+        <div class="brand-block">
+          <div class="brand-mark">GH</div>
+          <div>
+            <div class="eyebrow">Enterprise metadata for Databricks</div>
+            <h1>Governance Hub</h1>
+            <p>
+              Search assets, inspect lineage, and keep ownership, documentation, and governance
+              context current across Unity Catalog.
+            </p>
+          </div>
+        </div>
+        <div class="estate-overview panel panel-soft">
+          <div class="panel-head">
+            <div class="eyebrow">Governance Estate Overview</div>
+            <div class="chip-row">
+              <span class="chip chip-neutral" id="shell-role">Admin</span>
+              <span class="chip chip-neutral" id="shell-user-email">skyler.myers@tristategt.org</span>
+            </div>
+          </div>
+          <div class="metric-grid" id="shell-metrics"></div>
+        </div>
+      </header>
+
+      <section class="module-switcher panel">
+        <div class="module-switcher-head">
+          <div class="eyebrow">Module Switcher</div>
+          <button class="ghost-button" data-action="help-open" type="button">?</button>
+        </div>
+        <div class="switcher-row" id="module-switcher">
+          <button class="module-pill is-active" data-module="discovery" type="button">
+            Discovery
+          </button>
+          <button class="module-pill" data-module="lineage" type="button">Lineage</button>
+          <button class="module-pill" data-module="governance" type="button">Governance</button>
+        </div>
+      </section>
+
+      <main id="app-main"></main>
+    </div>
+
+    <dialog id="help-dialog" class="panel help-dialog">
+      <form method="dialog">
+        <div class="help-head">
+          <div>
+            <div class="eyebrow">Help</div>
+            <h2>Workspace shortcuts</h2>
+          </div>
+          <button class="ghost-button" value="close" type="submit">Close</button>
+        </div>
+        <div class="help-grid" id="help-grid"></div>
+      </form>
+    </dialog>
+  </body>
+</html>
