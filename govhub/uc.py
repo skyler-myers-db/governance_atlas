@@ -45,6 +45,8 @@ def _is_skippable_metadata_error(exc: Exception) -> bool:
         "TABLE_OR_VIEW_NOT_FOUND",
         "SCHEMA_NOT_FOUND",
         "CATALOG_NOT_FOUND",
+        "INSUFFICIENT_PERMISSIONS",
+        "USE CATALOG",
         "PERMISSION_DENIED",
         "INSUFFICIENT_PRIVILEGES",
         "UNAUTHORIZED",

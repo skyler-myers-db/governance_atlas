@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { fetchLineage } from "../lib/api";
 
-export function useLineage(assetFqn) {
+export function useLineage(assetFqn, seededGraph = null) {
   const [state, setState] = useState({
     loading: false,
     error: "",
-    graph: null,
+    graph: seededGraph,
   });
 
   useEffect(() => {
@@ -15,7 +15,11 @@ export function useLineage(assetFqn) {
     }
 
     let canceled = false;
-    setState((prev) => ({ ...prev, loading: true, error: "" }));
+    setState((prev) => ({
+      loading: !seededGraph,
+      error: "",
+      graph: seededGraph || prev.graph || null,
+    }));
     fetchLineage(assetFqn)
       .then((payload) => {
         if (canceled) return;
@@ -33,7 +37,7 @@ export function useLineage(assetFqn) {
     return () => {
       canceled = true;
     };
-  }, [assetFqn]);
+  }, [assetFqn, seededGraph]);
 
   return state;
 }
