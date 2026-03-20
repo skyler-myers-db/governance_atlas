@@ -26,7 +26,7 @@ export default function LineageWorkspace({
         <div>
           <div className="gh-panel-title">Lineage Workspace</div>
           <div className="gh-support-copy">
-            Interactive lineage should feel like a real metadata workspace, not a static report.
+            Trace upstream and downstream dependencies around the selected asset.
           </div>
         </div>
         <div className="gh-segment-row">
