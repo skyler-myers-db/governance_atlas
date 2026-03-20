@@ -90,11 +90,24 @@ def _get_om_client(_cfg: AppConfig) -> Optional[OpenMetadataClient]:
 
 @st.cache_data(ttl=_META_TTL, show_spinner=False)
 def _cached_catalogs(_uc: UCSQLClient) -> List[str]:
-    df = _uc.list_catalogs()
-    if df.empty:
-        return []
-    names = df.iloc[:, 0].tolist()
-    return [c for c in names if str(c).lower() not in _HIDDEN_CATALOGS]
+    values: set[str] = set()
+    for loader in (_uc.list_catalogs, getattr(_uc, "list_lineage_catalogs", None)):
+        if loader is None:
+            continue
+        try:
+            df = loader()
+        except Exception:
+            continue
+        if df is None or df.empty:
+            continue
+        values.update(
+            _normalize_str(value)
+            for value in df.iloc[:, 0].tolist()
+            if _normalize_str(value)
+        )
+    return sorted(
+        value for value in values if value.lower() not in _HIDDEN_CATALOGS
+    )
 
 
 @st.cache_data(ttl=_META_TTL, show_spinner=False)
@@ -290,6 +303,7 @@ def _catalog_filter_options(
     inventory: pd.DataFrame,
     *,
     available_catalogs: Optional[List[str]] = None,
+    observed_catalogs: Optional[List[str]] = None,
 ) -> List[str]:
     values: set[str] = set()
     if inventory is not None and not inventory.empty:
@@ -313,7 +327,28 @@ def _catalog_filter_options(
             for catalog in available_catalogs
             if _normalize_str(catalog)
         )
+    if observed_catalogs:
+        values.update(
+            _normalize_str(catalog)
+            for catalog in observed_catalogs
+            if _normalize_str(catalog)
+        )
     return sorted(values)
+
+
+def _remember_observed_catalogs(values: List[str]) -> List[str]:
+    existing = st.session_state.get("observed_catalog_scopes", [])
+    if not isinstance(existing, list):
+        existing = [existing] if _normalize_str(existing) else []
+    merged = sorted(
+        {
+            _normalize_str(value)
+            for value in [*existing, *values]
+            if _normalize_str(value)
+        }
+    )
+    st.session_state["observed_catalog_scopes"] = merged
+    return merged
 
 
 def _lineage_asset_stub(inventory: pd.DataFrame, asset_fqn: str) -> pd.Series:
@@ -613,7 +648,7 @@ def _format_object_type(raw: str) -> str:
 
 
 def _format_entity_type(raw: str) -> str:
-    value = _normalize_str(raw).upper()
+    value = _normalize_str(raw).upper().replace(" ", "_").replace("-", "_")
     if not value:
         return "Workload"
     labels = {
@@ -827,15 +862,20 @@ def _enrich_operational_context_names(
     if df is None or df.empty or "entity_type" not in df.columns:
         return df
     view = df.copy()
+    lookup: Dict[Tuple[str, str], str] = {}
+    for row in view.itertuples(index=False):
+        entity_type = _normalize_str(getattr(row, "entity_type", ""))
+        entity_id = _normalize_str(getattr(row, "entity_id", ""))
+        if not entity_type or not entity_id:
+            continue
+        key = (entity_type, entity_id)
+        if key not in lookup:
+            lookup[key] = _cached_operational_entity_name(uc, entity_type, entity_id)
     resolved_names: List[str] = []
     for row in view.itertuples(index=False):
         entity_type = _normalize_str(getattr(row, "entity_type", ""))
         entity_id = _normalize_str(getattr(row, "entity_id", ""))
-        resolved_names.append(
-            _cached_operational_entity_name(uc, entity_type, entity_id)
-            if entity_type and entity_id
-            else ""
-        )
+        resolved_names.append(lookup.get((entity_type, entity_id), ""))
     view["resolved_entity_name"] = resolved_names
     return view
 
@@ -876,13 +916,16 @@ def _summarize_operational_context(
         row = group.iloc[0]
         payload = _operational_display_payload(row)
         entity_label = payload["entity_label"]
-        title = payload["title"]
-        if payload.get("title_source") == "fallback":
-            title = _operational_fallback_title(
-                entity_label,
-                direction=direction,
-                focus_asset_name=focus_asset_name,
-            )
+    title = payload["title"]
+    has_specific_identifier = bool(
+        _normalize_str(row.get("entity_id")) or statement_ids or run_ids
+    )
+    if payload.get("title_source") == "fallback" and not has_specific_identifier:
+        title = _operational_fallback_title(
+            entity_label,
+            direction=direction,
+            focus_asset_name=focus_asset_name,
+        )
         flat = payload["flat_metadata"]
         run_ids = {
             _normalize_str(value)
@@ -1129,12 +1172,12 @@ def _operational_related_asset_link_html(asset_fqn: str) -> str:
 
 def _operational_context_card_html(item: Dict[str, Any]) -> str:
     note_html = (
-        f"<div class='gh-operational-note'>{html.escape(item['note'])}</div>"
+        f"<span class='gh-operational-note'>{html.escape(item['note'])}</span>"
         if _normalize_str(item.get("note"))
         else ""
     )
     subtitle_html = (
-        f"<div class='gh-operational-subtitle'>{html.escape(item['subtitle'])}</div>"
+        f"<span class='gh-operational-subtitle'>{html.escape(item['subtitle'])}</span>"
         if _normalize_str(item.get("subtitle"))
         else ""
     )
@@ -1170,26 +1213,20 @@ def _operational_context_card_html(item: Dict[str, Any]) -> str:
   <div class="gh-operational-detail-grid">{detail_html}</div>
         """
     expandable_class = " expandable" if detail_body_html else ""
-    expand_hint_html = (
-        "<div class='gh-operational-summary-footer'>Expand workload details</div>"
-        if detail_body_html
-        else ""
-    )
     return f"""
 <details class="gh-operational-card{expandable_class}">
   <summary class="gh-operational-summary">
-    <div class="gh-operational-head">
-      <div>
-        <div class="gh-operational-type">{html.escape(item['entity_label'])}</div>
-        <div class="gh-operational-title">{html.escape(item['title'])}</div>
+    <span class="gh-operational-head">
+      <span class="gh-operational-head-main">
+        <span class="gh-operational-type">{html.escape(item['entity_label'])}</span>
+        <span class="gh-operational-title">{html.escape(item['title'])}</span>
         {subtitle_html}
-      </div>
-      <div class="gh-operational-count">
+      </span>
+      <span class="gh-operational-count">
         {int(item['asset_count'])} {html.escape(item['assets_label'])}
-      </div>
-    </div>
+      </span>
+    </span>
     {note_html}
-    {expand_hint_html}
   </summary>
   <div class="gh-operational-detail-body">{detail_body_html}</div>
 </details>
@@ -2144,6 +2181,7 @@ def _render_styles() -> None:
     min-height: 2.9rem;
     padding: 0.7rem 1.28rem;
     border-radius: 999px;
+    border: 1px solid transparent;
     color: #50627f !important;
     text-decoration: none !important;
     font-size: 1.02rem;
@@ -2158,11 +2196,24 @@ def _render_styles() -> None:
   }
 
   .gh-subnav-link:hover {
-    background: rgba(255, 241, 236, 0.92);
-    color: #9e4f2f !important;
-    box-shadow: 0 0 0 1px var(--gh-peach-border) inset;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(250, 252, 255, 0.98),
+        rgba(244, 247, 255, 0.96) 58%,
+        rgba(246, 241, 255, 0.94) 100%
+      ) padding-box,
+      linear-gradient(
+        135deg,
+        rgba(72, 106, 222, 0.7),
+        rgba(144, 117, 255, 0.68)
+      ) border-box;
+    color: #4258bf !important;
     text-decoration: none !important;
-    transform: translateY(-1px);
+    transform: none;
+    box-shadow:
+      0 0 0 1px rgba(105, 125, 226, 0.08),
+      0 10px 18px rgba(87, 105, 210, 0.08);
   }
 
   .gh-subnav-link.active {
@@ -2541,7 +2592,14 @@ def _render_styles() -> None:
     margin-bottom: 0.45rem;
   }
 
+  .gh-operational-head-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
   .gh-operational-type {
+    display: block;
     font-size: 0.72rem;
     font-weight: 800;
     letter-spacing: 0.1em;
@@ -2551,6 +2609,7 @@ def _render_styles() -> None:
   }
 
   .gh-operational-title {
+    display: block;
     color: var(--gh-text);
     font-size: 1.16rem;
     font-weight: 810;
@@ -2558,6 +2617,7 @@ def _render_styles() -> None:
   }
 
   .gh-operational-subtitle {
+    display: block;
     color: var(--gh-muted);
     font-size: 0.82rem;
     line-height: 1.45;
@@ -2577,18 +2637,11 @@ def _render_styles() -> None:
   }
 
   .gh-operational-note {
+    display: block;
     color: var(--gh-muted);
     font-size: 0.88rem;
     line-height: 1.55;
     margin-bottom: 0.4rem;
-  }
-
-  .gh-operational-summary-footer {
-    margin-top: 0.52rem;
-    color: #6f80a0;
-    font-size: 0.76rem;
-    font-weight: 760;
-    letter-spacing: 0.04em;
   }
 
   .gh-operational-pill-row {
@@ -2923,13 +2976,7 @@ def _render_styles() -> None:
   }
 
   div[data-testid="stMultiSelect"] [data-baseweb="tag"],
-  div[data-testid="stMultiSelect"] span[data-baseweb="tag"],
-  div[data-testid="stMultiSelect"] [data-baseweb="tag"] > span,
-  div[data-testid="stMultiSelect"] [data-baseweb="tag"] > div,
-  [data-baseweb="select"] [data-baseweb="tag"],
-  [data-baseweb="select"] span[data-baseweb="tag"],
-  [data-baseweb="select"] [data-baseweb="tag"] > span,
-  [data-baseweb="select"] [data-baseweb="tag"] > div {
+  [data-baseweb="select"] [data-baseweb="tag"] {
     border-radius: 999px !important;
     background: linear-gradient(
       145deg,
@@ -2944,6 +2991,13 @@ def _render_styles() -> None:
     box-shadow: inset 0 0 0 1px rgba(120, 142, 229, 0.06);
   }
 
+  div[data-testid="stMultiSelect"] [data-baseweb="tag"] > *,
+  [data-baseweb="select"] [data-baseweb="tag"] > * {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
   div[data-testid="stMultiSelect"] [data-baseweb="tag"] *,
   [data-baseweb="select"] [data-baseweb="tag"] * {
     color: #4b61c6 !important;
@@ -2952,27 +3006,38 @@ def _render_styles() -> None:
   }
 
   div[data-testid="stFormSubmitButton"] > button.gh-button-filter {
-    background: linear-gradient(
-      145deg,
-      rgba(242, 246, 255, 0.98),
-      rgba(235, 240, 255, 0.98) 100%
-    ) !important;
-    color: #4860c6 !important;
-    border: 1px solid rgba(138, 157, 233, 0.4) !important;
-    box-shadow: 0 10px 22px rgba(91, 110, 213, 0.08) !important;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(230, 238, 255, 0.98),
+        rgba(220, 230, 255, 0.98) 100%
+      ) padding-box,
+      linear-gradient(
+        135deg,
+        rgba(124, 145, 232, 0.58),
+        rgba(146, 124, 239, 0.54)
+      ) border-box !important;
+    color: #3d55c0 !important;
+    border: 1px solid transparent !important;
+    box-shadow: 0 10px 22px rgba(91, 110, 213, 0.1) !important;
   }
 
   div[data-testid="stFormSubmitButton"] > button.gh-button-filter:hover {
-    background: linear-gradient(
-      145deg,
-      rgba(245, 248, 255, 0.99),
-      rgba(238, 243, 255, 0.99) 100%
-    ) !important;
-    color: #3f57be !important;
-    border-color: rgba(96, 117, 220, 0.54) !important;
+    background:
+      linear-gradient(
+        145deg,
+        rgba(234, 241, 255, 0.99),
+        rgba(225, 233, 255, 0.99) 100%
+      ) padding-box,
+      linear-gradient(
+        135deg,
+        rgba(58, 95, 221, 0.86),
+        rgba(141, 114, 255, 0.84)
+      ) border-box !important;
+    color: #3049b4 !important;
     box-shadow:
-      0 0 0 2px rgba(116, 133, 228, 0.12),
-      0 10px 18px rgba(86, 104, 208, 0.08) !important;
+      0 0 0 1px rgba(97, 118, 222, 0.08),
+      0 12px 20px rgba(86, 104, 208, 0.1) !important;
     transform: none !important;
   }
 
@@ -3008,7 +3073,7 @@ def _render_styles() -> None:
   [data-gh-tooltip]:focus-visible::after {
     opacity: 1;
     transform: translate(-50%, 0);
-    transition-delay: 0.22s;
+    transition-delay: 0.32s;
   }
 
   div[data-testid="stSpinner"] {
@@ -3902,6 +3967,13 @@ def _lineage_query_href(asset_fqn: str, *, context: str = "") -> str:
     return "?" + urlencode(params)
 
 
+def _help_query_href(section: str = "") -> str:
+    params = {"page": "Help"}
+    if section:
+        params["help_section"] = section
+    return "?" + urlencode(params)
+
+
 def _lineage_href_if_known(
     asset_fqn: str,
     visible_assets: set[str],
@@ -4692,9 +4764,15 @@ def _sync_help_query_state() -> None:
         open_help = _normalize_str(st.query_params.get("help"))
     except Exception:
         open_help = ""
-    if not open_help:
+    try:
+        help_section = _normalize_str(st.query_params.get("help_section"))
+    except Exception:
+        help_section = ""
+    if not open_help and not help_section:
         return
     st.session_state["app_page"] = "Help"
+    if help_section in {"Using the App", "Coverage Score", "Object Types & Lineage"}:
+        st.session_state["help_section"] = help_section
     _clear_help_query_state()
 
 
@@ -4717,11 +4795,12 @@ def _clear_lineage_query_state() -> None:
 
 
 def _clear_help_query_state() -> None:
-    try:
-        if "help" in st.query_params:
-            del st.query_params["help"]
-    except Exception:
-        pass
+    for key in ["help", "help_section"]:
+        try:
+            if key in st.query_params:
+                del st.query_params[key]
+        except Exception:
+            pass
 
 
 def _asset_selector(
@@ -4792,6 +4871,7 @@ def _filtered_inventory(
     catalogs = _catalog_filter_options(
         inventory,
         available_catalogs=available_catalogs,
+        observed_catalogs=st.session_state.get("observed_catalog_scopes", []),
     )
     domains = sorted([v for v in inventory["domain"].unique().tolist() if v])
     tiers = sorted([v for v in inventory["tier"].unique().tolist() if v])
@@ -5686,27 +5766,50 @@ def page_lineage(
     asset = _lineage_asset_stub(inventory, selected_fqn)
     visible_assets = set(inventory["fqn"].tolist())
     catalog, schema, table = _split_uc_name(selected_fqn)
+    current_context = _normalize_str(
+        st.session_state.get("lineage_workspace_context")
+    ) or "Data Lineage"
+    if current_context not in {"Data Lineage", "Operational Context"}:
+        current_context = "Data Lineage"
+    st.session_state["lineage_workspace_context"] = current_context
+
+    lineage_up = pd.DataFrame()
+    lineage_down = pd.DataFrame()
+    col_up = pd.DataFrame()
+    col_down = pd.DataFrame()
+    op_up = pd.DataFrame()
+    op_down = pd.DataFrame()
+    lineage_up_error = None
+    lineage_down_error = None
+    col_up_error = None
+    col_down_error = None
+    op_up_error = None
+    op_down_error = None
+
     with st.spinner("Loading lineage..."):
-        lineage_up, lineage_up_error = _safe_df_call(
-            _cached_lineage_up, uc, catalog, schema, table
-        )
-        lineage_down, lineage_down_error = _safe_df_call(
-            _cached_lineage_down, uc, catalog, schema, table
-        )
-        col_up, col_up_error = _safe_df_call(
-            _cached_col_lineage_up, uc, catalog, schema, table
-        )
-        col_down, col_down_error = _safe_df_call(
-            _cached_col_lineage_down, uc, catalog, schema, table
-        )
-        op_up, op_up_error = _safe_df_call(
-            _cached_operational_context_up, uc, catalog, schema, table
-        )
-        op_down, op_down_error = _safe_df_call(
-            _cached_operational_context_down, uc, catalog, schema, table
-        )
-    op_up = _enrich_operational_context_names(uc, op_up)
-    op_down = _enrich_operational_context_names(uc, op_down)
+        if current_context == "Operational Context":
+            op_up, op_up_error = _safe_df_call(
+                _cached_operational_context_up, uc, catalog, schema, table
+            )
+            op_down, op_down_error = _safe_df_call(
+                _cached_operational_context_down, uc, catalog, schema, table
+            )
+        else:
+            lineage_up, lineage_up_error = _safe_df_call(
+                _cached_lineage_up, uc, catalog, schema, table
+            )
+            lineage_down, lineage_down_error = _safe_df_call(
+                _cached_lineage_down, uc, catalog, schema, table
+            )
+            col_up, col_up_error = _safe_df_call(
+                _cached_col_lineage_up, uc, catalog, schema, table
+            )
+            col_down, col_down_error = _safe_df_call(
+                _cached_col_lineage_down, uc, catalog, schema, table
+            )
+    if current_context == "Operational Context":
+        op_up = _enrich_operational_context_names(uc, op_up)
+        op_down = _enrich_operational_context_names(uc, op_down)
 
     lineage_up = _filter_asset_rows(
         lineage_up,
@@ -5739,12 +5842,6 @@ def page_lineage(
         exclude_fqn=selected_fqn,
     )
 
-    current_context = _normalize_str(
-        st.session_state.get("lineage_workspace_context")
-    ) or "Data Lineage"
-    if current_context not in {"Data Lineage", "Operational Context"}:
-        current_context = "Data Lineage"
-    st.session_state["lineage_workspace_context"] = current_context
     st.markdown(
         _route_subnav_html(
             [
@@ -5776,9 +5873,18 @@ def page_lineage(
         filter_cols = st.columns(2)
         catalog_key = f"lineage_catalog_scopes_{selected_fqn}"
         schema_key = f"lineage_schema_scopes_{selected_fqn}"
+        lineage_catalogs = _catalog_scope_options(
+            lineage_up,
+            lineage_down,
+            col_up,
+            col_down,
+            current_fqn=selected_fqn,
+        )
+        observed_catalogs = _remember_observed_catalogs(lineage_catalogs)
         catalog_options = _catalog_filter_options(
             inventory,
             available_catalogs=_cached_catalogs(uc),
+            observed_catalogs=observed_catalogs,
         )
         current_catalog = ""
         try:
@@ -5844,6 +5950,17 @@ def page_lineage(
             col_down_view, "target_table_full_name", selected_schemas
         )
     else:
+        _remember_observed_catalogs(
+            _catalog_scope_options(
+                pd.DataFrame(),
+                pd.DataFrame(),
+                pd.DataFrame(),
+                pd.DataFrame(),
+                op_up,
+                op_down,
+                current_fqn=selected_fqn,
+            )
+        )
         type_key = f"lineage_operational_types_{selected_fqn}"
         type_options = _operational_type_options(op_up, op_down)
         _clean_multiselect_state(type_key, type_options)
@@ -6356,14 +6473,26 @@ def page_help() -> None:
         "Understand the main workflows, how coverage is calculated, and what the key object and lineage terms mean.",
     )
 
-    section = _button_nav(
-        ["Using the App", "Coverage Score", "Object Types & Lineage"],
-        "help_section",
-        help_map={
-            "Using the App": "Review the main workflow across Discovery, asset profiles, governance, and lineage.",
-            "Coverage Score": "See which metadata inputs contribute to the governance coverage score and status thresholds.",
-            "Object Types & Lineage": "Understand the core Unity Catalog object types and lineage terminology used across the app.",
-        },
+    help_sections = [
+        "Using the App",
+        "Coverage Score",
+        "Object Types & Lineage",
+    ]
+    section = _normalize_str(st.session_state.get("help_section")) or help_sections[0]
+    if section not in help_sections:
+        section = help_sections[0]
+    st.session_state["help_section"] = section
+    st.markdown(
+        _route_subnav_html(
+            [(name, _help_query_href(name)) for name in help_sections],
+            section,
+            help_text={
+                "Using the App": "Review the main workflow across Discovery, asset profiles, governance, and lineage.",
+                "Coverage Score": "See which metadata inputs contribute to the governance coverage score and status thresholds.",
+                "Object Types & Lineage": "Understand the core Unity Catalog object types and lineage terminology used across the app.",
+            },
+        ),
+        unsafe_allow_html=True,
     )
     st.markdown("<div class='gh-nav-spacer'></div>", unsafe_allow_html=True)
 
@@ -6738,6 +6867,7 @@ def main() -> None:
     _sync_asset_query_state(inventory)
     _sync_page_query_state()
     _sync_lineage_query_state(inventory)
+    _sync_help_query_state()
 
     module_help = {
         "Discovery": "Search the catalog, filter results, and open asset pages.",
