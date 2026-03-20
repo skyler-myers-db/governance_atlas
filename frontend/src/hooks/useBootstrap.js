@@ -1,14 +1,22 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchBootstrap } from "../lib/api";
 
+function initialBootstrap() {
+  if (typeof window === "undefined") return null;
+  return window.__GOVHUB_BOOTSTRAP__ || null;
+}
+
 export function useBootstrap() {
+  const seeded = useMemo(() => initialBootstrap(), []);
   const [state, setState] = useState({
-    loading: true,
+    loading: !seeded,
     error: "",
-    data: null,
+    data: seeded,
   });
 
   useEffect(() => {
+    if (seeded) return undefined;
+
     let canceled = false;
     fetchBootstrap()
       .then((data) => {
@@ -26,7 +34,7 @@ export function useBootstrap() {
     return () => {
       canceled = true;
     };
-  }, []);
+  }, [seeded]);
 
   return state;
 }
