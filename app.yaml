@@ -1,11 +1,14 @@
 # Databricks App configuration — single source of truth.
 # Docs: https://docs.databricks.com/en/dev-tools/databricks-apps/app-config.html
 command:
-  - streamlit
-  - run
-  - app.py
+  - python
+  - run_app.py
 
 env:
+  # `legacy` keeps the current Streamlit implementation. Switch to `modern`
+  # once the new frontend lands and `modern_app:app` is available.
+  - name: GOVHUB_APP_MODE
+    value: modern
   # ── Required ──────────────────────────────────────────────
   - name: DATABRICKS_WAREHOUSE_ID
     valueFrom: "sql-warehouse"
