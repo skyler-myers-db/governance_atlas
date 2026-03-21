@@ -72,6 +72,7 @@ export default function LineageGraph({
   graph,
   onSelectNode,
   onSelectEdge,
+  onPaneClear,
   selectedNodeId,
   selectedEdgeId,
 }) {
@@ -97,7 +98,7 @@ export default function LineageGraph({
         }))}
         onEdgeClick={(_, edge) => onSelectEdge?.(edge.id)}
         onNodeClick={(_, node) => onSelectNode(node.id)}
-        onPaneClick={() => onSelectEdge?.("")}
+        onPaneClick={() => onPaneClear?.()}
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ type: "smoothstep" }}
       >
