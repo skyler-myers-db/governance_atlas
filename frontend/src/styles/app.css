@@ -48,9 +48,9 @@ body {
 
 .gh-app {
   width: min(1860px, calc(100vw - 28px));
-  margin: 14px auto 26px;
+  margin: 12px auto 22px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .gh-shell-header,
@@ -65,8 +65,10 @@ body {
 
 .gh-shell-header {
   display: grid;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  box-shadow: 0 2px 10px rgba(19, 31, 65, 0.03);
 }
 
 .gh-shell-topbar,
@@ -77,42 +79,42 @@ body {
 }
 
 .gh-shell-topbar {
-  grid-template-columns: auto minmax(360px, 1fr) auto;
+  grid-template-columns: auto minmax(420px, 1fr) auto;
 }
 
 .gh-shell-nav-row {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: auto minmax(280px, 1fr);
 }
 
 .gh-shell-brand {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 14px;
+  gap: 10px;
   align-items: center;
 }
 
 .gh-brand-mark {
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #496ce8 0%, #5b43ee 58%, #8f78ff 100%);
   color: #fff;
   font-weight: 900;
-  box-shadow: 0 12px 24px rgba(91, 67, 238, 0.18);
+  box-shadow: 0 8px 16px rgba(91, 67, 238, 0.14);
 }
 
 .gh-brand-copy {
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .gh-brand-copy h1 {
   margin: 0;
-  font-size: clamp(1.8rem, 1.52rem + 0.9vw, 2.7rem);
-  line-height: 0.94;
-  letter-spacing: -0.055em;
+  font-size: clamp(1.15rem, 1.02rem + 0.55vw, 1.55rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
 }
 
 .gh-eyebrow,
@@ -124,7 +126,7 @@ body {
 .gh-graph-node-kicker {
   font-size: 0.72rem;
   font-weight: 900;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #586a88;
 }
@@ -137,14 +139,20 @@ body {
 }
 
 .gh-global-search-input {
-  font-size: 0.96rem;
+  font-size: 0.92rem;
 }
 
 .gh-shell-utility {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   justify-content: flex-end;
+}
+
+.gh-shell-utility .gh-chip {
+  min-height: 28px;
+  padding: 0.3rem 0.72rem;
+  font-size: 0.76rem;
 }
 
 .gh-chip-row,
@@ -212,8 +220,57 @@ body {
 
 .gh-shell-nav {
   display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.gh-shell-context-wrap {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.gh-shell-context-wrap-empty {
+  min-height: 40px;
+}
+
+.gh-shell-context {
+  min-width: min(480px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(170, 186, 221, 0.72);
+  background: rgba(246, 249, 255, 0.92);
+}
+
+.gh-shell-context-main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.gh-shell-context-title {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--gh-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gh-shell-context-subtitle {
+  font-size: 0.8rem;
+  color: var(--gh-ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gh-shell-context-action {
+  min-height: 34px;
+  padding-inline: 0.75rem;
 }
 
 .gh-product-tab,
@@ -250,9 +307,13 @@ body {
 }
 
 .gh-product-tab {
-  min-width: 132px;
+  min-width: 110px;
+  min-height: 36px;
+  padding-inline: 0.9rem;
+  border-radius: 14px;
   color: #4535a8;
-  border-color: rgba(91, 67, 238, 0.38);
+  border-color: rgba(91, 67, 238, 0.28);
+  font-size: 0.9rem;
 }
 
 .gh-product-tab.is-active,
@@ -290,9 +351,11 @@ body {
 }
 
 .gh-shell-banner {
-  padding: 12px 16px;
+  padding: 8px 12px;
   display: grid;
-  gap: 6px;
+  gap: 3px;
+  border-radius: 16px;
+  box-shadow: none;
 }
 
 .gh-shell-banner.tone-warn {
@@ -1053,6 +1116,14 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .gh-shell-context-wrap {
+    justify-content: stretch;
+  }
+
+  .gh-shell-context {
+    min-width: 0;
+  }
+
   .gh-entity-lineage-actions {
     justify-items: start;
   }
@@ -1124,6 +1195,10 @@ body {
   .gh-entity-lineage-head {
     grid-template-columns: 1fr;
     display: grid;
+  }
+
+  .gh-shell-context {
+    grid-template-columns: 1fr;
   }
 
   .gh-stat-grid,
