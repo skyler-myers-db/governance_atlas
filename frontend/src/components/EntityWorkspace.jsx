@@ -24,6 +24,41 @@ function lineageCounts(graph) {
   };
 }
 
+function governanceTasks(asset) {
+  return [
+    {
+      label: "Ownership",
+      action: "Assign accountable owners",
+      complete: Boolean(asset.owners?.length),
+      value: asset.owners?.length ? `${asset.owners.length} assigned` : "Unassigned",
+    },
+    {
+      label: "Domain",
+      action: "Map the asset to a business domain",
+      complete: Boolean(asset.domain && asset.domain !== "Unassigned"),
+      value: asset.domain || "Unassigned",
+    },
+    {
+      label: "Tier",
+      action: "Set a support tier for downstream use",
+      complete: Boolean(asset.tier && asset.tier !== "Unassigned"),
+      value: asset.tier || "Unassigned",
+    },
+    {
+      label: "Certification",
+      action: "Confirm if the asset is approved for trusted use",
+      complete: Boolean(asset.certification && asset.certification !== "Unassigned"),
+      value: asset.certification || "Unassigned",
+    },
+    {
+      label: "Sensitivity",
+      action: "Review privacy and classification posture",
+      complete: Boolean(asset.sensitivity && asset.sensitivity !== "Unassigned"),
+      value: asset.sensitivity || "Unassigned",
+    },
+  ];
+}
+
 function EntityTabs({ activeTab, onTabChange }) {
   const tabs = ["Overview", "Schema", "Preview", "Governance", "Lineage"];
   return (
@@ -65,10 +100,7 @@ function EntityLineageTab({
       <div className="gh-entity-lineage-head">
         <div>
           <div className="gh-panel-title">Lineage</div>
-          <h3 className="gh-section-title">Trace upstream and downstream impact</h3>
-          <div className="gh-support-copy">
-            Explore the active graph inside the asset workspace, then open the full graph canvas when needed.
-          </div>
+          <h3 className="gh-section-title">Embedded graph</h3>
         </div>
         <div className="gh-entity-lineage-actions">
           <div className="gh-segment-row">
@@ -89,27 +121,13 @@ function EntityLineageTab({
         </div>
       </div>
 
-      <div className="gh-summary-grid gh-lineage-summary-grid">
-        <div className="gh-stat-card">
-          <span className="gh-stat-label">Upstream</span>
-          <span className="gh-stat-value">{lineageLoading ? "…" : counts.upstream}</span>
-        </div>
-        <div className="gh-stat-card">
-          <span className="gh-stat-label">Downstream</span>
-          <span className="gh-stat-value">{lineageLoading ? "…" : counts.downstream}</span>
-        </div>
-        <div className="gh-stat-card">
-          <span className="gh-stat-label">Nodes</span>
-          <span className="gh-stat-value">{lineageLoading ? "…" : counts.nodes}</span>
-        </div>
-        <div className="gh-stat-card">
-          <span className="gh-stat-label">Edges</span>
-          <span className="gh-stat-value">{lineageLoading ? "…" : counts.edges}</span>
-        </div>
-      </div>
-
       <div className="gh-lineage-layout gh-entity-lineage-layout">
-        <section className="gh-panel gh-lineage-graph-panel">
+        <section className="gh-panel gh-lineage-graph-panel gh-lineage-graph-stage">
+          <div className="gh-lineage-graph-badges">
+            <span className="gh-chip gh-chip-soft">Upstream {lineageLoading ? "…" : counts.upstream}</span>
+            <span className="gh-chip gh-chip-soft">Downstream {lineageLoading ? "…" : counts.downstream}</span>
+            <span className="gh-chip gh-chip-soft">Edges {lineageLoading ? "…" : counts.edges}</span>
+          </div>
           {lineageLoading ? (
             <div className="gh-empty-state">Loading graph…</div>
           ) : graph ? (
@@ -124,7 +142,7 @@ function EntityLineageTab({
         </section>
 
         <aside className="gh-panel gh-lineage-detail">
-          <div className="gh-panel-title">Selection</div>
+          <div className="gh-panel-title">Graph drawer</div>
           {selectedNode ? (
             <>
               <h2>{selectedNode.label}</h2>
@@ -132,6 +150,15 @@ function EntityLineageTab({
               <div className="gh-chip-stack">
                 <span className="gh-chip">{selectedNode.kind}</span>
                 <span className="gh-chip">{selectedNode.kicker || selectedNode.role}</span>
+              </div>
+              <div className="gh-detail-section">
+                <div className="gh-support-copy">
+                  {selectedNode.role === "focus"
+                    ? "This is the active asset in the current graph."
+                    : selectedNode.role === "source"
+                      ? "This node contributes data or execution context into the focused asset."
+                      : "This node consumes or depends on the focused asset."}
+                </div>
               </div>
               {selectedNode.assetFqn ? (
                 <div className="gh-action-row">
@@ -193,26 +220,22 @@ export default function EntityWorkspace({
   const dataCounts = lineageCounts(lineageBundle?.data);
   const operationalCounts = lineageCounts(lineageBundle?.operational);
   const relatedAssets = entity.relatedAssets || [];
+  const tasks = governanceTasks(asset);
 
   return (
     <section className="gh-workspace gh-entity-workspace">
-      <div className="gh-entity-toolbar">
-        <button className="gh-secondary-button" onClick={onBack} type="button">
-          Back to results
-        </button>
-        <div className="gh-chip-row">
-          <button className="gh-secondary-button" onClick={() => onOpenLineage("Data Lineage")} type="button">
-            Open lineage
-          </button>
-          <button className="gh-secondary-button" onClick={onOpenGovernance} type="button">
-            Open governance
-          </button>
-        </div>
-      </div>
-
       <section className="gh-panel gh-entity-shell">
         <div className="gh-entity-header">
           <div className="gh-entity-header-main">
+            <div className="gh-chip-row">
+              <button className="gh-secondary-button" onClick={onBack} type="button">
+                Back to results
+              </button>
+              <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
+              <span className={`gh-status-chip tone-${statusTone(asset)}`}>
+                {asset.governanceStatus || "Needs Work"}
+              </span>
+            </div>
             <div className="gh-panel-title">Asset</div>
             <h2>{asset.name}</h2>
             <div className="gh-entity-context">
@@ -223,12 +246,10 @@ export default function EntityWorkspace({
 
           <div className="gh-entity-header-side">
             <div className="gh-chip-stack">
-              <span className={`gh-status-chip tone-${statusTone(asset)}`}>
-                {asset.governanceStatus || "Needs Work"}
-              </span>
-              <span className="gh-chip">{asset.objectType}</span>
               <span className="gh-chip">{asset.domain}</span>
               <span className="gh-chip">{asset.tier}</span>
+              <span className="gh-chip">{asset.certification}</span>
+              <span className="gh-chip">{asset.sensitivity}</span>
             </div>
 
             <div className="gh-entity-metrics">
@@ -244,10 +265,15 @@ export default function EntityWorkspace({
                 <span className="gh-score-box-label">Requests</span>
                 <span className="gh-score-box-value">{asset.openRequests}</span>
               </div>
-              <div className="gh-score-box">
-                <span className="gh-score-box-label">Rows</span>
-                <span className="gh-score-box-value">{entity.rows || asset.rows}</span>
-              </div>
+            </div>
+
+            <div className="gh-action-grid">
+              <button className="gh-primary-button" onClick={() => onOpenLineage("Data Lineage")} type="button">
+                Open lineage
+              </button>
+              <button className="gh-secondary-button" onClick={onOpenGovernance} type="button">
+                Open governance
+              </button>
             </div>
           </div>
         </div>
@@ -257,7 +283,7 @@ export default function EntityWorkspace({
         {activeTab === "Overview" && (
           <div className="gh-entity-layout">
             <section className="gh-panel gh-entity-main">
-              <div className="gh-panel-title">Operational profile</div>
+              <div className="gh-panel-title">Asset record</div>
               <div className="gh-stat-grid">
                 <div className="gh-stat-card">
                   <span className="gh-stat-label">Format</span>
@@ -307,28 +333,24 @@ export default function EntityWorkspace({
             </section>
 
             <aside className="gh-panel gh-entity-side">
-              <div className="gh-panel-title">Stewardship</div>
-              <div className="gh-summary-grid">
-                <div className="gh-stat-card">
-                  <span className="gh-stat-label">Domain</span>
-                  <span className="gh-stat-value">{asset.domain}</span>
-                </div>
-                <div className="gh-stat-card">
-                  <span className="gh-stat-label">Tier</span>
-                  <span className="gh-stat-value">{asset.tier}</span>
-                </div>
-                <div className="gh-stat-card">
-                  <span className="gh-stat-label">Certification</span>
-                  <span className="gh-stat-value">{asset.certification}</span>
-                </div>
-                <div className="gh-stat-card">
-                  <span className="gh-stat-label">Sensitivity</span>
-                  <span className="gh-stat-value">{asset.sensitivity}</span>
-                </div>
+              <div className="gh-panel-title">Action track</div>
+              <div className="gh-task-list">
+                {tasks.map((task) => (
+                  <div className={`gh-task-card ${task.complete ? "is-complete" : ""}`} key={task.label}>
+                    <div className="gh-task-card-head">
+                      <span className={`gh-status-chip tone-${task.complete ? "good" : "bad"}`}>
+                        {task.complete ? "Ready" : "Needs work"}
+                      </span>
+                      <span className="gh-task-value">{task.value}</span>
+                    </div>
+                    <div className="gh-task-title">{task.label}</div>
+                    <div className="gh-support-copy">{task.action}</div>
+                  </div>
+                ))}
               </div>
 
               <div className="gh-detail-section">
-                <div className="gh-panel-title">Exposure</div>
+                <div className="gh-panel-title">Impact</div>
                 <div className="gh-summary-grid">
                   <div className="gh-stat-card">
                     <span className="gh-stat-label">Data upstream</span>
@@ -431,35 +453,34 @@ export default function EntityWorkspace({
         {activeTab === "Governance" && (
           <section className="gh-entity-layout">
             <section className="gh-panel gh-entity-main">
-              <div className="gh-panel-title">Policy posture</div>
-              <div className="gh-summary-grid">
-                <div className="gh-stat-card">
-                  <span className="gh-stat-label">Governance status</span>
-                  <span className="gh-stat-value">{asset.governanceStatus || "Needs Work"}</span>
-                </div>
-                <div className="gh-stat-card">
-                  <span className="gh-stat-label">Owners</span>
-                  <span className="gh-stat-value">{asset.owners?.length || 0}</span>
-                </div>
-                <div className="gh-stat-card">
-                  <span className="gh-stat-label">Open requests</span>
-                  <span className="gh-stat-value">{asset.openRequests}</span>
-                </div>
-                <div className="gh-stat-card">
-                  <span className="gh-stat-label">Criticality</span>
-                  <span className="gh-stat-value">{asset.criticality || "Unassigned"}</span>
-                </div>
+              <div className="gh-panel-title">Priority actions</div>
+              <div className="gh-task-list">
+                {tasks.map((task) => (
+                  <div className={`gh-task-card ${task.complete ? "is-complete" : ""}`} key={task.label}>
+                    <div className="gh-task-card-head">
+                      <span className={`gh-status-chip tone-${task.complete ? "good" : "bad"}`}>
+                        {task.complete ? "Ready" : "Needs work"}
+                      </span>
+                      <span className="gh-task-value">{task.value}</span>
+                    </div>
+                    <div className="gh-task-title">{task.label}</div>
+                    <div className="gh-support-copy">{task.action}</div>
+                  </div>
+                ))}
               </div>
 
-              <div className="gh-action-row">
+              <div className="gh-action-grid">
                 <button className="gh-primary-button" onClick={onOpenGovernance} type="button">
-                  Open governance workspace
+                  Open workbench
+                </button>
+                <button className="gh-secondary-button" onClick={() => onOpenLineage("Operational Context")} type="button">
+                  Inspect operational context
                 </button>
               </div>
             </section>
 
             <aside className="gh-panel gh-entity-side">
-              <div className="gh-panel-title">Classification</div>
+              <div className="gh-panel-title">Current posture</div>
               <div className="gh-summary-grid">
                 <div className="gh-stat-card">
                   <span className="gh-stat-label">Domain</span>
@@ -476,6 +497,14 @@ export default function EntityWorkspace({
                 <div className="gh-stat-card">
                   <span className="gh-stat-label">Sensitivity</span>
                   <span className="gh-stat-value">{asset.sensitivity}</span>
+                </div>
+                <div className="gh-stat-card">
+                  <span className="gh-stat-label">Criticality</span>
+                  <span className="gh-stat-value">{asset.criticality || "Unassigned"}</span>
+                </div>
+                <div className="gh-stat-card">
+                  <span className="gh-stat-label">Open requests</span>
+                  <span className="gh-stat-value">{asset.openRequests}</span>
                 </div>
               </div>
             </aside>

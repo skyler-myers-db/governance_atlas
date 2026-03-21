@@ -44,7 +44,6 @@ body {
     radial-gradient(circle at top right, rgba(122, 87, 255, 0.032), transparent 16%);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: geometricPrecision;
 }
 
 .gh-app {
@@ -55,7 +54,6 @@ body {
 }
 
 .gh-shell-header,
-.gh-shell-nav,
 .gh-panel,
 .gh-shell-banner,
 .gh-boot-card {
@@ -67,10 +65,23 @@ body {
 
 .gh-shell-header {
   display: grid;
-  grid-template-columns: auto minmax(360px, 1fr) auto;
-  gap: 16px;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.gh-shell-topbar,
+.gh-shell-nav-row {
+  display: grid;
+  gap: 12px;
   align-items: center;
-  padding: 12px 16px;
+}
+
+.gh-shell-topbar {
+  grid-template-columns: auto minmax(360px, 1fr) auto;
+}
+
+.gh-shell-nav-row {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .gh-shell-brand {
@@ -130,12 +141,12 @@ body {
 }
 
 .gh-shell-utility {
-  display: grid;
-  gap: 10px;
-  justify-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
-.gh-shell-session,
 .gh-chip-row,
 .gh-chip-stack,
 .gh-result-row-tags,
@@ -149,34 +160,10 @@ body {
   gap: 8px;
 }
 
-.gh-shell-metrics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
 .gh-action-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 8px;
-}
-
-.gh-metric-pill {
-  min-height: 42px;
-  padding: 0.45rem 0.8rem;
-  border-radius: 999px;
-  border: 1px solid var(--gh-line);
-  background: var(--gh-surface-soft);
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.gh-metric-pill-value {
-  font-size: 1rem;
-  font-weight: 900;
-  letter-spacing: -0.04em;
 }
 
 .gh-chip,
@@ -227,7 +214,6 @@ body {
   display: flex;
   gap: 10px;
   align-items: center;
-  padding: 10px;
 }
 
 .gh-product-tab,
@@ -321,7 +307,7 @@ body {
 
 .gh-main {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .gh-workspace {
@@ -389,15 +375,19 @@ body {
 
 .gh-discovery-layout {
   display: grid;
-  grid-template-columns: 262px minmax(0, 1fr) 372px;
+  grid-template-columns: 236px minmax(0, 1fr) 308px;
   gap: 12px;
   align-items: start;
 }
 
-.gh-discovery-sidebar,
-.gh-inspector {
+.gh-discovery-sidebar {
   position: sticky;
   top: 14px;
+  align-self: start;
+}
+
+.gh-inspector {
+  position: static;
   align-self: start;
 }
 
@@ -504,7 +494,7 @@ body {
   border: 1px solid var(--gh-line);
   background: #fff;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 132px;
+  grid-template-columns: minmax(0, 1fr) 110px;
   gap: 14px;
   align-items: stretch;
 }
@@ -577,6 +567,18 @@ body {
   display: grid;
   gap: 10px;
   align-content: start;
+}
+
+.gh-result-row-score {
+  min-height: 66px;
+  border-radius: 12px;
+  border: 1px solid var(--gh-line);
+  background: var(--gh-surface-soft);
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  padding: 8px;
+  text-align: center;
 }
 
 .gh-score-box,
@@ -679,7 +681,7 @@ body {
 
 .gh-entity-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 428px;
+  grid-template-columns: minmax(0, 1fr) 372px;
   gap: 16px;
   align-items: start;
 }
@@ -703,13 +705,13 @@ body {
 
 .gh-entity-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
 .gh-entity-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
   gap: 12px;
   align-items: start;
 }
@@ -742,23 +744,18 @@ body {
   gap: 12px;
 }
 
-.gh-lineage-header {
-  grid-template-columns: minmax(280px, 0.5fr) minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-
-.gh-lineage-header-controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
-  align-items: start;
+.gh-lineage-header,
+.gh-lineage-topbar {
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 14px;
+  align-items: center;
 }
 
 .gh-lineage-header-actions {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
-  justify-items: end;
+  justify-content: flex-end;
 }
 
 .gh-lineage-asset-picker {
@@ -808,19 +805,53 @@ body {
   font-size: 0.9rem;
 }
 
-.gh-lineage-summary-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
 .gh-lineage-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 312px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 12px;
+  align-items: stretch;
+}
+
+.gh-lineage-graph-stage {
+  position: relative;
+  display: grid;
+  gap: 10px;
+}
+
+.gh-lineage-stage-topbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.gh-lineage-focus-search {
+  display: grid;
+  gap: 8px;
+}
+
+.gh-lineage-graph-badges {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gh-lineage-lane-labels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 0 8px;
+  color: var(--gh-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 .gh-lineage-canvas {
-  height: 70vh;
-  min-height: 620px;
+  height: 76vh;
+  min-height: 700px;
 }
 
 .gh-lineage-graph-panel {
@@ -852,23 +883,28 @@ body {
   border-radius: 999px;
 }
 
+.gh-lineage-canvas .react-flow__node.is-active {
+  filter: drop-shadow(0 14px 22px rgba(91, 67, 238, 0.18));
+}
+
+.gh-lineage-canvas .react-flow__node.is-active .gh-graph-node-card {
+  transform: translateY(-2px);
+}
+
 .gh-governance-shell {
   display: grid;
   gap: 12px;
 }
 
-.gh-governance-header {
-  grid-template-columns: minmax(280px, 1fr) minmax(360px, 0.95fr);
+.gh-governance-header,
+.gh-governance-topbar {
+  grid-template-columns: minmax(280px, 1fr) auto;
   align-items: start;
-}
-
-.gh-governance-metrics {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .gh-governance-layout {
   display: grid;
-  grid-template-columns: 238px minmax(0, 1fr) 340px;
+  grid-template-columns: 282px minmax(0, 1fr) 340px;
   gap: 12px;
   align-items: start;
 }
@@ -888,6 +924,36 @@ body {
 }
 
 .gh-request-title {
+  font-weight: 800;
+}
+
+.gh-task-list {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-task-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--gh-line);
+  background: var(--gh-surface-soft);
+}
+
+.gh-task-card.is-complete {
+  background: linear-gradient(180deg, rgba(240, 248, 245, 0.92), rgba(255, 255, 255, 0.96));
+}
+
+.gh-task-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gh-task-title,
+.gh-task-value {
   font-weight: 800;
 }
 
@@ -918,25 +984,45 @@ body {
 
 @media (max-width: 1500px) {
   .gh-shell-header,
-  .gh-lineage-header,
   .gh-governance-header,
   .gh-entity-header,
   .gh-discovery-layout,
   .gh-entity-layout,
-  .gh-governance-layout,
-  .gh-lineage-layout {
+  .gh-governance-layout {
     grid-template-columns: 1fr;
   }
 
-  .gh-shell-utility,
-  .gh-entity-lineage-actions,
-  .gh-lineage-header-actions {
+  .gh-shell-topbar,
+  .gh-shell-nav-row {
+    grid-template-columns: 1fr;
+  }
+
+  .gh-entity-lineage-actions {
     justify-items: start;
   }
 
   .gh-discovery-sidebar,
   .gh-inspector {
     position: static;
+  }
+
+  .gh-shell-utility,
+  .gh-lineage-header-actions {
+    justify-content: flex-start;
+  }
+
+  .gh-lineage-stage-topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .gh-lineage-graph-badges {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 1320px) {
+  .gh-lineage-layout {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -945,9 +1031,7 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .gh-entity-metrics,
-  .gh-lineage-summary-grid,
-  .gh-governance-metrics {
+  .gh-entity-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -968,17 +1052,11 @@ body {
   }
 
   .gh-shell-header,
-  .gh-shell-nav,
   .gh-panel,
   .gh-shell-banner {
     border-radius: 18px;
   }
 
-  .gh-shell-nav {
-    flex-wrap: wrap;
-  }
-
-  .gh-entity-toolbar,
   .gh-results-head,
   .gh-entity-lineage-head {
     grid-template-columns: 1fr;
@@ -987,14 +1065,12 @@ body {
 
   .gh-stat-grid,
   .gh-summary-grid,
-  .gh-entity-metrics,
-  .gh-lineage-summary-grid,
-  .gh-governance-metrics {
+  .gh-entity-metrics {
     grid-template-columns: 1fr;
   }
 
-  .gh-lineage-header-controls,
-  .gh-global-search {
+  .gh-global-search,
+  .gh-shell-topbar {
     grid-template-columns: 1fr;
   }
 }
