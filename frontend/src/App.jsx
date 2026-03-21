@@ -104,9 +104,6 @@ export default function App() {
   const [selectedAssetFqn, setSelectedAssetFqn] = useState(route.asset);
   const [lineageContext, setLineageContext] = useState(route.lineageContext);
   const [entityTab, setEntityTab] = useState(route.entityTab);
-  const [lastDiscoverySurface, setLastDiscoverySurface] = useState(
-    route.surface === "entity" ? "entity" : "discovery"
-  );
   const [discoveryState, setDiscoveryState] = useState(defaultDiscoveryState(null));
   const [shellSearchQuery, setShellSearchQuery] = useState(route.surface === "discovery" ? "" : "");
   const [lineageSearchQuery, setLineageSearchQuery] = useState("");
@@ -115,7 +112,6 @@ export default function App() {
     setSelectedAssetFqn(assetFqn);
     setEntityTab(nextTab);
     setSurface("entity");
-    setLastDiscoverySurface("entity");
   };
 
   const openLineageWorkspace = (assetFqn, nextContext = "Data Lineage") => {
@@ -144,12 +140,6 @@ export default function App() {
     }
   }, [discoveryState.query, surface]);
 
-  useEffect(() => {
-    if (surface === "discovery" || surface === "entity") {
-      setLastDiscoverySurface(surface);
-    }
-  }, [surface]);
-
   const discovery = useDiscoveryResults(discoveryState, data?.assets || []);
   const bootstrapAssets = data?.assets || [];
   const bootstrapIndex = data?.assetIndex || {};
@@ -173,7 +163,8 @@ export default function App() {
 
   useEffect(() => {
     if (surface !== "discovery") return;
-    if (selectedAssetFqn || !discovery.assets.length) return;
+    if (selectedAssetFqn) return;
+    if (!discovery.assets.length) return;
     setSelectedAssetFqn(
       discovery.selection?.primaryAssetFqn || discovery.assets[0]?.fqn || ""
     );
@@ -216,8 +207,8 @@ export default function App() {
 
   useEffect(() => {
     if (surface !== "lineage") return;
-    setLineageSearchQuery(currentAsset?.name || "");
-  }, [currentAsset?.fqn, currentAsset?.name, surface]);
+    setLineageSearchQuery("");
+  }, [currentAsset?.fqn, surface]);
 
   if (loading) {
     return (
@@ -281,7 +272,6 @@ export default function App() {
           loading={assetDetail.loading}
           onBack={() => {
             setSurface("discovery");
-            setLastDiscoverySurface("discovery");
           }}
           onLineageContextChange={setLineageContext}
           onOpenGovernance={() => openGovernanceWorkspace(currentAsset?.fqn)}
@@ -333,10 +323,20 @@ export default function App() {
       bootState={bootState}
       onModuleChange={(nextModule) => {
         if (nextModule === "discovery") {
-          setSurface(lastDiscoverySurface);
+          setSurface("discovery");
         } else if (nextModule === "lineage") {
+          if (!selectedAssetFqn) {
+            setSelectedAssetFqn(
+              data?.initialSelection?.primaryAssetFqn || bootstrapAssets[0]?.fqn || ""
+            );
+          }
           setSurface("lineage");
         } else {
+          if (!selectedAssetFqn) {
+            setSelectedAssetFqn(
+              data?.initialSelection?.primaryAssetFqn || bootstrapAssets[0]?.fqn || ""
+            );
+          }
           setSurface("governance");
         }
       }}
@@ -347,7 +347,6 @@ export default function App() {
           query: shellSearchQuery,
         }));
         setSurface("discovery");
-        setLastDiscoverySurface("discovery");
       }}
       searchQuery={shellSearchQuery}
       shell={shell}

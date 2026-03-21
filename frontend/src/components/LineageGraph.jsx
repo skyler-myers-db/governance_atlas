@@ -1,4 +1,4 @@
-import { Background, Controls, MiniMap, ReactFlow } from "@xyflow/react";
+import { Background, Controls, MarkerType, MiniMap, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 function nodeColor(kind) {
@@ -36,6 +36,12 @@ function transformGraph(graph) {
       source: edge.source,
       target: edge.target,
       animated: edge.depth === 1,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 16,
+        height: 16,
+        color: "#6d7af8",
+      },
       style: {
         stroke: "#6d7af8",
         strokeWidth: edge.depth === 1 ? 2.5 : 1.8,
@@ -81,10 +87,11 @@ export default function LineageGraph({ graph, onSelectNode, selectedNodeId }) {
         }))}
         onNodeClick={(_, node) => onSelectNode(node.id)}
         proOptions={{ hideAttribution: true }}
+        defaultEdgeOptions={{ type: "smoothstep" }}
       >
-        <MiniMap pannable zoomable />
-        <Controls />
-        <Background color="#d8e2ff" gap={18} />
+        <MiniMap pannable zoomable maskColor="rgba(16, 24, 40, 0.08)" />
+        <Controls showInteractive={false} />
+        <Background color="#d9e2ff" gap={22} />
       </ReactFlow>
     </div>
   );
