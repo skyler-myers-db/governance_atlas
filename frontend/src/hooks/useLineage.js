@@ -16,7 +16,7 @@ export function useLineage(assetFqn, seededGraph = null) {
 
     let canceled = false;
     setState({
-      loading: !seededGraph,
+      loading: true,
       error: "",
       graph: seededGraph || null,
     });
@@ -27,11 +27,11 @@ export function useLineage(assetFqn, seededGraph = null) {
       })
       .catch((error) => {
         if (canceled) return;
-        setState({
+        setState((prev) => ({
           loading: false,
           error: error?.message || "Failed to load lineage.",
-          graph: seededGraph || null,
-        });
+          graph: prev.graph || seededGraph || null,
+        }));
       });
 
     return () => {

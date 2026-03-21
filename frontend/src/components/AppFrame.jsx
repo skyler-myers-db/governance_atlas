@@ -22,70 +22,61 @@ export default function AppFrame({
   children,
 }) {
   const modules = ["discovery", "lineage", "governance"];
-  const metrics = shell?.metrics || [];
 
   return (
     <div className="gh-app">
       <header className="gh-shell-header">
-        <div className="gh-shell-brand">
-          <div className="gh-brand-mark">GH</div>
-          <div className="gh-brand-copy">
-            <div className="gh-eyebrow">Enterprise metadata for Databricks</div>
-            <h1>Governance Hub</h1>
+        <div className="gh-shell-topbar">
+          <div className="gh-shell-brand">
+            <div className="gh-brand-mark">GH</div>
+            <div className="gh-brand-copy">
+              <div className="gh-eyebrow">Enterprise metadata for Databricks</div>
+              <h1>Governance Hub</h1>
+            </div>
           </div>
-        </div>
 
-        <form
-          className="gh-global-search"
-          onSubmit={(event) => {
-            event.preventDefault();
-            onSearchSubmit?.();
-          }}
-        >
-          <input
-            className="gh-input gh-global-search-input"
-            onChange={(event) => onSearchQueryChange?.(event.target.value)}
-            placeholder="Search assets, lineage context, glossary terms, or governance gaps"
-            value={searchQuery}
-          />
-          <button className="gh-primary-button gh-search-submit" type="submit">
-            Search
-          </button>
-        </form>
+          <form
+            className="gh-global-search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSearchSubmit?.();
+            }}
+          >
+            <input
+              className="gh-input gh-global-search-input"
+              onChange={(event) => onSearchQueryChange?.(event.target.value)}
+              placeholder="Search assets, lineage context, glossary terms, or governance gaps"
+              value={searchQuery}
+            />
+            <button className="gh-primary-button gh-search-submit" type="submit">
+              Search
+            </button>
+          </form>
 
-        <div className="gh-shell-utility">
-          <div className="gh-chip-row gh-shell-session">
+          <div className="gh-shell-utility">
             <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
               {statusLabel(bootState)}
             </span>
             <span className="gh-chip">{shell?.role || "Reader"}</span>
             <span className="gh-chip">{shell?.userEmail || "unknown"}</span>
           </div>
-          {metrics.length ? (
-            <div className="gh-shell-metrics">
-              {metrics.slice(0, 4).map((metric) => (
-                <div className="gh-metric-pill" key={metric.label}>
-                  <span className="gh-metric-pill-value">{metric.value}</span>
-                  <span className="gh-metric-pill-label">{metric.label}</span>
-                </div>
-              ))}
-            </div>
-          ) : null}
+        </div>
+
+        <div className="gh-shell-nav-row">
+          <nav className="gh-shell-nav" aria-label="Primary modules">
+            {modules.map((module) => (
+              <button
+                className={`gh-product-tab ${activeModule === module ? "is-active" : ""}`}
+                key={module}
+                onClick={() => onModuleChange(module)}
+                type="button"
+              >
+                {module[0].toUpperCase() + module.slice(1)}
+              </button>
+            ))}
+          </nav>
         </div>
       </header>
-
-      <nav className="gh-shell-nav" aria-label="Primary modules">
-        {modules.map((module) => (
-          <button
-            className={`gh-product-tab ${activeModule === module ? "is-active" : ""}`}
-            key={module}
-            onClick={() => onModuleChange(module)}
-            type="button"
-          >
-            {module[0].toUpperCase() + module.slice(1)}
-          </button>
-        ))}
-      </nav>
 
       {bootState && bootState !== "live" ? (
         <section className={`gh-shell-banner tone-${statusTone(bootState)}`}>

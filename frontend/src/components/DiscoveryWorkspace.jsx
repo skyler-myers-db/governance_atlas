@@ -119,7 +119,15 @@ function SavedViews({ views, activeView, onSelectView }) {
   );
 }
 
-function QuickPreview({ asset, detail, loading, onOpenAsset, onOpenGovernance, onOpenLineage }) {
+function QuickPreview({
+  asset,
+  detail,
+  loading,
+  onOpenAsset,
+  onOpenGovernance,
+  onOpenLineage,
+  onSelectAsset,
+}) {
   if (!asset) {
     return (
       <aside className="gh-panel gh-inspector">
@@ -175,38 +183,36 @@ function QuickPreview({ asset, detail, loading, onOpenAsset, onOpenGovernance, o
         </div>
       </div>
 
-      {loading ? (
-        <div className="gh-empty-state">Loading asset metadata…</div>
-      ) : entity.columns?.length ? (
-        <section className="gh-detail-section">
-          <div className="gh-panel-title">Schema preview</div>
-          <table className="gh-table">
-            <thead>
-              <tr>
-                <th>Column</th>
-                <th>Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entity.columns.slice(0, 6).map((column) => (
-                <tr key={column.name}>
-                  <td>{column.name}</td>
-                  <td>{column.type}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      ) : null}
+      <section className="gh-detail-section">
+        <div className="gh-panel-title">Field focus</div>
+        {loading ? (
+          <div className="gh-empty-state">Loading asset metadata…</div>
+        ) : entity.columns?.length ? (
+          <div className="gh-chip-stack">
+            {entity.columns.slice(0, 6).map((column) => (
+              <span className="gh-chip gh-chip-soft" key={column.name}>
+                {column.name}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="gh-empty-state">No schema metadata is available for this asset.</div>
+        )}
+      </section>
 
       {entity.relatedAssets?.length ? (
         <section className="gh-detail-section">
           <div className="gh-panel-title">Related assets</div>
           <div className="gh-chip-stack">
             {entity.relatedAssets.slice(0, 5).map((item) => (
-              <span className="gh-chip gh-chip-soft" key={item}>
-                {item}
-              </span>
+              <button
+                className="gh-filter-chip gh-chip-soft"
+                key={item}
+                onClick={() => onSelectAsset(item)}
+                type="button"
+              >
+                {item.split(".").slice(-2).join(" / ")}
+              </button>
             ))}
           </div>
         </section>
@@ -269,12 +275,12 @@ function ResultRow({ asset, isActive, onInspect, onOpenAsset }) {
         </div>
       </button>
       <div className="gh-result-row-side">
-        <div className="gh-score-box">
+        <div className="gh-result-row-score">
           <span className="gh-score-box-label">Coverage</span>
           <span className="gh-score-box-value">{asset.coverageScore}</span>
         </div>
         <button className="gh-secondary-button gh-inline-action" onClick={() => onInspect(asset.fqn)} type="button">
-          Inspect
+          Preview
         </button>
       </div>
     </article>
@@ -382,7 +388,7 @@ export default function DiscoveryWorkspace({
               <div className="gh-panel-title">Results</div>
               <h2 className="gh-workspace-title">Search and browse assets</h2>
               <div className="gh-support-copy">
-                {resultsLoading ? "Refreshing live results…" : `${resultsCount} assets match the current scope.`}
+                {resultsLoading ? "Refreshing live results…" : `${resultsCount} assets in the current scope.`}
               </div>
             </div>
             <div className="gh-results-head-actions">
@@ -440,6 +446,7 @@ export default function DiscoveryWorkspace({
           onOpenAsset={onOpenAsset}
           onOpenLineage={onOpenLineage}
           onOpenGovernance={onOpenGovernance}
+          onSelectAsset={onSelectAsset}
         />
       </div>
     </section>
