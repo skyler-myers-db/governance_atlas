@@ -135,7 +135,7 @@ export default function App() {
   }, [data]);
 
   useEffect(() => {
-    if (surface === "discovery" || surface === "entity") {
+    if (surface === "discovery") {
       setShellSearchQuery(discoveryState.query || "");
     }
   }, [discoveryState.query, surface]);
@@ -145,30 +145,11 @@ export default function App() {
   const bootstrapIndex = data?.assetIndex || {};
 
   useEffect(() => {
-    const initialFqn =
-      selectedAssetFqn ||
-      data?.initialSelection?.primaryAssetFqn ||
-      discovery.selection?.primaryAssetFqn ||
-      bootstrapAssets[0]?.fqn ||
-      "";
+    const initialFqn = route.asset || data?.initialSelection?.primaryAssetFqn || "";
     if (!selectedAssetFqn && initialFqn) {
       setSelectedAssetFqn(initialFqn);
     }
-  }, [
-    bootstrapAssets,
-    data?.initialSelection?.primaryAssetFqn,
-    discovery.selection?.primaryAssetFqn,
-    selectedAssetFqn,
-  ]);
-
-  useEffect(() => {
-    if (surface !== "discovery") return;
-    if (selectedAssetFqn) return;
-    if (!discovery.assets.length) return;
-    setSelectedAssetFqn(
-      discovery.selection?.primaryAssetFqn || discovery.assets[0]?.fqn || ""
-    );
-  }, [discovery.assets, discovery.selection?.primaryAssetFqn, selectedAssetFqn, surface]);
+  }, [data?.initialSelection?.primaryAssetFqn, route.asset, selectedAssetFqn]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -204,6 +185,69 @@ export default function App() {
   const seededGraph = (selectedAssetFqn && data?.graphs?.[selectedAssetFqn]) || null;
   const lineage = useLineage(selectedAssetFqn || "", seededGraph);
   const lineageAssetSearch = useAssetSearch(lineageSearchQuery, surface === "lineage");
+  const shellContext = useMemo(() => {
+    if (surface === "lineage") {
+      return currentAsset
+        ? {
+            label: lineageContext,
+            title: currentAsset.name,
+            subtitle: `${currentAsset.catalog} / ${currentAsset.schema}`,
+            assetFqn: currentAsset.fqn,
+          }
+        : {
+            label: lineageContext,
+            title: "Select an asset to inspect graph context",
+            subtitle: "Open an asset from discovery or governance to focus the graph.",
+          };
+    }
+
+    if (surface === "governance") {
+      return currentAsset
+        ? {
+            label: "Stewardship focus",
+            title: currentAsset.name,
+            subtitle: `${currentAsset.catalog} / ${currentAsset.schema}`,
+            assetFqn: currentAsset.fqn,
+          }
+        : {
+            label: "Governance workbench",
+            title: "Shared stewardship and glossary workflow",
+            subtitle: "Open an asset or stay in the shared governance workspace.",
+          };
+    }
+
+    if (surface === "entity") {
+      return currentAsset
+        ? {
+            label: "Asset workspace",
+            title: currentAsset.name,
+            subtitle: `${currentAsset.catalog} / ${currentAsset.schema}`,
+            assetFqn: currentAsset.fqn,
+          }
+        : {
+            label: "Asset workspace",
+            title: "Select an asset",
+            subtitle: "Open an asset from search results to inspect metadata and lineage.",
+          };
+    }
+
+    if (selectedSummary?.fqn) {
+      return {
+        label: discoveryState.query?.trim() ? "Search focus" : "Selected asset",
+        title: selectedSummary.name,
+        subtitle: `${selectedSummary.catalog} / ${selectedSummary.schema}`,
+        assetFqn: selectedSummary.fqn,
+      };
+    }
+
+    return {
+      label: "Catalog workspace",
+      title: discoveryState.query?.trim()
+        ? `Search: ${discoveryState.query}`
+        : "Browse trusted assets",
+      subtitle: `${discovery.count} assets in the current scope`,
+    };
+  }, [currentAsset, discovery.count, discoveryState.query, lineageContext, selectedSummary, surface]);
 
   useEffect(() => {
     if (surface !== "lineage") return;
@@ -325,17 +369,13 @@ export default function App() {
         if (nextModule === "discovery") {
           setSurface("discovery");
         } else if (nextModule === "lineage") {
-          if (!selectedAssetFqn) {
-            setSelectedAssetFqn(
-              data?.initialSelection?.primaryAssetFqn || bootstrapAssets[0]?.fqn || ""
-            );
+          if (!selectedAssetFqn && data?.initialSelection?.primaryAssetFqn) {
+            setSelectedAssetFqn(data.initialSelection.primaryAssetFqn);
           }
           setSurface("lineage");
         } else {
-          if (!selectedAssetFqn) {
-            setSelectedAssetFqn(
-              data?.initialSelection?.primaryAssetFqn || bootstrapAssets[0]?.fqn || ""
-            );
+          if (!selectedAssetFqn && data?.initialSelection?.primaryAssetFqn) {
+            setSelectedAssetFqn(data.initialSelection.primaryAssetFqn);
           }
           setSurface("governance");
         }
@@ -346,10 +386,14 @@ export default function App() {
           ...current,
           query: shellSearchQuery,
         }));
+        setSelectedAssetFqn("");
         setSurface("discovery");
       }}
+      onOpenFocusedAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
       searchQuery={shellSearchQuery}
       shell={shell}
+      shellContext={shellContext}
+      surface={surface}
     >
       {content}
     </AppFrame>
