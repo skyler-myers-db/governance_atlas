@@ -128,24 +128,15 @@ function QuickPreview({
   onOpenLineage,
   onSelectAsset,
 }) {
-  if (!asset) {
-    return (
-      <aside className="gh-panel gh-inspector">
-        <div className="gh-panel-title">Inspector</div>
-        <div className="gh-empty-state">
-          Select a result to inspect its metadata, lineage, and governance context.
-        </div>
-      </aside>
-    );
-  }
+  if (!asset) return null;
 
   const entity = detail || asset;
 
   return (
-    <aside className="gh-panel gh-inspector">
-      <div className="gh-panel-title">Selected asset</div>
-      <div className="gh-entity-head">
+    <section className="gh-panel gh-selection-tray">
+      <div className="gh-selection-tray-head">
         <div>
+          <div className="gh-panel-title">Selected asset</div>
           <h2>{asset.name}</h2>
           <div className="gh-entity-context">
             {asset.catalog} / {asset.schema}
@@ -156,80 +147,78 @@ function QuickPreview({
         </div>
       </div>
 
-      <div className="gh-chip-stack">
-        <span className="gh-chip">{asset.objectType}</span>
-        <span className="gh-chip">{asset.domain}</span>
-        <span className="gh-chip">{asset.tier}</span>
-      </div>
-
-      <div className="gh-quick-preview-copy">{entity.description || asset.description}</div>
-
-      <div className="gh-stat-grid gh-stat-grid-tight">
-        <div className="gh-stat-card">
-          <span className="gh-stat-label">Coverage</span>
-          <span className="gh-stat-value">{asset.coverageScore}</span>
-        </div>
-        <div className="gh-stat-card">
-          <span className="gh-stat-label">Rows</span>
-          <span className="gh-stat-value">{entity.rows || asset.rows}</span>
-        </div>
-        <div className="gh-stat-card">
-          <span className="gh-stat-label">Open requests</span>
-          <span className="gh-stat-value">{asset.openRequests}</span>
-        </div>
-        <div className="gh-stat-card">
-          <span className="gh-stat-label">Owners</span>
-          <span className="gh-stat-value">{asset.owners?.length || 0}</span>
-        </div>
-      </div>
-
-      <section className="gh-detail-section">
-        <div className="gh-panel-title">Field focus</div>
-        {loading ? (
-          <div className="gh-empty-state">Loading asset metadata…</div>
-        ) : entity.columns?.length ? (
+      <div className="gh-selection-tray-layout">
+        <div className="gh-selection-tray-main">
           <div className="gh-chip-stack">
-            {entity.columns.slice(0, 6).map((column) => (
-              <span className="gh-chip gh-chip-soft" key={column.name}>
-                {column.name}
-              </span>
-            ))}
+            <span className="gh-chip">{asset.objectType}</span>
+            <span className="gh-chip">{asset.domain}</span>
+            <span className="gh-chip">{asset.tier}</span>
           </div>
-        ) : (
-          <div className="gh-empty-state">No schema metadata is available for this asset.</div>
-        )}
-      </section>
 
-      {entity.relatedAssets?.length ? (
-        <section className="gh-detail-section">
-          <div className="gh-panel-title">Related assets</div>
-          <div className="gh-chip-stack">
-            {entity.relatedAssets.slice(0, 5).map((item) => (
-              <button
-                className="gh-filter-chip gh-chip-soft"
-                key={item}
-                onClick={() => onSelectAsset(item)}
-                type="button"
-              >
-                {item.split(".").slice(-2).join(" / ")}
-              </button>
-            ))}
+          <div className="gh-quick-preview-copy">{entity.description || asset.description}</div>
+
+          {loading ? (
+            <div className="gh-empty-state">Loading asset metadata…</div>
+          ) : entity.columns?.length ? (
+            <div className="gh-chip-stack">
+              {entity.columns.slice(0, 6).map((column) => (
+                <span className="gh-chip gh-chip-soft" key={column.name}>
+                  {column.name}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          {entity.relatedAssets?.length ? (
+            <div className="gh-chip-stack">
+              {entity.relatedAssets.slice(0, 5).map((item) => (
+                <button
+                  className="gh-filter-chip gh-chip-soft"
+                  key={item}
+                  onClick={() => onSelectAsset(item)}
+                  type="button"
+                >
+                  {item.split(".").slice(-2).join(" / ")}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="gh-selection-tray-side">
+          <div className="gh-stat-grid gh-stat-grid-tight">
+            <div className="gh-stat-card">
+              <span className="gh-stat-label">Coverage</span>
+              <span className="gh-stat-value">{asset.coverageScore}</span>
+            </div>
+            <div className="gh-stat-card">
+              <span className="gh-stat-label">Rows</span>
+              <span className="gh-stat-value">{entity.rows || asset.rows}</span>
+            </div>
+            <div className="gh-stat-card">
+              <span className="gh-stat-label">Open requests</span>
+              <span className="gh-stat-value">{asset.openRequests}</span>
+            </div>
+            <div className="gh-stat-card">
+              <span className="gh-stat-label">Owners</span>
+              <span className="gh-stat-value">{asset.owners?.length || 0}</span>
+            </div>
           </div>
-        </section>
-      ) : null}
 
-      <div className="gh-action-grid">
-        <button className="gh-primary-button" onClick={() => onOpenAsset(asset.fqn)} type="button">
-          Open asset
-        </button>
-        <button className="gh-secondary-button" onClick={() => onOpenLineage(asset.fqn)} type="button">
-          Open lineage
-        </button>
-        <button className="gh-secondary-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">
-          Open governance
-        </button>
+          <div className="gh-action-grid">
+            <button className="gh-primary-button" onClick={() => onOpenAsset(asset.fqn)} type="button">
+              Open asset
+            </button>
+            <button className="gh-secondary-button" onClick={() => onOpenLineage(asset.fqn)} type="button">
+              Open lineage
+            </button>
+            <button className="gh-secondary-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">
+              Open governance
+            </button>
+          </div>
+        </div>
       </div>
-    </aside>
+    </section>
   );
 }
 
@@ -382,72 +371,74 @@ export default function DiscoveryWorkspace({
           />
         </aside>
 
-        <section className="gh-panel gh-results-column">
-          <div className="gh-results-head">
-            <div>
-              <div className="gh-panel-title">Results</div>
-              <h2 className="gh-workspace-title">Search and browse assets</h2>
-              <div className="gh-support-copy">
-                {resultsLoading ? "Refreshing live results…" : `${resultsCount} assets in the current scope.`}
+        <section className="gh-discovery-main">
+          <section className="gh-panel gh-results-column">
+            <div className="gh-results-head">
+              <div>
+                <div className="gh-panel-title">Results</div>
+                <h2 className="gh-workspace-title">Search and browse assets</h2>
+                <div className="gh-support-copy">
+                  {resultsLoading ? "Refreshing live results…" : `${resultsCount} assets in the current scope.`}
+                </div>
+              </div>
+              <div className="gh-results-head-actions">
+                <select
+                  className="gh-select"
+                  onChange={(event) =>
+                    onDiscoveryStateChange({ ...filters, sortBy: event.target.value })
+                  }
+                  value={filters.sortBy}
+                >
+                  {bootstrap.discovery.sortOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
-            <div className="gh-results-head-actions">
-              <select
-                className="gh-select"
-                onChange={(event) =>
-                  onDiscoveryStateChange({ ...filters, sortBy: event.target.value })
-                }
-                value={filters.sortBy}
-              >
-                {bootstrap.discovery.sortOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
+
+            {filtersApplied.length ? (
+              <div className="gh-active-filter-row">
+                {filtersApplied.map((chip) => (
+                  <span className="gh-chip gh-chip-soft" key={`${chip.key}-${chip.label}`}>
+                    {chip.label}
+                  </span>
                 ))}
-              </select>
-            </div>
-          </div>
+              </div>
+            ) : null}
 
-          {filtersApplied.length ? (
-            <div className="gh-active-filter-row">
-              {filtersApplied.map((chip) => (
-                <span className="gh-chip gh-chip-soft" key={`${chip.key}-${chip.label}`}>
-                  {chip.label}
-                </span>
-              ))}
-            </div>
-          ) : null}
+            {resultsError ? (
+              <div className="gh-empty-state">{resultsError}</div>
+            ) : results.length ? (
+              <div className="gh-result-list">
+                {results.map((asset) => (
+                  <ResultRow
+                    asset={asset}
+                    isActive={selectedAssetFqn === asset.fqn}
+                    key={asset.fqn}
+                    onInspect={onSelectAsset}
+                    onOpenAsset={onOpenAsset}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="gh-empty-state">
+                No assets match the current filters. Relax the scope or clear the search.
+              </div>
+            )}
+          </section>
 
-          {resultsError ? (
-            <div className="gh-empty-state">{resultsError}</div>
-          ) : results.length ? (
-            <div className="gh-result-list">
-              {results.map((asset) => (
-                <ResultRow
-                  asset={asset}
-                  isActive={selectedAssetFqn === asset.fqn}
-                  key={asset.fqn}
-                  onInspect={onSelectAsset}
-                  onOpenAsset={onOpenAsset}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="gh-empty-state">
-              No assets match the current filters. Relax the scope or clear the search.
-            </div>
-          )}
+          <QuickPreview
+            asset={selectedAsset}
+            detail={selectedAssetDetail}
+            loading={selectedAssetLoading}
+            onOpenAsset={onOpenAsset}
+            onOpenLineage={onOpenLineage}
+            onOpenGovernance={onOpenGovernance}
+            onSelectAsset={onSelectAsset}
+          />
         </section>
-
-        <QuickPreview
-          asset={selectedAsset}
-          detail={selectedAssetDetail}
-          loading={selectedAssetLoading}
-          onOpenAsset={onOpenAsset}
-          onOpenLineage={onOpenLineage}
-          onOpenGovernance={onOpenGovernance}
-          onSelectAsset={onSelectAsset}
-        />
       </div>
     </section>
   );

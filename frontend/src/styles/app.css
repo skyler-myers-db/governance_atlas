@@ -375,7 +375,7 @@ body {
 
 .gh-discovery-layout {
   display: grid;
-  grid-template-columns: 236px minmax(0, 1fr) 308px;
+  grid-template-columns: 236px minmax(0, 1fr);
   gap: 12px;
   align-items: start;
 }
@@ -386,9 +386,9 @@ body {
   align-self: start;
 }
 
-.gh-inspector {
-  position: static;
-  align-self: start;
+.gh-discovery-main {
+  display: grid;
+  gap: 12px;
 }
 
 .gh-sidebar-head,
@@ -470,16 +470,43 @@ body {
 }
 
 .gh-results-column,
-.gh-inspector,
 .gh-entity-shell,
 .gh-entity-main,
 .gh-entity-side,
-.gh-lineage-detail,
 .gh-governance-sidebar,
 .gh-governance-list-pane,
 .gh-governance-detail-pane {
   display: grid;
   gap: 12px;
+}
+
+.gh-selection-tray {
+  display: grid;
+  gap: 12px;
+}
+
+.gh-selection-tray-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.gh-selection-tray-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.gh-selection-tray-main,
+.gh-selection-tray-side {
+  display: grid;
+  gap: 12px;
+}
+
+.gh-selection-tray-side .gh-stat-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .gh-result-list {
@@ -806,10 +833,7 @@ body {
 }
 
 .gh-lineage-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 12px;
-  align-items: stretch;
+  display: block;
 }
 
 .gh-lineage-graph-stage {
@@ -820,14 +844,9 @@ body {
 
 .gh-lineage-stage-topbar {
   display: grid;
-  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 1fr) auto;
   gap: 12px;
   align-items: center;
-}
-
-.gh-lineage-focus-search {
-  display: grid;
-  gap: 8px;
 }
 
 .gh-lineage-graph-badges {
@@ -854,8 +873,40 @@ body {
   min-height: 700px;
 }
 
+.gh-lineage-stage-canvas {
+  position: relative;
+  min-height: 700px;
+}
+
 .gh-lineage-graph-panel {
   padding: 8px;
+}
+
+.gh-lineage-drawer {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: min(340px, calc(100% - 36px));
+  max-height: calc(100% - 36px);
+  overflow: auto;
+  padding: 16px;
+  border: 1px solid rgba(198, 210, 234, 0.95);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 34px rgba(19, 31, 65, 0.12);
+  backdrop-filter: blur(12px);
+  display: none;
+  gap: 12px;
+  z-index: 2;
+}
+
+.gh-lineage-drawer.is-open {
+  display: grid;
+}
+
+.gh-lineage-drawer-head {
+  display: grid;
+  gap: 10px;
 }
 
 .gh-graph-node-card {
@@ -889,6 +940,11 @@ body {
 
 .gh-lineage-canvas .react-flow__node.is-active .gh-graph-node-card {
   transform: translateY(-2px);
+}
+
+.gh-lineage-canvas .react-flow__edge.is-active path {
+  stroke: #4535d9;
+  stroke-width: 3px;
 }
 
 .gh-governance-shell {
@@ -1001,8 +1057,7 @@ body {
     justify-items: start;
   }
 
-  .gh-discovery-sidebar,
-  .gh-inspector {
+  .gh-discovery-sidebar {
     position: static;
   }
 
@@ -1018,11 +1073,19 @@ body {
   .gh-lineage-graph-badges {
     justify-content: flex-start;
   }
+
+  .gh-selection-tray-layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1320px) {
-  .gh-lineage-layout {
-    grid-template-columns: 1fr;
+  .gh-lineage-drawer {
+    position: static;
+    width: 100%;
+    max-height: none;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 }
 
