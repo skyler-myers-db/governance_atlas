@@ -112,31 +112,46 @@ export default function App() {
   const route = useMemo(() => initialRouteState(), []);
   const { loading, error, data } = useBootstrap();
   const [surface, setSurface] = useState(route.surface);
-  const [focusedAssetFqn, setFocusedAssetFqn] = useState(route.asset);
-  const [lineageContext, setLineageContext] = useState(route.lineageContext);
-  const [entityTab, setEntityTab] = useState(route.entityTab);
+  const [entityState, setEntityState] = useState({
+    assetFqn: route.surface === "entity" ? route.asset : "",
+    tab: route.entityTab,
+  });
+  const [entityLineageContext, setEntityLineageContext] = useState("Data Lineage");
+  const [lineageState, setLineageState] = useState({
+    focusAssetFqn: route.surface === "lineage" ? route.asset : "",
+    context: route.lineageContext,
+  });
+  const [governanceState, setGovernanceState] = useState({
+    assetFqn: route.surface === "governance" ? route.asset : "",
+  });
   const [discoveryState, setDiscoveryState] = useState(defaultDiscoveryState(null));
   const [shellSearchQuery, setShellSearchQuery] = useState("");
   const [lineageSearchQuery, setLineageSearchQuery] = useState("");
 
   const openEntityWorkspace = (assetFqn, nextTab = "Overview") => {
-    setFocusedAssetFqn(assetFqn);
-    setEntityTab(nextTab);
+    if (!assetFqn) return;
+    setEntityState((current) => ({
+      ...current,
+      assetFqn,
+      tab: nextTab,
+    }));
     setSurface("entity");
   };
 
   const openLineageWorkspace = (assetFqn, nextContext = "Data Lineage") => {
-    if (assetFqn) {
-      setFocusedAssetFqn(assetFqn);
-    }
-    setLineageContext(nextContext);
+    setLineageState((current) => ({
+      ...current,
+      focusAssetFqn: assetFqn || current.focusAssetFqn,
+      context: nextContext,
+    }));
     setSurface("lineage");
   };
 
   const openGovernanceWorkspace = (assetFqn = "") => {
-    if (assetFqn) {
-      setFocusedAssetFqn(assetFqn);
-    }
+    setGovernanceState((current) => ({
+      ...current,
+      assetFqn: assetFqn || current.assetFqn,
+    }));
     setSurface("governance");
   };
 
@@ -163,10 +178,33 @@ export default function App() {
 
   useEffect(() => {
     const initialFqn = route.asset || data?.initialSelection?.primaryAssetFqn || "";
-    if (surface !== "discovery" && !focusedAssetFqn && initialFqn) {
-      setFocusedAssetFqn(initialFqn);
+    if (!initialFqn) return;
+    if (surface === "entity" && !entityState.assetFqn) {
+      setEntityState((current) => ({ ...current, assetFqn: initialFqn }));
     }
-  }, [data?.initialSelection?.primaryAssetFqn, focusedAssetFqn, route.asset, surface]);
+    if (surface === "lineage" && !lineageState.focusAssetFqn) {
+      setLineageState((current) => ({ ...current, focusAssetFqn: initialFqn }));
+    }
+    if (surface === "governance" && !governanceState.assetFqn) {
+      setGovernanceState((current) => ({ ...current, assetFqn: initialFqn }));
+    }
+  }, [
+    data?.initialSelection?.primaryAssetFqn,
+    entityState.assetFqn,
+    governanceState.assetFqn,
+    lineageState.focusAssetFqn,
+    route.asset,
+    surface,
+  ]);
+
+  const routeAssetFqn =
+    surface === "entity"
+      ? entityState.assetFqn
+      : surface === "lineage"
+        ? lineageState.focusAssetFqn
+        : surface === "governance"
+          ? governanceState.assetFqn
+          : "";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -175,35 +213,54 @@ export default function App() {
       surface === "lineage" ? "lineage" : surface === "governance" ? "governance" : "discovery";
     params.set("module", activeModule);
     params.set("surface", surface);
-    if (surface !== "discovery" && focusedAssetFqn) params.set("asset", focusedAssetFqn);
+    if (surface !== "discovery" && routeAssetFqn) params.set("asset", routeAssetFqn);
     else params.delete("asset");
     params.delete("preview");
     if (surface === "entity") {
-      params.set("entityTab", entityTab);
+      params.set("entityTab", entityState.tab);
     } else {
       params.delete("entityTab");
     }
-    if (surface === "lineage") params.set("lineageContext", lineageContext);
+    if (surface === "lineage") params.set("lineageContext", lineageState.context);
     else params.delete("lineageContext");
     const nextUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", nextUrl);
-  }, [entityTab, focusedAssetFqn, lineageContext, surface]);
+  }, [entityState.tab, lineageState.context, routeAssetFqn, surface]);
 
-  const focusedSummary = useMemo(
-    () => summaryForAsset(focusedAssetFqn, discovery.assets, bootstrapAssets, bootstrapIndex),
-    [bootstrapAssets, bootstrapIndex, discovery.assets, focusedAssetFqn]
+  const entitySummary = useMemo(
+    () => summaryForAsset(entityState.assetFqn, discovery.assets, bootstrapAssets, bootstrapIndex),
+    [bootstrapAssets, bootstrapIndex, discovery.assets, entityState.assetFqn]
+  );
+  const lineageSummary = useMemo(
+    () =>
+      summaryForAsset(lineageState.focusAssetFqn, discovery.assets, bootstrapAssets, bootstrapIndex),
+    [bootstrapAssets, bootstrapIndex, discovery.assets, lineageState.focusAssetFqn]
+  );
+  const governanceSummary = useMemo(
+    () =>
+      summaryForAsset(governanceState.assetFqn, discovery.assets, bootstrapAssets, bootstrapIndex),
+    [bootstrapAssets, bootstrapIndex, discovery.assets, governanceState.assetFqn]
   );
 
-  const assetDetail = useAssetDetail(focusedAssetFqn || "");
-  const currentAsset = assetDetail.detail || focusedSummary;
-  const seededGraph = (focusedAssetFqn && data?.graphs?.[focusedAssetFqn]) || null;
-  const lineage = useLineage(focusedAssetFqn || "", seededGraph);
+  const entityDetail = useAssetDetail(entityState.assetFqn || "");
+  const entityAsset = entityDetail.detail || entitySummary;
+  const entitySeededGraph = (entityState.assetFqn && data?.graphs?.[entityState.assetFqn]) || null;
+  const entityLineage = useLineage(entityState.assetFqn || "", entitySeededGraph);
+
+  const lineageDetail = useAssetDetail(lineageState.focusAssetFqn || "");
+  const lineageAsset = lineageDetail.detail || lineageSummary;
+  const lineageSeededGraph =
+    (lineageState.focusAssetFqn && data?.graphs?.[lineageState.focusAssetFqn]) || null;
+  const lineage = useLineage(lineageState.focusAssetFqn || "", lineageSeededGraph);
+
+  const governanceDetail = useAssetDetail(governanceState.assetFqn || "");
+  const governanceAsset = governanceDetail.detail || governanceSummary;
   const lineageAssetSearch = useAssetSearch(lineageSearchQuery, surface === "lineage");
 
   useEffect(() => {
     if (surface !== "lineage") return;
     setLineageSearchQuery("");
-  }, [currentAsset?.fqn, surface]);
+  }, [lineageState.focusAssetFqn, surface]);
 
   if (loading) {
     return (
@@ -253,41 +310,53 @@ export default function App() {
     } else if (surface === "entity") {
       content = (
         <EntityWorkspace
-          activeTab={entityTab}
-          asset={currentAsset}
-          detail={assetDetail.detail}
-          lineageContext={lineageContext}
-          lineageBundle={lineage.graph}
-          lineageLoading={lineage.loading}
-          loading={assetDetail.loading}
+          activeTab={entityState.tab}
+          asset={entityAsset}
+          detail={entityDetail.detail}
+          lineageContext={entityLineageContext}
+          lineageBundle={entityLineage.graph}
+          lineageLoading={entityLineage.loading}
+          loading={entityDetail.loading}
           onBack={() => {
             setSurface("discovery");
           }}
-          onLineageContextChange={setLineageContext}
+          onLineageContextChange={setEntityLineageContext}
           onOpenGovernance={openGovernanceWorkspace}
           onOpenLineage={(nextContext = "Data Lineage") =>
-            openLineageWorkspace(currentAsset?.fqn, nextContext)
+            openLineageWorkspace(entityAsset?.fqn, nextContext)
           }
           onSelectAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
-          onTabChange={setEntityTab}
+          onTabChange={(nextTab) =>
+            setEntityState((current) => ({
+              ...current,
+              tab: nextTab,
+            }))
+          }
         />
       );
     } else if (surface === "lineage") {
-      content = currentAsset ? (
+      content = lineageAsset ? (
         <LineageWorkspace
-          asset={currentAsset}
+          asset={lineageAsset}
           assetSearchLoading={lineageAssetSearch.loading}
           assetSearchQuery={lineageSearchQuery}
           assetSearchResults={lineageAssetSearch.assets}
-          context={lineageContext}
+          context={lineageState.context}
           error={lineage.error}
           graphBundle={lineage.graph}
           loading={lineage.loading}
           onAssetSearchQueryChange={setLineageSearchQuery}
-          onContextChange={setLineageContext}
+          onContextChange={(nextContext) =>
+            setLineageState((current) => ({ ...current, context: nextContext }))
+          }
           onOpenGovernance={openGovernanceWorkspace}
           onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
-          onSelectAsset={setFocusedAssetFqn}
+          onSelectAsset={(assetFqn) =>
+            setLineageState((current) => ({
+              ...current,
+              focusAssetFqn: assetFqn,
+            }))
+          }
         />
       ) : (
         unavailableWorkspace("Select an asset to inspect its lineage workspace.")
@@ -295,10 +364,10 @@ export default function App() {
     } else {
       content = (
         <GovernanceWorkspace
+          focusedAsset={governanceAsset}
           governance={data.governance}
           onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Governance")}
           onOpenLineage={openLineageWorkspace}
-          selectedAsset={currentAsset}
         />
       );
     }
@@ -330,7 +399,6 @@ export default function App() {
           ...current,
           query: shellSearchQuery,
         }));
-        setFocusedAssetFqn("");
         setSurface("discovery");
       }}
       searchError={shellSearch.error}

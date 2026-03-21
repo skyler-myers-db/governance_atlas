@@ -8,10 +8,6 @@ export function useDiscoveryResults(filters, seededAssets = []) {
     assets: seededAssets,
     count: seededAssets.length,
     facets: null,
-    selection: {
-      primaryAssetFqn: seededAssets[0]?.fqn || "",
-      reason: seededAssets.length ? "bootstrap" : "none",
-    },
   });
 
   useEffect(() => {
@@ -38,10 +34,6 @@ export function useDiscoveryResults(filters, seededAssets = []) {
             assets: payload.assets || [],
             count: payload.count || 0,
             facets: payload.facets || null,
-            selection: payload.selection || {
-              primaryAssetFqn: payload.assets?.[0]?.fqn || "",
-              reason: payload.assets?.length ? "top_result" : "none",
-            },
           });
         })
         .catch((error) => {
