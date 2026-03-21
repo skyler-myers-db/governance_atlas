@@ -35,6 +35,7 @@ function transformGraph(graph) {
       id: `${edge.source}-${edge.target}-${index}`,
       source: edge.source,
       target: edge.target,
+      data: edge,
       animated: edge.depth === 1,
       markerEnd: {
         type: MarkerType.ArrowClosed,
@@ -67,13 +68,22 @@ function NodeLabel({ data }) {
   );
 }
 
-export default function LineageGraph({ graph, onSelectNode, selectedNodeId }) {
+export default function LineageGraph({
+  graph,
+  onSelectNode,
+  onSelectEdge,
+  selectedNodeId,
+  selectedEdgeId,
+}) {
   const transformed = transformGraph(graph);
 
   return (
     <div className="gh-lineage-canvas">
       <ReactFlow
-        edges={transformed.edges}
+        edges={transformed.edges.map((edge) => ({
+          ...edge,
+          className: edge.id === selectedEdgeId ? "is-active" : "",
+        }))}
         fitView
         fitViewOptions={{ padding: 0.18 }}
         minZoom={0.3}
@@ -85,7 +95,9 @@ export default function LineageGraph({ graph, onSelectNode, selectedNodeId }) {
           },
           className: node.id === selectedNodeId ? "is-active" : "",
         }))}
+        onEdgeClick={(_, edge) => onSelectEdge?.(edge.id)}
         onNodeClick={(_, node) => onSelectNode(node.id)}
+        onPaneClick={() => onSelectEdge?.("")}
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ type: "smoothstep" }}
       >
