@@ -65,14 +65,13 @@ body {
 
 .gh-shell-header {
   display: grid;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(19, 31, 65, 0.025);
+  gap: 10px;
+  padding: 8px 10px 10px;
+  border-radius: 14px;
+  box-shadow: 0 1px 4px rgba(19, 31, 65, 0.018);
 }
 
-.gh-shell-topbar,
-.gh-shell-nav-row {
+.gh-shell-topbar {
   display: grid;
   gap: 10px;
   align-items: center;
@@ -82,39 +81,35 @@ body {
   grid-template-columns: auto minmax(420px, 1fr) auto;
 }
 
-.gh-shell-nav-row {
-  grid-template-columns: auto minmax(280px, 1fr);
-}
-
 .gh-shell-brand {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
 }
 
 .gh-brand-mark {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #496ce8 0%, #5b43ee 58%, #8f78ff 100%);
   color: #fff;
   font-weight: 900;
-  box-shadow: 0 8px 16px rgba(91, 67, 238, 0.14);
+  box-shadow: 0 6px 12px rgba(91, 67, 238, 0.12);
 }
 
 .gh-brand-copy {
   display: grid;
-  gap: 1px;
+  gap: 0;
 }
 
 .gh-brand-copy h1 {
   margin: 0;
-  font-size: clamp(1.05rem, 0.98rem + 0.42vw, 1.34rem);
-  line-height: 0.98;
-  letter-spacing: -0.04em;
+  font-size: clamp(1rem, 0.95rem + 0.26vw, 1.18rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
 }
 
 .gh-eyebrow,
@@ -300,55 +295,7 @@ body {
   display: flex;
   gap: 8px;
   align-items: center;
-}
-
-.gh-shell-context-wrap {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.gh-shell-context-wrap-empty {
-  min-height: 40px;
-}
-
-.gh-shell-context {
-  min-width: min(480px, 100%);
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  padding: 8px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(170, 186, 221, 0.72);
-  background: rgba(246, 249, 255, 0.92);
-}
-
-.gh-shell-context-main {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.gh-shell-context-title {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: var(--gh-ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.gh-shell-context-subtitle {
-  font-size: 0.8rem;
-  color: var(--gh-ink-soft);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.gh-shell-context-action {
-  min-height: 34px;
-  padding-inline: 0.75rem;
+  padding-top: 2px;
 }
 
 .gh-product-tab,
@@ -536,8 +483,6 @@ body {
 
 .gh-sidebar-head,
 .gh-results-head,
-.gh-governance-header,
-.gh-entity-header,
 .gh-lineage-toolbar {
   display: grid;
   gap: 10px;
@@ -794,46 +739,59 @@ body {
   gap: 8px;
 }
 
-.gh-entity-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.gh-entity-header {
+.gh-entity-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 372px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 18px;
   align-items: start;
 }
 
-.gh-entity-header-main {
+.gh-entity-hero-main {
   display: grid;
   gap: 10px;
 }
 
-.gh-entity-header-main h2 {
+.gh-entity-hero-main h2 {
   margin: 0;
   font-size: clamp(1.8rem, 1.46rem + 1vw, 2.6rem);
   line-height: 0.96;
   letter-spacing: -0.055em;
 }
 
-.gh-entity-header-side {
+.gh-entity-hero-rail,
+.gh-entity-secondary-stack {
   display: grid;
   gap: 12px;
 }
 
-.gh-entity-metrics {
+.gh-metric-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
+.gh-inline-metric {
+  min-height: 82px;
+  padding: 12px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+  border: 1px solid var(--gh-line);
+  border-radius: var(--gh-radius-md);
+  background: var(--gh-surface-soft);
+}
+
+.gh-inline-metric-value {
+  font-size: clamp(1rem, 0.92rem + 0.72vw, 1.44rem);
+  font-weight: 900;
+  letter-spacing: -0.045em;
+}
+
 .gh-entity-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
   gap: 12px;
   align-items: start;
 }
@@ -1090,17 +1048,48 @@ body {
   gap: 12px;
 }
 
-.gh-governance-header,
-.gh-governance-topbar {
+.gh-governance-strip {
+  display: grid;
   grid-template-columns: minmax(280px, 1fr) auto;
+  gap: 12px;
   align-items: start;
 }
 
-.gh-governance-layout {
+.gh-governance-focus {
   display: grid;
-  grid-template-columns: 282px minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 14px;
+  align-items: start;
+}
+
+.gh-governance-focus-main,
+.gh-governance-focus-rail {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-governance-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 12px;
   align-items: start;
+}
+
+.gh-governance-side-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.gh-governance-main-pane,
+.gh-governance-side-pane {
+  display: grid;
+  gap: 14px;
+}
+
+.gh-governance-lane-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .gh-request-card {
@@ -1126,6 +1115,10 @@ body {
   gap: 10px;
 }
 
+.gh-task-list-compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .gh-task-card {
   display: grid;
   gap: 8px;
@@ -1149,6 +1142,34 @@ body {
 .gh-task-title,
 .gh-task-value {
   font-weight: 800;
+}
+
+.gh-attribute-list {
+  display: grid;
+  gap: 8px;
+}
+
+.gh-attribute-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0.74rem 0;
+  border-bottom: 1px solid rgba(198, 210, 234, 0.72);
+}
+
+.gh-attribute-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.gh-attribute-label {
+  color: var(--gh-ink-soft);
+  font-size: 0.86rem;
+}
+
+.gh-attribute-value {
+  font-weight: 800;
+  text-align: right;
 }
 
 .gh-unavailable-workspace {
@@ -1178,24 +1199,16 @@ body {
 
 @media (max-width: 1500px) {
   .gh-shell-header,
-  .gh-governance-header,
-  .gh-entity-header,
+  .gh-governance-strip,
+  .gh-governance-focus,
+  .gh-entity-hero,
   .gh-entity-layout,
-  .gh-governance-layout {
+  .gh-governance-workbench {
     grid-template-columns: 1fr;
   }
 
-  .gh-shell-topbar,
-  .gh-shell-nav-row {
+  .gh-shell-topbar {
     grid-template-columns: 1fr;
-  }
-
-  .gh-shell-context-wrap {
-    justify-content: stretch;
-  }
-
-  .gh-shell-context {
-    min-width: 0;
   }
 
   .gh-discovery-sidebar {
@@ -1233,7 +1246,8 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .gh-entity-metrics {
+  .gh-metric-strip,
+  .gh-task-list-compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -1268,13 +1282,10 @@ body {
     flex-wrap: wrap;
   }
 
-  .gh-shell-context {
-    grid-template-columns: 1fr;
-  }
-
   .gh-stat-grid,
   .gh-summary-grid,
-  .gh-entity-metrics {
+  .gh-metric-strip,
+  .gh-task-list-compact {
     grid-template-columns: 1fr;
   }
 
