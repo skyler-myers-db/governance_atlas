@@ -1192,6 +1192,7 @@ def _governance_summary() -> Dict[str, Any]:
                     {
                         "title": _normalize_str(req.get("new_comment")) or "Open governance request",
                         "asset": _normalize_str(req.get("uc_full_name")),
+                        "assetFqn": _normalize_str(req.get("uc_full_name")),
                         "status": _normalize_str(req.get("status")).title() or "Pending",
                         "note": _normalize_str(req.get("review_note")) or "Awaiting governance review.",
                     }
@@ -1203,6 +1204,7 @@ def _governance_summary() -> Dict[str, Any]:
                     {
                         "title": f"Assign owner to {_normalize_str(row.get('table_name'))}",
                         "asset": _normalize_str(row.get("fqn")),
+                        "assetFqn": _normalize_str(row.get("fqn")),
                         "status": "Needs Owner",
                         "note": "High-value asset is missing a business, technical, or steward owner.",
                     }

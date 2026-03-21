@@ -30,7 +30,7 @@ export function useLineage(assetFqn, seededGraph = null) {
         setState({
           loading: false,
           error: error?.message || "Failed to load lineage.",
-          graph: null,
+          graph: seededGraph || null,
         });
       });
 
