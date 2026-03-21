@@ -14,13 +14,18 @@ export function useAssetSearch(query, enabled = true) {
       return;
     }
 
+    if (!query.trim()) {
+      setState({ loading: false, error: "", assets: [] });
+      return;
+    }
+
     let canceled = false;
     const timeout = setTimeout(() => {
       setState((prev) => ({ ...prev, loading: true, error: "" }));
       fetchDiscoverySearch({
         query,
         sortBy: "Best match",
-        limit: query ? 8 : 6,
+        limit: 8,
       })
         .then((payload) => {
           if (canceled) return;

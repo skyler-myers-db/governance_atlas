@@ -89,10 +89,17 @@ function EntityLineageTab({
   const graph = graphForContext(lineageBundle, lineageContext);
   const counts = lineageCounts(graph);
   const [selectedNodeId, setSelectedNodeId] = useState("focus");
+  const [selectedEdgeId, setSelectedEdgeId] = useState("");
+  const [drawerOpen, setDrawerOpen] = useState(true);
   const selectedNode = (graph?.nodes || []).find((node) => node.id === selectedNodeId) || graph?.nodes?.[0] || null;
+  const selectedEdge = (graph?.edges || []).find(
+    (edge, index) => `${edge.source}-${edge.target}-${index}` === selectedEdgeId
+  ) || null;
 
   useEffect(() => {
     setSelectedNodeId("focus");
+    setSelectedEdgeId("");
+    setDrawerOpen(true);
   }, [asset?.fqn, graph?.edges?.length, graph?.nodes?.length, lineageContext]);
 
   return (
@@ -100,7 +107,7 @@ function EntityLineageTab({
       <div className="gh-entity-lineage-head">
         <div>
           <div className="gh-panel-title">Lineage</div>
-          <h3 className="gh-section-title">Embedded graph</h3>
+          <h3 className="gh-section-title">Lineage surface</h3>
         </div>
         <div className="gh-entity-lineage-actions">
           <div className="gh-segment-row">
@@ -115,75 +122,99 @@ function EntityLineageTab({
               </button>
             ))}
           </div>
+          <button className="gh-secondary-button" onClick={() => setDrawerOpen((open) => !open)} type="button">
+            {drawerOpen ? "Hide drawer" : "Show drawer"}
+          </button>
           <button className="gh-primary-button" onClick={() => onOpenLineage(lineageContext)} type="button">
             Open full graph
           </button>
         </div>
       </div>
 
-      <div className="gh-lineage-layout gh-entity-lineage-layout">
-        <section className="gh-panel gh-lineage-graph-panel gh-lineage-graph-stage">
-          <div className="gh-lineage-graph-badges">
-            <span className="gh-chip gh-chip-soft">Upstream {lineageLoading ? "…" : counts.upstream}</span>
-            <span className="gh-chip gh-chip-soft">Downstream {lineageLoading ? "…" : counts.downstream}</span>
-            <span className="gh-chip gh-chip-soft">Edges {lineageLoading ? "…" : counts.edges}</span>
-          </div>
+      <section className="gh-panel gh-lineage-graph-panel gh-lineage-graph-stage">
+        <div className="gh-lineage-graph-badges">
+          <span className="gh-chip gh-chip-soft">Upstream {lineageLoading ? "…" : counts.upstream}</span>
+          <span className="gh-chip gh-chip-soft">Downstream {lineageLoading ? "…" : counts.downstream}</span>
+          <span className="gh-chip gh-chip-soft">Edges {lineageLoading ? "…" : counts.edges}</span>
+        </div>
+        <div className="gh-lineage-stage-canvas">
           {lineageLoading ? (
             <div className="gh-empty-state">Loading graph…</div>
           ) : graph ? (
             <LineageGraph
               graph={graph}
-              onSelectNode={setSelectedNodeId}
+              onSelectEdge={(edgeId) => {
+                setSelectedEdgeId(edgeId);
+                if (edgeId) {
+                  setDrawerOpen(true);
+                }
+              }}
+              onSelectNode={(nodeId) => {
+                setSelectedEdgeId("");
+                setSelectedNodeId(nodeId);
+                setDrawerOpen(true);
+              }}
+              selectedEdgeId={selectedEdgeId}
               selectedNodeId={selectedNode?.id || ""}
             />
           ) : (
             <div className="gh-empty-state">No lineage is available for this asset yet.</div>
           )}
-        </section>
-
-        <aside className="gh-panel gh-lineage-detail">
-          <div className="gh-panel-title">Graph drawer</div>
-          {selectedNode ? (
-            <>
-              <h2>{selectedNode.label}</h2>
-              <div className="gh-support-copy">{selectedNode.subtitle}</div>
-              <div className="gh-chip-stack">
-                <span className="gh-chip">{selectedNode.kind}</span>
-                <span className="gh-chip">{selectedNode.kicker || selectedNode.role}</span>
-              </div>
-              <div className="gh-detail-section">
+          <aside className={`gh-lineage-drawer ${drawerOpen ? "is-open" : ""}`}>
+            <div className="gh-panel-title">Graph drawer</div>
+            {selectedEdge ? (
+              <>
+                <h2>Relationship</h2>
                 <div className="gh-support-copy">
-                  {selectedNode.role === "focus"
-                    ? "This is the active asset in the current graph."
-                    : selectedNode.role === "source"
-                      ? "This node contributes data or execution context into the focused asset."
-                      : "This node consumes or depends on the focused asset."}
+                  {selectedEdge.source} → {selectedEdge.target}
                 </div>
-              </div>
-              {selectedNode.assetFqn ? (
-                <div className="gh-action-row">
-                  <button
-                    className="gh-primary-button"
-                    onClick={() => onSelectAsset(selectedNode.assetFqn)}
-                    type="button"
-                  >
-                    Open asset
-                  </button>
-                  <button
-                    className="gh-secondary-button"
-                    onClick={() => onOpenLineage(lineageContext)}
-                    type="button"
-                  >
-                    Open in graph workspace
-                  </button>
+                <div className="gh-chip-stack">
+                  <span className="gh-chip">Lineage edge</span>
+                  <span className="gh-chip gh-chip-soft">Depth {selectedEdge.depth || 1}</span>
                 </div>
-              ) : null}
-            </>
-          ) : (
-            <div className="gh-empty-state">Select a node to inspect its metadata.</div>
-          )}
-        </aside>
-      </div>
+              </>
+            ) : selectedNode ? (
+              <>
+                <h2>{selectedNode.label}</h2>
+                <div className="gh-support-copy">{selectedNode.subtitle}</div>
+                <div className="gh-chip-stack">
+                  <span className="gh-chip">{selectedNode.kind}</span>
+                  <span className="gh-chip">{selectedNode.kicker || selectedNode.role}</span>
+                </div>
+                <div className="gh-detail-section">
+                  <div className="gh-support-copy">
+                    {selectedNode.role === "focus"
+                      ? "This is the active asset in the current graph."
+                      : selectedNode.role === "source"
+                        ? "This node contributes data or execution context into the focused asset."
+                        : "This node consumes or depends on the focused asset."}
+                  </div>
+                </div>
+                {selectedNode.assetFqn ? (
+                  <div className="gh-action-row">
+                    <button
+                      className="gh-primary-button"
+                      onClick={() => onSelectAsset(selectedNode.assetFqn)}
+                      type="button"
+                    >
+                      Open asset
+                    </button>
+                    <button
+                      className="gh-secondary-button"
+                      onClick={() => onOpenLineage(lineageContext)}
+                      type="button"
+                    >
+                      Open in graph workspace
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="gh-empty-state">Select a node to inspect its metadata.</div>
+            )}
+          </aside>
+        </div>
+      </section>
     </section>
   );
 }
