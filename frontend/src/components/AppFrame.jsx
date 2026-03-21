@@ -10,17 +10,9 @@ function statusLabel(bootState) {
   return "Live";
 }
 
-function surfaceLabel(surface) {
-  if (surface === "entity") return "Asset";
-  if (surface === "lineage") return "Lineage";
-  if (surface === "governance") return "Governance";
-  return "Discovery";
-}
-
 export default function AppFrame({
   shell,
   activeModule,
-  surface,
   onModuleChange,
   bootState,
   bootMessage,
@@ -32,12 +24,9 @@ export default function AppFrame({
   onSearchQueryChange,
   onSearchSubmit,
   onSearchResultSelect,
-  shellContext,
-  onOpenFocusedAsset,
   children,
 }) {
   const modules = ["discovery", "lineage", "governance"];
-  const contextActionable = Boolean(shellContext?.assetFqn && onOpenFocusedAsset);
 
   return (
     <div className="gh-app">
@@ -46,7 +35,7 @@ export default function AppFrame({
           <div className="gh-shell-brand">
             <div className="gh-brand-mark">GH</div>
             <div className="gh-brand-copy">
-              <div className="gh-eyebrow">{surfaceLabel(surface)}</div>
+              <div className="gh-eyebrow">Enterprise metadata</div>
               <h1>Governance Hub</h1>
             </div>
           </div>
@@ -114,44 +103,18 @@ export default function AppFrame({
           </div>
         </div>
 
-        <div className="gh-shell-nav-row">
-          <nav className="gh-shell-nav" aria-label="Primary modules">
-            {modules.map((module) => (
-              <button
-                className={`gh-product-tab ${activeModule === module ? "is-active" : ""}`}
-                key={module}
-                onClick={() => onModuleChange(module)}
-                type="button"
-              >
-                {module[0].toUpperCase() + module.slice(1)}
-              </button>
-            ))}
-          </nav>
-          {shellContext ? (
-            <div className="gh-shell-context-wrap">
-              <div className="gh-shell-context">
-                <div className="gh-shell-context-main">
-                  <div className="gh-panel-title">{shellContext.label}</div>
-                  <div className="gh-shell-context-title">{shellContext.title}</div>
-                  {shellContext.subtitle ? (
-                    <div className="gh-shell-context-subtitle">{shellContext.subtitle}</div>
-                  ) : null}
-                </div>
-                {contextActionable ? (
-                  <button
-                    className="gh-secondary-button gh-shell-context-action"
-                    onClick={() => onOpenFocusedAsset?.(shellContext.assetFqn)}
-                    type="button"
-                  >
-                    Open asset
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ) : (
-            <div className="gh-shell-context-wrap gh-shell-context-wrap-empty" />
-          )}
-        </div>
+        <nav className="gh-shell-nav" aria-label="Primary modules">
+          {modules.map((module) => (
+            <button
+              className={`gh-product-tab ${activeModule === module ? "is-active" : ""}`}
+              key={module}
+              onClick={() => onModuleChange(module)}
+              type="button"
+            >
+              {module[0].toUpperCase() + module.slice(1)}
+            </button>
+          ))}
+        </nav>
       </header>
 
       {bootState && bootState !== "live" ? (
