@@ -136,7 +136,7 @@ export default function EntityWorkspace({
       <section className="gh-panel gh-entity-shell">
         <div className="gh-chip-row">
           <button className="gh-secondary-button" onClick={onBack} type="button">
-            Back to discovery
+            Back to results
           </button>
           <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
           <span className={`gh-status-chip tone-${statusTone(asset)}`}>

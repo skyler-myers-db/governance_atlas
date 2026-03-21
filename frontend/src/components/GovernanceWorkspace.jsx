@@ -82,31 +82,31 @@ export default function GovernanceWorkspace({
   governance,
   onOpenAsset,
   onOpenLineage,
-  selectedAsset,
+  focusedAsset,
 }) {
   const views = useMemo(() => governanceViews(governance), [governance]);
   const stewardshipQueues = [
     { key: "requests", label: "Open work", count: views.requests.length },
     { key: "coverage", label: "Signals", count: views.coverage.length },
   ];
-  const [mode, setMode] = useState(selectedAsset ? "stewardship" : "glossary");
+  const [mode, setMode] = useState("stewardship");
   const [view, setView] = useState("requests");
   const [selectedId, setSelectedId] = useState("");
   const [glossaryQuery, setGlossaryQuery] = useState("");
   const items = views[view] || [];
   const assetScopedRequests =
-    selectedAsset && view === "requests"
-      ? items.filter((item) => item.assetFqn === selectedAsset.fqn)
+    focusedAsset && view === "requests"
+      ? items.filter((item) => item.assetFqn === focusedAsset.fqn)
       : items;
   const assetScopedEmpty =
-    Boolean(selectedAsset) && view === "requests" && !assetScopedRequests.length;
+    Boolean(focusedAsset) && view === "requests" && !assetScopedRequests.length;
   const workItems = assetScopedEmpty ? [] : assetScopedRequests;
   const selectedItem = workItems.find((item) => item.id === selectedId) || workItems[0] || null;
-  const actionTrack = governanceActionTrack(selectedAsset);
+  const actionTrack = governanceActionTrack(focusedAsset);
   const linkedGlossary = useMemo(() => {
-    if (!selectedAsset) return [];
-    return views.glossary.filter((item) => item.assets?.includes(selectedAsset.fqn));
-  }, [selectedAsset, views.glossary]);
+    if (!focusedAsset) return [];
+    return views.glossary.filter((item) => item.assets?.includes(focusedAsset.fqn));
+  }, [focusedAsset, views.glossary]);
   const glossaryItems = useMemo(() => {
     const query = glossaryQuery.trim().toLowerCase();
     if (!query) return views.glossary;
@@ -120,14 +120,14 @@ export default function GovernanceWorkspace({
   }, [glossaryQuery, views.glossary]);
   const selectedGlossary =
     glossaryItems.find((item) => item.id === selectedId) || glossaryItems[0] || null;
-  const focusedAssetAttributes = selectedAsset
+  const focusedAssetAttributes = focusedAsset
     ? [
-        { label: "Domain", value: selectedAsset.domain || "Unassigned" },
-        { label: "Tier", value: selectedAsset.tier || "Unassigned" },
-        { label: "Certification", value: selectedAsset.certification || "Unassigned" },
-        { label: "Sensitivity", value: selectedAsset.sensitivity || "Unassigned" },
-        { label: "Coverage", value: `${selectedAsset.coverageScore ?? 0}` },
-        { label: "Requests", value: `${selectedAsset.openRequests ?? 0}` },
+        { label: "Domain", value: focusedAsset.domain || "Unassigned" },
+        { label: "Tier", value: focusedAsset.tier || "Unassigned" },
+        { label: "Certification", value: focusedAsset.certification || "Unassigned" },
+        { label: "Sensitivity", value: focusedAsset.sensitivity || "Unassigned" },
+        { label: "Coverage", value: `${focusedAsset.coverageScore ?? 0}` },
+        { label: "Requests", value: `${focusedAsset.openRequests ?? 0}` },
       ]
     : [];
 
@@ -146,7 +146,7 @@ export default function GovernanceWorkspace({
           <div className="gh-panel-title">Governance</div>
           <h2 className="gh-workspace-title">
             {mode === "stewardship"
-              ? selectedAsset
+              ? focusedAsset
                 ? "Asset stewardship"
                 : "Stewardship workbench"
               : "Glossary workspace"}
@@ -177,13 +177,13 @@ export default function GovernanceWorkspace({
 
       {mode === "stewardship" ? (
         <>
-          {selectedAsset ? (
+          {focusedAsset ? (
             <section className="gh-panel gh-governance-focus">
               <div className="gh-governance-focus-main">
                 <div className="gh-panel-title">Focused asset</div>
-                <h2>{selectedAsset.name}</h2>
+                <h2>{focusedAsset.name}</h2>
                 <div className="gh-support-copy">
-                  {selectedAsset.catalog} / {selectedAsset.schema}
+                  {focusedAsset.catalog} / {focusedAsset.schema}
                 </div>
                 <div className="gh-support-copy">
                   Steward ownership, trust, and glossary context without leaving the asset journey.
@@ -191,20 +191,20 @@ export default function GovernanceWorkspace({
               </div>
               <div className="gh-governance-focus-rail">
                 <div className="gh-chip-row">
-                  <span className="gh-chip">{selectedAsset.objectType}</span>
-                  <span className="gh-chip">{selectedAsset.governanceStatus || "Needs Work"}</span>
+                  <span className="gh-chip">{focusedAsset.objectType}</span>
+                  <span className="gh-chip">{focusedAsset.governanceStatus || "Needs Work"}</span>
                 </div>
                 <div className="gh-action-grid">
                   <button
                     className="gh-secondary-button"
-                    onClick={() => onOpenAsset(selectedAsset.fqn)}
+                    onClick={() => onOpenAsset(focusedAsset.fqn)}
                     type="button"
                   >
                     Open asset
                   </button>
                   <button
                     className="gh-secondary-button"
-                    onClick={() => onOpenLineage(selectedAsset.fqn, "Data Lineage")}
+                    onClick={() => onOpenLineage(focusedAsset.fqn, "Data Lineage")}
                     type="button"
                   >
                     Open lineage
@@ -282,7 +282,7 @@ export default function GovernanceWorkspace({
             </section>
 
             <aside className="gh-governance-side-stack">
-              {selectedAsset ? (
+              {focusedAsset ? (
                 <section className="gh-panel gh-governance-side-pane">
                   <div className="gh-panel-title">Current posture</div>
                   <AttributeList items={focusedAssetAttributes} />
