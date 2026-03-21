@@ -200,61 +200,6 @@ export default function App() {
   const lineage = useLineage(focusedAssetFqn || "", seededGraph);
   const lineageAssetSearch = useAssetSearch(lineageSearchQuery, surface === "lineage");
 
-  const shellContext = useMemo(() => {
-    if (surface === "lineage") {
-      return currentAsset
-        ? {
-            label: lineageContext,
-            title: currentAsset.name,
-            subtitle: `${currentAsset.catalog} / ${currentAsset.schema}`,
-            assetFqn: currentAsset.fqn,
-          }
-        : {
-            label: lineageContext,
-            title: "Select an asset to inspect graph context",
-            subtitle: "Open an asset from discovery or governance to focus the graph.",
-          };
-    }
-
-    if (surface === "governance") {
-      return currentAsset
-        ? {
-            label: "Stewardship focus",
-            title: currentAsset.name,
-            subtitle: `${currentAsset.catalog} / ${currentAsset.schema}`,
-            assetFqn: currentAsset.fqn,
-          }
-        : {
-            label: "Governance workbench",
-            title: "Shared stewardship and glossary workflow",
-            subtitle: "Open an asset or stay in the shared governance workspace.",
-          };
-    }
-
-    if (surface === "entity") {
-      return currentAsset
-        ? {
-            label: "Asset workspace",
-            title: currentAsset.name,
-            subtitle: `${currentAsset.catalog} / ${currentAsset.schema}`,
-            assetFqn: currentAsset.fqn,
-          }
-        : {
-            label: "Asset workspace",
-            title: "Select an asset",
-            subtitle: "Open an asset from search results to inspect metadata and lineage.",
-          };
-    }
-
-    return {
-      label: "Catalog workspace",
-      title: discoveryState.query?.trim()
-        ? `Search: ${discoveryState.query}`
-        : "Browse trusted assets",
-      subtitle: `${discovery.count} assets in the current scope`,
-    };
-  }, [currentAsset, discovery.count, discoveryState.query, lineageContext, surface]);
-
   useEffect(() => {
     if (surface !== "lineage") return;
     setLineageSearchQuery("");
@@ -375,7 +320,6 @@ export default function App() {
           setSurface("governance");
         }
       }}
-      onOpenFocusedAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
       onSearchQueryChange={setShellSearchQuery}
       onSearchResultSelect={(assetFqn) => {
         setShellSearchQuery("");
@@ -395,8 +339,6 @@ export default function App() {
       searchQuery={shellSearchQuery}
       searchResults={shellSearch.assets}
       shell={shell}
-      shellContext={shellContext}
-      surface={surface}
     >
       {content}
     </AppFrame>
