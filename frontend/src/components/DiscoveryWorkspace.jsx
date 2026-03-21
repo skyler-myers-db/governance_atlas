@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 function statusTone(asset) {
   if (asset?.governanceStatus === "Enterprise Ready") return "good";
   if (asset?.governanceStatus === "Operational") return "warn";
@@ -119,112 +121,9 @@ function SavedViews({ views, activeView, onSelectView }) {
   );
 }
 
-function QuickPreview({
-  asset,
-  detail,
-  loading,
-  onOpenAsset,
-  onOpenGovernance,
-  onOpenLineage,
-  onSelectAsset,
-}) {
-  if (!asset) return null;
-
-  const entity = detail || asset;
-
+function ResultRow({ asset, onOpenAsset }) {
   return (
-    <section className="gh-panel gh-selection-tray">
-      <div className="gh-selection-tray-head">
-        <div>
-          <div className="gh-panel-title">Selected asset</div>
-          <h2>{asset.name}</h2>
-          <div className="gh-entity-context">
-            {asset.catalog} / {asset.schema}
-          </div>
-        </div>
-        <div className={`gh-status-chip tone-${statusTone(asset)}`}>
-          {asset.governanceStatus || "Needs Work"}
-        </div>
-      </div>
-
-      <div className="gh-selection-tray-layout">
-        <div className="gh-selection-tray-main">
-          <div className="gh-chip-stack">
-            <span className="gh-chip">{asset.objectType}</span>
-            <span className="gh-chip">{asset.domain}</span>
-            <span className="gh-chip">{asset.tier}</span>
-          </div>
-
-          <div className="gh-quick-preview-copy">{entity.description || asset.description}</div>
-
-          {loading ? (
-            <div className="gh-empty-state">Loading asset metadata…</div>
-          ) : entity.columns?.length ? (
-            <div className="gh-chip-stack">
-              {entity.columns.slice(0, 6).map((column) => (
-                <span className="gh-chip gh-chip-soft" key={column.name}>
-                  {column.name}
-                </span>
-              ))}
-            </div>
-          ) : null}
-
-          {entity.relatedAssets?.length ? (
-            <div className="gh-chip-stack">
-              {entity.relatedAssets.slice(0, 5).map((item) => (
-                <button
-                  className="gh-filter-chip gh-chip-soft"
-                  key={item}
-                  onClick={() => onSelectAsset(item)}
-                  type="button"
-                >
-                  {item.split(".").slice(-2).join(" / ")}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="gh-selection-tray-side">
-          <div className="gh-stat-grid gh-stat-grid-tight">
-            <div className="gh-stat-card">
-              <span className="gh-stat-label">Coverage</span>
-              <span className="gh-stat-value">{asset.coverageScore}</span>
-            </div>
-            <div className="gh-stat-card">
-              <span className="gh-stat-label">Rows</span>
-              <span className="gh-stat-value">{entity.rows || asset.rows}</span>
-            </div>
-            <div className="gh-stat-card">
-              <span className="gh-stat-label">Open requests</span>
-              <span className="gh-stat-value">{asset.openRequests}</span>
-            </div>
-            <div className="gh-stat-card">
-              <span className="gh-stat-label">Owners</span>
-              <span className="gh-stat-value">{asset.owners?.length || 0}</span>
-            </div>
-          </div>
-
-          <div className="gh-action-grid">
-            <button className="gh-primary-button" onClick={() => onOpenAsset(asset.fqn)} type="button">
-              Open asset
-            </button>
-            <button className="gh-secondary-button" onClick={() => onOpenLineage(asset.fqn)} type="button">
-              Open lineage
-            </button>
-            <button className="gh-secondary-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">
-              Open governance
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ResultRow({ asset, isActive, onInspect, onOpenAsset }) {
-  return (
-    <article className={`gh-result-row ${isActive ? "is-active" : ""}`}>
+    <article className="gh-result-row">
       <button className="gh-result-row-main" onClick={() => onOpenAsset(asset.fqn)} type="button">
         <div className="gh-result-row-head">
           <div className="gh-result-row-identity">
@@ -248,30 +147,13 @@ function ResultRow({ asset, isActive, onInspect, onOpenAsset }) {
 
         <div className="gh-result-row-description">{asset.description}</div>
 
-        <div className="gh-result-row-footer">
-          <div className="gh-chip-stack">
-            {(asset.tags || []).slice(0, 4).map((tag) => (
-              <span className="gh-chip gh-chip-soft" key={`${asset.fqn}-${tag}`}>
-                {tag}
-              </span>
-            ))}
-          </div>
-          <div className="gh-result-metadata">
-            <span>{asset.owners?.length || 0} owners</span>
-            <span>{asset.openRequests} requests</span>
-            <span>Coverage {asset.coverageScore}</span>
-          </div>
+        <div className="gh-result-metadata">
+          <span>Coverage {asset.coverageScore}</span>
+          <span>{asset.owners?.length || 0} owners</span>
+          <span>{asset.openRequests} requests</span>
+          <span>{asset.domain || "Unassigned"}</span>
         </div>
       </button>
-      <div className="gh-result-row-side">
-        <div className="gh-result-row-score">
-          <span className="gh-score-box-label">Coverage</span>
-          <span className="gh-score-box-value">{asset.coverageScore}</span>
-        </div>
-        <button className="gh-secondary-button gh-inline-action" onClick={() => onInspect(asset.fqn)} type="button">
-          Preview
-        </button>
-      </div>
     </article>
   );
 }
@@ -285,17 +167,10 @@ export default function DiscoveryWorkspace({
   resultsLoading,
   resultsError,
   resultsFacets,
-  selectedAssetFqn,
-  selectedAssetDetail,
-  selectedAssetSummary,
-  selectedAssetLoading,
-  onSelectAsset,
   onOpenAsset,
-  onOpenGovernance,
-  onOpenLineage,
 }) {
   const filters = discoveryState;
-  const selectedAsset = selectedAssetDetail || selectedAssetSummary || null;
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const assetTypeOptions = facetValues(resultsFacets, "assetTypes", bootstrap.discovery.assetTypes || ["All types"]);
   const typeCounts = facetCountMap(resultsFacets, "assetTypes");
   const filtersApplied = activeFilters(filters);
@@ -323,60 +198,76 @@ export default function DiscoveryWorkspace({
             onSelectView={(view) => onDiscoveryStateChange({ ...filters, view })}
             views={bootstrap.discovery.views}
           />
+          <section className="gh-filter-section">
+            <button
+              className="gh-rail-toggle"
+              onClick={() => setShowAdvancedFilters((current) => !current)}
+              type="button"
+            >
+              <span className="gh-filter-title">More filters</span>
+              <span className="gh-chip gh-chip-soft">{showAdvancedFilters ? "Hide" : "Show"}</span>
+            </button>
+          </section>
 
-          <FilterSection
-            allLabel="All catalogs"
-            label="Catalogs"
-            onToggle={(value, allLabel) =>
-              toggleMulti(filters, "catalogs", value, allLabel, onDiscoveryStateChange)
-            }
-            options={facetValues(resultsFacets, "catalogs", bootstrap.discovery.catalogs)}
-            selected={filters.catalogs}
-          />
-          <FilterSection
-            allLabel="All domains"
-            label="Domains"
-            onToggle={(value, allLabel) =>
-              toggleMulti(filters, "domains", value, allLabel, onDiscoveryStateChange)
-            }
-            options={facetValues(resultsFacets, "domains", bootstrap.discovery.domains)}
-            selected={filters.domains}
-          />
-          <FilterSection
-            allLabel="All tiers"
-            label="Tiers"
-            onToggle={(value, allLabel) =>
-              toggleMulti(filters, "tiers", value, allLabel, onDiscoveryStateChange)
-            }
-            options={facetValues(resultsFacets, "tiers", bootstrap.discovery.tiers)}
-            selected={filters.tiers}
-          />
-          <FilterSection
-            allLabel="All certifications"
-            label="Certifications"
-            onToggle={(value, allLabel) =>
-              toggleMulti(filters, "certifications", value, allLabel, onDiscoveryStateChange)
-            }
-            options={facetValues(resultsFacets, "certifications", bootstrap.discovery.certifications)}
-            selected={filters.certifications}
-          />
-          <FilterSection
-            allLabel="All sensitivities"
-            label="Sensitivities"
-            onToggle={(value, allLabel) =>
-              toggleMulti(filters, "sensitivities", value, allLabel, onDiscoveryStateChange)
-            }
-            options={facetValues(resultsFacets, "sensitivities", bootstrap.discovery.sensitivities)}
-            selected={filters.sensitivities}
-          />
+          {showAdvancedFilters ? (
+            <>
+              <FilterSection
+                allLabel="All catalogs"
+                label="Catalogs"
+                onToggle={(value, allLabel) =>
+                  toggleMulti(filters, "catalogs", value, allLabel, onDiscoveryStateChange)
+                }
+                options={facetValues(resultsFacets, "catalogs", bootstrap.discovery.catalogs)}
+                selected={filters.catalogs}
+              />
+              <FilterSection
+                allLabel="All domains"
+                label="Domains"
+                onToggle={(value, allLabel) =>
+                  toggleMulti(filters, "domains", value, allLabel, onDiscoveryStateChange)
+                }
+                options={facetValues(resultsFacets, "domains", bootstrap.discovery.domains)}
+                selected={filters.domains}
+              />
+              <FilterSection
+                allLabel="All tiers"
+                label="Tiers"
+                onToggle={(value, allLabel) =>
+                  toggleMulti(filters, "tiers", value, allLabel, onDiscoveryStateChange)
+                }
+                options={facetValues(resultsFacets, "tiers", bootstrap.discovery.tiers)}
+                selected={filters.tiers}
+              />
+              <FilterSection
+                allLabel="All certifications"
+                label="Certifications"
+                onToggle={(value, allLabel) =>
+                  toggleMulti(filters, "certifications", value, allLabel, onDiscoveryStateChange)
+                }
+                options={facetValues(resultsFacets, "certifications", bootstrap.discovery.certifications)}
+                selected={filters.certifications}
+              />
+              <FilterSection
+                allLabel="All sensitivities"
+                label="Sensitivities"
+                onToggle={(value, allLabel) =>
+                  toggleMulti(filters, "sensitivities", value, allLabel, onDiscoveryStateChange)
+                }
+                options={facetValues(resultsFacets, "sensitivities", bootstrap.discovery.sensitivities)}
+                selected={filters.sensitivities}
+              />
+            </>
+          ) : null}
         </aside>
 
         <section className="gh-discovery-main">
           <section className="gh-panel gh-results-column">
             <div className="gh-results-head">
               <div>
-                <div className="gh-panel-title">Results</div>
-                <h2 className="gh-workspace-title">Search and browse assets</h2>
+                <div className="gh-panel-title">Catalog</div>
+                <h2 className="gh-workspace-title">
+                  {filters.query?.trim() ? `Search: ${filters.query}` : "Catalog results"}
+                </h2>
                 <div className="gh-support-copy">
                   {resultsLoading ? "Refreshing live results…" : `${resultsCount} assets in the current scope.`}
                 </div>
@@ -415,9 +306,7 @@ export default function DiscoveryWorkspace({
                 {results.map((asset) => (
                   <ResultRow
                     asset={asset}
-                    isActive={selectedAssetFqn === asset.fqn}
                     key={asset.fqn}
-                    onInspect={onSelectAsset}
                     onOpenAsset={onOpenAsset}
                   />
                 ))}
@@ -428,16 +317,6 @@ export default function DiscoveryWorkspace({
               </div>
             )}
           </section>
-
-          <QuickPreview
-            asset={selectedAsset}
-            detail={selectedAssetDetail}
-            loading={selectedAssetLoading}
-            onOpenAsset={onOpenAsset}
-            onOpenLineage={onOpenLineage}
-            onOpenGovernance={onOpenGovernance}
-            onSelectAsset={onSelectAsset}
-          />
         </section>
       </div>
     </section>

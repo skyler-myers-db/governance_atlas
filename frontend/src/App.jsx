@@ -44,9 +44,10 @@ function initialRouteState() {
         : module === "governance"
           ? "governance"
           : "discovery";
+
   return {
     surface: initialSurface,
-    asset: params.get("asset") || "",
+    asset: initialSurface === "discovery" ? "" : params.get("asset") || "",
     entityTab: params.get("entityTab") || "Overview",
     lineageContext: params.get("lineageContext") || "Data Lineage",
   };
@@ -97,26 +98,36 @@ function assetFallback(assetFqn) {
   };
 }
 
+function summaryForAsset(assetFqn, discoveryAssets, bootstrapAssets, bootstrapIndex) {
+  if (!assetFqn) return null;
+  return (
+    discoveryAssets.find((asset) => asset.fqn === assetFqn) ||
+    bootstrapIndex[assetFqn] ||
+    bootstrapAssets.find((asset) => asset.fqn === assetFqn) ||
+    assetFallback(assetFqn)
+  );
+}
+
 export default function App() {
   const route = useMemo(() => initialRouteState(), []);
   const { loading, error, data } = useBootstrap();
   const [surface, setSurface] = useState(route.surface);
-  const [selectedAssetFqn, setSelectedAssetFqn] = useState(route.asset);
+  const [focusedAssetFqn, setFocusedAssetFqn] = useState(route.asset);
   const [lineageContext, setLineageContext] = useState(route.lineageContext);
   const [entityTab, setEntityTab] = useState(route.entityTab);
   const [discoveryState, setDiscoveryState] = useState(defaultDiscoveryState(null));
-  const [shellSearchQuery, setShellSearchQuery] = useState(route.surface === "discovery" ? "" : "");
+  const [shellSearchQuery, setShellSearchQuery] = useState("");
   const [lineageSearchQuery, setLineageSearchQuery] = useState("");
 
   const openEntityWorkspace = (assetFqn, nextTab = "Overview") => {
-    setSelectedAssetFqn(assetFqn);
+    setFocusedAssetFqn(assetFqn);
     setEntityTab(nextTab);
     setSurface("entity");
   };
 
   const openLineageWorkspace = (assetFqn, nextContext = "Data Lineage") => {
     if (assetFqn) {
-      setSelectedAssetFqn(assetFqn);
+      setFocusedAssetFqn(assetFqn);
     }
     setLineageContext(nextContext);
     setSurface("lineage");
@@ -124,7 +135,7 @@ export default function App() {
 
   const openGovernanceWorkspace = (assetFqn = "") => {
     if (assetFqn) {
-      setSelectedAssetFqn(assetFqn);
+      setFocusedAssetFqn(assetFqn);
     }
     setSurface("governance");
   };
@@ -137,19 +148,25 @@ export default function App() {
   useEffect(() => {
     if (surface === "discovery") {
       setShellSearchQuery(discoveryState.query || "");
+    } else {
+      setShellSearchQuery("");
     }
   }, [discoveryState.query, surface]);
 
   const discovery = useDiscoveryResults(discoveryState, data?.assets || []);
   const bootstrapAssets = data?.assets || [];
   const bootstrapIndex = data?.assetIndex || {};
+  const shellSearchOpen =
+    shellSearchQuery.trim().length >= 2 &&
+    (surface !== "discovery" || shellSearchQuery !== discoveryState.query);
+  const shellSearch = useAssetSearch(shellSearchQuery, shellSearchOpen);
 
   useEffect(() => {
     const initialFqn = route.asset || data?.initialSelection?.primaryAssetFqn || "";
-    if (!selectedAssetFqn && initialFqn) {
-      setSelectedAssetFqn(initialFqn);
+    if (surface !== "discovery" && !focusedAssetFqn && initialFqn) {
+      setFocusedAssetFqn(initialFqn);
     }
-  }, [data?.initialSelection?.primaryAssetFqn, route.asset, selectedAssetFqn]);
+  }, [data?.initialSelection?.primaryAssetFqn, focusedAssetFqn, route.asset, surface]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -158,8 +175,9 @@ export default function App() {
       surface === "lineage" ? "lineage" : surface === "governance" ? "governance" : "discovery";
     params.set("module", activeModule);
     params.set("surface", surface);
-    if (selectedAssetFqn) params.set("asset", selectedAssetFqn);
+    if (surface !== "discovery" && focusedAssetFqn) params.set("asset", focusedAssetFqn);
     else params.delete("asset");
+    params.delete("preview");
     if (surface === "entity") {
       params.set("entityTab", entityTab);
     } else {
@@ -169,22 +187,19 @@ export default function App() {
     else params.delete("lineageContext");
     const nextUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", nextUrl);
-  }, [entityTab, lineageContext, selectedAssetFqn, surface]);
+  }, [entityTab, focusedAssetFqn, lineageContext, surface]);
 
-  const selectedSummary = useMemo(() => {
-    return (
-      discovery.assets.find((asset) => asset.fqn === selectedAssetFqn) ||
-      bootstrapIndex[selectedAssetFqn] ||
-      bootstrapAssets.find((asset) => asset.fqn === selectedAssetFqn) ||
-      assetFallback(selectedAssetFqn)
-    );
-  }, [bootstrapAssets, bootstrapIndex, discovery.assets, selectedAssetFqn]);
+  const focusedSummary = useMemo(
+    () => summaryForAsset(focusedAssetFqn, discovery.assets, bootstrapAssets, bootstrapIndex),
+    [bootstrapAssets, bootstrapIndex, discovery.assets, focusedAssetFqn]
+  );
 
-  const assetDetail = useAssetDetail(selectedAssetFqn || "");
-  const currentAsset = assetDetail.detail || selectedSummary;
-  const seededGraph = (selectedAssetFqn && data?.graphs?.[selectedAssetFqn]) || null;
-  const lineage = useLineage(selectedAssetFqn || "", seededGraph);
+  const assetDetail = useAssetDetail(focusedAssetFqn || "");
+  const currentAsset = assetDetail.detail || focusedSummary;
+  const seededGraph = (focusedAssetFqn && data?.graphs?.[focusedAssetFqn]) || null;
+  const lineage = useLineage(focusedAssetFqn || "", seededGraph);
   const lineageAssetSearch = useAssetSearch(lineageSearchQuery, surface === "lineage");
+
   const shellContext = useMemo(() => {
     if (surface === "lineage") {
       return currentAsset
@@ -231,15 +246,6 @@ export default function App() {
           };
     }
 
-    if (selectedSummary?.fqn) {
-      return {
-        label: discoveryState.query?.trim() ? "Search focus" : "Selected asset",
-        title: selectedSummary.name,
-        subtitle: `${selectedSummary.catalog} / ${selectedSummary.schema}`,
-        assetFqn: selectedSummary.fqn,
-      };
-    }
-
     return {
       label: "Catalog workspace",
       title: discoveryState.query?.trim()
@@ -247,7 +253,7 @@ export default function App() {
         : "Browse trusted assets",
       subtitle: `${discovery.count} assets in the current scope`,
     };
-  }, [currentAsset, discovery.count, discoveryState.query, lineageContext, selectedSummary, surface]);
+  }, [currentAsset, discovery.count, discoveryState.query, lineageContext, surface]);
 
   useEffect(() => {
     if (surface !== "lineage") return;
@@ -292,16 +298,11 @@ export default function App() {
           onOpenAsset={openEntityWorkspace}
           onOpenGovernance={openGovernanceWorkspace}
           onOpenLineage={openLineageWorkspace}
-          onSelectAsset={setSelectedAssetFqn}
           results={discovery.assets}
           resultsCount={discovery.count}
           resultsError={discovery.error}
           resultsFacets={discovery.facets}
           resultsLoading={discovery.loading}
-          selectedAssetDetail={assetDetail.detail}
-          selectedAssetFqn={selectedAssetFqn}
-          selectedAssetSummary={selectedSummary}
-          selectedAssetLoading={assetDetail.loading}
         />
       );
     } else if (surface === "entity") {
@@ -318,7 +319,7 @@ export default function App() {
             setSurface("discovery");
           }}
           onLineageContextChange={setLineageContext}
-          onOpenGovernance={() => openGovernanceWorkspace(currentAsset?.fqn)}
+          onOpenGovernance={openGovernanceWorkspace}
           onOpenLineage={(nextContext = "Data Lineage") =>
             openLineageWorkspace(currentAsset?.fqn, nextContext)
           }
@@ -341,7 +342,7 @@ export default function App() {
           onContextChange={setLineageContext}
           onOpenGovernance={openGovernanceWorkspace}
           onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
-          onSelectAsset={setSelectedAssetFqn}
+          onSelectAsset={setFocusedAssetFqn}
         />
       ) : (
         unavailableWorkspace("Select an asset to inspect its lineage workspace.")
@@ -369,28 +370,30 @@ export default function App() {
         if (nextModule === "discovery") {
           setSurface("discovery");
         } else if (nextModule === "lineage") {
-          if (!selectedAssetFqn && data?.initialSelection?.primaryAssetFqn) {
-            setSelectedAssetFqn(data.initialSelection.primaryAssetFqn);
-          }
           setSurface("lineage");
         } else {
-          if (!selectedAssetFqn && data?.initialSelection?.primaryAssetFqn) {
-            setSelectedAssetFqn(data.initialSelection.primaryAssetFqn);
-          }
           setSurface("governance");
         }
       }}
+      onOpenFocusedAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
       onSearchQueryChange={setShellSearchQuery}
+      onSearchResultSelect={(assetFqn) => {
+        setShellSearchQuery("");
+        openEntityWorkspace(assetFqn, "Overview");
+      }}
       onSearchSubmit={() => {
         setDiscoveryState((current) => ({
           ...current,
           query: shellSearchQuery,
         }));
-        setSelectedAssetFqn("");
+        setFocusedAssetFqn("");
         setSurface("discovery");
       }}
-      onOpenFocusedAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
+      searchError={shellSearch.error}
+      searchLoading={shellSearch.loading}
+      searchPanelOpen={shellSearchOpen}
       searchQuery={shellSearchQuery}
+      searchResults={shellSearch.assets}
       shell={shell}
       shellContext={shellContext}
       surface={surface}

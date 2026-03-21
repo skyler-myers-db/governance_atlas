@@ -25,8 +25,13 @@ export default function AppFrame({
   bootState,
   bootMessage,
   searchQuery,
+  searchResults,
+  searchLoading,
+  searchError,
+  searchPanelOpen,
   onSearchQueryChange,
   onSearchSubmit,
+  onSearchResultSelect,
   shellContext,
   onOpenFocusedAsset,
   children,
@@ -53,12 +58,48 @@ export default function AppFrame({
               onSearchSubmit?.();
             }}
           >
-            <input
-              className="gh-input gh-global-search-input"
-              onChange={(event) => onSearchQueryChange?.(event.target.value)}
-              placeholder="Search assets, lineage context, glossary terms, or governance gaps"
-              value={searchQuery}
-            />
+            <div className="gh-global-search-field">
+              <input
+                className="gh-input gh-global-search-input"
+                onChange={(event) => onSearchQueryChange?.(event.target.value)}
+                placeholder="Search assets, lineage context, glossary terms, or governance gaps"
+                value={searchQuery}
+              />
+              {searchPanelOpen ? (
+                <div className="gh-search-dropdown">
+                  <div className="gh-search-dropdown-head">
+                    <span className="gh-panel-title">Global search</span>
+                    {searchLoading ? <span className="gh-search-dropdown-status">Searching…</span> : null}
+                  </div>
+                  {searchError ? (
+                    <div className="gh-search-empty">{searchError}</div>
+                  ) : searchResults?.length ? (
+                    <div className="gh-search-results">
+                      {searchResults.map((asset) => (
+                        <button
+                          className="gh-search-result-row"
+                          key={asset.fqn}
+                          onClick={() => onSearchResultSelect?.(asset.fqn)}
+                          type="button"
+                        >
+                          <span className="gh-search-result-main">
+                            <span className="gh-search-result-title">{asset.name}</span>
+                            <span className="gh-search-result-subtitle">
+                              {asset.catalog} / {asset.schema}
+                            </span>
+                          </span>
+                          <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="gh-search-empty">
+                      Search the catalog or press enter to browse the full result set.
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
             <button className="gh-primary-button gh-search-submit" type="submit">
               Search
             </button>
