@@ -1210,13 +1210,33 @@ def _governance_summary() -> Dict[str, Any]:
                     }
                 )
 
+        glossary_asset_map: Dict[str, List[str]] = {}
+        if inventory is not None and not inventory.empty and "glossary_term" in inventory.columns:
+            glossary_inventory = inventory[
+                inventory["glossary_term"].fillna("").astype(str).ne("")
+            ].copy()
+            if not glossary_inventory.empty:
+                glossary_asset_map = (
+                    glossary_inventory.groupby("glossary_term")["fqn"]
+                    .apply(lambda series: [str(item) for item in series.head(8).tolist() if str(item)])
+                    .to_dict()
+                )
+
         glossary_rows: List[Dict[str, str]] = []
         if glossary is not None and not glossary.empty:
             for _, row in glossary.head(50).iterrows():
+                term_name = _normalize_str(row.get("name"))
+                related_assets = glossary_asset_map.get(term_name, [])
                 glossary_rows.append(
                     {
-                        "term": _normalize_str(row.get("name")),
+                        "termId": _normalize_str(row.get("term_id")),
+                        "term": term_name,
                         "definition": _normalize_str(row.get("definition")) or "No definition",
+                        "domain": _normalize_str(row.get("domain")) or "Unassigned",
+                        "ownerEmail": _normalize_str(row.get("owner_email")) or "Unassigned",
+                        "status": _normalize_str(row.get("status")).title() or "Draft",
+                        "assetCount": len(related_assets),
+                        "assets": related_assets,
                     }
                 )
 
