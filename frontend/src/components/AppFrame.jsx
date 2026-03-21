@@ -4,12 +4,21 @@ function statusTone(bootState) {
   return "neutral";
 }
 
+function statusLabel(bootState) {
+  if (bootState === "degraded") return "Read only";
+  if (bootState === "unavailable" || bootState === "error") return "Unavailable";
+  return "Live";
+}
+
 export default function AppFrame({
   shell,
   activeModule,
   onModuleChange,
   bootState,
   bootMessage,
+  searchQuery,
+  onSearchQueryChange,
+  onSearchSubmit,
   children,
 }) {
   const modules = ["discovery", "lineage", "governance"];
@@ -17,32 +26,55 @@ export default function AppFrame({
 
   return (
     <div className="gh-app">
-      <header className="gh-topbar">
-        <div className="gh-brandlock">
+      <header className="gh-shell-header">
+        <div className="gh-shell-brand">
           <div className="gh-brand-mark">GH</div>
           <div className="gh-brand-copy">
             <div className="gh-eyebrow">Enterprise metadata for Databricks</div>
             <h1>Governance Hub</h1>
-            <p>Search trusted assets, inspect lineage, and keep governance context in one workspace.</p>
           </div>
         </div>
-        <div className="gh-topbar-side">
-          <div className="gh-chip-row">
+
+        <form
+          className="gh-global-search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSearchSubmit?.();
+          }}
+        >
+          <input
+            className="gh-input gh-global-search-input"
+            onChange={(event) => onSearchQueryChange?.(event.target.value)}
+            placeholder="Search assets, lineage context, glossary terms, or governance gaps"
+            value={searchQuery}
+          />
+          <button className="gh-primary-button gh-search-submit" type="submit">
+            Search
+          </button>
+        </form>
+
+        <div className="gh-shell-utility">
+          <div className="gh-chip-row gh-shell-session">
+            <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
+              {statusLabel(bootState)}
+            </span>
             <span className="gh-chip">{shell?.role || "Reader"}</span>
             <span className="gh-chip">{shell?.userEmail || "unknown"}</span>
           </div>
-          <div className="gh-top-metric-row">
-            {metrics.slice(0, 4).map((metric) => (
-              <div className="gh-top-metric" key={metric.label}>
-                <span className="gh-top-metric-label">{metric.label}</span>
-                <span className="gh-top-metric-value">{metric.value}</span>
-              </div>
-            ))}
-          </div>
+          {metrics.length ? (
+            <div className="gh-shell-metrics">
+              {metrics.slice(0, 4).map((metric) => (
+                <div className="gh-metric-pill" key={metric.label}>
+                  <span className="gh-metric-pill-value">{metric.value}</span>
+                  <span className="gh-metric-pill-label">{metric.label}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       </header>
 
-      <nav className="gh-product-nav" aria-label="Primary modules">
+      <nav className="gh-shell-nav" aria-label="Primary modules">
         {modules.map((module) => (
           <button
             className={`gh-product-tab ${activeModule === module ? "is-active" : ""}`}
@@ -59,7 +91,7 @@ export default function AppFrame({
         <section className={`gh-shell-banner tone-${statusTone(bootState)}`}>
           <div className="gh-eyebrow">
             {bootState === "degraded"
-              ? "Read-only mode"
+              ? "Workspace running in degraded mode"
               : bootState === "error"
                 ? "Workspace failed to load"
                 : "Workspace unavailable"}

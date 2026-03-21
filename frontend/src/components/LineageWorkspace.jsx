@@ -1,9 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import LineageGraph from "./LineageGraph";
 
 function selectGraph(graphBundle, context) {
   if (!graphBundle) return null;
   return context === "Operational Context" ? graphBundle.operational : graphBundle.data;
+}
+
+function graphSummary(graph) {
+  if (!graph?.nodes?.length) {
+    return { upstream: 0, downstream: 0, nodes: 0, edges: 0 };
+  }
+  return {
+    upstream: graph.nodes.filter((node) => node.role === "source").length,
+    downstream: graph.nodes.filter((node) => node.role === "target").length,
+    nodes: graph.nodes.length,
+    edges: graph.edges?.length || 0,
+  };
 }
 
 export default function LineageWorkspace({
@@ -13,6 +25,7 @@ export default function LineageWorkspace({
   error,
   context,
   onContextChange,
+  onOpenGovernance,
   onSelectAsset,
   onOpenAsset,
   assetSearchQuery,
@@ -21,6 +34,7 @@ export default function LineageWorkspace({
   assetSearchLoading,
 }) {
   const graph = selectGraph(graphBundle, context);
+  const summary = useMemo(() => graphSummary(graph), [graph]);
   const [selectedNodeId, setSelectedNodeId] = useState("focus");
   const nodes = graph?.nodes || [];
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) || nodes[0] || null;
@@ -30,18 +44,20 @@ export default function LineageWorkspace({
   }, [asset?.fqn, context, graph?.nodes?.length, graph?.edges?.length]);
 
   return (
-    <section className="gh-lineage-workspace">
-      <div className="gh-lineage-toolbar gh-panel">
-        <div className="gh-lineage-toolbar-copy">
-          <div className="gh-panel-title">Lineage Workspace</div>
-          <div className="gh-support-copy">
-            Trace dependencies around the selected asset without leaving the graph workflow.
+    <section className="gh-lineage-shell">
+      <header className="gh-panel gh-lineage-header">
+        <div className="gh-lineage-header-main">
+          <div className="gh-panel-title">Lineage</div>
+          <h2 className="gh-workspace-title">{asset.name}</h2>
+          <div className="gh-entity-context">
+            {asset.catalog} / {asset.schema}
           </div>
         </div>
-        <div className="gh-lineage-toolbar-controls">
+
+        <div className="gh-lineage-header-controls">
           <div className="gh-lineage-asset-picker">
             <label className="gh-filter-title" htmlFor="gh-lineage-asset-search">
-              Focus Asset
+              Focus asset
             </label>
             <input
               className="gh-input"
@@ -72,18 +88,43 @@ export default function LineageWorkspace({
               )}
             </div>
           </div>
-          <div className="gh-segment-row">
-            {["Data Lineage", "Operational Context"].map((option) => (
-              <button
-                className={`gh-segment-button ${context === option ? "is-active" : ""}`}
-                key={option}
-                onClick={() => onContextChange(option)}
-                type="button"
-              >
-                {option}
-              </button>
-            ))}
+
+          <div className="gh-lineage-header-actions">
+            <div className="gh-segment-row">
+              {["Data Lineage", "Operational Context"].map((option) => (
+                <button
+                  className={`gh-segment-button ${context === option ? "is-active" : ""}`}
+                  key={option}
+                  onClick={() => onContextChange(option)}
+                  type="button"
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+            <button className="gh-secondary-button" onClick={() => onOpenAsset(asset.fqn)} type="button">
+              Open asset
+            </button>
           </div>
+        </div>
+      </header>
+
+      <div className="gh-summary-grid gh-lineage-summary-grid">
+        <div className="gh-stat-card">
+          <span className="gh-stat-label">Upstream</span>
+          <span className="gh-stat-value">{loading ? "…" : summary.upstream}</span>
+        </div>
+        <div className="gh-stat-card">
+          <span className="gh-stat-label">Downstream</span>
+          <span className="gh-stat-value">{loading ? "…" : summary.downstream}</span>
+        </div>
+        <div className="gh-stat-card">
+          <span className="gh-stat-label">Nodes</span>
+          <span className="gh-stat-value">{loading ? "…" : summary.nodes}</span>
+        </div>
+        <div className="gh-stat-card">
+          <span className="gh-stat-label">Edges</span>
+          <span className="gh-stat-value">{loading ? "…" : summary.edges}</span>
         </div>
       </div>
 
@@ -105,7 +146,7 @@ export default function LineageWorkspace({
         </section>
 
         <aside className="gh-panel gh-lineage-detail">
-          <div className="gh-panel-title">Selected Node</div>
+          <div className="gh-panel-title">Selection</div>
           {selectedNode ? (
             <>
               <h2>{selectedNode.label}</h2>
@@ -128,7 +169,14 @@ export default function LineageWorkspace({
                     onClick={() => onOpenAsset(selectedNode.assetFqn)}
                     type="button"
                   >
-                    Open asset page
+                    Open asset
+                  </button>
+                  <button
+                    className="gh-secondary-button"
+                    onClick={() => onOpenGovernance(selectedNode.assetFqn)}
+                    type="button"
+                  >
+                    Open governance
                   </button>
                 </div>
               ) : null}
@@ -138,7 +186,7 @@ export default function LineageWorkspace({
           )}
 
           <div className="gh-detail-section">
-            <div className="gh-panel-title">Focus Asset</div>
+            <div className="gh-panel-title">Focus asset</div>
             <h3>{asset.name}</h3>
             <div className="gh-support-copy">
               {asset.catalog} / {asset.schema}
