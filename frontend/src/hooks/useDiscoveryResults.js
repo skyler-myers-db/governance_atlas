@@ -38,11 +38,13 @@ export function useDiscoveryResults(filters, seededAssets = []) {
         })
         .catch((error) => {
           if (canceled) return;
-          setState((prev) => ({
-            ...prev,
+          setState({
             loading: false,
             error: error?.message || "Failed to search metadata assets.",
-          }));
+            assets: [],
+            count: 0,
+            facets: null,
+          });
         });
     }, 180);
 

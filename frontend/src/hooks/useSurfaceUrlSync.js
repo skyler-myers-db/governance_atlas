@@ -1,6 +1,12 @@
 import { useEffect } from "react";
 
-export function useSurfaceUrlSync({ surface, routeAssetFqn, entityTab, lineageContext }) {
+export function useSurfaceUrlSync({
+  surface,
+  routeAssetFqn,
+  entityTab,
+  lineageContext,
+  discoveryQuery,
+}) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -15,7 +21,9 @@ export function useSurfaceUrlSync({ surface, routeAssetFqn, entityTab, lineageCo
     else params.delete("entityTab");
     if (surface === "lineage") params.set("lineageContext", lineageContext);
     else params.delete("lineageContext");
+    if (surface === "discovery" && discoveryQuery?.trim()) params.set("q", discoveryQuery.trim());
+    else params.delete("q");
     const nextUrl = `${window.location.pathname}?${params.toString()}`;
     window.history.replaceState({}, "", nextUrl);
-  }, [entityTab, lineageContext, routeAssetFqn, surface]);
+  }, [discoveryQuery, entityTab, lineageContext, routeAssetFqn, surface]);
 }
