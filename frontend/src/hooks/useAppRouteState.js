@@ -35,80 +35,62 @@ function parseRouteState() {
 export function useAppRouteState() {
   const route = useMemo(() => parseRouteState(), []);
   const [surface, setSurface] = useState(route.surface);
-  const [entityState, setEntityState] = useState({
-    assetFqn: route.surface === "entity" ? route.asset : "",
-    tab: route.entityTab,
-  });
-  const [entityLineageContext, setEntityLineageContext] = useState("Data Lineage");
-  const [lineageState, setLineageState] = useState({
-    focusAssetFqn: route.surface === "lineage" ? route.asset : "",
-    context: route.lineageContext,
-  });
-  const [governanceState, setGovernanceState] = useState({
-    assetFqn: route.surface === "governance" ? route.asset : "",
-  });
+  const [routeAssetFqn, setRouteAssetFqn] = useState(route.surface === "discovery" ? "" : route.asset);
+  const [routeEntityTab, setRouteEntityTab] = useState(route.entityTab);
+  const [routeLineageContext, setRouteLineageContext] = useState(route.lineageContext);
   const [discoveryRouteState, setDiscoveryRouteState] = useState({
     query: route.discoveryQuery || "",
     requestKey: route.discoveryQuery ? 1 : 0,
+    fresh: false,
   });
 
   const openEntityWorkspace = (assetFqn, nextTab = "Overview") => {
     if (!assetFqn) return;
-    setEntityState((current) => ({
-      ...current,
-      assetFqn,
-      tab: nextTab,
-    }));
+    setRouteAssetFqn(assetFqn);
+    setRouteEntityTab(nextTab);
     setSurface("entity");
   };
 
   const openLineageWorkspace = (assetFqn, nextContext = "Data Lineage") => {
-    setLineageState({
-      focusAssetFqn: assetFqn || "",
-      context: nextContext,
-    });
+    setRouteAssetFqn(assetFqn || "");
+    setRouteLineageContext(nextContext);
     setSurface("lineage");
   };
 
   const openGovernanceWorkspace = (assetFqn = "") => {
-    setGovernanceState({
-      assetFqn,
-    });
+    setRouteAssetFqn(assetFqn || "");
     setSurface("governance");
   };
 
-  const submitDiscoverySearch = (query = "") => {
-    setEntityState({
-      assetFqn: "",
-      tab: "Overview",
-    });
-    setEntityLineageContext("Data Lineage");
-    setLineageState({
-      focusAssetFqn: "",
-      context: "Data Lineage",
-    });
-    setGovernanceState({
-      assetFqn: "",
-    });
-    setDiscoveryRouteState({
-      query,
-      requestKey: Date.now(),
-    });
-    setSurface("discovery");
+  const setDiscoveryRouteQuery = (query = "", options = {}) => {
+    setDiscoveryRouteState((current) =>
+      current.query === query
+        && current.fresh === Boolean(options.fresh)
+        ? current
+        : {
+            ...current,
+            query,
+            requestKey: Date.now(),
+            fresh: Boolean(options.fresh),
+          },
+    );
   };
 
-  const setDiscoveryRouteQuery = (query = "") => {
-    setDiscoveryRouteState((current) =>
-      current.query === query ? current : { ...current, query },
-    );
+  const openDiscoveryWorkspace = (query = "", options = {}) => {
+    setSurface("discovery");
+    setRouteAssetFqn("");
+    setDiscoveryRouteQuery(query, options);
   };
 
   const onModuleChange = (nextModule) => {
     if (nextModule === "discovery") {
-      setSurface("discovery");
+      openDiscoveryWorkspace("", { fresh: true });
     } else if (nextModule === "lineage") {
+      setRouteAssetFqn("");
+      setRouteLineageContext("Data Lineage");
       setSurface("lineage");
     } else {
+      setRouteAssetFqn("");
       setSurface("governance");
     }
   };
@@ -119,20 +101,13 @@ export function useAppRouteState() {
     const onPopState = () => {
       const nextRoute = parseRouteState();
       setSurface(nextRoute.surface);
-      setEntityState({
-        assetFqn: nextRoute.surface === "entity" ? nextRoute.asset : "",
-        tab: nextRoute.entityTab,
-      });
-      setLineageState({
-        focusAssetFqn: nextRoute.surface === "lineage" ? nextRoute.asset : "",
-        context: nextRoute.lineageContext,
-      });
-      setGovernanceState({
-        assetFqn: nextRoute.surface === "governance" ? nextRoute.asset : "",
-      });
+      setRouteAssetFqn(nextRoute.surface === "discovery" ? "" : nextRoute.asset);
+      setRouteEntityTab(nextRoute.entityTab);
+      setRouteLineageContext(nextRoute.lineageContext);
       setDiscoveryRouteState({
         query: nextRoute.discoveryQuery || "",
         requestKey: Date.now(),
+        fresh: false,
       });
     };
 
@@ -142,39 +117,27 @@ export function useAppRouteState() {
     };
   }, []);
 
-  const routeAssetFqn =
-    surface === "entity"
-      ? entityState.assetFqn
-      : surface === "lineage"
-        ? lineageState.focusAssetFqn
-        : surface === "governance"
-          ? governanceState.assetFqn
-          : "";
-
   useSurfaceUrlSync({
     surface,
     routeAssetFqn,
-    entityTab: entityState.tab,
-    lineageContext: lineageState.context,
+    entityTab: routeEntityTab,
+    lineageContext: routeLineageContext,
     discoveryQuery: discoveryRouteState.query,
   });
 
   return {
     surface,
     setSurface,
-    entityState,
-    setEntityState,
-    entityLineageContext,
-    setEntityLineageContext,
-    lineageState,
-    setLineageState,
-    governanceState,
-    setGovernanceState,
+    routeAssetFqn,
+    routeEntityTab,
+    setRouteEntityTab,
+    routeLineageContext,
+    setRouteLineageContext,
     discoveryRouteState,
     openEntityWorkspace,
     openLineageWorkspace,
     openGovernanceWorkspace,
-    submitDiscoverySearch,
+    openDiscoveryWorkspace,
     setDiscoveryRouteQuery,
     onModuleChange,
   };

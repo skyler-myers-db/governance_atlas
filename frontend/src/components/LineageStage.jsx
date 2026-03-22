@@ -26,22 +26,22 @@ export default function LineageStage({
 }) {
   const graph = selectGraph(graphBundle, context);
   const hasGraph = Boolean(graph?.nodes?.length);
+  const hasEdges = Boolean(graph?.edges?.length);
   const [refocusOpen, setRefocusOpen] = useState(false);
 
   return (
     <section className={`gh-lineage-stage-shell ${embedded ? "is-embedded" : "is-full"}`}>
-      <div className="gh-lineage-headbar">
-        <div className="gh-lineage-headbar-main">
-          <div className="gh-panel-title">{context}</div>
+      <section className="gh-lineage-graph-panel gh-lineage-graph-stage">
+        <div className="gh-lineage-stage-overlay gh-lineage-stage-overlay-main">
+          <span className="gh-chip gh-chip-soft">{context}</span>
           <div className="gh-lineage-headbar-title">{asset.name}</div>
           <div className="gh-lineage-headbar-meta">
-            <span>
-              {asset.catalog} / {asset.schema}
-            </span>
+            <span>{asset.catalog} / {asset.schema}</span>
+            <span>{asset.objectType}</span>
           </div>
         </div>
 
-        <div className="gh-lineage-headbar-actions">
+        <div className="gh-lineage-stage-overlay gh-lineage-stage-overlay-actions">
           <div className="gh-segment-row">
             {["Data Lineage", "Operational Context"].map((option) => (
               <button
@@ -116,9 +116,6 @@ export default function LineageStage({
             </button>
           ) : null}
         </div>
-      </div>
-
-      <section className="gh-lineage-graph-panel gh-lineage-graph-stage">
         <div className="gh-lineage-stage-canvas">
           {loading ? (
             <div className="gh-empty-state">Loading lineage graph…</div>
@@ -129,6 +126,7 @@ export default function LineageStage({
               asset={asset}
               context={context}
               graph={graph}
+              hasEdges={hasEdges}
               onOpenAsset={onOpenAsset}
               onOpenGovernance={onOpenGovernance}
               onSelectAsset={onSelectAsset}
@@ -136,8 +134,8 @@ export default function LineageStage({
           ) : (
             <div className="gh-empty-state">
               {context === "Operational Context"
-                ? "No operational entities are connected to this asset yet."
-                : "No lineage graph is available for this asset yet."}
+                ? "No operational entities are currently connected to this asset."
+                : "No connected lineage edges are available for this asset yet."}
             </div>
           )}
         </div>

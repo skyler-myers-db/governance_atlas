@@ -78,6 +78,7 @@ export function useDiscoveryWorkspace({
   bootstrap,
   initialQuery = "",
   querySeedKey = 0,
+  querySeedFresh = false,
   onRouteQueryChange,
 }) {
   const seedState = useMemo(
@@ -92,8 +93,12 @@ export function useDiscoveryWorkspace({
 
   useEffect(() => {
     if (!querySeedKey) return;
-    setFilters((current) => normalizeDiscoveryState(bootstrap, current, initialQuery));
-  }, [initialQuery, querySeedKey]);
+    setFilters((current) =>
+      querySeedFresh
+        ? defaultDiscoveryState(bootstrap, initialQuery)
+        : normalizeDiscoveryState(bootstrap, current, initialQuery)
+    );
+  }, [bootstrap, initialQuery, querySeedFresh, querySeedKey]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {
