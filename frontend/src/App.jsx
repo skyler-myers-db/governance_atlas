@@ -26,20 +26,17 @@ export default function App() {
   const {
     surface,
     setSurface,
-    entityState,
-    setEntityState,
-    entityLineageContext,
-    setEntityLineageContext,
-    lineageState,
-    setLineageState,
-    governanceState,
-    setGovernanceState,
+    routeAssetFqn,
+    routeEntityTab,
+    setRouteEntityTab,
+    routeLineageContext,
+    setRouteLineageContext,
     discoveryRouteState,
     setDiscoveryRouteQuery,
+    openDiscoveryWorkspace,
     openEntityWorkspace,
     openLineageWorkspace,
     openGovernanceWorkspace,
-    submitDiscoverySearch,
     onModuleChange,
   } = useAppRouteState();
 
@@ -87,38 +84,34 @@ export default function App() {
     } else if (surface === "entity") {
       content = (
         <EntityWorkspace
-          activeTab={entityState.tab}
-          assetFqn={entityState.assetFqn}
+          assetFqn={surface === "entity" ? routeAssetFqn : ""}
           bootstrap={data}
-          lineageContext={entityLineageContext}
+          initialTab={routeEntityTab}
           onBack={() => {
             setSurface("discovery");
           }}
-          onLineageContextChange={setEntityLineageContext}
           onOpenGovernance={openGovernanceWorkspace}
-          onOpenLineage={(nextContext = "Data Lineage") =>
-            openLineageWorkspace(entityState.assetFqn, nextContext)
+          onOpenLineage={(assetFqn, nextContext = "Data Lineage") =>
+            openLineageWorkspace(assetFqn || routeAssetFqn, nextContext)
           }
           onSelectAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
-          onTabChange={(nextTab) =>
-            setEntityState((current) => ({
-              ...current,
-              tab: nextTab,
-            }))
-          }
+          onTabRouteChange={setRouteEntityTab}
         />
       );
     } else if (surface === "lineage") {
       content = (
         <LineageWorkspace
           bootstrap={data}
-          initialAssetFqn={lineageState.focusAssetFqn}
-          initialContext={lineageState.context}
+          initialAssetFqn={surface === "lineage" ? routeAssetFqn : ""}
+          initialContext={routeLineageContext}
           onRouteStateChange={({ assetFqn, context }) =>
-            setLineageState((current) => ({
-              focusAssetFqn: assetFqn ?? current.focusAssetFqn,
-              context: context ?? current.context,
-            }))
+            {
+              if (assetFqn !== undefined) {
+                openLineageWorkspace(assetFqn, context ?? routeLineageContext);
+              } else if (context !== undefined) {
+                setRouteLineageContext(context);
+              }
+            }
           }
           onOpenGovernance={openGovernanceWorkspace}
           onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
@@ -128,13 +121,9 @@ export default function App() {
       content = (
         <GovernanceWorkspace
           bootstrap={data}
-          initialAssetFqn={governanceState.assetFqn}
+          initialAssetFqn={surface === "governance" ? routeAssetFqn : ""}
           governance={data.governance}
-          onRouteAssetChange={(assetFqn) =>
-            setGovernanceState({
-              assetFqn,
-            })
-          }
+          onRouteAssetChange={(assetFqn) => openGovernanceWorkspace(assetFqn || "")}
           onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Governance")}
           onOpenLineage={openLineageWorkspace}
         />
@@ -147,8 +136,8 @@ export default function App() {
       activeModule={surface === "lineage" ? "lineage" : surface === "governance" ? "governance" : "discovery"}
       bootMessage={bootMessage}
       bootState={bootState}
+      onBrowseCatalog={openDiscoveryWorkspace}
       onModuleChange={onModuleChange}
-      onSearchBrowse={submitDiscoverySearch}
       onSearchResultSelect={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
       shell={shell}
     >
