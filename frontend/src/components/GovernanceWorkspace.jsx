@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAssetDetail } from "../hooks/useAssetDetail";
+import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 
 function governanceViews(governance) {
   const metrics = governance?.metrics || [];
@@ -79,11 +81,18 @@ function AttributeList({ items }) {
 }
 
 export default function GovernanceWorkspace({
+  initialAssetFqn,
+  bootstrap,
+  discoveryAssets,
   governance,
+  onRouteAssetChange,
   onOpenAsset,
   onOpenLineage,
-  focusedAsset,
 }) {
+  const [focusedAssetFqn, setFocusedAssetFqn] = useState(initialAssetFqn || "");
+  const seeded = useSeededAssetContext(focusedAssetFqn, bootstrap, discoveryAssets);
+  const assetDetail = useAssetDetail(focusedAssetFqn || "");
+  const focusedAsset = assetDetail.detail || seeded.summary;
   const views = useMemo(() => governanceViews(governance), [governance]);
   const stewardshipQueues = [
     { key: "requests", label: "Open work", count: views.requests.length },
@@ -91,8 +100,19 @@ export default function GovernanceWorkspace({
   ];
   const [mode, setMode] = useState("stewardship");
   const [view, setView] = useState("requests");
-  const [selectedId, setSelectedId] = useState("");
+  const [selectedWorkId, setSelectedWorkId] = useState("");
+  const [selectedGlossaryId, setSelectedGlossaryId] = useState("");
   const [glossaryQuery, setGlossaryQuery] = useState("");
+
+  useEffect(() => {
+    setFocusedAssetFqn(initialAssetFqn || "");
+  }, [initialAssetFqn]);
+
+  const focusAsset = (assetFqn) => {
+    setFocusedAssetFqn(assetFqn || "");
+    onRouteAssetChange?.(assetFqn || "");
+  };
+
   const items = views[view] || [];
   const assetScopedRequests =
     focusedAsset && view === "requests"
@@ -101,7 +121,7 @@ export default function GovernanceWorkspace({
   const assetScopedEmpty =
     Boolean(focusedAsset) && view === "requests" && !assetScopedRequests.length;
   const workItems = assetScopedEmpty ? [] : assetScopedRequests;
-  const selectedItem = workItems.find((item) => item.id === selectedId) || workItems[0] || null;
+  const selectedItem = workItems.find((item) => item.id === selectedWorkId) || workItems[0] || null;
   const actionTrack = governanceActionTrack(focusedAsset);
   const linkedGlossary = useMemo(() => {
     if (!focusedAsset) return [];
@@ -119,7 +139,7 @@ export default function GovernanceWorkspace({
     });
   }, [glossaryQuery, views.glossary]);
   const selectedGlossary =
-    glossaryItems.find((item) => item.id === selectedId) || glossaryItems[0] || null;
+    glossaryItems.find((item) => item.id === selectedGlossaryId) || glossaryItems[0] || null;
   const focusedAssetAttributes = focusedAsset
     ? [
         { label: "Domain", value: focusedAsset.domain || "Unassigned" },
@@ -132,12 +152,16 @@ export default function GovernanceWorkspace({
     : [];
 
   useEffect(() => {
-    if (mode === "glossary") {
-      setSelectedId(glossaryItems[0]?.id || "");
-      return;
-    }
-    setSelectedId(workItems[0]?.id || "");
-  }, [glossaryItems, mode, view, workItems]);
+    setSelectedWorkId((current) =>
+      workItems.some((item) => item.id === current) ? current : workItems[0]?.id || ""
+    );
+  }, [workItems]);
+
+  useEffect(() => {
+    setSelectedGlossaryId((current) =>
+      glossaryItems.some((item) => item.id === current) ? current : glossaryItems[0]?.id || ""
+    );
+  }, [glossaryItems]);
 
   return (
     <section className="gh-governance-shell">
@@ -209,6 +233,9 @@ export default function GovernanceWorkspace({
                   >
                     Open lineage
                   </button>
+                  <button className="gh-secondary-button" onClick={() => focusAsset("")} type="button">
+                    Clear focus
+                  </button>
                 </div>
               </div>
             </section>
@@ -260,7 +287,7 @@ export default function GovernanceWorkspace({
                       <button
                         className={`gh-request-card gh-request-row ${selectedItem?.id === item.id ? "is-active" : ""}`}
                         key={item.id}
-                        onClick={() => setSelectedId(item.id)}
+                        onClick={() => setSelectedWorkId(item.id)}
                         type="button"
                       >
                         <div className="gh-request-title">{item.title}</div>
@@ -299,7 +326,7 @@ export default function GovernanceWorkspace({
                         key={item.id}
                         onClick={() => {
                           setMode("glossary");
-                          setSelectedId(item.id);
+                          setSelectedGlossaryId(item.id);
                         }}
                         type="button"
                       >
@@ -326,6 +353,13 @@ export default function GovernanceWorkspace({
                       <div className="gh-action-grid">
                         <button
                           className="gh-primary-button"
+                          onClick={() => focusAsset(selectedItem.assetFqn)}
+                          type="button"
+                        >
+                          Focus here
+                        </button>
+                        <button
+                          className="gh-secondary-button"
                           onClick={() => onOpenAsset(selectedItem.assetFqn)}
                           type="button"
                         >
@@ -369,7 +403,7 @@ export default function GovernanceWorkspace({
                     <button
                       className={`gh-request-card gh-request-row ${selectedGlossary?.id === item.id ? "is-active" : ""}`}
                       key={item.id}
-                      onClick={() => setSelectedId(item.id)}
+                      onClick={() => setSelectedGlossaryId(item.id)}
                       type="button"
                     >
                       <div className="gh-request-title">{item.title}</div>
@@ -413,7 +447,7 @@ export default function GovernanceWorkspace({
                     <button
                       className="gh-filter-chip gh-chip-soft"
                       key={assetFqn}
-                      onClick={() => onOpenAsset(assetFqn)}
+                      onClick={() => focusAsset(assetFqn)}
                       type="button"
                     >
                       {assetFqn.split(".").slice(-2).join(" / ")}

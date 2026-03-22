@@ -1,4 +1,7 @@
 import LineageStage from "./LineageStage";
+import { useAssetDetail } from "../hooks/useAssetDetail";
+import { useLineage } from "../hooks/useLineage";
+import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 
 function statusTone(asset) {
   if (asset?.governanceStatus === "Enterprise Ready") return "good";
@@ -85,9 +88,9 @@ function AttributeList({ items }) {
 }
 
 export default function EntityWorkspace({
-  asset,
-  detail,
-  loading,
+  assetFqn,
+  bootstrap,
+  discoveryAssets,
   activeTab,
   lineageContext,
   onTabChange,
@@ -95,10 +98,17 @@ export default function EntityWorkspace({
   onLineageContextChange,
   onOpenGovernance,
   onOpenLineage,
-  lineageBundle,
-  lineageLoading,
   onSelectAsset,
 }) {
+  const seeded = useSeededAssetContext(assetFqn, bootstrap, discoveryAssets);
+  const assetDetail = useAssetDetail(assetFqn || "");
+  const lineage = useLineage(assetFqn || "", seeded.seededGraph);
+  const asset = assetDetail.detail || seeded.summary;
+  const loading = assetDetail.loading;
+  const entity = assetDetail.detail || asset;
+  const lineageBundle = lineage.graph;
+  const lineageLoading = lineage.loading;
+
   if (!asset) {
     return (
       <section className="gh-workspace gh-entity-workspace">
@@ -110,7 +120,6 @@ export default function EntityWorkspace({
     );
   }
 
-  const entity = detail || asset;
   const columns = entity.columns || [];
   const preview = entity.preview || [];
   const dataCounts = lineageCounts(lineageBundle?.data);
