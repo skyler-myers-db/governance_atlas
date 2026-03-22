@@ -824,6 +824,17 @@ body {
   gap: 10px;
 }
 
+.gh-lineage-empty-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.gh-lineage-empty-search {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
 .gh-lineage-search-list {
   display: grid;
   gap: 6px;
