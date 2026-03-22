@@ -9,7 +9,6 @@ export default function LineageWorkspace({
   initialAssetFqn,
   initialContext,
   bootstrap,
-  discoveryAssets,
   onRouteStateChange,
   onOpenGovernance,
   onOpenAsset,
@@ -17,7 +16,7 @@ export default function LineageWorkspace({
   const [focusAssetFqn, setFocusAssetFqn] = useState(initialAssetFqn || "");
   const [localContext, setLocalContext] = useState(initialContext || "Data Lineage");
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
-  const seeded = useSeededAssetContext(focusAssetFqn, bootstrap, discoveryAssets);
+  const seeded = useSeededAssetContext(focusAssetFqn, bootstrap, bootstrap?.assets || []);
   const assetDetail = useAssetDetail(focusAssetFqn || "");
   const lineage = useLineage(focusAssetFqn || "", seeded.seededGraph);
   const asset = assetDetail.detail || seeded.summary;
