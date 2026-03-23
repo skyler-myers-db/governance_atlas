@@ -57,6 +57,34 @@ function toggleMulti(filters, key, value, allLabel, onDiscoveryStateChange) {
   });
 }
 
+function clearFilter(filters, chip, onDiscoveryStateChange) {
+  if (chip.key === "query") {
+    onDiscoveryStateChange({ ...filters, query: "" });
+    return;
+  }
+  if (chip.key === "view") {
+    onDiscoveryStateChange({ ...filters, view: "All assets" });
+    return;
+  }
+  if (chip.key === "type") {
+    onDiscoveryStateChange({ ...filters, type: "All types" });
+    return;
+  }
+  const allLabelByKey = {
+    catalogs: "All catalogs",
+    domains: "All domains",
+    tiers: "All tiers",
+    certifications: "All certifications",
+    sensitivities: "All sensitivities",
+  };
+  const allLabel = allLabelByKey[chip.key];
+  const next = (filters[chip.key] || []).filter((value) => value !== chip.label && value !== allLabel);
+  onDiscoveryStateChange({
+    ...filters,
+    [chip.key]: next.length ? next : [allLabel],
+  });
+}
+
 function activeFilters(filters) {
   const chips = [];
   if (filters.query) chips.push({ label: `Search: ${filters.query}`, key: "query" });
@@ -125,25 +153,82 @@ function CategoryRail({ assetTypes, counts, selectedType, onSelectType }) {
 
 function SavedViews({ views, activeView, onSelectView }) {
   return (
-    <section className="gh-filter-section">
-      <div className="gh-filter-title">Views</div>
-      <div className="gh-saved-view-list">
-        {views.map((view) => (
-          <button
-            className={`gh-saved-view ${activeView === view ? "is-active" : ""}`}
-            key={view}
-            onClick={() => onSelectView(view)}
-            type="button"
-          >
-            {view}
-          </button>
-        ))}
-      </div>
-    </section>
+    <div className="gh-discovery-view-row">
+      {views.map((view) => (
+        <button
+          className={`gh-saved-view ${activeView === view ? "is-active" : ""}`}
+          key={view}
+          onClick={() => onSelectView(view)}
+          type="button"
+        >
+          {view}
+        </button>
+      ))}
+    </div>
   );
 }
 
-function ResultRow({ asset, onOpenAsset, onOpenLineage, onOpenGovernance }) {
+function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, onClose }) {
+  return (
+    <div className="gh-discovery-filter-popover">
+      <div className="gh-discovery-filter-popover-head">
+        <div className="gh-panel-title">Filters</div>
+        <button className="gh-secondary-button" onClick={onClose} type="button">
+          Close
+        </button>
+      </div>
+      <div className="gh-discovery-filter-popover-grid">
+        <FilterSection
+          allLabel="All catalogs"
+          label="Catalogs"
+          onToggle={(value, allLabel) =>
+            toggleMulti(filters, "catalogs", value, allLabel, onDiscoveryStateChange)
+          }
+          options={facetValues(facets, "catalogs", bootstrap.discovery.catalogs)}
+          selected={filters.catalogs}
+        />
+        <FilterSection
+          allLabel="All domains"
+          label="Domains"
+          onToggle={(value, allLabel) =>
+            toggleMulti(filters, "domains", value, allLabel, onDiscoveryStateChange)
+          }
+          options={facetValues(facets, "domains", bootstrap.discovery.domains)}
+          selected={filters.domains}
+        />
+        <FilterSection
+          allLabel="All tiers"
+          label="Tiers"
+          onToggle={(value, allLabel) =>
+            toggleMulti(filters, "tiers", value, allLabel, onDiscoveryStateChange)
+          }
+          options={facetValues(facets, "tiers", bootstrap.discovery.tiers)}
+          selected={filters.tiers}
+        />
+        <FilterSection
+          allLabel="All certifications"
+          label="Certifications"
+          onToggle={(value, allLabel) =>
+            toggleMulti(filters, "certifications", value, allLabel, onDiscoveryStateChange)
+          }
+          options={facetValues(facets, "certifications", bootstrap.discovery.certifications)}
+          selected={filters.certifications}
+        />
+        <FilterSection
+          allLabel="All sensitivities"
+          label="Sensitivities"
+          onToggle={(value, allLabel) =>
+            toggleMulti(filters, "sensitivities", value, allLabel, onDiscoveryStateChange)
+          }
+          options={facetValues(facets, "sensitivities", bootstrap.discovery.sensitivities)}
+          selected={filters.sensitivities}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ResultRow({ asset, onOpenAsset, onOpenGovernance, onOpenLineage }) {
   return (
     <article className="gh-result-row">
       <button className="gh-result-row-main" onClick={() => onOpenAsset(asset.fqn)} type="button">
@@ -192,10 +277,11 @@ export default function DiscoveryWorkspace({
   bootstrap,
   initialQuery,
   querySeedKey,
+  querySeedFresh,
   onRouteQueryChange,
   onOpenAsset,
-  onOpenLineage,
   onOpenGovernance,
+  onOpenLineage,
 }) {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(() => readDiscoveryUiState().showAdvancedFilters);
   const { filters, setFilters, results: discoveryResults } = useDiscoveryWorkspace({
@@ -203,6 +289,7 @@ export default function DiscoveryWorkspace({
     initialQuery,
     onRouteQueryChange,
     querySeedKey,
+    querySeedFresh,
   });
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -240,137 +327,88 @@ export default function DiscoveryWorkspace({
   return (
     <section className="gh-workspace gh-discovery-shell">
       <div className="gh-discovery-layout">
-        <aside className="gh-panel gh-discovery-sidebar">
-          <div className="gh-sidebar-head">
-            <div>
-              <div className="gh-panel-title">Catalog</div>
-              <div className="gh-support-copy">{resultsCount} assets in scope</div>
-            </div>
-          </div>
-
+        <aside className="gh-discovery-sidebar">
           <CategoryRail
             assetTypes={assetTypeOptions}
             counts={typeCounts}
             onSelectType={(type) => onDiscoveryStateChange({ ...filters, type })}
             selectedType={filters.type}
           />
-
-          <SavedViews
-            activeView={filters.view}
-            onSelectView={(view) => onDiscoveryStateChange({ ...filters, view })}
-            views={bootstrap.discovery.views}
-          />
-          <section className="gh-filter-section">
-            <button
-              className="gh-rail-toggle"
-              onClick={() => setShowAdvancedFilters((current) => !current)}
-              type="button"
-            >
-              <span className="gh-filter-title">More filters</span>
-              <span className="gh-chip gh-chip-soft">{showAdvancedFilters ? "Hide" : "Show"}</span>
-            </button>
-          </section>
-
-          {showAdvancedFilters ? (
-            <>
-              <FilterSection
-                allLabel="All catalogs"
-                label="Catalogs"
-                onToggle={(value, allLabel) =>
-                  toggleMulti(filters, "catalogs", value, allLabel, onDiscoveryStateChange)
-                }
-                options={facetValues(resultsFacets, "catalogs", bootstrap.discovery.catalogs)}
-                selected={filters.catalogs}
-              />
-              <FilterSection
-                allLabel="All domains"
-                label="Domains"
-                onToggle={(value, allLabel) =>
-                  toggleMulti(filters, "domains", value, allLabel, onDiscoveryStateChange)
-                }
-                options={facetValues(resultsFacets, "domains", bootstrap.discovery.domains)}
-                selected={filters.domains}
-              />
-              <FilterSection
-                allLabel="All tiers"
-                label="Tiers"
-                onToggle={(value, allLabel) =>
-                  toggleMulti(filters, "tiers", value, allLabel, onDiscoveryStateChange)
-                }
-                options={facetValues(resultsFacets, "tiers", bootstrap.discovery.tiers)}
-                selected={filters.tiers}
-              />
-              <FilterSection
-                allLabel="All certifications"
-                label="Certifications"
-                onToggle={(value, allLabel) =>
-                  toggleMulti(filters, "certifications", value, allLabel, onDiscoveryStateChange)
-                }
-                options={facetValues(resultsFacets, "certifications", bootstrap.discovery.certifications)}
-                selected={filters.certifications}
-              />
-              <FilterSection
-                allLabel="All sensitivities"
-                label="Sensitivities"
-                onToggle={(value, allLabel) =>
-                  toggleMulti(filters, "sensitivities", value, allLabel, onDiscoveryStateChange)
-                }
-                options={facetValues(resultsFacets, "sensitivities", bootstrap.discovery.sensitivities)}
-                selected={filters.sensitivities}
-              />
-            </>
-          ) : null}
         </aside>
 
         <section className="gh-discovery-main">
           <section className="gh-results-column">
-            <div className="gh-results-head">
-              <div className="gh-results-summary">
-                <div className="gh-panel-title">Search results</div>
-                <div className="gh-results-summary-line">
-                  {filters.query?.trim() ? `Search: ${filters.query}` : "Catalog browse"}
-                </div>
-                <div className="gh-support-copy">
-                  {resultsLoading ? "Refreshing live results…" : `${resultsCount} assets in scope`}
-                </div>
-              </div>
-              <div className="gh-results-head-actions gh-discovery-command-bar">
-                <input
-                  className="gh-input"
-                  onChange={(event) =>
-                    onDiscoveryStateChange({
-                      ...filters,
-                      query: event.target.value,
-                    })
-                  }
-                  placeholder="Search assets, views, dashboards, owners, glossary, or governance gaps"
-                  value={filters.query}
-                />
-                <select
-                  className="gh-select"
-                  onChange={(event) =>
-                    onDiscoveryStateChange({ ...filters, sortBy: event.target.value })
-                  }
-                  value={filters.sortBy}
+            <div className="gh-discovery-command-bar">
+              <input
+                className="gh-input"
+                onChange={(event) =>
+                  onDiscoveryStateChange({
+                    ...filters,
+                    query: event.target.value,
+                  })
+                }
+                placeholder="Search assets, views, dashboards, owners, glossary, or governance gaps"
+                value={filters.query}
+              />
+              <select
+                className="gh-select"
+                onChange={(event) =>
+                  onDiscoveryStateChange({ ...filters, sortBy: event.target.value })
+                }
+                value={filters.sortBy}
+              >
+                {bootstrap.discovery.sortOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <div className="gh-discovery-command-actions">
+                <button
+                  className={`gh-secondary-button ${showAdvancedFilters ? "is-active" : ""}`}
+                  onClick={() => setShowAdvancedFilters((current) => !current)}
+                  type="button"
                 >
-                  {bootstrap.discovery.sortOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                  Filters {filtersApplied.length ? `(${filtersApplied.length})` : ""}
+                </button>
+                {showAdvancedFilters ? (
+                  <FiltersPopover
+                    bootstrap={bootstrap}
+                    facets={resultsFacets}
+                    filters={filters}
+                    onClose={() => setShowAdvancedFilters(false)}
+                    onDiscoveryStateChange={onDiscoveryStateChange}
+                  />
+                ) : null}
               </div>
             </div>
+
+            <SavedViews
+              activeView={filters.view}
+              onSelectView={(view) => onDiscoveryStateChange({ ...filters, view })}
+              views={bootstrap.discovery.views}
+            />
 
             {filtersApplied.length ? (
               <div className="gh-active-filter-row">
                 {filtersApplied.map((chip) => (
-                  <span className="gh-chip gh-chip-soft" key={`${chip.key}-${chip.label}`}>
+                  <button
+                    className="gh-chip gh-chip-soft"
+                    key={`${chip.key}-${chip.label}`}
+                    onClick={() => clearFilter(filters, chip, onDiscoveryStateChange)}
+                    type="button"
+                  >
                     {chip.label}
-                  </span>
+                  </button>
                 ))}
               </div>
             ) : null}
+
+            <div className="gh-results-inline-state">
+              {resultsLoading
+                ? "Refreshing live results…"
+                : `${resultsCount} ${resultsCount === 1 ? "result" : "results"}`}
+            </div>
 
             {resultsError ? (
               <div className="gh-empty-state">

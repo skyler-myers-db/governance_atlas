@@ -150,6 +150,7 @@ export default function LineageGraph({
   asset,
   context,
   graph,
+  hasEdges,
   onOpenAsset,
   onOpenGovernance,
   onSelectAsset,
@@ -172,6 +173,7 @@ export default function LineageGraph({
 
   const focusNode = transformed.nodes.find((node) => node.data.role === "focus")?.data || null;
   const defaultFocusNodeId = focusNode?.id || transformed.nodes[0]?.id || "";
+  const graphHasEdges = hasEdges ?? transformed.edges.length > 0;
 
   useEffect(() => {
     setSelectedNodeId(defaultFocusNodeId);
@@ -179,6 +181,12 @@ export default function LineageGraph({
     setDrawerOpen(Boolean(defaultFocusNodeId));
     setGraphMode("explore");
   }, [asset?.fqn, context, defaultFocusNodeId]);
+
+  useEffect(() => {
+    if (!graphHasEdges && graphMode !== "explore") {
+      setGraphMode("explore");
+    }
+  }, [graphHasEdges, graphMode]);
 
   useEffect(() => {
     const edgeStillExists = selectedEdgeId && transformed.edges.some((edge) => edge.id === selectedEdgeId);
@@ -199,6 +207,8 @@ export default function LineageGraph({
   const selectedEdge = transformed.edges.find((edge) => edge.id === selectedEdgeId) || null;
   const selectedSource = selectedEdge ? nodesById[selectedEdge.source] || null : null;
   const selectedTarget = selectedEdge ? nodesById[selectedEdge.target] || null : null;
+  const showMiniMap = transformed.nodes.length >= 6;
+  const showControls = transformed.nodes.length >= 3;
   const nodeStats = selectedNode
     ? {
         upstream: transformed.edges.filter((edge) => edge.target === selectedNode.id).length,
@@ -238,20 +248,22 @@ export default function LineageGraph({
     <div className="gh-lineage-canvas">
       <div className="gh-lineage-canvas-controls">
         <div className="gh-segment-row">
-          {[
-            { key: "explore", label: "Explore" },
-            { key: "path", label: "Path" },
-            { key: "impact", label: "Impact" },
-          ].map((mode) => (
-            <button
-              className={`gh-segment-button ${graphMode === mode.key ? "is-active" : ""}`}
-              key={mode.key}
-              onClick={() => setGraphMode(mode.key)}
-              type="button"
-            >
-              {mode.label}
-            </button>
-          ))}
+          {graphHasEdges
+            ? [
+                { key: "explore", label: "Explore" },
+                { key: "path", label: "Path" },
+                { key: "impact", label: "Impact" },
+              ].map((mode) => (
+                <button
+                  className={`gh-segment-button ${graphMode === mode.key ? "is-active" : ""}`}
+                  key={mode.key}
+                  onClick={() => setGraphMode(mode.key)}
+                  type="button"
+                >
+                  {mode.label}
+                </button>
+              ))
+            : null}
         </div>
         <div className="gh-action-row">
           <button
@@ -305,15 +317,16 @@ export default function LineageGraph({
           setDrawerOpen(true);
         }}
         onPaneClick={() => {
-          setSelectedNodeId(defaultFocusNodeId);
           setSelectedEdgeId("");
+          setSelectedNodeId("");
+          setGraphMode("explore");
           setDrawerOpen(false);
         }}
         proOptions={{ hideAttribution: true }}
         defaultEdgeOptions={{ type: "smoothstep" }}
       >
-        <MiniMap pannable zoomable maskColor="rgba(16, 24, 40, 0.08)" nodeColor="#d7dff4" />
-        <Controls showInteractive={false} />
+        {showMiniMap ? <MiniMap pannable zoomable maskColor="rgba(16, 24, 40, 0.08)" nodeColor="#d7dff4" /> : null}
+        {showControls ? <Controls showInteractive={false} /> : null}
         <Background color="#d9e2ff" gap={22} />
       </ReactFlow>
 
@@ -353,7 +366,10 @@ export default function LineageGraph({
             <div className="gh-action-grid">
               <button
                 className="gh-secondary-button"
-                onClick={() => setGraphMode("path")}
+                onClick={() => {
+                  setSelectedNodeId(selectedSource?.id || "");
+                  setGraphMode("path");
+                }}
                 type="button"
               >
                 Highlight path
