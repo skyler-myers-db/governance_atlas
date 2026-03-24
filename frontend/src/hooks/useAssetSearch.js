@@ -6,24 +6,32 @@ export function useAssetSearch(query, enabled = true) {
     loading: false,
     error: "",
     assets: [],
+    resolvedQuery: "",
   });
 
   useEffect(() => {
+    const trimmedQuery = query.trim();
     if (!enabled) {
-      setState({ loading: false, error: "", assets: [] });
+      setState({ loading: false, error: "", assets: [], resolvedQuery: "" });
       return;
     }
 
-    if (!query.trim()) {
-      setState({ loading: false, error: "", assets: [] });
+    if (!trimmedQuery) {
+      setState({ loading: false, error: "", assets: [], resolvedQuery: "" });
       return;
     }
 
     let canceled = false;
+    setState((prev) => ({
+      loading: false,
+      assets: prev.resolvedQuery === trimmedQuery ? prev.assets : [],
+      error: "",
+      resolvedQuery: prev.resolvedQuery === trimmedQuery ? prev.resolvedQuery : "",
+    }));
     const timeout = setTimeout(() => {
       setState((prev) => ({ ...prev, loading: true, error: "" }));
       fetchDiscoverySearch({
-        query,
+        query: trimmedQuery,
         sortBy: "Best match",
         limit: 8,
       })
@@ -33,6 +41,7 @@ export function useAssetSearch(query, enabled = true) {
             loading: false,
             error: "",
             assets: payload.assets || [],
+            resolvedQuery: trimmedQuery,
           });
         })
         .catch((error) => {
@@ -41,6 +50,7 @@ export function useAssetSearch(query, enabled = true) {
             loading: false,
             error: error?.message || "Failed to search assets.",
             assets: [],
+            resolvedQuery: "",
           });
         });
     }, 160);
