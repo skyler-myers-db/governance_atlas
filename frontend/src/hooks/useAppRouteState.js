@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { setWorkspaceIntent } from "../lib/workspaceIntent";
 import { useSurfaceUrlSync } from "./useSurfaceUrlSync";
 
 function parseRouteState() {
@@ -6,8 +7,6 @@ function parseRouteState() {
     return {
       surface: "discovery",
       asset: "",
-      entityTab: "Overview",
-      lineageContext: "Data Lineage",
       discoveryQuery: "",
     };
   }
@@ -26,8 +25,6 @@ function parseRouteState() {
   return {
     surface: initialSurface,
     asset: initialSurface === "discovery" ? "" : params.get("asset") || "",
-    entityTab: params.get("entityTab") || "Overview",
-    lineageContext: params.get("lineageContext") || "Data Lineage",
     discoveryQuery: params.get("q") || "",
   };
 }
@@ -36,8 +33,6 @@ export function useAppRouteState() {
   const route = useMemo(() => parseRouteState(), []);
   const [surface, setSurface] = useState(route.surface);
   const [routeAssetFqn, setRouteAssetFqn] = useState(route.surface === "discovery" ? "" : route.asset);
-  const [routeEntityTab, setRouteEntityTab] = useState(route.entityTab);
-  const [routeLineageContext, setRouteLineageContext] = useState(route.lineageContext);
   const [discoveryRouteState, setDiscoveryRouteState] = useState({
     query: route.discoveryQuery || "",
     requestKey: route.discoveryQuery ? 1 : 0,
@@ -46,19 +41,23 @@ export function useAppRouteState() {
 
   const openEntityWorkspace = (assetFqn, nextTab = "Overview") => {
     if (!assetFqn) return;
+    setWorkspaceIntent("entityTab", assetFqn, nextTab);
     setRouteAssetFqn(assetFqn);
-    setRouteEntityTab(nextTab);
     setSurface("entity");
   };
 
   const openLineageWorkspace = (assetFqn, nextContext = "Data Lineage") => {
-    setRouteAssetFqn(assetFqn || "");
-    setRouteLineageContext(nextContext);
+    if (assetFqn !== undefined) {
+      setWorkspaceIntent("lineageContext", assetFqn || "", nextContext);
+      setRouteAssetFqn(assetFqn || "");
+    }
     setSurface("lineage");
   };
 
-  const openGovernanceWorkspace = (assetFqn = "") => {
-    setRouteAssetFqn(assetFqn || "");
+  const openGovernanceWorkspace = (assetFqn) => {
+    if (assetFqn !== undefined) {
+      setRouteAssetFqn(assetFqn || "");
+    }
     setSurface("governance");
   };
 
@@ -86,11 +85,8 @@ export function useAppRouteState() {
     if (nextModule === "discovery") {
       openDiscoveryWorkspace("", { fresh: true });
     } else if (nextModule === "lineage") {
-      setRouteAssetFqn("");
-      setRouteLineageContext("Data Lineage");
       setSurface("lineage");
     } else {
-      setRouteAssetFqn("");
       setSurface("governance");
     }
   };
@@ -102,8 +98,6 @@ export function useAppRouteState() {
       const nextRoute = parseRouteState();
       setSurface(nextRoute.surface);
       setRouteAssetFqn(nextRoute.surface === "discovery" ? "" : nextRoute.asset);
-      setRouteEntityTab(nextRoute.entityTab);
-      setRouteLineageContext(nextRoute.lineageContext);
       setDiscoveryRouteState({
         query: nextRoute.discoveryQuery || "",
         requestKey: Date.now(),
@@ -120,8 +114,6 @@ export function useAppRouteState() {
   useSurfaceUrlSync({
     surface,
     routeAssetFqn,
-    entityTab: routeEntityTab,
-    lineageContext: routeLineageContext,
     discoveryQuery: discoveryRouteState.query,
   });
 
@@ -129,10 +121,6 @@ export function useAppRouteState() {
     surface,
     setSurface,
     routeAssetFqn,
-    routeEntityTab,
-    setRouteEntityTab,
-    routeLineageContext,
-    setRouteLineageContext,
     discoveryRouteState,
     openEntityWorkspace,
     openLineageWorkspace,

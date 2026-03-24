@@ -1,25 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 
-const DISCOVERY_UI_SESSION_KEY = "gh.discovery.ui.v1";
-
-function discoveryUiSessionKey() {
-  if (typeof window === "undefined") return DISCOVERY_UI_SESSION_KEY;
-  return `${DISCOVERY_UI_SESSION_KEY}:${window.location.pathname}`;
-}
-
 function readDiscoveryUiState() {
-  if (typeof window === "undefined") return { showAdvancedFilters: false };
-  try {
-    const raw = window.sessionStorage.getItem(discoveryUiSessionKey());
-    if (!raw) return { showAdvancedFilters: false };
-    const parsed = JSON.parse(raw);
-    return {
-      showAdvancedFilters: Boolean(parsed?.showAdvancedFilters),
-    };
-  } catch {
-    return { showAdvancedFilters: false };
-  }
+  return { showAdvancedFilters: false };
 }
 
 function statusTone(asset) {
@@ -126,7 +109,29 @@ function FilterSection({ label, options, selected, allLabel, onToggle }) {
   );
 }
 
-function CategoryRail({ assetTypes, counts, selectedType, onSelectType }) {
+function CategoryRail({ assetTypes, counts, selectedType, onSelectType, compact = false }) {
+  if (compact) {
+    return (
+      <div className="gh-filter-chip-row gh-discovery-browse-row">
+          {assetTypes.map((type) => {
+            const active = selectedType === type;
+            const count = counts[type] ?? 0;
+            return (
+              <button
+                className={`gh-filter-chip gh-discovery-browse-chip ${active ? "is-active" : ""}`}
+                key={type}
+                onClick={() => onSelectType(type)}
+                type="button"
+              >
+                <span>{type}</span>
+                <span className="gh-category-count">{count}</span>
+              </button>
+            );
+          })}
+      </div>
+    );
+  }
+
   return (
     <section className="gh-filter-section">
       <div className="gh-filter-title">Asset types</div>
@@ -148,23 +153,6 @@ function CategoryRail({ assetTypes, counts, selectedType, onSelectType }) {
         })}
       </div>
     </section>
-  );
-}
-
-function SavedViews({ views, activeView, onSelectView }) {
-  return (
-    <div className="gh-discovery-view-row">
-      {views.map((view) => (
-        <button
-          className={`gh-saved-view ${activeView === view ? "is-active" : ""}`}
-          key={view}
-          onClick={() => onSelectView(view)}
-          type="button"
-        >
-          {view}
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -284,6 +272,7 @@ export default function DiscoveryWorkspace({
   onOpenLineage,
 }) {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(() => readDiscoveryUiState().showAdvancedFilters);
+  const filterPopoverRef = useRef(null);
   const { filters, setFilters, results: discoveryResults } = useDiscoveryWorkspace({
     bootstrap,
     initialQuery,
@@ -291,16 +280,32 @@ export default function DiscoveryWorkspace({
     querySeedKey,
     querySeedFresh,
   });
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.sessionStorage.setItem(
-        discoveryUiSessionKey(),
-        JSON.stringify({ showAdvancedFilters }),
-      );
-    } catch {
-      // Best-effort only; do not block the workspace.
-    }
+    if (!showAdvancedFilters) return undefined;
+    const onPointerDown = (event) => {
+      if (!filterPopoverRef.current?.contains(event.target)) {
+        setShowAdvancedFilters(false);
+      }
+    };
+    const onFocusIn = (event) => {
+      if (!filterPopoverRef.current?.contains(event.target)) {
+        setShowAdvancedFilters(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setShowAdvancedFilters(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("focusin", onFocusIn);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("focusin", onFocusIn);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [showAdvancedFilters]);
 
   const resultsCount = discoveryResults.count;
@@ -326,52 +331,66 @@ export default function DiscoveryWorkspace({
 
   return (
     <section className="gh-workspace gh-discovery-shell">
-      <div className="gh-discovery-layout">
-        <aside className="gh-discovery-sidebar">
+      <section className="gh-discovery-main">
+        <div className="gh-discovery-browse-bar">
           <CategoryRail
             assetTypes={assetTypeOptions}
             counts={typeCounts}
+            compact
             onSelectType={(type) => onDiscoveryStateChange({ ...filters, type })}
             selectedType={filters.type}
           />
-        </aside>
+        </div>
 
-        <section className="gh-discovery-main">
-          <section className="gh-results-column">
-            <div className="gh-discovery-command-bar">
-              <input
-                className="gh-input"
-                onChange={(event) =>
-                  onDiscoveryStateChange({
-                    ...filters,
-                    query: event.target.value,
-                  })
-                }
-                placeholder="Search assets, views, dashboards, owners, glossary, or governance gaps"
-                value={filters.query}
-              />
-              <select
-                className="gh-select"
-                onChange={(event) =>
-                  onDiscoveryStateChange({ ...filters, sortBy: event.target.value })
-                }
-                value={filters.sortBy}
+        <section className="gh-results-column">
+          <div className="gh-discovery-command-bar">
+            <input
+              className="gh-input"
+              onChange={(event) =>
+                onDiscoveryStateChange({
+                  ...filters,
+                  query: event.target.value,
+                })
+              }
+              placeholder="Search assets, views, dashboards, owners, glossary, or governance gaps"
+              value={filters.query}
+            />
+            <select
+              className="gh-select"
+              onChange={(event) =>
+                onDiscoveryStateChange({ ...filters, view: event.target.value })
+              }
+              value={filters.view}
+            >
+              {bootstrap.discovery.views.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+            <select
+              className="gh-select"
+              onChange={(event) =>
+                onDiscoveryStateChange({ ...filters, sortBy: event.target.value })
+              }
+              value={filters.sortBy}
+            >
+              {bootstrap.discovery.sortOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+            <div className="gh-discovery-command-actions">
+              <button
+                className={`gh-secondary-button ${showAdvancedFilters ? "is-active" : ""}`}
+                onClick={() => setShowAdvancedFilters((current) => !current)}
+                type="button"
               >
-                {bootstrap.discovery.sortOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-              <div className="gh-discovery-command-actions">
-                <button
-                  className={`gh-secondary-button ${showAdvancedFilters ? "is-active" : ""}`}
-                  onClick={() => setShowAdvancedFilters((current) => !current)}
-                  type="button"
-                >
-                  Filters {filtersApplied.length ? `(${filtersApplied.length})` : ""}
-                </button>
-                {showAdvancedFilters ? (
+                Filters {filtersApplied.length ? `(${filtersApplied.length})` : ""}
+              </button>
+              {showAdvancedFilters ? (
+                <div ref={filterPopoverRef}>
                   <FiltersPopover
                     bootstrap={bootstrap}
                     facets={resultsFacets}
@@ -379,80 +398,107 @@ export default function DiscoveryWorkspace({
                     onClose={() => setShowAdvancedFilters(false)}
                     onDiscoveryStateChange={onDiscoveryStateChange}
                   />
-                ) : null}
-              </div>
+                </div>
+              ) : null}
             </div>
+          </div>
 
-            <SavedViews
-              activeView={filters.view}
-              onSelectView={(view) => onDiscoveryStateChange({ ...filters, view })}
-              views={bootstrap.discovery.views}
-            />
+          {filtersApplied.length ? (
+            <div className="gh-active-filter-row">
+              {filtersApplied.map((chip) => (
+                <button
+                  className="gh-chip gh-chip-soft"
+                  key={`${chip.key}-${chip.label}`}
+                  onClick={() => clearFilter(filters, chip, onDiscoveryStateChange)}
+                  type="button"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
 
-            {filtersApplied.length ? (
-              <div className="gh-active-filter-row">
-                {filtersApplied.map((chip) => (
-                  <button
-                    className="gh-chip gh-chip-soft"
-                    key={`${chip.key}-${chip.label}`}
-                    onClick={() => clearFilter(filters, chip, onDiscoveryStateChange)}
-                    type="button"
-                  >
-                    {chip.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
+          <div className="gh-results-strip">
             <div className="gh-results-inline-state">
               {resultsLoading
                 ? "Refreshing live results…"
                 : `${resultsCount} ${resultsCount === 1 ? "result" : "results"}`}
             </div>
+            {filters.view !== "All assets" ? (
+              <button
+                className="gh-tertiary-button"
+                onClick={() => onDiscoveryStateChange({ ...filters, view: "All assets" })}
+                type="button"
+              >
+                Clear view
+              </button>
+            ) : null}
+          </div>
 
-            {resultsError ? (
-              <div className="gh-empty-state">
-                <div>{resultsError}</div>
-                <div className="gh-empty-state-actions">
-                  <button className="gh-secondary-button" onClick={resetBrowse} type="button">
-                    Reset browse
-                  </button>
+          {resultsError ? (
+            <div className="gh-inline-alert tone-warn">
+              <div className="gh-inline-alert-title">Live results are temporarily unavailable.</div>
+              <div>{resultsError}</div>
+              {discoveryResults.assets.length ? (
+                <div className="gh-support-copy">
+                  Showing the last available result set until live search recovers.
                 </div>
-              </div>
-            ) : discoveryResults.assets.length ? (
-              <div className="gh-result-list">
-                {discoveryResults.assets.map((asset) => (
-                  <ResultRow
-                    asset={asset}
-                    key={asset.fqn}
-                    onOpenAsset={onOpenAsset}
-                    onOpenGovernance={onOpenGovernance}
-                    onOpenLineage={onOpenLineage}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="gh-empty-state">
-                <div>No assets match the current filters. Relax the scope or clear the search.</div>
-                <div className="gh-empty-state-actions">
-                  {filters.query ? (
-                    <button
-                      className="gh-secondary-button"
-                      onClick={() => onDiscoveryStateChange({ ...filters, query: "" })}
-                      type="button"
-                    >
-                      Clear search
-                    </button>
-                  ) : null}
-                  <button className="gh-secondary-button" onClick={resetBrowse} type="button">
-                    Reset browse
+              ) : null}
+            </div>
+          ) : null}
+
+          {discoveryResults.assets.length ? (
+            <div className="gh-result-list">
+              {discoveryResults.assets.map((asset) => (
+                <ResultRow
+                  asset={asset}
+                  key={asset.fqn}
+                  onOpenAsset={onOpenAsset}
+                  onOpenGovernance={onOpenGovernance}
+                  onOpenLineage={onOpenLineage}
+                />
+              ))}
+            </div>
+          ) : resultsError ? (
+            <div className="gh-empty-state">
+              <div>Live discovery results are temporarily unavailable.</div>
+              <div className="gh-support-copy">{resultsError}</div>
+              <div className="gh-empty-state-actions">
+                {filters.query ? (
+                  <button
+                    className="gh-secondary-button"
+                    onClick={() => onDiscoveryStateChange({ ...filters, query: "" })}
+                    type="button"
+                  >
+                    Clear search
                   </button>
-                </div>
+                ) : null}
+                <button className="gh-secondary-button" onClick={resetBrowse} type="button">
+                  Reset browse
+                </button>
               </div>
-            )}
-          </section>
+            </div>
+          ) : (
+            <div className="gh-empty-state">
+              <div>No assets match the current filters. Relax the scope or clear the search.</div>
+              <div className="gh-empty-state-actions">
+                {filters.query ? (
+                  <button
+                    className="gh-secondary-button"
+                    onClick={() => onDiscoveryStateChange({ ...filters, query: "" })}
+                    type="button"
+                  >
+                    Clear search
+                  </button>
+                ) : null}
+                <button className="gh-secondary-button" onClick={resetBrowse} type="button">
+                  Reset browse
+                </button>
+              </div>
+            </div>
+          )}
         </section>
-      </div>
+      </section>
     </section>
   );
 }
