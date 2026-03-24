@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchLineage } from "../lib/api";
 
-export function useLineage(assetFqn, seededGraph = null) {
+export function useLineage(assetFqn, seededGraph = null, enabled = true) {
+  const previousAssetRef = useRef(assetFqn);
   const [state, setState] = useState({
     loading: false,
     error: "",
@@ -9,17 +10,24 @@ export function useLineage(assetFqn, seededGraph = null) {
   });
 
   useEffect(() => {
+    if (!enabled) {
+      setState({ loading: false, error: "", graph: seededGraph || null });
+      return;
+    }
+
     if (!assetFqn) {
       setState({ loading: false, error: "", graph: null });
       return;
     }
 
     let canceled = false;
-    setState({
+    const assetChanged = previousAssetRef.current !== assetFqn;
+    previousAssetRef.current = assetFqn;
+    setState((current) => ({
       loading: true,
       error: "",
-      graph: seededGraph || null,
-    });
+      graph: assetChanged ? seededGraph || current.graph || null : current.graph || seededGraph || null,
+    }));
     fetchLineage(assetFqn)
       .then((payload) => {
         if (canceled) return;
@@ -37,7 +45,7 @@ export function useLineage(assetFqn, seededGraph = null) {
     return () => {
       canceled = true;
     };
-  }, [assetFqn, seededGraph]);
+  }, [assetFqn, enabled, seededGraph]);
 
   return state;
 }

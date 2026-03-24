@@ -1,12 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export function useSurfaceUrlSync({
   surface,
   routeAssetFqn,
-  entityTab,
-  lineageContext,
   discoveryQuery,
 }) {
+  const previousRef = useRef(null);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -17,13 +17,29 @@ export function useSurfaceUrlSync({
     if (surface !== "discovery" && routeAssetFqn) params.set("asset", routeAssetFqn);
     else params.delete("asset");
     params.delete("preview");
-    if (surface === "entity") params.set("entityTab", entityTab);
-    else params.delete("entityTab");
-    if (surface === "lineage") params.set("lineageContext", lineageContext);
-    else params.delete("lineageContext");
     if (surface === "discovery" && discoveryQuery?.trim()) params.set("q", discoveryQuery.trim());
     else params.delete("q");
-    const nextUrl = `${window.location.pathname}?${params.toString()}`;
-    window.history.replaceState({}, "", nextUrl);
-  }, [discoveryQuery, entityTab, lineageContext, routeAssetFqn, surface]);
+    const nextSearch = params.toString();
+    const currentSearch = window.location.search.replace(/^\?/, "");
+    const nextState = {
+      surface,
+      routeAssetFqn: routeAssetFqn || "",
+    };
+    const previous = previousRef.current;
+    const structuralChange = Boolean(
+      previous &&
+        (previous.surface !== nextState.surface ||
+          previous.routeAssetFqn !== nextState.routeAssetFqn),
+    );
+
+    previousRef.current = nextState;
+    if (currentSearch === nextSearch) return;
+
+    const nextUrl = nextSearch ? `${window.location.pathname}?${nextSearch}` : window.location.pathname;
+    if (structuralChange) {
+      window.history.pushState({}, "", nextUrl);
+    } else {
+      window.history.replaceState({}, "", nextUrl);
+    }
+  }, [discoveryQuery, routeAssetFqn, surface]);
 }
