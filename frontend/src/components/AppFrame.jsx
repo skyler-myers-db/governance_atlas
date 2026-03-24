@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAssetSearch } from "../hooks/useAssetSearch";
 
 function statusTone(bootState) {
@@ -25,15 +25,40 @@ export default function AppFrame({
 }) {
   const modules = ["discovery", "lineage", "governance"];
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchPanelOpen, setSearchPanelOpen] = useState(false);
+  const searchRootRef = useRef(null);
   const shellDisabled = bootState === "unavailable" || bootState === "error";
 
-  const searchPanelOpen = !shellDisabled && searchQuery.trim().length >= 2;
-  const shellSearch = useAssetSearch(searchQuery, searchPanelOpen);
-  const topResult = shellSearch.assets?.[0] || null;
+  const searchEnabled = !shellDisabled && searchPanelOpen && searchQuery.trim().length >= 2;
+  const shellSearch = useAssetSearch(searchQuery, searchEnabled);
+  const topResult =
+    !shellSearch.loading && shellSearch.resolvedQuery === searchQuery.trim()
+      ? shellSearch.assets?.[0] || null
+      : null;
 
   useEffect(() => {
-    setSearchQuery("");
+    setSearchPanelOpen(false);
   }, [activeModule]);
+
+  useEffect(() => {
+    if (!searchPanelOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (!searchRootRef.current?.contains(event.target)) {
+        setSearchPanelOpen(false);
+      }
+    };
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setSearchPanelOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [searchPanelOpen]);
 
   return (
     <div className="gh-app">
@@ -42,10 +67,6 @@ export default function AppFrame({
           <div className="gh-shell-brand">
             <div className="gh-shell-brand-mark" aria-hidden="true">
               GH
-            </div>
-            <div className="gh-brand-copy">
-              <h1>Governance Hub</h1>
-              <div className="gh-brand-subtitle">Metadata workspace</div>
             </div>
           </div>
 
@@ -68,20 +89,48 @@ export default function AppFrame({
             onSubmit={(event) => {
               event.preventDefault();
               if (shellDisabled) return;
-              if (!topResult) return;
+              const query = searchQuery.trim();
+              if (!query) return;
               setSearchQuery("");
-              onSearchResultSelect?.(topResult.fqn);
+              setSearchPanelOpen(false);
+              if (topResult) {
+                onSearchResultSelect?.(topResult.fqn);
+                return;
+              }
+              onBrowseCatalog?.(query);
             }}
           >
-            <div className="gh-global-search-field">
+            <div className="gh-global-search-field" ref={searchRootRef}>
               <input
                 className="gh-input gh-global-search-input"
                 disabled={shellDisabled}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setSearchQuery(next);
+                  setSearchPanelOpen(next.trim().length >= 2);
+                }}
+                onFocus={() => {
+                  if (!shellDisabled && searchQuery.trim().length >= 2) {
+                    setSearchPanelOpen(true);
+                  }
+                }}
+                onBlur={() => {
+                  if (typeof window === "undefined") return;
+                  window.requestAnimationFrame(() => {
+                    if (!searchRootRef.current?.contains(document.activeElement)) {
+                      setSearchPanelOpen(false);
+                    }
+                  });
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setSearchPanelOpen(false);
+                  }
+                }}
                 placeholder="Search assets or glossary"
-              value={searchQuery}
-            />
-            {searchPanelOpen ? (
+                value={searchQuery}
+              />
+            {searchEnabled ? (
               <div className="gh-search-dropdown">
                 {shellSearch.loading ? <div className="gh-search-empty">Searching…</div> : null}
                 {shellSearch.error ? (
@@ -95,6 +144,7 @@ export default function AppFrame({
                         key={asset.fqn}
                         onClick={() => {
                           setSearchQuery("");
+                          setSearchPanelOpen(false);
                           onSearchResultSelect?.(asset.fqn);
                         }}
                         type="button"
@@ -108,9 +158,9 @@ export default function AppFrame({
                         <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
                       </button>
                     ))}
-                  </div>
+                    </div>
                 ) : (
-                  <div className="gh-search-empty">No direct asset matches.</div>
+                  <div className="gh-search-empty">No direct asset matches. Press Enter to browse the catalog.</div>
                 )}
                 <div className="gh-search-dropdown-foot">
                   <button
@@ -120,6 +170,7 @@ export default function AppFrame({
                       const query = searchQuery.trim();
                       if (!query) return;
                       setSearchQuery("");
+                      setSearchPanelOpen(false);
                       onBrowseCatalog?.(query);
                     }}
                     type="button"
@@ -133,16 +184,19 @@ export default function AppFrame({
         </form>
 
           <div className="gh-shell-utility">
-            <span className="gh-shell-user">{shell?.userEmail || "unknown"}</span>
             {bootState && bootState !== "live" ? (
               <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
                 {statusLabel(bootState)}
               </span>
             ) : null}
+            <span className="gh-shell-user">{shell?.userEmail || "unknown"}</span>
           </div>
         </div>
         {bootState && bootState !== "live" && bootMessage ? (
-          <div className="gh-shell-status-note">{bootMessage}</div>
+          <div className={`gh-inline-alert tone-${statusTone(bootState)}`}>
+            <div className="gh-inline-alert-title">Workspace status</div>
+            <div>{bootMessage}</div>
+          </div>
         ) : null}
       </header>
 

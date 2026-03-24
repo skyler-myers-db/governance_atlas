@@ -23,6 +23,13 @@ function defaultDiscoveryState(bootstrap, query = "") {
   };
 }
 
+function freshDiscoveryState(bootstrap, query = "") {
+  return {
+    ...defaultDiscoveryState(bootstrap, ""),
+    query,
+  };
+}
+
 function normalizeDiscoveryState(bootstrap, state = {}, queryOverride) {
   const fallback = defaultDiscoveryState(
     bootstrap,
@@ -95,7 +102,7 @@ export function useDiscoveryWorkspace({
     if (!querySeedKey) return;
     setFilters((current) =>
       querySeedFresh
-        ? defaultDiscoveryState(bootstrap, initialQuery)
+        ? freshDiscoveryState(bootstrap, initialQuery)
         : normalizeDiscoveryState(bootstrap, current, initialQuery)
     );
   }, [bootstrap, initialQuery, querySeedFresh, querySeedKey]);

@@ -27,10 +27,6 @@ export default function App() {
     surface,
     setSurface,
     routeAssetFqn,
-    routeEntityTab,
-    setRouteEntityTab,
-    routeLineageContext,
-    setRouteLineageContext,
     discoveryRouteState,
     setDiscoveryRouteQuery,
     openDiscoveryWorkspace,
@@ -78,6 +74,7 @@ export default function App() {
           onOpenAsset={openEntityWorkspace}
           onOpenGovernance={openGovernanceWorkspace}
           onOpenLineage={openLineageWorkspace}
+          querySeedFresh={discoveryRouteState.fresh}
           querySeedKey={discoveryRouteState.requestKey}
         />
       );
@@ -86,16 +83,14 @@ export default function App() {
         <EntityWorkspace
           assetFqn={surface === "entity" ? routeAssetFqn : ""}
           bootstrap={data}
-          initialTab={routeEntityTab}
           onBack={() => {
-            setSurface("discovery");
+            openDiscoveryWorkspace(discoveryRouteState.query, { fresh: false });
           }}
           onOpenGovernance={openGovernanceWorkspace}
           onOpenLineage={(assetFqn, nextContext = "Data Lineage") =>
             openLineageWorkspace(assetFqn || routeAssetFqn, nextContext)
           }
           onSelectAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
-          onTabRouteChange={setRouteEntityTab}
         />
       );
     } else if (surface === "lineage") {
@@ -103,15 +98,8 @@ export default function App() {
         <LineageWorkspace
           bootstrap={data}
           initialAssetFqn={surface === "lineage" ? routeAssetFqn : ""}
-          initialContext={routeLineageContext}
-          onRouteStateChange={({ assetFqn, context }) =>
-            {
-              if (assetFqn !== undefined) {
-                openLineageWorkspace(assetFqn, context ?? routeLineageContext);
-              } else if (context !== undefined) {
-                setRouteLineageContext(context);
-              }
-            }
+          onRouteAssetChange={(assetFqn, nextContext = "Data Lineage") =>
+            openLineageWorkspace(assetFqn, nextContext)
           }
           onOpenGovernance={openGovernanceWorkspace}
           onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
@@ -124,7 +112,7 @@ export default function App() {
           initialAssetFqn={surface === "governance" ? routeAssetFqn : ""}
           governance={data.governance}
           onRouteAssetChange={(assetFqn) => openGovernanceWorkspace(assetFqn || "")}
-          onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Governance")}
+          onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
           onOpenLineage={openLineageWorkspace}
         />
       );
@@ -136,7 +124,7 @@ export default function App() {
       activeModule={surface === "lineage" ? "lineage" : surface === "governance" ? "governance" : "discovery"}
       bootMessage={bootMessage}
       bootState={bootState}
-      onBrowseCatalog={openDiscoveryWorkspace}
+      onBrowseCatalog={(query) => openDiscoveryWorkspace(query, { fresh: true })}
       onModuleChange={onModuleChange}
       onSearchResultSelect={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
       shell={shell}
