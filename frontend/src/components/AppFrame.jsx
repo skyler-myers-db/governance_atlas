@@ -45,7 +45,7 @@ function SearchDropdown({
       ? "Direct matches across visible assets"
       : "Start typing to search visible assets";
   const searchCount = loading
-    ? "Searching…"
+    ? ""
     : assets.length
       ? `${assets.length} matches`
       : trimmedQuery
@@ -59,7 +59,7 @@ function SearchDropdown({
           <div className="gh-eyebrow">Global Search</div>
           <div className="gh-search-dropdown-status">{searchStatus}</div>
         </div>
-        <div className="gh-search-dropdown-status">{searchCount}</div>
+        {searchCount ? <div className="gh-search-dropdown-status">{searchCount}</div> : null}
       </div>
 
       {error ? <div className="gh-search-empty">{error}</div> : null}
@@ -88,10 +88,6 @@ function SearchDropdown({
             </button>
           ))}
         </div>
-      ) : null}
-
-      {!error && loading && !assets.length ? (
-        <div className="gh-search-empty">Searching visible assets...</div>
       ) : null}
 
       {!error && !loading && trimmedQuery && !assets.length ? (
