@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useAssetDetail } from "../hooks/useAssetDetail";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 
 function statusTone(asset) {
@@ -82,6 +83,22 @@ function activeFilters(filters) {
   return chips;
 }
 
+function metadataRowItems(asset) {
+  return [
+    { label: "Coverage", value: `${asset.coverageScore ?? 0}` },
+    { label: "Owners", value: `${asset.owners?.length || 0}` },
+    { label: "Open requests", value: `${asset.openRequests || 0}` },
+    { label: "Domain", value: asset.domain || "Unassigned" },
+    { label: "Tier", value: asset.tier || "Unassigned" },
+    { label: "Certification", value: asset.certification || "Unassigned" },
+  ];
+}
+
+function ownerLabel(owner) {
+  if (!owner) return "";
+  return owner.name || owner.email || owner.title || "";
+}
+
 function FilterSection({ label, options, selected, allLabel, onToggle }) {
   const hasSelection = selected.length > 0;
   return (
@@ -100,18 +117,14 @@ function FilterSection({ label, options, selected, allLabel, onToggle }) {
         {options
           .filter((option) => option !== allLabel)
           .map((option) => {
-          const checked = selected.includes(option);
-          return (
-            <label className={`gh-filter-check ${checked ? "is-active" : ""}`} key={option}>
-              <input
-                checked={checked}
-                onChange={() => onToggle(option, allLabel)}
-                type="checkbox"
-              />
-              <span>{option}</span>
-            </label>
-          );
-        })}
+            const checked = selected.includes(option);
+            return (
+              <label className={`gh-filter-check ${checked ? "is-active" : ""}`} key={option}>
+                <input checked={checked} onChange={() => onToggle(option, allLabel)} type="checkbox" />
+                <span>{option}</span>
+              </label>
+            );
+          })}
       </div>
     </section>
   );
@@ -229,61 +242,235 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
   );
 }
 
-function ResultRow({ asset, onOpenAsset, onOpenGovernance, onOpenLineage }) {
+function DiscoveryResultCard({
+  asset,
+  selected,
+  onOpenAsset,
+  onOpenGovernance,
+  onOpenLineage,
+  onSelect,
+}) {
+  const owners = (asset.owners || []).map((owner) => ownerLabel(owner)).filter(Boolean).slice(0, 2);
+
   return (
-    <article className="gh-result-row">
-      <button
-        className="gh-result-row-main gh-result-row-main-button"
-        onClick={() => onOpenAsset(asset.fqn)}
-        type="button"
-      >
-        <div className="gh-result-row-head">
-          <div className="gh-result-row-identity">
-            <span className="gh-result-row-title-button">{asset.name}</span>
-            <div className="gh-result-row-context">
-              {asset.catalog} / {asset.schema} · {asset.objectType}
+    <article className={`gh-discovery-card ${selected ? "is-selected" : ""}`}>
+      <button className="gh-discovery-card-hit" onClick={() => onSelect(asset.fqn)} type="button">
+        <div className="gh-discovery-card-head">
+          <div className="gh-discovery-card-title-block">
+            <div className="gh-discovery-card-title-row">
+              <h3>{asset.name}</h3>
+              <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
+            </div>
+            <div className="gh-discovery-card-fqn">
+              {asset.catalog} / {asset.schema}
             </div>
           </div>
-        </div>
-
-        <div className="gh-result-row-description">
-          {asset.description || "No description is available for this asset yet."}
-        </div>
-
-        <div className="gh-result-row-foot">
-          <div className="gh-result-metadata">
-            <span>Coverage {asset.coverageScore}</span>
-            <span>{asset.owners?.length || 0} owners</span>
-            <span>{asset.openRequests} requests</span>
-            <span>{asset.domain || "Unassigned"}</span>
-          </div>
-        </div>
-      </button>
-      <div className="gh-result-row-side">
-        <div className="gh-chip-row gh-result-row-statuses">
-          <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
           <span className={`gh-status-chip tone-${statusTone(asset)}`}>
             {asset.governanceStatus || "Needs Work"}
           </span>
         </div>
-        <div className="gh-result-row-actions gh-result-row-actions-inline">
-          <button
-            className="gh-tertiary-button gh-inline-link-button"
-            onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
-            type="button"
-          >
-            Open lineage
-          </button>
-          <button
-            className="gh-tertiary-button gh-inline-link-button"
-            onClick={() => onOpenGovernance(asset.fqn)}
-            type="button"
-          >
-            Open governance
-          </button>
+
+        <div className="gh-discovery-card-description">
+          {asset.description || "No description is available for this asset yet."}
         </div>
+
+        <div className="gh-discovery-card-meta">
+          {metadataRowItems(asset).map((item) => (
+            <div className="gh-discovery-card-stat" key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+
+        <div className="gh-discovery-card-foot">
+          <div className="gh-chip-row">
+            <span className="gh-chip gh-chip-soft">
+              {asset.catalog} / {asset.schema}
+            </span>
+            {asset.sensitivity && asset.sensitivity !== "Unassigned" ? (
+              <span className="gh-chip gh-chip-soft">{asset.sensitivity}</span>
+            ) : null}
+            {owners.map((owner) => (
+              <span className="gh-chip gh-chip-soft" key={owner}>
+                {owner}
+              </span>
+            ))}
+          </div>
+        </div>
+      </button>
+
+      <div className="gh-discovery-card-actions">
+        <button className="gh-tertiary-button gh-inline-link-button" onClick={() => onOpenAsset(asset.fqn)} type="button">
+          Open record
+        </button>
+        <button
+          className="gh-tertiary-button gh-inline-link-button"
+          onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
+          type="button"
+        >
+          Open lineage
+        </button>
+        <button
+          className="gh-tertiary-button gh-inline-link-button"
+          onClick={() => onOpenGovernance(asset.fqn)}
+          type="button"
+        >
+          Open governance
+        </button>
       </div>
     </article>
+  );
+}
+
+function PreviewSection({ title, children, empty }) {
+  return (
+    <section className="gh-preview-section">
+      <div className="gh-panel-title">{title}</div>
+      {empty ? <div className="gh-support-copy">{empty}</div> : children}
+    </section>
+  );
+}
+
+function SelectionPreview({
+  asset,
+  loading,
+  error,
+  onOpenAsset,
+  onOpenGovernance,
+  onOpenLineage,
+  onSelectAsset,
+}) {
+  if (!asset) {
+    return (
+      <aside className="gh-preview-panel">
+        <div className="gh-panel-title">Preview</div>
+        <div className="gh-empty-state">Select a result to review metadata, schema, and stewardship posture.</div>
+      </aside>
+    );
+  }
+
+  const columns = (asset.columns || []).slice(0, 6);
+  const relatedAssets = (asset.relatedAssets || []).slice(0, 6);
+  const previewRows = asset.preview || [];
+  const previewKeys = previewRows[0] ? Object.keys(previewRows[0]).slice(0, 4) : [];
+
+  return (
+    <aside className="gh-preview-panel">
+      <div className="gh-preview-panel-head">
+        <div className="gh-preview-panel-title-block">
+          <div className="gh-eyebrow">Selected asset</div>
+          <h3>{asset.name}</h3>
+          <div className="gh-support-copy">
+            {asset.catalog} / {asset.schema} · {asset.objectType}
+          </div>
+        </div>
+        <span className={`gh-status-chip tone-${statusTone(asset)}`}>
+          {asset.governanceStatus || "Needs Work"}
+        </span>
+      </div>
+
+      <div className="gh-preview-panel-actions">
+        <button className="gh-secondary-button" onClick={() => onOpenAsset(asset.fqn)} type="button">
+          Open record
+        </button>
+        <button
+          className="gh-tertiary-button gh-inline-link-button"
+          onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
+          type="button"
+        >
+          Open lineage
+        </button>
+        <button
+          className="gh-tertiary-button gh-inline-link-button"
+          onClick={() => onOpenGovernance(asset.fqn)}
+          type="button"
+        >
+          Open governance
+        </button>
+      </div>
+
+      {error ? <div className="gh-inline-alert tone-warn">{error}</div> : null}
+      {loading ? <div className="gh-support-copy">Refreshing live metadata for this selection...</div> : null}
+
+      <PreviewSection title="Definition">
+        <div className="gh-support-copy">
+          {asset.description || "No description is available for this asset yet."}
+        </div>
+      </PreviewSection>
+
+      <PreviewSection title="Record profile">
+        <div className="gh-preview-stat-grid">
+          {metadataRowItems(asset).map((item) => (
+            <div className="gh-preview-stat-card" key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
+        </div>
+      </PreviewSection>
+
+      <PreviewSection title="Owners" empty="No owners are assigned yet.">
+        {asset.owners?.length ? (
+          <div className="gh-preview-owner-list">
+            {asset.owners.map((owner) => (
+              <div className="gh-preview-owner-row" key={`${asset.fqn}-${ownerLabel(owner)}`}>
+                <strong>{ownerLabel(owner)}</strong>
+                <span>{owner.title || "Owner"}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </PreviewSection>
+
+      <PreviewSection title="Schema" empty="No schema metadata is available for this asset yet.">
+        {columns.length ? (
+          <div className="gh-preview-column-list">
+            {columns.map((column) => (
+              <div className="gh-preview-column-row" key={column.name}>
+                <div>
+                  <strong>{column.name}</strong>
+                  <span>{column.type}</span>
+                </div>
+                <p>{column.description}</p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </PreviewSection>
+
+      <PreviewSection title="Sample data" empty="No preview rows are available for this asset yet.">
+        {previewRows.length ? (
+          <div className="gh-preview-sample-table">
+            <div className="gh-preview-sample-head">
+              {previewKeys.map((key) => (
+                <span key={key}>{key}</span>
+              ))}
+            </div>
+            {previewRows.slice(0, 3).map((row, index) => (
+              <div className="gh-preview-sample-row" key={`${asset.fqn}-preview-${index}`}>
+                {previewKeys.map((key) => (
+                  <span key={`${index}-${key}`}>{row[key] || "—"}</span>
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </PreviewSection>
+
+      <PreviewSection title="Related assets" empty="No connected lineage edges are surfaced for this asset yet.">
+        {relatedAssets.length ? (
+          <div className="gh-lineage-linked-list">
+            {relatedAssets.map((item) => (
+              <button className="gh-lineage-linked-row" key={item} onClick={() => onSelectAsset(item)} type="button">
+                <span>{item}</span>
+                <span>Open linked asset</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </PreviewSection>
+    </aside>
   );
 }
 
@@ -298,6 +485,7 @@ export default function DiscoveryWorkspace({
   onOpenLineage,
 }) {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [selectedAssetFqn, setSelectedAssetFqn] = useState("");
   const filterPopoverRef = useRef(null);
   const filterCommandRef = useRef(null);
   const { filters, setFilters, results: discoveryResults } = useDiscoveryWorkspace({
@@ -307,6 +495,11 @@ export default function DiscoveryWorkspace({
     querySeedKey,
     querySeedFresh,
   });
+
+  const selectedSeedAsset =
+    discoveryResults.assets.find((asset) => asset.fqn === selectedAssetFqn) || discoveryResults.assets[0] || null;
+  const previewDetail = useAssetDetail(selectedSeedAsset?.fqn || "");
+  const previewAsset = previewDetail.detail || selectedSeedAsset;
 
   useEffect(() => {
     if (!showAdvancedFilters) return undefined;
@@ -327,6 +520,20 @@ export default function DiscoveryWorkspace({
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [showAdvancedFilters]);
+
+  useEffect(() => {
+    if (!discoveryResults.assets.length) {
+      setSelectedAssetFqn("");
+      return;
+    }
+
+    setSelectedAssetFqn((current) => {
+      if (current && discoveryResults.assets.some((asset) => asset.fqn === current)) {
+        return current;
+      }
+      return discoveryResults.assets[0].fqn;
+    });
+  }, [discoveryResults.assets]);
 
   const resultsCount = discoveryResults.count;
   const resultsLoading = discoveryResults.loading;
@@ -350,91 +557,102 @@ export default function DiscoveryWorkspace({
 
   return (
     <section className="gh-workspace gh-discovery-shell">
-      <section className="gh-discovery-main">
+      <section className="gh-discovery-main gh-discovery-main-grid">
         <section className="gh-results-column">
-          <div className="gh-discovery-command-bar">
-            <span className="gh-results-inline-state gh-results-inline-state-bar">
-              {resultsCount} {resultsCount === 1 ? "result" : "results"}
-              {resultsLoading ? <span className="gh-inline-updating">Updating…</span> : null}
-            </span>
-            <input
-              className="gh-input"
-              onChange={(event) =>
-                onDiscoveryStateChange((current) => ({
-                  ...current,
-                  query: event.target.value,
-                }))
-              }
-              placeholder="Search assets, views, dashboards, owners, glossary, or governance gaps"
-              value={filters.query}
-            />
-            <select
-              className="gh-select"
-              onChange={(event) => onDiscoveryStateChange((current) => ({ ...current, sortBy: event.target.value }))}
-              value={filters.sortBy}
-            >
-              {bootstrap.discovery.sortOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-            <div className="gh-discovery-command-actions" ref={filterCommandRef}>
-              <button
-                className={`gh-secondary-button ${showAdvancedFilters ? "is-active" : ""}`}
-                onClick={() => setShowAdvancedFilters((current) => !current)}
-                type="button"
-              >
-                Filters {directFilterCount ? `(${directFilterCount})` : ""}
-              </button>
-              {showAdvancedFilters ? (
-                <div ref={filterPopoverRef}>
-                  <FiltersPopover
-                    bootstrap={bootstrap}
-                    facets={resultsFacets}
-                    filters={filters}
-                    onClose={() => setShowAdvancedFilters(false)}
-                    onDiscoveryStateChange={onDiscoveryStateChange}
-                  />
-                </div>
-              ) : null}
+          <div className="gh-panel gh-discovery-command-panel">
+            <div className="gh-discovery-command-topline">
+              <div>
+                <div className="gh-eyebrow">Discovery</div>
+                <h2 className="gh-workspace-title">Metadata catalog</h2>
+              </div>
+              <span className="gh-results-inline-state gh-results-inline-state-bar">
+                {resultsCount} {resultsCount === 1 ? "result" : "results"}
+                {resultsLoading ? <span className="gh-inline-updating">Updating…</span> : null}
+              </span>
             </div>
-          </div>
-          {filtersApplied.length || filters.query ? (
-            <div className="gh-active-filter-row gh-active-filter-row-inline gh-discovery-active-row">
-              {filtersApplied.map((chip) => (
+
+            <div className="gh-discovery-command-bar">
+              <input
+                className="gh-input"
+                onChange={(event) =>
+                  onDiscoveryStateChange((current) => ({
+                    ...current,
+                    query: event.target.value,
+                  }))
+                }
+                placeholder="Search visible data assets, schemas, domains, tags, or stewardship gaps"
+                value={filters.query}
+              />
+              <select
+                className="gh-select"
+                onChange={(event) =>
+                  onDiscoveryStateChange((current) => ({ ...current, sortBy: event.target.value }))
+                }
+                value={filters.sortBy}
+              >
+                {bootstrap.discovery.sortOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <div className="gh-discovery-command-actions" ref={filterCommandRef}>
                 <button
-                  className="gh-chip gh-chip-soft"
-                  key={`${chip.key}-${chip.label}`}
-                  onClick={() => clearFilter(filters, chip, onDiscoveryStateChange)}
+                  className={`gh-secondary-button ${showAdvancedFilters ? "is-active" : ""}`}
+                  onClick={() => setShowAdvancedFilters((current) => !current)}
                   type="button"
                 >
-                  {chip.label}
+                  Filters {directFilterCount ? `(${directFilterCount})` : ""}
                 </button>
-              ))}
-              <div className="gh-results-strip-actions">
-                {filters.query ? (
-                  <button
-                    className="gh-tertiary-button gh-inline-link-button"
-                    onClick={() =>
-                      onDiscoveryStateChange((current) => ({
-                        ...current,
-                        query: "",
-                      }))
-                    }
-                    type="button"
-                  >
-                    Clear search
-                  </button>
-                ) : null}
-                {filtersApplied.length ? (
-                  <button className="gh-tertiary-button gh-inline-link-button" onClick={resetBrowse} type="button">
-                    Reset browse
-                  </button>
+                {showAdvancedFilters ? (
+                  <div ref={filterPopoverRef}>
+                    <FiltersPopover
+                      bootstrap={bootstrap}
+                      facets={resultsFacets}
+                      filters={filters}
+                      onClose={() => setShowAdvancedFilters(false)}
+                      onDiscoveryStateChange={onDiscoveryStateChange}
+                    />
+                  </div>
                 ) : null}
               </div>
             </div>
-          ) : null}
+
+            {filtersApplied.length ? (
+              <div className="gh-active-filter-row gh-active-filter-row-inline gh-discovery-active-row">
+                {filtersApplied.map((chip) => (
+                  <button
+                    className="gh-chip gh-chip-soft"
+                    key={`${chip.key}-${chip.label}`}
+                    onClick={() => clearFilter(filters, chip, onDiscoveryStateChange)}
+                    type="button"
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+                <div className="gh-results-strip-actions">
+                  {filters.query ? (
+                    <button
+                      className="gh-tertiary-button gh-inline-link-button"
+                      onClick={() =>
+                        onDiscoveryStateChange((current) => ({
+                          ...current,
+                          query: "",
+                        }))
+                      }
+                      type="button"
+                    >
+                      Clear search
+                    </button>
+                  ) : null}
+                  <button className="gh-tertiary-button gh-inline-link-button" onClick={resetBrowse} type="button">
+                    Reset browse
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
           {resultsError ? (
             <div className="gh-inline-alert tone-warn">
               <div>{resultsError}</div>
@@ -442,19 +660,21 @@ export default function DiscoveryWorkspace({
           ) : null}
 
           {discoveryResults.assets.length ? (
-            <div className="gh-result-list">
+            <div className="gh-result-list gh-discovery-card-list">
               {discoveryResults.assets.map((asset) => (
-                <ResultRow
+                <DiscoveryResultCard
                   asset={asset}
                   key={asset.fqn}
                   onOpenAsset={onOpenAsset}
                   onOpenGovernance={onOpenGovernance}
                   onOpenLineage={onOpenLineage}
+                  onSelect={setSelectedAssetFqn}
+                  selected={asset.fqn === selectedAssetFqn}
                 />
               ))}
             </div>
           ) : resultsError ? (
-            <div className="gh-empty-state">
+            <div className="gh-panel gh-empty-state">
               <div>Live discovery results are unavailable right now.</div>
               <div className="gh-empty-state-actions">
                 {filters.query ? (
@@ -472,7 +692,7 @@ export default function DiscoveryWorkspace({
               </div>
             </div>
           ) : (
-            <div className="gh-empty-state">
+            <div className="gh-panel gh-empty-state">
               <div>No assets match the current scope.</div>
               <div className="gh-empty-state-actions">
                 {filters.query ? (
@@ -491,6 +711,16 @@ export default function DiscoveryWorkspace({
             </div>
           )}
         </section>
+
+        <SelectionPreview
+          asset={previewAsset}
+          error={previewDetail.error}
+          loading={previewDetail.loading}
+          onOpenAsset={onOpenAsset}
+          onOpenGovernance={onOpenGovernance}
+          onOpenLineage={onOpenLineage}
+          onSelectAsset={onOpenAsset}
+        />
       </section>
     </section>
   );
