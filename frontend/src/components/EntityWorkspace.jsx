@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
-import LineageStage from "./LineageStage";
+import { useEffect, useMemo, useState } from "react";
+import { useAssetMetadataEditor } from "../hooks/useAssetMetadataEditor";
 import { useAssetDetail } from "../hooks/useAssetDetail";
 import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import { consumeWorkspaceIntent } from "../lib/workspaceIntent";
+import LineageStage from "./LineageStage";
 
 function statusTone(asset) {
   if (asset?.governanceStatus === "Enterprise Ready") return "good";
@@ -48,27 +49,49 @@ function governanceTasks(asset) {
 
 function postureItems(asset) {
   return [
+    { label: "Catalog", value: asset.catalog || "—" },
+    { label: "Schema", value: asset.schema || "—" },
+    { label: "Object type", value: asset.objectType || "—" },
+    { label: "Rows", value: asset.rows || "—" },
+    { label: "Format", value: asset.format || "—" },
+    { label: "Size", value: asset.size || "—" },
+    { label: "Files", value: asset.files || "—" },
     { label: "Domain", value: asset.domain || "Unassigned" },
     { label: "Tier", value: asset.tier || "Unassigned" },
     { label: "Certification", value: asset.certification || "Unassigned" },
     { label: "Sensitivity", value: asset.sensitivity || "Unassigned" },
     { label: "Criticality", value: asset.criticality || "Unassigned" },
-    { label: "Open requests", value: `${asset.openRequests || 0}` },
-    { label: "Coverage", value: `${asset.coverageScore ?? 0}` },
-    { label: "Owners", value: `${asset.owners?.length || 0}` },
   ];
+}
+
+function toDraftValue(value) {
+  if (!value || value === "Unassigned" || value === "No description has been captured for this asset yet.") {
+    return "";
+  }
+  return value;
+}
+
+function metadataDraftFromAsset(asset) {
+  return {
+    description: toDraftValue(asset?.description),
+    domain: toDraftValue(asset?.domain),
+    tier: toDraftValue(asset?.tier),
+    certification: toDraftValue(asset?.certification),
+    sensitivity: toDraftValue(asset?.sensitivity),
+  };
 }
 
 function EntityTabs({ activeTab, onTabChange }) {
   const tabs = [
-    { key: "Overview", label: "Home" },
+    { key: "Overview", label: "Overview" },
+    { key: "Schema", label: "Schema" },
+    { key: "Preview", label: "Sample Data" },
     { key: "Lineage", label: "Lineage" },
     { key: "Governance", label: "Governance" },
-    { key: "Schema", label: "Schema" },
-    { key: "Preview", label: "Preview" },
   ];
+
   return (
-    <div className="gh-subtabs">
+    <div className="gh-subtabs gh-entity-record-tabs">
       {tabs.map((tab) => (
         <button
           className={`gh-subtab ${activeTab === tab.key ? "is-active" : ""}`}
@@ -122,6 +145,130 @@ function GovernanceGapRows({ items, onOpenGovernance }) {
   );
 }
 
+function MetricTile({ label, value }) {
+  return (
+    <div className="gh-preview-stat-card gh-entity-metric-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function OwnerList({ owners }) {
+  if (!owners?.length) {
+    return <div className="gh-support-copy">No owners are assigned to this asset yet.</div>;
+  }
+
+  return (
+    <div className="gh-preview-owner-list">
+      {owners.map((owner) => (
+        <div className="gh-preview-owner-row" key={`${owner.name || owner.email || owner.title}`}>
+          <strong>{owner.name || owner.email || "Owner"}</strong>
+          <span>{owner.title || "Owner"}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MetadataEditorPanel({
+  asset,
+  bootstrap,
+  editor,
+  draft,
+  dirty,
+  onChange,
+  onReset,
+  onSave,
+}) {
+  const fields = editor.config?.fields || [];
+
+  return (
+    <section className="gh-panel gh-record-card">
+      <div className="gh-record-card-head">
+        <div>
+          <div className="gh-panel-title">Metadata controls</div>
+          <div className="gh-support-copy">
+            Update the record description and governance classifications when the backend edit
+            surface is available.
+          </div>
+        </div>
+        {editor.available ? <span className="gh-chip gh-chip-soft">Editable</span> : null}
+      </div>
+
+      {editor.loading ? <div className="gh-support-copy">Checking metadata edit capability...</div> : null}
+      {editor.error ? <div className="gh-inline-alert tone-warn">{editor.error}</div> : null}
+      {editor.submitError ? <div className="gh-inline-alert tone-warn">{editor.submitError}</div> : null}
+      {editor.submitSuccess ? <div className="gh-inline-alert">{editor.submitSuccess}</div> : null}
+
+      {editor.available && fields.length ? (
+        <form
+          className="gh-metadata-edit-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSave();
+          }}
+        >
+          {fields.map((field) => (
+            <label className="gh-metadata-edit-field" key={field.key}>
+              <span>{field.label}</span>
+              {field.type === "textarea" ? (
+                <textarea
+                  className="gh-input gh-textarea"
+                  onChange={(event) => onChange(field.key, event.target.value)}
+                  placeholder={field.placeholder}
+                  rows={5}
+                  value={draft[field.key] ?? ""}
+                />
+              ) : (
+                <select
+                  className="gh-select"
+                  onChange={(event) => onChange(field.key, event.target.value)}
+                  value={draft[field.key] ?? ""}
+                >
+                  <option value="">{field.placeholder || `Select ${field.label.toLowerCase()}`}</option>
+                  {field.options.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {field.helpText ? <small>{field.helpText}</small> : null}
+            </label>
+          ))}
+
+          <div className="gh-record-form-actions">
+            <button className="gh-primary-button" disabled={editor.submitting || !dirty} type="submit">
+              {editor.submitting ? "Saving..." : "Save metadata"}
+            </button>
+            <button className="gh-secondary-button" disabled={editor.submitting || !dirty} onClick={onReset} type="button">
+              Reset
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="gh-record-readonly-note">
+          <div className="gh-support-copy">
+            {editor.hasContract
+              ? "The backend did not return a usable metadata editor for this asset."
+              : "Metadata editing is not currently exposed by the backend. The record remains read only."}
+          </div>
+          <AttributeList items={postureItems(asset).slice(7, 12)} />
+        </div>
+      )}
+
+      <div className="gh-chip-row">
+        {(bootstrap?.discovery?.domains || []).slice(1, 4).map((domain) => (
+          <span className="gh-chip gh-chip-soft" key={domain}>
+            {domain}
+          </span>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function EntityWorkspace({
   assetFqn,
   bootstrap,
@@ -134,35 +281,58 @@ export default function EntityWorkspace({
     return consumeWorkspaceIntent("entityTab", assetFqn, "Overview") || "Overview";
   });
   const [localLineageContext, setLocalLineageContext] = useState("Data Lineage");
+  const [localOverrides, setLocalOverrides] = useState({});
+  const [metadataDraft, setMetadataDraft] = useState(metadataDraftFromAsset(null));
+  const [metadataDirty, setMetadataDirty] = useState(false);
   const launchAssets = (bootstrap?.assets || []).slice(0, 6);
   const seeded = useSeededAssetContext(assetFqn, bootstrap, bootstrap?.assets || []);
   const assetDetail = useAssetDetail(assetFqn || "");
   const lineageEnabled = activeTab === "Lineage";
   const lineage = useLineage(assetFqn || "", seeded.seededGraph, lineageEnabled);
-  const asset = assetDetail.detail || seeded.summary;
-  const loading = assetDetail.loading;
-  const entity = assetDetail.detail || asset;
+  const baseAsset = assetDetail.detail || seeded.summary;
+  const asset = useMemo(
+    () => (baseAsset ? { ...baseAsset, ...localOverrides } : baseAsset),
+    [baseAsset, localOverrides],
+  );
   const lineageBundle = lineage.graph;
   const lineageLoading = lineage.loading;
+  const editor = useAssetMetadataEditor({ assetFqn: assetFqn || "", asset, bootstrap });
 
   useEffect(() => {
-    const nextContext =
-      consumeWorkspaceIntent("lineageContext", assetFqn, "") || "Data Lineage";
+    const nextContext = consumeWorkspaceIntent("lineageContext", assetFqn, "") || "Data Lineage";
     setLocalLineageContext(nextContext);
   }, [assetFqn]);
 
   useEffect(() => {
     const nextTab = consumeWorkspaceIntent("entityTab", assetFqn, "Overview") || "Overview";
     setActiveTab(nextTab);
+    setLocalOverrides({});
+    setMetadataDirty(false);
   }, [assetFqn]);
 
-  if (assetFqn && !asset && !loading) {
+  useEffect(() => {
+    if (!asset || metadataDirty) return;
+    setMetadataDraft(metadataDraftFromAsset(asset));
+  }, [
+    asset?.description,
+    asset?.domain,
+    asset?.tier,
+    asset?.certification,
+    asset?.sensitivity,
+    asset?.fqn,
+    metadataDirty,
+  ]);
+
+  if (assetFqn && !asset && !assetDetail.loading) {
     return (
       <section className="gh-workspace gh-entity-workspace">
         <div className="gh-panel gh-unavailable-panel">
           <div className="gh-panel-title">Asset unavailable</div>
           <h2>The selected asset could not be opened.</h2>
-          <p>{assetDetail.error || "This asset is unavailable or cannot be inspected with the current permissions."}</p>
+          <p>
+            {assetDetail.error ||
+              "This asset is unavailable or cannot be inspected with the current permissions."}
+          </p>
           <div className="gh-empty-state-actions">
             <button className="gh-secondary-button" onClick={onBack} type="button">
               Return to catalog
@@ -219,120 +389,231 @@ export default function EntityWorkspace({
     );
   }
 
-  const columns = entity.columns || [];
-  const preview = entity.preview || [];
-  const relatedAssets = entity.relatedAssets || [];
+  const columns = asset.columns || [];
+  const preview = asset.preview || [];
+  const previewKeys = preview[0] ? Object.keys(preview[0]) : [];
+  const relatedAssets = asset.relatedAssets || [];
   const tasks = governanceTasks(asset);
   const posture = postureItems(asset);
   const lineageUnavailable = Boolean(lineage.error);
-  const stewardshipSummary = tasks.filter((task) => !task.complete).slice(0, 3);
+  const completeness = tasks.filter((task) => task.complete).length;
+  const metricTiles = [
+    { label: "Coverage", value: `${asset.coverageScore ?? 0}` },
+    { label: "Owners", value: `${asset.owners?.length || 0}` },
+    { label: "Open requests", value: `${asset.openRequests || 0}` },
+    { label: "Connected assets", value: `${relatedAssets.length}` },
+  ];
 
-  const changeTab = (nextTab) => {
-    setActiveTab(nextTab);
+  const handleMetadataChange = (key, value) => {
+    setMetadataDirty(true);
+    setMetadataDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  };
+
+  const resetMetadataDraft = () => {
+    setMetadataDraft(metadataDraftFromAsset(asset));
+    setMetadataDirty(false);
+  };
+
+  const saveMetadata = async () => {
+    const payload = {
+      assetFqn: asset.fqn,
+      description: metadataDraft.description.trim(),
+      domain: metadataDraft.domain || null,
+      tier: metadataDraft.tier || null,
+      certification: metadataDraft.certification || null,
+      sensitivity: metadataDraft.sensitivity || null,
+    };
+
+    await editor.save(payload);
+    setLocalOverrides((current) => ({
+      ...current,
+      description:
+        metadataDraft.description.trim() || "No description has been captured for this asset yet.",
+      domain: metadataDraft.domain || "Unassigned",
+      tier: metadataDraft.tier || "Unassigned",
+      certification: metadataDraft.certification || "Unassigned",
+      sensitivity: metadataDraft.sensitivity || "Unassigned",
+    }));
+    setMetadataDirty(false);
   };
 
   return (
     <section className="gh-workspace gh-entity-workspace">
-      <section className="gh-panel gh-entity-shell">
-        <div className="gh-entity-header gh-entity-header-flat">
-          <div className="gh-entity-hero-main">
+      <section className="gh-panel gh-entity-shell gh-entity-record-shell">
+        <div className="gh-entity-record-header">
+          <div className="gh-entity-record-main">
+            <button className="gh-tertiary-button gh-inline-link-button" onClick={onBack} type="button">
+              Back to discovery
+            </button>
+            <div className="gh-eyebrow">Metadata record</div>
             <h2>{asset.name}</h2>
-            <div className="gh-entity-context gh-entity-context-rich">
-              <span>{asset.catalog} / {asset.schema}</span>
-              <span>{asset.objectType}</span>
+            <div className="gh-entity-record-fqn">{asset.fqn}</div>
+            <div className="gh-chip-row">
+              <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
               <span className={`gh-status-chip tone-${statusTone(asset)}`}>
                 {asset.governanceStatus || "Needs Work"}
               </span>
+              {asset.domain && asset.domain !== "Unassigned" ? (
+                <span className="gh-chip gh-chip-soft">{asset.domain}</span>
+              ) : null}
+              {asset.certification && asset.certification !== "Unassigned" ? (
+                <span className="gh-chip gh-chip-soft">{asset.certification}</span>
+              ) : null}
+              {asset.sensitivity && asset.sensitivity !== "Unassigned" ? (
+                <span className="gh-chip gh-chip-soft">{asset.sensitivity}</span>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="gh-entity-record-actions">
+            <div className="gh-entity-record-context">
+              <span>{asset.catalog}</span>
+              <span>{asset.schema}</span>
+              <span>{asset.format || "—"}</span>
+            </div>
+            <div className="gh-action-grid gh-action-grid-compact">
+              <button className="gh-secondary-button" onClick={() => onOpenLineage(asset.fqn, "Data Lineage")} type="button">
+                Open lineage
+              </button>
+              <button className="gh-secondary-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">
+                Open governance
+              </button>
+            </div>
+            <div className="gh-support-copy">
+              {assetDetail.loading
+                ? "Refreshing live record details..."
+                : "Inspect live metadata, lineage, and stewardship state for this asset."}
             </div>
           </div>
         </div>
 
-        <EntityTabs activeTab={activeTab} onTabChange={changeTab} />
+        <div className="gh-preview-stat-grid gh-entity-record-metrics">
+          {metricTiles.map((item) => (
+            <MetricTile key={item.label} label={item.label} value={item.value} />
+          ))}
+        </div>
 
-        {activeTab === "Overview" && (
-          <div className="gh-entity-flow">
-            <section className="gh-panel gh-entity-main gh-entity-main-single gh-entity-summary-shell">
-              <div className="gh-entity-home-layout">
-                <div className="gh-entity-home-primary">
-                  <div className="gh-detail-section">
-                    <div className="gh-panel-title">Lineage impact</div>
+        <EntityTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+        {activeTab === "Overview" ? (
+          <div className="gh-entity-record-layout">
+            <div className="gh-entity-record-primary">
+              <section className="gh-panel gh-record-card">
+                <div className="gh-record-card-head">
+                  <div className="gh-panel-title">Definition</div>
+                </div>
+                <div className="gh-support-copy">
+                  {asset.description || "No description is available for this asset yet."}
+                </div>
+              </section>
+
+              <section className="gh-panel gh-record-card">
+                <div className="gh-record-card-head">
+                  <div>
+                    <div className="gh-panel-title">Lineage context</div>
                     <div className="gh-support-copy">
                       {lineageUnavailable
                         ? "Lineage signals are temporarily unavailable for this asset right now."
                         : relatedAssets.length
-                          ? "Trace upstream, downstream, and operational dependencies directly from this asset."
+                          ? "Review upstream and downstream neighbors before changing the asset."
                           : "No connected lineage edges are surfaced for this asset yet."}
                     </div>
-                    <div className="gh-action-grid gh-action-grid-inline">
-                      <button
-                        className="gh-tertiary-button gh-inline-link-button"
-                        onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
-                        type="button"
-                      >
-                        Open data lineage
-                      </button>
-                      <button
-                        className="gh-tertiary-button gh-inline-link-button"
-                        onClick={() => onOpenLineage(asset.fqn, "Operational Context")}
-                        type="button"
-                      >
-                        Open operational context
-                      </button>
-                    </div>
-                    {relatedAssets.length ? (
-                      <div className="gh-lineage-linked-list">
-                        {relatedAssets.slice(0, 6).map((item) => (
-                          <button
-                            className="gh-lineage-linked-row"
-                            key={item}
-                            onClick={() => onSelectAsset(item)}
-                            type="button"
-                          >
-                            <span>{item}</span>
-                            <span>Open linked asset</span>
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="gh-detail-section">
-                    <div className="gh-panel-title">Stewardship priorities</div>
-                    <GovernanceGapRows
-                      items={stewardshipSummary.length ? stewardshipSummary : tasks.slice(0, 4)}
-                      onOpenGovernance={() => onOpenGovernance(asset.fqn)}
-                    />
-                    <div className="gh-action-grid gh-action-grid-inline">
-                      <button
-                        className="gh-tertiary-button gh-inline-link-button"
-                        onClick={() => onOpenGovernance(asset.fqn)}
-                        type="button"
-                      >
-                        Open stewardship workbench
-                      </button>
-                    </div>
                   </div>
                 </div>
+                <div className="gh-action-grid gh-action-grid-inline">
+                  <button
+                    className="gh-tertiary-button gh-inline-link-button"
+                    onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
+                    type="button"
+                  >
+                    Open data lineage
+                  </button>
+                  <button
+                    className="gh-tertiary-button gh-inline-link-button"
+                    onClick={() => onOpenLineage(asset.fqn, "Operational Context")}
+                    type="button"
+                  >
+                    Open operational context
+                  </button>
+                </div>
+                {relatedAssets.length ? (
+                  <div className="gh-lineage-linked-list">
+                    {relatedAssets.slice(0, 6).map((item) => (
+                      <button className="gh-lineage-linked-row" key={item} onClick={() => onSelectAsset(item)} type="button">
+                        <span>{item}</span>
+                        <span>Open linked asset</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
 
-                <div className="gh-entity-home-secondary">
-                  <div className="gh-detail-section">
-                    <div className="gh-panel-title">Definition</div>
+              <section className="gh-panel gh-record-card">
+                <div className="gh-record-card-head">
+                  <div>
+                    <div className="gh-panel-title">Schema summary</div>
                     <div className="gh-support-copy">
-                      {entity.description || asset.description || "No description is available for this asset yet."}
+                      {columns.length
+                        ? `${columns.length} columns surfaced from the live asset definition.`
+                        : "No schema metadata is available for this asset."}
                     </div>
                   </div>
+                </div>
+                {columns.length ? (
+                  <div className="gh-preview-column-list">
+                    {columns.slice(0, 8).map((column) => (
+                      <div className="gh-preview-column-row" key={column.name}>
+                        <div>
+                          <strong>{column.name}</strong>
+                          <span>{column.type}</span>
+                        </div>
+                        <p>{column.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            </div>
 
-                  <div className="gh-detail-section">
-                    <div className="gh-panel-title">Operational metadata</div>
-                    <AttributeList items={posture.slice(0, 6)} />
+            <div className="gh-entity-record-secondary">
+              <section className="gh-panel gh-record-card">
+                <div className="gh-record-card-head">
+                  <div>
+                    <div className="gh-panel-title">Stewardship posture</div>
+                    <div className="gh-support-copy">
+                      {completeness} of {tasks.length} core governance checks are complete for this asset.
+                    </div>
                   </div>
                 </div>
-              </div>
-            </section>
-          </div>
-        )}
+                <AttributeList items={posture.slice(0, 8)} />
+              </section>
 
-        {activeTab === "Lineage" && (
+              <section className="gh-panel gh-record-card">
+                <div className="gh-record-card-head">
+                  <div className="gh-panel-title">Owners</div>
+                </div>
+                <OwnerList owners={asset.owners} />
+              </section>
+
+              <section className="gh-panel gh-record-card">
+                <div className="gh-record-card-head">
+                  <div>
+                    <div className="gh-panel-title">Stewardship priorities</div>
+                    <div className="gh-support-copy">
+                      Open the governance workspace to resolve ownership, trust, and classification gaps.
+                    </div>
+                  </div>
+                </div>
+                <GovernanceGapRows items={tasks.slice(0, 4)} onOpenGovernance={() => onOpenGovernance(asset.fqn)} />
+              </section>
+            </div>
+          </div>
+        ) : null}
+
+        {activeTab === "Lineage" ? (
           <LineageStage
             asset={asset}
             allowRefocus={false}
@@ -346,71 +627,61 @@ export default function EntityWorkspace({
             loading={lineageLoading}
             onAssetSearchQueryChange={() => {}}
             onContextChange={setLocalLineageContext}
-            onOpenAsset={(assetFqn) => onSelectAsset(assetFqn)}
+            onOpenAsset={(nextAssetFqn) => onSelectAsset(nextAssetFqn)}
             onOpenFullGraph={(nextContext) => onOpenLineage(asset.fqn, nextContext)}
             onOpenGovernance={onOpenGovernance}
             onSelectAsset={onSelectAsset}
           />
-        )}
+        ) : null}
 
-        {activeTab === "Governance" && (
-          <section className="gh-entity-flow">
-            <section className="gh-panel gh-entity-main gh-entity-main-single">
-              <div className="gh-entity-home-layout gh-entity-governance-layout">
-                <div className="gh-entity-home-primary">
-                  <div className="gh-detail-section">
-                    <div className="gh-panel-title">Stewardship work</div>
-                    <GovernanceGapRows items={tasks} onOpenGovernance={() => onOpenGovernance(asset.fqn)} />
-                  </div>
-                </div>
-                <div className="gh-entity-home-secondary">
-                  {relatedAssets.length ? (
-                    <div className="gh-detail-section">
-                      <div className="gh-panel-title">Linked assets</div>
-                      <div className="gh-lineage-linked-list">
-                        {relatedAssets.slice(0, 6).map((item) => (
-                          <button
-                            className="gh-lineage-linked-row"
-                            key={item}
-                            onClick={() => onSelectAsset(item)}
-                            type="button"
-                          >
-                            <span>{item}</span>
-                            <span>Open linked asset</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                  <div className="gh-detail-section">
-                    <div className="gh-panel-title">Continue in workbench</div>
-                    <div className="gh-chip-row gh-chip-row-compact">
-                      <button
-                        className="gh-tertiary-button gh-inline-link-button"
-                        onClick={() => onOpenGovernance(asset.fqn)}
-                        type="button"
-                      >
-                        Open stewardship workbench
-                      </button>
-                      <button
-                        className="gh-tertiary-button gh-inline-link-button"
-                        onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
-                        type="button"
-                      >
-                        Open lineage
-                      </button>
+        {activeTab === "Governance" ? (
+          <div className="gh-entity-record-layout gh-entity-record-layout-governance">
+            <div className="gh-entity-record-primary">
+              <MetadataEditorPanel
+                asset={asset}
+                bootstrap={bootstrap}
+                dirty={metadataDirty}
+                draft={metadataDraft}
+                editor={editor}
+                onChange={handleMetadataChange}
+                onReset={resetMetadataDraft}
+                onSave={saveMetadata}
+              />
+            </div>
+
+            <div className="gh-entity-record-secondary">
+              <section className="gh-panel gh-record-card">
+                <div className="gh-record-card-head">
+                  <div>
+                    <div className="gh-panel-title">Governance checklist</div>
+                    <div className="gh-support-copy">
+                      Resolve the remaining stewardship gaps for this asset from the workbench.
                     </div>
                   </div>
                 </div>
+                <GovernanceGapRows items={tasks} onOpenGovernance={() => onOpenGovernance(asset.fqn)} />
+              </section>
+
+              <section className="gh-panel gh-record-card">
+                <div className="gh-record-card-head">
+                  <div className="gh-panel-title">Operational metadata</div>
+                </div>
+                <AttributeList items={posture.slice(8)} />
+              </section>
+            </div>
+          </div>
+        ) : null}
+
+        {activeTab === "Schema" ? (
+          <section className="gh-panel gh-record-card">
+            <div className="gh-record-card-head">
+              <div>
+                <div className="gh-panel-title">Schema</div>
+                <div className="gh-support-copy">Column-level metadata for the selected asset.</div>
               </div>
-            </section>
-          </section>
-        )}
-
-        {activeTab === "Schema" && (
-          <section className="gh-detail-section">
-            {loading ? (
-              <div className="gh-empty-state">Loading schema metadata…</div>
+            </div>
+            {assetDetail.loading ? (
+              <div className="gh-empty-state">Loading schema metadata...</div>
             ) : columns.length ? (
               <table className="gh-table">
                 <thead>
@@ -434,25 +705,31 @@ export default function EntityWorkspace({
               <div className="gh-empty-state">No schema metadata is available for this asset.</div>
             )}
           </section>
-        )}
+        ) : null}
 
-        {activeTab === "Preview" && (
-          <section className="gh-detail-section">
-            {loading ? (
-              <div className="gh-empty-state">Loading preview rows…</div>
+        {activeTab === "Preview" ? (
+          <section className="gh-panel gh-record-card">
+            <div className="gh-record-card-head">
+              <div>
+                <div className="gh-panel-title">Sample data</div>
+                <div className="gh-support-copy">Sample rows returned from the live asset preview.</div>
+              </div>
+            </div>
+            {assetDetail.loading ? (
+              <div className="gh-empty-state">Loading preview rows...</div>
             ) : preview.length ? (
               <table className="gh-table">
                 <thead>
                   <tr>
-                    {Object.keys(preview[0]).map((key) => (
+                    {previewKeys.map((key) => (
                       <th key={key}>{key}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {preview.map((row, index) => (
-                    <tr key={index}>
-                      {Object.keys(preview[0]).map((key) => (
+                    <tr key={`${asset.fqn}-preview-${index}`}>
+                      {previewKeys.map((key) => (
                         <td key={key}>{row[key]}</td>
                       ))}
                     </tr>
@@ -463,7 +740,7 @@ export default function EntityWorkspace({
               <div className="gh-empty-state">No preview rows are available for this asset.</div>
             )}
           </section>
-        )}
+        ) : null}
       </section>
     </section>
   );
