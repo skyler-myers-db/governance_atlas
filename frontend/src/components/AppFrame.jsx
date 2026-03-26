@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAssetSearch } from "../hooks/useAssetSearch";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 
@@ -36,7 +36,7 @@ function SearchDropdown({ assets, error, loading, onBrowseCatalog, onSelectAsset
         <div>
           <div className="gh-eyebrow">Global Search</div>
           <div className="gh-search-dropdown-status">
-            {loading ? "Searching the metadata plane..." : "Direct matches across visible assets"}
+            {loading ? "Searching visible assets..." : "Direct matches across visible assets"}
           </div>
         </div>
         <div className="gh-search-dropdown-status">
@@ -57,7 +57,7 @@ function SearchDropdown({ assets, error, loading, onBrowseCatalog, onSelectAsset
             >
               <span className="gh-search-result-main">
                 <span className="gh-search-result-title">{asset.name}</span>
-                <span className="gh-search-result-subtitle">{assetPathLabel(asset, true)}</span>
+                <span className="gh-search-result-subtitle">{assetPathLabel(asset)}</span>
               </span>
               <span className="gh-search-result-meta">
                 {displayObjectType(asset) ? (
@@ -117,12 +117,6 @@ export default function AppFrame({
     !shellSearch.loading && shellSearch.resolvedQuery === searchQuery.trim()
       ? shellSearch.assets?.[0] || null
       : null;
-
-  const shellMetrics = useMemo(() => (shell?.metrics || []).slice(0, 3), [shell?.metrics]);
-  const shellStatusCopy =
-    bootState === "healthy" || bootState === "live"
-      ? ""
-      : bootMessage || "Metadata inventory is currently running with limited access.";
 
   useEffect(() => {
     setSearchPanelOpen(false);
@@ -203,6 +197,9 @@ export default function AppFrame({
 
           <div className="gh-shell-topbar-utility">
             <div className="gh-shell-identity-block">
+              <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
+                {statusLabel(bootState)}
+              </span>
               <div className="gh-shell-identity">{shell?.role || "workspace user"}</div>
               <div className="gh-shell-user">{shell?.userEmail || "unknown"}</div>
             </div>
@@ -274,26 +271,6 @@ export default function AppFrame({
               ) : null}
             </div>
           </form>
-
-          <aside className={`gh-shell-inline-status tone-${statusTone(bootState)}`}>
-            <div className="gh-shell-inline-status-head">
-              <div className="gh-shell-runtime-label">Metadata Plane</div>
-              <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
-                {statusLabel(bootState)}
-              </span>
-            </div>
-            {shellStatusCopy ? <div className="gh-shell-inline-status-copy">{shellStatusCopy}</div> : null}
-            {shellMetrics.length ? (
-              <div className="gh-shell-metric-row">
-                {shellMetrics.map((metric) => (
-                  <div className="gh-shell-metric-chip" key={metric.label}>
-                    <span>{metric.label}</span>
-                    <strong>{metric.value}</strong>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </aside>
         </div>
       </header>
 
