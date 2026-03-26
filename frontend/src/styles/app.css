@@ -21,7 +21,7 @@
   --gh-radius-sm: 8px;
   --gh-shadow: 0 10px 22px rgba(19, 31, 65, 0.05);
   --gh-shadow-soft: 0 1px 4px rgba(19, 31, 65, 0.025);
-  --gh-font: "Inter", "Avenir Next", "Segoe UI", sans-serif;
+  --gh-font: "Avenir Next", "Inter", "Segoe UI Variable Text", "Segoe UI", sans-serif;
 }
 
 * {
@@ -41,6 +41,7 @@ body {
   background:
     linear-gradient(180deg, rgba(241, 245, 255, 0.99) 0%, rgba(245, 247, 252, 1) 42%, rgba(244, 247, 252, 1) 100%),
     radial-gradient(circle at top left, rgba(93, 119, 255, 0.025), transparent 16%);
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -116,8 +117,8 @@ body {
 .gh-metric-pill-label,
 .gh-graph-node-kicker {
   font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #586a88;
 }
@@ -2421,7 +2422,7 @@ body {
   --gh-radius-sm: 10px;
   --gh-shadow: 0 16px 44px rgba(18, 35, 58, 0.08);
   --gh-shadow-soft: 0 6px 18px rgba(18, 35, 58, 0.05);
-  --gh-font: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
+  --gh-font: "Avenir Next", "Inter", "Segoe UI Variable Text", "Segoe UI", sans-serif;
 }
 
 body {
@@ -2447,8 +2448,8 @@ body {
 }
 
 .gh-shell-header {
-  padding: 18px 22px 20px;
-  border-radius: 24px;
+  padding: 20px 24px 22px;
+  border-radius: 26px;
   border: 1px solid rgba(182, 198, 216, 0.82);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(247, 250, 255, 0.98) 100%);
   box-shadow: var(--gh-shadow);
@@ -2462,12 +2463,12 @@ body {
 }
 
 .gh-shell-topbar {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(260px, auto) minmax(0, 1fr) auto;
 }
 
 .gh-shell-commandbar {
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.9fr);
-  margin-top: 18px;
+  margin-top: 20px;
   align-items: stretch;
 }
 
@@ -2476,7 +2477,7 @@ body {
   padding: 0;
   display: inline-flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   border: 0;
   background: transparent;
   color: var(--gh-ink);
@@ -2492,12 +2493,12 @@ body {
 .gh-shell-brand-mark {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
   background: linear-gradient(135deg, #4b34d4 0%, #5b43ee 56%, #7257ff 100%);
   color: #fff;
-  font-size: 0.9rem;
+  font-size: 0.96rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
@@ -2511,17 +2512,17 @@ body {
 .gh-shell-brand-kicker,
 .gh-shell-module-label,
 .gh-global-search-label {
-  font-size: 0.68rem;
-  font-weight: 900;
-  letter-spacing: 0.16em;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #657a94;
 }
 
 .gh-shell-brand-title {
-  font-size: 1.02rem;
-  font-weight: 900;
-  letter-spacing: -0.04em;
+  font-size: 1.14rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   color: var(--gh-ink);
 }
 
@@ -2529,13 +2530,17 @@ body {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
+  padding: 6px;
+  border: 1px solid rgba(219, 226, 239, 0.96);
+  border-radius: 999px;
+  background: rgba(247, 250, 255, 0.92);
 }
 
 .gh-product-tab {
-  min-width: 122px;
-  min-height: 42px;
-  padding: 0 18px;
+  min-width: 136px;
+  min-height: 48px;
+  padding: 0 20px;
   border-radius: 999px;
   border: 1px solid rgba(91, 67, 238, 0.26);
   background: #fff;
@@ -2547,8 +2552,8 @@ body {
 }
 
 .gh-product-tab span {
-  font-size: 0.9rem;
-  font-weight: 900;
+  font-size: 0.94rem;
+  font-weight: 800;
   letter-spacing: -0.01em;
 }
 
@@ -2573,9 +2578,12 @@ body {
 .gh-global-search-frame {
   min-height: 96px;
   display: grid;
-  grid-template-columns: minmax(220px, 0.5fr) minmax(0, 1fr) auto;
-  gap: 14px;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "copy copy"
+    "input button";
+  gap: 12px;
+  align-items: end;
   padding: 18px 20px;
   border: 1px solid rgba(182, 198, 216, 0.9);
   border-radius: 18px;
@@ -2588,21 +2596,26 @@ body {
   gap: 4px;
 }
 
+.gh-global-search-copy {
+  grid-area: copy;
+}
+
 .gh-global-search-title {
-  font-size: 1rem;
-  font-weight: 900;
-  letter-spacing: -0.035em;
+  font-size: 1.06rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   color: var(--gh-ink);
 }
 
 .gh-global-search-subtitle,
 .gh-shell-inline-status-copy {
   color: var(--gh-ink-soft);
-  font-size: 0.83rem;
+  font-size: 0.86rem;
   line-height: 1.5;
 }
 
 .gh-global-search-input-wrap {
+  grid-area: input;
   min-width: 0;
 }
 
@@ -2614,11 +2627,12 @@ body {
   min-height: 52px;
   border-radius: 15px;
   border-color: rgba(182, 198, 216, 0.96);
-  font-size: 1rem;
+  font-size: 0.96rem;
   padding-inline: 16px;
 }
 
 .gh-search-submit {
+  grid-area: button;
   min-width: 110px;
   min-height: 52px;
 }
@@ -2703,7 +2717,7 @@ body {
 .gh-shell-inline-status {
   display: grid;
   gap: 14px;
-  padding: 16px 18px;
+  padding: 18px;
   border: 1px solid rgba(214, 224, 236, 0.92);
   border-radius: 18px;
   background: rgba(248, 250, 255, 0.92);
@@ -2712,8 +2726,8 @@ body {
 .gh-shell-runtime-label {
   color: #6a7f98;
   font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -2728,8 +2742,8 @@ body {
 .gh-shell-identity {
   color: #5f7290;
   font-size: 0.64rem;
-  font-weight: 900;
-  letter-spacing: 0.16em;
+  font-weight: 800;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -2785,6 +2799,10 @@ body {
   gap: 18px;
   align-items: start;
   max-width: none;
+}
+
+.gh-results-column.is-expanded {
+  grid-column: 1 / -1;
 }
 
 .gh-discovery-sidebar-panel {
@@ -2854,16 +2872,16 @@ body {
 .gh-discovery-summary-card span {
   color: #62768f;
   font-size: 0.7rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .gh-discovery-summary-card strong {
   color: var(--gh-ink);
   font-size: 1.18rem;
-  font-weight: 900;
-  letter-spacing: -0.04em;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 .gh-discovery-command-panel {
@@ -2954,8 +2972,8 @@ body {
 .gh-discovery-card-title-row h3 {
   margin: 0;
   font-size: 1.02rem;
-  font-weight: 900;
-  letter-spacing: -0.04em;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 .gh-discovery-card-fqn,
@@ -2972,10 +2990,15 @@ body {
   line-height: 1.52;
 }
 
-.gh-discovery-card-meta,
-.gh-preview-stat-grid {
+.gh-discovery-card-meta {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.gh-preview-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -2994,8 +3017,8 @@ body {
 .gh-preview-stat-card span {
   color: #62768f;
   font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
@@ -3003,8 +3026,8 @@ body {
 .gh-preview-stat-card strong {
   color: var(--gh-ink);
   font-size: 1.02rem;
-  font-weight: 900;
-  letter-spacing: -0.035em;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 .gh-discovery-card-foot {
@@ -3041,13 +3064,17 @@ body {
   box-shadow: var(--gh-shadow-soft);
 }
 
-.gh-preview-panel-head,
 .gh-record-card-head,
 .gh-entity-record-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+}
+
+.gh-preview-panel-head {
+  display: grid;
+  gap: 10px;
 }
 
 .gh-preview-panel-title-block,
@@ -3058,12 +3085,24 @@ body {
   gap: 8px;
 }
 
+.gh-preview-panel-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .gh-preview-panel-title-block h3,
 .gh-entity-record-main h2 {
   margin: 0;
   font-size: clamp(1.34rem, 1.1rem + 0.72vw, 1.94rem);
-  font-weight: 900;
-  letter-spacing: -0.05em;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.gh-preview-panel-title-row .gh-status-chip {
+  align-self: flex-start;
 }
 
 .gh-preview-panel-actions {
@@ -3271,7 +3310,7 @@ body {
   justify-content: space-between;
 }
 
-@media (max-width: 1500px) {
+@media (max-width: 1360px) {
   .gh-shell-topbar,
   .gh-shell-commandbar,
   .gh-discovery-main-grid,
@@ -3313,7 +3352,19 @@ body {
     justify-content: flex-start;
   }
 
-  .gh-global-search-frame,
+  .gh-global-search-frame {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "copy"
+      "input"
+      "button";
+  }
+
+  .gh-preview-panel-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .gh-discovery-command-bar {
     grid-template-columns: 1fr;
   }
