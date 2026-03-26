@@ -22,8 +22,8 @@ export function useDiscoveryResults(filters, seededAssets = []) {
       }));
       fetchDiscoverySearch({
         query: filters.query,
-        view: filters.view,
-        type: filters.type,
+        views: filters.views,
+        types: filters.types,
         catalogs: filters.catalogs,
         domains: filters.domains,
         tiers: filters.tiers,
@@ -66,8 +66,8 @@ export function useDiscoveryResults(filters, seededAssets = []) {
     filters.sensitivities,
     filters.sortBy,
     filters.tiers,
-    filters.type,
-    filters.view,
+    filters.types,
+    filters.views,
   ]);
 
   return state;
