@@ -116,6 +116,7 @@ function SearchDropdown({
 
 export default function AppFrame({
   shell,
+  searchSeedAssets = [],
   activeModule,
   onModuleChange,
   bootState,
@@ -130,12 +131,10 @@ export default function AppFrame({
   const shellDisabled = bootState === "unavailable" || bootState === "error";
   const showRuntimeStatus = bootState === "degraded" || bootState === "unavailable" || bootState === "error";
   const searchEnabled = !shellDisabled && searchPanelOpen && searchQuery.trim().length >= 2;
-  const shellSearch = useAssetSearch(searchQuery, searchEnabled);
+  const shellSearch = useAssetSearch(searchQuery, searchEnabled, searchSeedAssets);
 
   const topDirectResult =
-    !shellSearch.loading && shellSearch.resolvedQuery === searchQuery.trim()
-      ? shellSearch.assets?.[0] || null
-      : null;
+    searchQuery.trim() && !shellSearch.error ? shellSearch.assets?.[0] || null : null;
 
   useEffect(() => {
     setSearchPanelOpen(false);

@@ -127,6 +127,7 @@ export default function App() {
       onBrowseCatalog={(query) => openDiscoveryWorkspace(query, { fresh: true })}
       onModuleChange={onModuleChange}
       onSearchResultSelect={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
+      searchSeedAssets={data.assets || []}
       shell={shell}
     >
       {content}

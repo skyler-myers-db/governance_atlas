@@ -33,24 +33,34 @@ function assetFallback(assetFqn) {
   };
 }
 
-function summaryForAsset(assetFqn, discoveryAssets, bootstrapAssets, bootstrapIndex) {
+function summaryForAsset(
+  assetFqn,
+  discoveryAssets,
+  bootstrapAssets,
+  bootstrapIndex,
+  { allowFallback = true } = {},
+) {
   if (!assetFqn) return null;
   return (
     discoveryAssets.find((asset) => asset.fqn === assetFqn) ||
     bootstrapIndex[assetFqn] ||
     bootstrapAssets.find((asset) => asset.fqn === assetFqn) ||
-    assetFallback(assetFqn)
+    (allowFallback ? assetFallback(assetFqn) : null)
   );
 }
 
-export function useSeededAssetContext(assetFqn, bootstrap, discoveryAssets = []) {
+export function useSeededAssetContext(assetFqn, bootstrap, discoveryAssets = [], options = {}) {
   const bootstrapAssets = bootstrap?.assets || [];
   const bootstrapIndex = bootstrap?.assetIndex || {};
   const bootstrapGraphs = bootstrap?.graphs || {};
+  const allowFallback = options?.allowFallback !== false;
 
   const summary = useMemo(
-    () => summaryForAsset(assetFqn, discoveryAssets, bootstrapAssets, bootstrapIndex),
-    [assetFqn, bootstrapAssets, bootstrapIndex, discoveryAssets]
+    () =>
+      summaryForAsset(assetFqn, discoveryAssets, bootstrapAssets, bootstrapIndex, {
+        allowFallback,
+      }),
+    [allowFallback, assetFqn, bootstrapAssets, bootstrapIndex, discoveryAssets]
   );
 
   const seededGraph = useMemo(
