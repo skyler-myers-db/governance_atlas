@@ -52,7 +52,7 @@ export function useAssetSearch(query, enabled = true) {
             resolvedQuery: "",
           });
         });
-    }, 60);
+    }, 40);
 
     return () => {
       canceled = true;

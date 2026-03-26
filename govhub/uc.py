@@ -251,6 +251,62 @@ LIMIT 1"""
             return ""
         return str(df.iloc[0]["comment"] or "")
 
+    def get_table_identity(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
+        q_with_format = f"""SELECT
+    table_catalog,
+    table_schema,
+    table_name,
+    table_type,
+    data_source_format,
+    comment
+FROM {quote_ident(catalog)}.information_schema.tables
+WHERE table_schema = {sql_literal(schema)}
+  AND table_name   = {sql_literal(table)}
+LIMIT 1"""
+        q = f"""SELECT
+    table_catalog,
+    table_schema,
+    table_name,
+    table_type,
+    comment
+FROM {quote_ident(catalog)}.information_schema.tables
+WHERE table_schema = {sql_literal(schema)}
+  AND table_name   = {sql_literal(table)}
+LIMIT 1"""
+        try:
+            try:
+                df = self.query_df(q_with_format)
+            except Exception:
+                df = self.query_df(q)
+        except Exception:
+            return pd.DataFrame(
+                columns=[
+                    "table_catalog",
+                    "table_schema",
+                    "table_name",
+                    "table_type",
+                    "data_source_format",
+                    "comment",
+                ]
+            )
+        if df.empty:
+            return pd.DataFrame(
+                columns=[
+                    "table_catalog",
+                    "table_schema",
+                    "table_name",
+                    "table_type",
+                    "data_source_format",
+                    "comment",
+                ]
+            )
+        df = df.copy()
+        if "table_catalog" not in df.columns:
+            df.insert(0, "table_catalog", catalog)
+        if "data_source_format" not in df.columns:
+            df["data_source_format"] = ""
+        return df.head(1)
+
     def get_table_columns(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
         q = f"""SELECT ordinal_position, column_name, data_type, comment
 FROM {quote_ident(catalog)}.information_schema.columns
