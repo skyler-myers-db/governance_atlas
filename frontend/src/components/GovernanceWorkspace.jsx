@@ -166,7 +166,11 @@ export default function GovernanceWorkspace({
     error: "",
     success: "",
   });
-  const assetSearch = useAssetSearch(assetSearchQuery, assetSearchQuery.trim().length >= 2);
+  const assetSearch = useAssetSearch(
+    assetSearchQuery,
+    assetSearchQuery.trim().length >= 2,
+    bootstrap?.assets || [],
+  );
   const focusCommandRef = useRef(null);
 
   useEffect(() => {

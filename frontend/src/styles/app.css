@@ -2384,7 +2384,7 @@ body {
 }
 
 .gh-shell-topbar {
-  grid-template-columns: minmax(0, 1fr) minmax(212px, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
   align-items: start;
   gap: 14px;
 }
@@ -2415,8 +2415,11 @@ body {
 .gh-shell-brand-band {
   display: flex;
   align-items: center;
-  min-height: 102px;
-  padding: 22px 26px;
+  min-height: 110px;
+  padding: 22px 28px;
+  background:
+    radial-gradient(circle at top left, rgba(91, 67, 238, 0.12), transparent 48%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(245, 249, 255, 0.97) 100%);
 }
 
 .gh-shell-nav-band {
@@ -2424,8 +2427,11 @@ body {
   display: grid;
   gap: 8px;
   align-content: start;
-  min-height: 102px;
-  padding: 16px 18px;
+  min-height: 110px;
+  padding: 18px 20px;
+  background:
+    radial-gradient(circle at top right, rgba(91, 67, 238, 0.08), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(245, 249, 255, 0.975) 100%);
 }
 
 .gh-shell-brand {
@@ -2449,8 +2455,8 @@ body {
 .gh-shell-brand-mark {
   display: grid;
   place-items: center;
-  width: 72px;
-  height: 72px;
+  width: 76px;
+  height: 76px;
   border-radius: 16px;
   background: linear-gradient(135deg, #4b34d4 0%, #5b43ee 56%, #7257ff 100%);
   color: #fff;
@@ -2477,7 +2483,7 @@ body {
 }
 
 .gh-shell-brand-title {
-  font-size: 2.5rem;
+  font-size: 2.74rem;
   font-weight: 800;
   letter-spacing: -0.05em;
   color: var(--gh-ink);
@@ -2485,7 +2491,7 @@ body {
 
 .gh-shell-brand-subtitle {
   color: #60748e;
-  font-size: 1.04rem;
+  font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -2505,9 +2511,9 @@ body {
 }
 
 .gh-product-tab {
-  min-width: 188px;
-  min-height: 56px;
-  padding: 0 28px;
+  min-width: 194px;
+  min-height: 58px;
+  padding: 0 30px;
   border-radius: 15px;
   border: 1px solid rgba(182, 198, 216, 0.96);
   background: rgba(247, 250, 255, 0.92);
@@ -2515,7 +2521,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 .gh-product-tab span {
@@ -2666,21 +2672,28 @@ body {
 
 .gh-shell-topbar-utility {
   min-width: 0;
-  min-width: 228px;
+  width: 100%;
   display: flex;
-  justify-content: flex-end;
+  justify-content: stretch;
   align-items: stretch;
-  padding: 14px 16px;
+  min-height: 110px;
+  padding: 18px 20px;
   border: 1px solid rgba(214, 224, 236, 0.92);
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.985) 0%, rgba(247, 250, 255, 0.965) 100%);
+  background:
+    radial-gradient(circle at top right, rgba(91, 67, 238, 0.08), transparent 42%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.985) 0%, rgba(247, 250, 255, 0.965) 100%);
   box-shadow: var(--gh-shadow-soft);
+  justify-self: stretch;
 }
 
 .gh-shell-identity-block {
   min-width: 0;
+  width: 100%;
+  min-height: 100%;
   justify-items: end;
-  gap: 3px;
+  align-content: center;
+  gap: 4px;
 }
 
 .gh-shell-identity {
@@ -2769,7 +2782,9 @@ body {
   display: grid;
   gap: 10px;
   padding-bottom: 12px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.985) 0%, rgba(247, 250, 255, 0.965) 100%);
+  background:
+    radial-gradient(circle at top right, rgba(91, 67, 238, 0.07), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.988) 0%, rgba(247, 250, 255, 0.968) 100%);
 }
 
 .gh-discovery-summary-grid {
@@ -2815,28 +2830,30 @@ body {
 }
 
 .gh-discovery-command-bar {
-  grid-template-columns: minmax(0, 1fr) 196px auto;
+  grid-template-columns: minmax(0, 1fr) minmax(228px, 248px) auto;
   gap: 12px;
   align-items: end;
 }
 
 .gh-discovery-sort-field {
   min-width: 0;
-  display: inline-grid;
-  grid-template-columns: auto minmax(184px, 1fr);
-  gap: 10px;
-  align-items: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
   align-self: end;
 }
 
 .gh-select-sort {
-  min-width: 184px;
+  min-width: 0;
+  width: 100%;
   padding-right: 3rem;
 }
 
 .gh-field-label-inline {
   white-space: nowrap;
   line-height: 1;
+  padding-left: 2px;
 }
 
 .gh-discovery-sidebar-panel .gh-category-row,
@@ -2861,6 +2878,7 @@ body {
 }
 
 .gh-discovery-result-row {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
@@ -2878,6 +2896,16 @@ body {
     box-shadow 130ms ease,
     border-color 130ms ease,
     background 130ms ease;
+}
+
+.gh-discovery-result-row::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 14px 0 0 14px;
+  background: linear-gradient(180deg, rgba(91, 67, 238, 0.84) 0%, rgba(15, 92, 192, 0.72) 100%);
+  opacity: 0.68;
 }
 
 .gh-discovery-result-row.is-selected {
@@ -3075,6 +3103,26 @@ body {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.988) 0%, rgba(247, 250, 255, 0.968) 100%);
   box-shadow: 0 14px 34px rgba(18, 35, 58, 0.07);
   overflow: hidden;
+}
+
+.gh-discovery-sidebar-panel,
+.gh-preview-panel,
+.gh-record-card,
+.gh-discovery-command-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.gh-discovery-sidebar-panel::before,
+.gh-preview-panel::before,
+.gh-record-card::before,
+.gh-discovery-command-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, rgba(91, 67, 238, 0.92) 0%, rgba(15, 92, 192, 0.74) 100%);
+  opacity: 0.88;
 }
 
 .gh-record-card-head {
@@ -3365,7 +3413,9 @@ body {
   padding: 18px;
   border: 1px solid rgba(214, 224, 236, 0.92);
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(248, 251, 255, 0.972) 100%);
+  background:
+    radial-gradient(circle at top right, rgba(91, 67, 238, 0.05), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(248, 251, 255, 0.972) 100%);
   box-shadow: 0 12px 28px rgba(18, 35, 58, 0.055);
 }
 

@@ -288,6 +288,23 @@ function MetadataEditorPanel({
                   rows={5}
                   value={draft[field.key] ?? ""}
                 />
+              ) : field.type === "text" ? (
+                <>
+                  <input
+                    className="gh-input"
+                    list={field.options.length ? `gh-metadata-${field.key}` : undefined}
+                    onChange={(event) => onChange(field.key, event.target.value)}
+                    placeholder={field.placeholder}
+                    value={draft[field.key] ?? ""}
+                  />
+                  {field.options.length ? (
+                    <datalist id={`gh-metadata-${field.key}`}>
+                      {field.options.map((option) => (
+                        <option key={option} value={option} />
+                      ))}
+                    </datalist>
+                  ) : null}
+                </>
               ) : (
                 <select
                   className="gh-select"
@@ -355,7 +372,9 @@ export default function EntityWorkspace({
   const [metadataDraft, setMetadataDraft] = useState(metadataDraftFromAsset(null));
   const [metadataDirty, setMetadataDirty] = useState(false);
   const launchAssets = (bootstrap?.assets || []).slice(0, 6);
-  const seeded = useSeededAssetContext(assetFqn, bootstrap, bootstrap?.assets || []);
+  const seeded = useSeededAssetContext(assetFqn, bootstrap, bootstrap?.assets || [], {
+    allowFallback: false,
+  });
   const assetDetail = useAssetDetail(assetFqn || "");
   const lineageEnabled = activeTab === "Overview" || activeTab === "Lineage";
   const lineage = useLineage(assetFqn || "", seeded.seededGraph, lineageEnabled);
@@ -407,6 +426,18 @@ export default function EntityWorkspace({
     metadataDirty,
   ]);
 
+  if (assetFqn && assetDetail.loading && !asset) {
+    return (
+      <section className="gh-workspace gh-entity-workspace">
+        <div className="gh-panel gh-unavailable-panel">
+          <div className="gh-panel-title">Loading Asset</div>
+          <h2>Refreshing the metadata record.</h2>
+          <p>Loading live schema, sample data, and lineage context for {assetFqn}.</p>
+        </div>
+      </section>
+    );
+  }
+
   if (assetFqn && !asset && !assetDetail.loading) {
     return (
       <section className="gh-workspace gh-entity-workspace">
@@ -415,7 +446,7 @@ export default function EntityWorkspace({
           <h2>The selected asset could not be opened.</h2>
           <p>
             {assetDetail.error ||
-              "This asset is unavailable or cannot be inspected with the current permissions."}
+              "This asset appears in lineage or linked navigation, but it is not currently visible in the live catalog with the current permissions."}
           </p>
           <div className="gh-empty-state-actions">
             <button className="gh-secondary-button" onClick={onBack} type="button">
@@ -510,24 +541,28 @@ export default function EntityWorkspace({
   };
 
   const saveMetadata = async () => {
+    const description = metadataDraft.description.trim();
+    const domain = metadataDraft.domain.trim();
+    const tier = metadataDraft.tier.trim();
+    const certification = metadataDraft.certification.trim();
+    const sensitivity = metadataDraft.sensitivity.trim();
     const payload = {
       assetFqn: asset.fqn,
-      description: metadataDraft.description.trim(),
-      domain: metadataDraft.domain || null,
-      tier: metadataDraft.tier || null,
-      certification: metadataDraft.certification || null,
-      sensitivity: metadataDraft.sensitivity || null,
+      description,
+      domain: domain || null,
+      tier: tier || null,
+      certification: certification || null,
+      sensitivity: sensitivity || null,
     };
 
     await editor.save(payload);
     setLocalOverrides((current) => ({
       ...current,
-      description:
-        metadataDraft.description.trim() || "No description has been captured for this asset yet.",
-      domain: metadataDraft.domain || "Unassigned",
-      tier: metadataDraft.tier || "Unassigned",
-      certification: metadataDraft.certification || "Unassigned",
-      sensitivity: metadataDraft.sensitivity || "Unassigned",
+      description: description || "No description has been captured for this asset yet.",
+      domain: domain || "Unassigned",
+      tier: tier || "Unassigned",
+      certification: certification || "Unassigned",
+      sensitivity: sensitivity || "Unassigned",
     }));
     setMetadataDirty(false);
   };

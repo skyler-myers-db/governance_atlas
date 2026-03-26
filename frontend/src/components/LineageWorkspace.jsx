@@ -42,7 +42,11 @@ export default function LineageWorkspace({
   const assetDetail = useAssetDetail(focusAssetFqn || "");
   const lineage = useLineage(focusAssetFqn || "", seeded.seededGraph);
   const asset = assetDetail.detail || seeded.summary;
-  const assetSearch = useAssetSearch(assetSearchQuery, assetSearchQuery.trim().length >= 2);
+  const assetSearch = useAssetSearch(
+    assetSearchQuery,
+    assetSearchQuery.trim().length >= 2,
+    bootstrap?.assets || [],
+  );
   const searchReady =
     !assetSearch.loading && assetSearch.resolvedQuery === assetSearchQuery.trim();
   const hasGraph = Boolean(lineage.graph?.nodes?.length);
