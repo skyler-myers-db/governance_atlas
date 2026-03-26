@@ -96,6 +96,32 @@ function AttributeList({ items }) {
   );
 }
 
+function GovernanceGapRows({ items, onOpenGovernance }) {
+  return (
+    <div className="gh-task-list gh-task-list-rows">
+      {items.map((task) => (
+        <button
+          className={`gh-task-row ${task.complete ? "is-complete" : ""}`}
+          key={task.label}
+          onClick={onOpenGovernance}
+          type="button"
+        >
+          <div className="gh-task-row-main">
+            <div className="gh-task-row-head">
+              <span className="gh-task-title">{task.label}</span>
+              <span className={`gh-status-chip tone-${task.complete ? "good" : "bad"}`}>
+                {task.complete ? "Ready" : "Needs work"}
+              </span>
+            </div>
+            <div className="gh-support-copy">{task.action}</div>
+          </div>
+          <div className="gh-task-row-value">{task.value}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function EntityWorkspace({
   assetFqn,
   bootstrap,
@@ -123,6 +149,11 @@ export default function EntityWorkspace({
     const nextContext =
       consumeWorkspaceIntent("lineageContext", assetFqn, "") || "Data Lineage";
     setLocalLineageContext(nextContext);
+  }, [assetFqn]);
+
+  useEffect(() => {
+    const nextTab = consumeWorkspaceIntent("entityTab", assetFqn, "Overview") || "Overview";
+    setActiveTab(nextTab);
   }, [assetFqn]);
 
   if (assetFqn && !asset && !loading) {
@@ -196,11 +227,6 @@ export default function EntityWorkspace({
   const lineageUnavailable = Boolean(lineage.error);
   const stewardshipSummary = tasks.filter((task) => !task.complete).slice(0, 3);
 
-  useEffect(() => {
-    const nextTab = consumeWorkspaceIntent("entityTab", assetFqn, "Overview") || "Overview";
-    setActiveTab(nextTab);
-  }, [assetFqn]);
-
   const changeTab = (nextTab) => {
     setActiveTab(nextTab);
   };
@@ -210,21 +236,13 @@ export default function EntityWorkspace({
       <section className="gh-panel gh-entity-shell">
         <div className="gh-entity-header gh-entity-header-flat">
           <div className="gh-entity-hero-main">
-            <div className="gh-chip-row">
-              <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
-              <span className={`gh-status-chip tone-${statusTone(asset)}`}>
-                {asset.governanceStatus || "Needs Work"}
-              </span>
-            </div>
             <h2>{asset.name}</h2>
             <div className="gh-entity-context gh-entity-context-rich">
               <span>{asset.catalog} / {asset.schema}</span>
               <span>{asset.objectType}</span>
-              <span>Coverage {asset.coverageScore ?? 0}</span>
-              <span>{asset.owners?.length || 0} owners</span>
-              <span>{asset.openRequests || 0} requests</span>
-              <span>{asset.domain || "Unassigned domain"}</span>
-              <span>{asset.tier || "Unassigned tier"}</span>
+              <span className={`gh-status-chip tone-${statusTone(asset)}`}>
+                {asset.governanceStatus || "Needs Work"}
+              </span>
             </div>
           </div>
         </div>
@@ -233,75 +251,82 @@ export default function EntityWorkspace({
 
         {activeTab === "Overview" && (
           <div className="gh-entity-flow">
-            <section className="gh-panel gh-entity-main gh-entity-main-single">
-              <div className="gh-entity-home-flow">
-                <div className="gh-detail-section">
-                  <div className="gh-panel-title">Definition</div>
-                  <div className="gh-support-copy">
-                    {entity.description || asset.description || "No description is available for this asset yet."}
-                  </div>
-                  <AttributeList items={posture.slice(0, 4)} />
-                  {lineageUnavailable ? (
-                    <div className="gh-empty-state">
-                      Lineage signals are temporarily unavailable for this asset right now.
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="gh-detail-section">
-                  <div className="gh-panel-title">Stewardship</div>
-                  <div className="gh-action-grid">
-                    <button
-                      className="gh-primary-button"
-                      onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
-                      type="button"
-                    >
-                      Open data lineage
-                    </button>
-                    <button
-                      className="gh-secondary-button"
-                      onClick={() => onOpenLineage(asset.fqn, "Operational Context")}
-                      type="button"
-                    >
-                      Open operational context
-                    </button>
-                    <button className="gh-secondary-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">
-                      Open stewardship
-                    </button>
-                  </div>
-                  <div className="gh-task-list gh-task-list-compact">
-                    {(stewardshipSummary.length ? stewardshipSummary : tasks).map((task) => (
-                      <div className={`gh-task-card ${task.complete ? "is-complete" : ""}`} key={task.label}>
-                        <div className="gh-task-card-head">
-                          <span className={`gh-status-chip tone-${task.complete ? "good" : "bad"}`}>
-                            {task.complete ? "Ready" : "Needs work"}
-                          </span>
-                          <span className="gh-task-value">{task.value}</span>
-                        </div>
-                        <div className="gh-task-title">{task.label}</div>
-                        <div className="gh-support-copy">{task.action}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {relatedAssets.length ? (
+            <section className="gh-panel gh-entity-main gh-entity-main-single gh-entity-summary-shell">
+              <div className="gh-entity-home-layout">
+                <div className="gh-entity-home-primary">
                   <div className="gh-detail-section">
-                    <div className="gh-panel-title">Linked assets</div>
-                    <div className="gh-chip-stack">
-                      {relatedAssets.slice(0, 6).map((item) => (
-                        <button
-                          className="gh-filter-chip"
-                          key={item}
-                          onClick={() => onSelectAsset(item)}
-                          type="button"
-                        >
-                          {item}
-                        </button>
-                      ))}
+                    <div className="gh-panel-title">Lineage impact</div>
+                    <div className="gh-support-copy">
+                      {lineageUnavailable
+                        ? "Lineage signals are temporarily unavailable for this asset right now."
+                        : relatedAssets.length
+                          ? "Trace upstream, downstream, and operational dependencies directly from this asset."
+                          : "No connected lineage edges are surfaced for this asset yet."}
+                    </div>
+                    <div className="gh-action-grid gh-action-grid-inline">
+                      <button
+                        className="gh-tertiary-button gh-inline-link-button"
+                        onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
+                        type="button"
+                      >
+                        Open data lineage
+                      </button>
+                      <button
+                        className="gh-tertiary-button gh-inline-link-button"
+                        onClick={() => onOpenLineage(asset.fqn, "Operational Context")}
+                        type="button"
+                      >
+                        Open operational context
+                      </button>
+                    </div>
+                    {relatedAssets.length ? (
+                      <div className="gh-lineage-linked-list">
+                        {relatedAssets.slice(0, 6).map((item) => (
+                          <button
+                            className="gh-lineage-linked-row"
+                            key={item}
+                            onClick={() => onSelectAsset(item)}
+                            type="button"
+                          >
+                            <span>{item}</span>
+                            <span>Open linked asset</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="gh-detail-section">
+                    <div className="gh-panel-title">Stewardship priorities</div>
+                    <GovernanceGapRows
+                      items={stewardshipSummary.length ? stewardshipSummary : tasks.slice(0, 4)}
+                      onOpenGovernance={() => onOpenGovernance(asset.fqn)}
+                    />
+                    <div className="gh-action-grid gh-action-grid-inline">
+                      <button
+                        className="gh-tertiary-button gh-inline-link-button"
+                        onClick={() => onOpenGovernance(asset.fqn)}
+                        type="button"
+                      >
+                        Open stewardship workbench
+                      </button>
                     </div>
                   </div>
-                ) : null}
+                </div>
+
+                <div className="gh-entity-home-secondary">
+                  <div className="gh-detail-section">
+                    <div className="gh-panel-title">Definition</div>
+                    <div className="gh-support-copy">
+                      {entity.description || asset.description || "No description is available for this asset yet."}
+                    </div>
+                  </div>
+
+                  <div className="gh-detail-section">
+                    <div className="gh-panel-title">Operational metadata</div>
+                    <AttributeList items={posture.slice(0, 6)} />
+                  </div>
+                </div>
               </div>
             </section>
           </div>
@@ -331,62 +356,52 @@ export default function EntityWorkspace({
         {activeTab === "Governance" && (
           <section className="gh-entity-flow">
             <section className="gh-panel gh-entity-main gh-entity-main-single">
-              <div className="gh-entity-home-flow">
-                <div className="gh-detail-section">
-                  <div className="gh-panel-title">Stewardship</div>
-                  <AttributeList items={posture.slice(0, 6)} />
-                  <div className="gh-task-list gh-task-list-compact">
-                    {tasks.map((task) => (
-                      <div className={`gh-task-card ${task.complete ? "is-complete" : ""}`} key={task.label}>
-                        <div className="gh-task-card-head">
-                          <span className={`gh-status-chip tone-${task.complete ? "good" : "bad"}`}>
-                            {task.complete ? "Ready" : "Needs work"}
-                          </span>
-                          <span className="gh-task-value">{task.value}</span>
-                        </div>
-                        <div className="gh-task-title">{task.label}</div>
-                        <div className="gh-support-copy">{task.action}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="gh-detail-section">
-                  <div className="gh-panel-title">Asset workbench</div>
-                  <div className="gh-support-copy">
-                    Shift into stewardship when you need linked requests, glossary terms, and active governance work around this asset.
-                  </div>
-                  <div className="gh-action-grid">
-                    <button className="gh-primary-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">
-                      Open workbench
-                    </button>
-                    <button
-                      className="gh-secondary-button"
-                      onClick={() => onOpenLineage(asset.fqn, "Operational Context")}
-                      type="button"
-                    >
-                      Operational context
-                    </button>
-                  </div>
-                </div>
-
-                {relatedAssets.length ? (
+              <div className="gh-entity-home-layout gh-entity-governance-layout">
+                <div className="gh-entity-home-primary">
                   <div className="gh-detail-section">
-                    <div className="gh-panel-title">Linked assets</div>
-                    <div className="gh-chip-stack">
-                      {relatedAssets.slice(0, 6).map((item) => (
-                        <button
-                          className="gh-filter-chip gh-chip-soft"
-                          key={item}
-                          onClick={() => onSelectAsset(item)}
-                          type="button"
-                        >
-                          {item}
-                        </button>
-                      ))}
+                    <div className="gh-panel-title">Stewardship work</div>
+                    <GovernanceGapRows items={tasks} onOpenGovernance={() => onOpenGovernance(asset.fqn)} />
+                  </div>
+                </div>
+                <div className="gh-entity-home-secondary">
+                  {relatedAssets.length ? (
+                    <div className="gh-detail-section">
+                      <div className="gh-panel-title">Linked assets</div>
+                      <div className="gh-lineage-linked-list">
+                        {relatedAssets.slice(0, 6).map((item) => (
+                          <button
+                            className="gh-lineage-linked-row"
+                            key={item}
+                            onClick={() => onSelectAsset(item)}
+                            type="button"
+                          >
+                            <span>{item}</span>
+                            <span>Open linked asset</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="gh-detail-section">
+                    <div className="gh-panel-title">Continue in workbench</div>
+                    <div className="gh-chip-row gh-chip-row-compact">
+                      <button
+                        className="gh-tertiary-button gh-inline-link-button"
+                        onClick={() => onOpenGovernance(asset.fqn)}
+                        type="button"
+                      >
+                        Open stewardship workbench
+                      </button>
+                      <button
+                        className="gh-tertiary-button gh-inline-link-button"
+                        onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
+                        type="button"
+                      >
+                        Open lineage
+                      </button>
                     </div>
                   </div>
-                ) : null}
+                </div>
               </div>
             </section>
           </section>

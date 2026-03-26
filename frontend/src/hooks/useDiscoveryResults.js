@@ -13,7 +13,13 @@ export function useDiscoveryResults(filters, seededAssets = []) {
   useEffect(() => {
     let canceled = false;
     const timeout = setTimeout(() => {
-      setState((prev) => ({ ...prev, loading: true, error: "" }));
+      setState((current) => ({
+        loading: true,
+        error: "",
+        assets: current.assets?.length ? current.assets : seededAssets,
+        count: current.assets?.length ? current.count : seededAssets.length,
+        facets: current.facets,
+      }));
       fetchDiscoverySearch({
         query: filters.query,
         view: filters.view,
@@ -38,15 +44,15 @@ export function useDiscoveryResults(filters, seededAssets = []) {
         })
         .catch((error) => {
           if (canceled) return;
-          setState({
+          setState((current) => ({
             loading: false,
             error: error?.message || "Failed to search metadata assets.",
-            assets: [],
-            count: 0,
-            facets: null,
-          });
+            assets: current.assets?.length ? current.assets : seededAssets,
+            count: current.assets?.length ? current.count : seededAssets.length,
+            facets: current.facets,
+          }));
         });
-    }, 180);
+    }, 120);
 
     return () => {
       canceled = true;

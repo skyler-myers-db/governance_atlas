@@ -14,6 +14,7 @@ import os
 import shutil
 import subprocess
 import time
+import uuid
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -1326,6 +1327,16 @@ def _ensure_live_runtime() -> None:
         raise HTTPException(status_code=503, detail="Live Databricks runtime is not available.")
 
 
+def _ensure_governance_store() -> GovernanceStore:
+    status = _store_status()
+    if status["state"] != "live":
+        raise HTTPException(
+            status_code=503,
+            detail=status["message"] or "Governance control plane is unavailable.",
+        )
+    return _store()
+
+
 def _bootstrap_unavailable_payload(
     request: Optional[Request], message: str, *, state: str = "unavailable"
 ) -> Dict[str, Any]:
@@ -1540,3 +1551,69 @@ def api_governance_summary() -> JSONResponse:
 def api_governance_glossary() -> JSONResponse:
     _ensure_live_runtime()
     return JSONResponse({"glossary": _governance_summary()["glossary"]})
+
+
+@app.post("/api/governance/requests")
+async def api_governance_create_request(request: Request) -> JSONResponse:
+    _ensure_live_runtime()
+    store = _ensure_governance_store()
+    payload = await request.json()
+    asset_fqn = _normalize_str(payload.get("assetFqn"))
+    title = _normalize_str(payload.get("title"))
+    note = _normalize_str(payload.get("note"))
+    if not asset_fqn or not title:
+        raise HTTPException(status_code=400, detail="assetFqn and title are required.")
+    if not _asset_exists(asset_fqn):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    request_id = store.create_change_request(
+        created_by=_user_email(request),
+        uc_full_name=asset_fqn,
+        new_comment=f"{title}: {note}".strip(": "),
+    )
+    return JSONResponse({"ok": True, "requestId": request_id, "governance": _governance_summary()})
+
+
+@app.post("/api/governance/owners")
+async def api_governance_upsert_owner(request: Request) -> JSONResponse:
+    _ensure_live_runtime()
+    store = _ensure_governance_store()
+    payload = await request.json()
+    asset_fqn = _normalize_str(payload.get("assetFqn"))
+    owner_email = _normalize_str(payload.get("ownerEmail")).lower()
+    owner_type = (_normalize_str(payload.get("ownerType")) or "steward").lower()
+    if not asset_fqn or not owner_email:
+        raise HTTPException(status_code=400, detail="assetFqn and ownerEmail are required.")
+    if not _asset_exists(asset_fqn):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    store.upsert_owner(
+        uc_full_name=asset_fqn,
+        owner_email=owner_email,
+        owner_type=owner_type,
+        updated_by=_user_email(request),
+    )
+    return JSONResponse({"ok": True, "governance": _governance_summary()})
+
+
+@app.post("/api/governance/glossary")
+async def api_governance_upsert_glossary(request: Request) -> JSONResponse:
+    _ensure_live_runtime()
+    store = _ensure_governance_store()
+    payload = await request.json()
+    term_id = _normalize_str(payload.get("termId")) or uuid.uuid4().hex[:12]
+    name = _normalize_str(payload.get("name"))
+    definition = _normalize_str(payload.get("definition"))
+    domain = _normalize_str(payload.get("domain"))
+    owner_email = _normalize_str(payload.get("ownerEmail")).lower()
+    status = (_normalize_str(payload.get("status")) or "draft").lower()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required.")
+    store.upsert_glossary_term(
+        term_id=term_id,
+        name=name,
+        definition=definition,
+        domain=domain,
+        owner_email=owner_email or None,
+        status=status,
+        updated_by=_user_email(request),
+    )
+    return JSONResponse({"ok": True, "governance": _governance_summary()})

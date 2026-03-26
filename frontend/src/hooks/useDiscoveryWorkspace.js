@@ -15,11 +15,11 @@ function defaultDiscoveryState(bootstrap, query = "") {
     sortBy: (bootstrap?.discovery?.sortOptions || ["Best match"])[0],
     view: (bootstrap?.discovery?.views || ["All assets"])[0],
     type: (bootstrap?.discovery?.assetTypes || ["All types"])[0],
-    catalogs: ["All catalogs"],
-    domains: ["All domains"],
-    tiers: ["All tiers"],
-    certifications: ["All certifications"],
-    sensitivities: ["All sensitivities"],
+    catalogs: [],
+    domains: [],
+    tiers: [],
+    certifications: [],
+    sensitivities: [],
   };
 }
 
@@ -45,10 +45,9 @@ function normalizeDiscoveryState(bootstrap, state = {}, queryOverride) {
   const assetTypes = new Set(bootstrap?.discovery?.assetTypes || ["All types"]);
 
   const normalizeMulti = (values, allLabel, optionSet) => {
-    if (!Array.isArray(values) || !values.length) return [allLabel];
-    if (values.includes(allLabel)) return [allLabel];
+    if (!Array.isArray(values) || !values.length) return [];
     const next = values.filter((value) => optionSet.has(value));
-    return next.length ? next : [allLabel];
+    return next.length ? next : [];
   };
 
   return {
@@ -66,9 +65,12 @@ function normalizeDiscoveryState(bootstrap, state = {}, queryOverride) {
   };
 }
 
-function readDiscoverySession(bootstrap, initialQuery = "") {
-  const fallback = defaultDiscoveryState(bootstrap, initialQuery);
+function readDiscoverySession(bootstrap, initialQuery = "", preferFresh = false) {
+  const fallback = preferFresh
+    ? freshDiscoveryState(bootstrap, initialQuery)
+    : defaultDiscoveryState(bootstrap, initialQuery);
   if (typeof window === "undefined") return fallback;
+  if (preferFresh) return fallback;
 
   try {
     const raw = window.sessionStorage.getItem(discoverySessionKey(bootstrap));
@@ -89,18 +91,24 @@ export function useDiscoveryWorkspace({
   onRouteQueryChange,
 }) {
   const seedState = useMemo(
-    () => readDiscoverySession(bootstrap, initialQuery),
-    [bootstrap, initialQuery],
+    () => readDiscoverySession(bootstrap, initialQuery, querySeedFresh),
+    [bootstrap, initialQuery, querySeedFresh],
   );
   const [filters, setFilters] = useState(seedState);
+  const updateFilters = (updater) => {
+    setFilters((current) => {
+      const next = typeof updater === "function" ? updater(current) : updater;
+      return normalizeDiscoveryState(bootstrap, next);
+    });
+  };
 
   useEffect(() => {
-    setFilters((current) => normalizeDiscoveryState(bootstrap, current));
+    updateFilters((current) => current);
   }, [bootstrap]);
 
   useEffect(() => {
     if (!querySeedKey) return;
-    setFilters((current) =>
+    updateFilters((current) =>
       querySeedFresh
         ? freshDiscoveryState(bootstrap, initialQuery)
         : normalizeDiscoveryState(bootstrap, current, initialQuery)
@@ -130,7 +138,7 @@ export function useDiscoveryWorkspace({
 
   return {
     filters,
-    setFilters,
+    setFilters: updateFilters,
     results,
   };
 }
