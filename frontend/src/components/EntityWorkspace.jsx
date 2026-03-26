@@ -3,8 +3,13 @@ import { useAssetMetadataEditor } from "../hooks/useAssetMetadataEditor";
 import { useAssetDetail } from "../hooks/useAssetDetail";
 import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
-import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
-import { consumeWorkspaceIntent } from "../lib/workspaceIntent";
+import {
+  assetPathLabel,
+  displayManagementType,
+  displayObjectType,
+  displayStorageFormat,
+} from "../lib/assetPresentation";
+import { consumeWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
 import LineageStage from "./LineageStage";
 
 function statusTone(asset) {
@@ -49,12 +54,13 @@ function governanceTasks(asset) {
 }
 
 function postureItems(asset) {
-  return [
+  const managementType = displayManagementType(asset);
+  const items = [
     { label: "Catalog", value: asset.catalog || "—" },
     { label: "Schema", value: asset.schema || "—" },
     { label: "Object Type", value: displayObjectType(asset) || "—" },
     { label: "Rows", value: asset.rows || "—" },
-    { label: "Format", value: asset.format || "—" },
+    { label: "Storage Format", value: displayStorageFormat(asset) },
     { label: "Size", value: asset.size || "—" },
     { label: "Files", value: asset.files || "—" },
     { label: "Domain", value: asset.domain || "Unassigned" },
@@ -63,6 +69,38 @@ function postureItems(asset) {
     { label: "Sensitivity", value: asset.sensitivity || "Unassigned" },
     { label: "Criticality", value: asset.criticality || "Unassigned" },
   ];
+  if (managementType !== "—") {
+    items.splice(3, 0, { label: "Management", value: managementType });
+  }
+  return items;
+}
+
+function governancePostureSubset(asset) {
+  const keep = new Set(["Domain", "Tier", "Certification", "Sensitivity", "Criticality"]);
+  return postureItems(asset).filter((item) => keep.has(item.label));
+}
+
+function recordIdentitySubset(asset) {
+  const keep = new Set([
+    "Catalog",
+    "Schema",
+    "Object Type",
+    "Management",
+    "Rows",
+    "Storage Format",
+    "Size",
+    "Files",
+  ]);
+  return postureItems(asset).filter((item) => keep.has(item.label));
+}
+
+function relatedAssetsFromGraph(graphBundle, focusFqn) {
+  const nodes = graphBundle?.data?.nodes || [];
+  return [...new Set(
+    nodes
+      .filter((node) => node?.assetFqn && node.assetFqn !== focusFqn)
+      .map((node) => node.assetFqn),
+  )];
 }
 
 function toDraftValue(value) {
@@ -255,7 +293,7 @@ function MetadataEditorPanel({
               ? "The backend did not return a usable metadata editor for this asset."
               : "Metadata editing is not currently exposed by the backend. The record remains read only."}
           </div>
-          <AttributeList items={postureItems(asset).slice(7, 12)} />
+          <AttributeList items={governancePostureSubset(asset)} />
         </div>
       )}
 
@@ -288,7 +326,7 @@ export default function EntityWorkspace({
   const launchAssets = (bootstrap?.assets || []).slice(0, 6);
   const seeded = useSeededAssetContext(assetFqn, bootstrap, bootstrap?.assets || []);
   const assetDetail = useAssetDetail(assetFqn || "");
-  const lineageEnabled = activeTab === "Lineage";
+  const lineageEnabled = activeTab === "Overview" || activeTab === "Lineage";
   const lineage = useLineage(assetFqn || "", seeded.seededGraph, lineageEnabled);
   const baseAsset = assetDetail.detail || seeded.summary;
   const asset = useMemo(
@@ -298,6 +336,16 @@ export default function EntityWorkspace({
   const lineageBundle = lineage.graph;
   const lineageLoading = lineage.loading;
   const editor = useAssetMetadataEditor({ assetFqn: assetFqn || "", asset, bootstrap });
+  const graphRelatedAssets = useMemo(
+    () => relatedAssetsFromGraph(lineageBundle, asset?.fqn || assetFqn),
+    [asset?.fqn, assetFqn, lineageBundle],
+  );
+  const relatedAssets = useMemo(
+    () =>
+      [...new Set([...(asset?.relatedAssets || []), ...graphRelatedAssets])]
+        .filter((value) => value && value !== asset?.fqn),
+    [asset?.fqn, asset?.relatedAssets, graphRelatedAssets],
+  );
 
   useEffect(() => {
     const nextContext = consumeWorkspaceIntent("lineageContext", assetFqn, "") || "Data Lineage";
@@ -393,12 +441,11 @@ export default function EntityWorkspace({
   const columns = asset.columns || [];
   const preview = asset.preview || [];
   const previewKeys = preview[0] ? Object.keys(preview[0]) : [];
-  const relatedAssets = asset.relatedAssets || [];
   const tasks = governanceTasks(asset);
   const posture = postureItems(asset);
   const objectType = displayObjectType(asset);
   const identityLine = assetPathLabel(asset);
-  const lineageUnavailable = Boolean(lineage.error);
+  const lineageUnavailable = Boolean(lineage.error) && !relatedAssets.length;
   const completeness = tasks.filter((task) => task.complete).length;
   const metricTiles = [
     { label: "Coverage", value: `${asset.coverageScore ?? 0}` },
@@ -448,13 +495,11 @@ export default function EntityWorkspace({
       <section className="gh-panel gh-entity-shell gh-entity-record-shell">
         <div className="gh-entity-record-header">
           <div className="gh-entity-record-main">
-            <div className="gh-entity-record-topline">
-              <button className="gh-tertiary-button gh-inline-link-button" onClick={onBack} type="button">
-                Back to Discovery
-              </button>
-            </div>
             <div className="gh-entity-record-headline">
               <div className="gh-entity-record-heading-block">
+                <button className="gh-tertiary-button gh-inline-link-button gh-entity-record-backlink" onClick={onBack} type="button">
+                  Back to Discovery
+                </button>
                 <div className="gh-eyebrow">Metadata Record</div>
                 <h2>{asset.name}</h2>
                 <div className="gh-entity-record-fqn">{identityLine}</div>
@@ -517,7 +562,9 @@ export default function EntityWorkspace({
                   <div>
                     <div className="gh-panel-title">Lineage Context</div>
                     <div className="gh-support-copy">
-                      {lineageUnavailable
+                      {lineageLoading && !relatedAssets.length
+                        ? "Loading connected lineage context for this asset."
+                        : lineageUnavailable
                         ? "Lineage signals are temporarily unavailable for this asset right now."
                         : relatedAssets.length
                           ? "Review upstream and downstream neighbors before changing the asset."
@@ -544,7 +591,15 @@ export default function EntityWorkspace({
                 {relatedAssets.length ? (
                   <div className="gh-lineage-linked-list">
                     {relatedAssets.slice(0, 6).map((item) => (
-                      <button className="gh-lineage-linked-row" key={item} onClick={() => onSelectAsset(item)} type="button">
+                      <button
+                        className="gh-lineage-linked-row"
+                        key={item}
+                        onClick={() => {
+                          setWorkspaceIntent("lineageContext", item, localLineageContext);
+                          onSelectAsset(item, "Lineage");
+                        }}
+                        type="button"
+                      >
                         <span>{item}</span>
                         <span>Open linked asset</span>
                       </button>
@@ -590,7 +645,7 @@ export default function EntityWorkspace({
                     </div>
                   </div>
                 </div>
-                <AttributeList items={posture.slice(0, 8)} />
+                <AttributeList items={recordIdentitySubset(asset)} />
               </section>
 
               <section className="gh-panel gh-record-card">
@@ -629,10 +684,16 @@ export default function EntityWorkspace({
             loading={lineageLoading}
             onAssetSearchQueryChange={() => {}}
             onContextChange={setLocalLineageContext}
-            onOpenAsset={(nextAssetFqn) => onSelectAsset(nextAssetFqn)}
+            onOpenAsset={(nextAssetFqn) => {
+              setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
+              onSelectAsset(nextAssetFqn, "Lineage");
+            }}
             onOpenFullGraph={(nextContext) => onOpenLineage(asset.fqn, nextContext)}
             onOpenGovernance={onOpenGovernance}
-            onSelectAsset={onSelectAsset}
+            onSelectAsset={(nextAssetFqn) => {
+              setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
+              onSelectAsset(nextAssetFqn, "Lineage");
+            }}
           />
         ) : null}
 
@@ -668,7 +729,7 @@ export default function EntityWorkspace({
                 <div className="gh-record-card-head">
                   <div className="gh-panel-title">Operational Metadata</div>
                 </div>
-                <AttributeList items={posture.slice(8)} />
+                <AttributeList items={governancePostureSubset(asset)} />
               </section>
             </div>
           </div>

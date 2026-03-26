@@ -110,6 +110,7 @@ export default function AppFrame({
   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
   const searchRootRef = useRef(null);
   const shellDisabled = bootState === "unavailable" || bootState === "error";
+  const showRuntimeStatus = bootState === "degraded" || bootState === "unavailable" || bootState === "error";
   const searchEnabled = !shellDisabled && searchPanelOpen && searchQuery.trim().length >= 2;
   const shellSearch = useAssetSearch(searchQuery, searchEnabled);
 
@@ -197,11 +198,16 @@ export default function AppFrame({
 
           <div className="gh-shell-topbar-utility">
             <div className="gh-shell-identity-block">
-              <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
-                {statusLabel(bootState)}
-              </span>
+              {showRuntimeStatus ? (
+                <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
+                  {statusLabel(bootState)}
+                </span>
+              ) : null}
               <div className="gh-shell-identity">{shell?.role || "workspace user"}</div>
               <div className="gh-shell-user">{shell?.userEmail || "unknown"}</div>
+              {showRuntimeStatus && bootMessage ? (
+                <div className={`gh-shell-status-note tone-${statusTone(bootState)}`}>{bootMessage}</div>
+              ) : null}
             </div>
           </div>
         </div>
