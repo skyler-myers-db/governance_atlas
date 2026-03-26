@@ -67,7 +67,7 @@ DISCOVERY_VIEWS = [
 DISCOVERY_SORTS = [
     "Best match",
     "Coverage score",
-    "Recently updated",
+    "Name (A-Z)",
     "Open requests",
 ]
 
@@ -1086,9 +1086,10 @@ def api_discovery_search(
 @app.get("/api/assets/{asset_fqn:path}")
 def api_asset_detail(asset_fqn: str) -> JSONResponse:
     _ensure_live_runtime()
-    if not _asset_exists(asset_fqn):
+    payload = _asset_detail_payload(asset_fqn)
+    if not _asset_exists(asset_fqn) and not asset_service.asset_payload_has_live_signals(payload):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    return JSONResponse(_asset_detail_payload(asset_fqn))
+    return JSONResponse(payload)
 
 
 @app.patch("/api/assets/{asset_fqn:path}/description")
