@@ -121,7 +121,7 @@ export default function App() {
 
   return (
     <AppFrame
-      activeModule={surface === "lineage" ? "lineage" : surface === "governance" ? "governance" : "discovery"}
+      activeModule={["discovery", "lineage", "governance"].includes(surface) ? surface : ""}
       bootMessage={bootMessage}
       bootState={bootState}
       onBrowseCatalog={(query) => openDiscoveryWorkspace(query, { fresh: true })}
