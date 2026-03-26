@@ -3,6 +3,7 @@ import { useAssetMetadataEditor } from "../hooks/useAssetMetadataEditor";
 import { useAssetDetail } from "../hooks/useAssetDetail";
 import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
+import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 import { consumeWorkspaceIntent } from "../lib/workspaceIntent";
 import LineageStage from "./LineageStage";
 
@@ -51,7 +52,7 @@ function postureItems(asset) {
   return [
     { label: "Catalog", value: asset.catalog || "—" },
     { label: "Schema", value: asset.schema || "—" },
-    { label: "Object type", value: asset.objectType || "—" },
+    { label: "Object Type", value: displayObjectType(asset) || "—" },
     { label: "Rows", value: asset.rows || "—" },
     { label: "Format", value: asset.format || "—" },
     { label: "Size", value: asset.size || "—" },
@@ -395,13 +396,15 @@ export default function EntityWorkspace({
   const relatedAssets = asset.relatedAssets || [];
   const tasks = governanceTasks(asset);
   const posture = postureItems(asset);
+  const objectType = displayObjectType(asset);
+  const identityLine = assetPathLabel(asset, true);
   const lineageUnavailable = Boolean(lineage.error);
   const completeness = tasks.filter((task) => task.complete).length;
   const metricTiles = [
     { label: "Coverage", value: `${asset.coverageScore ?? 0}` },
     { label: "Owners", value: `${asset.owners?.length || 0}` },
-    { label: "Open requests", value: `${asset.openRequests || 0}` },
-    { label: "Connected assets", value: `${relatedAssets.length}` },
+    { label: "Open Requests", value: `${asset.openRequests || 0}` },
+    { label: "Connected Assets", value: `${relatedAssets.length}` },
   ];
 
   const handleMetadataChange = (key, value) => {
@@ -450,9 +453,9 @@ export default function EntityWorkspace({
             </button>
             <div className="gh-eyebrow">Metadata record</div>
             <h2>{asset.name}</h2>
-            <div className="gh-entity-record-fqn">{asset.fqn}</div>
+            <div className="gh-entity-record-fqn">{identityLine}</div>
             <div className="gh-chip-row">
-              <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
+              <span className="gh-chip gh-chip-soft">{objectType}</span>
               <span className={`gh-status-chip tone-${statusTone(asset)}`}>
                 {asset.governanceStatus || "Needs Work"}
               </span>
@@ -466,15 +469,18 @@ export default function EntityWorkspace({
                 <span className="gh-chip gh-chip-soft">{asset.sensitivity}</span>
               ) : null}
             </div>
+            <div className="gh-support-copy gh-entity-record-summary">
+              {asset.description || "No description has been captured for this asset yet."}
+            </div>
           </div>
 
           <div className="gh-entity-record-actions">
-            <div className="gh-entity-record-context">
-              <span>{asset.catalog}</span>
-              <span>{asset.schema}</span>
+            <div className="gh-entity-record-context-line">
+              <span>{asset.fqn}</span>
+              <span>{asset.rows || "—"} rows</span>
               <span>{asset.format || "—"}</span>
             </div>
-            <div className="gh-action-grid gh-action-grid-compact">
+            <div className="gh-action-row gh-entity-action-row">
               <button className="gh-secondary-button" onClick={() => onOpenLineage(asset.fqn, "Data Lineage")} type="button">
                 Open lineage
               </button>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAssetDetail } from "../hooks/useAssetDetail";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
+import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 
 function statusTone(asset) {
   if (asset?.governanceStatus === "Enterprise Ready") return "good";
@@ -10,8 +11,8 @@ function statusTone(asset) {
 
 function facetValues(facets, key, fallbackOptions = [], selected = []) {
   const entries = facets?.[key];
-  const resolved = entries?.length ? entries.map((entry) => entry.value) : fallbackOptions;
-  return [...new Set([...(selected || []), ...resolved])];
+  const resolved = entries?.length ? entries.map((entry) => entry.value) : [];
+  return [...new Set([...(fallbackOptions || []), ...(selected || []), ...resolved])];
 }
 
 function toggleMulti(filters, key, value, allLabel, onDiscoveryStateChange) {
@@ -35,12 +36,18 @@ function clearFilter(filters, chip, onDiscoveryStateChange) {
     onDiscoveryStateChange((current) => ({ ...current, query: "" }));
     return;
   }
-  if (chip.key === "view") {
-    onDiscoveryStateChange((current) => ({ ...current, view: "All assets" }));
+  if (chip.key === "views") {
+    onDiscoveryStateChange((current) => ({
+      ...current,
+      views: (current.views || []).filter((value) => value !== chip.label),
+    }));
     return;
   }
-  if (chip.key === "type") {
-    onDiscoveryStateChange((current) => ({ ...current, type: "All types" }));
+  if (chip.key === "types") {
+    onDiscoveryStateChange((current) => ({
+      ...current,
+      types: (current.types || []).filter((value) => value !== chip.label),
+    }));
     return;
   }
   const allLabelByKey = {
@@ -59,24 +66,14 @@ function clearFilter(filters, chip, onDiscoveryStateChange) {
 }
 
 function filterVisibilityCount(filters) {
-  let count = 0;
-  if (filters.view && filters.view !== "All assets") count += 1;
-  if (filters.type && filters.type !== "All types") count += 1;
-  ["catalogs", "domains", "tiers", "certifications", "sensitivities"].forEach((key) => {
-    count += (filters[key] || []).length;
-  });
-  return count;
+  return activeFilters(filters).filter((chip) => chip.key !== "query").length;
 }
 
 function activeFilters(filters) {
   const chips = [];
   if (filters.query) chips.push({ label: `Search: ${filters.query}`, key: "query" });
-  if (filters.view && filters.view !== "All assets") {
-    chips.push({ label: filters.view, key: "view" });
-  }
-  if (filters.type && filters.type !== "All types") {
-    chips.push({ label: filters.type, key: "type" });
-  }
+  (filters.views || []).forEach((value) => chips.push({ label: value, key: "views" }));
+  (filters.types || []).forEach((value) => chips.push({ label: value, key: "types" }));
   ["catalogs", "domains", "tiers", "certifications", "sensitivities"].forEach((key) => {
     (filters[key] || []).forEach((value) => chips.push({ label: value, key }));
   });
@@ -146,16 +143,18 @@ function FilterSection({ label, options, selected, allLabel, onToggle }) {
   );
 }
 
-function ChoiceSection({ label, options, selected, onSelect }) {
+function ToggleChipSection({ label, options, selected, allLabel, onToggle }) {
   return (
     <section className="gh-filter-section">
       <div className="gh-filter-title">{label}</div>
       <div className="gh-filter-choice-row">
         {options.map((option) => (
           <button
-            className={`gh-filter-chip ${selected === option ? "is-active" : ""}`}
+            className={`gh-filter-chip ${
+              option === allLabel ? (!selected.length ? "is-active" : "") : selected.includes(option) ? "is-active" : ""
+            }`}
             key={option}
-            onClick={() => onSelect(option)}
+            onClick={() => onToggle(option, allLabel)}
             type="button"
           >
             {option}
@@ -185,27 +184,19 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
         </button>
       </div>
       <div className="gh-discovery-filter-popover-grid">
-        <ChoiceSection
+        <ToggleChipSection
+          allLabel="All types"
           label="Asset type"
-          onSelect={(option) =>
-            onDiscoveryStateChange((current) => ({
-              ...current,
-              type: option,
-            }))
-          }
+          onToggle={(value, allLabel) => toggleMulti(filters, "types", value, allLabel, onDiscoveryStateChange)}
           options={bootstrap.discovery.assetTypes}
-          selected={filters.type}
+          selected={filters.types}
         />
-        <ChoiceSection
+        <ToggleChipSection
+          allLabel="All assets"
           label="Saved view"
-          onSelect={(option) =>
-            onDiscoveryStateChange((current) => ({
-              ...current,
-              view: option,
-            }))
-          }
+          onToggle={(value, allLabel) => toggleMulti(filters, "views", value, allLabel, onDiscoveryStateChange)}
           options={bootstrap.discovery.views}
-          selected={filters.view}
+          selected={filters.views}
         />
         <FilterSection
           allLabel="All catalogs"
@@ -277,6 +268,7 @@ function DiscoveryResultCard({
 }) {
   const owners = (asset.owners || []).map((owner) => ownerLabel(owner)).filter(Boolean).slice(0, 2);
   const metaItems = resultMetaItems(asset);
+  const objectType = displayObjectType(asset);
 
   return (
     <article className={`gh-discovery-result-row ${selected ? "is-selected" : ""}`}>
@@ -285,14 +277,12 @@ function DiscoveryResultCard({
           <div className="gh-discovery-result-title-block">
             <div className="gh-discovery-result-title-row">
               <h3>{asset.name}</h3>
-              <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
+              <span className="gh-chip gh-chip-soft">{objectType}</span>
               {asset.sensitivity && asset.sensitivity !== "Unassigned" ? (
                 <span className="gh-chip gh-chip-soft">{asset.sensitivity}</span>
               ) : null}
             </div>
-            <div className="gh-discovery-result-fqn">
-              {asset.catalog} / {asset.schema}
-            </div>
+            <div className="gh-discovery-result-fqn">{assetPathLabel(asset)}</div>
           </div>
           <span className={`gh-status-chip tone-${statusTone(asset)}`}>
             {asset.governanceStatus || "Needs Work"}
@@ -372,8 +362,6 @@ function SelectionPreview({
 
   const columns = (asset.columns || []).slice(0, 6);
   const relatedAssets = (asset.relatedAssets || []).slice(0, 6);
-  const previewRows = asset.preview || [];
-  const previewKeys = previewRows[0] ? Object.keys(previewRows[0]).slice(0, 4) : [];
 
   return (
     <aside className="gh-preview-panel">
@@ -386,9 +374,7 @@ function SelectionPreview({
               {asset.governanceStatus || "Needs Work"}
             </span>
           </div>
-          <div className="gh-support-copy">
-            {asset.catalog} / {asset.schema} · {asset.objectType}
-          </div>
+          <div className="gh-support-copy">{assetPathLabel(asset, true)}</div>
         </div>
       </div>
 
@@ -432,19 +418,6 @@ function SelectionPreview({
         </div>
       </PreviewSection>
 
-      <PreviewSection title="Owners" empty="No owners are assigned yet.">
-        {asset.owners?.length ? (
-          <div className="gh-preview-owner-list">
-            {asset.owners.map((owner) => (
-              <div className="gh-preview-owner-row" key={`${asset.fqn}-${ownerLabel(owner)}`}>
-                <strong>{ownerLabel(owner)}</strong>
-                <span>{owner.title || "Owner"}</span>
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </PreviewSection>
-
       <PreviewSection title="Schema" empty="No schema metadata is available for this asset yet.">
         {columns.length ? (
           <div className="gh-preview-column-list">
@@ -461,29 +434,13 @@ function SelectionPreview({
         ) : null}
       </PreviewSection>
 
-      <PreviewSection title="Sample Data" empty="No preview rows are available for this asset yet.">
-        {previewRows.length ? (
-          <div className="gh-preview-sample-table">
-            <div className="gh-preview-sample-head">
-              {previewKeys.map((key) => (
-                <span key={key}>{key}</span>
-              ))}
-            </div>
-            {previewRows.slice(0, 3).map((row, index) => (
-              <div className="gh-preview-sample-row" key={`${asset.fqn}-preview-${index}`}>
-                {previewKeys.map((key) => (
-                  <span key={`${index}-${key}`}>{row[key] || "—"}</span>
-                ))}
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </PreviewSection>
-
-      <PreviewSection title="Related Assets" empty="No connected lineage edges are surfaced for this asset yet.">
+      <PreviewSection
+        title="Related Assets"
+        empty="No connected lineage edges are surfaced for this asset yet."
+      >
         {relatedAssets.length ? (
           <div className="gh-lineage-linked-list">
-            {relatedAssets.map((item) => (
+            {relatedAssets.slice(0, 4).map((item) => (
               <button className="gh-lineage-linked-row" key={item} onClick={() => onSelectAsset(item)} type="button">
                 <span>{item}</span>
                 <span>Open linked asset</span>
@@ -576,8 +533,8 @@ export default function DiscoveryWorkspace({
     onDiscoveryStateChange({
       query: "",
       sortBy: bootstrap.discovery.sortOptions[0],
-      view: bootstrap.discovery.views[0],
-      type: bootstrap.discovery.assetTypes[0],
+      views: [],
+      types: [],
       catalogs: [],
       domains: [],
       tiers: [],
@@ -610,14 +567,11 @@ export default function DiscoveryWorkspace({
               <div className="gh-category-list">
                 {assetTypeOptions.map((option) => (
                   <button
-                    className={`gh-category-row ${filters.type === option ? "is-active" : ""}`}
+                    className={`gh-category-row ${
+                      option === "All types" ? (!filters.types.length ? "is-active" : "") : filters.types.includes(option) ? "is-active" : ""
+                    }`}
                     key={option}
-                    onClick={() =>
-                      onDiscoveryStateChange((current) => ({
-                        ...current,
-                        type: option,
-                      }))
-                    }
+                    onClick={() => toggleMulti(filters, "types", option, "All types", onDiscoveryStateChange)}
                     type="button"
                   >
                     <span>{option}</span>
@@ -631,14 +585,11 @@ export default function DiscoveryWorkspace({
               <div className="gh-saved-view-list">
                 {bootstrap.discovery.views.map((view) => (
                   <button
-                    className={`gh-saved-view ${filters.view === view ? "is-active" : ""}`}
+                    className={`gh-saved-view ${
+                      view === "All assets" ? (!filters.views.length ? "is-active" : "") : filters.views.includes(view) ? "is-active" : ""
+                    }`}
                     key={view}
-                    onClick={() =>
-                      onDiscoveryStateChange((current) => ({
-                        ...current,
-                        view,
-                      }))
-                    }
+                    onClick={() => toggleMulti(filters, "views", view, "All assets", onDiscoveryStateChange)}
                     type="button"
                   >
                     <span>{view}</span>
