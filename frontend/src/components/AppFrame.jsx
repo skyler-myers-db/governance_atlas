@@ -29,19 +29,37 @@ const MODULES = [
   },
 ];
 
-function SearchDropdown({ assets, error, loading, onBrowseCatalog, onSelectAsset, topDirectResult }) {
+function SearchDropdown({
+  assets,
+  error,
+  loading,
+  onBrowseCatalog,
+  onSelectAsset,
+  query,
+  topDirectResult,
+}) {
+  const trimmedQuery = query.trim();
+  const searchStatus = loading
+    ? "Searching visible assets..."
+    : trimmedQuery
+      ? "Direct matches across visible assets"
+      : "Start typing to search visible assets";
+  const searchCount = loading
+    ? "Searching…"
+    : assets.length
+      ? `${assets.length} matches`
+      : trimmedQuery
+        ? "No direct matches"
+        : "Type to search";
+
   return (
     <div className="gh-search-dropdown">
       <div className="gh-search-dropdown-head">
         <div>
           <div className="gh-eyebrow">Global Search</div>
-          <div className="gh-search-dropdown-status">
-            {loading ? "Searching visible assets..." : "Direct matches across visible assets"}
-          </div>
+          <div className="gh-search-dropdown-status">{searchStatus}</div>
         </div>
-        <div className="gh-search-dropdown-status">
-          {assets.length ? `${assets.length} matches` : "No direct matches"}
-        </div>
+        <div className="gh-search-dropdown-status">{searchCount}</div>
       </div>
 
       {error ? <div className="gh-search-empty">{error}</div> : null}
@@ -72,7 +90,11 @@ function SearchDropdown({ assets, error, loading, onBrowseCatalog, onSelectAsset
         </div>
       ) : null}
 
-      {!error && !loading && !assets.length ? (
+      {!error && loading && !assets.length ? (
+        <div className="gh-search-empty">Searching visible assets...</div>
+      ) : null}
+
+      {!error && !loading && trimmedQuery && !assets.length ? (
         <div className="gh-search-empty">
           No direct asset matches yet. Press Enter to open the full discovery workspace.
         </div>
@@ -272,6 +294,7 @@ export default function AppFrame({
                     setSearchPanelOpen(false);
                     onSearchResultSelect?.(assetFqn);
                   }}
+                  query={searchQuery}
                   topDirectResult={topDirectResult}
                 />
               ) : null}

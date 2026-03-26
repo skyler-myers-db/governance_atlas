@@ -5,7 +5,7 @@ import { useAssetSearch } from "../hooks/useAssetSearch";
 import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import { assetPathLabel } from "../lib/assetPresentation";
-import { consumeWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
+import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
 
 const LINEAGE_CONTEXT_SESSION_KEY = "gh.lineage.context.v1";
 
@@ -34,7 +34,7 @@ export default function LineageWorkspace({
   const [localContext, setLocalContext] = useState(() =>
     readLineageContext(
       initialAssetFqn || "",
-      consumeWorkspaceIntent("lineageContext", initialAssetFqn || "", "Data Lineage"),
+      peekWorkspaceIntent("lineageContext", initialAssetFqn || "", "Data Lineage"),
     )
   );
   const [assetSearchQuery, setAssetSearchQuery] = useState("");

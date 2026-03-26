@@ -783,7 +783,7 @@ def sort_discovery_assets(
             ),
             reverse=True,
         )
-    if normalized_sort == "Recently updated":
+    if normalized_sort == "Name (A-Z)":
         return sorted(assets, key=lambda asset: normalize_str(asset.get("name")).lower())
     return sorted(assets, key=_best_match_key, reverse=True)
 
@@ -1040,3 +1040,22 @@ def asset_detail_payload(
         ],
     }
     return base
+
+
+def asset_payload_has_live_signals(payload: Dict[str, Any]) -> bool:
+    if not payload:
+        return False
+    checks = [
+        payload.get("description"),
+    ]
+    if any(normalize_str(value) and normalize_str(value) != "—" for value in checks):
+        return True
+    if payload.get("rows") not in {"", None, "—"}:
+        return True
+    if payload.get("size") not in {"", None, "—"}:
+        return True
+    if payload.get("files") not in {"", None, "—"}:
+        return True
+    if payload.get("columns") or payload.get("preview") or payload.get("relatedAssets"):
+        return True
+    return False

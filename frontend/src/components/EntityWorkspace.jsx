@@ -9,7 +9,7 @@ import {
   displayObjectType,
   displayStorageFormat,
 } from "../lib/assetPresentation";
-import { consumeWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
+import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
 import LineageStage from "./LineageStage";
 
 function statusTone(asset) {
@@ -95,12 +95,41 @@ function recordIdentitySubset(asset) {
 }
 
 function relatedAssetsFromGraph(graphBundle, focusFqn) {
-  const nodes = graphBundle?.data?.nodes || [];
-  return [...new Set(
+  const { upstream, downstream } = lineageNeighborGroups(graphBundle, focusFqn);
+  return [...new Set([...upstream, ...downstream])];
+}
+
+function lineageNeighborGroups(graphBundle, focusFqn) {
+  const graph = graphBundle?.data || null;
+  const nodes = graph?.nodes || [];
+  const edges = graph?.edges || [];
+  const focusId =
+    nodes.find((node) => node?.assetFqn === focusFqn)?.id ||
+    nodes.find((node) => node?.role === "focus")?.id ||
+    "";
+  const assetFqnByNodeId = new Map(
     nodes
-      .filter((node) => node?.assetFqn && node.assetFqn !== focusFqn)
-      .map((node) => node.assetFqn),
-  )];
+      .filter((node) => node?.id && node?.assetFqn)
+      .map((node) => [node.id, node.assetFqn]),
+  );
+
+  const upstream = [];
+  const downstream = [];
+  edges.forEach((edge) => {
+    if (edge.target === focusId) {
+      const upstreamFqn = assetFqnByNodeId.get(edge.source);
+      if (upstreamFqn && upstreamFqn !== focusFqn) upstream.push(upstreamFqn);
+    }
+    if (edge.source === focusId) {
+      const downstreamFqn = assetFqnByNodeId.get(edge.target);
+      if (downstreamFqn && downstreamFqn !== focusFqn) downstream.push(downstreamFqn);
+    }
+  });
+
+  return {
+    upstream: [...new Set(upstream)],
+    downstream: [...new Set(downstream)],
+  };
 }
 
 function toDraftValue(value) {
@@ -317,9 +346,11 @@ export default function EntityWorkspace({
   onSelectAsset,
 }) {
   const [activeTab, setActiveTab] = useState(() => {
-    return consumeWorkspaceIntent("entityTab", assetFqn, "Overview") || "Overview";
+    return peekWorkspaceIntent("entityTab", assetFqn, "Overview") || "Overview";
   });
-  const [localLineageContext, setLocalLineageContext] = useState("Data Lineage");
+  const [localLineageContext, setLocalLineageContext] = useState(() =>
+    peekWorkspaceIntent("lineageContext", assetFqn, "Data Lineage") || "Data Lineage",
+  );
   const [localOverrides, setLocalOverrides] = useState({});
   const [metadataDraft, setMetadataDraft] = useState(metadataDraftFromAsset(null));
   const [metadataDirty, setMetadataDirty] = useState(false);
@@ -338,6 +369,10 @@ export default function EntityWorkspace({
   const editor = useAssetMetadataEditor({ assetFqn: assetFqn || "", asset, bootstrap });
   const graphRelatedAssets = useMemo(
     () => relatedAssetsFromGraph(lineageBundle, asset?.fqn || assetFqn),
+    [asset?.fqn, assetFqn, lineageBundle],
+  );
+  const lineageNeighbors = useMemo(
+    () => lineageNeighborGroups(lineageBundle, asset?.fqn || assetFqn),
     [asset?.fqn, assetFqn, lineageBundle],
   );
   const relatedAssets = useMemo(
@@ -440,7 +475,14 @@ export default function EntityWorkspace({
 
   const columns = asset.columns || [];
   const preview = asset.preview || [];
-  const previewKeys = preview[0] ? Object.keys(preview[0]) : [];
+  const detailReady = Boolean(assetDetail.detail);
+  const detailHydrating = assetDetail.loading && !detailReady;
+  const detailUnavailable = Boolean(assetDetail.error) && !detailReady;
+  const liveColumns = detailReady ? columns : [];
+  const livePreview = detailReady ? preview : [];
+  const upstreamAssets = lineageNeighbors.upstream;
+  const downstreamAssets = lineageNeighbors.downstream;
+  const previewKeys = livePreview[0] ? Object.keys(livePreview[0]) : [];
   const tasks = governanceTasks(asset);
   const posture = postureItems(asset);
   const objectType = displayObjectType(asset);
@@ -531,7 +573,12 @@ export default function EntityWorkspace({
             <div className="gh-support-copy gh-entity-record-summary">
               {asset.description || "No description has been captured for this asset yet."}
             </div>
-            {assetDetail.loading ? (
+            {detailUnavailable ? (
+              <div className="gh-support-copy">
+                {assetDetail.error ||
+                  "Live record details could not be refreshed right now. Schema, preview, and lineage sections may be incomplete."}
+              </div>
+            ) : assetDetail.loading ? (
               <div className="gh-support-copy">Refreshing live record details...</div>
             ) : null}
           </div>
@@ -588,15 +635,68 @@ export default function EntityWorkspace({
                     Open operational context
                   </button>
                 </div>
-                {relatedAssets.length ? (
+                {upstreamAssets.length || downstreamAssets.length ? (
+                  <div className="gh-lineage-context-groups">
+                    <div className="gh-lineage-context-group">
+                      <div className="gh-lineage-context-label">
+                        Upstream {upstreamAssets.length ? `(${upstreamAssets.length})` : ""}
+                      </div>
+                      {upstreamAssets.length ? (
+                        <div className="gh-lineage-linked-list">
+                          {upstreamAssets.slice(0, 4).map((item) => (
+                            <button
+                              className="gh-lineage-linked-row"
+                              key={`up-${item}`}
+                              onClick={() => {
+                                setWorkspaceIntent("lineageContext", item, "Data Lineage");
+                                onSelectAsset(item, "Overview");
+                              }}
+                              type="button"
+                            >
+                              <span>{item}</span>
+                              <span>Open linked asset</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="gh-support-copy">No upstream assets are currently surfaced.</div>
+                      )}
+                    </div>
+                    <div className="gh-lineage-context-group">
+                      <div className="gh-lineage-context-label">
+                        Downstream {downstreamAssets.length ? `(${downstreamAssets.length})` : ""}
+                      </div>
+                      {downstreamAssets.length ? (
+                        <div className="gh-lineage-linked-list">
+                          {downstreamAssets.slice(0, 4).map((item) => (
+                            <button
+                              className="gh-lineage-linked-row"
+                              key={`down-${item}`}
+                              onClick={() => {
+                                setWorkspaceIntent("lineageContext", item, "Data Lineage");
+                                onSelectAsset(item, "Overview");
+                              }}
+                              type="button"
+                            >
+                              <span>{item}</span>
+                              <span>Open linked asset</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="gh-support-copy">No downstream assets are currently surfaced.</div>
+                      )}
+                    </div>
+                  </div>
+                ) : relatedAssets.length ? (
                   <div className="gh-lineage-linked-list">
                     {relatedAssets.slice(0, 6).map((item) => (
                       <button
                         className="gh-lineage-linked-row"
                         key={item}
                         onClick={() => {
-                          setWorkspaceIntent("lineageContext", item, localLineageContext);
-                          onSelectAsset(item, "Lineage");
+                          setWorkspaceIntent("lineageContext", item, "Data Lineage");
+                          onSelectAsset(item, "Overview");
                         }}
                         type="button"
                       >
@@ -613,15 +713,25 @@ export default function EntityWorkspace({
                   <div>
                     <div className="gh-panel-title">Schema Summary</div>
                     <div className="gh-support-copy">
-                      {columns.length
-                        ? `${columns.length} columns surfaced from the live asset definition.`
+                      {detailHydrating
+                        ? "Loading live schema metadata for this asset."
+                        : detailUnavailable
+                          ? "Live schema metadata is temporarily unavailable for this asset."
+                        : liveColumns.length
+                          ? `${liveColumns.length} columns surfaced from the live asset definition.`
                         : "No schema metadata is available for this asset."}
                     </div>
                   </div>
                 </div>
-                {columns.length ? (
+                {detailHydrating ? (
+                  <div className="gh-empty-state">Loading schema metadata...</div>
+                ) : detailUnavailable ? (
+                  <div className="gh-empty-state">
+                    {assetDetail.error || "Live schema metadata is unavailable for this asset right now."}
+                  </div>
+                ) : liveColumns.length ? (
                   <div className="gh-preview-column-list">
-                    {columns.slice(0, 8).map((column) => (
+                    {liveColumns.slice(0, 8).map((column) => (
                       <div className="gh-preview-column-row" key={column.name}>
                         <div>
                           <strong>{column.name}</strong>
@@ -743,9 +853,13 @@ export default function EntityWorkspace({
                 <div className="gh-support-copy">Column-level metadata for the selected asset.</div>
               </div>
             </div>
-            {assetDetail.loading ? (
+            {detailHydrating ? (
               <div className="gh-empty-state">Loading schema metadata...</div>
-            ) : columns.length ? (
+            ) : detailUnavailable ? (
+              <div className="gh-empty-state">
+                {assetDetail.error || "Live schema metadata is unavailable for this asset right now."}
+              </div>
+            ) : liveColumns.length ? (
               <table className="gh-table">
                 <thead>
                   <tr>
@@ -755,7 +869,7 @@ export default function EntityWorkspace({
                   </tr>
                 </thead>
                 <tbody>
-                  {columns.map((column) => (
+                  {liveColumns.map((column) => (
                     <tr key={column.name}>
                       <td>{column.name}</td>
                       <td>{column.type}</td>
@@ -778,9 +892,13 @@ export default function EntityWorkspace({
                 <div className="gh-support-copy">Sample rows returned from the live asset preview.</div>
               </div>
             </div>
-            {assetDetail.loading ? (
+            {detailHydrating ? (
               <div className="gh-empty-state">Loading preview rows...</div>
-            ) : preview.length ? (
+            ) : detailUnavailable ? (
+              <div className="gh-empty-state">
+                {assetDetail.error || "Live preview rows are unavailable for this asset right now."}
+              </div>
+            ) : livePreview.length ? (
               <table className="gh-table">
                 <thead>
                   <tr>
@@ -790,7 +908,7 @@ export default function EntityWorkspace({
                   </tr>
                 </thead>
                 <tbody>
-                  {preview.map((row, index) => (
+                  {livePreview.map((row, index) => (
                     <tr key={`${asset.fqn}-preview-${index}`}>
                       {previewKeys.map((key) => (
                         <td key={key}>{row[key]}</td>
