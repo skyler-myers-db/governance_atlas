@@ -21,11 +21,14 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-import app as legacy_streamlit
 from govhub.config import AppConfig
+from govhub.services import assets as asset_service
+from govhub.services import governance as governance_service
+from govhub.services import lineage as lineage_service
 from govhub.store import GovernanceStore
 from govhub.uc import UCSQLClient, _is_skippable_metadata_error
 
@@ -107,34 +110,9 @@ class _NullGovernanceStore:
     def get_role(self, email: str, admin_emails: Optional[List[str]] = None) -> str:
         return "reader"
 
-
-def _raw(fn: Callable[..., Any]) -> Callable[..., Any]:
-    return getattr(fn, "__wrapped__", fn)
-
-
-_cached_asset_inventory = _raw(legacy_streamlit._cached_asset_inventory)
-_cached_catalog_inventory = _raw(legacy_streamlit._cached_catalog_inventory)
-_cached_catalog_table_tags = _raw(legacy_streamlit._cached_catalog_table_tags)
-_cached_catalogs = _raw(legacy_streamlit._cached_catalogs)
-_cached_comment = _raw(legacy_streamlit._cached_comment)
-_cached_columns = _raw(legacy_streamlit._cached_columns)
-_cached_table_detail = _raw(legacy_streamlit._cached_table_detail)
-_cached_table_row_count = _raw(legacy_streamlit._cached_table_row_count)
-_cached_sample_rows = _raw(legacy_streamlit._cached_sample_rows)
-_cached_lineage_up = _raw(legacy_streamlit._cached_lineage_up)
-_cached_lineage_down = _raw(legacy_streamlit._cached_lineage_down)
-_cached_operational_context_up = _raw(legacy_streamlit._cached_operational_context_up)
-_cached_operational_context_down = _raw(legacy_streamlit._cached_operational_context_down)
-
-_normalize_str = legacy_streamlit._normalize_str
-_filter_asset_rows = legacy_streamlit._filter_asset_rows
-_split_uc_name = legacy_streamlit._split_uc_name
-_catalog_filter_options = legacy_streamlit._catalog_filter_options
-_tag_value = legacy_streamlit._tag_value
-_lineage_asset_stub = legacy_streamlit._lineage_asset_stub
-_enrich_operational_context_names = legacy_streamlit._enrich_operational_context_names
-_summarize_operational_context = legacy_streamlit._summarize_operational_context
-_empty_inventory = legacy_streamlit._empty_inventory
+_normalize_str = asset_service.normalize_str
+_split_uc_name = asset_service.split_uc_name
+_catalog_filter_options = asset_service.catalog_filter_options
 
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
@@ -239,305 +217,67 @@ def _user_role(request: Optional[Request]) -> str:
 
 
 def _inventory() -> pd.DataFrame:
-    def _loader() -> pd.DataFrame:
-        store = _store_for_read()
-        catalogs = _inventory_catalogs()
-        if not catalogs:
-            return _cached_asset_inventory(_uc(), store)
-
-        inventory_frames: List[pd.DataFrame] = []
-        tag_maps: Dict[str, Dict[str, str]] = {}
-
-        for catalog in catalogs:
-            try:
-                inv = _cached_catalog_inventory(_uc(), catalog)
-            except Exception as exc:
-                if _is_skippable_metadata_error(exc):
-                    continue
-                raise
-            if not inv.empty:
-                inv = inv.copy()
-                inv["comment"] = inv["comment"].map(_normalize_str)
-                inv["fqn"] = (
-                    inv["table_catalog"].astype(str)
-                    + "."
-                    + inv["table_schema"].astype(str)
-                    + "."
-                    + inv["table_name"].astype(str)
-                )
-                inventory_frames.append(inv)
-
-            try:
-                tags_df = _cached_catalog_table_tags(_uc(), catalog)
-            except Exception as exc:
-                if _is_skippable_metadata_error(exc):
-                    continue
-                raise
-            if tags_df.empty:
-                continue
-            tags_df = tags_df.copy()
-            tags_df["fqn"] = (
-                tags_df["table_catalog"].astype(str)
-                + "."
-                + tags_df["table_schema"].astype(str)
-                + "."
-                + tags_df["table_name"].astype(str)
-            )
-            for fqn, group in tags_df.groupby("fqn"):
-                tag_maps[str(fqn)] = {
-                    _normalize_str(row.tag_name): _normalize_str(row.tag_value)
-                    for row in group.itertuples()
-                    if _normalize_str(row.tag_name)
-                }
-
-        if not inventory_frames:
-            fallback = _cached_asset_inventory(_uc(), store)
-            return fallback if fallback is not None and not fallback.empty else _empty_inventory()
-
-        inventory = pd.concat(inventory_frames, ignore_index=True)
-        inventory = _filter_asset_rows(inventory, ["table_name", "fqn"])
-        if inventory.empty:
-            return _empty_inventory()
-
-        inventory["tags"] = inventory["fqn"].map(
-            lambda fqn: tag_maps.get(str(fqn), {}) if pd.notna(fqn) else {}
-        )
-        inventory["domain"] = inventory["tags"].map(
-            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "domain")
-        )
-        inventory["tier"] = inventory["tags"].map(
-            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "tier")
-        )
-        inventory["certification"] = inventory["tags"].map(
-            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "certification")
-        )
-        inventory["sensitivity"] = inventory["tags"].map(
-            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "sensitivity")
-        )
-        inventory["criticality"] = inventory["tags"].map(
-            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "criticality")
-        )
-        inventory["glossary_term"] = inventory["tags"].map(
-            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "glossary_term")
-        )
-        inventory["data_product"] = inventory["tags"].map(
-            lambda tags: _tag_value(tags if isinstance(tags, dict) else {}, "data_product")
-        )
-
-        owners_df = store.list_owner_assignments()
-        if not owners_df.empty:
-            owner_rows = []
-            for fqn, group in owners_df.groupby("uc_full_name"):
-                owner_rows.append(
-                    {
-                        "fqn": fqn,
-                        "owner_count": int(group["owner_email"].nunique()),
-                        "owners_summary": ", ".join(
-                            sorted(
-                                {
-                                    _normalize_str(email)
-                                    for email in group["owner_email"].tolist()
-                                    if _normalize_str(email)
-                                }
-                            )[:3]
-                        ),
-                        "business_owner": ", ".join(
-                            sorted(
-                                {
-                                    _normalize_str(email)
-                                    for email in group.loc[
-                                        group["owner_type"] == "business", "owner_email"
-                                    ].tolist()
-                                    if _normalize_str(email)
-                                }
-                            )
-                        ),
-                        "technical_owner": ", ".join(
-                            sorted(
-                                {
-                                    _normalize_str(email)
-                                    for email in group.loc[
-                                        group["owner_type"] == "technical", "owner_email"
-                                    ].tolist()
-                                    if _normalize_str(email)
-                                }
-                            )
-                        ),
-                        "steward": ", ".join(
-                            sorted(
-                                {
-                                    _normalize_str(email)
-                                    for email in group.loc[
-                                        group["owner_type"] == "steward", "owner_email"
-                                    ].tolist()
-                                    if _normalize_str(email)
-                                }
-                            )
-                        ),
-                    }
-                )
-            inventory = inventory.merge(pd.DataFrame(owner_rows), on="fqn", how="left")
-        else:
-            inventory["owner_count"] = 0
-            inventory["owners_summary"] = ""
-            inventory["business_owner"] = ""
-            inventory["technical_owner"] = ""
-            inventory["steward"] = ""
-
-        links_df = store.list_asset_links()
-        if not links_df.empty:
-            links_df = links_df.rename(
-                columns={"uc_full_name": "fqn", "om_table_fqn": "om_table_fqn"}
-            )
-            inventory = inventory.merge(
-                links_df[["fqn", "om_table_fqn"]], on="fqn", how="left"
-            )
-        else:
-            inventory["om_table_fqn"] = ""
-
-        requests_df = store.list_change_requests(limit=500)
-        if not requests_df.empty:
-            request_rollup = (
-                requests_df[requests_df["uc_full_name"].notna()]
-                .groupby("uc_full_name")
-                .agg(
-                    pending_requests=("status", lambda s: int((s == "pending").sum())),
-                    approved_requests=("status", lambda s: int((s == "approved").sum())),
-                    rejected_requests=("status", lambda s: int((s == "rejected").sum())),
-                    total_requests=("request_id", "count"),
-                )
-                .reset_index()
-                .rename(columns={"uc_full_name": "fqn"})
-            )
-            inventory = inventory.merge(request_rollup, on="fqn", how="left")
-        else:
-            inventory["pending_requests"] = 0
-            inventory["approved_requests"] = 0
-            inventory["rejected_requests"] = 0
-            inventory["total_requests"] = 0
-
-        for col in [
-            "owner_count",
-            "pending_requests",
-            "approved_requests",
-            "rejected_requests",
-            "total_requests",
-        ]:
-            if col not in inventory.columns:
-                inventory[col] = 0
-            inventory[col] = inventory[col].fillna(0).astype(int)
-
-        for col in [
-            "owners_summary",
-            "business_owner",
-            "technical_owner",
-            "steward",
-            "om_table_fqn",
-        ]:
-            if col not in inventory.columns:
-                inventory[col] = ""
-            inventory[col] = inventory[col].map(_normalize_str)
-
-        inventory["governance_score"] = (
-            35 * inventory["comment"].ne("").astype(int)
-            + 20 * inventory["owner_count"].gt(0).astype(int)
-            + 15 * inventory["domain"].ne("").astype(int)
-            + 15 * inventory["certification"].ne("").astype(int)
-            + 15 * inventory["glossary_term"].ne("").astype(int)
-        )
-        inventory["governance_status"] = "Needs Work"
-        inventory.loc[inventory["governance_score"] >= 55, "governance_status"] = (
-            "Operational"
-        )
-        inventory.loc[inventory["governance_score"] >= 80, "governance_status"] = (
-            "Enterprise Ready"
-        )
-
-        search_cols = [
-            "fqn",
-            "table_name",
-            "table_schema",
-            "comment",
-            "domain",
-            "tier",
-            "certification",
-            "sensitivity",
-            "criticality",
-            "glossary_term",
-            "data_product",
-            "owners_summary",
-            "business_owner",
-            "technical_owner",
-            "steward",
-        ]
-        inventory["search_text"] = (
-            inventory[search_cols].fillna("").astype(str).agg(" ".join, axis=1).str.lower()
-        )
-        return inventory.sort_values(
-            ["governance_score", "pending_requests", "fqn"],
-            ascending=[False, False, True],
-        ).reset_index(drop=True)
-
-    return _ttl_value(
-        "modern_inventory",
-        600,
-        _loader,
+    return asset_service.inventory(
+        _uc(),
+        _store_for_read(),
+        hidden_catalogs=HIDDEN_CATALOGS,
     )
 
 
 def _visible_assets() -> pd.DataFrame:
-    inventory = _inventory()
-    if inventory is None or inventory.empty:
-        return inventory
-    return inventory[
-        ~inventory["table_catalog"].fillna("").astype(str).str.lower().isin(HIDDEN_CATALOGS)
-    ].reset_index(drop=True)
+    return asset_service.visible_assets(
+        _uc(),
+        _store_for_read(),
+        hidden_catalogs=HIDDEN_CATALOGS,
+    )
 
 
 def _inventory_catalogs() -> List[str]:
-    values: set[str] = set()
-    try:
-        values.update(_cached_catalogs(_uc()))
-    except Exception:
-        pass
-    try:
-        values.update(_lineage_observed_catalogs())
-    except Exception:
-        pass
-    return sorted(
-        value for value in values if value and value.lower() not in HIDDEN_CATALOGS
+    return asset_service.inventory_catalogs(
+        _uc(),
+        hidden_catalogs=HIDDEN_CATALOGS,
     )
 
 
 def _lineage_observed_catalogs() -> List[str]:
-    try:
-        df = _uc().list_lineage_catalogs()
-    except Exception:
-        return []
-    if df is None or df.empty:
-        return []
-    return sorted(
-        _normalize_str(value)
-        for value in df.iloc[:, 0].tolist()
-        if _normalize_str(value) and _normalize_str(value).lower() not in HIDDEN_CATALOGS
+    return asset_service.lineage_observed_catalogs(
+        _uc(),
+        hidden_catalogs=HIDDEN_CATALOGS,
     )
 
 
 def _inventory_row(asset_fqn: str) -> pd.Series:
-    inventory = _visible_assets()
-    if inventory is None or inventory.empty:
-        return _lineage_asset_stub(pd.DataFrame(), asset_fqn)
-    match = inventory[inventory["fqn"] == asset_fqn]
-    if not match.empty:
-        return match.iloc[0]
-    return _lineage_asset_stub(inventory, asset_fqn)
+    return asset_service.inventory_row(
+        _uc(),
+        _store_for_read(),
+        asset_fqn,
+        hidden_catalogs=HIDDEN_CATALOGS,
+    )
 
 
 def _asset_exists(asset_fqn: str) -> bool:
-    inventory = _visible_assets()
-    if inventory is None or inventory.empty:
-        return False
-    return bool((inventory["fqn"] == asset_fqn).any())
+    return asset_service.asset_exists(
+        _uc(),
+        _store_for_read(),
+        asset_fqn,
+        hidden_catalogs=HIDDEN_CATALOGS,
+    )
+
+
+def _invalidate_cache_prefix(prefix: str) -> None:
+    for key in list(_TTL_CACHE.keys()):
+        if key.startswith(prefix):
+            _TTL_CACHE.pop(key, None)
+
+
+def _invalidate_asset_caches(asset_fqn: str) -> None:
+    asset_service.invalidate_asset_caches(asset_fqn)
+    lineage_service.invalidate_lineage_caches(asset_fqn)
+    governance_service.invalidate_governance_caches()
+    _TTL_CACHE.pop(f"modern_asset:{asset_fqn}", None)
+    _TTL_CACHE.pop(f"modern_lineage:{asset_fqn}", None)
+    _TTL_CACHE.pop("modern_inventory", None)
+    _TTL_CACHE.pop("modern_governance", None)
 
 
 def _friendly_table_type(raw: Any) -> str:
@@ -639,32 +379,7 @@ def _asset_badges(row: pd.Series) -> List[str]:
 
 
 def _base_asset_payload(row: pd.Series) -> Dict[str, Any]:
-    return {
-        "fqn": _normalize_str(row.get("fqn")),
-        "name": _normalize_str(row.get("table_name")) or _normalize_str(row.get("fqn")).split(".")[-1],
-        "catalog": _normalize_str(row.get("table_catalog")),
-        "schema": _normalize_str(row.get("table_schema")),
-        "objectType": _friendly_table_type(row.get("table_type")),
-        "description": _normalize_str(row.get("comment")) or "No description has been captured for this asset yet.",
-        "coverageScore": _safe_int(row.get("governance_score")),
-        "rows": "—",
-        "format": "",
-        "size": "—",
-        "files": "—",
-        "domain": _normalize_str(row.get("domain")) or "Unassigned",
-        "tier": _normalize_str(row.get("tier")) or "Unassigned",
-        "certification": _normalize_str(row.get("certification")) or "Unassigned",
-        "sensitivity": _normalize_str(row.get("sensitivity")) or "Unassigned",
-        "criticality": _normalize_str(row.get("criticality")) or "Unassigned",
-        "openRequests": _safe_int(row.get("pending_requests")),
-        "owners": _owner_entries(row),
-        "tags": _asset_badges(row),
-        "relatedAssets": [],
-        "preview": [],
-        "columns": [],
-        "governanceStatus": _normalize_str(row.get("governance_status")) or "Needs Work",
-        "omTableFqn": _normalize_str(row.get("om_table_fqn")),
-    }
+    return asset_service.base_asset_payload(row)
 
 
 def _discovery_result_haystack(asset: Dict[str, Any]) -> str:
@@ -803,136 +518,35 @@ def _discovery_search_payload(
     limit: int = 60,
     offset: int = 0,
 ) -> Dict[str, Any]:
-    assets = [_base_asset_payload(row) for _, row in _visible_assets().iterrows()]
-    query_text = _normalize_str(query)
-    selected_catalogs = _normalize_filter_values(catalogs, "All catalogs")
-    selected_domains = _normalize_filter_values(domains, "All domains")
-    selected_tiers = _normalize_filter_values(tiers, "All tiers")
-    selected_certifications = _normalize_filter_values(certifications, "All certifications")
-    selected_sensitivities = _normalize_filter_values(sensitivities, "All sensitivities")
-    selected_type = _normalize_str(asset_type)
-
-    scoped_assets: List[Dict[str, Any]] = []
-    for asset in assets:
-        if query_text and _discovery_match_score(asset, query_text) <= 0:
-            continue
-        if not _view_matches(asset, view):
-            continue
-        if selected_type and selected_type != "All types" and asset.get("objectType") != selected_type:
-            continue
-        if selected_catalogs and asset.get("catalog") not in selected_catalogs:
-            continue
-        if selected_domains and asset.get("domain") not in selected_domains:
-            continue
-        if selected_tiers and asset.get("tier") not in selected_tiers:
-            continue
-        if selected_certifications and asset.get("certification") not in selected_certifications:
-            continue
-        if selected_sensitivities and asset.get("sensitivity") not in selected_sensitivities:
-            continue
-        scoped_assets.append(asset)
-
-    sorted_assets = _sort_discovery_assets(scoped_assets, sort_by=sort_by, query=query_text)
-    safe_limit = max(1, min(limit, 200))
-    safe_offset = max(0, offset)
-    window = sorted_assets[safe_offset : safe_offset + safe_limit]
-
-    facets = {
-        "assetTypes": _facet_payload(sorted_assets, "objectType", all_label="All types"),
-        "catalogs": _facet_payload(sorted_assets, "catalog", all_label="All catalogs"),
-        "domains": _facet_payload(sorted_assets, "domain", all_label="All domains"),
-        "tiers": _facet_payload(sorted_assets, "tier", all_label="All tiers"),
-        "certifications": _facet_payload(
-            sorted_assets, "certification", all_label="All certifications"
-        ),
-        "sensitivities": _facet_payload(
-            sorted_assets, "sensitivity", all_label="All sensitivities"
-        ),
-    }
-
-    return {
-        "assets": window,
-        "count": len(sorted_assets),
-        "facets": facets,
-        "selection": {
-            "primaryAssetFqn": window[0]["fqn"] if window else "",
-            "reason": "top_result" if window else "none",
-        },
-    }
+    return asset_service.discovery_search_payload(
+        _uc(),
+        _store_for_read(),
+        query=query,
+        view=view,
+        asset_type=asset_type,
+        catalogs=catalogs,
+        domains=domains,
+        tiers=tiers,
+        certifications=certifications,
+        sensitivities=sensitivities,
+        sort_by=sort_by,
+        limit=limit,
+        offset=offset,
+        hidden_catalogs=HIDDEN_CATALOGS,
+    )
 
 
 def _related_assets(catalog: str, schema: str, table: str, focus_fqn: str) -> List[str]:
-    try:
-        upstream = _filter_asset_rows(
-            _cached_lineage_up(_uc(), catalog, schema, table),
-            ["source_table_name", "source_table_full_name"],
-            exclude_fqn=focus_fqn,
-        )
-    except Exception:
-        upstream = pd.DataFrame()
-    try:
-        downstream = _filter_asset_rows(
-            _cached_lineage_down(_uc(), catalog, schema, table),
-            ["target_table_name", "target_table_full_name"],
-            exclude_fqn=focus_fqn,
-        )
-    except Exception:
-        downstream = pd.DataFrame()
-    values: List[str] = []
-    if upstream is not None and not upstream.empty and "source_table_full_name" in upstream.columns:
-        values.extend(upstream["source_table_full_name"].dropna().astype(str).tolist())
-    if downstream is not None and not downstream.empty and "target_table_full_name" in downstream.columns:
-        values.extend(downstream["target_table_full_name"].dropna().astype(str).tolist())
-    normalized = [_normalize_str(item) for item in values if _normalize_str(item)]
-    deduped = list(dict.fromkeys(item for item in normalized if item != focus_fqn))
-    return deduped[:8]
+    return asset_service.related_assets(_uc(), catalog, schema, table, focus_fqn)
 
 
 def _asset_detail_payload(asset_fqn: str) -> Dict[str, Any]:
-    def _loader() -> Dict[str, Any]:
-        row = _inventory_row(asset_fqn)
-        base = _base_asset_payload(row)
-        catalog, schema, table = _split_uc_name(base["fqn"])
-        try:
-            detail_df = _cached_table_detail(_uc(), catalog, schema, table)
-        except Exception:
-            detail_df = pd.DataFrame()
-        detail = _detail_map(detail_df)
-        try:
-            columns_df = _cached_columns(_uc(), catalog, schema, table)
-        except Exception:
-            columns_df = pd.DataFrame()
-        try:
-            sample_df = _cached_sample_rows(_uc(), catalog, schema, table)
-        except Exception:
-            sample_df = pd.DataFrame()
-
-        if not base["description"]:
-            try:
-                base["description"] = _cached_comment(_uc(), catalog, schema, table)
-            except Exception:
-                pass
-
-        try:
-            row_count = _coalesce(
-                detail.get("numrows"),
-                _cached_table_row_count(_uc(), catalog, schema, table),
-            )
-        except Exception:
-            row_count = _coalesce(detail.get("numrows"))
-        base["rows"] = f"{_safe_int(row_count):,}" if _safe_int(row_count) else "—"
-        base["format"] = _coalesce(detail.get("format"), base["objectType"]).lower() or "—"
-        if base["format"] == "table":
-            base["format"] = "delta"
-        base["size"] = _human_bytes(detail.get("sizeinbytes"))
-        base["files"] = str(_safe_int(detail.get("numfiles"))) if _safe_int(detail.get("numfiles")) else "—"
-        base["objectType"] = _coalesce(_friendly_table_type(detail.get("type")), base["objectType"])
-        base["relatedAssets"] = _related_assets(catalog, schema, table, base["fqn"])
-        base["preview"] = _preview_records(sample_df)
-        base["columns"] = _column_records(columns_df)
-        return base
-
-    return _ttl_value(f"modern_asset:{asset_fqn}", 300, _loader)
+    return asset_service.asset_detail_payload(
+        _uc(),
+        _store_for_read(),
+        asset_fqn,
+        hidden_catalogs=HIDDEN_CATALOGS,
+    )
 
 
 def _preview_records(sample_df: pd.DataFrame) -> List[Dict[str, str]]:
@@ -1006,252 +620,35 @@ def _stack_positions(count: int, *, x: int, top: int = 22, bottom: int = 78) -> 
 
 
 def _build_data_graph(asset_fqn: str) -> Dict[str, Any]:
-    row = _inventory_row(asset_fqn)
-    catalog, schema, table = _split_uc_name(_normalize_str(row.get("fqn")))
-    focus = _graph_node_for_asset(
-        asset_fqn,
-        "focus",
-        50,
-        50,
-        kicker="Focus",
-        kind=_friendly_table_type(row.get("table_type")),
-        foot=[_normalize_str(row.get("certification")) or "Unassigned"],
-        depth=0,
-    )
-    try:
-        upstream_df = _filter_asset_rows(
-            _cached_lineage_up(_uc(), catalog, schema, table),
-            ["source_table_name", "source_table_full_name"],
-            exclude_fqn=asset_fqn,
-        )
-    except Exception:
-        upstream_df = pd.DataFrame()
-    try:
-        downstream_df = _filter_asset_rows(
-            _cached_lineage_down(_uc(), catalog, schema, table),
-            ["target_table_name", "target_table_full_name"],
-            exclude_fqn=asset_fqn,
-        )
-    except Exception:
-        downstream_df = pd.DataFrame()
-    upstream_assets = (
-        upstream_df["source_table_full_name"].dropna().astype(str).tolist()
-        if upstream_df is not None and not upstream_df.empty and "source_table_full_name" in upstream_df.columns
-        else []
-    )
-    downstream_assets = (
-        downstream_df["target_table_full_name"].dropna().astype(str).tolist()
-        if downstream_df is not None and not downstream_df.empty and "target_table_full_name" in downstream_df.columns
-        else []
-    )
-
-    nodes = [focus]
-    edges: List[Dict[str, Any]] = []
-    for idx, (x, y) in enumerate(_stack_positions(len(upstream_assets), x=20)):
-        upstream_fqn = _normalize_str(upstream_assets[idx])
-        node = _graph_node_for_asset(upstream_fqn, "source", x, y, kicker="Source")
-        nodes.append(node)
-        edges.append({"source": node["id"], "target": "focus", "depth": 1})
-    for idx, (x, y) in enumerate(_stack_positions(len(downstream_assets), x=80)):
-        downstream_fqn = _normalize_str(downstream_assets[idx])
-        node = _graph_node_for_asset(downstream_fqn, "target", x, y, kicker="Target")
-        nodes.append(node)
-        edges.append({"source": "focus", "target": node["id"], "depth": 1})
-
-    if len(nodes) == 1:
-        return {
-            "nodes": [focus],
-            "edges": [],
-        }
-    return {"nodes": nodes, "edges": edges}
+    return lineage_service.build_data_graph(_uc(), _store_for_read(), asset_fqn)
 
 
 def _build_operational_graph(asset_fqn: str) -> Dict[str, Any]:
-    row = _inventory_row(asset_fqn)
-    catalog, schema, table = _split_uc_name(_normalize_str(row.get("fqn")))
-    focus = _graph_node_for_asset(
+    return lineage_service.build_operational_graph(
+        _uc(),
+        _store_for_read(),
         asset_fqn,
-        "focus",
-        50,
-        48,
-        kicker="Focus",
-        kind=_friendly_table_type(row.get("table_type")),
-        foot=["Operational center"],
-        depth=0,
     )
-    try:
-        upstream_df = _enrich_operational_context_names(
-            _uc(), _cached_operational_context_up(_uc(), catalog, schema, table)
-        )
-    except Exception:
-        upstream_df = pd.DataFrame()
-    try:
-        downstream_df = _enrich_operational_context_names(
-            _uc(), _cached_operational_context_down(_uc(), catalog, schema, table)
-        )
-    except Exception:
-        downstream_df = pd.DataFrame()
-    upstream_cards = _summarize_operational_context(
-        upstream_df,
-        direction="upstream",
-        focus_asset_name=focus["label"],
-    )
-    downstream_cards = _summarize_operational_context(
-        downstream_df,
-        direction="downstream",
-        focus_asset_name=focus["label"],
-    )
-
-    nodes = [focus]
-    edges: List[Dict[str, Any]] = []
-
-    for idx, (x, y) in enumerate(_stack_positions(len(upstream_cards), x=21)):
-        card = upstream_cards[idx]
-        node = {
-            "id": f"op-up-{idx + 1}",
-            "label": card["title"],
-            "subtitle": card["subtitle"] or card["note"],
-            "kicker": card["entity_label"],
-            "kind": card["entity_label"],
-            "role": "source",
-            "depth": 1,
-            "x": x,
-            "y": y,
-            "foot": [f"{card['asset_count']} {card['assets_label']}"],
-        }
-        nodes.append(node)
-        edges.append({"source": node["id"], "target": "focus", "depth": 1})
-
-    for idx, (x, y) in enumerate(_stack_positions(len(downstream_cards), x=79)):
-        card = downstream_cards[idx]
-        node = {
-            "id": f"op-down-{idx + 1}",
-            "label": card["title"],
-            "subtitle": card["subtitle"] or card["note"],
-            "kicker": card["entity_label"],
-            "kind": card["entity_label"],
-            "role": "target",
-            "depth": 1,
-            "x": x,
-            "y": y,
-            "foot": [f"{card['asset_count']} {card['assets_label']}"],
-        }
-        nodes.append(node)
-        edges.append({"source": "focus", "target": node["id"], "depth": 1})
-
-    return {"nodes": nodes, "edges": edges}
 
 
 def _lineage_payload(asset_fqn: str) -> Dict[str, Any]:
-    def _loader() -> Dict[str, Any]:
-        return {
-            "fqn": asset_fqn,
-            "graphs": {
-                "data": _build_data_graph(asset_fqn),
-                "operational": _build_operational_graph(asset_fqn),
-            },
-        }
-
-    return _ttl_value(f"modern_lineage:{asset_fqn}", 300, _loader)
+    return lineage_service.lineage_payload(_uc(), _store_for_read(), asset_fqn)
 
 
 def _governance_summary() -> Dict[str, Any]:
-    def _loader() -> Dict[str, Any]:
-        inventory = _visible_assets()
-        store = _store_for_read()
-        try:
-            pending = store.list_change_requests(status="pending", limit=200)
-        except Exception:
-            pending = pd.DataFrame()
-        try:
-            glossary = store.list_glossary_terms(limit=200)
-        except Exception:
-            glossary = pd.DataFrame()
-
-        metrics = [
-            {"label": "Assets", "value": int(len(inventory.index))},
-            {
-                "label": "Needs attention",
-                "value": int(
-                    inventory["governance_status"].eq("Needs Work").sum()
-                    + inventory["pending_requests"].gt(0).sum()
-                ),
-            },
-            {
-                "label": "Certified",
-                "value": int(inventory["certification"].fillna("").astype(str).str.lower().eq("certified").sum()),
-            },
-            {"label": "With stewards", "value": int(inventory["steward"].fillna("").astype(str).ne("").sum())},
-            {"label": "Sensitive assets", "value": int(inventory["sensitivity"].fillna("").astype(str).ne("").sum())},
-            {"label": "Open requests", "value": int(inventory["pending_requests"].fillna(0).astype(int).sum())},
-        ]
-
-        backlog: List[Dict[str, str]] = []
-        if pending is not None and not pending.empty:
-            for _, req in pending.head(8).iterrows():
-                backlog.append(
-                    {
-                        "title": _normalize_str(req.get("new_comment")) or "Open governance request",
-                        "asset": _normalize_str(req.get("uc_full_name")),
-                        "assetFqn": _normalize_str(req.get("uc_full_name")),
-                        "status": _normalize_str(req.get("status")).title() or "Pending",
-                        "note": _normalize_str(req.get("review_note")) or "Awaiting governance review.",
-                    }
-                )
-        if not backlog and inventory is not None and not inventory.empty:
-            needs_owner = inventory[inventory["owner_count"].fillna(0).astype(int).eq(0)].head(4)
-            for _, row in needs_owner.iterrows():
-                backlog.append(
-                    {
-                        "title": f"Assign owner to {_normalize_str(row.get('table_name'))}",
-                        "asset": _normalize_str(row.get("fqn")),
-                        "assetFqn": _normalize_str(row.get("fqn")),
-                        "status": "Needs Owner",
-                        "note": "High-value asset is missing a business, technical, or steward owner.",
-                    }
-                )
-
-        glossary_asset_map: Dict[str, List[str]] = {}
-        if inventory is not None and not inventory.empty and "glossary_term" in inventory.columns:
-            glossary_inventory = inventory[
-                inventory["glossary_term"].fillna("").astype(str).ne("")
-            ].copy()
-            if not glossary_inventory.empty:
-                glossary_asset_map = (
-                    glossary_inventory.groupby("glossary_term")["fqn"]
-                    .apply(lambda series: [str(item) for item in series.head(8).tolist() if str(item)])
-                    .to_dict()
-                )
-
-        glossary_rows: List[Dict[str, str]] = []
-        if glossary is not None and not glossary.empty:
-            for _, row in glossary.head(50).iterrows():
-                term_name = _normalize_str(row.get("name"))
-                related_assets = glossary_asset_map.get(term_name, [])
-                glossary_rows.append(
-                    {
-                        "termId": _normalize_str(row.get("term_id")),
-                        "term": term_name,
-                        "definition": _normalize_str(row.get("definition")) or "No definition",
-                        "domain": _normalize_str(row.get("domain")) or "Unassigned",
-                        "ownerEmail": _normalize_str(row.get("owner_email")) or "Unassigned",
-                        "status": _normalize_str(row.get("status")).title() or "Draft",
-                        "assetCount": len(related_assets),
-                        "assets": related_assets,
-                    }
-                )
-
-        return {"metrics": metrics, "backlog": backlog, "glossary": glossary_rows}
-
-    return _ttl_value("modern_governance", 300, _loader)
+    return governance_service.governance_summary(
+        _uc(),
+        _store_for_read(),
+        hidden_catalogs=HIDDEN_CATALOGS,
+    )
 
 
 def _bootstrap_payload(request: Request) -> Dict[str, Any]:
     store_status = _store_status()
     inventory = _visible_assets()
-    assets = [_base_asset_payload(row) for _, row in inventory.iterrows()]
+    assets = [asset_service.base_asset_payload(row) for _, row in inventory.iterrows()]
     asset_index = {asset["fqn"]: asset for asset in assets}
-    catalogs = _catalog_filter_options(
+    catalogs = asset_service.catalog_filter_options(
         inventory,
         available_catalogs=list(inventory["table_catalog"].dropna().astype(str).unique()),
         observed_catalogs=None,
@@ -1315,6 +712,7 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
             "bootstrap": "/api/bootstrap",
             "discoverySearch": "/api/discovery/search",
             "assetDetail": "/api/assets/:fqn",
+            "assetMetadataUpdate": "/api/assets/:fqn/metadata",
             "lineage": "/api/lineage/:fqn",
             "governanceSummary": "/api/governance/summary",
             "glossary": "/api/governance/glossary",
@@ -1335,6 +733,116 @@ def _ensure_governance_store() -> GovernanceStore:
             detail=status["message"] or "Governance control plane is unavailable.",
         )
     return _store()
+
+
+class AssetDescriptionPatch(BaseModel):
+    description: str = ""
+
+
+class OwnerAssignment(BaseModel):
+    ownerEmail: str
+    ownerType: str = "steward"
+
+
+class AssetOwnersPatch(BaseModel):
+    owners: List[OwnerAssignment] = Field(default_factory=list)
+
+
+class AssetMetadataPatch(BaseModel):
+    description: str = ""
+    domain: Optional[str] = None
+    tier: Optional[str] = None
+    certification: Optional[str] = None
+    sensitivity: Optional[str] = None
+
+
+class AssetTagsPatch(BaseModel):
+    tags: Dict[str, str] = Field(default_factory=dict)
+
+
+class ColumnDescriptionPatch(BaseModel):
+    description: str = ""
+
+
+class ColumnTagsPatch(BaseModel):
+    tags: Dict[str, str] = Field(default_factory=dict)
+
+
+def _normalized_tag_map(df: pd.DataFrame) -> Dict[str, str]:
+    if df is None or df.empty:
+        return {}
+    tags: Dict[str, str] = {}
+    for _, row in df.iterrows():
+        key = _normalize_str(row.get("tag_name"))
+        value = _normalize_str(row.get("tag_value"))
+        if key:
+            tags[key] = value
+    return tags
+
+
+def _apply_table_tags(asset_fqn: str, tags: Dict[str, str]) -> Dict[str, str]:
+    catalog, schema, table = _split_uc_name(asset_fqn)
+    normalized_tags = {
+        _normalize_str(key): _normalize_str(value)
+        for key, value in tags.items()
+        if _normalize_str(key)
+    }
+    current_tags = _normalized_tag_map(_uc().get_table_tags(catalog, schema, table))
+    to_unset = [key for key in current_tags if key not in normalized_tags]
+    to_set = {
+        key: value
+        for key, value in normalized_tags.items()
+        if current_tags.get(key) != value
+    }
+    if to_unset:
+        _uc().unset_table_tags(catalog, schema, table, to_unset)
+    if to_set:
+        _uc().set_table_tags(catalog, schema, table, to_set)
+    return normalized_tags
+
+
+def _apply_asset_metadata(asset_fqn: str, payload: AssetMetadataPatch) -> Dict[str, Any]:
+    catalog, schema, table = _split_uc_name(asset_fqn)
+    _uc().set_table_comment(catalog, schema, table, payload.description or "")
+    current_tags = _normalized_tag_map(_uc().get_table_tags(catalog, schema, table))
+    next_tags = {
+        key: value
+        for key, value in current_tags.items()
+        if key not in {"domain", "tier", "certification", "sensitivity"}
+    }
+    structured = {
+        "domain": _normalize_str(payload.domain),
+        "tier": _normalize_str(payload.tier),
+        "certification": _normalize_str(payload.certification),
+        "sensitivity": _normalize_str(payload.sensitivity),
+    }
+    for key, value in structured.items():
+        if value:
+            next_tags[key] = value
+    _apply_table_tags(asset_fqn, next_tags)
+    _invalidate_asset_caches(asset_fqn)
+    return _asset_detail_payload(asset_fqn)
+
+
+def _apply_column_tags(asset_fqn: str, column_name: str, tags: Dict[str, str]) -> Dict[str, str]:
+    catalog, schema, table = _split_uc_name(asset_fqn)
+    normalized_tags = {
+        _normalize_str(key): _normalize_str(value)
+        for key, value in tags.items()
+        if _normalize_str(key)
+    }
+    current_tags = _normalized_tag_map(_uc().get_column_tags(catalog, schema, table, column_name))
+    to_unset = [key for key in current_tags if key not in normalized_tags]
+    to_set = {
+        key: value
+        for key, value in normalized_tags.items()
+        if current_tags.get(key) != value
+    }
+    if to_unset:
+        _uc().unset_column_tags(catalog, schema, table, column_name, to_unset)
+    if to_set:
+        _uc().set_column_tags(catalog, schema, table, column_name, to_set)
+    return normalized_tags
 
 
 def _bootstrap_unavailable_payload(
@@ -1366,6 +874,15 @@ def _bootstrap_unavailable_payload(
             "metrics": [],
             "role": role,
             "userEmail": email,
+        },
+        "apiContract": {
+            "bootstrap": "/api/bootstrap",
+            "discoverySearch": "/api/discovery/search",
+            "assetDetail": "/api/assets/:fqn",
+            "assetMetadataUpdate": "/api/assets/:fqn/metadata",
+            "lineage": "/api/lineage/:fqn",
+            "governanceSummary": "/api/governance/summary",
+            "glossary": "/api/governance/glossary",
         },
         "help": [
             {
@@ -1531,6 +1048,145 @@ def api_asset_detail(asset_fqn: str) -> JSONResponse:
     return JSONResponse(_asset_detail_payload(asset_fqn))
 
 
+@app.patch("/api/assets/{asset_fqn:path}/description")
+def api_patch_asset_description(
+    asset_fqn: str,
+    payload: AssetDescriptionPatch,
+    request: Request,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    _ensure_governance_store()
+    if not _asset_exists(asset_fqn):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    governance_service.patch_asset_description(
+        _uc(),
+        asset_fqn=asset_fqn,
+        description=payload.description or "",
+    )
+    return JSONResponse(
+        {
+            "ok": True,
+            "fqn": asset_fqn,
+            "description": payload.description or "",
+            "asset": _asset_detail_payload(asset_fqn),
+            "governance": _governance_summary(),
+        }
+    )
+
+
+@app.patch("/api/assets/{asset_fqn:path}/metadata")
+def api_patch_asset_metadata(
+    asset_fqn: str,
+    payload: AssetMetadataPatch,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    if not _asset_exists(asset_fqn):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    asset = _apply_asset_metadata(asset_fqn, payload)
+    return JSONResponse({"ok": True, "fqn": asset_fqn, "asset": asset})
+
+
+@app.patch("/api/assets/{asset_fqn:path}/owners")
+def api_patch_asset_owners(
+    asset_fqn: str,
+    payload: AssetOwnersPatch,
+    request: Request,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    store = _ensure_governance_store()
+    if not _asset_exists(asset_fqn):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    governance_service.patch_asset_owners(
+        store,
+        asset_fqn=asset_fqn,
+        owner_assignments=[owner.model_dump() for owner in payload.owners],
+        updated_by=_user_email(request),
+        replace=True,
+    )
+    return JSONResponse(
+        {
+            "ok": True,
+            "fqn": asset_fqn,
+            "asset": _asset_detail_payload(asset_fqn),
+            "governance": _governance_summary(),
+        }
+    )
+
+
+@app.patch("/api/assets/{asset_fqn:path}/tags")
+def api_patch_asset_tags(
+    asset_fqn: str,
+    payload: AssetTagsPatch,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    if not _asset_exists(asset_fqn):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    applied = _apply_table_tags(asset_fqn, payload.tags)
+    _invalidate_asset_caches(asset_fqn)
+    return JSONResponse(
+        {
+            "ok": True,
+            "fqn": asset_fqn,
+            "tags": applied,
+            "asset": _asset_detail_payload(asset_fqn),
+        }
+    )
+
+
+@app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/description")
+def api_patch_column_description(
+    asset_fqn: str,
+    column_name: str,
+    payload: ColumnDescriptionPatch,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    _ensure_governance_store()
+    if not _asset_exists(asset_fqn):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    columns_df = asset_service.asset_columns_df(_uc(), asset_fqn)
+    column_names = set(columns_df["column_name"].dropna().astype(str).tolist())
+    if column_name not in column_names:
+        raise HTTPException(status_code=404, detail="Column not found.")
+    governance_service.patch_column_description(
+        _uc(),
+        asset_fqn=asset_fqn,
+        column_name=column_name,
+        description=payload.description or "",
+    )
+    return JSONResponse(
+        {
+            "ok": True,
+            "fqn": asset_fqn,
+            "column": column_name,
+            "description": payload.description or "",
+            "asset": _asset_detail_payload(asset_fqn),
+            "governance": _governance_summary(),
+        }
+    )
+
+
+@app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/tags")
+def api_patch_column_tags(
+    asset_fqn: str,
+    column_name: str,
+    payload: ColumnTagsPatch,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    if not _asset_exists(asset_fqn):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    applied = _apply_column_tags(asset_fqn, column_name, payload.tags)
+    _invalidate_asset_caches(asset_fqn)
+    return JSONResponse(
+        {
+            "ok": True,
+            "fqn": asset_fqn,
+            "column": column_name,
+            "tags": applied,
+            "asset": _asset_detail_payload(asset_fqn),
+        }
+    )
+
+
 @app.get("/api/lineage/{asset_fqn:path}")
 def api_lineage(asset_fqn: str) -> JSONResponse:
     _ensure_live_runtime()
@@ -1565,10 +1221,12 @@ async def api_governance_create_request(request: Request) -> JSONResponse:
         raise HTTPException(status_code=400, detail="assetFqn and title are required.")
     if not _asset_exists(asset_fqn):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    request_id = store.create_change_request(
+    request_id = governance_service.create_change_request(
+        store,
         created_by=_user_email(request),
-        uc_full_name=asset_fqn,
-        new_comment=f"{title}: {note}".strip(": "),
+        asset_fqn=asset_fqn,
+        title=title,
+        note=note,
     )
     return JSONResponse({"ok": True, "requestId": request_id, "governance": _governance_summary()})
 
@@ -1585,13 +1243,20 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
         raise HTTPException(status_code=400, detail="assetFqn and ownerEmail are required.")
     if not _asset_exists(asset_fqn):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    store.upsert_owner(
-        uc_full_name=asset_fqn,
+    governance_service.add_owner(
+        store,
+        asset_fqn=asset_fqn,
         owner_email=owner_email,
         owner_type=owner_type,
         updated_by=_user_email(request),
     )
-    return JSONResponse({"ok": True, "governance": _governance_summary()})
+    return JSONResponse(
+        {
+            "ok": True,
+            "asset": _asset_detail_payload(asset_fqn),
+            "governance": _governance_summary(),
+        }
+    )
 
 
 @app.post("/api/governance/glossary")
@@ -1607,13 +1272,14 @@ async def api_governance_upsert_glossary(request: Request) -> JSONResponse:
     status = (_normalize_str(payload.get("status")) or "draft").lower()
     if not name:
         raise HTTPException(status_code=400, detail="name is required.")
-    store.upsert_glossary_term(
+    governance_service.upsert_glossary_term(
         term_id=term_id,
         name=name,
         definition=definition,
         domain=domain,
-        owner_email=owner_email or None,
+        owner_email=owner_email,
         status=status,
+        store=store,
         updated_by=_user_email(request),
     )
     return JSONResponse({"ok": True, "governance": _governance_summary()})
