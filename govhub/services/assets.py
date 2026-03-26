@@ -629,7 +629,8 @@ def exact_identity_row(
     if identity_df is None or identity_df.empty:
         return None
 
-    base: Dict[str, Any] = {column: "" for column in (inventory_columns or [])}
+    columns = list(inventory_columns) if inventory_columns is not None else []
+    base: Dict[str, Any] = {column: "" for column in columns}
     identity = identity_df.iloc[0].to_dict()
     base.update(
         {
