@@ -1,3 +1,4 @@
+import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 import LineageGraph from "./LineageGraph";
 
 function selectGraph(graphBundle, context) {
@@ -40,8 +41,8 @@ export default function LineageStage({
               <div className="gh-panel-title">{context}</div>
               <div className="gh-lineage-headbar-title">{asset.name}</div>
               <div className="gh-lineage-headbar-meta">
-                <span>{asset.catalog} / {asset.schema}</span>
-                <span>{asset.objectType}</span>
+                <span>{assetPathLabel(asset)}</span>
+                {displayObjectType(asset) ? <span>{displayObjectType(asset)}</span> : null}
               </div>
             </div>
             <div className="gh-lineage-stage-topbar-actions">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAssetSearch } from "../hooks/useAssetSearch";
-import { displayObjectType } from "../lib/assetPresentation";
+import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 
 function statusTone(bootState) {
   if (bootState === "degraded") return "warn";
@@ -57,10 +57,12 @@ function SearchDropdown({ assets, error, loading, onBrowseCatalog, onSelectAsset
             >
               <span className="gh-search-result-main">
                 <span className="gh-search-result-title">{asset.name}</span>
-                <span className="gh-search-result-subtitle">{asset.fqn}</span>
+                <span className="gh-search-result-subtitle">{assetPathLabel(asset, true)}</span>
               </span>
               <span className="gh-search-result-meta">
-                <span className="gh-chip gh-chip-soft">{displayObjectType(asset)}</span>
+                {displayObjectType(asset) ? (
+                  <span className="gh-chip gh-chip-soft">{displayObjectType(asset)}</span>
+                ) : null}
                 {asset.domain && asset.domain !== "Unassigned" ? (
                   <span className="gh-chip gh-chip-soft">{asset.domain}</span>
                 ) : null}
@@ -117,6 +119,10 @@ export default function AppFrame({
       : null;
 
   const shellMetrics = useMemo(() => (shell?.metrics || []).slice(0, 3), [shell?.metrics]);
+  const shellStatusCopy =
+    bootState === "healthy" || bootState === "live"
+      ? ""
+      : bootMessage || "Metadata inventory is currently running with limited access.";
 
   useEffect(() => {
     setSearchPanelOpen(false);
@@ -160,34 +166,39 @@ export default function AppFrame({
       <header className="gh-shell-header">
         <div className="gh-shell-topbar">
           <div className="gh-shell-spine">
-            <button
-              className="gh-shell-brand"
-              disabled={shellDisabled}
-              onClick={() => onModuleChange("discovery")}
-              type="button"
-            >
-              <div className="gh-shell-brand-mark" aria-hidden="true">
-                <span>GH</span>
-              </div>
-              <div className="gh-shell-brand-copy">
-                <div className="gh-shell-brand-title">Governance Hub</div>
-                <div className="gh-shell-brand-subtitle">Metadata Workspace</div>
-              </div>
-            </button>
+            <div className="gh-shell-brand-band">
+              <button
+                className="gh-shell-brand"
+                disabled={shellDisabled}
+                onClick={() => onModuleChange("discovery")}
+                type="button"
+              >
+                <div className="gh-shell-brand-mark" aria-hidden="true">
+                  <span>GH</span>
+                </div>
+                <div className="gh-shell-brand-copy">
+                  <div className="gh-shell-brand-title">Governance Hub</div>
+                  <div className="gh-shell-brand-subtitle">Metadata Workspace</div>
+                </div>
+              </button>
+            </div>
 
-            <nav className="gh-shell-nav" aria-label="Primary modules">
-              {MODULES.map((module) => (
-                <button
-                  className={`gh-product-tab ${activeModule === module.key ? "is-active" : ""}`}
-                  disabled={shellDisabled}
-                  key={module.key}
-                  onClick={() => onModuleChange(module.key)}
-                  type="button"
-                >
-                  <span>{module.label}</span>
-                </button>
-              ))}
-            </nav>
+            <div className="gh-shell-nav-band">
+              <div className="gh-shell-module-label">Modules</div>
+              <nav className="gh-shell-nav" aria-label="Primary modules">
+                {MODULES.map((module) => (
+                  <button
+                    className={`gh-product-tab ${activeModule === module.key ? "is-active" : ""}`}
+                    disabled={shellDisabled}
+                    key={module.key}
+                    onClick={() => onModuleChange(module.key)}
+                    type="button"
+                  >
+                    <span>{module.label}</span>
+                  </button>
+                ))}
+              </nav>
+            </div>
           </div>
 
           <div className="gh-shell-topbar-utility">
@@ -212,9 +223,6 @@ export default function AppFrame({
                   <label className="gh-global-search-label" htmlFor="gh-global-search-input">
                     Global Search
                   </label>
-                  <div className="gh-global-search-subtitle">
-                    Jump directly to a visible asset record from anywhere in the workspace.
-                  </div>
                 </div>
                 <div className="gh-global-search-input-wrap">
                   <input
@@ -269,14 +277,12 @@ export default function AppFrame({
 
           <aside className={`gh-shell-inline-status tone-${statusTone(bootState)}`}>
             <div className="gh-shell-inline-status-head">
-              <div className="gh-shell-runtime-label">Metadata plane</div>
+              <div className="gh-shell-runtime-label">Metadata Plane</div>
               <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
                 {statusLabel(bootState)}
               </span>
             </div>
-            <div className="gh-shell-inline-status-copy">
-              {bootMessage || "Connected to the live metadata workspace."}
-            </div>
+            {shellStatusCopy ? <div className="gh-shell-inline-status-copy">{shellStatusCopy}</div> : null}
             {shellMetrics.length ? (
               <div className="gh-shell-metric-row">
                 {shellMetrics.map((metric) => (
