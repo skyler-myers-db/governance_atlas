@@ -651,6 +651,11 @@ def view_matches(asset: Dict[str, Any], view: str) -> bool:
     normalized = normalize_str(view)
     if not normalized or normalized == "All assets":
         return True
+    if normalized == "Needs attention":
+        return (
+            normalize_str(asset.get("governanceStatus")) == "Needs Work"
+            or safe_int(asset.get("openRequests")) > 0
+        )
     if normalized == "Needs owner":
         return len(asset.get("owners", [])) == 0
     if normalized == "Needs certification":
@@ -688,6 +693,26 @@ def facet_payload(assets: List[Dict[str, Any]], field: str, *, all_label: str) -
         counts[value] = counts.get(value, 0) + 1
     items = [{"value": all_label, "count": len(assets)}]
     items.extend({"value": value, "count": counts[value]} for value in sorted(counts))
+    return items
+
+
+def view_facet_payload(
+    assets: List[Dict[str, Any]],
+    *,
+    all_label: str,
+    views: Sequence[str],
+) -> List[Dict[str, Any]]:
+    items = [{"value": all_label, "count": len(assets)}]
+    for view in views:
+        normalized = normalize_str(view)
+        if not normalized or normalized == all_label:
+            continue
+        items.append(
+            {
+                "value": view,
+                "count": sum(1 for asset in assets if view_matches(asset, view)),
+            }
+        )
     return items
 
 
@@ -768,12 +793,12 @@ def discovery_search_payload(
     for asset in assets:
         if query_text and discovery_match_score(asset, query_text) <= 0:
             continue
-        if not views_match(asset, selected_views):
-            continue
         matched_assets.append(asset)
 
     def in_scope(asset: Dict[str, Any], *, exclude: Optional[set[str]] = None) -> bool:
         excluded = exclude or set()
+        if selected_views and "views" not in excluded and not views_match(asset, selected_views):
+            return False
         if selected_types and asset.get("objectType") not in selected_types:
             if "types" not in excluded:
                 return False
@@ -806,6 +831,11 @@ def discovery_search_payload(
     window = sorted_assets[safe_offset : safe_offset + safe_limit]
 
     facets = {
+        "views": view_facet_payload(
+            [asset for asset in matched_assets if in_scope(asset, exclude={"views"})],
+            all_label="All assets",
+            views=["All assets", "Needs attention", "Needs owner", "Needs certification", "Certified", "High coverage"],
+        ),
         "assetTypes": facet_payload(
             [asset for asset in matched_assets if in_scope(asset, exclude={"types"})],
             "objectType",

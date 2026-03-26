@@ -58,6 +58,7 @@ HELP_ITEMS = [
 
 DISCOVERY_VIEWS = [
     "All assets",
+    "Needs attention",
     "Needs owner",
     "Needs certification",
     "Certified",

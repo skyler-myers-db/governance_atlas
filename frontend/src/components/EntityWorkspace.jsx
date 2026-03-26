@@ -397,7 +397,7 @@ export default function EntityWorkspace({
   const tasks = governanceTasks(asset);
   const posture = postureItems(asset);
   const objectType = displayObjectType(asset);
-  const identityLine = assetPathLabel(asset, true);
+  const identityLine = assetPathLabel(asset);
   const lineageUnavailable = Boolean(lineage.error);
   const completeness = tasks.filter((task) => task.complete).length;
   const metricTiles = [
@@ -452,10 +452,10 @@ export default function EntityWorkspace({
               <button className="gh-tertiary-button gh-inline-link-button" onClick={onBack} type="button">
                 Back to Discovery
               </button>
-              <div className="gh-eyebrow">Metadata Record</div>
             </div>
             <div className="gh-entity-record-headline">
               <div className="gh-entity-record-heading-block">
+                <div className="gh-eyebrow">Metadata Record</div>
                 <h2>{asset.name}</h2>
                 <div className="gh-entity-record-fqn">{identityLine}</div>
               </div>
