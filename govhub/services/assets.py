@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 import time
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -445,8 +446,9 @@ def _resolve_inventory_df(
     )
 
 
-def friendly_table_type(raw: Any) -> str:
+def friendly_table_type(raw: Any, data_source_format: Any = None) -> str:
     normalized = normalize_str(raw).upper()
+    normalized_format = normalize_str(data_source_format).upper()
     mapping = {
         "BASE TABLE": "Table",
         "TABLE": "Table",
@@ -458,6 +460,9 @@ def friendly_table_type(raw: Any) -> str:
         "MATERIALIZED VIEW": "Materialized View",
         "STREAMING TABLE": "Streaming Table",
     }
+    if normalized in {"BASE TABLE", "TABLE", "MANAGED", "MANAGED TABLE", "EXTERNAL", "EXTERNAL TABLE"}:
+        if normalized_format == "DELTA":
+            return "Delta Table"
     if normalized in mapping:
         return mapping[normalized]
     return normalize_str(raw).replace("_", " ").title() or "Table"
@@ -549,7 +554,7 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         "name": normalize_str(row.get("table_name")) or normalize_str(row.get("fqn")).split(".")[-1],
         "catalog": normalize_str(row.get("table_catalog")),
         "schema": normalize_str(row.get("table_schema")),
-        "objectType": friendly_table_type(row.get("table_type")),
+        "objectType": friendly_table_type(row.get("table_type"), row.get("data_source_format")),
         "description": normalize_str(row.get("comment")) or "No description has been captured for this asset yet.",
         "coverageScore": safe_int(row.get("governance_score")),
         "rows": "—",
@@ -573,37 +578,65 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
 
 
 def discovery_result_haystack(asset: Dict[str, Any]) -> str:
-    return " ".join(
-        [
-            normalize_str(asset.get("name")),
-            normalize_str(asset.get("description")),
-            normalize_str(asset.get("catalog")),
-            normalize_str(asset.get("schema")),
-            normalize_str(asset.get("domain")),
-            normalize_str(asset.get("tier")),
-            normalize_str(asset.get("certification")),
-            normalize_str(asset.get("sensitivity")),
-            normalize_str(asset.get("objectType")),
-            " ".join(normalize_str(tag) for tag in asset.get("tags", []) if normalize_str(tag)),
-        ]
-    ).lower()
+    return normalized_search_text(
+        asset.get("fqn"),
+        asset.get("name"),
+        asset.get("description"),
+        asset.get("catalog"),
+        asset.get("schema"),
+        asset.get("domain"),
+        asset.get("tier"),
+        asset.get("certification"),
+        asset.get("sensitivity"),
+        asset.get("objectType"),
+        " ".join(normalize_str(tag) for tag in asset.get("tags", []) if normalize_str(tag)),
+        " ".join(
+            normalize_str(owner.get("name"))
+            for owner in asset.get("owners", [])
+            if isinstance(owner, dict) and normalize_str(owner.get("name"))
+        ),
+    )
+
+
+def normalized_search_text(*values: Any) -> str:
+    raw = " ".join(normalize_str(value) for value in values if normalize_str(value))
+    if not raw:
+        return ""
+    normalized = re.sub(r"[^0-9a-z]+", " ", raw.lower())
+    return re.sub(r"\s+", " ", normalized).strip()
 
 
 def discovery_match_score(asset: Dict[str, Any], query: str) -> int:
-    q = normalize_str(query).lower()
+    q = normalized_search_text(query)
     if not q:
         return 0
+    terms = [term for term in q.split(" ") if term]
+    haystack = discovery_result_haystack(asset)
+    if not all(term in haystack for term in terms):
+        return 0
+
+    name = normalized_search_text(asset.get("name"))
+    schema = normalized_search_text(asset.get("schema"))
+    catalog = normalized_search_text(asset.get("catalog"))
+    description = normalized_search_text(asset.get("description"))
+    fqn = normalized_search_text(asset.get("fqn"))
+
     score = 0
-    if q in normalize_str(asset.get("name")).lower():
+    if q in name:
+        score += 7
+    elif all(term in name for term in terms):
+        score += 5
+    if q in fqn:
         score += 4
-    if q in normalize_str(asset.get("schema")).lower():
+    elif all(term in fqn for term in terms):
+        score += 3
+    if q in schema or all(term in schema for term in terms):
         score += 2
-    if q in normalize_str(asset.get("catalog")).lower():
+    if q in catalog or all(term in catalog for term in terms):
         score += 2
-    if q in normalize_str(asset.get("description")).lower():
+    if q in description or all(term in description for term in terms):
         score += 2
-    if q in discovery_result_haystack(asset):
-        score += 1
+    score += len(terms)
     return score
 
 
@@ -860,7 +893,10 @@ def asset_detail_payload(
         base["format"] = "delta"
     base["size"] = human_bytes(detail.get("sizeinbytes"))
     base["files"] = str(safe_int(detail.get("numfiles"))) if safe_int(detail.get("numfiles")) else "—"
-    base["objectType"] = coalesce(friendly_table_type(detail.get("type")), base["objectType"])
+    base["objectType"] = coalesce(
+        friendly_table_type(detail.get("type"), detail.get("format")),
+        base["objectType"],
+    )
     base["relatedAssets"] = related_assets(uc, catalog, schema, table, base["fqn"])
     base["preview"] = preview_records(sample_df)
     base["columns"] = column_records(columns_df)

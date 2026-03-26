@@ -87,10 +87,21 @@ function metadataRowItems(asset) {
   return [
     { label: "Coverage", value: `${asset.coverageScore ?? 0}` },
     { label: "Owners", value: `${asset.owners?.length || 0}` },
-    { label: "Open requests", value: `${asset.openRequests || 0}` },
+    { label: "Open Requests", value: `${asset.openRequests || 0}` },
     { label: "Domain", value: asset.domain || "Unassigned" },
     { label: "Tier", value: asset.tier || "Unassigned" },
     { label: "Certification", value: asset.certification || "Unassigned" },
+  ];
+}
+
+function resultMetaItems(asset) {
+  return [
+    `Coverage ${asset.coverageScore ?? 0}`,
+    `${asset.owners?.length || 0} owners`,
+    `${asset.openRequests || 0} requests`,
+    asset.domain || "Unassigned domain",
+    asset.tier || "Unassigned tier",
+    asset.certification || "Unassigned certification",
   ];
 }
 
@@ -265,17 +276,21 @@ function DiscoveryResultCard({
   onSelect,
 }) {
   const owners = (asset.owners || []).map((owner) => ownerLabel(owner)).filter(Boolean).slice(0, 2);
+  const metaItems = resultMetaItems(asset);
 
   return (
-    <article className={`gh-discovery-card ${selected ? "is-selected" : ""}`}>
-      <button className="gh-discovery-card-hit" onClick={() => onSelect(asset.fqn)} type="button">
-        <div className="gh-discovery-card-head">
-          <div className="gh-discovery-card-title-block">
-            <div className="gh-discovery-card-title-row">
+    <article className={`gh-discovery-result-row ${selected ? "is-selected" : ""}`}>
+      <button className="gh-discovery-result-hit" onClick={() => onSelect(asset.fqn)} type="button">
+        <div className="gh-discovery-result-head">
+          <div className="gh-discovery-result-title-block">
+            <div className="gh-discovery-result-title-row">
               <h3>{asset.name}</h3>
               <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
+              {asset.sensitivity && asset.sensitivity !== "Unassigned" ? (
+                <span className="gh-chip gh-chip-soft">{asset.sensitivity}</span>
+              ) : null}
             </div>
-            <div className="gh-discovery-card-fqn">
+            <div className="gh-discovery-result-fqn">
               {asset.catalog} / {asset.schema}
             </div>
           </div>
@@ -284,35 +299,29 @@ function DiscoveryResultCard({
           </span>
         </div>
 
-        <div className="gh-discovery-card-description">
+        <p className="gh-discovery-result-description">
           {asset.description || "No description is available for this asset yet."}
-        </div>
+        </p>
 
-        <div className="gh-discovery-card-meta">
-          {metadataRowItems(asset).map((item) => (
-            <div className="gh-discovery-card-stat" key={item.label}>
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-            </div>
+        <div className="gh-discovery-result-meta">
+          {metaItems.map((item) => (
+            <span key={item}>{item}</span>
           ))}
         </div>
 
-        <div className="gh-discovery-card-foot">
-          <div className="gh-chip-row">
-            {asset.sensitivity && asset.sensitivity !== "Unassigned" ? (
-              <span className="gh-chip gh-chip-soft">{asset.sensitivity}</span>
-            ) : null}
+        {owners.length ? (
+          <div className="gh-chip-row gh-discovery-result-owner-row">
             {owners.map((owner) => (
               <span className="gh-chip gh-chip-soft" key={owner}>
                 {owner}
               </span>
             ))}
           </div>
-        </div>
+        ) : null}
       </button>
 
-      <div className="gh-discovery-card-actions">
-        <button className="gh-tertiary-button gh-inline-link-button" onClick={() => onOpenAsset(asset.fqn)} type="button">
+      <div className="gh-discovery-result-actions">
+        <button className="gh-secondary-button gh-secondary-button-compact" onClick={() => onOpenAsset(asset.fqn)} type="button">
           Open record
         </button>
         <button
@@ -412,10 +421,10 @@ function SelectionPreview({
         </div>
       </PreviewSection>
 
-      <PreviewSection title="Record profile">
-        <div className="gh-preview-stat-grid">
+      <PreviewSection title="Record Profile">
+        <div className="gh-preview-attribute-grid">
           {metadataRowItems(asset).map((item) => (
-            <div className="gh-preview-stat-card" key={item.label}>
+            <div className="gh-preview-attribute-row" key={item.label}>
               <span>{item.label}</span>
               <strong>{item.value}</strong>
             </div>
@@ -452,7 +461,7 @@ function SelectionPreview({
         ) : null}
       </PreviewSection>
 
-      <PreviewSection title="Sample data" empty="No preview rows are available for this asset yet.">
+      <PreviewSection title="Sample Data" empty="No preview rows are available for this asset yet.">
         {previewRows.length ? (
           <div className="gh-preview-sample-table">
             <div className="gh-preview-sample-head">
@@ -471,7 +480,7 @@ function SelectionPreview({
         ) : null}
       </PreviewSection>
 
-      <PreviewSection title="Related assets" empty="No connected lineage edges are surfaced for this asset yet.">
+      <PreviewSection title="Related Assets" empty="No connected lineage edges are surfaced for this asset yet.">
         {relatedAssets.length ? (
           <div className="gh-lineage-linked-list">
             {relatedAssets.map((item) => (
@@ -591,115 +600,83 @@ export default function DiscoveryWorkspace({
       <section className="gh-discovery-main gh-discovery-main-grid">
         {!showDominantState ? (
           <aside className="gh-panel gh-discovery-sidebar-panel">
-          <div className="gh-discovery-sidebar-head">
-            <div className="gh-eyebrow">Metadata plane</div>
-            <h3>Discovery scope</h3>
-            <p>Move between asset types, saved views, and catalog slices without leaving search.</p>
-          </div>
-
-          <SidebarSection title="Asset types">
-            <div className="gh-category-list">
-              {assetTypeOptions.map((option) => (
-                <button
-                  className={`gh-category-row ${filters.type === option ? "is-active" : ""}`}
-                  key={option}
-                  onClick={() =>
-                    onDiscoveryStateChange((current) => ({
-                      ...current,
-                      type: option,
-                    }))
-                  }
-                  type="button"
-                >
-                  <span>{option}</span>
-                  <span className="gh-category-count">{facetCount(resultsFacets, "assetTypes", option)}</span>
-                </button>
-              ))}
+            <div className="gh-discovery-sidebar-head">
+              <div className="gh-eyebrow">Discovery Scope</div>
+              <h3>Browse Asset Types And Filters</h3>
+              <p>Layer asset type, saved view, catalog, and stacked filters without leaving the catalog.</p>
             </div>
-          </SidebarSection>
 
-          <SidebarSection title="Saved views">
-            <div className="gh-saved-view-list">
-              {bootstrap.discovery.views.map((view) => (
-                <button
-                  className={`gh-saved-view ${filters.view === view ? "is-active" : ""}`}
-                  key={view}
-                  onClick={() =>
-                    onDiscoveryStateChange((current) => ({
-                      ...current,
-                      view,
-                    }))
-                  }
-                  type="button"
-                >
-                  <span>{view}</span>
-                </button>
-              ))}
-            </div>
-          </SidebarSection>
-
-          <SidebarSection title="Catalogs in scope">
-            {catalogOptions.length ? (
-              <div className="gh-chip-stack">
-                {catalogOptions.slice(0, 8).map((catalog) => (
+            <SidebarSection title="Asset Types">
+              <div className="gh-category-list">
+                {assetTypeOptions.map((option) => (
                   <button
-                    className={`gh-chip gh-chip-soft ${
-                      filters.catalogs.includes(catalog) ? "gh-chip-selected" : ""
-                    }`}
-                    key={catalog}
-                    onClick={() => toggleMulti(filters, "catalogs", catalog, "All catalogs", onDiscoveryStateChange)}
+                    className={`gh-category-row ${filters.type === option ? "is-active" : ""}`}
+                    key={option}
+                    onClick={() =>
+                      onDiscoveryStateChange((current) => ({
+                        ...current,
+                        type: option,
+                      }))
+                    }
                     type="button"
                   >
-                    {catalog}
+                    <span>{option}</span>
+                    <span className="gh-category-count">{facetCount(resultsFacets, "assetTypes", option)}</span>
                   </button>
                 ))}
               </div>
-            ) : (
-              <div className="gh-support-copy">Catalog scope will populate from visible inventory.</div>
-            )}
-          </SidebarSection>
+            </SidebarSection>
+
+            <SidebarSection title="Saved Views">
+              <div className="gh-saved-view-list">
+                {bootstrap.discovery.views.map((view) => (
+                  <button
+                    className={`gh-saved-view ${filters.view === view ? "is-active" : ""}`}
+                    key={view}
+                    onClick={() =>
+                      onDiscoveryStateChange((current) => ({
+                        ...current,
+                        view,
+                      }))
+                    }
+                    type="button"
+                  >
+                    <span>{view}</span>
+                  </button>
+                ))}
+              </div>
+            </SidebarSection>
+
+            <SidebarSection title="Catalogs In Scope">
+              {catalogOptions.length ? (
+                <div className="gh-chip-stack">
+                  {catalogOptions.map((catalog) => (
+                    <button
+                      className={`gh-chip gh-chip-soft ${
+                        filters.catalogs.includes(catalog) ? "gh-chip-selected" : ""
+                      }`}
+                      key={catalog}
+                      onClick={() => toggleMulti(filters, "catalogs", catalog, "All catalogs", onDiscoveryStateChange)}
+                      type="button"
+                    >
+                      {catalog}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="gh-support-copy">Catalog scope will populate from visible inventory.</div>
+              )}
+            </SidebarSection>
           </aside>
         ) : null}
 
         <section className={`gh-results-column ${showDominantState ? "is-expanded" : ""}`}>
-          {!showDominantState ? (
-            <div className="gh-panel gh-discovery-hero">
-            <div className="gh-discovery-hero-copy">
-              <div className="gh-eyebrow">Discovery</div>
-              <h2 className="gh-workspace-title">Search the metadata plane</h2>
-              <p>
-                Find tables, views, ownership gaps, certification status, and lineage entry points from one
-                asset-first workspace.
-              </p>
-            </div>
-            <div className="gh-discovery-summary-grid">
-              <div className="gh-discovery-summary-card">
-                <span>Visible assets</span>
-                <strong>{discoverySummary.visibleAssets || 0}</strong>
-              </div>
-              <div className="gh-discovery-summary-card">
-                <span>Catalogs</span>
-                <strong>{discoverySummary.catalogCount || 0}</strong>
-              </div>
-              <div className="gh-discovery-summary-card">
-                <span>Needs attention</span>
-                <strong>{discoverySummary.governanceGaps || 0}</strong>
-              </div>
-              <div className="gh-discovery-summary-card">
-                <span>Certified</span>
-                <strong>{discoverySummary.certifiedAssets || 0}</strong>
-              </div>
-            </div>
-            </div>
-          ) : null}
-
           <div className="gh-panel gh-discovery-command-panel">
             <div className="gh-discovery-command-topline">
               <div>
-                <div className="gh-panel-title">Search results</div>
-                <h2 className="gh-workspace-title">Metadata catalog</h2>
+                <h2 className="gh-workspace-title">Metadata Catalog</h2>
                 <div className="gh-discovery-results-copy">
-                  Search stays asset-centric while preserving direct entry into record, lineage, and governance.
+                  Filter visible assets with stacked search, saved views, and facet filters.
                 </div>
               </div>
               <span className="gh-results-inline-state gh-results-inline-state-bar">
@@ -717,7 +694,7 @@ export default function DiscoveryWorkspace({
                     query: event.target.value,
                   }))
                 }
-                placeholder="Search visible data assets, schemas, domains, tags, or stewardship gaps"
+                placeholder="Filter visible assets by name, schema, owner, domain, or tag"
                 value={filters.query}
               />
               <select
@@ -739,7 +716,7 @@ export default function DiscoveryWorkspace({
                   onClick={() => setShowAdvancedFilters((current) => !current)}
                   type="button"
                 >
-                  Filters {directFilterCount ? `(${directFilterCount})` : ""}
+                  Stack Filters {directFilterCount ? `(${directFilterCount})` : ""}
                 </button>
                 {showAdvancedFilters ? (
                   <div ref={filterPopoverRef}>
