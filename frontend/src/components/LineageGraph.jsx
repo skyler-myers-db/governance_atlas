@@ -586,9 +586,7 @@ export default function LineageGraph({
                           type="button"
                         >
                           <span>{candidate.name}</span>
-                          <span>
-                            {candidate.catalog} / {candidate.schema}
-                          </span>
+                          <span>{assetPathLabel(candidate)}</span>
                         </button>
                       ))
                     ) : (

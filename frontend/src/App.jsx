@@ -90,7 +90,7 @@ export default function App() {
           onOpenLineage={(assetFqn, nextContext = "Data Lineage") =>
             openLineageWorkspace(assetFqn || routeAssetFqn, nextContext)
           }
-          onSelectAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
+          onSelectAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
         />
       );
     } else if (surface === "lineage") {
@@ -102,7 +102,7 @@ export default function App() {
             openLineageWorkspace(assetFqn, nextContext)
           }
           onOpenGovernance={openGovernanceWorkspace}
-          onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
+          onOpenAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
         />
       );
     } else {

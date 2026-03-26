@@ -72,43 +72,6 @@ body {
   box-shadow: none;
 }
 
-.gh-shell-workbar {
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  display: grid;
-  gap: 6px;
-  align-items: center;
-}
-
-.gh-shell-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.gh-shell-brand-mark {
-  display: none;
-}
-
-.gh-shell-brand-copy {
-  display: grid;
-  gap: 2px;
-}
-
-.gh-shell-brand-kicker {
-  font-size: 0.58rem;
-  font-weight: 800;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: #7a8aa6;
-}
-
-.gh-shell-brand-title {
-  display: block;
-  font-size: 1.02rem;
-  font-weight: 800;
-  color: var(--gh-ink);
-}
-
 .gh-eyebrow,
 .gh-panel-title,
 .gh-filter-title,
@@ -172,15 +135,6 @@ body {
 .gh-search-results {
   display: grid;
   gap: 6px;
-}
-
-.gh-search-dropdown-actions {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 4px 2px;
-  border-top: 1px solid rgba(198, 210, 234, 0.64);
 }
 
 .gh-inline-alert {
@@ -247,15 +201,6 @@ body {
   color: var(--gh-ink);
 }
 
-.gh-shell-utility {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-  align-items: center;
-  min-width: 0;
-}
-
 .gh-shell-identity {
   display: inline-flex;
   align-items: center;
@@ -274,43 +219,6 @@ body {
   color: var(--gh-ink-soft);
   font-size: 0.8rem;
   font-weight: 600;
-}
-
-.gh-shell-inline-status {
-  min-width: 240px;
-  display: grid;
-  gap: 2px;
-  padding: 0.6rem 0.8rem;
-  border: 1px solid var(--gh-line);
-  border-radius: 12px;
-  background: var(--gh-surface-soft);
-  color: var(--gh-ink-soft);
-  font-size: 0.78rem;
-  line-height: 1.35;
-}
-
-.gh-shell-inline-status.tone-warn {
-  border-color: rgba(201, 135, 45, 0.24);
-  background: rgba(255, 249, 241, 0.98);
-}
-
-.gh-shell-inline-status.tone-bad {
-  border-color: rgba(207, 92, 102, 0.22);
-  background: rgba(255, 246, 247, 0.98);
-}
-
-.gh-shell-inline-status-title {
-  color: var(--gh-ink);
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.gh-shell-utility .gh-chip {
-  min-height: 28px;
-  padding: 0.3rem 0.72rem;
-  font-size: 0.76rem;
 }
 
 .gh-chip-row,
@@ -2242,15 +2150,10 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .gh-shell-workbar {
-    grid-template-columns: 1fr;
-  }
-
   .gh-discovery-sidebar {
     position: static;
   }
 
-  .gh-shell-utility,
   .gh-lineage-toolbar-row,
   .gh-lineage-headbar-actions,
   .gh-lineage-stage-topbar-actions {
@@ -2288,10 +2191,6 @@ body {
 
   .gh-discovery-filter-popover-grid {
     grid-template-columns: 1fr;
-  }
-
-  .gh-shell-inline-status {
-    min-width: 0;
   }
 
   .gh-lineage-toolbar-actions,
@@ -2494,7 +2393,7 @@ body {
 .gh-shell-brand-band {
   display: flex;
   align-items: center;
-  padding: 16px 18px;
+  padding: 18px 22px;
   box-shadow: var(--gh-shadow-soft);
 }
 
@@ -2543,7 +2442,6 @@ body {
   gap: 2px;
 }
 
-.gh-shell-brand-kicker,
 .gh-shell-module-label,
 .gh-global-search-label {
   font-size: 0.72rem;
@@ -2554,7 +2452,7 @@ body {
 }
 
 .gh-shell-brand-title {
-  font-size: 2rem;
+  font-size: 2.12rem;
   font-weight: 800;
   letter-spacing: -0.05em;
   color: var(--gh-ink);
@@ -2582,9 +2480,9 @@ body {
 }
 
 .gh-product-tab {
-  min-width: 164px;
-  min-height: 48px;
-  padding: 0 22px;
+  min-width: 168px;
+  min-height: 50px;
+  padding: 0 24px;
   border-radius: 14px;
   border: 1px solid rgba(182, 198, 216, 0.96);
   background: rgba(247, 250, 255, 0.92);
@@ -2644,8 +2542,7 @@ body {
   min-width: 0;
 }
 
-.gh-global-search-subtitle,
-.gh-shell-inline-status-copy {
+.gh-global-search-subtitle {
   color: var(--gh-ink-soft);
   font-size: 0.78rem;
   line-height: 1.4;
@@ -2742,8 +2639,7 @@ body {
   border-top: 1px solid rgba(214, 224, 236, 0.92);
 }
 
-.gh-shell-topbar-utility,
-.gh-shell-inline-status-head {
+.gh-shell-topbar-utility {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2753,6 +2649,12 @@ body {
 .gh-shell-topbar-utility {
   justify-content: flex-end;
   align-items: flex-start;
+}
+
+.gh-shell-identity-block {
+  min-width: 0;
+  justify-items: end;
+  gap: 2px;
 }
 
 .gh-shell-identity {
@@ -2768,6 +2670,14 @@ body {
   color: var(--gh-ink);
   font-size: 0.84rem;
   font-weight: 800;
+}
+
+.gh-shell-status-note {
+  max-width: 28ch;
+  color: var(--gh-ink-soft);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  text-align: right;
 }
 
 .gh-main {
@@ -3318,21 +3228,21 @@ body {
   gap: 10px;
 }
 
-.gh-entity-record-topline {
-  display: grid;
-  gap: 4px;
-}
-
 .gh-entity-record-headline {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 14px;
+  align-items: start;
 }
 
 .gh-entity-record-heading-block {
   min-width: 0;
   display: grid;
   gap: 6px;
+}
+
+.gh-entity-record-backlink {
+  justify-self: start;
 }
 
 .gh-entity-record-summary {

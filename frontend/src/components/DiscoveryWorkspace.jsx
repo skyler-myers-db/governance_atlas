@@ -356,7 +356,7 @@ function DiscoveryResultCard({
 function PreviewSection({ title, children, empty }) {
   return (
     <section className="gh-preview-section">
-      <div className="gh-panel-title">{title}</div>
+      {title ? <div className="gh-panel-title">{title}</div> : null}
       {children ? children : empty ? <div className="gh-support-copy">{empty}</div> : null}
     </section>
   );
@@ -447,7 +447,7 @@ function SelectionPreview({
         </div>
       </PreviewSection>
 
-      <PreviewSection title="Stewardship Signals">
+      <PreviewSection>
         <PreviewProfileList items={signalItems} />
       </PreviewSection>
 

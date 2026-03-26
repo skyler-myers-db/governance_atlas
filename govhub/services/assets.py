@@ -475,6 +475,32 @@ def friendly_table_type(raw: Any, data_source_format: Any = None) -> str:
     return normalize_str(raw).replace("_", " ").title() or "Table"
 
 
+def friendly_storage_format(raw: Any) -> str:
+    normalized = normalize_str(raw).upper()
+    if not normalized:
+        return "—"
+    mapping = {
+        "DELTA": "Delta",
+        "PARQUET": "Parquet",
+        "CSV": "CSV",
+        "JSON": "JSON",
+        "AVRO": "Avro",
+        "ORC": "ORC",
+        "ICEBERG": "Iceberg",
+        "TEXT": "Text",
+    }
+    return mapping.get(normalized, normalize_str(raw).replace("_", " ").title() or "—")
+
+
+def management_type(raw: Any) -> str:
+    normalized = normalize_str(raw).upper()
+    if normalized in {"MANAGED", "MANAGED TABLE"}:
+        return "Managed"
+    if normalized in {"EXTERNAL", "EXTERNAL TABLE"}:
+        return "External"
+    return "—"
+
+
 def coalesce(*values: Any) -> str:
     for value in values:
         normalized = normalize_str(value)
@@ -556,16 +582,21 @@ def asset_badges(row: pd.Series) -> List[str]:
 
 
 def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
+    raw_table_type = normalize_str(row.get("table_type"))
+    raw_storage_format = normalize_str(row.get("data_source_format"))
     return {
         "fqn": normalize_str(row.get("fqn")),
         "name": normalize_str(row.get("table_name")) or normalize_str(row.get("fqn")).split(".")[-1],
         "catalog": normalize_str(row.get("table_catalog")),
         "schema": normalize_str(row.get("table_schema")),
-        "objectType": friendly_table_type(row.get("table_type"), row.get("data_source_format")),
+        "objectType": friendly_table_type(raw_table_type, raw_storage_format),
         "description": normalize_str(row.get("comment")) or "No description has been captured for this asset yet.",
         "coverageScore": safe_int(row.get("governance_score")),
         "rows": "—",
-        "format": "",
+        "format": friendly_storage_format(raw_storage_format),
+        "storageFormat": friendly_storage_format(raw_storage_format),
+        "tableTypeRaw": raw_table_type,
+        "managementType": management_type(raw_table_type),
         "size": "—",
         "files": "—",
         "domain": normalize_str(row.get("domain")) or "Unassigned",
@@ -973,17 +1004,21 @@ def asset_detail_payload(
     except Exception:
         row_count = coalesce(detail.get("numrows"))
     base["rows"] = f"{safe_int(row_count):,}" if safe_int(row_count) else "—"
-    base["format"] = coalesce(detail.get("format"), base["objectType"]).lower() or "—"
-    if base["format"] == "table":
-        base["format"] = "delta"
-    base["size"] = human_bytes(detail.get("sizeinbytes"))
-    base["files"] = str(safe_int(detail.get("numfiles"))) if safe_int(detail.get("numfiles")) else "—"
+    raw_detail_type = coalesce(detail.get("type"), base.get("tableTypeRaw"))
+    raw_detail_format = coalesce(detail.get("format"), base.get("storageFormat"))
+    base["tableTypeRaw"] = raw_detail_type or base.get("tableTypeRaw", "")
     base["objectType"] = coalesce(
-        friendly_table_type(detail.get("type"), detail.get("format")),
+        friendly_table_type(raw_detail_type, raw_detail_format),
         base["objectType"],
     )
-    if base["format"] == "delta":
-        base["objectType"] = "Delta Table"
+    base["managementType"] = management_type(base.get("tableTypeRaw"))
+    base["storageFormat"] = coalesce(
+        friendly_storage_format(raw_detail_format),
+        base.get("storageFormat"),
+    )
+    base["format"] = base["storageFormat"] or "—"
+    base["size"] = human_bytes(detail.get("sizeinbytes"))
+    base["files"] = str(safe_int(detail.get("numfiles"))) if safe_int(detail.get("numfiles")) else "—"
     base["relatedAssets"] = related_assets(uc, catalog, schema, table, base["fqn"])
     base["preview"] = preview_records(sample_df)
     base["columns"] = column_records(columns_df)
