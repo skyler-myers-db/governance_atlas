@@ -38,16 +38,36 @@ function fieldOptions(key, bootstrap, field) {
 function normalizeField(field, bootstrap) {
   const key = field?.key || field?.name;
   if (!EDITABLE_FIELD_KEYS.includes(key)) return null;
+  const options = fieldOptions(key, bootstrap, field);
+  const requestedType = (field?.type || field?.kind || (key === "description" ? "textarea" : "select"))
+    .toString()
+    .toLowerCase();
+  const resolvedType =
+    key === "description"
+      ? "textarea"
+      : requestedType === "text"
+        ? "text"
+        : options.length
+          ? "select"
+          : "text";
+  const defaultHelpText =
+    key !== "description" && !options.length
+      ? `No preset ${titleCase(key).toLowerCase()} options are configured yet. Type a value to save it directly on this asset.`
+      : "";
 
   return {
     key,
     label: field?.label || titleCase(key),
-    type: field?.type || field?.kind || (key === "description" ? "textarea" : "select"),
+    type: resolvedType,
     placeholder:
       field?.placeholder ||
-      (key === "description" ? "Add a description for this asset" : `Select ${titleCase(key).toLowerCase()}`),
-    helpText: field?.helpText || field?.description || "",
-    options: fieldOptions(key, bootstrap, field),
+      (key === "description"
+        ? "Add a description for this asset"
+        : resolvedType === "text"
+          ? `Enter ${titleCase(key).toLowerCase()}`
+          : `Select ${titleCase(key).toLowerCase()}`),
+    helpText: field?.helpText || field?.description || defaultHelpText,
+    options,
   };
 }
 
