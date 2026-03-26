@@ -430,6 +430,21 @@ def asset_columns_df(uc, asset_fqn: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def _resolve_inventory_df(
+    inventory_or_uc,
+    store=None,
+    *,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> pd.DataFrame:
+    if isinstance(inventory_or_uc, pd.DataFrame):
+        return inventory_or_uc
+    return visible_assets(
+        inventory_or_uc,
+        store,
+        hidden_catalogs=hidden_catalogs,
+    )
+
+
 def friendly_table_type(raw: Any) -> str:
     normalized = normalize_str(raw).upper()
     mapping = {
@@ -671,7 +686,8 @@ def sort_discovery_assets(
 
 
 def discovery_search_payload(
-    inventory: pd.DataFrame,
+    inventory_or_uc,
+    store=None,
     *,
     query: str = "",
     view: str = "All assets",
@@ -684,7 +700,13 @@ def discovery_search_payload(
     sort_by: str = "Best match",
     limit: int = 60,
     offset: int = 0,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
 ) -> Dict[str, Any]:
+    inventory = _resolve_inventory_df(
+        inventory_or_uc,
+        store,
+        hidden_catalogs=hidden_catalogs,
+    )
     assets = [base_asset_payload(row) for _, row in inventory.iterrows()]
     query_text = normalize_str(query)
     selected_catalogs = normalize_filter_values(catalogs, "All catalogs")
@@ -793,7 +815,18 @@ def column_records(columns_df: pd.DataFrame) -> List[Dict[str, Any]]:
     return rows
 
 
-def asset_detail_payload(uc, inventory: pd.DataFrame, asset_fqn: str) -> Dict[str, Any]:
+def asset_detail_payload(
+    uc,
+    inventory_or_store,
+    asset_fqn: str,
+    *,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> Dict[str, Any]:
+    inventory = _resolve_inventory_df(
+        inventory_or_store if isinstance(inventory_or_store, pd.DataFrame) else uc,
+        None if isinstance(inventory_or_store, pd.DataFrame) else inventory_or_store,
+        hidden_catalogs=hidden_catalogs,
+    )
     row = inventory_row(inventory, asset_fqn)
     base = base_asset_payload(row)
     catalog, schema, table = split_uc_name(base["fqn"])
