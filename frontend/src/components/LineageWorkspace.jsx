@@ -4,7 +4,8 @@ import { useAssetDetail } from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
 import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
-import { consumeWorkspaceIntent } from "../lib/workspaceIntent";
+import { assetPathLabel } from "../lib/assetPresentation";
+import { consumeWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
 
 const LINEAGE_CONTEXT_SESSION_KEY = "gh.lineage.context.v1";
 
@@ -109,9 +110,7 @@ export default function LineageWorkspace({
                 type="button"
               >
                 <span>{candidate.name}</span>
-                <span>
-                  {candidate.catalog} / {candidate.schema}
-                </span>
+                <span>{assetPathLabel(candidate)}</span>
               </button>
             ))
           ) : (
@@ -132,7 +131,7 @@ export default function LineageWorkspace({
             onClick={() => {
               setFocusAssetFqn("");
               setAssetSearchQuery("");
-              onRouteAssetChange?.("");
+              onRouteAssetChange?.("", localContext);
             }}
             type="button"
           >
@@ -161,8 +160,11 @@ export default function LineageWorkspace({
         onContextChange={(nextContext) => {
           setLocalContext(nextContext);
         }}
-        onOpenAsset={onOpenAsset}
         onOpenGovernance={onOpenGovernance}
+        onOpenAsset={(assetFqn, nextTab = "Lineage") => {
+          setWorkspaceIntent("lineageContext", assetFqn, localContext);
+          onOpenAsset?.(assetFqn, nextTab);
+        }}
         onSelectAsset={(assetFqn) => {
           setFocusAssetFqn(assetFqn);
           onRouteAssetChange?.(assetFqn, localContext);
