@@ -74,7 +74,10 @@ def graph_node_for_asset(
         ]
         if part
     )
-    item_kind = kind or asset_service.friendly_table_type(row.get("table_type"))
+    item_kind = kind or asset_service.friendly_table_type(
+        row.get("table_type"),
+        row.get("data_source_format"),
+    )
     footer = foot or [item_kind]
     return {
         "id": f"{role}-{asset_fqn}",
@@ -120,7 +123,10 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
         50,
         50,
         kicker="Focus",
-        kind=asset_service.friendly_table_type(row.get("table_type")),
+        kind=asset_service.friendly_table_type(
+            row.get("table_type"),
+            row.get("data_source_format"),
+        ),
         foot=[asset_service.normalize_str(row.get("certification")) or "Unassigned"],
         depth=0,
     )
@@ -190,7 +196,10 @@ def build_operational_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict
         50,
         48,
         kicker="Focus",
-        kind=asset_service.friendly_table_type(row.get("table_type")),
+        kind=asset_service.friendly_table_type(
+            row.get("table_type"),
+            row.get("data_source_format"),
+        ),
         foot=["Operational center"],
         depth=0,
     )

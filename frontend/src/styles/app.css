@@ -116,11 +116,11 @@ body {
 .gh-score-box-label,
 .gh-metric-pill-label,
 .gh-graph-node-kicker {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #586a88;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: #5f718c;
 }
 
 .gh-global-search {
@@ -2464,13 +2464,21 @@ body {
 }
 
 .gh-shell-topbar {
-  grid-template-columns: minmax(260px, auto) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
 }
 
 .gh-shell-commandbar {
-  grid-template-columns: minmax(0, 1.32fr) minmax(300px, 0.68fr);
-  margin-top: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.52fr);
+  margin-top: 12px;
   align-items: stretch;
+}
+
+.gh-shell-spine {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 24px;
 }
 
 .gh-shell-brand {
@@ -2514,24 +2522,24 @@ body {
 .gh-shell-brand-kicker,
 .gh-shell-module-label,
 .gh-global-search-label {
-  font-size: 0.66rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #657a94;
 }
 
 .gh-shell-brand-title {
-  font-size: 1.52rem;
+  font-size: 1.68rem;
   font-weight: 800;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.05em;
   color: var(--gh-ink);
 }
 
 .gh-shell-brand-subtitle {
   color: #60748e;
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-size: 0.9rem;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
@@ -2539,22 +2547,24 @@ body {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-start;
-  gap: 10px;
+  gap: 8px;
   padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .gh-product-tab {
-  min-width: 154px;
-  min-height: 46px;
-  padding: 0 20px;
-  border-radius: 14px;
+  min-width: 144px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 12px;
   border: 1px solid rgba(182, 198, 216, 0.96);
   background: rgba(247, 250, 255, 0.92);
-  color: #31445f;
+  color: #334763;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2562,7 +2572,7 @@ body {
 }
 
 .gh-product-tab span {
-  font-size: 0.94rem;
+  font-size: 0.92rem;
   font-weight: 800;
   letter-spacing: -0.01em;
 }
@@ -2587,16 +2597,16 @@ body {
 }
 
 .gh-global-search-frame {
-  min-height: 76px;
+  min-height: 64px;
   display: grid;
-  grid-template-columns: minmax(180px, auto) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(220px, auto) minmax(0, 1fr) auto;
   grid-template-areas: "copy input button";
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-  padding: 14px 16px;
-  border: 1px solid rgba(182, 198, 216, 0.9);
-  border-radius: 16px;
-  background: #fff;
+  padding: 12px 14px;
+  border: 1px solid rgba(214, 224, 236, 0.88);
+  border-radius: 14px;
+  background: rgba(250, 252, 255, 0.96);
 }
 
 .gh-global-search-copy,
@@ -2613,8 +2623,8 @@ body {
 .gh-global-search-subtitle,
 .gh-shell-inline-status-copy {
   color: var(--gh-ink-soft);
-  font-size: 0.8rem;
-  line-height: 1.45;
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .gh-global-search-input-wrap {
@@ -2627,17 +2637,17 @@ body {
 }
 
 .gh-global-search-input {
-  min-height: 48px;
-  border-radius: 13px;
+  min-height: 44px;
+  border-radius: 12px;
   border-color: rgba(182, 198, 216, 0.96);
-  font-size: 0.94rem;
+  font-size: 0.92rem;
   padding-inline: 16px;
 }
 
 .gh-search-submit {
   grid-area: button;
-  min-width: 110px;
-  min-height: 48px;
+  min-width: 98px;
+  min-height: 44px;
 }
 
 .gh-search-dropdown {
@@ -2720,18 +2730,18 @@ body {
 
 .gh-shell-inline-status {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 14px;
   border: 1px solid rgba(214, 224, 236, 0.92);
-  border-radius: 16px;
-  background: rgba(248, 250, 255, 0.92);
+  border-radius: 14px;
+  background: rgba(250, 252, 255, 0.94);
 }
 
 .gh-shell-runtime-label {
   color: #6a7f98;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
@@ -2745,9 +2755,9 @@ body {
 
 .gh-shell-identity {
   color: #5f7290;
-  font-size: 0.64rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -2824,16 +2834,16 @@ body {
 
 .gh-discovery-sidebar-head h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.08rem;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
 }
 
 .gh-discovery-sidebar-head p,
 .gh-discovery-hero-copy p {
   margin: 0;
   color: var(--gh-ink-soft);
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   line-height: 1.52;
 }
 
@@ -2845,6 +2855,7 @@ body {
 .gh-discovery-command-panel {
   display: grid;
   gap: 10px;
+  padding-bottom: 12px;
 }
 
 .gh-discovery-summary-grid {
@@ -2892,6 +2903,7 @@ body {
 .gh-discovery-command-bar {
   grid-template-columns: minmax(0, 1fr) 180px auto;
   gap: 10px;
+  align-items: center;
 }
 
 .gh-discovery-sidebar-panel .gh-category-row,
@@ -2912,18 +2924,21 @@ body {
   border: 0;
   border-radius: 0;
   background: transparent;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .gh-discovery-result-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 18px;
+  grid-template-columns: 1fr;
+  gap: 10px;
   padding: 16px 18px;
   border: 1px solid rgba(182, 198, 216, 0.86);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: var(--gh-shadow-soft);
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .gh-discovery-result-row.is-selected {
@@ -3000,6 +3015,8 @@ body {
   color: #60748e;
   font-size: 0.79rem;
   font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .gh-discovery-result-meta span {
@@ -3048,7 +3065,7 @@ body {
 .gh-preview-attribute-grid {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
@@ -3076,6 +3093,7 @@ body {
   font-weight: 800;
   letter-spacing: -0.02em;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .gh-discovery-result-owner-row {
@@ -3084,11 +3102,13 @@ body {
 
 .gh-discovery-result-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  min-width: 152px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(214, 224, 236, 0.88);
 }
 
 .gh-discovery-empty-state {
@@ -3100,8 +3120,10 @@ body {
   position: sticky;
   top: 16px;
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
   display: grid;
-  gap: 16px;
+  gap: 14px;
   padding: 18px;
   border: 1px solid rgba(182, 198, 216, 0.82);
   border-radius: 16px;
@@ -3119,7 +3141,7 @@ body {
 
 .gh-preview-panel-head {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .gh-preview-panel-title-block,
@@ -3132,8 +3154,8 @@ body {
 
 .gh-preview-panel-title-row {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: flex-start;
   gap: 12px;
   flex-wrap: wrap;
 }
@@ -3154,14 +3176,14 @@ body {
 .gh-preview-panel-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
 .gh-preview-section {
   display: grid;
-  gap: 10px;
-  padding-top: 14px;
+  gap: 8px;
+  padding-top: 12px;
   border-top: 1px solid rgba(214, 224, 236, 0.9);
 }
 
@@ -3203,6 +3225,11 @@ body {
   font-size: 0.82rem;
   line-height: 1.48;
   overflow-wrap: anywhere;
+}
+
+.gh-discovery-result-actions .gh-inline-link-button,
+.gh-preview-panel-actions .gh-inline-link-button {
+  white-space: nowrap;
 }
 
 .gh-results-column,
@@ -3263,7 +3290,53 @@ body {
 }
 
 .gh-entity-record-shell {
-  gap: 18px;
+  gap: 20px;
+}
+
+.gh-entity-record-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  gap: 20px;
+  align-items: start;
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(214, 224, 236, 0.92);
+}
+
+.gh-entity-record-main {
+  gap: 10px;
+}
+
+.gh-entity-record-summary {
+  max-width: 72ch;
+  font-size: 0.94rem;
+  line-height: 1.58;
+}
+
+.gh-entity-record-actions {
+  padding: 14px 16px;
+  border: 1px solid rgba(214, 224, 236, 0.92);
+  border-radius: 14px;
+  background: rgba(248, 251, 255, 0.92);
+  gap: 12px;
+}
+
+.gh-entity-record-context-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--gh-ink-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.gh-entity-record-context-line span + span::before {
+  content: "•";
+  margin-right: 10px;
+  color: var(--gh-line-strong);
+}
+
+.gh-entity-action-row {
+  justify-content: flex-start;
 }
 
 .gh-entity-record-header {
@@ -3292,13 +3365,29 @@ body {
 }
 
 .gh-entity-record-tabs {
-  padding-bottom: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 8px;
   border-bottom: 1px solid rgba(214, 224, 236, 0.92);
 }
 
 .gh-subtab {
-  min-height: 42px;
-  border-radius: 999px;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border-color: transparent;
+  background: transparent;
+  color: #4d617e;
+  font-size: 0.88rem;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.gh-subtab.is-active {
+  color: #0f5cc0;
+  border-color: rgba(15, 92, 192, 0.18);
+  background: rgba(230, 240, 255, 0.9);
 }
 
 .gh-entity-record-layout {
@@ -3320,6 +3409,10 @@ body {
 
 .gh-record-card {
   padding: 18px;
+  border: 1px solid rgba(214, 224, 236, 0.92);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: var(--gh-shadow-soft);
 }
 
 .gh-record-card-head {
@@ -3328,6 +3421,7 @@ body {
 
 .gh-entity-metric-card {
   min-height: 94px;
+  background: linear-gradient(180deg, rgba(245, 248, 252, 0.96) 0%, rgba(255, 255, 255, 0.98) 100%);
 }
 
 .gh-metadata-edit-field {

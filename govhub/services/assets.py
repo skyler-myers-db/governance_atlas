@@ -460,9 +460,16 @@ def friendly_table_type(raw: Any, data_source_format: Any = None) -> str:
         "MATERIALIZED VIEW": "Materialized View",
         "STREAMING TABLE": "Streaming Table",
     }
-    if normalized in {"BASE TABLE", "TABLE", "MANAGED", "MANAGED TABLE", "EXTERNAL", "EXTERNAL TABLE"}:
-        if normalized_format == "DELTA":
-            return "Delta Table"
+    if normalized_format == "DELTA" and normalized in {
+        "",
+        "BASE TABLE",
+        "TABLE",
+        "MANAGED",
+        "MANAGED TABLE",
+        "EXTERNAL",
+        "EXTERNAL TABLE",
+    }:
+        return "Delta Table"
     if normalized in mapping:
         return mapping[normalized]
     return normalize_str(raw).replace("_", " ").title() or "Table"
@@ -655,6 +662,13 @@ def view_matches(asset: Dict[str, Any], view: str) -> bool:
     return True
 
 
+def views_match(asset: Dict[str, Any], views: Sequence[str]) -> bool:
+    normalized = [normalize_str(view) for view in views if normalize_str(view) and normalize_str(view) != "All assets"]
+    if not normalized:
+        return True
+    return all(view_matches(asset, view) for view in normalized)
+
+
 def normalize_filter_values(values: Optional[List[str]], all_label: str) -> List[str]:
     if not values:
         return []
@@ -723,8 +737,8 @@ def discovery_search_payload(
     store=None,
     *,
     query: str = "",
-    view: str = "All assets",
-    asset_type: str = "All types",
+    views: Optional[List[str]] = None,
+    asset_types: Optional[List[str]] = None,
     catalogs: Optional[List[str]] = None,
     domains: Optional[List[str]] = None,
     tiers: Optional[List[str]] = None,
@@ -742,30 +756,47 @@ def discovery_search_payload(
     )
     assets = [base_asset_payload(row) for _, row in inventory.iterrows()]
     query_text = normalize_str(query)
+    selected_views = normalize_filter_values(views, "All assets")
     selected_catalogs = normalize_filter_values(catalogs, "All catalogs")
     selected_domains = normalize_filter_values(domains, "All domains")
     selected_tiers = normalize_filter_values(tiers, "All tiers")
     selected_certifications = normalize_filter_values(certifications, "All certifications")
     selected_sensitivities = normalize_filter_values(sensitivities, "All sensitivities")
-    selected_type = normalize_str(asset_type)
+    selected_types = normalize_filter_values(asset_types, "All types")
 
-    scoped_assets: List[Dict[str, Any]] = []
+    matched_assets: List[Dict[str, Any]] = []
     for asset in assets:
         if query_text and discovery_match_score(asset, query_text) <= 0:
             continue
-        if not view_matches(asset, view):
+        if not views_match(asset, selected_views):
             continue
-        if selected_type and selected_type != "All types" and asset.get("objectType") != selected_type:
-            continue
+        matched_assets.append(asset)
+
+    def in_scope(asset: Dict[str, Any], *, exclude: Optional[set[str]] = None) -> bool:
+        excluded = exclude or set()
+        if selected_types and asset.get("objectType") not in selected_types:
+            if "types" not in excluded:
+                return False
         if selected_catalogs and asset.get("catalog") not in selected_catalogs:
-            continue
+            if "catalogs" not in excluded:
+                return False
         if selected_domains and asset.get("domain") not in selected_domains:
-            continue
+            if "domains" not in excluded:
+                return False
         if selected_tiers and asset.get("tier") not in selected_tiers:
-            continue
+            if "tiers" not in excluded:
+                return False
         if selected_certifications and asset.get("certification") not in selected_certifications:
-            continue
+            if "certifications" not in excluded:
+                return False
         if selected_sensitivities and asset.get("sensitivity") not in selected_sensitivities:
+            if "sensitivities" not in excluded:
+                return False
+        return True
+
+    scoped_assets: List[Dict[str, Any]] = []
+    for asset in matched_assets:
+        if not in_scope(asset):
             continue
         scoped_assets.append(asset)
 
@@ -775,12 +806,36 @@ def discovery_search_payload(
     window = sorted_assets[safe_offset : safe_offset + safe_limit]
 
     facets = {
-        "assetTypes": facet_payload(sorted_assets, "objectType", all_label="All types"),
-        "catalogs": facet_payload(sorted_assets, "catalog", all_label="All catalogs"),
-        "domains": facet_payload(sorted_assets, "domain", all_label="All domains"),
-        "tiers": facet_payload(sorted_assets, "tier", all_label="All tiers"),
-        "certifications": facet_payload(sorted_assets, "certification", all_label="All certifications"),
-        "sensitivities": facet_payload(sorted_assets, "sensitivity", all_label="All sensitivities"),
+        "assetTypes": facet_payload(
+            [asset for asset in matched_assets if in_scope(asset, exclude={"types"})],
+            "objectType",
+            all_label="All types",
+        ),
+        "catalogs": facet_payload(
+            [asset for asset in matched_assets if in_scope(asset, exclude={"catalogs"})],
+            "catalog",
+            all_label="All catalogs",
+        ),
+        "domains": facet_payload(
+            [asset for asset in matched_assets if in_scope(asset, exclude={"domains"})],
+            "domain",
+            all_label="All domains",
+        ),
+        "tiers": facet_payload(
+            [asset for asset in matched_assets if in_scope(asset, exclude={"tiers"})],
+            "tier",
+            all_label="All tiers",
+        ),
+        "certifications": facet_payload(
+            [asset for asset in matched_assets if in_scope(asset, exclude={"certifications"})],
+            "certification",
+            all_label="All certifications",
+        ),
+        "sensitivities": facet_payload(
+            [asset for asset in matched_assets if in_scope(asset, exclude={"sensitivities"})],
+            "sensitivity",
+            all_label="All sensitivities",
+        ),
     }
 
     return {
@@ -897,6 +952,8 @@ def asset_detail_payload(
         friendly_table_type(detail.get("type"), detail.get("format")),
         base["objectType"],
     )
+    if base["format"] == "delta":
+        base["objectType"] = "Delta Table"
     base["relatedAssets"] = related_assets(uc, catalog, schema, table, base["fqn"])
     base["preview"] = preview_records(sample_df)
     base["columns"] = column_records(columns_df)
