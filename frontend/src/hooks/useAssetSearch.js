@@ -46,14 +46,14 @@ export function useAssetSearch(query, enabled = true) {
         })
         .catch((error) => {
           if (canceled) return;
-          setState({
+          setState((prev) => ({
             loading: false,
             error: error?.message || "Failed to search assets.",
-            assets: [],
-            resolvedQuery: "",
-          });
+            assets: prev.assets,
+            resolvedQuery: prev.resolvedQuery,
+          }));
         });
-    }, 160);
+    }, 90);
 
     return () => {
       canceled = true;

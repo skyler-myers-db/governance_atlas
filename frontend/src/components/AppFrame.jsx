@@ -31,13 +31,14 @@ export default function AppFrame({
 
   const searchEnabled = !shellDisabled && searchPanelOpen && searchQuery.trim().length >= 2;
   const shellSearch = useAssetSearch(searchQuery, searchEnabled);
-  const topResult =
+  const topDirectResult =
     !shellSearch.loading && shellSearch.resolvedQuery === searchQuery.trim()
       ? shellSearch.assets?.[0] || null
       : null;
 
   useEffect(() => {
     setSearchPanelOpen(false);
+    setSearchQuery("");
   }, [activeModule]);
 
   useEffect(() => {
@@ -65,8 +66,9 @@ export default function AppFrame({
       <header className="gh-shell-header">
         <div className="gh-shell-workbar">
           <div className="gh-shell-brand">
-            <div className="gh-shell-brand-mark" aria-hidden="true">
-              GH
+            <div className="gh-shell-brand-copy">
+              <div className="gh-shell-brand-kicker">Enterprise metadata</div>
+              <div className="gh-shell-brand-title">Governance Hub</div>
             </div>
           </div>
 
@@ -91,12 +93,14 @@ export default function AppFrame({
               if (shellDisabled) return;
               const query = searchQuery.trim();
               if (!query) return;
-              setSearchQuery("");
-              setSearchPanelOpen(false);
-              if (topResult) {
-                onSearchResultSelect?.(topResult.fqn);
+              if (topDirectResult) {
+                setSearchQuery("");
+                setSearchPanelOpen(false);
+                onSearchResultSelect?.(topDirectResult.fqn);
                 return;
               }
+              setSearchQuery("");
+              setSearchPanelOpen(false);
               onBrowseCatalog?.(query);
             }}
           >
@@ -130,58 +134,49 @@ export default function AppFrame({
                 placeholder="Search assets or glossary"
                 value={searchQuery}
               />
-            {searchEnabled ? (
-              <div className="gh-search-dropdown">
-                {shellSearch.loading ? <div className="gh-search-empty">Searching…</div> : null}
-                {shellSearch.error ? (
-                  <div className="gh-search-empty">{shellSearch.error}</div>
-                ) : shellSearch.assets?.length ? (
-                  <div className="gh-search-results">
-                    {shellSearch.assets.map((asset) => (
-                      <button
-                        className="gh-search-result-row"
-                        disabled={shellDisabled}
-                        key={asset.fqn}
-                        onClick={() => {
-                          setSearchQuery("");
-                          setSearchPanelOpen(false);
-                          onSearchResultSelect?.(asset.fqn);
-                        }}
-                        type="button"
-                      >
-                        <span className="gh-search-result-main">
-                          <span className="gh-search-result-title">{asset.name}</span>
-                          <span className="gh-search-result-subtitle">
-                            {asset.catalog} / {asset.schema}
+              {searchEnabled ? (
+                <div className="gh-search-dropdown">
+                  {shellSearch.loading ? <div className="gh-search-empty">Searching…</div> : null}
+                  {shellSearch.error ? (
+                    <div className="gh-search-empty">{shellSearch.error}</div>
+                  ) : shellSearch.assets?.length ? (
+                    <div className="gh-search-results">
+                      {shellSearch.assets.map((asset) => (
+                        <button
+                          className="gh-search-result-row"
+                          disabled={shellDisabled}
+                          key={asset.fqn}
+                          onClick={() => {
+                            setSearchQuery("");
+                            setSearchPanelOpen(false);
+                            onSearchResultSelect?.(asset.fqn);
+                          }}
+                          type="button"
+                        >
+                          <span className="gh-search-result-main">
+                            <span className="gh-search-result-title">{asset.name}</span>
+                            <span className="gh-search-result-subtitle">
+                              {asset.catalog} / {asset.schema}
+                            </span>
                           </span>
-                        </span>
-                        <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
-                      </button>
-                    ))}
+                          <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
+                        </button>
+                      ))}
                     </div>
-                ) : (
-                  <div className="gh-search-empty">No direct asset matches. Press Enter to browse the catalog.</div>
-                )}
-                <div className="gh-search-dropdown-foot">
-                  <button
-                    className="gh-secondary-button"
-                    disabled={shellDisabled}
-                    onClick={() => {
-                      const query = searchQuery.trim();
-                      if (!query) return;
-                      setSearchQuery("");
-                      setSearchPanelOpen(false);
-                      onBrowseCatalog?.(query);
-                    }}
-                    type="button"
-                  >
-                    Browse in catalog
-                  </button>
+                  ) : (
+                    <div className="gh-search-empty">No direct asset matches yet.</div>
+                  )}
+                  <div className="gh-search-dropdown-foot">
+                    {topDirectResult ? (
+                      <span className="gh-search-empty">Press Enter to open the top asset result.</span>
+                  ) : (
+                      <span className="gh-search-empty">Press Enter to browse the catalog.</span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ) : null}
-          </div>
-        </form>
+              ) : null}
+            </div>
+          </form>
 
           <div className="gh-shell-utility">
             {bootState && bootState !== "live" ? (
@@ -192,12 +187,6 @@ export default function AppFrame({
             <span className="gh-shell-user">{shell?.userEmail || "unknown"}</span>
           </div>
         </div>
-        {bootState && bootState !== "live" && bootMessage ? (
-          <div className={`gh-inline-alert tone-${statusTone(bootState)}`}>
-            <div className="gh-inline-alert-title">Workspace status</div>
-            <div>{bootMessage}</div>
-          </div>
-        ) : null}
       </header>
 
       <main className="gh-main">{children}</main>

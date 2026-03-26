@@ -83,7 +83,12 @@ export function useAppRouteState() {
 
   const onModuleChange = (nextModule) => {
     if (nextModule === "discovery") {
-      openDiscoveryWorkspace("", { fresh: true });
+      setSurface("discovery");
+      setRouteAssetFqn("");
+      setDiscoveryRouteState((current) => ({
+        ...current,
+        fresh: false,
+      }));
     } else if (nextModule === "lineage") {
       setSurface("lineage");
     } else {

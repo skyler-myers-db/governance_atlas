@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Background, Controls, MarkerType, MiniMap, ReactFlow } from "@xyflow/react";
+import {
+  BaseEdge,
+  Background,
+  Controls,
+  Handle,
+  MarkerType,
+  MiniMap,
+  Position,
+  ReactFlow,
+  getBezierPath,
+} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
 function nodeColor(kind) {
@@ -9,26 +19,103 @@ function nodeColor(kind) {
   return "#1d2a44";
 }
 
+function collectDepths(seedId, edges, direction) {
+  if (!seedId) return new Map();
+  const depths = new Map();
+  const queue = [{ id: seedId, depth: 0 }];
+
+  while (queue.length) {
+    const current = queue.shift();
+    const matching = edges.filter((edge) =>
+      direction === "upstream" ? edge.target === current.id : edge.source === current.id
+    );
+    matching.forEach((edge) => {
+      const nextId = direction === "upstream" ? edge.source : edge.target;
+      const nextDepth = current.depth + 1;
+      if (depths.has(nextId) && depths.get(nextId) <= nextDepth) return;
+      depths.set(nextId, nextDepth);
+      queue.push({ id: nextId, depth: nextDepth });
+    });
+  }
+
+  return depths;
+}
+
+function lineageLevelMap(nodes, edges) {
+  const focusId = nodes.find((node) => node.role === "focus")?.id || nodes[0]?.id || "";
+  const upstreamDepths = collectDepths(focusId, edges, "upstream");
+  const downstreamDepths = collectDepths(focusId, edges, "downstream");
+
+  return new Map(
+    nodes.map((node) => {
+      if (node.id === focusId) return [node.id, 0];
+      if (upstreamDepths.has(node.id)) return [node.id, upstreamDepths.get(node.id) * -1];
+      if (downstreamDepths.has(node.id)) return [node.id, downstreamDepths.get(node.id)];
+      if (node.role === "source") return [node.id, -1];
+      if (node.role === "target") return [node.id, 1];
+      return [node.id, 2];
+    })
+  );
+}
+
+function layoutGraphNodes(nodes, edges) {
+  const ranked = [...(nodes || [])].sort((left, right) => {
+    const leftRank = typeof left.y === "number" ? left.y : Number.MAX_SAFE_INTEGER;
+    const rightRank = typeof right.y === "number" ? right.y : Number.MAX_SAFE_INTEGER;
+    if (leftRank !== rightRank) return leftRank - rightRank;
+    return String(left.label || left.id).localeCompare(String(right.label || right.id));
+  });
+
+  const levels = lineageLevelMap(ranked, edges || []);
+  const buckets = new Map();
+
+  ranked.forEach((node) => {
+    const level = levels.get(node.id) || 0;
+    const bucket = buckets.get(level) || [];
+    bucket.push(node);
+    buckets.set(level, bucket);
+  });
+
+  const orderedLevels = [...buckets.keys()].sort((left, right) => left - right);
+  const minLevel = orderedLevels[0] ?? 0;
+  const focusY = 240;
+  const gapY = 70;
+  const gapX = 164;
+
+  return ranked.map((node) => {
+    const level = levels.get(node.id) || 0;
+    const bucket = buckets.get(level) || [];
+    const index = bucket.findIndex((candidate) => candidate.id === node.id);
+    const offsetY = bucket.length > 1 ? ((bucket.length - 1) * gapY) / 2 : 0;
+
+    return {
+      ...node,
+      position: {
+        x: 120 + (level - minLevel) * gapX,
+        y: focusY + index * gapY - offsetY + (level === 0 ? 0 : 8),
+      },
+    };
+  });
+}
+
 function transformGraph(graph) {
   if (!graph) return { nodes: [], edges: [] };
+  const laidOutNodes = layoutGraphNodes(graph.nodes || [], graph.edges || []);
 
   return {
-    nodes: (graph.nodes || []).map((node) => ({
+    nodes: laidOutNodes.map((node) => ({
       id: node.id,
-      position: { x: (node.x || 0) * 16, y: (node.y || 0) * 10 },
+      position: node.position,
       data: node,
       style: {
-        width: 248,
-        borderRadius: 16,
+        width: node.role === "focus" ? 186 : 146,
+        borderRadius: 10,
         border: node.role === "focus" ? "2px solid #5b6af7" : "1px solid #c9d6ee",
         background: "#ffffff",
-        boxShadow:
-          node.role === "focus"
-            ? "0 14px 28px rgba(74,95,206,0.16)"
-            : "0 8px 20px rgba(19,31,65,0.06)",
-        padding: 16,
+        boxShadow: node.role === "focus" ? "0 8px 18px rgba(74,95,206,0.08)" : "0 1px 2px rgba(19,31,65,0.02)",
+        padding: 6,
       },
-      type: "default",
+      type: "assetNode",
       sourcePosition: "right",
       targetPosition: "left",
     })),
@@ -36,17 +123,18 @@ function transformGraph(graph) {
       id: `${edge.source}-${edge.target}-${index}`,
       source: edge.source,
       target: edge.target,
+      type: "assetEdge",
       data: edge,
-      animated: edge.depth === 1,
+      animated: false,
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        width: 16,
-        height: 16,
-        color: "#6d7af8",
+        width: 20,
+        height: 20,
+        color: "#3f34d8",
       },
       style: {
-        stroke: "#6d7af8",
-        strokeWidth: edge.depth === 1 ? 2.5 : 1.8,
+        stroke: "#4453db",
+        strokeWidth: edge.depth === 1 ? 4.1 : 3.5,
       },
     })),
   };
@@ -66,16 +154,14 @@ function connectedSelection(edges, nodeId) {
   return { nodeIds: [...nodeIds], edgeIds };
 }
 
-function shortestUndirectedPath(edges, startId, endId) {
+function shortestDirectedPath(edges, startId, endId) {
   if (!startId || !endId) return { nodeIds: [], edgeIds: [] };
   if (startId === endId) return { nodeIds: [startId], edgeIds: [] };
 
   const neighbors = new Map();
   edges.forEach((edge) => {
     if (!neighbors.has(edge.source)) neighbors.set(edge.source, []);
-    if (!neighbors.has(edge.target)) neighbors.set(edge.target, []);
     neighbors.get(edge.source).push({ nodeId: edge.target, edgeId: edge.id });
-    neighbors.get(edge.target).push({ nodeId: edge.source, edgeId: edge.id });
   });
 
   const queue = [startId];
@@ -106,6 +192,12 @@ function shortestUndirectedPath(edges, startId, endId) {
   }
 
   return { nodeIds: [], edgeIds: [] };
+}
+
+function lineagePath(edges, anchorId, focusId) {
+  const upstream = shortestDirectedPath(edges, anchorId, focusId);
+  if (upstream.nodeIds.length) return upstream;
+  return shortestDirectedPath(edges, focusId, anchorId);
 }
 
 function downstreamSelection(edges, startId) {
@@ -167,6 +259,53 @@ function NodeLabel({ data }) {
   );
 }
 
+function AssetEdge({
+  data,
+  id,
+  markerEnd,
+  selected,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+}) {
+  const [path] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    curvature: 0.28,
+  });
+
+  return (
+    <BaseEdge
+      id={id}
+      interactionWidth={40}
+      markerEnd={markerEnd}
+      path={path}
+      style={{
+        stroke: selected ? "#3a2ce0" : "#4453db",
+        strokeWidth: data?.depth === 1 ? (selected ? 5.2 : 4.2) : selected ? 4.4 : 3.6,
+        opacity: selected ? 1 : 0.96,
+      }}
+    />
+  );
+}
+
+function AssetNode({ data }) {
+  return (
+    <div className={`gh-graph-node-shell role-${data.role || "other"}`}>
+      <Handle className="gh-graph-handle" position={Position.Left} type="target" />
+      <NodeLabel data={data} />
+      <Handle className="gh-graph-handle" position={Position.Right} type="source" />
+    </div>
+  );
+}
+
 export default function LineageGraph({
   asset,
   assetSearchLoading,
@@ -177,12 +316,15 @@ export default function LineageGraph({
   context,
   graph,
   hasEdges,
+  overlay = null,
   onAssetSearchQueryChange,
   onContextChange,
   onOpenAsset,
   onOpenGovernance,
   onSelectAsset,
 }) {
+  const nodeTypes = useMemo(() => ({ assetNode: AssetNode }), []);
+  const edgeTypes = useMemo(() => ({ assetEdge: AssetEdge }), []);
   const transformed = useMemo(() => transformGraph(graph), [graph]);
   const [selectedNodeId, setSelectedNodeId] = useState("");
   const [selectedEdgeId, setSelectedEdgeId] = useState("");
@@ -193,14 +335,12 @@ export default function LineageGraph({
   const [refocusOpen, setRefocusOpen] = useState(false);
   const refocusRootRef = useRef(null);
 
-  const clearSelection = (resetMode = true) => {
+  const clearSelection = (options = {}) => {
+    const { keepDrawer = false, keepFocusNode = true } = options;
+    setAllowDefaultSelection(keepFocusNode);
     setSelectedEdgeId("");
-    setSelectedNodeId("");
-    setDrawerOpen(false);
-    setAllowDefaultSelection(false);
-    if (resetMode) {
-      setGraphMode("explore");
-    }
+    setSelectedNodeId(keepFocusNode ? defaultFocusNodeId : "");
+    if (!keepDrawer) setDrawerOpen(false);
   };
 
   const closeDrawer = () => {
@@ -223,12 +363,17 @@ export default function LineageGraph({
   useEffect(() => {
     setSelectedNodeId(defaultFocusNodeId);
     setSelectedEdgeId("");
-    setDrawerOpen(Boolean(defaultFocusNodeId));
+    setDrawerOpen(false);
     setGraphMode("explore");
     setAllowDefaultSelection(true);
     setRefocusOpen(false);
     onAssetSearchQueryChange?.("");
-  }, [asset?.fqn, context, defaultFocusNodeId]);
+  }, [asset?.fqn, defaultFocusNodeId]);
+
+  useEffect(() => {
+    setSelectedEdgeId("");
+    setRefocusOpen(false);
+  }, [context]);
 
   useEffect(() => {
     if (!graphHasEdges && graphMode !== "explore") {
@@ -259,11 +404,10 @@ export default function LineageGraph({
   const selectedEdge = transformed.edges.find((edge) => edge.id === selectedEdgeId) || null;
   const selectedSource = selectedEdge ? nodesById[selectedEdge.source] || null : null;
   const selectedTarget = selectedEdge ? nodesById[selectedEdge.target] || null : null;
-  const selectionLabel = selectedEdge
-    ? `${selectedSource?.label || "Source"} → ${selectedTarget?.label || "Target"}`
-    : selectedNode?.label || (allowDefaultSelection ? focusNode?.label || asset?.name || "Graph focus" : "Selection cleared");
-  const showMiniMap = transformed.nodes.length >= 6;
-  const showControls = transformed.nodes.length >= 3;
+  const showMiniMap = false;
+  const showControls = true;
+  const canReturnToFocus =
+    defaultFocusNodeId && (Boolean(selectedEdge) || Boolean(selectedNode && selectedNode.id !== defaultFocusNodeId));
   const topRefocusCandidate =
     !assetSearchLoading && assetSearchResolvedQuery === assetSearchQuery.trim()
       ? assetSearchResults?.[0] || null
@@ -292,17 +436,25 @@ export default function LineageGraph({
       return { nodeIds: [], edgeIds: [] };
     }
 
+    if (
+      graphMode === "explore"
+      && !selectedEdge
+      && (!selectedNode || selectedNode.id === defaultFocusNodeId)
+    ) {
+      return { nodeIds: [], edgeIds: [] };
+    }
+
     if (graphMode === "path") {
       if (selectedEdge) {
-        const sourcePath = shortestUndirectedPath(transformed.edges, selectedEdge.source, defaultFocusNodeId);
-        const targetPath = shortestUndirectedPath(transformed.edges, selectedEdge.target, defaultFocusNodeId);
+        const sourcePath = lineagePath(transformed.edges, selectedEdge.source, defaultFocusNodeId);
+        const targetPath = lineagePath(transformed.edges, selectedEdge.target, defaultFocusNodeId);
         return {
           nodeIds: [...new Set([selectedEdge.source, selectedEdge.target, ...sourcePath.nodeIds, ...targetPath.nodeIds])],
           edgeIds: [...new Set([selectedEdge.id, ...sourcePath.edgeIds, ...targetPath.edgeIds])],
         };
       }
       const anchorNodeId = selectedNode?.id || defaultFocusNodeId;
-      return shortestUndirectedPath(transformed.edges, anchorNodeId, defaultFocusNodeId);
+      return lineagePath(transformed.edges, anchorNodeId, defaultFocusNodeId);
     }
 
     if (graphMode === "upstream") {
@@ -323,6 +475,7 @@ export default function LineageGraph({
 
   const activeNodeIds = activeSelection.nodeIds;
   const activeEdgeIds = activeSelection.edgeIds;
+  const hasActiveGraphSelection = activeNodeIds.length > 0 || activeEdgeIds.length > 0;
   const activePathNodes = useMemo(() => {
     return activeNodeIds
       .map((nodeId) => nodesById[nodeId])
@@ -338,12 +491,6 @@ export default function LineageGraph({
         onAssetSearchQueryChange?.("");
       }
     };
-    const onFocusIn = (event) => {
-      if (!refocusRootRef.current?.contains(event.target)) {
-        setRefocusOpen(false);
-        onAssetSearchQueryChange?.("");
-      }
-    };
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
         setRefocusOpen(false);
@@ -351,37 +498,47 @@ export default function LineageGraph({
       }
     };
     document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("focusin", onFocusIn);
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [onAssetSearchQueryChange, refocusOpen]);
 
-  const hasHiddenSelection = !drawerOpen && (
-    Boolean(selectedEdge)
-    || Boolean(selectedNode)
-    || (graphMode !== "explore" && (activeNodeIds.length || activeEdgeIds.length))
-  );
+  useEffect(() => {
+    if (!flowInstance || !transformed.nodes.length) return;
+    const frame = requestAnimationFrame(() => {
+      flowInstance.fitView?.({ padding: 0.18, duration: 220 });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [asset?.fqn, context, flowInstance, transformed.edges.length, transformed.nodes.length]);
+
+  useEffect(() => {
+    if (!flowInstance) return;
+    if (graphMode === "explore" && !selectedEdgeId) return;
+    const activeNodes = transformed.nodes.filter((node) => activeNodeIds.includes(node.id));
+    if (!activeNodes.length) return;
+    const frame = requestAnimationFrame(() => {
+      flowInstance.fitView?.({ nodes: activeNodes, padding: 0.3, duration: 220 });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeNodeIds, flowInstance, graphMode, selectedEdgeId, transformed.nodes]);
+
+  useEffect(() => {
+    if (!flowInstance || !selectedNodeId || graphMode !== "explore") return;
+    const related = connectedSelection(transformed.edges, selectedNodeId);
+    const activeNodes = transformed.nodes.filter((node) => related.nodeIds.includes(node.id));
+    if (!activeNodes.length) return;
+    const frame = requestAnimationFrame(() => {
+      flowInstance.fitView?.({ nodes: activeNodes, padding: 0.34, duration: 220 });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [flowInstance, graphMode, selectedNodeId, transformed.edges, transformed.nodes]);
 
   return (
     <div className="gh-lineage-canvas">
       <div className="gh-lineage-canvas-controls">
-        <div className="gh-action-row">
-          <div className="gh-segment-row">
-            {["Data Lineage", "Operational Context"].map((option) => (
-              <button
-                className={`gh-segment-button ${context === option ? "is-active" : ""}`}
-                key={option}
-                onClick={() => onContextChange?.(option)}
-                type="button"
-              >
-                {option}
-              </button>
-            ))}
-          </div>
+        <div className="gh-lineage-command-strip">
           {allowRefocus ? (
             <div className="gh-lineage-command" ref={refocusRootRef}>
               <button
@@ -444,89 +601,39 @@ export default function LineageGraph({
               ) : null}
             </div>
           ) : null}
-        </div>
-        <div className="gh-segment-row">
-          {graphHasEdges
-            ? [
-                { key: "explore", label: "Explore" },
-                { key: "path", label: "Path" },
-                { key: "upstream", label: "Upstream" },
-                { key: "impact", label: "Impact" },
-              ].map((mode) => (
-                <button
-                  className={`gh-segment-button ${graphMode === mode.key ? "is-active" : ""}`}
-                  key={mode.key}
-                  onClick={() => setGraphMode(mode.key)}
-                  type="button"
-                >
-                  {mode.label}
-                </button>
-              ))
-            : null}
-        </div>
-        <div className="gh-action-row">
-          <span className="gh-lineage-meta-inline">
-            {transformed.nodes.length} nodes · {transformed.edges.length} edges · {graphMode}
-          </span>
-          <button
-            className="gh-secondary-button"
-            onClick={() => clearSelection()}
-            type="button"
-          >
-            Neutral graph
-          </button>
           <button
             className="gh-secondary-button"
             onClick={() => {
-              clearSelection();
               flowInstance?.fitView?.({ padding: 0.18 });
             }}
             type="button"
           >
             Reset view
           </button>
-          <button
-            className="gh-secondary-button"
-            onClick={() => {
-              setAllowDefaultSelection(true);
-              setSelectedEdgeId("");
-              setSelectedNodeId(defaultFocusNodeId);
-              setDrawerOpen(true);
-              setRefocusOpen(false);
-              setGraphMode("explore");
-              flowInstance?.fitView?.({ padding: 0.18 });
-            }}
-            type="button"
-          >
-            Focus asset
-          </button>
+          {canReturnToFocus ? (
+            <button
+              className="gh-secondary-button"
+              onClick={() => {
+                clearSelection({ keepDrawer: false, keepFocusNode: true });
+                setRefocusOpen(false);
+                setGraphMode("explore");
+                flowInstance?.fitView?.({ padding: 0.18 });
+              }}
+              type="button"
+            >
+              Return to focus
+            </button>
+          ) : null}
         </div>
       </div>
-      {hasHiddenSelection ? (
-        <div className="gh-lineage-selection-banner">
-          <span className="gh-chip gh-chip-soft">{selectionLabel}</span>
-          <div className="gh-action-row">
-            <button
-              className="gh-secondary-button"
-              onClick={() => setDrawerOpen(true)}
-              type="button"
-            >
-              Show details
-            </button>
-            <button
-              className="gh-secondary-button"
-              onClick={() => clearSelection()}
-              type="button"
-            >
-              Neutral graph
-            </button>
-          </div>
-        </div>
-      ) : null}
       <ReactFlow
         edges={transformed.edges.map((edge) => ({
           ...edge,
-          className: activeEdgeIds.includes(edge.id) ? "is-active" : "",
+          className: activeEdgeIds.includes(edge.id)
+            ? "is-active"
+            : hasActiveGraphSelection
+              ? "is-muted"
+              : "",
         }))}
         onInit={setFlowInstance}
         fitView
@@ -534,42 +641,54 @@ export default function LineageGraph({
         minZoom={0.3}
         nodes={transformed.nodes.map((node) => ({
           ...node,
-          data: {
-            ...node.data,
-            label: <NodeLabel data={node.data} />,
-          },
-          className: activeNodeIds.includes(node.id) ? "is-active" : "",
+          data: node.data,
+          className: activeNodeIds.includes(node.id)
+            ? "is-active"
+            : hasActiveGraphSelection
+              ? "is-muted"
+              : "",
+          type: "assetNode",
         }))}
+        edgeTypes={edgeTypes}
+        nodeTypes={nodeTypes}
         onEdgeClick={(_, edge) => {
-          setAllowDefaultSelection(true);
+          setAllowDefaultSelection(false);
           setSelectedEdgeId(edge.id);
           setSelectedNodeId("");
           setDrawerOpen(true);
-          setGraphMode("explore");
+          setRefocusOpen(false);
+          setGraphMode("path");
         }}
         onNodeClick={(_, node) => {
-          setAllowDefaultSelection(true);
+          setAllowDefaultSelection(false);
           setSelectedNodeId(node.id);
           setSelectedEdgeId("");
           setDrawerOpen(true);
+          setRefocusOpen(false);
           setGraphMode("explore");
         }}
         onPaneClick={() => {
-          clearSelection();
+          if (refocusOpen) setRefocusOpen(false);
+          if (drawerOpen) setDrawerOpen(false);
         }}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        selectionOnDrag={false}
+        zoomOnDoubleClick={false}
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ type: "smoothstep" }}
+        defaultEdgeOptions={{ type: "assetEdge" }}
       >
-        {showMiniMap ? <MiniMap pannable zoomable maskColor="rgba(16, 24, 40, 0.08)" nodeColor="#d7dff4" /> : null}
+        {showMiniMap ? <MiniMap pannable zoomable maskColor="rgba(16, 24, 40, 0.06)" nodeColor="#d7dff4" /> : null}
         {showControls ? <Controls showInteractive={false} /> : null}
         <Background color="#d9e2ff" gap={22} />
       </ReactFlow>
+      {overlay ? <div className="gh-lineage-overlay">{overlay}</div> : null}
 
       <aside className={`gh-lineage-drawer ${drawerOpen ? "is-open" : ""}`}>
         <div className="gh-lineage-drawer-head">
           <div className="gh-panel-title">{selectedEdge ? "Relationship" : "Selected node"}</div>
           <button className="gh-secondary-button" onClick={() => closeDrawer()} type="button">
-            Hide details
+            Close details
           </button>
         </div>
 
@@ -580,14 +699,12 @@ export default function LineageGraph({
             </h2>
             <div className="gh-chip-stack">
               <span className="gh-chip">Lineage edge</span>
-              <span className="gh-chip gh-chip-soft">Depth {selectedEdge.data?.depth || 1}</span>
               <span className="gh-chip gh-chip-soft">
                 {selectedSource?.kind || "Asset"} → {selectedTarget?.kind || "Asset"}
               </span>
-              <span className="gh-chip gh-chip-soft">Path edges {activeEdgeIds.length}</span>
             </div>
             <div className="gh-support-copy">
-              Follow this relationship to understand how context and data move through the current graph.
+              Reroot, trace, or open the linked assets directly.
             </div>
             <div className="gh-attribute-list">
               <div className="gh-attribute-row">
@@ -601,143 +718,73 @@ export default function LineageGraph({
             </div>
             {activePathNodes.length ? (
               <div className="gh-detail-section">
-                <div className="gh-panel-title">Active path</div>
-                <div className="gh-chip-stack">
+                <div className="gh-panel-title">Path nodes</div>
+                <div className="gh-lineage-linked-list">
                   {activePathNodes.map((node) => (
                     <button
-                      className="gh-filter-chip gh-chip-soft"
+                      className="gh-lineage-linked-row"
                       key={node.id}
                       onClick={() => {
-                        setAllowDefaultSelection(true);
+                        setAllowDefaultSelection(false);
                         setSelectedNodeId(node.id);
                         setSelectedEdgeId("");
                         setDrawerOpen(true);
+                        setGraphMode("explore");
                       }}
                       type="button"
                     >
-                      {node.label}
+                      <span>{node.label}</span>
+                      <span>{node.subtitle}</span>
                     </button>
                   ))}
                 </div>
               </div>
             ) : null}
-            <div className="gh-action-grid">
+            <div className="gh-action-grid gh-lineage-drawer-actions">
               <button
                 className="gh-secondary-button"
-                onClick={() => {
-                  setAllowDefaultSelection(true);
-                  setSelectedEdgeId("");
-                  setSelectedNodeId(selectedSource?.id || "");
-                  setGraphMode("upstream");
-                  setDrawerOpen(true);
-                }}
-                type="button"
-              >
+                  onClick={() => {
+                    setAllowDefaultSelection(false);
+                    setSelectedEdgeId("");
+                    setSelectedNodeId(selectedSource?.id || "");
+                    setGraphMode("upstream");
+                    setDrawerOpen(true);
+                    setRefocusOpen(false);
+                  }}
+                  type="button"
+                >
                 Trace upstream
               </button>
               <button
                 className="gh-secondary-button"
-                onClick={() => {
-                  setAllowDefaultSelection(true);
-                  setSelectedEdgeId("");
-                  setSelectedNodeId(selectedTarget?.id || "");
-                  setGraphMode("impact");
-                  setDrawerOpen(true);
-                }}
-                type="button"
-              >
-                Trace downstream
+                  onClick={() => {
+                    setAllowDefaultSelection(false);
+                    setSelectedEdgeId("");
+                    setSelectedNodeId(selectedTarget?.id || "");
+                    setGraphMode("impact");
+                    setDrawerOpen(true);
+                    setRefocusOpen(false);
+                  }}
+                  type="button"
+                >
+                Show impact
               </button>
-              <button
-                className="gh-secondary-button"
-                onClick={() => {
-                  setGraphMode("path");
-                  setDrawerOpen(true);
-                }}
-                type="button"
-              >
-                Highlight route
-              </button>
-              {selectedSource?.assetFqn ? (
-              <button
-                className="gh-primary-button"
-                onClick={() => {
-                  setAllowDefaultSelection(true);
-                  setSelectedNodeId(selectedSource.id);
-                  setSelectedEdgeId("");
-                  setDrawerOpen(true);
-                }}
-                type="button"
-              >
-                Focus source
-                </button>
-              ) : null}
-              {selectedTarget?.assetFqn ? (
-              <button
-                className="gh-primary-button"
-                onClick={() => {
-                  setAllowDefaultSelection(true);
-                  setSelectedNodeId(selectedTarget.id);
-                  setSelectedEdgeId("");
-                  setDrawerOpen(true);
-                }}
-                type="button"
-              >
-                Focus target
-              </button>
-              ) : null}
               {selectedSource?.assetFqn ? (
                 <button
-                  className="gh-secondary-button"
+                  className="gh-primary-button"
                   onClick={() => onSelectAsset(selectedSource.assetFqn)}
                   type="button"
                 >
-                  Re-root on source
+                  Refocus source
                 </button>
               ) : null}
               {selectedTarget?.assetFqn ? (
                 <button
-                  className="gh-secondary-button"
+                  className="gh-primary-button"
                   onClick={() => onSelectAsset(selectedTarget.assetFqn)}
                   type="button"
                 >
-                  Re-root on target
-                </button>
-              ) : null}
-              {selectedSource?.assetFqn ? (
-                <button
-                  className="gh-secondary-button"
-                  onClick={() => onOpenAsset(selectedSource.assetFqn)}
-                  type="button"
-                >
-                  Open source
-                </button>
-              ) : null}
-              {selectedSource?.assetFqn ? (
-                <button
-                  className="gh-secondary-button"
-                  onClick={() => onOpenGovernance(selectedSource.assetFqn)}
-                  type="button"
-                >
-                  Source governance
-                </button>
-              ) : null}
-              {selectedTarget?.assetFqn ? (
-                <button
-                  className="gh-secondary-button"
-                  onClick={() => onOpenAsset(selectedTarget.assetFqn)}
-                  type="button"
-                >
-                  Open target
-                </button>
-              ) : null}
-              {selectedTarget?.assetFqn ? (
-                <button
-                  className="gh-secondary-button"
-                  onClick={() => onOpenGovernance(selectedTarget.assetFqn)}
-                  type="button"
-                >
-                  Target governance
+                  Refocus target
                 </button>
               ) : null}
             </div>
@@ -757,61 +804,53 @@ export default function LineageGraph({
                 {selectedNode.role === "focus"
                   ? "This asset anchors the current graph."
                   : selectedNode.role === "source"
-                    ? "This node contributes data or execution context into the focused asset."
-                    : "This node consumes or depends on the focused asset."}
+                    ? "This node flows into the focused asset."
+                    : "This node depends on the focused asset."}
               </div>
             </div>
             {neighborBuckets.upstream.length || neighborBuckets.downstream.length ? (
               <div className="gh-detail-section">
                 <div className="gh-panel-title">Connected nodes</div>
-                {neighborBuckets.upstream.length ? (
-                  <div className="gh-detail-section">
-                    <div className="gh-support-copy">Upstream</div>
-                    <div className="gh-chip-stack">
-                      {neighborBuckets.upstream.slice(0, 5).map((node) => (
-                        <button
-                          className="gh-filter-chip gh-chip-soft"
-                          key={node.id}
-                          onClick={() => {
-                            setAllowDefaultSelection(true);
-                            setSelectedNodeId(node.id);
-                            setSelectedEdgeId("");
-                            setDrawerOpen(true);
-                          }}
-                          type="button"
-                        >
-                          {node.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-                {neighborBuckets.downstream.length ? (
-                  <div className="gh-detail-section">
-                    <div className="gh-support-copy">Downstream</div>
-                    <div className="gh-chip-stack">
-                      {neighborBuckets.downstream.slice(0, 5).map((node) => (
-                        <button
-                          className="gh-filter-chip gh-chip-soft"
-                          key={node.id}
-                          onClick={() => {
-                            setAllowDefaultSelection(true);
-                            setSelectedNodeId(node.id);
-                            setSelectedEdgeId("");
-                            setDrawerOpen(true);
-                          }}
-                          type="button"
-                        >
-                          {node.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+                <div className="gh-lineage-linked-list">
+                  {neighborBuckets.upstream.slice(0, 3).map((node) => (
+                    <button
+                      className="gh-lineage-linked-row"
+                      key={`up-${node.id}`}
+                      onClick={() => {
+                        setAllowDefaultSelection(false);
+                        setSelectedNodeId(node.id);
+                        setSelectedEdgeId("");
+                        setDrawerOpen(true);
+                        setGraphMode("explore");
+                      }}
+                      type="button"
+                    >
+                      <span>↑ {node.label}</span>
+                      <span>{node.subtitle}</span>
+                    </button>
+                  ))}
+                  {neighborBuckets.downstream.slice(0, 3).map((node) => (
+                    <button
+                      className="gh-lineage-linked-row"
+                      key={`down-${node.id}`}
+                      onClick={() => {
+                        setAllowDefaultSelection(false);
+                        setSelectedNodeId(node.id);
+                        setSelectedEdgeId("");
+                        setDrawerOpen(true);
+                        setGraphMode("explore");
+                      }}
+                      type="button"
+                    >
+                      <span>↓ {node.label}</span>
+                      <span>{node.subtitle}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
             {selectedNode.assetFqn ? (
-              <div className="gh-action-grid">
+              <div className="gh-action-grid gh-lineage-drawer-actions">
                 <button
                   className="gh-primary-button"
                   onClick={() => {
@@ -824,28 +863,20 @@ export default function LineageGraph({
                 </button>
                 <button
                   className="gh-secondary-button"
-                  onClick={() => setGraphMode("path")}
+                  onClick={() => {
+                    setGraphMode("path");
+                    setDrawerOpen(true);
+                  }}
                   type="button"
                 >
                   Trace to focus
                 </button>
                 <button
                   className="gh-secondary-button"
-                  onClick={() => setGraphMode("upstream")}
-                  type="button"
-                >
-                  Trace upstream
-                </button>
-                <button
-                  className="gh-secondary-button"
-                  onClick={() => setGraphMode("impact")}
-                  type="button"
-                >
-                  Show impact
-                </button>
-                <button
-                  className="gh-secondary-button"
-                  onClick={() => flowInstance?.fitView?.({ padding: 0.18 })}
+                  onClick={() => {
+                    flowInstance?.fitView?.({ padding: 0.18 });
+                    setDrawerOpen(false);
+                  }}
                   type="button"
                 >
                   Recenter
