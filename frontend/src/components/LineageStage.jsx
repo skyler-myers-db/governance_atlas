@@ -10,6 +10,7 @@ export default function LineageStage({
   graphBundle,
   loading,
   error,
+  overlay = null,
   context,
   onContextChange,
   onOpenGovernance,
@@ -27,7 +28,8 @@ export default function LineageStage({
   const graph = selectGraph(graphBundle, context);
   const hasGraph = Boolean(graph?.nodes?.length);
   const hasEdges = Boolean(graph?.edges?.length);
-  const showTopbar = embedded;
+  const showTopbar = Boolean(asset);
+  const emptyGraph = { nodes: [], edges: [] };
 
   return (
     <section className={`gh-lineage-stage-shell ${embedded ? "is-embedded" : "is-full"}`}>
@@ -35,14 +37,27 @@ export default function LineageStage({
         {showTopbar ? (
           <div className="gh-lineage-stage-topbar">
             <div className="gh-lineage-stage-topbar-main">
+              <div className="gh-panel-title">{context}</div>
               <div className="gh-lineage-headbar-title">{asset.name}</div>
               <div className="gh-lineage-headbar-meta">
                 <span>{asset.catalog} / {asset.schema}</span>
-                <span>{context}</span>
+                <span>{asset.objectType}</span>
               </div>
             </div>
             <div className="gh-lineage-stage-topbar-actions">
-              {onOpenFullGraph ? (
+              <div className="gh-segment-row gh-lineage-context-switch">
+                {["Data Lineage", "Operational Context"].map((option) => (
+                  <button
+                    className={`gh-segment-button ${context === option ? "is-active" : ""}`}
+                    key={option}
+                    onClick={() => onContextChange?.(option)}
+                    type="button"
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+              {embedded && onOpenFullGraph ? (
                 <button className="gh-secondary-button" onClick={() => onOpenFullGraph(context)} type="button">
                   Open full graph
                 </button>
@@ -55,7 +70,7 @@ export default function LineageStage({
             <div className="gh-empty-state">Loading lineage graph…</div>
           ) : error ? (
             <div className="gh-empty-state">{error}</div>
-          ) : hasGraph ? (
+          ) : hasGraph || overlay ? (
             <LineageGraph
               asset={asset}
               assetSearchLoading={assetSearchLoading}
@@ -64,12 +79,13 @@ export default function LineageStage({
               assetSearchResolvedQuery={assetSearchResolvedQuery}
               allowRefocus={allowRefocus}
               context={context}
-              graph={graph}
+              graph={graph || emptyGraph}
               hasEdges={hasEdges}
               onAssetSearchQueryChange={onAssetSearchQueryChange}
               onContextChange={onContextChange}
               onOpenAsset={onOpenAsset}
               onOpenGovernance={onOpenGovernance}
+              overlay={overlay}
               onSelectAsset={onSelectAsset}
             />
           ) : (

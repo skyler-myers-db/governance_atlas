@@ -15,7 +15,11 @@ export function useAssetDetail(assetFqn) {
     }
 
     let canceled = false;
-    setState((prev) => ({ ...prev, loading: true, error: "" }));
+    setState((current) => ({
+      loading: true,
+      error: "",
+      detail: current.detail?.fqn === assetFqn ? current.detail : null,
+    }));
     fetchAssetDetail(assetFqn)
       .then((detail) => {
         if (canceled) return;
@@ -23,11 +27,11 @@ export function useAssetDetail(assetFqn) {
       })
       .catch((error) => {
         if (canceled) return;
-        setState({
+        setState((current) => ({
           loading: false,
           error: error?.message || "Failed to load asset detail.",
-          detail: null,
-        });
+          detail: current.detail?.fqn === assetFqn ? current.detail : null,
+        }));
       });
 
     return () => {

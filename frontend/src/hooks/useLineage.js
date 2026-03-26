@@ -26,7 +26,7 @@ export function useLineage(assetFqn, seededGraph = null, enabled = true) {
     setState((current) => ({
       loading: true,
       error: "",
-      graph: assetChanged ? seededGraph || current.graph || null : current.graph || seededGraph || null,
+      graph: assetChanged ? seededGraph || null : current.graph || seededGraph || null,
     }));
     fetchLineage(assetFqn)
       .then((payload) => {

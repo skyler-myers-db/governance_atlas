@@ -1,56 +1,45 @@
 import { useEffect, useRef, useState } from "react";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 
-function readDiscoveryUiState() {
-  return { showAdvancedFilters: false };
-}
-
 function statusTone(asset) {
   if (asset?.governanceStatus === "Enterprise Ready") return "good";
   if (asset?.governanceStatus === "Operational") return "warn";
   return "bad";
 }
 
-function facetValues(facets, key, fallbackOptions = []) {
+function facetValues(facets, key, fallbackOptions = [], selected = []) {
   const entries = facets?.[key];
-  if (!entries?.length) return fallbackOptions;
-  return entries.map((entry) => entry.value);
-}
-
-function facetCountMap(facets, key) {
-  const entries = facets?.[key] || [];
-  return entries.reduce((acc, entry) => {
-    acc[entry.value] = entry.count;
-    return acc;
-  }, {});
+  const resolved = entries?.length ? entries.map((entry) => entry.value) : fallbackOptions;
+  return [...new Set([...(selected || []), ...resolved])];
 }
 
 function toggleMulti(filters, key, value, allLabel, onDiscoveryStateChange) {
-  const current = filters[key] || [allLabel];
-  if (value === allLabel) {
-    onDiscoveryStateChange({ ...filters, [key]: [allLabel] });
-    return;
-  }
-  const next = new Set(current.filter((item) => item !== allLabel));
-  if (next.has(value)) next.delete(value);
-  else next.add(value);
-  onDiscoveryStateChange({
-    ...filters,
-    [key]: next.size ? [...next] : [allLabel],
+  onDiscoveryStateChange((currentFilters) => {
+    const current = currentFilters[key] || [];
+    if (value === allLabel) {
+      return { ...currentFilters, [key]: [] };
+    }
+    const next = new Set(current);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    return {
+      ...currentFilters,
+      [key]: [...next],
+    };
   });
 }
 
 function clearFilter(filters, chip, onDiscoveryStateChange) {
   if (chip.key === "query") {
-    onDiscoveryStateChange({ ...filters, query: "" });
+    onDiscoveryStateChange((current) => ({ ...current, query: "" }));
     return;
   }
   if (chip.key === "view") {
-    onDiscoveryStateChange({ ...filters, view: "All assets" });
+    onDiscoveryStateChange((current) => ({ ...current, view: "All assets" }));
     return;
   }
   if (chip.key === "type") {
-    onDiscoveryStateChange({ ...filters, type: "All types" });
+    onDiscoveryStateChange((current) => ({ ...current, type: "All types" }));
     return;
   }
   const allLabelByKey = {
@@ -62,95 +51,87 @@ function clearFilter(filters, chip, onDiscoveryStateChange) {
   };
   const allLabel = allLabelByKey[chip.key];
   const next = (filters[chip.key] || []).filter((value) => value !== chip.label && value !== allLabel);
-  onDiscoveryStateChange({
-    ...filters,
-    [chip.key]: next.length ? next : [allLabel],
+  onDiscoveryStateChange((current) => ({
+    ...current,
+    [chip.key]: next,
+  }));
+}
+
+function filterVisibilityCount(filters) {
+  let count = 0;
+  if (filters.view && filters.view !== "All assets") count += 1;
+  if (filters.type && filters.type !== "All types") count += 1;
+  ["catalogs", "domains", "tiers", "certifications", "sensitivities"].forEach((key) => {
+    count += (filters[key] || []).length;
   });
+  return count;
 }
 
 function activeFilters(filters) {
   const chips = [];
   if (filters.query) chips.push({ label: `Search: ${filters.query}`, key: "query" });
-  if (filters.view && filters.view !== "All assets") chips.push({ label: filters.view, key: "view" });
-  if (filters.type && filters.type !== "All types") chips.push({ label: filters.type, key: "type" });
+  if (filters.view && filters.view !== "All assets") {
+    chips.push({ label: filters.view, key: "view" });
+  }
+  if (filters.type && filters.type !== "All types") {
+    chips.push({ label: filters.type, key: "type" });
+  }
   ["catalogs", "domains", "tiers", "certifications", "sensitivities"].forEach((key) => {
-    (filters[key] || [])
-      .filter((value) => !value.startsWith("All "))
-      .forEach((value) => chips.push({ label: value, key }));
+    (filters[key] || []).forEach((value) => chips.push({ label: value, key }));
   });
   return chips;
 }
 
-function objectTypeIcon(type) {
-  if (type === "View" || type === "Materialized View") return "◫";
-  if (type === "Dashboard") return "▦";
-  if (type === "Notebook") return "✦";
-  if (type === "Pipeline") return "⇢";
-  return "▣";
-}
-
 function FilterSection({ label, options, selected, allLabel, onToggle }) {
+  const hasSelection = selected.length > 0;
   return (
     <section className="gh-filter-section">
-      <div className="gh-filter-title">{label}</div>
-      <div className="gh-filter-chip-row">
-        {options.map((option) => (
-          <button
-            className={`gh-filter-chip ${selected.includes(option) ? "is-active" : ""}`}
-            key={option}
-            onClick={() => onToggle(option, allLabel)}
-            type="button"
-          >
-            {option}
-          </button>
-        ))}
+      <div className="gh-filter-section-head">
+        <div className="gh-filter-title">{label}</div>
+        <button
+          className="gh-tertiary-button gh-filter-clear"
+          onClick={() => onToggle(allLabel, allLabel)}
+          type="button"
+        >
+          {hasSelection ? "Clear" : "All"}
+        </button>
+      </div>
+      <div className="gh-filter-checklist">
+        {options
+          .filter((option) => option !== allLabel)
+          .map((option) => {
+          const checked = selected.includes(option);
+          return (
+            <label className={`gh-filter-check ${checked ? "is-active" : ""}`} key={option}>
+              <input
+                checked={checked}
+                onChange={() => onToggle(option, allLabel)}
+                type="checkbox"
+              />
+              <span>{option}</span>
+            </label>
+          );
+        })}
       </div>
     </section>
   );
 }
 
-function CategoryRail({ assetTypes, counts, selectedType, onSelectType, compact = false }) {
-  if (compact) {
-    return (
-      <div className="gh-filter-chip-row gh-discovery-browse-row">
-          {assetTypes.map((type) => {
-            const active = selectedType === type;
-            const count = counts[type] ?? 0;
-            return (
-              <button
-                className={`gh-filter-chip gh-discovery-browse-chip ${active ? "is-active" : ""}`}
-                key={type}
-                onClick={() => onSelectType(type)}
-                type="button"
-              >
-                <span>{type}</span>
-                <span className="gh-category-count">{count}</span>
-              </button>
-            );
-          })}
-      </div>
-    );
-  }
-
+function ChoiceSection({ label, options, selected, onSelect }) {
   return (
     <section className="gh-filter-section">
-      <div className="gh-filter-title">Asset types</div>
-      <div className="gh-category-list">
-        {assetTypes.map((type) => {
-          const active = selectedType === type;
-          const count = counts[type] ?? 0;
-          return (
-            <button
-              className={`gh-category-row ${active ? "is-active" : ""}`}
-              key={type}
-              onClick={() => onSelectType(type)}
-              type="button"
-            >
-              <span>{type}</span>
-              <span className="gh-category-count">{count}</span>
-            </button>
-          );
-        })}
+      <div className="gh-filter-title">{label}</div>
+      <div className="gh-filter-choice-row">
+        {options.map((option) => (
+          <button
+            className={`gh-filter-chip ${selected === option ? "is-active" : ""}`}
+            key={option}
+            onClick={() => onSelect(option)}
+            type="button"
+          >
+            {option}
+          </button>
+        ))}
       </div>
     </section>
   );
@@ -166,13 +147,35 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
         </button>
       </div>
       <div className="gh-discovery-filter-popover-grid">
+        <ChoiceSection
+          label="Asset type"
+          onSelect={(option) =>
+            onDiscoveryStateChange((current) => ({
+              ...current,
+              type: option,
+            }))
+          }
+          options={bootstrap.discovery.assetTypes}
+          selected={filters.type}
+        />
+        <ChoiceSection
+          label="Saved view"
+          onSelect={(option) =>
+            onDiscoveryStateChange((current) => ({
+              ...current,
+              view: option,
+            }))
+          }
+          options={bootstrap.discovery.views}
+          selected={filters.view}
+        />
         <FilterSection
           allLabel="All catalogs"
           label="Catalogs"
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "catalogs", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(facets, "catalogs", bootstrap.discovery.catalogs)}
+          options={facetValues(facets, "catalogs", bootstrap.discovery.catalogs, filters.catalogs)}
           selected={filters.catalogs}
         />
         <FilterSection
@@ -181,7 +184,7 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "domains", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(facets, "domains", bootstrap.discovery.domains)}
+          options={facetValues(facets, "domains", bootstrap.discovery.domains, filters.domains)}
           selected={filters.domains}
         />
         <FilterSection
@@ -190,7 +193,7 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "tiers", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(facets, "tiers", bootstrap.discovery.tiers)}
+          options={facetValues(facets, "tiers", bootstrap.discovery.tiers, filters.tiers)}
           selected={filters.tiers}
         />
         <FilterSection
@@ -199,7 +202,12 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "certifications", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(facets, "certifications", bootstrap.discovery.certifications)}
+          options={facetValues(
+            facets,
+            "certifications",
+            bootstrap.discovery.certifications,
+            filters.certifications,
+          )}
           selected={filters.certifications}
         />
         <FilterSection
@@ -208,7 +216,12 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "sensitivities", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(facets, "sensitivities", bootstrap.discovery.sensitivities)}
+          options={facetValues(
+            facets,
+            "sensitivities",
+            bootstrap.discovery.sensitivities,
+            filters.sensitivities,
+          )}
           selected={filters.sensitivities}
         />
       </div>
@@ -219,43 +232,56 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
 function ResultRow({ asset, onOpenAsset, onOpenGovernance, onOpenLineage }) {
   return (
     <article className="gh-result-row">
-      <button className="gh-result-row-main" onClick={() => onOpenAsset(asset.fqn)} type="button">
+      <button
+        className="gh-result-row-main gh-result-row-main-button"
+        onClick={() => onOpenAsset(asset.fqn)}
+        type="button"
+      >
         <div className="gh-result-row-head">
           <div className="gh-result-row-identity">
-            <span className="gh-result-icon" aria-hidden="true">
-              {objectTypeIcon(asset.objectType)}
-            </span>
-            <div>
-              <div className="gh-result-row-title">{asset.name}</div>
-              <div className="gh-result-row-context">
-                {asset.catalog} / {asset.schema}
-              </div>
+            <span className="gh-result-row-title-button">{asset.name}</span>
+            <div className="gh-result-row-context">
+              {asset.catalog} / {asset.schema} · {asset.objectType}
             </div>
           </div>
-          <div className="gh-chip-row">
-            <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
-            <span className={`gh-status-chip tone-${statusTone(asset)}`}>
-              {asset.governanceStatus || "Needs Work"}
-            </span>
+        </div>
+
+        <div className="gh-result-row-description">
+          {asset.description || "No description is available for this asset yet."}
+        </div>
+
+        <div className="gh-result-row-foot">
+          <div className="gh-result-metadata">
+            <span>Coverage {asset.coverageScore}</span>
+            <span>{asset.owners?.length || 0} owners</span>
+            <span>{asset.openRequests} requests</span>
+            <span>{asset.domain || "Unassigned"}</span>
           </div>
         </div>
-
-        <div className="gh-result-row-description">{asset.description}</div>
-
-        <div className="gh-result-metadata">
-          <span>Coverage {asset.coverageScore}</span>
-          <span>{asset.owners?.length || 0} owners</span>
-          <span>{asset.openRequests} requests</span>
-          <span>{asset.domain || "Unassigned"}</span>
-        </div>
       </button>
-      <div className="gh-result-row-actions">
-        <button className="gh-secondary-button" onClick={() => onOpenLineage(asset.fqn, "Data Lineage")} type="button">
-          Lineage
-        </button>
-        <button className="gh-secondary-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">
-          Governance
-        </button>
+      <div className="gh-result-row-side">
+        <div className="gh-chip-row gh-result-row-statuses">
+          <span className="gh-chip gh-chip-soft">{asset.objectType}</span>
+          <span className={`gh-status-chip tone-${statusTone(asset)}`}>
+            {asset.governanceStatus || "Needs Work"}
+          </span>
+        </div>
+        <div className="gh-result-row-actions gh-result-row-actions-inline">
+          <button
+            className="gh-tertiary-button gh-inline-link-button"
+            onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
+            type="button"
+          >
+            Open lineage
+          </button>
+          <button
+            className="gh-tertiary-button gh-inline-link-button"
+            onClick={() => onOpenGovernance(asset.fqn)}
+            type="button"
+          >
+            Open governance
+          </button>
+        </div>
       </div>
     </article>
   );
@@ -271,8 +297,9 @@ export default function DiscoveryWorkspace({
   onOpenGovernance,
   onOpenLineage,
 }) {
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(() => readDiscoveryUiState().showAdvancedFilters);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const filterPopoverRef = useRef(null);
+  const filterCommandRef = useRef(null);
   const { filters, setFilters, results: discoveryResults } = useDiscoveryWorkspace({
     bootstrap,
     initialQuery,
@@ -284,12 +311,7 @@ export default function DiscoveryWorkspace({
   useEffect(() => {
     if (!showAdvancedFilters) return undefined;
     const onPointerDown = (event) => {
-      if (!filterPopoverRef.current?.contains(event.target)) {
-        setShowAdvancedFilters(false);
-      }
-    };
-    const onFocusIn = (event) => {
-      if (!filterPopoverRef.current?.contains(event.target)) {
+      if (!filterCommandRef.current?.contains(event.target)) {
         setShowAdvancedFilters(false);
       }
     };
@@ -299,11 +321,9 @@ export default function DiscoveryWorkspace({
       }
     };
     document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("focusin", onFocusIn);
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [showAdvancedFilters]);
@@ -312,9 +332,8 @@ export default function DiscoveryWorkspace({
   const resultsLoading = discoveryResults.loading;
   const resultsError = discoveryResults.error;
   const resultsFacets = discoveryResults.facets;
-  const assetTypeOptions = facetValues(resultsFacets, "assetTypes", bootstrap.discovery.assetTypes || ["All types"]);
-  const typeCounts = facetCountMap(resultsFacets, "assetTypes");
   const filtersApplied = activeFilters(filters);
+  const directFilterCount = filterVisibilityCount(filters);
   const onDiscoveryStateChange = (nextState) => setFilters(nextState);
   const resetBrowse = () =>
     onDiscoveryStateChange({
@@ -322,57 +341,36 @@ export default function DiscoveryWorkspace({
       sortBy: bootstrap.discovery.sortOptions[0],
       view: bootstrap.discovery.views[0],
       type: bootstrap.discovery.assetTypes[0],
-      catalogs: ["All catalogs"],
-      domains: ["All domains"],
-      tiers: ["All tiers"],
-      certifications: ["All certifications"],
-      sensitivities: ["All sensitivities"],
+      catalogs: [],
+      domains: [],
+      tiers: [],
+      certifications: [],
+      sensitivities: [],
     });
 
   return (
     <section className="gh-workspace gh-discovery-shell">
       <section className="gh-discovery-main">
-        <div className="gh-discovery-browse-bar">
-          <CategoryRail
-            assetTypes={assetTypeOptions}
-            counts={typeCounts}
-            compact
-            onSelectType={(type) => onDiscoveryStateChange({ ...filters, type })}
-            selectedType={filters.type}
-          />
-        </div>
-
         <section className="gh-results-column">
           <div className="gh-discovery-command-bar">
+            <span className="gh-results-inline-state gh-results-inline-state-bar">
+              {resultsCount} {resultsCount === 1 ? "result" : "results"}
+              {resultsLoading ? <span className="gh-inline-updating">Updating…</span> : null}
+            </span>
             <input
               className="gh-input"
               onChange={(event) =>
-                onDiscoveryStateChange({
-                  ...filters,
+                onDiscoveryStateChange((current) => ({
+                  ...current,
                   query: event.target.value,
-                })
+                }))
               }
               placeholder="Search assets, views, dashboards, owners, glossary, or governance gaps"
               value={filters.query}
             />
             <select
               className="gh-select"
-              onChange={(event) =>
-                onDiscoveryStateChange({ ...filters, view: event.target.value })
-              }
-              value={filters.view}
-            >
-              {bootstrap.discovery.views.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-            <select
-              className="gh-select"
-              onChange={(event) =>
-                onDiscoveryStateChange({ ...filters, sortBy: event.target.value })
-              }
+              onChange={(event) => onDiscoveryStateChange((current) => ({ ...current, sortBy: event.target.value }))}
               value={filters.sortBy}
             >
               {bootstrap.discovery.sortOptions.map((option) => (
@@ -381,13 +379,13 @@ export default function DiscoveryWorkspace({
                 </option>
               ))}
             </select>
-            <div className="gh-discovery-command-actions">
+            <div className="gh-discovery-command-actions" ref={filterCommandRef}>
               <button
                 className={`gh-secondary-button ${showAdvancedFilters ? "is-active" : ""}`}
                 onClick={() => setShowAdvancedFilters((current) => !current)}
                 type="button"
               >
-                Filters {filtersApplied.length ? `(${filtersApplied.length})` : ""}
+                Filters {directFilterCount ? `(${directFilterCount})` : ""}
               </button>
               {showAdvancedFilters ? (
                 <div ref={filterPopoverRef}>
@@ -402,9 +400,8 @@ export default function DiscoveryWorkspace({
               ) : null}
             </div>
           </div>
-
-          {filtersApplied.length ? (
-            <div className="gh-active-filter-row">
+          {filtersApplied.length || filters.query ? (
+            <div className="gh-active-filter-row gh-active-filter-row-inline gh-discovery-active-row">
               {filtersApplied.map((chip) => (
                 <button
                   className="gh-chip gh-chip-soft"
@@ -415,35 +412,32 @@ export default function DiscoveryWorkspace({
                   {chip.label}
                 </button>
               ))}
+              <div className="gh-results-strip-actions">
+                {filters.query ? (
+                  <button
+                    className="gh-tertiary-button gh-inline-link-button"
+                    onClick={() =>
+                      onDiscoveryStateChange((current) => ({
+                        ...current,
+                        query: "",
+                      }))
+                    }
+                    type="button"
+                  >
+                    Clear search
+                  </button>
+                ) : null}
+                {filtersApplied.length ? (
+                  <button className="gh-tertiary-button gh-inline-link-button" onClick={resetBrowse} type="button">
+                    Reset browse
+                  </button>
+                ) : null}
+              </div>
             </div>
           ) : null}
-
-          <div className="gh-results-strip">
-            <div className="gh-results-inline-state">
-              {resultsLoading
-                ? "Refreshing live results…"
-                : `${resultsCount} ${resultsCount === 1 ? "result" : "results"}`}
-            </div>
-            {filters.view !== "All assets" ? (
-              <button
-                className="gh-tertiary-button"
-                onClick={() => onDiscoveryStateChange({ ...filters, view: "All assets" })}
-                type="button"
-              >
-                Clear view
-              </button>
-            ) : null}
-          </div>
-
           {resultsError ? (
             <div className="gh-inline-alert tone-warn">
-              <div className="gh-inline-alert-title">Live results are temporarily unavailable.</div>
               <div>{resultsError}</div>
-              {discoveryResults.assets.length ? (
-                <div className="gh-support-copy">
-                  Showing the last available result set until live search recovers.
-                </div>
-              ) : null}
             </div>
           ) : null}
 
@@ -461,13 +455,12 @@ export default function DiscoveryWorkspace({
             </div>
           ) : resultsError ? (
             <div className="gh-empty-state">
-              <div>Live discovery results are temporarily unavailable.</div>
-              <div className="gh-support-copy">{resultsError}</div>
+              <div>Live discovery results are unavailable right now.</div>
               <div className="gh-empty-state-actions">
                 {filters.query ? (
                   <button
                     className="gh-secondary-button"
-                    onClick={() => onDiscoveryStateChange({ ...filters, query: "" })}
+                    onClick={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
                     type="button"
                   >
                     Clear search
@@ -480,12 +473,12 @@ export default function DiscoveryWorkspace({
             </div>
           ) : (
             <div className="gh-empty-state">
-              <div>No assets match the current filters. Relax the scope or clear the search.</div>
+              <div>No assets match the current scope.</div>
               <div className="gh-empty-state-actions">
                 {filters.query ? (
                   <button
                     className="gh-secondary-button"
-                    onClick={() => onDiscoveryStateChange({ ...filters, query: "" })}
+                    onClick={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
                     type="button"
                   >
                     Clear search

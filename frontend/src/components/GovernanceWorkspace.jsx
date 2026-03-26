@@ -2,6 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAssetDetail } from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
+import {
+  createGovernanceRequest,
+  upsertGovernanceGlossaryTerm,
+  upsertGovernanceOwner,
+} from "../lib/api";
 
 function governanceViews(governance) {
   const backlog = governance?.backlog || [];
@@ -60,22 +65,41 @@ function governanceActionTrack(asset) {
   ];
 }
 
-function stewardshipLanes(actionTrack, requestCount = 0) {
+function requestLane(item) {
+  const text = `${item.title || ""} ${item.subtitle || ""} ${item.detail || ""} ${item.status || ""}`.toLowerCase();
+  if (text.includes("owner")) return "ownership";
+  if (text.includes("cert") || text.includes("classif") || text.includes("sensit") || text.includes("privacy")) {
+    return "classification";
+  }
+  if (text.includes("domain") || text.includes("tier") || text.includes("trust")) return "trust";
+  return "open-work";
+}
+
+function stewardshipLanes(actionTrack, requests = []) {
   const incomplete = actionTrack.filter((item) => !item.complete);
+  const laneCounts = requests.reduce(
+    (acc, item) => {
+      const lane = requestLane(item);
+      acc[lane] = (acc[lane] || 0) + 1;
+      return acc;
+    },
+    { "open-work": 0, ownership: 0, classification: 0, trust: 0 }
+  );
   return [
-    { key: "open-work", label: "Open work", count: requestCount },
-    { key: "ownership", label: "Ownership gaps", count: incomplete.filter((item) => item.label === "Owners").length },
+    { key: "open-work", label: "Open work", count: laneCounts["open-work"] },
+    { key: "ownership", label: "Ownership gaps", count: Math.max(laneCounts.ownership, incomplete.filter((item) => item.label === "Owners").length) },
     {
       key: "classification",
       label: "Classification gaps",
-      count: incomplete.filter((item) => item.label === "Sensitivity").length,
+      count: Math.max(laneCounts.classification, incomplete.filter((item) => item.label === "Sensitivity").length),
     },
     {
       key: "trust",
       label: "Trust gaps",
-      count: incomplete.filter((item) =>
-        item.label === "Certification" || item.label === "Domain" || item.label === "Tier"
-      ).length,
+      count: Math.max(
+        laneCounts.trust,
+        incomplete.filter((item) => item.label === "Certification" || item.label === "Domain" || item.label === "Tier").length
+      ),
     },
   ];
 }
@@ -119,16 +143,29 @@ export default function GovernanceWorkspace({
   onOpenLineage,
 }) {
   const [focusedAssetFqn, setFocusedAssetFqn] = useState(initialAssetFqn || "");
+  const [liveGovernance, setLiveGovernance] = useState(governance);
   const seeded = useSeededAssetContext(focusedAssetFqn, bootstrap, bootstrap?.assets || []);
   const assetDetail = useAssetDetail(focusedAssetFqn || "");
   const focusedAsset = assetDetail.detail || seeded.summary;
-  const views = useMemo(() => governanceViews(governance), [governance]);
+  const views = useMemo(() => governanceViews(liveGovernance), [liveGovernance]);
   const [mode, setMode] = useState("stewardship");
+  const [selectedLaneKey, setSelectedLaneKey] = useState("open-work");
   const [selectedWorkId, setSelectedWorkId] = useState("");
   const [selectedGlossaryId, setSelectedGlossaryId] = useState("");
   const [glossaryQuery, setGlossaryQuery] = useState("");
   const [glossaryCollection, setGlossaryCollection] = useState("All terms");
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [requestTitle, setRequestTitle] = useState("");
+  const [requestNote, setRequestNote] = useState("");
+  const [glossaryName, setGlossaryName] = useState("");
+  const [glossaryDefinition, setGlossaryDefinition] = useState("");
+  const [mutationState, setMutationState] = useState({
+    kind: "",
+    loading: false,
+    error: "",
+    success: "",
+  });
   const assetSearch = useAssetSearch(assetSearchQuery, assetSearchQuery.trim().length >= 2);
   const focusCommandRef = useRef(null);
 
@@ -137,12 +174,18 @@ export default function GovernanceWorkspace({
     setFocusedAssetFqn(nextAssetFqn);
   }, [initialAssetFqn]);
 
+  useEffect(() => {
+    setLiveGovernance(governance);
+  }, [governance]);
+
   const focusAsset = (assetFqn, options = {}) => {
-    const { preserveWork = false, preserveGlossary = false, syncRoute = false } = options;
+    const { preserveWork = false, preserveGlossary = false, preserveLane = false, syncRoute = false } = options;
     setFocusedAssetFqn(assetFqn || "");
     setAssetSearchQuery("");
     setSelectedWorkId((current) => (preserveWork ? current : ""));
     setSelectedGlossaryId((current) => (preserveGlossary ? current : ""));
+    setSelectedLaneKey((current) => (preserveLane ? current : "open-work"));
+    setMutationState({ kind: "", loading: false, error: "", success: "" });
     if (syncRoute) {
       onRouteAssetChange?.(assetFqn || "");
     }
@@ -161,9 +204,13 @@ export default function GovernanceWorkspace({
   const assetScopedEmpty =
     Boolean(focusedAssetFqn) && !assetScopedRequests.length;
   const workItems = assetScopedEmpty ? [] : assetScopedRequests;
-  const selectedItem = workItems.find((item) => item.id === selectedWorkId) || null;
+  const visibleWorkItems = useMemo(() => {
+    if (selectedLaneKey === "open-work") return workItems;
+    return workItems.filter((item) => requestLane(item) === selectedLaneKey);
+  }, [selectedLaneKey, workItems]);
+  const selectedItem = visibleWorkItems.find((item) => item.id === selectedWorkId) || null;
   const actionTrack = governanceActionTrack(focusedAsset);
-  const laneSummary = stewardshipLanes(actionTrack, assetScopedRequests.length);
+  const laneSummary = stewardshipLanes(actionTrack, workItems);
   const linkedGlossary = useMemo(() => {
     if (!focusedAsset) return [];
     return views.glossary.filter((item) => item.assets?.includes(focusedAsset.fqn));
@@ -197,11 +244,17 @@ export default function GovernanceWorkspace({
     : [];
 
   useEffect(() => {
-    setSelectedWorkId((current) => (workItems.some((item) => item.id === current) ? current : ""));
-  }, [workItems]);
+    setSelectedWorkId((current) => {
+      if (visibleWorkItems.some((item) => item.id === current)) return current;
+      return "";
+    });
+  }, [visibleWorkItems]);
 
   useEffect(() => {
-    setSelectedGlossaryId((current) => (glossaryItems.some((item) => item.id === current) ? current : ""));
+    setSelectedGlossaryId((current) => {
+      if (glossaryItems.some((item) => item.id === current)) return current;
+      return "";
+    });
   }, [glossaryItems]);
 
   useEffect(() => {
@@ -216,30 +269,48 @@ export default function GovernanceWorkspace({
         setAssetSearchQuery("");
       }
     };
-    const onFocusIn = (event) => {
-      if (!focusCommandRef.current?.contains(event.target)) {
-        setAssetSearchQuery("");
-      }
-    };
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
         setAssetSearchQuery("");
       }
     };
     document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("focusin", onFocusIn);
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [assetSearchQuery]);
 
+  useEffect(() => {
+    setOwnerEmail("");
+    setRequestTitle("");
+    setRequestNote("");
+    setGlossaryName("");
+    setGlossaryDefinition("");
+    setMutationState({ kind: "", loading: false, error: "", success: "" });
+  }, [focusedAssetFqn]);
+
+  const runGovernanceMutation = async (kind, executor, success) => {
+    setMutationState({ kind, loading: true, error: "", success: "" });
+    try {
+      const next = await executor();
+      setLiveGovernance(next);
+      setMutationState({ kind, loading: false, error: "", success });
+    } catch (error) {
+      setMutationState({
+        kind,
+        loading: false,
+        error: error?.message || "Unable to update governance right now.",
+        success: "",
+      });
+    }
+  };
+
   return (
     <section className="gh-governance-shell">
-      <header className="gh-panel gh-governance-strip">
-        <div className="gh-governance-strip-main">
+      <header className="gh-governance-toolbar">
+        <div className="gh-governance-toolbar-main">
           <div className="gh-segment-row">
             <button
               className={`gh-segment-button ${mode === "stewardship" ? "is-active" : ""}`}
@@ -257,12 +328,12 @@ export default function GovernanceWorkspace({
             </button>
           </div>
           {focusedAsset ? (
-            <div className="gh-governance-strip-context">Focused asset · {focusedAsset.name}</div>
+            <span className="gh-chip gh-chip-soft">{focusedAsset.name}</span>
           ) : focusedAssetLimited ? (
-            <div className="gh-governance-strip-context">Focused asset · Live detail limited</div>
+            <span className="gh-chip gh-chip-soft">Live detail limited</span>
           ) : null}
         </div>
-        <div className="gh-governance-strip-tools">
+        <div className="gh-governance-toolbar-tools">
           <div className="gh-governance-focus-command" ref={focusCommandRef}>
             <input
               className="gh-input"
@@ -273,11 +344,11 @@ export default function GovernanceWorkspace({
                   && !assetSearch.loading
                   && assetSearch.resolvedQuery === assetSearchQuery.trim()
                   && assetSearch.assets[0]
-                ) {
-                  event.preventDefault();
-                  focusAsset(assetSearch.assets[0].fqn);
-                }
-              }}
+                  ) {
+                    event.preventDefault();
+                  focusAsset(assetSearch.assets[0].fqn, { syncRoute: true });
+                  }
+                }}
               placeholder={focusedAsset ? `Switch focus from ${focusedAsset.name}` : "Focus an asset"}
               value={assetSearchQuery}
             />
@@ -290,7 +361,7 @@ export default function GovernanceWorkspace({
                     <button
                       className="gh-lineage-search-row"
                       key={asset.fqn}
-                      onClick={() => focusAsset(asset.fqn)}
+                      onClick={() => focusAsset(asset.fqn, { syncRoute: true })}
                       type="button"
                     >
                       <span>{asset.name}</span>
@@ -308,7 +379,7 @@ export default function GovernanceWorkspace({
           {focusedAssetFqn ? (
             <button
               className="gh-secondary-button"
-              onClick={() => focusAsset("", { preserveWork: false, preserveGlossary: false })}
+              onClick={() => focusAsset("", { preserveWork: false, preserveGlossary: false, syncRoute: true })}
               type="button"
             >
               Clear focus
@@ -323,13 +394,23 @@ export default function GovernanceWorkspace({
             <div className="gh-governance-workbench gh-governance-workbench-single">
               <section className="gh-panel gh-governance-main-pane gh-governance-main-pane-dense">
                 <section className="gh-detail-section">
-                  <div className="gh-panel-title">Stewardship lanes</div>
-                  <div className="gh-summary-grid gh-summary-grid-tight">
+                  <div className="gh-governance-section-head">
+                    <div>
+                      <div className="gh-panel-title">Stewardship lanes</div>
+                    </div>
+                    <span className="gh-chip gh-chip-soft">{visibleWorkItems.length} visible</span>
+                  </div>
+                  <div className="gh-governance-lane-rail">
                     {laneSummary.map((lane) => (
-                      <div className="gh-stat-card" key={lane.key}>
-                        <span className="gh-stat-label">{lane.label}</span>
-                        <span className="gh-stat-value">{lane.count}</span>
-                      </div>
+                      <button
+                        className={`gh-governance-lane-chip ${selectedLaneKey === lane.key ? "is-active" : ""}`}
+                        key={lane.key}
+                        onClick={() => setSelectedLaneKey(lane.key)}
+                        type="button"
+                      >
+                        <span>{lane.label}</span>
+                        <strong>{lane.count}</strong>
+                      </button>
                     ))}
                   </div>
                 </section>
@@ -337,27 +418,33 @@ export default function GovernanceWorkspace({
                   <div className="gh-governance-worklist-head">
                     <div className="gh-panel-title">Active work</div>
                     <span className="gh-chip gh-chip-soft">
-                      {focusedAssetUnavailable ? "Access limited" : `${workItems.length} visible`}
+                      {focusedAssetUnavailable ? "Access limited" : `${visibleWorkItems.length} visible`}
                     </span>
                   </div>
                   {focusedAssetUnavailable ? (
                     <div className="gh-empty-state">
                       The focused asset is unavailable with the current permissions.
                     </div>
-                  ) : workItems.length ? (
-                    <div className="gh-request-list">
-                      {workItems.map((item) => (
+                  ) : visibleWorkItems.length ? (
+                    <div className="gh-request-list gh-request-list-dense">
+                      {visibleWorkItems.map((item) => (
                         <button
                           className={`gh-request-card gh-request-row ${selectedItem?.id === item.id ? "is-active" : ""}`}
                           key={item.id}
                           onClick={() => setSelectedWorkId(item.id)}
                           type="button"
                         >
-                          <div className="gh-request-title">{item.title}</div>
-                          <div className="gh-request-meta">{item.subtitle}</div>
-                          <div className="gh-chip-row">
-                            <span className="gh-chip gh-chip-soft">{item.status}</span>
+                          <div className="gh-request-card-topline">
+                            <div>
+                              <div className="gh-request-title">{item.title}</div>
+                              <div className="gh-request-meta">{item.subtitle}</div>
+                            </div>
+                            <div className="gh-chip-row">
+                              <span className="gh-chip gh-chip-soft">{requestLane(item).replace("-", " ")}</span>
+                              <span className="gh-chip gh-chip-soft">{item.status}</span>
+                            </div>
                           </div>
+                          <div className="gh-support-copy">{item.detail}</div>
                         </button>
                       ))}
                     </div>
@@ -369,20 +456,28 @@ export default function GovernanceWorkspace({
                     </div>
                   )}
                 </section>
-                {selectedItem ? (
-                  <section className="gh-detail-section">
-                    <div className="gh-panel-title">Selected work</div>
+                  {selectedItem ? (
+                    <section className="gh-detail-section">
+                      <div className="gh-governance-section-head">
+                        <div>
+                          <div className="gh-panel-title">Selected work</div>
+                        </div>
+                        <span className="gh-chip gh-chip-soft">{selectedItem.status}</span>
+                      </div>
                     <h2>{selectedItem.title}</h2>
                     <div className="gh-support-copy">{selectedItem.subtitle}</div>
-                    <div className="gh-chip-stack">
-                      <span className="gh-chip">{selectedItem.status}</span>
-                    </div>
                     <div className="gh-support-copy">{selectedItem.detail}</div>
                     {selectedItem.assetFqn ? (
                       <div className="gh-action-grid">
                         <button
                           className="gh-primary-button"
-                          onClick={() => focusAsset(selectedItem.assetFqn, { preserveWork: true })}
+                          onClick={() =>
+                            focusAsset(selectedItem.assetFqn, {
+                              preserveWork: true,
+                              preserveLane: true,
+                              syncRoute: true,
+                            })
+                          }
                           type="button"
                         >
                           Focus here
@@ -405,47 +500,50 @@ export default function GovernanceWorkspace({
                     ) : null}
                   </section>
                 ) : null}
+              </section>
 
-                {focusedAssetUnavailable ? (
+              <aside className="gh-panel gh-governance-side-pane gh-governance-side-pane-dense">
+                {focusedAssetFqn ? (
                   <section className="gh-detail-section">
-                    <div className="gh-panel-title">Focused asset</div>
-                    <div className="gh-empty-state">
-                      <div>The focused asset cannot be inspected with the current permissions.</div>
-                      <div className="gh-action-grid">
-                        <button
-                          className="gh-secondary-button"
-                          onClick={() => focusAsset("", { preserveWork: false, preserveGlossary: false })}
-                          type="button"
-                        >
-                          Return to open work
-                        </button>
+                    <div className="gh-governance-section-head">
+                      <div>
+                        <div className="gh-panel-title">Stewardship actions</div>
+                        {focusedAsset ? (
+                          <div className="gh-support-copy">
+                            {focusedAsset.name} · {focusedAsset.catalog} / {focusedAsset.schema}
+                          </div>
+                        ) : focusedAssetUnavailable ? (
+                          <div className="gh-support-copy">Focused asset unavailable with current permissions.</div>
+                        ) : null}
                       </div>
+                      {mutationState.loading ? (
+                        <span className="gh-chip gh-chip-soft">Saving…</span>
+                      ) : mutationState.success ? (
+                        <span className="gh-chip gh-chip-soft">Updated</span>
+                      ) : null}
                     </div>
-                  </section>
-                ) : focusedAsset ? (
-                  <section className="gh-detail-section">
-                    <div className="gh-panel-title">Focused asset</div>
-                    {focusedAssetLimited ? (
-                      <div className="gh-support-copy">
-                        Live detail is limited for this asset, but linked work can still be reviewed.
+                    {mutationState.error ? (
+                      <div className="gh-inline-alert tone-warn">
+                        <div>{mutationState.error}</div>
                       </div>
                     ) : null}
-                    <div className="gh-governance-focus-header">
-                      <div>
-                        <h2>{focusedAsset.name}</h2>
-                        <div className="gh-support-copy">
-                          {focusedAsset.catalog} / {focusedAsset.schema}
-                        </div>
-                      </div>
-                      <div className="gh-chip-row">
-                        <span className="gh-chip gh-chip-soft">{focusedAsset.objectType}</span>
-                        <span className="gh-chip">{focusedAsset.governanceStatus || "Needs Work"}</span>
-                      </div>
-                    </div>
-                    {!focusedAssetLimited ? <AttributeList items={focusedAssetAttributes.slice(0, 4)} /> : null}
+                    {mutationState.success ? (
+                      <div className="gh-support-copy gh-success-copy">{mutationState.success}</div>
+                    ) : null}
                     <div className="gh-task-list gh-task-list-compact">
                       {actionTrack.slice(0, 4).map((item) => (
-                        <div className={`gh-task-card ${item.complete ? "is-complete" : ""}`} key={item.label}>
+                        <button
+                          className={`gh-task-card ${item.complete ? "is-complete" : ""}`}
+                          key={item.label}
+                          onClick={() => {
+                            if (item.label === "Owners") setSelectedLaneKey("ownership");
+                            if (item.label === "Sensitivity") setSelectedLaneKey("classification");
+                            if (item.label === "Certification" || item.label === "Domain" || item.label === "Tier") {
+                              setSelectedLaneKey("trust");
+                            }
+                          }}
+                          type="button"
+                        >
                           <div className="gh-task-card-head">
                             <span className={`gh-status-chip tone-${item.complete ? "good" : "bad"}`}>
                               {item.complete ? "Ready" : "Needs work"}
@@ -454,15 +552,165 @@ export default function GovernanceWorkspace({
                           </div>
                           <div className="gh-task-title">{item.label}</div>
                           <div className="gh-support-copy">{item.note}</div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="gh-form-stack">
+                      <div className="gh-form-block gh-form-block-compact">
+                        <div className="gh-panel-title">Assign owner</div>
+                        <div className="gh-form-inline">
+                          <input
+                            className="gh-input"
+                            onChange={(event) => setOwnerEmail(event.target.value)}
+                            placeholder="Assign owner email"
+                            value={ownerEmail}
+                          />
+                          <button
+                            className="gh-secondary-button gh-secondary-button-compact"
+                            disabled={!ownerEmail.trim() || mutationState.loading}
+                            onClick={() =>
+                              runGovernanceMutation(
+                                "owner",
+                                () =>
+                                  upsertGovernanceOwner({
+                                    assetFqn: focusedAssetFqn,
+                                    ownerEmail: ownerEmail.trim(),
+                                    ownerType: "business",
+                                  }),
+                                "Owner assignment saved.",
+                              ).then(() => setOwnerEmail(""))
+                            }
+                            type="button"
+                          >
+                            Save owner
+                          </button>
+                        </div>
+                      </div>
+                      <div className="gh-form-block gh-form-block-compact">
+                        <div className="gh-panel-title">Create request</div>
+                        <div className="gh-form-inline gh-form-inline-stacked">
+                          <input
+                            className="gh-input"
+                            onChange={(event) => setRequestTitle(event.target.value)}
+                            placeholder="Request title"
+                            value={requestTitle}
+                          />
+                          <textarea
+                            className="gh-input gh-textarea"
+                            onChange={(event) => setRequestNote(event.target.value)}
+                            placeholder="Optional note"
+                            rows={3}
+                            value={requestNote}
+                          />
+                          <button
+                            className="gh-secondary-button gh-secondary-button-compact"
+                            disabled={!requestTitle.trim() || mutationState.loading}
+                            onClick={() =>
+                              runGovernanceMutation(
+                                "request",
+                                () =>
+                                  createGovernanceRequest({
+                                    assetFqn: focusedAssetFqn,
+                                    title: requestTitle.trim(),
+                                    note: requestNote.trim(),
+                                  }),
+                                "Governance request created.",
+                              ).then(() => {
+                                setRequestTitle("");
+                                setRequestNote("");
+                              })
+                            }
+                            type="button"
+                          >
+                            Create request
+                          </button>
+                        </div>
+                      </div>
+                      <div className="gh-form-block gh-form-block-compact">
+                        <div className="gh-panel-title">Create glossary term</div>
+                        <div className="gh-form-inline gh-form-inline-stacked">
+                          <input
+                            className="gh-input"
+                            onChange={(event) => setGlossaryName(event.target.value)}
+                            placeholder="Term name"
+                            value={glossaryName}
+                          />
+                          <textarea
+                            className="gh-input gh-textarea"
+                            onChange={(event) => setGlossaryDefinition(event.target.value)}
+                            placeholder="Definition"
+                            rows={3}
+                            value={glossaryDefinition}
+                          />
+                          <button
+                            className="gh-secondary-button gh-secondary-button-compact"
+                            disabled={!glossaryName.trim() || mutationState.loading}
+                            onClick={() =>
+                              runGovernanceMutation(
+                                "glossary",
+                                () =>
+                                  upsertGovernanceGlossaryTerm({
+                                    name: glossaryName.trim(),
+                                    definition: glossaryDefinition.trim(),
+                                  }),
+                                "Glossary term saved.",
+                              ).then(() => {
+                                setGlossaryName("");
+                                setGlossaryDefinition("");
+                              })
+                            }
+                            type="button"
+                          >
+                            Create term
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                ) : null}
+
+                <section className="gh-detail-section">
+                  <div className="gh-governance-section-head">
+                    <div>
+                      <div className="gh-panel-title">Linked glossary</div>
+                    </div>
+                    <span className="gh-chip gh-chip-soft">{linkedGlossary.length} terms</span>
+                  </div>
+                  {linkedGlossary.length ? (
+                    <div className="gh-governance-linked-list">
+                      {linkedGlossary.map((item) => (
+                        <div className="gh-governance-linked-row" key={item.id}>
+                          <button
+                            className="gh-filter-chip gh-chip-soft"
+                            onClick={() => {
+                              setMode("glossary");
+                              setSelectedWorkId("");
+                              setSelectedGlossaryId(item.id);
+                              if (item.assets?.[0]) {
+                                focusAsset(item.assets[0], { preserveGlossary: true, syncRoute: true });
+                              }
+                            }}
+                            type="button"
+                          >
+                            {item.title}
+                          </button>
+                          <div className="gh-chip-row">
+                            <span className="gh-support-copy">{item.subtitle}</span>
+                          </div>
                         </div>
                       ))}
                     </div>
-                    <div className="gh-action-grid">
-                      <button
-                        className="gh-secondary-button"
-                        onClick={() => onOpenAsset(focusedAsset.fqn)}
-                        type="button"
-                      >
+                  ) : (
+                    <div className="gh-empty-state">
+                      No glossary terms are linked to this asset yet.
+                    </div>
+                  )}
+                </section>
+
+                <div className="gh-action-grid">
+                  {focusedAsset ? (
+                    <>
+                      <button className="gh-secondary-button" onClick={() => onOpenAsset(focusedAsset.fqn)} type="button">
                         Open asset
                       </button>
                       <button
@@ -475,99 +723,91 @@ export default function GovernanceWorkspace({
                       {focusedAssetLimited ? (
                         <button
                           className="gh-secondary-button"
-                          onClick={() => focusAsset("", { preserveWork: false, preserveGlossary: false })}
+                          onClick={() => focusAsset("", { preserveWork: false, preserveGlossary: false, syncRoute: true })}
                           type="button"
                         >
                           Return to open work
                         </button>
                       ) : null}
-                    </div>
-
-                    {linkedGlossary.length ? (
-                      <div className="gh-detail-section">
-                        <div className="gh-panel-title">Linked glossary</div>
-                        <div className="gh-governance-linked-list">
-                          {linkedGlossary.map((item) => (
-                            <div className="gh-governance-linked-row" key={item.id}>
-                              <button
-                                className="gh-filter-chip gh-chip-soft"
-                                onClick={() => {
-                                  setMode("glossary");
-                                  setSelectedWorkId("");
-                                  setSelectedGlossaryId(item.id);
-                                }}
-                                type="button"
-                              >
-                                {item.title}
-                              </button>
-                              <div className="gh-chip-row">
-                                <span className="gh-support-copy">{item.subtitle}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-                  </section>
-                ) : (
-                  <div className="gh-empty-state">
-                    Select a stewardship item to inspect its details.
-                  </div>
-                )}
-              </section>
+                    </>
+                  ) : null}
+                </div>
+              </aside>
             </div>
           ) : (
-            <div className="gh-governance-workbench gh-governance-workbench-single">
+            <div className="gh-governance-workbench">
               <section className="gh-panel gh-governance-main-pane gh-governance-main-pane-dense">
-                <div className="gh-governance-worklist-head">
-                  <div className="gh-panel-title">Stewardship lanes</div>
-                </div>
-                <div className="gh-summary-grid gh-summary-grid-tight">
-                  {[
-                    { key: "open-work", label: "Open work", count: views.requests.length },
-                    { key: "glossary", label: "Glossary terms", count: views.glossary.length },
-                  ].map((lane) => (
-                    <div className="gh-stat-card" key={lane.key}>
-                      <span className="gh-stat-label">{lane.label}</span>
-                      <span className="gh-stat-value">{lane.count}</span>
+                <section className="gh-detail-section">
+                  <div className="gh-governance-section-head">
+                    <div>
+                      <div className="gh-panel-title">Stewardship lanes</div>
                     </div>
-                  ))}
-                </div>
-                {views.requests.length ? (
-                  <section className="gh-detail-section">
+                    <span className="gh-chip gh-chip-soft">{visibleWorkItems.length} visible</span>
+                  </div>
+                  <div className="gh-governance-lane-rail">
+                    {laneSummary.map((lane) => (
+                      <button
+                        className={`gh-governance-lane-chip ${selectedLaneKey === lane.key ? "is-active" : ""}`}
+                        key={lane.key}
+                        onClick={() => setSelectedLaneKey(lane.key)}
+                        type="button"
+                      >
+                        <span>{lane.label}</span>
+                        <strong>{lane.count}</strong>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+                <section className="gh-detail-section">
+                  <div className="gh-governance-worklist-head">
                     <div className="gh-panel-title">Open work</div>
-                    <div className="gh-request-list">
-                      {views.requests.map((item) => (
-                        <button
-                          className={`gh-request-card gh-request-row ${selectedItem?.id === item.id ? "is-active" : ""}`}
-                          key={item.id}
-                          onClick={() => setSelectedWorkId(item.id)}
-                          type="button"
-                        >
-                          <div className="gh-request-title">{item.title}</div>
-                          <div className="gh-request-meta">{item.subtitle}</div>
-                          <div className="gh-chip-row">
-                            <span className="gh-chip gh-chip-soft">{item.status}</span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                ) : null}
+                    <span className="gh-chip gh-chip-soft">{views.requests.length} requests</span>
+                  </div>
+                  {views.requests.length ? (
+                    visibleWorkItems.length ? (
+                      <div className="gh-request-list gh-request-list-dense">
+                        {visibleWorkItems.map((item) => (
+                          <button
+                            className={`gh-request-card gh-request-row ${selectedItem?.id === item.id ? "is-active" : ""}`}
+                            key={item.id}
+                            onClick={() => setSelectedWorkId(item.id)}
+                            type="button"
+                          >
+                            <div className="gh-request-card-topline">
+                              <div>
+                                <div className="gh-request-title">{item.title}</div>
+                                <div className="gh-request-meta">{item.subtitle}</div>
+                              </div>
+                              <div className="gh-chip-row">
+                                <span className="gh-chip gh-chip-soft">{requestLane(item).replace("-", " ")}</span>
+                                <span className="gh-chip gh-chip-soft">{item.status}</span>
+                              </div>
+                            </div>
+                            <div className="gh-support-copy">{item.detail}</div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="gh-empty-state">No items are available in this lane yet.</div>
+                    )
+                  ) : null}
+                </section>
                 {selectedItem ? (
                   <section className="gh-detail-section">
-                    <div className="gh-panel-title">Selected work</div>
-                    <h2>{selectedItem.title}</h2>
-                    <div className="gh-support-copy">{selectedItem.subtitle}</div>
-                    <div className="gh-chip-row">
+                    <div className="gh-governance-section-head">
+                      <div>
+                        <div className="gh-panel-title">Selected work</div>
+                      </div>
                       <span className="gh-chip gh-chip-soft">{selectedItem.status}</span>
                     </div>
+                    <h2>{selectedItem.title}</h2>
+                    <div className="gh-support-copy">{selectedItem.subtitle}</div>
                     <div className="gh-support-copy">{selectedItem.detail}</div>
                     {selectedItem.assetFqn ? (
                       <div className="gh-action-grid">
                         <button
                           className="gh-primary-button"
-                          onClick={() => focusAsset(selectedItem.assetFqn, { preserveWork: true })}
+                          onClick={() => focusAsset(selectedItem.assetFqn, { preserveWork: true, syncRoute: true })}
                           type="button"
                         >
                           Focus here
@@ -590,43 +830,53 @@ export default function GovernanceWorkspace({
                     ) : null}
                   </section>
                 ) : null}
-                <section className="gh-detail-section">
-                  <div className="gh-panel-title">Glossary activity</div>
-                  <div className="gh-support-copy">
-                    Recent linked terms and metadata definitions that need attention.
-                  </div>
-                {views.glossary.length ? (
-                  <div className="gh-request-list">
-                    {views.glossary.slice(0, 8).map((item) => (
-                      <button
-                        className={`gh-request-card gh-request-row ${selectedGlossary?.id === item.id ? "is-active" : ""}`}
-                        key={item.id}
-                        onClick={() => {
-                          setMode("glossary");
-                          setSelectedWorkId("");
-                          setSelectedGlossaryId(item.id);
-                        }}
-                        type="button"
-                      >
-                        <div className="gh-request-title">{item.title}</div>
-                        <div className="gh-request-meta">{item.subtitle}</div>
-                        <div className="gh-chip-row">
-                          <span className="gh-chip gh-chip-soft">{item.status}</span>
-                          <span className="gh-chip gh-chip-soft">{item.assetCount} assets</span>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="gh-empty-state">No glossary terms are surfaced yet.</div>
-                )}
-                </section>
               </section>
+
+              <aside className="gh-panel gh-governance-side-pane gh-governance-side-pane-dense">
+                <section className="gh-detail-section">
+                  <div className="gh-governance-section-head">
+                    <div>
+                      <div className="gh-panel-title">Glossary terms</div>
+                    </div>
+                    <span className="gh-chip gh-chip-soft">{views.glossary.length} terms</span>
+                  </div>
+                  {views.glossary.length ? (
+                    <div className="gh-request-list gh-request-list-dense gh-governance-glossary-list">
+                      {views.glossary.slice(0, 6).map((item) => (
+                        <button
+                          className={`gh-request-card gh-request-row ${selectedGlossary?.id === item.id ? "is-active" : ""}`}
+                          key={item.id}
+                          onClick={() => {
+                            setMode("glossary");
+                            setSelectedWorkId("");
+                            setSelectedGlossaryId(item.id);
+                          }}
+                          type="button"
+                        >
+                          <div className="gh-request-card-topline">
+                            <div>
+                              <div className="gh-request-title">{item.title}</div>
+                              <div className="gh-request-meta">{item.subtitle}</div>
+                            </div>
+                            <div className="gh-chip-row">
+                              <span className="gh-chip gh-chip-soft">{item.status}</span>
+                              <span className="gh-chip gh-chip-soft">{item.assetCount} assets</span>
+                            </div>
+                          </div>
+                          <div className="gh-support-copy">{item.detail}</div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="gh-empty-state">No glossary terms are surfaced yet.</div>
+                  )}
+                </section>
+              </aside>
             </div>
           )}
         </div>
       ) : (
-        <div className="gh-governance-workbench gh-governance-workbench-single gh-governance-glossary-workbench">
+        <div className="gh-governance-workbench gh-governance-glossary-workbench">
           <section className="gh-panel gh-governance-main-pane gh-governance-main-pane-dense">
             <div className="gh-governance-glossary-toolbar">
               <input
@@ -648,9 +898,52 @@ export default function GovernanceWorkspace({
                 ))}
               </div>
             </div>
+            <section className="gh-detail-section">
+              <div className="gh-governance-section-head">
+                <div>
+                  <div className="gh-panel-title">Glossary index</div>
+                  <div className="gh-support-copy">Terms are grouped by domain and filtered by search.</div>
+                </div>
+                <span className="gh-chip gh-chip-soft">{glossaryItems.length} visible</span>
+              </div>
+              {glossaryItems.length ? (
+                <div className="gh-request-list gh-request-list-dense gh-governance-glossary-list">
+                  {glossaryItems.map((item) => (
+                    <button
+                      className={`gh-request-card gh-request-row ${selectedGlossary?.id === item.id ? "is-active" : ""}`}
+                      key={item.id}
+                      onClick={() => setSelectedGlossaryId(item.id)}
+                      type="button"
+                    >
+                      <div className="gh-request-card-topline">
+                        <div>
+                          <div className="gh-request-title">{item.title}</div>
+                          <div className="gh-request-meta">{item.subtitle}</div>
+                        </div>
+                        <div className="gh-chip-row">
+                          <span className="gh-chip gh-chip-soft">{item.status}</span>
+                          <span className="gh-chip gh-chip-soft">{item.assetCount} assets</span>
+                        </div>
+                      </div>
+                      <div className="gh-support-copy">{item.detail}</div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="gh-empty-state">No glossary terms match the current search.</div>
+              )}
+            </section>
+          </section>
+
+          <aside className="gh-panel gh-governance-side-pane gh-governance-side-pane-dense">
             {selectedGlossary ? (
               <section className="gh-detail-section">
-                <div className="gh-panel-title">Selected term</div>
+                <div className="gh-governance-section-head">
+                  <div>
+                    <div className="gh-panel-title">Selected term</div>
+                  </div>
+                  <span className="gh-chip gh-chip-soft">{selectedGlossary.assetCount} assets</span>
+                </div>
                 <div className="gh-governance-focus-header">
                   <div>
                     <h2>{selectedGlossary.title}</h2>
@@ -672,7 +965,7 @@ export default function GovernanceWorkspace({
                             className="gh-filter-chip gh-chip-soft"
                             onClick={() => {
                               setMode("stewardship");
-                              focusAsset(assetFqn);
+                              focusAsset(assetFqn, { syncRoute: true });
                             }}
                             type="button"
                           >
@@ -691,21 +984,6 @@ export default function GovernanceWorkspace({
                   ) : (
                     <div className="gh-empty-state">
                       No linked assets are surfaced for this term yet.
-                      <div className="gh-action-grid">
-                        <button
-                          className="gh-secondary-button"
-                          onClick={() => {
-                            setMode("stewardship");
-                            setAssetSearchQuery(selectedGlossary.title);
-                          }}
-                          type="button"
-                        >
-                          Search matching assets
-                        </button>
-                        <button className="gh-secondary-button" onClick={() => setMode("stewardship")} type="button">
-                          Open workbench
-                        </button>
-                      </div>
                     </div>
                   )}
                 </section>
@@ -715,46 +993,19 @@ export default function GovernanceWorkspace({
                       className="gh-primary-button"
                       onClick={() => {
                         setMode("stewardship");
-                        focusAsset(selectedGlossary.assets[0]);
+                        focusAsset(selectedGlossary.assets[0], { syncRoute: true });
                       }}
                       type="button"
                     >
-                      Open workbench
-                    </button>
-                    <button
-                      className="gh-secondary-button"
-                      onClick={() => onOpenLineage(selectedGlossary.assets[0], "Data Lineage")}
-                      type="button"
-                    >
-                      Open lineage
+                      Open stewardship
                     </button>
                   </div>
                 ) : null}
               </section>
-            ) : null}
-            {glossaryItems.length ? (
-              <div className="gh-request-list">
-                {glossaryItems.map((item) => (
-                  <button
-                    className={`gh-request-card gh-request-row ${selectedGlossary?.id === item.id ? "is-active" : ""}`}
-                    key={item.id}
-                    onClick={() => setSelectedGlossaryId(item.id)}
-                    type="button"
-                  >
-                    <div className="gh-request-title">{item.title}</div>
-                    <div className="gh-request-meta">{item.subtitle}</div>
-                    <div className="gh-support-copy">{item.detail}</div>
-                    <div className="gh-chip-row">
-                      <span className="gh-chip gh-chip-soft">{item.status}</span>
-                      <span className="gh-chip gh-chip-soft">{item.assetCount} assets</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
             ) : (
-              <div className="gh-empty-state">No glossary terms match the current search.</div>
+              <div className="gh-empty-state">Select a glossary term to inspect it.</div>
             )}
-          </section>
+          </aside>
         </div>
       )}
     </section>
