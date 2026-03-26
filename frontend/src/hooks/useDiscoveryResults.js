@@ -52,7 +52,7 @@ export function useDiscoveryResults(filters, seededAssets = []) {
             facets: null,
           });
         });
-    }, 120);
+    }, 80);
 
     return () => {
       canceled = true;
