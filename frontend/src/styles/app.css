@@ -1672,6 +1672,24 @@ body {
   gap: 6px;
 }
 
+.gh-lineage-context-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.gh-lineage-context-group {
+  display: grid;
+  gap: 8px;
+}
+
+.gh-lineage-context-label {
+  color: #60748e;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .gh-lineage-linked-row {
   width: 100%;
   padding: 8px 10px;
@@ -2365,8 +2383,9 @@ body {
 }
 
 .gh-shell-topbar {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(212px, auto);
   align-items: start;
+  gap: 14px;
 }
 
 .gh-shell-commandbar {
@@ -2379,7 +2398,8 @@ body {
   min-width: 0;
   display: flex;
   align-items: stretch;
-  gap: 14px;
+  flex: 1 1 auto;
+  gap: 16px;
 }
 
 .gh-shell-brand-band,
@@ -2393,7 +2413,7 @@ body {
 .gh-shell-brand-band {
   display: flex;
   align-items: center;
-  padding: 18px 22px;
+  padding: 20px 24px;
   box-shadow: var(--gh-shadow-soft);
 }
 
@@ -2401,7 +2421,9 @@ body {
   flex: 1 1 auto;
   display: grid;
   gap: 8px;
-  padding: 12px;
+  align-content: start;
+  min-height: 92px;
+  padding: 14px 16px;
 }
 
 .gh-shell-brand {
@@ -2425,9 +2447,9 @@ body {
 .gh-shell-brand-mark {
   display: grid;
   place-items: center;
-  width: 62px;
-  height: 62px;
-  border-radius: 14px;
+  width: 68px;
+  height: 68px;
+  border-radius: 16px;
   background: linear-gradient(135deg, #4b34d4 0%, #5b43ee 56%, #7257ff 100%);
   color: #fff;
   font-size: 0.96rem;
@@ -2443,7 +2465,8 @@ body {
 }
 
 .gh-shell-module-label,
-.gh-global-search-label {
+.gh-global-search-label,
+.gh-field-label {
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -2452,7 +2475,7 @@ body {
 }
 
 .gh-shell-brand-title {
-  font-size: 2.12rem;
+  font-size: 2.3rem;
   font-weight: 800;
   letter-spacing: -0.05em;
   color: var(--gh-ink);
@@ -2480,10 +2503,10 @@ body {
 }
 
 .gh-product-tab {
-  min-width: 168px;
-  min-height: 50px;
-  padding: 0 24px;
-  border-radius: 14px;
+  min-width: 176px;
+  min-height: 54px;
+  padding: 0 26px;
+  border-radius: 15px;
   border: 1px solid rgba(182, 198, 216, 0.96);
   background: rgba(247, 250, 255, 0.92);
   color: #334763;
@@ -2647,8 +2670,10 @@ body {
 }
 
 .gh-shell-topbar-utility {
+  min-width: 0;
   justify-content: flex-end;
   align-items: flex-start;
+  padding-top: 4px;
 }
 
 .gh-shell-identity-block {
@@ -2788,9 +2813,19 @@ body {
 }
 
 .gh-discovery-command-bar {
-  grid-template-columns: minmax(0, 1fr) 180px auto;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 196px auto;
+  gap: 12px;
   align-items: center;
+}
+
+.gh-discovery-sort-field {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.gh-select-sort {
+  padding-right: 2.5rem;
 }
 
 .gh-discovery-sidebar-panel .gh-category-row,

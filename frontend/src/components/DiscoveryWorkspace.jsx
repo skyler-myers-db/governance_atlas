@@ -698,19 +698,23 @@ export default function DiscoveryWorkspace({
                 placeholder="Filter visible assets by name, schema, owner, domain, or tag"
                 value={filters.query}
               />
-              <select
-                className="gh-select"
-                onChange={(event) =>
-                  onDiscoveryStateChange((current) => ({ ...current, sortBy: event.target.value }))
-                }
-                value={filters.sortBy}
-              >
-                {bootstrap.discovery.sortOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+              <label className="gh-discovery-sort-field" htmlFor="gh-discovery-sort">
+                <span className="gh-field-label">Sort by</span>
+                <select
+                  className="gh-select gh-select-sort"
+                  id="gh-discovery-sort"
+                  onChange={(event) =>
+                    onDiscoveryStateChange((current) => ({ ...current, sortBy: event.target.value }))
+                  }
+                  value={filters.sortBy}
+                >
+                  {bootstrap.discovery.sortOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div className="gh-discovery-command-actions" ref={filterCommandRef}>
                 <button
                   className={`gh-secondary-button ${showAdvancedFilters ? "is-active" : ""}`}

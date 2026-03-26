@@ -23,13 +23,12 @@ export function useAssetSearch(query, enabled = true) {
 
     let canceled = false;
     setState((prev) => ({
-      loading: false,
+      loading: true,
       assets: prev.resolvedQuery === trimmedQuery ? prev.assets : [],
       error: "",
       resolvedQuery: prev.resolvedQuery === trimmedQuery ? prev.resolvedQuery : "",
     }));
     const timeout = setTimeout(() => {
-      setState((prev) => ({ ...prev, loading: true, error: "" }));
       fetchDiscoverySearch({
         query: trimmedQuery,
         sortBy: "Best match",
@@ -53,7 +52,7 @@ export function useAssetSearch(query, enabled = true) {
             resolvedQuery: "",
           });
         });
-    }, 90);
+    }, 60);
 
     return () => {
       canceled = true;
