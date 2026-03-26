@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAssetDetail } from "../hooks/useAssetDetail";
+import { useLineage } from "../hooks/useLineage";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 
@@ -80,17 +81,6 @@ function activeFilters(filters) {
   return chips;
 }
 
-function metadataRowItems(asset) {
-  return [
-    { label: "Coverage", value: `${asset.coverageScore ?? 0}` },
-    { label: "Owners", value: `${asset.owners?.length || 0}` },
-    { label: "Open Requests", value: `${asset.openRequests || 0}` },
-    { label: "Domain", value: asset.domain || "Unassigned" },
-    { label: "Tier", value: asset.tier || "Unassigned" },
-    { label: "Certification", value: asset.certification || "Unassigned" },
-  ];
-}
-
 function resultMetaItems(asset) {
   return [
     `Coverage ${asset.coverageScore ?? 0}`,
@@ -105,6 +95,36 @@ function resultMetaItems(asset) {
 function facetCount(facets, key, value) {
   const entries = facets?.[key] || [];
   return entries.find((entry) => entry.value === value)?.count || 0;
+}
+
+function previewRelatedAssetsFromGraph(graphBundle, focusFqn) {
+  const nodes = graphBundle?.data?.nodes || [];
+  return [...new Set(
+    nodes
+      .filter((node) => node?.assetFqn && node.assetFqn !== focusFqn)
+      .map((node) => node.assetFqn),
+  )].slice(0, 6);
+}
+
+function previewSignalItems(asset, columnsCount, relatedCount, detailLoading, lineageLoading) {
+  return [
+    {
+      label: "Stewardship",
+      value: asset.owners?.length ? `${asset.owners.length} owners assigned` : "Needs owner",
+    },
+    {
+      label: "Certification",
+      value: asset.certification || "Unassigned",
+    },
+    {
+      label: "Schema",
+      value: detailLoading && !columnsCount ? "Loading live columns..." : columnsCount ? `${columnsCount} columns surfaced` : "No schema surfaced",
+    },
+    {
+      label: "Lineage",
+      value: lineageLoading && !relatedCount ? "Loading lineage neighbors..." : relatedCount ? `${relatedCount} linked assets` : "No linked assets surfaced",
+    },
+  ];
 }
 
 function ownerLabel(owner) {
@@ -337,7 +357,7 @@ function PreviewSection({ title, children, empty }) {
   return (
     <section className="gh-preview-section">
       <div className="gh-panel-title">{title}</div>
-      {empty ? <div className="gh-support-copy">{empty}</div> : children}
+      {children ? children : empty ? <div className="gh-support-copy">{empty}</div> : null}
     </section>
   );
 }
@@ -357,10 +377,12 @@ function PreviewProfileList({ items }) {
 
 function SelectionPreview({
   asset,
-  loading,
-  error,
+  detailLoading,
+  detailError,
+  lineageLoading,
+  lineageError,
+  lineageGraph,
   onOpenAsset,
-  onOpenGovernance,
   onOpenLineage,
   onSelectAsset,
 }) {
@@ -374,7 +396,16 @@ function SelectionPreview({
   }
 
   const columns = (asset.columns || []).slice(0, 4);
-  const relatedAssets = (asset.relatedAssets || []).slice(0, 3);
+  const relatedAssets = (
+    asset.relatedAssets?.length ? asset.relatedAssets : previewRelatedAssetsFromGraph(lineageGraph, asset.fqn)
+  ).slice(0, 4);
+  const signalItems = previewSignalItems(
+    asset,
+    asset.columns?.length || 0,
+    relatedAssets.length,
+    detailLoading,
+    lineageLoading,
+  );
 
   return (
     <aside className="gh-preview-panel">
@@ -404,8 +435,11 @@ function SelectionPreview({
         </button>
       </div>
 
-      {error ? <div className="gh-inline-alert tone-warn">{error}</div> : null}
-      {loading ? <div className="gh-support-copy">Refreshing live metadata for this selection...</div> : null}
+      {detailError ? <div className="gh-inline-alert tone-warn">{detailError}</div> : null}
+      {lineageError && !relatedAssets.length ? <div className="gh-inline-alert tone-warn">{lineageError}</div> : null}
+      {detailLoading || lineageLoading ? (
+        <div className="gh-support-copy">Refreshing live metadata for this selection...</div>
+      ) : null}
 
       <PreviewSection title="Definition">
         <div className="gh-support-copy">
@@ -413,11 +447,18 @@ function SelectionPreview({
         </div>
       </PreviewSection>
 
-      <PreviewSection title="Record Profile">
-        <PreviewProfileList items={metadataRowItems(asset)} />
+      <PreviewSection title="Stewardship Signals">
+        <PreviewProfileList items={signalItems} />
       </PreviewSection>
 
-      <PreviewSection title="Schema" empty="No schema metadata is available for this asset yet.">
+      <PreviewSection
+        title="Schema"
+        empty={
+          detailLoading
+            ? "Loading live schema metadata..."
+            : "No schema metadata is available for this asset yet."
+        }
+      >
         {columns.length ? (
           <div className="gh-preview-column-list">
             {columns.map((column) => (
@@ -435,7 +476,11 @@ function SelectionPreview({
 
       <PreviewSection
         title="Related Assets"
-        empty="No connected lineage edges are surfaced for this asset yet."
+        empty={
+          lineageLoading
+            ? "Loading connected lineage edges..."
+            : "No connected lineage edges are surfaced for this asset yet."
+        }
       >
         {relatedAssets.length ? (
           <div className="gh-lineage-linked-list">
@@ -477,6 +522,11 @@ export default function DiscoveryWorkspace({
   const selectedSeedAsset =
     discoveryResults.assets.find((asset) => asset.fqn === selectedAssetFqn) || discoveryResults.assets[0] || null;
   const previewDetail = useAssetDetail(selectedSeedAsset?.fqn || "");
+  const previewLineage = useLineage(
+    selectedSeedAsset?.fqn || "",
+    selectedSeedAsset?.fqn ? bootstrap?.graphs?.[selectedSeedAsset.fqn] || null : null,
+    Boolean(selectedSeedAsset?.fqn),
+  );
   const previewAsset = previewDetail.detail || selectedSeedAsset;
 
   useEffect(() => {
@@ -592,6 +642,7 @@ export default function DiscoveryWorkspace({
                     type="button"
                   >
                     <span>{view}</span>
+                    <span className="gh-category-count">{facetCount(resultsFacets, "views", view)}</span>
                   </button>
                 ))}
               </div>
@@ -744,7 +795,7 @@ export default function DiscoveryWorkspace({
               <div>{resultsError}</div>
               <div className="gh-support-copy">
                 {bootstrap.bootMessage ||
-                  "The search surface is reachable, but the live metadata plane could not return discovery results."}
+                  "The search surface is reachable, but live discovery could not return results."}
               </div>
               <div className="gh-empty-state-actions">
                 {filters.query ? (
@@ -805,12 +856,14 @@ export default function DiscoveryWorkspace({
         {!showDominantState ? (
           <SelectionPreview
             asset={previewAsset}
-            error={previewDetail.error}
-            loading={previewDetail.loading}
+            detailError={previewDetail.error}
+            detailLoading={previewDetail.loading}
+            lineageError={previewLineage.error}
+            lineageGraph={previewLineage.graph}
+            lineageLoading={previewLineage.loading}
             onOpenAsset={onOpenAsset}
-            onOpenGovernance={onOpenGovernance}
             onOpenLineage={onOpenLineage}
-            onSelectAsset={onOpenAsset}
+            onSelectAsset={setSelectedAssetFqn}
           />
         ) : null}
       </section>

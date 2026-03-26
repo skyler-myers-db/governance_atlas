@@ -2471,7 +2471,7 @@ body {
 }
 
 .gh-shell-commandbar {
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.44fr);
+  grid-template-columns: 1fr;
   margin-top: 10px;
   align-items: start;
 }
@@ -2494,7 +2494,7 @@ body {
 .gh-shell-brand-band {
   display: flex;
   align-items: center;
-  padding: 14px 16px;
+  padding: 16px 18px;
   box-shadow: var(--gh-shadow-soft);
 }
 
@@ -2502,7 +2502,7 @@ body {
   flex: 1 1 auto;
   display: grid;
   gap: 8px;
-  padding: 10px;
+  padding: 12px;
 }
 
 .gh-shell-brand {
@@ -2526,8 +2526,8 @@ body {
 .gh-shell-brand-mark {
   display: grid;
   place-items: center;
-  width: 58px;
-  height: 58px;
+  width: 62px;
+  height: 62px;
   border-radius: 14px;
   background: linear-gradient(135deg, #4b34d4 0%, #5b43ee 56%, #7257ff 100%);
   color: #fff;
@@ -2554,7 +2554,7 @@ body {
 }
 
 .gh-shell-brand-title {
-  font-size: 1.84rem;
+  font-size: 2rem;
   font-weight: 800;
   letter-spacing: -0.05em;
   color: var(--gh-ink);
@@ -2562,7 +2562,7 @@ body {
 
 .gh-shell-brand-subtitle {
   color: #60748e;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -2582,9 +2582,9 @@ body {
 }
 
 .gh-product-tab {
-  min-width: 154px;
-  min-height: 46px;
-  padding: 0 20px;
+  min-width: 164px;
+  min-height: 48px;
+  padding: 0 22px;
   border-radius: 14px;
   border: 1px solid rgba(182, 198, 216, 0.96);
   background: rgba(247, 250, 255, 0.92);
@@ -2596,7 +2596,7 @@ body {
 }
 
 .gh-product-tab span {
-  font-size: 0.94rem;
+  font-size: 0.96rem;
   font-weight: 800;
   letter-spacing: -0.01em;
 }
@@ -2752,31 +2752,7 @@ body {
 
 .gh-shell-topbar-utility {
   justify-content: flex-end;
-}
-
-.gh-shell-inline-status {
-  display: grid;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1px solid rgba(214, 224, 236, 0.92);
-  border-radius: 14px;
-  background: rgba(250, 252, 255, 0.9);
-}
-
-.gh-shell-runtime-label {
-  color: #6a7f98;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.gh-shell-inline-status.tone-warn {
-  background: linear-gradient(180deg, rgba(255, 250, 243, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
-}
-
-.gh-shell-inline-status.tone-bad {
-  background: linear-gradient(180deg, rgba(255, 245, 246, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+  align-items: flex-start;
 }
 
 .gh-shell-identity {
@@ -2792,31 +2768,6 @@ body {
   color: var(--gh-ink);
   font-size: 0.84rem;
   font-weight: 800;
-}
-
-.gh-shell-metric-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.gh-shell-metric-chip {
-  min-width: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(214, 224, 236, 0.96);
-  background: rgba(245, 248, 252, 0.92);
-  color: var(--gh-ink-soft);
-  font-size: 0.76rem;
-  font-weight: 700;
-}
-
-.gh-shell-metric-chip strong {
-  color: var(--gh-ink);
-  font-size: 0.84rem;
 }
 
 .gh-main {
@@ -3368,17 +3319,13 @@ body {
 }
 
 .gh-entity-record-topline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
+  display: grid;
+  gap: 4px;
 }
 
 .gh-entity-record-headline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 14px;
 }
 
