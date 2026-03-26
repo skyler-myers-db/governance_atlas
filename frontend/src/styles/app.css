@@ -549,6 +549,8 @@ body {
   margin: 0;
   color: var(--gh-ink-soft);
   line-height: 1.52;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .gh-workspace-title,
@@ -2465,20 +2467,42 @@ body {
 
 .gh-shell-topbar {
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: start;
 }
 
 .gh-shell-commandbar {
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.52fr);
-  margin-top: 12px;
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.44fr);
+  margin-top: 10px;
+  align-items: start;
 }
 
 .gh-shell-spine {
   min-width: 0;
   display: flex;
+  align-items: stretch;
+  gap: 14px;
+}
+
+.gh-shell-brand-band,
+.gh-shell-nav-band {
+  min-width: 0;
+  border: 1px solid rgba(214, 224, 236, 0.92);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.gh-shell-brand-band {
+  display: flex;
   align-items: center;
-  gap: 24px;
+  padding: 14px 16px;
+  box-shadow: var(--gh-shadow-soft);
+}
+
+.gh-shell-nav-band {
+  flex: 1 1 auto;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
 }
 
 .gh-shell-brand {
@@ -2502,8 +2526,8 @@ body {
 .gh-shell-brand-mark {
   display: grid;
   place-items: center;
-  width: 54px;
-  height: 54px;
+  width: 58px;
+  height: 58px;
   border-radius: 14px;
   background: linear-gradient(135deg, #4b34d4 0%, #5b43ee 56%, #7257ff 100%);
   color: #fff;
@@ -2522,15 +2546,15 @@ body {
 .gh-shell-brand-kicker,
 .gh-shell-module-label,
 .gh-global-search-label {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #657a94;
 }
 
 .gh-shell-brand-title {
-  font-size: 1.68rem;
+  font-size: 1.84rem;
   font-weight: 800;
   letter-spacing: -0.05em;
   color: var(--gh-ink);
@@ -2538,7 +2562,7 @@ body {
 
 .gh-shell-brand-subtitle {
   color: #60748e;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -2547,7 +2571,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-start;
-  gap: 8px;
+  gap: 10px;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -2558,10 +2582,10 @@ body {
 }
 
 .gh-product-tab {
-  min-width: 144px;
-  min-height: 42px;
-  padding: 0 18px;
-  border-radius: 12px;
+  min-width: 154px;
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 14px;
   border: 1px solid rgba(182, 198, 216, 0.96);
   background: rgba(247, 250, 255, 0.92);
   color: #334763;
@@ -2572,7 +2596,7 @@ body {
 }
 
 .gh-product-tab span {
-  font-size: 0.92rem;
+  font-size: 0.94rem;
   font-weight: 800;
   letter-spacing: -0.01em;
 }
@@ -2597,13 +2621,13 @@ body {
 }
 
 .gh-global-search-frame {
-  min-height: 64px;
+  min-height: 58px;
   display: grid;
-  grid-template-columns: minmax(220px, auto) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(112px, auto) minmax(0, 1fr) auto;
   grid-template-areas: "copy input button";
-  gap: 10px;
+  gap: 12px;
   align-items: center;
-  padding: 12px 14px;
+  padding: 10px 14px;
   border: 1px solid rgba(214, 224, 236, 0.88);
   border-radius: 14px;
   background: rgba(250, 252, 255, 0.96);
@@ -2698,6 +2722,8 @@ body {
 .gh-search-empty {
   color: var(--gh-ink-soft);
   font-size: 0.8rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .gh-search-result-meta {
@@ -2730,18 +2756,18 @@ body {
 
 .gh-shell-inline-status {
   display: grid;
-  gap: 10px;
-  padding: 14px;
+  gap: 8px;
+  padding: 12px 14px;
   border: 1px solid rgba(214, 224, 236, 0.92);
   border-radius: 14px;
-  background: rgba(250, 252, 255, 0.94);
+  background: rgba(250, 252, 255, 0.9);
 }
 
 .gh-shell-runtime-label {
   color: #6a7f98;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -2764,7 +2790,7 @@ body {
 .gh-shell-user {
   max-width: none;
   color: var(--gh-ink);
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 800;
 }
 
@@ -3104,7 +3130,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 8px;
   min-width: 0;
   padding-top: 8px;
@@ -3123,16 +3149,16 @@ body {
   width: 100%;
   max-width: 100%;
   display: grid;
-  gap: 14px;
+  gap: 12px;
   padding: 18px;
   border: 1px solid rgba(182, 198, 216, 0.82);
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: var(--gh-shadow-soft);
+  overflow: hidden;
 }
 
-.gh-record-card-head,
-.gh-entity-record-header {
+.gh-record-card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -3141,12 +3167,11 @@ body {
 
 .gh-preview-panel-head {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .gh-preview-panel-title-block,
-.gh-entity-record-main,
-.gh-entity-record-actions {
+.gh-entity-record-main {
   min-width: 0;
   display: grid;
   gap: 8px;
@@ -3154,7 +3179,7 @@ body {
 
 .gh-preview-panel-title-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-start;
   gap: 12px;
   flex-wrap: wrap;
@@ -3178,6 +3203,42 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  justify-content: flex-start;
+}
+
+.gh-preview-profile-list {
+  display: grid;
+  gap: 8px;
+}
+
+.gh-preview-profile-row {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(214, 224, 236, 0.88);
+}
+
+.gh-preview-profile-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.gh-preview-profile-row span {
+  color: #6a7f98;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.gh-preview-profile-row strong {
+  min-width: 0;
+  color: var(--gh-ink);
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-align: right;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .gh-preview-section {
@@ -3214,7 +3275,7 @@ body {
 
 .gh-preview-column-row div {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
@@ -3229,7 +3290,7 @@ body {
 
 .gh-discovery-result-actions .gh-inline-link-button,
 .gh-preview-panel-actions .gh-inline-link-button {
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .gh-results-column,
@@ -3295,8 +3356,8 @@ body {
 
 .gh-entity-record-header {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
-  gap: 20px;
+  grid-template-columns: 1fr;
+  gap: 16px;
   align-items: start;
   padding-bottom: 18px;
   border-bottom: 1px solid rgba(214, 224, 236, 0.92);
@@ -3306,58 +3367,36 @@ body {
   gap: 10px;
 }
 
+.gh-entity-record-topline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.gh-entity-record-headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.gh-entity-record-heading-block {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
 .gh-entity-record-summary {
   max-width: 72ch;
   font-size: 0.94rem;
   line-height: 1.58;
 }
 
-.gh-entity-record-actions {
-  padding: 14px 16px;
-  border: 1px solid rgba(214, 224, 236, 0.92);
-  border-radius: 14px;
-  background: rgba(248, 251, 255, 0.92);
-  gap: 12px;
-}
-
-.gh-entity-record-context-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  color: var(--gh-ink-soft);
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.gh-entity-record-context-line span + span::before {
-  content: "•";
-  margin-right: 10px;
-  color: var(--gh-line-strong);
-}
-
 .gh-entity-action-row {
   justify-content: flex-start;
-}
-
-.gh-entity-record-header {
-  padding-bottom: 18px;
-  border-bottom: 1px solid rgba(214, 224, 236, 0.92);
-}
-
-.gh-entity-record-context {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  color: var(--gh-ink-soft);
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.gh-entity-record-context span {
-  padding: 7px 10px;
-  border-radius: 999px;
-  background: rgba(245, 248, 252, 0.92);
-  border: 1px solid rgba(214, 224, 236, 0.92);
+  align-self: flex-start;
 }
 
 .gh-entity-record-metrics {
@@ -3463,7 +3502,18 @@ body {
 }
 
 .gh-lineage-linked-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
   justify-content: space-between;
+}
+
+.gh-lineage-linked-row span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 @media (max-width: 1360px) {

@@ -277,7 +277,7 @@ function DiscoveryResultCard({
           <div className="gh-discovery-result-title-block">
             <div className="gh-discovery-result-title-row">
               <h3>{asset.name}</h3>
-              <span className="gh-chip gh-chip-soft">{objectType}</span>
+              {objectType ? <span className="gh-chip gh-chip-soft">{objectType}</span> : null}
               {asset.sensitivity && asset.sensitivity !== "Unassigned" ? (
                 <span className="gh-chip gh-chip-soft">{asset.sensitivity}</span>
               ) : null}
@@ -342,6 +342,19 @@ function PreviewSection({ title, children, empty }) {
   );
 }
 
+function PreviewProfileList({ items }) {
+  return (
+    <div className="gh-preview-profile-list">
+      {items.map((item) => (
+        <div className="gh-preview-profile-row" key={item.label}>
+          <span>{item.label}</span>
+          <strong>{item.value}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function SelectionPreview({
   asset,
   loading,
@@ -360,14 +373,14 @@ function SelectionPreview({
     );
   }
 
-  const columns = (asset.columns || []).slice(0, 6);
-  const relatedAssets = (asset.relatedAssets || []).slice(0, 6);
+  const columns = (asset.columns || []).slice(0, 4);
+  const relatedAssets = (asset.relatedAssets || []).slice(0, 3);
 
   return (
     <aside className="gh-preview-panel">
       <div className="gh-preview-panel-head">
         <div className="gh-preview-panel-title-block">
-          <div className="gh-eyebrow">Selected asset</div>
+          <div className="gh-eyebrow">Selected Asset</div>
           <div className="gh-preview-panel-title-row">
             <h3>{asset.name}</h3>
             <span className={`gh-status-chip tone-${statusTone(asset)}`}>
@@ -389,13 +402,6 @@ function SelectionPreview({
         >
           Open lineage
         </button>
-        <button
-          className="gh-tertiary-button gh-inline-link-button"
-          onClick={() => onOpenGovernance(asset.fqn)}
-          type="button"
-        >
-          Open governance
-        </button>
       </div>
 
       {error ? <div className="gh-inline-alert tone-warn">{error}</div> : null}
@@ -408,14 +414,7 @@ function SelectionPreview({
       </PreviewSection>
 
       <PreviewSection title="Record Profile">
-        <div className="gh-preview-attribute-grid">
-          {metadataRowItems(asset).map((item) => (
-            <div className="gh-preview-attribute-row" key={item.label}>
-              <span>{item.label}</span>
-              <strong>{item.value}</strong>
-            </div>
-          ))}
-        </div>
+        <PreviewProfileList items={metadataRowItems(asset)} />
       </PreviewSection>
 
       <PreviewSection title="Schema" empty="No schema metadata is available for this asset yet.">
@@ -440,7 +439,7 @@ function SelectionPreview({
       >
         {relatedAssets.length ? (
           <div className="gh-lineage-linked-list">
-            {relatedAssets.slice(0, 4).map((item) => (
+            {relatedAssets.map((item) => (
               <button className="gh-lineage-linked-row" key={item} onClick={() => onSelectAsset(item)} type="button">
                 <span>{item}</span>
                 <span>Open linked asset</span>
@@ -559,7 +558,7 @@ export default function DiscoveryWorkspace({
           <aside className="gh-panel gh-discovery-sidebar-panel">
             <div className="gh-discovery-sidebar-head">
               <div className="gh-eyebrow">Discovery Scope</div>
-              <h3>Browse Asset Types And Filters</h3>
+              <h3>Browse Asset Types and Filters</h3>
               <p>Layer asset type, saved view, catalog, and stacked filters without leaving the catalog.</p>
             </div>
 
@@ -598,7 +597,7 @@ export default function DiscoveryWorkspace({
               </div>
             </SidebarSection>
 
-            <SidebarSection title="Catalogs In Scope">
+            <SidebarSection title="Catalogs in Scope">
               {catalogOptions.length ? (
                 <div className="gh-chip-stack">
                   {catalogOptions.map((catalog) => (
@@ -741,7 +740,7 @@ export default function DiscoveryWorkspace({
             </div>
           ) : resultsError ? (
             <div className="gh-panel gh-empty-state gh-discovery-empty-state">
-              <div className="gh-panel-title">Discovery unavailable</div>
+              <div className="gh-panel-title">Discovery Unavailable</div>
               <div>{resultsError}</div>
               <div className="gh-support-copy">
                 {bootstrap.bootMessage ||
