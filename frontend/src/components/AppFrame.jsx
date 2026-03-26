@@ -168,8 +168,8 @@ export default function AppFrame({
               <span>GH</span>
             </div>
             <div className="gh-shell-brand-copy">
-              <div className="gh-shell-brand-kicker">Governance Hub</div>
-              <div className="gh-shell-brand-title">Metadata Workspace</div>
+              <div className="gh-shell-brand-title">Governance Hub</div>
+              <div className="gh-shell-brand-subtitle">Metadata Workspace</div>
             </div>
           </button>
 
@@ -207,11 +207,10 @@ export default function AppFrame({
               <div className="gh-global-search-frame">
                 <div className="gh-global-search-copy">
                   <label className="gh-global-search-label" htmlFor="gh-global-search-input">
-                    Search
+                    Global Search
                   </label>
-                  <div className="gh-global-search-title">Search assets or open discovery</div>
                   <div className="gh-global-search-subtitle">
-                    Find visible tables, views, domains, tags, and stewardship gaps from one workspace.
+                    Jump directly to a visible asset record from anywhere in the workspace.
                   </div>
                 </div>
                 <div className="gh-global-search-input-wrap">
@@ -240,7 +239,7 @@ export default function AppFrame({
                     onKeyDown={(event) => {
                       if (event.key === "Escape") setSearchPanelOpen(false);
                     }}
-                    placeholder="Search visible data assets by name, schema, domain, or tag"
+                    placeholder="Search visible assets by name, schema, domain, or tag"
                     value={searchQuery}
                   />
                 </div>
