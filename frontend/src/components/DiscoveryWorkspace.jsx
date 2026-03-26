@@ -384,7 +384,6 @@ function SelectionPreview({
   lineageGraph,
   onOpenAsset,
   onOpenLineage,
-  onSelectAsset,
 }) {
   if (!asset) {
     return (
@@ -485,7 +484,7 @@ function SelectionPreview({
         {relatedAssets.length ? (
           <div className="gh-lineage-linked-list">
             {relatedAssets.map((item) => (
-              <button className="gh-lineage-linked-row" key={item} onClick={() => onSelectAsset(item)} type="button">
+              <button className="gh-lineage-linked-row" key={item} onClick={() => onOpenAsset(item)} type="button">
                 <span>{item}</span>
                 <span>Open linked asset</span>
               </button>
@@ -698,10 +697,11 @@ export default function DiscoveryWorkspace({
                 placeholder="Filter visible assets by name, schema, owner, domain, or tag"
                 value={filters.query}
               />
-              <label className="gh-discovery-sort-field" htmlFor="gh-discovery-sort">
-                <span className="gh-field-label">Sort by</span>
+              <div className="gh-discovery-sort-field">
+                <span className="gh-field-label gh-field-label-inline">Sort by</span>
                 <select
                   className="gh-select gh-select-sort"
+                  aria-label="Sort metadata catalog results"
                   id="gh-discovery-sort"
                   onChange={(event) =>
                     onDiscoveryStateChange((current) => ({ ...current, sortBy: event.target.value }))
@@ -714,7 +714,7 @@ export default function DiscoveryWorkspace({
                     </option>
                   ))}
                 </select>
-              </label>
+              </div>
               <div className="gh-discovery-command-actions" ref={filterCommandRef}>
                 <button
                   className={`gh-secondary-button ${showAdvancedFilters ? "is-active" : ""}`}
@@ -867,7 +867,6 @@ export default function DiscoveryWorkspace({
             lineageLoading={previewLineage.loading}
             onOpenAsset={onOpenAsset}
             onOpenLineage={onOpenLineage}
-            onSelectAsset={setSelectedAssetFqn}
           />
         ) : null}
       </section>

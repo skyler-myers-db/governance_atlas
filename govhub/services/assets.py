@@ -12,6 +12,7 @@ from govhub.uc import _is_skippable_metadata_error
 
 
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
+PLACEHOLDER_DESCRIPTION = "No description has been captured for this asset yet."
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
 
@@ -472,7 +473,7 @@ def friendly_table_type(raw: Any, data_source_format: Any = None) -> str:
         return "Delta Table"
     if normalized in mapping:
         return mapping[normalized]
-    return normalize_str(raw).replace("_", " ").title() or "Table"
+    return normalize_str(raw).replace("_", " ").title()
 
 
 def friendly_storage_format(raw: Any) -> str:
@@ -590,7 +591,7 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         "catalog": normalize_str(row.get("table_catalog")),
         "schema": normalize_str(row.get("table_schema")),
         "objectType": friendly_table_type(raw_table_type, raw_storage_format),
-        "description": normalize_str(row.get("comment")) or "No description has been captured for this asset yet.",
+        "description": normalize_str(row.get("comment")) or PLACEHOLDER_DESCRIPTION,
         "coverageScore": safe_int(row.get("governance_score")),
         "rows": "—",
         "format": friendly_storage_format(raw_storage_format),
@@ -613,6 +614,93 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         "governanceStatus": normalize_str(row.get("governance_status")) or "Needs Work",
         "omTableFqn": normalize_str(row.get("om_table_fqn")),
     }
+
+
+def exact_identity_row(
+    uc,
+    asset_fqn: str,
+    inventory_columns: Optional[Sequence[str]] = None,
+) -> Optional[pd.Series]:
+    catalog, schema, table = split_uc_name(asset_fqn)
+    try:
+        identity_df = uc.get_table_identity(catalog, schema, table)
+    except Exception:
+        return None
+    if identity_df is None or identity_df.empty:
+        return None
+
+    base: Dict[str, Any] = {column: "" for column in (inventory_columns or [])}
+    identity = identity_df.iloc[0].to_dict()
+    base.update(
+        {
+            "fqn": asset_fqn,
+            "table_catalog": normalize_str(identity.get("table_catalog")) or catalog,
+            "table_schema": normalize_str(identity.get("table_schema")) or schema,
+            "table_name": normalize_str(identity.get("table_name")) or table,
+            "table_type": normalize_str(identity.get("table_type")),
+            "data_source_format": normalize_str(identity.get("data_source_format")),
+            "comment": normalize_str(identity.get("comment")),
+        }
+    )
+
+    try:
+        tags_df = uc.get_table_tags(catalog, schema, table)
+    except Exception:
+        tags_df = pd.DataFrame()
+
+    tags = {
+        normalize_str(row.get("tag_name")): normalize_str(row.get("tag_value"))
+        for _, row in tags_df.iterrows()
+        if normalize_str(row.get("tag_name"))
+    }
+    base["tags"] = tags
+    base["domain"] = tag_value(tags, "domain")
+    base["tier"] = tag_value(tags, "tier")
+    base["certification"] = tag_value(tags, "certification")
+    base["sensitivity"] = tag_value(tags, "sensitivity")
+    base["criticality"] = tag_value(tags, "criticality")
+    base["glossary_term"] = tag_value(tags, "glossary_term")
+    base["data_product"] = tag_value(tags, "data_product")
+    base.setdefault("governance_status", "Needs Work")
+    return pd.Series(base)
+
+
+def merge_identity_row(base_row: pd.Series, exact_row: Optional[pd.Series]) -> pd.Series:
+    if exact_row is None:
+        return base_row
+
+    merged = base_row.copy()
+    for key in [
+        "fqn",
+        "table_catalog",
+        "table_schema",
+        "table_name",
+        "table_type",
+        "data_source_format",
+        "comment",
+    ]:
+        value = normalize_str(exact_row.get(key))
+        if value:
+            merged[key] = value
+
+    base_tags = merged.get("tags") if isinstance(merged.get("tags"), dict) else {}
+    exact_tags = exact_row.get("tags") if isinstance(exact_row.get("tags"), dict) else {}
+    if exact_tags:
+        merged["tags"] = {**base_tags, **exact_tags}
+
+    for key in [
+        "domain",
+        "tier",
+        "certification",
+        "sensitivity",
+        "criticality",
+        "glossary_term",
+        "data_product",
+    ]:
+        if not normalize_str(merged.get(key)) and normalize_str(exact_row.get(key)):
+            merged[key] = exact_row.get(key)
+
+    return merged
 
 
 def discovery_result_haystack(asset: Dict[str, Any]) -> str:
@@ -977,27 +1065,57 @@ def asset_detail_payload(
         hidden_catalogs=hidden_catalogs,
     )
     row = inventory_row(inventory, asset_fqn)
+    row = merge_identity_row(
+        row,
+        exact_identity_row(
+            uc,
+            asset_fqn,
+            inventory.columns if isinstance(inventory, pd.DataFrame) else None,
+        ),
+    )
     base = base_asset_payload(row)
     catalog, schema, table = split_uc_name(base["fqn"])
     try:
         detail_df = cached_table_detail(uc, catalog, schema, table)
     except Exception:
         detail_df = pd.DataFrame()
+    if detail_df.empty:
+        try:
+            detail_df = uc.get_table_detail(catalog, schema, table)
+        except Exception:
+            detail_df = pd.DataFrame()
     detail = detail_map(detail_df)
     try:
         columns_df = cached_columns(uc, catalog, schema, table)
     except Exception:
         columns_df = pd.DataFrame()
+    if columns_df.empty:
+        try:
+            columns_df = uc.get_table_columns(catalog, schema, table)
+        except Exception:
+            columns_df = pd.DataFrame()
     try:
         sample_df = cached_sample_rows(uc, catalog, schema, table)
     except Exception:
         sample_df = pd.DataFrame()
+    if sample_df.empty:
+        try:
+            sample_df = uc.get_table_sample(catalog, schema, table, limit=15)
+        except Exception:
+            sample_df = pd.DataFrame()
 
-    if not base["description"]:
+    if normalize_str(base["description"]) == PLACEHOLDER_DESCRIPTION:
         try:
             base["description"] = cached_comment(uc, catalog, schema, table)
         except Exception:
-            pass
+            base["description"] = ""
+        if not normalize_str(base["description"]):
+            try:
+                base["description"] = uc.get_table_comment(catalog, schema, table)
+            except Exception:
+                base["description"] = ""
+        if not normalize_str(base["description"]):
+            base["description"] = PLACEHOLDER_DESCRIPTION
 
     try:
         row_count = coalesce(detail.get("numrows"), cached_table_row_count(uc, catalog, schema, table))
@@ -1046,9 +1164,15 @@ def asset_payload_has_live_signals(payload: Dict[str, Any]) -> bool:
     if not payload:
         return False
     checks = [
-        payload.get("description"),
+        payload.get("objectType"),
+        payload.get("tableTypeRaw"),
+        payload.get("storageFormat"),
+        payload.get("managementType"),
     ]
     if any(normalize_str(value) and normalize_str(value) != "—" for value in checks):
+        return True
+    description = normalize_str(payload.get("description"))
+    if description and description not in {"—", PLACEHOLDER_DESCRIPTION}:
         return True
     if payload.get("rows") not in {"", None, "—"}:
         return True
