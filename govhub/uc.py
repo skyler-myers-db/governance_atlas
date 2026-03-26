@@ -166,6 +166,15 @@ ORDER BY catalog
         )
 
     def get_catalog_table_inventory(self, catalog: str) -> pd.DataFrame:
+        q_with_format = f"""SELECT
+    table_schema,
+    table_name,
+    table_type,
+    data_source_format,
+    comment
+FROM {quote_ident(catalog)}.information_schema.tables
+WHERE table_schema <> 'information_schema'
+ORDER BY table_schema, table_name"""
         q = f"""SELECT
     table_schema,
     table_name,
@@ -175,7 +184,10 @@ FROM {quote_ident(catalog)}.information_schema.tables
 WHERE table_schema <> 'information_schema'
 ORDER BY table_schema, table_name"""
         try:
-            df = self.query_df(q)
+            try:
+                df = self.query_df(q_with_format)
+            except Exception:
+                df = self.query_df(q)
         except Exception as exc:
             if not _is_skippable_metadata_error(exc):
                 raise
@@ -185,14 +197,24 @@ ORDER BY table_schema, table_name"""
                     "table_schema",
                     "table_name",
                     "table_type",
+                    "data_source_format",
                     "comment",
                 ]
             )
         if df.empty:
             return pd.DataFrame(
-                columns=["table_catalog", "table_schema", "table_name", "table_type", "comment"]
+                columns=[
+                    "table_catalog",
+                    "table_schema",
+                    "table_name",
+                    "table_type",
+                    "data_source_format",
+                    "comment",
+                ]
             )
         df = df.copy()
+        if "data_source_format" not in df.columns:
+            df["data_source_format"] = ""
         df.insert(0, "table_catalog", catalog)
         return df
 
