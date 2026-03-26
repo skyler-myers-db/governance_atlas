@@ -280,22 +280,8 @@ def _invalidate_asset_caches(asset_fqn: str) -> None:
     _TTL_CACHE.pop("modern_governance", None)
 
 
-def _friendly_table_type(raw: Any) -> str:
-    normalized = _normalize_str(raw).upper()
-    mapping = {
-        "BASE TABLE": "Table",
-        "TABLE": "Table",
-        "MANAGED": "Table",
-        "MANAGED TABLE": "Table",
-        "EXTERNAL": "Table",
-        "EXTERNAL TABLE": "Table",
-        "VIEW": "View",
-        "MATERIALIZED VIEW": "Materialized View",
-        "STREAMING TABLE": "Streaming Table",
-    }
-    if normalized in mapping:
-        return mapping[normalized]
-    return _normalize_str(raw).title() or "Table"
+def _friendly_table_type(raw: Any, data_source_format: Any = None) -> str:
+    return asset_service.friendly_table_type(raw, data_source_format)
 
 
 def _coalesce(*values: Any) -> str:
@@ -507,8 +493,8 @@ def _sort_discovery_assets(
 def _discovery_search_payload(
     *,
     query: str = "",
-    view: str = "All assets",
-    asset_type: str = "All types",
+    views: Optional[List[str]] = None,
+    asset_types: Optional[List[str]] = None,
     catalogs: Optional[List[str]] = None,
     domains: Optional[List[str]] = None,
     tiers: Optional[List[str]] = None,
@@ -522,8 +508,8 @@ def _discovery_search_payload(
         _uc(),
         _store_for_read(),
         query=query,
-        view=view,
-        asset_type=asset_type,
+        views=views,
+        asset_types=asset_types,
         catalogs=catalogs,
         domains=domains,
         tiers=tiers,
@@ -592,7 +578,7 @@ def _graph_node_for_asset(
     subtitle = " / ".join(
         part for part in [_normalize_str(row.get("table_catalog")), _normalize_str(row.get("table_schema"))] if part
     )
-    item_kind = kind or _friendly_table_type(row.get("table_type"))
+    item_kind = kind or _friendly_table_type(row.get("table_type"), row.get("data_source_format"))
     footer = foot or [item_kind]
     return {
         "id": f"{role}-{asset_fqn}",
@@ -1057,6 +1043,8 @@ def api_discovery_search(
     query: str = "",
     view: str = "All assets",
     asset_type: str = Query(default="All types", alias="type"),
+    views: Optional[List[str]] = Query(default=None),
+    types: Optional[List[str]] = Query(default=None),
     catalogs: Optional[List[str]] = Query(default=None),
     domains: Optional[List[str]] = Query(default=None),
     tiers: Optional[List[str]] = Query(default=None),
@@ -1070,8 +1058,8 @@ def api_discovery_search(
     try:
         payload = _discovery_search_payload(
             query=query,
-            view=view,
-            asset_type=asset_type,
+            views=views or ([view] if _normalize_str(view) and view != "All assets" else []),
+            asset_types=types or ([asset_type] if _normalize_str(asset_type) and asset_type != "All types" else []),
             catalogs=catalogs,
             domains=domains,
             tiers=tiers,

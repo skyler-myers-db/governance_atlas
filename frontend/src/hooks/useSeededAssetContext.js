@@ -8,7 +8,7 @@ function assetFallback(assetFqn) {
     name: parts.at(-1) || assetFqn,
     catalog: parts[0] || "",
     schema: parts[1] || "",
-    objectType: "Table",
+    objectType: "",
     description: "",
     coverageScore: 0,
     rows: "—",

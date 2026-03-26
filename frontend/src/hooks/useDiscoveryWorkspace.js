@@ -13,8 +13,8 @@ function defaultDiscoveryState(bootstrap, query = "") {
   return {
     query: query || bootstrap?.discovery?.defaultQuery || "",
     sortBy: (bootstrap?.discovery?.sortOptions || ["Best match"])[0],
-    view: (bootstrap?.discovery?.views || ["All assets"])[0],
-    type: (bootstrap?.discovery?.assetTypes || ["All types"])[0],
+    views: [],
+    types: [],
     catalogs: [],
     domains: [],
     tiers: [],
@@ -41,27 +41,32 @@ function normalizeDiscoveryState(bootstrap, state = {}, queryOverride) {
   const certifications = new Set(bootstrap?.discovery?.certifications || []);
   const sensitivities = new Set(bootstrap?.discovery?.sensitivities || []);
   const sortOptions = new Set(bootstrap?.discovery?.sortOptions || ["Best match"]);
-  const views = new Set(bootstrap?.discovery?.views || ["All assets"]);
-  const assetTypes = new Set(bootstrap?.discovery?.assetTypes || ["All types"]);
+  const views = new Set((bootstrap?.discovery?.views || ["All assets"]).filter((value) => value !== "All assets"));
+  const assetTypes = new Set((bootstrap?.discovery?.assetTypes || ["All types"]).filter((value) => value !== "All types"));
 
-  const normalizeMulti = (values, allLabel, optionSet) => {
+  const normalizeMulti = (values, optionSet) => {
     if (!Array.isArray(values) || !values.length) return [];
     const next = values.filter((value) => optionSet.has(value));
     return next.length ? next : [];
   };
+
+  const legacyViews =
+    typeof state.view === "string" && state.view && state.view !== "All assets" ? [state.view] : [];
+  const legacyTypes =
+    typeof state.type === "string" && state.type && state.type !== "All types" ? [state.type] : [];
 
   return {
     ...fallback,
     ...state,
     query: queryOverride ?? (typeof state.query === "string" ? state.query : fallback.query),
     sortBy: sortOptions.has(state.sortBy) ? state.sortBy : fallback.sortBy,
-    view: views.has(state.view) ? state.view : fallback.view,
-    type: assetTypes.has(state.type) ? state.type : fallback.type,
-    catalogs: normalizeMulti(state.catalogs, "All catalogs", catalogs),
-    domains: normalizeMulti(state.domains, "All domains", domains),
-    tiers: normalizeMulti(state.tiers, "All tiers", tiers),
-    certifications: normalizeMulti(state.certifications, "All certifications", certifications),
-    sensitivities: normalizeMulti(state.sensitivities, "All sensitivities", sensitivities),
+    views: normalizeMulti(state.views || legacyViews, views),
+    types: normalizeMulti(state.types || legacyTypes, assetTypes),
+    catalogs: normalizeMulti(state.catalogs, catalogs),
+    domains: normalizeMulti(state.domains, domains),
+    tiers: normalizeMulti(state.tiers, tiers),
+    certifications: normalizeMulti(state.certifications, certifications),
+    sensitivities: normalizeMulti(state.sensitivities, sensitivities),
   };
 }
 
