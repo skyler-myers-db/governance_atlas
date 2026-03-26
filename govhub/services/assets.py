@@ -87,6 +87,43 @@ def inventory_catalogs(uc, hidden_catalogs: Sequence[str]) -> List[str]:
     return sorted(value for value in values if value and value.lower() not in hidden)
 
 
+def lineage_observed_catalogs(
+    uc,
+    *,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> List[str]:
+    try:
+        df = uc.list_lineage_catalogs()
+    except Exception:
+        return []
+    if df is None or df.empty:
+        return []
+    hidden = {str(value).lower() for value in hidden_catalogs}
+    return sorted(
+        normalize_str(value)
+        for value in df.iloc[:, 0].tolist()
+        if normalize_str(value) and normalize_str(value).lower() not in hidden
+    )
+
+
+def inventory(
+    uc,
+    store,
+    *,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> pd.DataFrame:
+    return _ttl_value(
+        f"inventory:{_warehouse_key(uc)}",
+        600,
+        lambda: build_inventory(
+            uc,
+            store,
+            hidden_catalogs,
+            _is_skippable_metadata_error,
+        ),
+    )
+
+
 def build_inventory(uc, store, hidden_catalogs: Sequence[str], is_skippable_metadata_error) -> pd.DataFrame:
     catalogs = inventory_catalogs(uc, hidden_catalogs)
     if not catalogs:
@@ -319,28 +356,78 @@ def build_inventory(uc, store, hidden_catalogs: Sequence[str], is_skippable_meta
     ).reset_index(drop=True)
 
 
-def visible_assets(inventory: pd.DataFrame, hidden_catalogs: Sequence[str]) -> pd.DataFrame:
-    if inventory is None or inventory.empty:
-        return inventory
+def visible_assets(
+    inventory_or_uc,
+    store=None,
+    *,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> pd.DataFrame:
+    inventory_df = (
+        inventory_or_uc
+        if isinstance(inventory_or_uc, pd.DataFrame)
+        else inventory(inventory_or_uc, store, hidden_catalogs=hidden_catalogs)
+    )
+    if inventory_df is None or inventory_df.empty:
+        return inventory_df
     hidden = {str(value).lower() for value in hidden_catalogs}
-    return inventory[
-        ~inventory["table_catalog"].fillna("").astype(str).str.lower().isin(hidden)
+    return inventory_df[
+        ~inventory_df["table_catalog"].fillna("").astype(str).str.lower().isin(hidden)
     ].reset_index(drop=True)
 
 
-def inventory_row(inventory: pd.DataFrame, asset_fqn: str) -> pd.Series:
-    if inventory is None or inventory.empty:
-        return lineage_asset_stub(pd.DataFrame(), asset_fqn)
-    match = inventory[inventory["fqn"] == asset_fqn]
+def inventory_row(
+    inventory_or_uc,
+    store_or_asset_fqn,
+    asset_fqn: str | None = None,
+    *,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> pd.Series:
+    if isinstance(inventory_or_uc, pd.DataFrame):
+        inventory_df = inventory_or_uc
+        resolved_asset_fqn = str(store_or_asset_fqn)
+    else:
+        inventory_df = visible_assets(
+            inventory_or_uc,
+            store_or_asset_fqn,
+            hidden_catalogs=hidden_catalogs,
+        )
+        resolved_asset_fqn = str(asset_fqn or "")
+    if inventory_df is None or inventory_df.empty:
+        return lineage_asset_stub(pd.DataFrame(), resolved_asset_fqn)
+    match = inventory_df[inventory_df["fqn"] == resolved_asset_fqn]
     if not match.empty:
         return match.iloc[0]
-    return lineage_asset_stub(inventory, asset_fqn)
+    return lineage_asset_stub(inventory_df, resolved_asset_fqn)
 
 
-def asset_exists(inventory: pd.DataFrame, asset_fqn: str) -> bool:
-    if inventory is None or inventory.empty:
+def asset_exists(
+    inventory_or_uc,
+    store_or_asset_fqn,
+    asset_fqn: str | None = None,
+    *,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> bool:
+    if isinstance(inventory_or_uc, pd.DataFrame):
+        inventory_df = inventory_or_uc
+        resolved_asset_fqn = str(store_or_asset_fqn)
+    else:
+        inventory_df = visible_assets(
+            inventory_or_uc,
+            store_or_asset_fqn,
+            hidden_catalogs=hidden_catalogs,
+        )
+        resolved_asset_fqn = str(asset_fqn or "")
+    if inventory_df is None or inventory_df.empty:
         return False
-    return bool((inventory["fqn"] == asset_fqn).any())
+    return bool((inventory_df["fqn"] == resolved_asset_fqn).any())
+
+
+def asset_columns_df(uc, asset_fqn: str) -> pd.DataFrame:
+    catalog, schema, table = split_uc_name(asset_fqn)
+    try:
+        return cached_columns(uc, catalog, schema, table)
+    except Exception:
+        return pd.DataFrame()
 
 
 def friendly_table_type(raw: Any) -> str:
