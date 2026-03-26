@@ -648,10 +648,15 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
     inventory = _visible_assets()
     assets = [asset_service.base_asset_payload(row) for _, row in inventory.iterrows()]
     asset_index = {asset["fqn"]: asset for asset in assets}
+    available_catalogs = asset_service.inventory_catalogs(_uc(), HIDDEN_CATALOGS)
+    observed_catalogs = asset_service.lineage_observed_catalogs(
+        _uc(),
+        hidden_catalogs=HIDDEN_CATALOGS,
+    )
     catalogs = asset_service.catalog_filter_options(
         inventory,
-        available_catalogs=list(inventory["table_catalog"].dropna().astype(str).unique()),
-        observed_catalogs=None,
+        available_catalogs=available_catalogs,
+        observed_catalogs=observed_catalogs,
     )
     asset_types = sorted({asset["objectType"] for asset in assets if asset["objectType"]})
     domains = sorted({asset["domain"] for asset in assets if asset["domain"] and asset["domain"] != "Unassigned"})
@@ -659,6 +664,13 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
     certifications = sorted({asset["certification"] for asset in assets if asset["certification"] and asset["certification"] != "Unassigned"})
     sensitivities = sorted({asset["sensitivity"] for asset in assets if asset["sensitivity"] and asset["sensitivity"] != "Unassigned"})
     governance = _governance_summary()
+    governance_gaps = sum(1 for asset in assets if asset.get("governanceStatus") == "Needs Work")
+    certified_assets = sum(
+        1
+        for asset in assets
+        if asset.get("certification") and asset.get("certification") != "Unassigned"
+    )
+    owned_assets = sum(1 for asset in assets if asset.get("owners"))
 
     selected_fqn = request.query_params.get("asset") or (assets[0]["fqn"] if assets else "")
     graphs: Dict[str, Any] = {}
@@ -676,10 +688,22 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
     if not assets:
         boot_state = "degraded"
         if not boot_message:
-            boot_message = (
-                "The workspace connected successfully, but no visible metadata assets were returned yet. "
-                "Confirm the current principal can enumerate Unity Catalog objects in the selected workspace."
-            )
+            if available_catalogs:
+                boot_message = (
+                    f"The workspace can enumerate {len(available_catalogs)} catalog(s), but no visible tables or views "
+                    "were surfaced after filtering. Confirm the current principal can query Unity Catalog information_schema "
+                    "inventory for those catalogs."
+                )
+            elif observed_catalogs:
+                boot_message = (
+                    f"Lineage system tables show activity in {len(observed_catalogs)} catalog(s), but direct catalog "
+                    "inventory could not be enumerated. Confirm SHOW CATALOGS and information_schema access for the current principal."
+                )
+            else:
+                boot_message = (
+                    "The workspace connected successfully, but no visible metadata assets were returned yet. "
+                    "Confirm the current principal can enumerate Unity Catalog objects in the selected workspace."
+                )
 
     return {
         "version": "modern-ui-live-2",
@@ -699,6 +723,16 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
             "views": DISCOVERY_VIEWS,
             "sortOptions": DISCOVERY_SORTS,
             "defaultQuery": "",
+            "summary": {
+                "visibleAssets": len(assets),
+                "catalogCount": len(catalogs),
+                "availableCatalogCount": len(available_catalogs),
+                "observedCatalogCount": len(observed_catalogs),
+                "governanceGaps": governance_gaps,
+                "certifiedAssets": certified_assets,
+                "ownedAssets": owned_assets,
+                "catalogSnapshot": catalogs[:8],
+            },
         },
         "initialSelection": {"primaryAssetFqn": selected_fqn},
         "governance": governance,
@@ -868,6 +902,16 @@ def _bootstrap_unavailable_payload(
             "sortOptions": DISCOVERY_SORTS,
             "assetTypes": ["All types"],
             "defaultQuery": "",
+            "summary": {
+                "visibleAssets": 0,
+                "catalogCount": 0,
+                "availableCatalogCount": 0,
+                "observedCatalogCount": 0,
+                "governanceGaps": 0,
+                "certifiedAssets": 0,
+                "ownedAssets": 0,
+                "catalogSnapshot": [],
+            },
         },
         "governance": {"metrics": [], "backlog": [], "glossary": []},
         "shell": {
@@ -1023,8 +1067,8 @@ def api_discovery_search(
     offset: int = 0,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    return JSONResponse(
-        _discovery_search_payload(
+    try:
+        payload = _discovery_search_payload(
             query=query,
             view=view,
             asset_type=asset_type,
@@ -1037,7 +1081,17 @@ def api_discovery_search(
             limit=limit,
             offset=offset,
         )
-    )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Discovery search is unavailable right now. "
+                f"{_normalize_str(exc) or 'Unexpected metadata runtime error.'}"
+            ),
+        ) from exc
+    return JSONResponse(payload)
 
 
 @app.get("/api/assets/{asset_fqn:path}")

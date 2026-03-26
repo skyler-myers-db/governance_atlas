@@ -94,6 +94,11 @@ function metadataRowItems(asset) {
   ];
 }
 
+function facetCount(facets, key, value) {
+  const entries = facets?.[key] || [];
+  return entries.find((entry) => entry.value === value)?.count || 0;
+}
+
 function ownerLabel(owner) {
   if (!owner) return "";
   return owner.name || owner.email || owner.title || "";
@@ -146,6 +151,15 @@ function ChoiceSection({ label, options, selected, onSelect }) {
           </button>
         ))}
       </div>
+    </section>
+  );
+}
+
+function SidebarSection({ title, children }) {
+  return (
+    <section className="gh-discovery-sidebar-section">
+      <div className="gh-panel-title">{title}</div>
+      {children}
     </section>
   );
 }
@@ -541,6 +555,14 @@ export default function DiscoveryWorkspace({
   const resultsFacets = discoveryResults.facets;
   const filtersApplied = activeFilters(filters);
   const directFilterCount = filterVisibilityCount(filters);
+  const discoverySummary = bootstrap.discovery?.summary || {};
+  const assetTypeOptions = (bootstrap.discovery.assetTypes || []).filter(Boolean);
+  const catalogOptions = facetValues(
+    resultsFacets,
+    "catalogs",
+    bootstrap.discovery.catalogs,
+    filters.catalogs,
+  ).filter((value) => value && value !== "All catalogs");
   const onDiscoveryStateChange = (nextState) => setFilters(nextState);
   const resetBrowse = () =>
     onDiscoveryStateChange({
@@ -554,16 +576,127 @@ export default function DiscoveryWorkspace({
       certifications: [],
       sensitivities: [],
     });
+  const showInventoryEmptyState =
+    bootstrap.bootState === "degraded" && Number(discoverySummary.visibleAssets || 0) === 0;
+  const emptyHeading = showInventoryEmptyState
+    ? "No visible assets are being returned."
+    : "No assets match the current scope.";
+  const emptyCopy = showInventoryEmptyState
+    ? bootstrap.bootMessage ||
+      "The workspace can load, but the current principal is not surfacing any visible catalog assets yet."
+    : "Relax the current search, saved view, or filters to widen the catalog scope.";
 
   return (
     <section className="gh-workspace gh-discovery-shell">
       <section className="gh-discovery-main gh-discovery-main-grid">
+        <aside className="gh-panel gh-discovery-sidebar-panel">
+          <div className="gh-discovery-sidebar-head">
+            <div className="gh-eyebrow">Metadata plane</div>
+            <h3>Discovery scope</h3>
+            <p>Move between asset types, saved views, and catalog slices without leaving search.</p>
+          </div>
+
+          <SidebarSection title="Asset types">
+            <div className="gh-category-list">
+              {assetTypeOptions.map((option) => (
+                <button
+                  className={`gh-category-row ${filters.type === option ? "is-active" : ""}`}
+                  key={option}
+                  onClick={() =>
+                    onDiscoveryStateChange((current) => ({
+                      ...current,
+                      type: option,
+                    }))
+                  }
+                  type="button"
+                >
+                  <span>{option}</span>
+                  <span className="gh-category-count">{facetCount(resultsFacets, "assetTypes", option)}</span>
+                </button>
+              ))}
+            </div>
+          </SidebarSection>
+
+          <SidebarSection title="Saved views">
+            <div className="gh-saved-view-list">
+              {bootstrap.discovery.views.map((view) => (
+                <button
+                  className={`gh-saved-view ${filters.view === view ? "is-active" : ""}`}
+                  key={view}
+                  onClick={() =>
+                    onDiscoveryStateChange((current) => ({
+                      ...current,
+                      view,
+                    }))
+                  }
+                  type="button"
+                >
+                  <span>{view}</span>
+                </button>
+              ))}
+            </div>
+          </SidebarSection>
+
+          <SidebarSection title="Catalogs in scope">
+            {catalogOptions.length ? (
+              <div className="gh-chip-stack">
+                {catalogOptions.slice(0, 8).map((catalog) => (
+                  <button
+                    className={`gh-chip gh-chip-soft ${
+                      filters.catalogs.includes(catalog) ? "gh-chip-selected" : ""
+                    }`}
+                    key={catalog}
+                    onClick={() => toggleMulti(filters, "catalogs", catalog, "All catalogs", onDiscoveryStateChange)}
+                    type="button"
+                  >
+                    {catalog}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="gh-support-copy">Catalog scope will populate from visible inventory.</div>
+            )}
+          </SidebarSection>
+        </aside>
+
         <section className="gh-results-column">
+          <div className="gh-panel gh-discovery-hero">
+            <div className="gh-discovery-hero-copy">
+              <div className="gh-eyebrow">Discovery</div>
+              <h2 className="gh-workspace-title">Search the metadata plane</h2>
+              <p>
+                Find tables, views, ownership gaps, certification status, and lineage entry points from one
+                asset-first workspace.
+              </p>
+            </div>
+            <div className="gh-discovery-summary-grid">
+              <div className="gh-discovery-summary-card">
+                <span>Visible assets</span>
+                <strong>{discoverySummary.visibleAssets || 0}</strong>
+              </div>
+              <div className="gh-discovery-summary-card">
+                <span>Catalogs</span>
+                <strong>{discoverySummary.catalogCount || 0}</strong>
+              </div>
+              <div className="gh-discovery-summary-card">
+                <span>Needs attention</span>
+                <strong>{discoverySummary.governanceGaps || 0}</strong>
+              </div>
+              <div className="gh-discovery-summary-card">
+                <span>Certified</span>
+                <strong>{discoverySummary.certifiedAssets || 0}</strong>
+              </div>
+            </div>
+          </div>
+
           <div className="gh-panel gh-discovery-command-panel">
             <div className="gh-discovery-command-topline">
               <div>
-                <div className="gh-eyebrow">Discovery</div>
+                <div className="gh-panel-title">Search results</div>
                 <h2 className="gh-workspace-title">Metadata catalog</h2>
+                <div className="gh-discovery-results-copy">
+                  Search stays asset-centric while preserving direct entry into record, lineage, and governance.
+                </div>
               </div>
               <span className="gh-results-inline-state gh-results-inline-state-bar">
                 {resultsCount} {resultsCount === 1 ? "result" : "results"}
@@ -655,6 +788,7 @@ export default function DiscoveryWorkspace({
 
           {resultsError ? (
             <div className="gh-inline-alert tone-warn">
+              <div className="gh-inline-alert-title">Discovery search degraded</div>
               <div>{resultsError}</div>
             </div>
           ) : null}
@@ -674,8 +808,13 @@ export default function DiscoveryWorkspace({
               ))}
             </div>
           ) : resultsError ? (
-            <div className="gh-panel gh-empty-state">
-              <div>Live discovery results are unavailable right now.</div>
+            <div className="gh-panel gh-empty-state gh-discovery-empty-state">
+              <div className="gh-panel-title">Discovery unavailable</div>
+              <div>{resultsError}</div>
+              <div className="gh-support-copy">
+                {bootstrap.bootMessage ||
+                  "The search surface is reachable, but the live metadata plane could not return discovery results."}
+              </div>
               <div className="gh-empty-state-actions">
                 {filters.query ? (
                   <button
@@ -692,8 +831,28 @@ export default function DiscoveryWorkspace({
               </div>
             </div>
           ) : (
-            <div className="gh-panel gh-empty-state">
-              <div>No assets match the current scope.</div>
+            <div className="gh-panel gh-empty-state gh-discovery-empty-state">
+              <div className="gh-panel-title">{showInventoryEmptyState ? "Inventory empty" : "No matching assets"}</div>
+              <div>{emptyHeading}</div>
+              <div className="gh-support-copy">{emptyCopy}</div>
+              <div className="gh-discovery-summary-grid gh-discovery-summary-grid-inline">
+                <div className="gh-discovery-summary-card">
+                  <span>Visible assets</span>
+                  <strong>{discoverySummary.visibleAssets || 0}</strong>
+                </div>
+                <div className="gh-discovery-summary-card">
+                  <span>Catalogs</span>
+                  <strong>{discoverySummary.catalogCount || 0}</strong>
+                </div>
+                <div className="gh-discovery-summary-card">
+                  <span>Observed catalogs</span>
+                  <strong>{discoverySummary.observedCatalogCount || 0}</strong>
+                </div>
+                <div className="gh-discovery-summary-card">
+                  <span>Owned assets</span>
+                  <strong>{discoverySummary.ownedAssets || 0}</strong>
+                </div>
+              </div>
               <div className="gh-empty-state-actions">
                 {filters.query ? (
                   <button
