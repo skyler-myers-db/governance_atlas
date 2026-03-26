@@ -188,7 +188,7 @@ function MetadataEditorPanel({
     <section className="gh-panel gh-record-card">
       <div className="gh-record-card-head">
         <div>
-          <div className="gh-panel-title">Metadata controls</div>
+          <div className="gh-panel-title">Metadata Controls</div>
           <div className="gh-support-copy">
             Update the record description and governance classifications when the backend edit
             surface is available.
@@ -328,7 +328,7 @@ export default function EntityWorkspace({
     return (
       <section className="gh-workspace gh-entity-workspace">
         <div className="gh-panel gh-unavailable-panel">
-          <div className="gh-panel-title">Asset unavailable</div>
+          <div className="gh-panel-title">Asset Unavailable</div>
           <h2>The selected asset could not be opened.</h2>
           <p>
             {assetDetail.error ||
@@ -336,7 +336,7 @@ export default function EntityWorkspace({
           </p>
           <div className="gh-empty-state-actions">
             <button className="gh-secondary-button" onClick={onBack} type="button">
-              Return to catalog
+              Return to Catalog
             </button>
           </div>
           {launchAssets.length ? (
@@ -367,7 +367,7 @@ export default function EntityWorkspace({
             Select an asset from discovery to inspect its metadata.
             <div className="gh-empty-state-actions">
               <button className="gh-secondary-button" onClick={onBack} type="button">
-                Return to catalog
+                Return to Catalog
               </button>
             </div>
             {launchAssets.length ? (
@@ -448,14 +448,28 @@ export default function EntityWorkspace({
       <section className="gh-panel gh-entity-shell gh-entity-record-shell">
         <div className="gh-entity-record-header">
           <div className="gh-entity-record-main">
-            <button className="gh-tertiary-button gh-inline-link-button" onClick={onBack} type="button">
-              Back to discovery
-            </button>
-            <div className="gh-eyebrow">Metadata record</div>
-            <h2>{asset.name}</h2>
-            <div className="gh-entity-record-fqn">{identityLine}</div>
+            <div className="gh-entity-record-topline">
+              <button className="gh-tertiary-button gh-inline-link-button" onClick={onBack} type="button">
+                Back to Discovery
+              </button>
+              <div className="gh-eyebrow">Metadata Record</div>
+            </div>
+            <div className="gh-entity-record-headline">
+              <div className="gh-entity-record-heading-block">
+                <h2>{asset.name}</h2>
+                <div className="gh-entity-record-fqn">{identityLine}</div>
+              </div>
+              <div className="gh-action-row gh-entity-action-row">
+                <button className="gh-secondary-button" onClick={() => onOpenLineage(asset.fqn, "Data Lineage")} type="button">
+                  Open lineage
+                </button>
+                <button className="gh-secondary-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">
+                  Open governance
+                </button>
+              </div>
+            </div>
             <div className="gh-chip-row">
-              <span className="gh-chip gh-chip-soft">{objectType}</span>
+              {objectType ? <span className="gh-chip gh-chip-soft">{objectType}</span> : null}
               <span className={`gh-status-chip tone-${statusTone(asset)}`}>
                 {asset.governanceStatus || "Needs Work"}
               </span>
@@ -472,27 +486,9 @@ export default function EntityWorkspace({
             <div className="gh-support-copy gh-entity-record-summary">
               {asset.description || "No description has been captured for this asset yet."}
             </div>
-          </div>
-
-          <div className="gh-entity-record-actions">
-            <div className="gh-entity-record-context-line">
-              <span>{asset.fqn}</span>
-              <span>{asset.rows || "—"} rows</span>
-              <span>{asset.format || "—"}</span>
-            </div>
-            <div className="gh-action-row gh-entity-action-row">
-              <button className="gh-secondary-button" onClick={() => onOpenLineage(asset.fqn, "Data Lineage")} type="button">
-                Open lineage
-              </button>
-              <button className="gh-secondary-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">
-                Open governance
-              </button>
-            </div>
-            <div className="gh-support-copy">
-              {assetDetail.loading
-                ? "Refreshing live record details..."
-                : "Inspect live metadata, lineage, and stewardship state for this asset."}
-            </div>
+            {assetDetail.loading ? (
+              <div className="gh-support-copy">Refreshing live record details...</div>
+            ) : null}
           </div>
         </div>
 
@@ -519,7 +515,7 @@ export default function EntityWorkspace({
               <section className="gh-panel gh-record-card">
                 <div className="gh-record-card-head">
                   <div>
-                    <div className="gh-panel-title">Lineage context</div>
+                    <div className="gh-panel-title">Lineage Context</div>
                     <div className="gh-support-copy">
                       {lineageUnavailable
                         ? "Lineage signals are temporarily unavailable for this asset right now."
@@ -560,7 +556,7 @@ export default function EntityWorkspace({
               <section className="gh-panel gh-record-card">
                 <div className="gh-record-card-head">
                   <div>
-                    <div className="gh-panel-title">Schema summary</div>
+                    <div className="gh-panel-title">Schema Summary</div>
                     <div className="gh-support-copy">
                       {columns.length
                         ? `${columns.length} columns surfaced from the live asset definition.`
@@ -588,7 +584,7 @@ export default function EntityWorkspace({
               <section className="gh-panel gh-record-card">
                 <div className="gh-record-card-head">
                   <div>
-                    <div className="gh-panel-title">Stewardship posture</div>
+                    <div className="gh-panel-title">Stewardship Posture</div>
                     <div className="gh-support-copy">
                       {completeness} of {tasks.length} core governance checks are complete for this asset.
                     </div>
@@ -607,7 +603,7 @@ export default function EntityWorkspace({
               <section className="gh-panel gh-record-card">
                 <div className="gh-record-card-head">
                   <div>
-                    <div className="gh-panel-title">Stewardship priorities</div>
+                    <div className="gh-panel-title">Stewardship Priorities</div>
                     <div className="gh-support-copy">
                       Open the governance workspace to resolve ownership, trust, and classification gaps.
                     </div>
@@ -659,7 +655,7 @@ export default function EntityWorkspace({
               <section className="gh-panel gh-record-card">
                 <div className="gh-record-card-head">
                   <div>
-                    <div className="gh-panel-title">Governance checklist</div>
+                    <div className="gh-panel-title">Governance Checklist</div>
                     <div className="gh-support-copy">
                       Resolve the remaining stewardship gaps for this asset from the workbench.
                     </div>
@@ -670,7 +666,7 @@ export default function EntityWorkspace({
 
               <section className="gh-panel gh-record-card">
                 <div className="gh-record-card-head">
-                  <div className="gh-panel-title">Operational metadata</div>
+                  <div className="gh-panel-title">Operational Metadata</div>
                 </div>
                 <AttributeList items={posture.slice(8)} />
               </section>
@@ -717,7 +713,7 @@ export default function EntityWorkspace({
           <section className="gh-panel gh-record-card">
             <div className="gh-record-card-head">
               <div>
-                <div className="gh-panel-title">Sample data</div>
+                <div className="gh-panel-title">Sample Data</div>
                 <div className="gh-support-copy">Sample rows returned from the live asset preview.</div>
               </div>
             </div>
