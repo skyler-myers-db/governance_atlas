@@ -299,9 +299,6 @@ function DiscoveryResultCard({
 
         <div className="gh-discovery-card-foot">
           <div className="gh-chip-row">
-            <span className="gh-chip gh-chip-soft">
-              {asset.catalog} / {asset.schema}
-            </span>
             {asset.sensitivity && asset.sensitivity !== "Unassigned" ? (
               <span className="gh-chip gh-chip-soft">{asset.sensitivity}</span>
             ) : null}
@@ -374,14 +371,16 @@ function SelectionPreview({
       <div className="gh-preview-panel-head">
         <div className="gh-preview-panel-title-block">
           <div className="gh-eyebrow">Selected asset</div>
-          <h3>{asset.name}</h3>
+          <div className="gh-preview-panel-title-row">
+            <h3>{asset.name}</h3>
+            <span className={`gh-status-chip tone-${statusTone(asset)}`}>
+              {asset.governanceStatus || "Needs Work"}
+            </span>
+          </div>
           <div className="gh-support-copy">
             {asset.catalog} / {asset.schema} · {asset.objectType}
           </div>
         </div>
-        <span className={`gh-status-chip tone-${statusTone(asset)}`}>
-          {asset.governanceStatus || "Needs Work"}
-        </span>
       </div>
 
       <div className="gh-preview-panel-actions">
@@ -578,6 +577,7 @@ export default function DiscoveryWorkspace({
     });
   const showInventoryEmptyState =
     bootstrap.bootState === "degraded" && Number(discoverySummary.visibleAssets || 0) === 0;
+  const showDominantState = showInventoryEmptyState || (Boolean(resultsError) && !discoveryResults.assets.length);
   const emptyHeading = showInventoryEmptyState
     ? "No visible assets are being returned."
     : "No assets match the current scope.";
@@ -589,7 +589,8 @@ export default function DiscoveryWorkspace({
   return (
     <section className="gh-workspace gh-discovery-shell">
       <section className="gh-discovery-main gh-discovery-main-grid">
-        <aside className="gh-panel gh-discovery-sidebar-panel">
+        {!showDominantState ? (
+          <aside className="gh-panel gh-discovery-sidebar-panel">
           <div className="gh-discovery-sidebar-head">
             <div className="gh-eyebrow">Metadata plane</div>
             <h3>Discovery scope</h3>
@@ -657,10 +658,12 @@ export default function DiscoveryWorkspace({
               <div className="gh-support-copy">Catalog scope will populate from visible inventory.</div>
             )}
           </SidebarSection>
-        </aside>
+          </aside>
+        ) : null}
 
-        <section className="gh-results-column">
-          <div className="gh-panel gh-discovery-hero">
+        <section className={`gh-results-column ${showDominantState ? "is-expanded" : ""}`}>
+          {!showDominantState ? (
+            <div className="gh-panel gh-discovery-hero">
             <div className="gh-discovery-hero-copy">
               <div className="gh-eyebrow">Discovery</div>
               <h2 className="gh-workspace-title">Search the metadata plane</h2>
@@ -687,7 +690,8 @@ export default function DiscoveryWorkspace({
                 <strong>{discoverySummary.certifiedAssets || 0}</strong>
               </div>
             </div>
-          </div>
+            </div>
+          ) : null}
 
           <div className="gh-panel gh-discovery-command-panel">
             <div className="gh-discovery-command-topline">
@@ -786,7 +790,7 @@ export default function DiscoveryWorkspace({
             ) : null}
           </div>
 
-          {resultsError ? (
+          {resultsError && !showDominantState ? (
             <div className="gh-inline-alert tone-warn">
               <div className="gh-inline-alert-title">Discovery search degraded</div>
               <div>{resultsError}</div>
@@ -871,15 +875,17 @@ export default function DiscoveryWorkspace({
           )}
         </section>
 
-        <SelectionPreview
-          asset={previewAsset}
-          error={previewDetail.error}
-          loading={previewDetail.loading}
-          onOpenAsset={onOpenAsset}
-          onOpenGovernance={onOpenGovernance}
-          onOpenLineage={onOpenLineage}
-          onSelectAsset={onOpenAsset}
-        />
+        {!showDominantState ? (
+          <SelectionPreview
+            asset={previewAsset}
+            error={previewDetail.error}
+            loading={previewDetail.loading}
+            onOpenAsset={onOpenAsset}
+            onOpenGovernance={onOpenGovernance}
+            onOpenLineage={onOpenLineage}
+            onSelectAsset={onOpenAsset}
+          />
+        ) : null}
       </section>
     </section>
   );

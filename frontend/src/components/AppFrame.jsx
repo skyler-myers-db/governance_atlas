@@ -188,9 +188,6 @@ export default function AppFrame({
           </nav>
 
           <div className="gh-shell-topbar-utility">
-            <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
-              {statusLabel(bootState)}
-            </span>
             <div className="gh-shell-identity-block">
               <div className="gh-shell-identity">{shell?.role || "workspace user"}</div>
               <div className="gh-shell-user">{shell?.userEmail || "unknown"}</div>
