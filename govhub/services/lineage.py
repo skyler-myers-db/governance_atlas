@@ -45,7 +45,6 @@ def invalidate_lineage_caches(asset_fqn: str | None = None) -> None:
     if asset_fqn is None:
         _TTL_CACHE.clear()
         return
-    prefix = f"lineage:{_warehouse_key}"
     suffix = f":{asset_service.normalize_str(asset_fqn)}"
     for key in list(_TTL_CACHE):
         if key.endswith(suffix) and key.startswith("lineage:"):
