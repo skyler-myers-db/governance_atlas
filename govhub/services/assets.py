@@ -1181,6 +1181,6 @@ def asset_payload_has_live_signals(payload: Dict[str, Any]) -> bool:
         return True
     if payload.get("files") not in {"", None, "—"}:
         return True
-    if payload.get("columns") or payload.get("preview") or payload.get("relatedAssets"):
+    if payload.get("columns") or payload.get("preview"):
         return True
     return False

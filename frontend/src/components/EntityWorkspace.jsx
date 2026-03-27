@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAssetMetadataEditor } from "../hooks/useAssetMetadataEditor";
-import { useAssetDetail } from "../hooks/useAssetDetail";
+import { prefetchAssetDetail, useAssetDetail } from "../hooks/useAssetDetail";
 import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import {
@@ -372,6 +372,10 @@ export default function EntityWorkspace({
   const [metadataDraft, setMetadataDraft] = useState(metadataDraftFromAsset(null));
   const [metadataDirty, setMetadataDirty] = useState(false);
   const launchAssets = (bootstrap?.assets || []).slice(0, 6);
+  const visibleAssetSet = useMemo(
+    () => new Set((bootstrap?.assets || []).map((candidate) => candidate.fqn)),
+    [bootstrap?.assets],
+  );
   const seeded = useSeededAssetContext(assetFqn, bootstrap, bootstrap?.assets || [], {
     allowFallback: false,
   });
@@ -567,6 +571,16 @@ export default function EntityWorkspace({
     setMetadataDirty(false);
   };
 
+  const openRelatedAsset = (nextAssetFqn) => {
+    if (visibleAssetSet.has(nextAssetFqn)) {
+      prefetchAssetDetail(nextAssetFqn);
+      setWorkspaceIntent("lineageContext", nextAssetFqn, "Data Lineage");
+      onSelectAsset(nextAssetFqn, "Overview");
+      return;
+    }
+    onOpenLineage(nextAssetFqn, "Data Lineage");
+  };
+
   return (
     <section className="gh-workspace gh-entity-workspace">
       <section className="gh-panel gh-entity-shell gh-entity-record-shell">
@@ -682,14 +696,16 @@ export default function EntityWorkspace({
                             <button
                               className="gh-lineage-linked-row"
                               key={`up-${item}`}
-                              onClick={() => {
-                                setWorkspaceIntent("lineageContext", item, "Data Lineage");
-                                onSelectAsset(item, "Overview");
+                              onClick={() => openRelatedAsset(item)}
+                              onMouseEnter={() => {
+                                if (visibleAssetSet.has(item)) {
+                                  prefetchAssetDetail(item);
+                                }
                               }}
                               type="button"
                             >
                               <span>{item}</span>
-                              <span>Open linked asset</span>
+                              <span>{visibleAssetSet.has(item) ? "Open linked asset" : "View lineage only"}</span>
                             </button>
                           ))}
                         </div>
@@ -707,14 +723,16 @@ export default function EntityWorkspace({
                             <button
                               className="gh-lineage-linked-row"
                               key={`down-${item}`}
-                              onClick={() => {
-                                setWorkspaceIntent("lineageContext", item, "Data Lineage");
-                                onSelectAsset(item, "Overview");
+                              onClick={() => openRelatedAsset(item)}
+                              onMouseEnter={() => {
+                                if (visibleAssetSet.has(item)) {
+                                  prefetchAssetDetail(item);
+                                }
                               }}
                               type="button"
                             >
                               <span>{item}</span>
-                              <span>Open linked asset</span>
+                              <span>{visibleAssetSet.has(item) ? "Open linked asset" : "View lineage only"}</span>
                             </button>
                           ))}
                         </div>
@@ -729,14 +747,16 @@ export default function EntityWorkspace({
                       <button
                         className="gh-lineage-linked-row"
                         key={item}
-                        onClick={() => {
-                          setWorkspaceIntent("lineageContext", item, "Data Lineage");
-                          onSelectAsset(item, "Overview");
+                        onClick={() => openRelatedAsset(item)}
+                        onMouseEnter={() => {
+                          if (visibleAssetSet.has(item)) {
+                            prefetchAssetDetail(item);
+                          }
                         }}
                         type="button"
                       >
                         <span>{item}</span>
-                        <span>Open linked asset</span>
+                        <span>{visibleAssetSet.has(item) ? "Open linked asset" : "View lineage only"}</span>
                       </button>
                     ))}
                   </div>
