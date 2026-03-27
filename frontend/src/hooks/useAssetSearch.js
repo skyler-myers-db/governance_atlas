@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { fetchDiscoverySearch } from "../lib/api";
 
+const SEARCH_CACHE = new Map();
+
 function normalizeSearchText(...values) {
   return values
     .join(" ")
@@ -55,6 +57,10 @@ function localMatches(seedAssets, trimmedQuery, limit = 8) {
     .map((entry) => entry.asset);
 }
 
+function cacheKeyForQuery(query) {
+  return normalizeSearchText(query);
+}
+
 export function useAssetSearch(query, enabled = true, seedAssets = []) {
   const [state, setState] = useState({
     loading: false,
@@ -76,10 +82,19 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
     }
 
     let canceled = false;
+    const cacheKey = cacheKeyForQuery(trimmedQuery);
     const seededMatches = localMatches(seedAssets, trimmedQuery, 8);
+    const cachedMatches = SEARCH_CACHE.get(cacheKey) || [];
     setState((prev) => ({
-      loading: true,
-      assets: seededMatches.length ? seededMatches : prev.resolvedQuery === trimmedQuery ? prev.assets : [],
+      loading: !cachedMatches.length,
+      assets:
+        cachedMatches.length
+          ? cachedMatches
+          : seededMatches.length
+            ? seededMatches
+            : prev.resolvedQuery === trimmedQuery
+              ? prev.assets
+              : [],
       error: "",
       resolvedQuery: trimmedQuery,
     }));
@@ -91,10 +106,12 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
       })
         .then((payload) => {
           if (canceled) return;
+          const assets = payload.assets || [];
+          SEARCH_CACHE.set(cacheKey, assets);
           setState({
             loading: false,
             error: "",
-            assets: payload.assets || [],
+            assets,
             resolvedQuery: trimmedQuery,
           });
         })
@@ -107,7 +124,7 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
             resolvedQuery: trimmedQuery,
           });
         });
-    }, 35);
+    }, cachedMatches.length ? 10 : 20);
 
     return () => {
       canceled = true;

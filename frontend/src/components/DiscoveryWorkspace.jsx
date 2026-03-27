@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useAssetDetail } from "../hooks/useAssetDetail";
+import { prefetchAssetDetail, useAssetDetail } from "../hooks/useAssetDetail";
 import { useLineage } from "../hooks/useLineage";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
@@ -377,6 +377,7 @@ function PreviewProfileList({ items }) {
 
 function SelectionPreview({
   asset,
+  visibleAssetSet,
   detailLoading,
   detailError,
   lineageLoading,
@@ -484,9 +485,26 @@ function SelectionPreview({
         {relatedAssets.length ? (
           <div className="gh-lineage-linked-list">
             {relatedAssets.map((item) => (
-              <button className="gh-lineage-linked-row" key={item} onClick={() => onOpenAsset(item)} type="button">
+              <button
+                className="gh-lineage-linked-row"
+                key={item}
+                onClick={() => {
+                  if (visibleAssetSet.has(item)) {
+                    prefetchAssetDetail(item);
+                    onOpenAsset(item);
+                    return;
+                  }
+                  onOpenLineage(item, "Data Lineage");
+                }}
+                onMouseEnter={() => {
+                  if (visibleAssetSet.has(item)) {
+                    prefetchAssetDetail(item);
+                  }
+                }}
+                type="button"
+              >
                 <span>{item}</span>
-                <span>Open linked asset</span>
+                <span>{visibleAssetSet.has(item) ? "Open linked asset" : "View lineage only"}</span>
               </button>
             ))}
           </div>
@@ -508,7 +526,6 @@ export default function DiscoveryWorkspace({
 }) {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedAssetFqn, setSelectedAssetFqn] = useState("");
-  const filterPopoverRef = useRef(null);
   const filterCommandRef = useRef(null);
   const { filters, setFilters, results: discoveryResults } = useDiscoveryWorkspace({
     bootstrap,
@@ -520,6 +537,7 @@ export default function DiscoveryWorkspace({
 
   const selectedSeedAsset =
     discoveryResults.assets.find((asset) => asset.fqn === selectedAssetFqn) || discoveryResults.assets[0] || null;
+  const visibleAssetSet = new Set((bootstrap?.assets || []).map((asset) => asset.fqn));
   const previewDetail = useAssetDetail(selectedSeedAsset?.fqn || "");
   const previewLineage = useLineage(
     selectedSeedAsset?.fqn || "",
@@ -867,6 +885,7 @@ export default function DiscoveryWorkspace({
             lineageLoading={previewLineage.loading}
             onOpenAsset={onOpenAsset}
             onOpenLineage={onOpenLineage}
+            visibleAssetSet={visibleAssetSet}
           />
         ) : null}
       </section>
