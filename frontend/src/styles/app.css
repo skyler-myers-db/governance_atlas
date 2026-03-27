@@ -539,7 +539,7 @@ body {
 }
 
 .gh-discovery-command-actions {
-  position: static;
+  position: relative;
   display: flex;
   justify-content: flex-end;
   align-items: center;
@@ -624,7 +624,7 @@ body {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: min(420px, calc(100vw - 24px));
+  width: min(440px, calc(100vw - 24px));
   display: grid;
   gap: 8px;
   padding: 8px;
@@ -632,7 +632,7 @@ body {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 10px 18px rgba(19, 31, 65, 0.06);
-  z-index: 7;
+  z-index: 24;
 }
 
 .gh-discovery-filter-popover-head {
@@ -2158,6 +2158,197 @@ body {
   border-color: rgba(207, 92, 102, 0.2);
 }
 
+.gh-launch-screen {
+  min-height: 100vh;
+  padding: 18px;
+  background:
+    radial-gradient(circle at top left, rgba(91, 67, 238, 0.08), transparent 28%),
+    linear-gradient(180deg, #edf3fb 0%, #f5f8fc 100%);
+}
+
+.gh-launch-shell {
+  width: min(1500px, calc(100vw - 36px));
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+
+.gh-launch-header,
+.gh-launch-search,
+.gh-launch-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(184, 199, 221, 0.86);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top left, rgba(91, 67, 238, 0.08), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(247, 250, 255, 0.96) 100%);
+  box-shadow: 0 18px 42px rgba(18, 35, 58, 0.08);
+}
+
+.gh-launch-header {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.72fr) minmax(0, 1.52fr) minmax(260px, 0.56fr);
+  gap: 14px;
+  padding: 18px;
+}
+
+.gh-launch-brand,
+.gh-launch-modules,
+.gh-launch-identity {
+  min-height: 110px;
+  padding: 18px 22px;
+  border: 1px solid rgba(214, 224, 236, 0.92);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.gh-launch-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.gh-launch-brand-mark {
+  width: 62px;
+  height: 62px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #4b34d4 0%, #5b43ee 56%, #7d63ff 100%);
+  color: #fff;
+  font-size: 0.94rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.gh-launch-brand-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.gh-launch-brand-copy strong {
+  font-size: 2.26rem;
+  letter-spacing: -0.05em;
+}
+
+.gh-launch-brand-copy span,
+.gh-launch-panel p {
+  color: #61748f;
+}
+
+.gh-launch-modules {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.gh-launch-identity {
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  color: #61748f;
+  font-weight: 800;
+}
+
+.gh-launch-search {
+  min-height: 64px;
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr) 110px;
+  gap: 12px;
+  align-items: center;
+}
+
+.gh-launch-kicker,
+.gh-launch-search-label {
+  color: #61748f;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.gh-launch-search-input,
+.gh-launch-search-button {
+  min-height: 44px;
+  border: 1px solid rgba(184, 199, 221, 0.92);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.gh-launch-search-input {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  color: #879ab4;
+}
+
+.gh-launch-search-button {
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+}
+
+.gh-launch-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.4fr) minmax(0, 1.2fr) minmax(340px, 0.8fr);
+  gap: 16px;
+}
+
+.gh-launch-panel {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.gh-launch-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, rgba(91, 67, 238, 0.92) 0%, rgba(15, 92, 192, 0.72) 100%);
+}
+
+.gh-launch-panel strong {
+  font-size: 1.42rem;
+  letter-spacing: -0.04em;
+}
+
+.gh-launch-skeleton-list,
+.gh-launch-skeleton-cards {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-launch-skeleton-list span,
+.gh-launch-skeleton-cards span {
+  display: block;
+  border-radius: 14px;
+  border: 1px solid rgba(222, 230, 242, 0.92);
+  background:
+    linear-gradient(90deg, rgba(239, 244, 251, 0.96) 0%, rgba(252, 253, 255, 0.98) 50%, rgba(239, 244, 251, 0.96) 100%);
+  background-size: 220% 100%;
+  animation: gh-launch-shimmer 1.6s ease-in-out infinite;
+}
+
+.gh-launch-skeleton-list span {
+  height: 52px;
+}
+
+.gh-launch-skeleton-cards span {
+  height: 118px;
+}
+
+@keyframes gh-launch-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -20% 0;
+  }
+}
+
 @media (max-width: 1500px) {
   .gh-governance-toolbar,
   .gh-governance-flow-grid,
@@ -2384,7 +2575,7 @@ body {
 }
 
 .gh-shell-topbar {
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 360px);
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
   align-items: start;
   gap: 14px;
 }
@@ -2409,7 +2600,7 @@ body {
   border: 1px solid rgba(214, 224, 236, 0.92);
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.985) 0%, rgba(247, 250, 255, 0.97) 100%);
-  box-shadow: var(--gh-shadow-soft);
+  box-shadow: 0 16px 38px rgba(18, 35, 58, 0.075);
 }
 
 .gh-shell-brand-band {
@@ -2483,7 +2674,7 @@ body {
 }
 
 .gh-shell-brand-title {
-  font-size: 2.74rem;
+  font-size: 3rem;
   font-weight: 800;
   letter-spacing: -0.05em;
   color: var(--gh-ink);
@@ -2511,10 +2702,10 @@ body {
 }
 
 .gh-product-tab {
-  min-width: 194px;
-  min-height: 58px;
-  padding: 0 30px;
-  border-radius: 15px;
+  min-width: 202px;
+  min-height: 60px;
+  padding: 0 32px;
+  border-radius: 17px;
   border: 1px solid rgba(182, 198, 216, 0.96);
   background: rgba(247, 250, 255, 0.92);
   color: #334763;
@@ -2533,6 +2724,7 @@ body {
 .gh-product-tab.is-active {
   border-color: rgba(91, 67, 238, 0.2);
   background: linear-gradient(135deg, #4b34d4 0%, #5b43ee 60%, #7257ff 100%);
+  box-shadow: 0 16px 30px rgba(91, 67, 238, 0.18);
 }
 
 .gh-product-tab.is-active span {
@@ -2683,7 +2875,7 @@ body {
   background:
     radial-gradient(circle at top right, rgba(91, 67, 238, 0.08), transparent 42%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.985) 0%, rgba(247, 250, 255, 0.965) 100%);
-  box-shadow: var(--gh-shadow-soft);
+  box-shadow: 0 16px 38px rgba(18, 35, 58, 0.075);
   justify-self: stretch;
 }
 
@@ -2707,7 +2899,7 @@ body {
 .gh-shell-user {
   max-width: none;
   color: var(--gh-ink);
-  font-size: 0.86rem;
+  font-size: 0.96rem;
   font-weight: 800;
 }
 
@@ -2785,6 +2977,7 @@ body {
   background:
     radial-gradient(circle at top right, rgba(91, 67, 238, 0.07), transparent 38%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.988) 0%, rgba(247, 250, 255, 0.968) 100%);
+  box-shadow: 0 16px 34px rgba(18, 35, 58, 0.08);
 }
 
 .gh-discovery-summary-grid {
@@ -2830,7 +3023,7 @@ body {
 }
 
 .gh-discovery-command-bar {
-  grid-template-columns: minmax(0, 1fr) minmax(228px, 248px) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 236px) minmax(172px, auto);
   gap: 12px;
   align-items: end;
 }
@@ -2887,7 +3080,7 @@ body {
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.98);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(248, 251, 255, 0.97) 100%);
-  box-shadow: 0 10px 24px rgba(18, 35, 58, 0.055);
+  box-shadow: 0 16px 34px rgba(18, 35, 58, 0.08);
   width: 100%;
   max-width: 100%;
   overflow: hidden;
@@ -3101,16 +3294,23 @@ body {
   border: 1px solid rgba(182, 198, 216, 0.82);
   border-radius: 16px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.988) 0%, rgba(247, 250, 255, 0.968) 100%);
-  box-shadow: 0 14px 34px rgba(18, 35, 58, 0.07);
-  overflow: hidden;
+  box-shadow: 0 18px 38px rgba(18, 35, 58, 0.085);
+  overflow: visible;
 }
 
-.gh-discovery-sidebar-panel,
-.gh-preview-panel,
 .gh-record-card,
 .gh-discovery-command-panel {
   position: relative;
+}
+
+.gh-record-card {
   overflow: hidden;
+}
+
+.gh-discovery-command-panel,
+.gh-discovery-sidebar-panel,
+.gh-preview-panel {
+  overflow: visible;
 }
 
 .gh-discovery-sidebar-panel::before,

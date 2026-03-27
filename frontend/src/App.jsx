@@ -6,6 +6,72 @@ import LineageWorkspace from "./components/LineageWorkspace";
 import { useAppRouteState } from "./hooks/useAppRouteState";
 import { useBootstrap } from "./hooks/useBootstrap";
 
+function bootShell(kicker, title, body) {
+  return (
+    <div className="gh-launch-screen">
+      <div className="gh-launch-shell">
+        <div className="gh-launch-header">
+          <div className="gh-launch-brand">
+            <div className="gh-launch-brand-mark">GH</div>
+            <div className="gh-launch-brand-copy">
+              <strong>Governance Hub</strong>
+              <span>Metadata Workspace</span>
+            </div>
+          </div>
+          <div className="gh-launch-modules">
+            <span className="gh-launch-pill is-active">Discovery</span>
+            <span className="gh-launch-pill">Lineage</span>
+            <span className="gh-launch-pill">Governance</span>
+          </div>
+          <div className="gh-launch-identity">Preparing workspace</div>
+        </div>
+
+        <div className="gh-launch-search">
+          <div className="gh-launch-search-label">Global Search</div>
+          <div className="gh-launch-search-input">Search visible assets by name, schema, domain, or tag</div>
+          <div className="gh-launch-search-button">Browse</div>
+        </div>
+
+        <div className="gh-launch-grid">
+          <aside className="gh-launch-panel">
+            <div className="gh-launch-kicker">Discovery Scope</div>
+            <strong>Preparing filters</strong>
+            <p>Loading asset types, saved views, and catalog scope.</p>
+            <div className="gh-launch-skeleton-list">
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+          </aside>
+
+          <main className="gh-launch-panel">
+            <div className="gh-launch-kicker">{kicker}</div>
+            <strong>{title}</strong>
+            <p>{body}</p>
+            <div className="gh-launch-skeleton-cards">
+              <span />
+              <span />
+              <span />
+            </div>
+          </main>
+
+          <aside className="gh-launch-panel">
+            <div className="gh-launch-kicker">Selected Asset</div>
+            <strong>Preparing preview context</strong>
+            <p>Loading schema, sample data, and lineage context for the first asset.</p>
+            <div className="gh-launch-skeleton-list">
+              <span />
+              <span />
+              <span />
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function unavailableWorkspace(message) {
   return (
     <section className="gh-workspace gh-unavailable-workspace">
@@ -37,25 +103,18 @@ export default function App() {
   } = useAppRouteState();
 
   if (loading) {
-    return (
-      <div className="gh-boot-screen">
-        <div className="gh-boot-card">
-          <div className="gh-eyebrow">Loading</div>
-          <h1>Preparing the metadata workspace.</h1>
-        </div>
-      </div>
+    return bootShell(
+      "Loading",
+      "Preparing the metadata workspace.",
+      "Connecting the discovery plane, lineage graph, and governance workbench.",
     );
   }
 
   if (error || !data) {
-    return (
-      <div className="gh-boot-screen">
-        <div className="gh-boot-card gh-error-card">
-          <div className="gh-eyebrow">Workspace Unavailable</div>
-          <h1>The workspace could not load.</h1>
-          <p>{error || "Bootstrap payload was unavailable."}</p>
-        </div>
-      </div>
+    return bootShell(
+      "Workspace Unavailable",
+      "The workspace could not load.",
+      error || "Bootstrap payload was unavailable.",
     );
   }
 
