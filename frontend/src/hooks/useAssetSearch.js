@@ -57,6 +57,18 @@ function localMatches(seedAssets, trimmedQuery, limit = 8) {
     .map((entry) => entry.asset);
 }
 
+function mergeAssets(primary = [], secondary = [], limit = 8) {
+  const merged = [];
+  const seen = new Set();
+  [...(primary || []), ...(secondary || [])].forEach((asset) => {
+    const key = asset?.fqn;
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(asset);
+  });
+  return merged.slice(0, limit);
+}
+
 function cacheKeyForQuery(query) {
   return normalizeSearchText(query);
 }
@@ -85,16 +97,15 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
     const cacheKey = cacheKeyForQuery(trimmedQuery);
     const seededMatches = localMatches(seedAssets, trimmedQuery, 8);
     const cachedMatches = SEARCH_CACHE.get(cacheKey) || [];
+    const initialMatches = mergeAssets(cachedMatches, seededMatches, 8);
     setState((prev) => ({
-      loading: !cachedMatches.length,
+      loading: !initialMatches.length,
       assets:
-        cachedMatches.length
-          ? cachedMatches
-          : seededMatches.length
-            ? seededMatches
-            : prev.resolvedQuery === trimmedQuery
-              ? prev.assets
-              : [],
+        initialMatches.length
+          ? initialMatches
+          : prev.resolvedQuery === trimmedQuery
+            ? prev.assets
+            : [],
       error: "",
       resolvedQuery: trimmedQuery,
     }));
@@ -106,7 +117,7 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
       })
         .then((payload) => {
           if (canceled) return;
-          const assets = payload.assets || [];
+          const assets = mergeAssets(payload.assets || [], seededMatches, 8);
           SEARCH_CACHE.set(cacheKey, assets);
           setState({
             loading: false,

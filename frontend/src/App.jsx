@@ -1,10 +1,31 @@
+import { Suspense, lazy, useCallback, useState } from "react";
 import AppFrame from "./components/AppFrame";
 import DiscoveryWorkspace from "./components/DiscoveryWorkspace";
-import EntityWorkspace from "./components/EntityWorkspace";
-import GovernanceWorkspace from "./components/GovernanceWorkspace";
-import LineageWorkspace from "./components/LineageWorkspace";
 import { useAppRouteState } from "./hooks/useAppRouteState";
 import { useBootstrap } from "./hooks/useBootstrap";
+
+const EntityWorkspace = lazy(() => import("./components/EntityWorkspace"));
+const GovernanceWorkspace = lazy(() => import("./components/GovernanceWorkspace"));
+const LineageWorkspace = lazy(() => import("./components/LineageWorkspace"));
+
+function visibleAssetSetFromGroups(...groups) {
+  const visible = new Set();
+  groups.flat().forEach((asset) => {
+    if (asset?.fqn) visible.add(asset.fqn);
+  });
+  return visible;
+}
+
+function mergeAssetGroups(...groups) {
+  const merged = [];
+  const seen = new Set();
+  groups.flat().forEach((asset) => {
+    if (!asset?.fqn || seen.has(asset.fqn)) return;
+    seen.add(asset.fqn);
+    merged.push(asset);
+  });
+  return merged;
+}
 
 function bootShell(kicker, title, body) {
   return (
@@ -87,8 +108,30 @@ function unavailableWorkspace(message) {
   );
 }
 
+function workspaceLoading(title, body) {
+  return (
+    <section className="gh-workspace gh-unavailable-workspace">
+      <div className="gh-panel gh-unavailable-panel">
+        <div className="gh-panel-title">{title}</div>
+        <h2>Preparing the workspace surface.</h2>
+        <p>{body}</p>
+      </div>
+    </section>
+  );
+}
+
 export default function App() {
-  const { loading, error, data } = useBootstrap();
+  const { loading, error, refreshError, data } = useBootstrap();
+  const [liveDiscoveryState, setLiveDiscoveryState] = useState({
+    assets: [],
+    count: null,
+    baselineAssets: [],
+    baselineCount: null,
+    settled: false,
+    error: "",
+    baselineScope: false,
+    authoritative: false,
+  });
   const {
     surface,
     setSurface,
@@ -118,62 +161,189 @@ export default function App() {
     );
   }
 
+  const bootstrapAssets = data.assets || [];
+  const bootstrapVisibleCount = data.discovery?.summary?.visibleAssets ?? bootstrapAssets.length ?? 0;
+  const bootstrapRefreshFailed = Boolean(refreshError);
+  const handleLiveCatalogStateChange = useCallback((nextState) => {
+    setLiveDiscoveryState((current) => {
+      const nextAuthoritative = nextState.authoritative === true;
+      const nextBaselineAssets =
+        nextAuthoritative &&
+        nextState.settled &&
+        !nextState.error &&
+        nextState.baselineScope &&
+        Array.isArray(nextState.assets)
+          ? nextState.assets
+          : current.baselineAssets;
+      const nextBaselineCount =
+        nextAuthoritative &&
+        nextState.settled &&
+        !nextState.error &&
+        nextState.baselineScope &&
+        typeof nextState.count === "number"
+          ? nextState.count
+          : current.baselineCount;
+      return {
+        assets:
+          nextAuthoritative && Array.isArray(nextState.assets) ? nextState.assets : current.assets,
+        count:
+          nextAuthoritative && typeof nextState.count === "number"
+            ? nextState.count
+            : current.count,
+        baselineAssets: nextBaselineAssets,
+        baselineCount: nextBaselineCount,
+        settled: Boolean(nextState.settled),
+        error: nextState.error || "",
+        baselineScope: Boolean(nextState.baselineScope),
+        authoritative: nextAuthoritative,
+      };
+    });
+  }, []);
+  const hasCurrentDiscoveryTruth =
+    liveDiscoveryState.authoritative &&
+    liveDiscoveryState.settled &&
+    !liveDiscoveryState.error &&
+    Array.isArray(liveDiscoveryState.assets);
+  const hasBaselineDiscoveryTruth =
+    liveDiscoveryState.authoritative &&
+    liveDiscoveryState.settled &&
+    liveDiscoveryState.baselineScope &&
+    !liveDiscoveryState.error &&
+    Array.isArray(liveDiscoveryState.baselineAssets);
+  const currentDiscoveryAssets = hasCurrentDiscoveryTruth ? liveDiscoveryState.assets : [];
+  const baselineDiscoveryAssets = hasBaselineDiscoveryTruth ? liveDiscoveryState.baselineAssets : [];
+  const bootstrapHasVisibleAssets = Number(bootstrapVisibleCount || 0) > 0;
+  const searchSeedAssets = baselineDiscoveryAssets.length
+    ? baselineDiscoveryAssets
+    : currentDiscoveryAssets.length
+      ? currentDiscoveryAssets
+      : bootstrapRefreshFailed || !bootstrapHasVisibleAssets
+        ? []
+        : bootstrapAssets;
+  const contextSeedAssets = mergeAssetGroups(
+    currentDiscoveryAssets,
+    baselineDiscoveryAssets,
+    bootstrapAssets,
+  );
+  const visibleAssetSet = visibleAssetSetFromGroups(contextSeedAssets);
+
   const shell = data.shell || {};
   const bootState = data.bootState || "live";
   const bootMessage = data.bootMessage || "";
-  let content = unavailableWorkspace(bootMessage);
+  const effectiveVisibleCount =
+    hasCurrentDiscoveryTruth && typeof liveDiscoveryState.count === "number"
+      ? liveDiscoveryState.count
+      : bootstrapVisibleCount;
+  const hasRenderableCatalogSeed =
+    currentDiscoveryAssets.length > 0 ||
+    baselineDiscoveryAssets.length > 0 ||
+    searchSeedAssets.length > 0 ||
+    (hasBaselineDiscoveryTruth && Number(liveDiscoveryState.baselineCount || 0) > 0);
+  const effectiveBootState = hasRenderableCatalogSeed
+    ? "live"
+    : bootstrapRefreshFailed
+      ? "degraded"
+      : bootState;
+  const effectiveBootMessage = hasRenderableCatalogSeed ? "" : refreshError || bootMessage;
+  const discoveryWorkspaceKey = [
+    shell.userEmail || shell.userName || "workspace",
+    effectiveBootState,
+    bootstrapVisibleCount,
+    bootstrapRefreshFailed ? "stale" : "fresh",
+  ].join(":");
+  let content = unavailableWorkspace(effectiveBootMessage);
 
-  if (bootState !== "unavailable" && bootState !== "error") {
+  if (effectiveBootState !== "unavailable" && effectiveBootState !== "error") {
     if (surface === "discovery") {
       content = (
-        <DiscoveryWorkspace
-          bootstrap={data}
-          initialQuery={discoveryRouteState.query}
-          onRouteQueryChange={setDiscoveryRouteQuery}
-          onOpenAsset={openEntityWorkspace}
-          onOpenGovernance={openGovernanceWorkspace}
-          onOpenLineage={openLineageWorkspace}
-          querySeedFresh={discoveryRouteState.fresh}
-          querySeedKey={discoveryRouteState.requestKey}
-        />
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading discovery",
+            "Restoring the catalog, selected asset preview, and stacked filters.",
+          )}
+        >
+          <DiscoveryWorkspace
+            key={discoveryWorkspaceKey}
+            bootstrap={data}
+            effectiveBootMessage={effectiveBootMessage}
+            effectiveBootState={effectiveBootState}
+            effectiveVisibleCount={effectiveVisibleCount}
+            initialQuery={discoveryRouteState.query}
+            onRouteQueryChange={setDiscoveryRouteQuery}
+            onOpenAsset={openEntityWorkspace}
+            onOpenGovernance={openGovernanceWorkspace}
+            onOpenLineage={openLineageWorkspace}
+            allowSeededDiscovery={!bootstrapRefreshFailed && bootstrapHasVisibleAssets}
+            querySeedFresh={discoveryRouteState.fresh}
+            querySeedKey={discoveryRouteState.requestKey}
+            onLiveCatalogStateChange={handleLiveCatalogStateChange}
+            sharedVisibleAssetSet={visibleAssetSet}
+          />
+        </Suspense>
       );
     } else if (surface === "entity") {
       content = (
-        <EntityWorkspace
-          assetFqn={surface === "entity" ? routeAssetFqn : ""}
-          bootstrap={data}
-          onBack={() => {
-            openDiscoveryWorkspace(discoveryRouteState.query, { fresh: false });
-          }}
-          onOpenGovernance={openGovernanceWorkspace}
-          onOpenLineage={(assetFqn, nextContext = "Data Lineage") =>
-            openLineageWorkspace(assetFqn || routeAssetFqn, nextContext)
-          }
-          onSelectAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
-        />
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading metadata record",
+            "Hydrating the selected asset, schema, sample data, and lineage context.",
+          )}
+        >
+          <EntityWorkspace
+            assetFqn={surface === "entity" ? routeAssetFqn : ""}
+            bootstrap={data}
+            contextSeedAssets={contextSeedAssets}
+            sharedVisibleAssetSet={visibleAssetSet}
+            onBack={() => {
+              openDiscoveryWorkspace(discoveryRouteState.query, { fresh: false });
+            }}
+            onOpenGovernance={openGovernanceWorkspace}
+            onOpenLineage={(assetFqn, nextContext = "Data Lineage") =>
+              openLineageWorkspace(assetFqn || routeAssetFqn, nextContext)
+            }
+            onSelectAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
+          />
+        </Suspense>
       );
     } else if (surface === "lineage") {
       content = (
-        <LineageWorkspace
-          bootstrap={data}
-          initialAssetFqn={surface === "lineage" ? routeAssetFqn : ""}
-          onRouteAssetChange={(assetFqn, nextContext = "Data Lineage") =>
-            openLineageWorkspace(assetFqn, nextContext)
-          }
-          onOpenGovernance={openGovernanceWorkspace}
-          onOpenAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
-        />
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading lineage",
+            "Preparing the connected graph workspace and focus asset context.",
+          )}
+        >
+          <LineageWorkspace
+            bootstrap={data}
+            contextSeedAssets={contextSeedAssets}
+            initialAssetFqn={surface === "lineage" ? routeAssetFqn : ""}
+            sharedVisibleAssetSet={visibleAssetSet}
+            onRouteAssetChange={(assetFqn, nextContext = "Data Lineage") =>
+              openLineageWorkspace(assetFqn, nextContext)
+            }
+            onOpenGovernance={openGovernanceWorkspace}
+            onOpenAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
+          />
+        </Suspense>
       );
     } else {
       content = (
-        <GovernanceWorkspace
-          bootstrap={data}
-          initialAssetFqn={surface === "governance" ? routeAssetFqn : ""}
-          governance={data.governance}
-          onRouteAssetChange={(assetFqn) => openGovernanceWorkspace(assetFqn || "")}
-          onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
-          onOpenLineage={openLineageWorkspace}
-        />
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading governance",
+            "Preparing stewardship lanes, ownership gaps, and glossary context.",
+          )}
+        >
+          <GovernanceWorkspace
+            bootstrap={data}
+            contextSeedAssets={contextSeedAssets}
+            initialAssetFqn={surface === "governance" ? routeAssetFqn : ""}
+            governance={data.governance}
+            onRouteAssetChange={(assetFqn) => openGovernanceWorkspace(assetFqn || "")}
+            onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
+            onOpenLineage={openLineageWorkspace}
+          />
+        </Suspense>
       );
     }
   }
@@ -181,13 +351,15 @@ export default function App() {
   return (
     <AppFrame
       activeModule={["discovery", "lineage", "governance"].includes(surface) ? surface : ""}
-      bootMessage={bootMessage}
-      bootState={bootState}
+      bootMessage={effectiveBootMessage}
+      bootState={effectiveBootState}
+      liveCatalogVisibleCount={effectiveVisibleCount}
       onBrowseCatalog={(query) => openDiscoveryWorkspace(query, { fresh: true })}
       onModuleChange={onModuleChange}
       onSearchResultSelect={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
-      searchSeedAssets={data.assets || []}
+      searchSeedAssets={searchSeedAssets}
       shell={shell}
+      visibleAssetSet={visibleAssetSet}
     >
       {content}
     </AppFrame>

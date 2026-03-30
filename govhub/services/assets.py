@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import importlib
 import math
 import re
 import time
+from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
 
-import app as legacy_streamlit
 from govhub.uc import _is_skippable_metadata_error
 
 
@@ -17,29 +18,44 @@ PLACEHOLDER_DESCRIPTION = "No description has been captured for this asset yet."
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
 
 
-def _raw(fn):
-    return getattr(fn, "__wrapped__", fn)
+@lru_cache(maxsize=1)
+def _legacy_streamlit():
+    return importlib.import_module("app")
 
 
-cached_asset_inventory = _raw(legacy_streamlit._cached_asset_inventory)
-cached_catalog_inventory = _raw(legacy_streamlit._cached_catalog_inventory)
-cached_catalog_table_tags = _raw(legacy_streamlit._cached_catalog_table_tags)
-cached_catalogs = _raw(legacy_streamlit._cached_catalogs)
-cached_comment = _raw(legacy_streamlit._cached_comment)
-cached_columns = _raw(legacy_streamlit._cached_columns)
-cached_table_detail = _raw(legacy_streamlit._cached_table_detail)
-cached_table_row_count = _raw(legacy_streamlit._cached_table_row_count)
-cached_sample_rows = _raw(legacy_streamlit._cached_sample_rows)
-cached_lineage_up = _raw(legacy_streamlit._cached_lineage_up)
-cached_lineage_down = _raw(legacy_streamlit._cached_lineage_down)
+def _legacy_attr(name: str):
+    return getattr(_legacy_streamlit(), name)
 
-normalize_str = legacy_streamlit._normalize_str
-filter_asset_rows = legacy_streamlit._filter_asset_rows
-split_uc_name = legacy_streamlit._split_uc_name
-catalog_filter_options = legacy_streamlit._catalog_filter_options
-tag_value = legacy_streamlit._tag_value
-lineage_asset_stub = legacy_streamlit._lineage_asset_stub
-empty_inventory = legacy_streamlit._empty_inventory
+
+def _legacy_callable(name: str, *, raw: bool = False):
+    def _call(*args, **kwargs):
+        fn = _legacy_attr(name)
+        if raw:
+            fn = getattr(fn, "__wrapped__", fn)
+        return fn(*args, **kwargs)
+
+    return _call
+
+
+cached_asset_inventory = _legacy_callable("_cached_asset_inventory", raw=True)
+cached_catalog_inventory = _legacy_callable("_cached_catalog_inventory", raw=True)
+cached_catalog_table_tags = _legacy_callable("_cached_catalog_table_tags", raw=True)
+cached_catalogs = _legacy_callable("_cached_catalogs", raw=True)
+cached_comment = _legacy_callable("_cached_comment", raw=True)
+cached_columns = _legacy_callable("_cached_columns", raw=True)
+cached_table_detail = _legacy_callable("_cached_table_detail", raw=True)
+cached_table_row_count = _legacy_callable("_cached_table_row_count", raw=True)
+cached_sample_rows = _legacy_callable("_cached_sample_rows", raw=True)
+cached_lineage_up = _legacy_callable("_cached_lineage_up", raw=True)
+cached_lineage_down = _legacy_callable("_cached_lineage_down", raw=True)
+
+normalize_str = _legacy_callable("_normalize_str")
+filter_asset_rows = _legacy_callable("_filter_asset_rows")
+split_uc_name = _legacy_callable("_split_uc_name")
+catalog_filter_options = _legacy_callable("_catalog_filter_options")
+tag_value = _legacy_callable("_tag_value")
+lineage_asset_stub = _legacy_callable("_lineage_asset_stub")
+empty_inventory = _legacy_callable("_empty_inventory")
 
 
 def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
@@ -384,10 +400,12 @@ def inventory_row(
     *,
     hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
 ) -> pd.Series:
+    exact_row: Optional[pd.Series] = None
     if isinstance(inventory_or_uc, pd.DataFrame):
         inventory_df = inventory_or_uc
         resolved_asset_fqn = str(store_or_asset_fqn)
     else:
+        exact_row = exact_identity_row(inventory_or_uc, str(asset_fqn or ""))
         inventory_df = visible_assets(
             inventory_or_uc,
             store_or_asset_fqn,
@@ -399,10 +417,38 @@ def inventory_row(
     match = inventory_df[inventory_df["fqn"] == resolved_asset_fqn]
     if not match.empty:
         return match.iloc[0]
+    if exact_row is not None:
+        return exact_row
     return lineage_asset_stub(inventory_df, resolved_asset_fqn)
 
 
 def asset_exists(
+    inventory_or_uc,
+    store_or_asset_fqn,
+    asset_fqn: str | None = None,
+    *,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> bool:
+    if isinstance(inventory_or_uc, pd.DataFrame):
+        inventory_df = inventory_or_uc
+        resolved_asset_fqn = str(store_or_asset_fqn)
+        exact_row = None
+    else:
+        inventory_df = visible_assets(
+            inventory_or_uc,
+            store_or_asset_fqn,
+            hidden_catalogs=hidden_catalogs,
+        )
+        resolved_asset_fqn = str(asset_fqn or "")
+        exact_row = exact_identity_row(inventory_or_uc, resolved_asset_fqn)
+    if inventory_df is None or inventory_df.empty:
+        return exact_row is not None
+    if bool((inventory_df["fqn"] == resolved_asset_fqn).any()):
+        return True
+    return exact_row is not None
+
+
+def asset_is_visible(
     inventory_or_uc,
     store_or_asset_fqn,
     asset_fqn: str | None = None,
@@ -473,12 +519,14 @@ def friendly_table_type(raw: Any, data_source_format: Any = None) -> str:
         return "Delta Table"
     if normalized in mapping:
         return mapping[normalized]
+    if not normalized or normalized.startswith("UNKNOWN"):
+        return ""
     return normalize_str(raw).replace("_", " ").title()
 
 
 def friendly_storage_format(raw: Any) -> str:
     normalized = normalize_str(raw).upper()
-    if not normalized:
+    if not normalized or normalized.startswith("UNKNOWN"):
         return "—"
     mapping = {
         "DELTA": "Delta",
@@ -999,7 +1047,14 @@ def discovery_search_payload(
     }
 
 
-def related_assets(uc, catalog: str, schema: str, table: str, focus_fqn: str) -> List[str]:
+def related_assets(
+    uc,
+    catalog: str,
+    schema: str,
+    table: str,
+    focus_fqn: str,
+    inventory_df: Optional[pd.DataFrame] = None,
+) -> List[str]:
     try:
         upstream = filter_asset_rows(
             cached_lineage_up(uc, catalog, schema, table),
@@ -1023,7 +1078,11 @@ def related_assets(uc, catalog: str, schema: str, table: str, focus_fqn: str) ->
         values.extend(downstream["target_table_full_name"].dropna().astype(str).tolist())
     normalized = [normalize_str(item) for item in values if normalize_str(item)]
     deduped = list(dict.fromkeys(item for item in normalized if item != focus_fqn))
-    return deduped[:8]
+    openable: List[str] = []
+    for item in deduped:
+        if inventory_df is not None and asset_is_visible(inventory_df, item):
+            openable.append(item)
+    return openable[:8]
 
 
 def preview_records(sample_df: pd.DataFrame) -> List[Dict[str, str]]:
@@ -1058,120 +1117,141 @@ def asset_detail_payload(
     inventory_or_store,
     asset_fqn: str,
     *,
+    cache_scope: str = "",
     hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
 ) -> Dict[str, Any]:
-    inventory = _resolve_inventory_df(
-        inventory_or_store if isinstance(inventory_or_store, pd.DataFrame) else uc,
-        None if isinstance(inventory_or_store, pd.DataFrame) else inventory_or_store,
-        hidden_catalogs=hidden_catalogs,
-    )
-    row = inventory_row(inventory, asset_fqn)
-    row = merge_identity_row(
-        row,
-        exact_identity_row(
-            uc,
-            asset_fqn,
-            inventory.columns if isinstance(inventory, pd.DataFrame) else None,
-        ),
-    )
-    base = base_asset_payload(row)
-    catalog, schema, table = split_uc_name(base["fqn"])
-    try:
-        detail_df = cached_table_detail(uc, catalog, schema, table)
-    except Exception:
-        detail_df = pd.DataFrame()
-    if detail_df.empty:
+    normalized_scope = normalize_str(cache_scope) or "shared"
+    cache_key = f"asset_detail:{_warehouse_key(uc)}:{normalized_scope}:{normalize_str(asset_fqn)}"
+
+    cached = _TTL_CACHE.get(cache_key)
+    if cached:
+        age = time.time() - cached[0]
+        payload = cached[1]
+        ttl_s = 300 if asset_payload_has_live_signals(payload) else 20
+        if age < ttl_s:
+            return payload
+
+    def load() -> Dict[str, Any]:
+        inventory = _resolve_inventory_df(
+            inventory_or_store if isinstance(inventory_or_store, pd.DataFrame) else uc,
+            None if isinstance(inventory_or_store, pd.DataFrame) else inventory_or_store,
+            hidden_catalogs=hidden_catalogs,
+        )
+        if isinstance(inventory_or_store, pd.DataFrame):
+            row = inventory_row(inventory, asset_fqn)
+            inventory_columns = list(inventory.columns) if isinstance(inventory, pd.DataFrame) else None
+        else:
+            row = inventory_row(uc, inventory_or_store, asset_fqn, hidden_catalogs=hidden_catalogs)
+            inventory_columns = list(inventory.columns) if isinstance(inventory, pd.DataFrame) else None
+            row = merge_identity_row(
+                row,
+                exact_identity_row(
+                    uc,
+                    asset_fqn,
+                    inventory_columns,
+                ),
+            )
+        base = base_asset_payload(row)
+        catalog, schema, table = split_uc_name(base["fqn"])
         try:
-            detail_df = uc.get_table_detail(catalog, schema, table)
+            detail_df = cached_table_detail(uc, catalog, schema, table)
         except Exception:
             detail_df = pd.DataFrame()
-    detail = detail_map(detail_df)
-    try:
-        columns_df = cached_columns(uc, catalog, schema, table)
-    except Exception:
-        columns_df = pd.DataFrame()
-    if columns_df.empty:
+        if detail_df.empty:
+            try:
+                detail_df = uc.get_table_detail(catalog, schema, table)
+            except Exception:
+                detail_df = pd.DataFrame()
+        detail = detail_map(detail_df)
         try:
-            columns_df = uc.get_table_columns(catalog, schema, table)
+            columns_df = cached_columns(uc, catalog, schema, table)
         except Exception:
             columns_df = pd.DataFrame()
-    try:
-        sample_df = cached_sample_rows(uc, catalog, schema, table)
-    except Exception:
-        sample_df = pd.DataFrame()
-    if sample_df.empty:
+        if columns_df.empty:
+            try:
+                columns_df = uc.get_table_columns(catalog, schema, table)
+            except Exception:
+                columns_df = pd.DataFrame()
         try:
-            sample_df = uc.get_table_sample(catalog, schema, table, limit=15)
+            sample_df = cached_sample_rows(uc, catalog, schema, table)
         except Exception:
             sample_df = pd.DataFrame()
-
-    if normalize_str(base["description"]) == PLACEHOLDER_DESCRIPTION:
-        try:
-            base["description"] = cached_comment(uc, catalog, schema, table)
-        except Exception:
-            base["description"] = ""
-        if not normalize_str(base["description"]):
+        if sample_df.empty:
             try:
-                base["description"] = uc.get_table_comment(catalog, schema, table)
+                sample_df = uc.get_table_sample(catalog, schema, table, limit=15)
+            except Exception:
+                sample_df = pd.DataFrame()
+
+        if normalize_str(base["description"]) == PLACEHOLDER_DESCRIPTION:
+            try:
+                base["description"] = cached_comment(uc, catalog, schema, table)
             except Exception:
                 base["description"] = ""
-        if not normalize_str(base["description"]):
-            base["description"] = PLACEHOLDER_DESCRIPTION
+            if not normalize_str(base["description"]):
+                try:
+                    base["description"] = uc.get_table_comment(catalog, schema, table)
+                except Exception:
+                    base["description"] = ""
+            if not normalize_str(base["description"]):
+                base["description"] = PLACEHOLDER_DESCRIPTION
 
-    try:
-        row_count = coalesce(detail.get("numrows"), cached_table_row_count(uc, catalog, schema, table))
-    except Exception:
-        row_count = coalesce(detail.get("numrows"))
-    base["rows"] = f"{safe_int(row_count):,}" if safe_int(row_count) else "—"
-    raw_detail_type = coalesce(detail.get("type"), base.get("tableTypeRaw"))
-    raw_detail_format = coalesce(detail.get("format"), base.get("storageFormat"))
-    base["tableTypeRaw"] = raw_detail_type or base.get("tableTypeRaw", "")
-    base["objectType"] = coalesce(
-        friendly_table_type(raw_detail_type, raw_detail_format),
-        base["objectType"],
-    )
-    base["managementType"] = management_type(base.get("tableTypeRaw"))
-    base["storageFormat"] = coalesce(
-        friendly_storage_format(raw_detail_format),
-        base.get("storageFormat"),
-    )
-    base["format"] = base["storageFormat"] or "—"
-    base["size"] = human_bytes(detail.get("sizeinbytes"))
-    base["files"] = str(safe_int(detail.get("numfiles"))) if safe_int(detail.get("numfiles")) else "—"
-    base["relatedAssets"] = related_assets(uc, catalog, schema, table, base["fqn"])
-    base["preview"] = preview_records(sample_df)
-    base["columns"] = column_records(columns_df)
-    base["metadataEditor"] = {
-        "available": True,
-        "updatePath": "/api/assets/:fqn/metadata",
-        "updateMethod": "PATCH",
-        "fields": [
-            {
-                "key": "description",
-                "label": "Description",
-                "type": "textarea",
-                "placeholder": "Add a description for this asset",
-            },
-            {"key": "domain", "label": "Domain", "type": "select"},
-            {"key": "tier", "label": "Tier", "type": "select"},
-            {"key": "certification", "label": "Certification", "type": "select"},
-            {"key": "sensitivity", "label": "Sensitivity", "type": "select"},
-        ],
-    }
-    return base
+        try:
+            row_count = coalesce(detail.get("numrows"), cached_table_row_count(uc, catalog, schema, table))
+        except Exception:
+            row_count = coalesce(detail.get("numrows"))
+        base["rows"] = f"{safe_int(row_count):,}" if safe_int(row_count) else "—"
+        raw_detail_type = coalesce(detail.get("type"), base.get("tableTypeRaw"))
+        raw_detail_format = coalesce(detail.get("format"), base.get("storageFormat"))
+        base["tableTypeRaw"] = raw_detail_type or base.get("tableTypeRaw", "")
+        base["objectType"] = coalesce(
+            friendly_table_type(raw_detail_type, raw_detail_format),
+            base["objectType"],
+        )
+        base["managementType"] = management_type(base.get("tableTypeRaw"))
+        base["storageFormat"] = coalesce(
+            friendly_storage_format(raw_detail_format),
+            base.get("storageFormat"),
+        )
+        base["format"] = base["storageFormat"] or "—"
+        base["size"] = human_bytes(detail.get("sizeinbytes"))
+        base["files"] = str(safe_int(detail.get("numfiles"))) if safe_int(detail.get("numfiles")) else "—"
+        base["relatedAssets"] = related_assets(
+            uc,
+            catalog,
+            schema,
+            table,
+            base["fqn"],
+            inventory_df=inventory,
+        )
+        base["preview"] = preview_records(sample_df)
+        base["columns"] = column_records(columns_df)
+        base["metadataEditor"] = {
+            "available": True,
+            "updatePath": "/api/assets/:fqn/metadata",
+            "updateMethod": "PATCH",
+            "fields": [
+                {
+                    "key": "description",
+                    "label": "Description",
+                    "type": "textarea",
+                    "placeholder": "Add a description for this asset",
+                },
+                {"key": "domain", "label": "Domain", "type": "text"},
+                {"key": "tier", "label": "Tier", "type": "text"},
+                {"key": "certification", "label": "Certification", "type": "text"},
+                {"key": "sensitivity", "label": "Sensitivity", "type": "text"},
+            ],
+        }
+        return base
+
+    payload = load()
+    _TTL_CACHE[cache_key] = (time.time(), payload)
+    return payload
 
 
 def asset_payload_has_live_signals(payload: Dict[str, Any]) -> bool:
     if not payload:
         return False
-    checks = [
-        payload.get("objectType"),
-        payload.get("tableTypeRaw"),
-        payload.get("storageFormat"),
-        payload.get("managementType"),
-    ]
-    if any(normalize_str(value) and normalize_str(value) != "—" for value in checks):
-        return True
     description = normalize_str(payload.get("description"))
     if description and description not in {"—", PLACEHOLDER_DESCRIPTION}:
         return True
@@ -1184,3 +1264,9 @@ def asset_payload_has_live_signals(payload: Dict[str, Any]) -> bool:
     if payload.get("columns") or payload.get("preview"):
         return True
     return False
+
+
+def asset_payload_has_structured_detail(payload: Dict[str, Any]) -> bool:
+    if not payload:
+        return False
+    return bool(payload.get("columns") or payload.get("preview"))

@@ -137,6 +137,7 @@ function AttributeList({ items }) {
 export default function GovernanceWorkspace({
   initialAssetFqn,
   bootstrap,
+  contextSeedAssets = [],
   governance,
   onRouteAssetChange,
   onOpenAsset,
@@ -144,7 +145,8 @@ export default function GovernanceWorkspace({
 }) {
   const [focusedAssetFqn, setFocusedAssetFqn] = useState(initialAssetFqn || "");
   const [liveGovernance, setLiveGovernance] = useState(governance);
-  const seeded = useSeededAssetContext(focusedAssetFqn, bootstrap, bootstrap?.assets || []);
+  const seedAssets = contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [];
+  const seeded = useSeededAssetContext(focusedAssetFqn, bootstrap, seedAssets);
   const assetDetail = useAssetDetail(focusedAssetFqn || "");
   const focusedAsset = assetDetail.detail || seeded.summary;
   const views = useMemo(() => governanceViews(liveGovernance), [liveGovernance]);
@@ -169,7 +171,7 @@ export default function GovernanceWorkspace({
   const assetSearch = useAssetSearch(
     assetSearchQuery,
     assetSearchQuery.trim().length >= 2,
-    bootstrap?.assets || [],
+    seedAssets,
   );
   const focusCommandRef = useRef(null);
 

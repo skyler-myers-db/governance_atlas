@@ -93,8 +93,18 @@ export function useDiscoveryWorkspace({
   initialQuery = "",
   querySeedKey = 0,
   querySeedFresh = false,
+  allowSeededDiscovery = true,
   onRouteQueryChange,
 }) {
+  const seededAssets = useMemo(() => {
+    if (!allowSeededDiscovery) return [];
+    const seen = new Set();
+    return [...(bootstrap?.assets || [])].filter((asset) => {
+      if (!asset?.fqn || seen.has(asset.fqn)) return false;
+      seen.add(asset.fqn);
+      return true;
+    });
+  }, [allowSeededDiscovery, bootstrap?.assets]);
   const seedState = useMemo(
     () => readDiscoverySession(bootstrap, initialQuery, querySeedFresh),
     [bootstrap, initialQuery, querySeedFresh],
@@ -139,7 +149,7 @@ export function useDiscoveryWorkspace({
     }
   }, [filters]);
 
-  const results = useDiscoveryResults(filters, bootstrap?.assets || []);
+  const results = useDiscoveryResults(filters, seededAssets);
 
   return {
     filters,

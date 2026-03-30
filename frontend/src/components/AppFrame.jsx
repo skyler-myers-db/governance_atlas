@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  canOpenAssetRecord,
+  prefetchAssetAvailability,
+  prefetchAssetDetail,
+} from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 
 function statusTone(bootState) {
-  if (bootState === "degraded") return "warn";
   if (bootState === "unavailable" || bootState === "error") return "bad";
   return "neutral";
 }
 
 function statusLabel(bootState) {
-  if (bootState === "degraded") return "Read only";
   if (bootState === "unavailable" || bootState === "error") return "Unavailable";
   return "Live";
 }
@@ -117,10 +120,12 @@ function SearchDropdown({
 export default function AppFrame({
   shell,
   searchSeedAssets = [],
+  visibleAssetSet = new Set(),
   activeModule,
   onModuleChange,
   bootState,
   bootMessage,
+  liveCatalogVisibleCount = null,
   onBrowseCatalog,
   onSearchResultSelect,
   children,
@@ -128,13 +133,26 @@ export default function AppFrame({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
   const searchRootRef = useRef(null);
-  const shellDisabled = bootState === "unavailable" || bootState === "error";
-  const showRuntimeStatus = bootState === "degraded" || bootState === "unavailable" || bootState === "error";
+  const hasRenderableLiveCatalog =
+    (typeof liveCatalogVisibleCount === "number" && liveCatalogVisibleCount > 0) ||
+    visibleAssetSet?.size > 0;
+  const shellDisabled = (bootState === "unavailable" || bootState === "error") && !hasRenderableLiveCatalog;
+  const showRuntimeStatus =
+    (bootState === "unavailable" || bootState === "error") && !hasRenderableLiveCatalog;
   const searchEnabled = !shellDisabled && searchPanelOpen && searchQuery.trim().length >= 2;
   const shellSearch = useAssetSearch(searchQuery, searchEnabled, searchSeedAssets);
 
   const topDirectResult =
     searchQuery.trim() && !shellSearch.error ? shellSearch.assets?.[0] || null : null;
+  const openSearchResult = async (assetFqn) => {
+    if (!assetFqn) return;
+    const availabilityPromise = prefetchAssetAvailability([assetFqn]);
+    const detailPromise = prefetchAssetDetail(assetFqn);
+    const availability = (await availabilityPromise)?.[assetFqn] || null;
+    const detail = await detailPromise;
+    if (!canOpenAssetRecord(detail, availability)) return;
+    onSearchResultSelect?.(assetFqn);
+  };
 
   useEffect(() => {
     setSearchPanelOpen(false);
@@ -166,7 +184,7 @@ export default function AppFrame({
     if (!query) return;
     if (topDirectResult) {
       setSearchPanelOpen(false);
-      onSearchResultSelect?.(topDirectResult.fqn);
+      void openSearchResult(topDirectResult.fqn);
       return;
     }
     setSearchPanelOpen(false);
@@ -196,7 +214,23 @@ export default function AppFrame({
             </div>
 
             <div className="gh-shell-nav-band">
-              <div className="gh-shell-module-label">Modules</div>
+              <div className="gh-shell-nav-band-head">
+                <div className="gh-shell-module-label">Modules</div>
+                <div className="gh-shell-identity-inline">
+                  {showRuntimeStatus ? (
+                    <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
+                      {statusLabel(bootState)}
+                    </span>
+                  ) : null}
+                  <div className="gh-shell-identity-block">
+                    <div className="gh-shell-identity">{shell?.role || "workspace user"}</div>
+                    <div className="gh-shell-user">{shell?.userEmail || "unknown"}</div>
+                    {showRuntimeStatus && bootMessage ? (
+                      <div className={`gh-shell-status-note tone-${statusTone(bootState)}`}>{bootMessage}</div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
               <nav className="gh-shell-nav" aria-label="Primary modules">
                 {MODULES.map((module) => (
                   <button
@@ -210,21 +244,6 @@ export default function AppFrame({
                   </button>
                 ))}
               </nav>
-            </div>
-          </div>
-
-          <div className="gh-shell-topbar-utility">
-            <div className="gh-shell-identity-block">
-              {showRuntimeStatus ? (
-                <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
-                  {statusLabel(bootState)}
-                </span>
-              ) : null}
-              <div className="gh-shell-identity">{shell?.role || "workspace user"}</div>
-              <div className="gh-shell-user">{shell?.userEmail || "unknown"}</div>
-              {showRuntimeStatus && bootMessage ? (
-                <div className={`gh-shell-status-note tone-${statusTone(bootState)}`}>{bootMessage}</div>
-              ) : null}
             </div>
           </div>
         </div>
@@ -287,7 +306,7 @@ export default function AppFrame({
                   onBrowseCatalog={() => submitSearch()}
                   onSelectAsset={(assetFqn) => {
                     setSearchPanelOpen(false);
-                    onSearchResultSelect?.(assetFqn);
+                    void openSearchResult(assetFqn);
                   }}
                   query={searchQuery}
                   topDirectResult={topDirectResult}

@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAssetMetadataEditor } from "../hooks/useAssetMetadataEditor";
-import { prefetchAssetDetail, useAssetDetail } from "../hooks/useAssetDetail";
+import {
+  canOpenLinkedAssetRecord,
+  isUsableAssetDetail,
+  prefetchAssetAvailability,
+  prefetchAssetDetail,
+  useAssetAvailability,
+  useAssetDetail,
+} from "../hooks/useAssetDetail";
 import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import {
@@ -53,16 +60,30 @@ function governanceTasks(asset) {
   ];
 }
 
-function postureItems(asset) {
+function loadingAwareValue(value, fallback, detailLoading = false) {
+  if (
+    detailLoading &&
+    (value === "" ||
+      value == null ||
+      value === "—" ||
+      value === "Unknown Object Type" ||
+      value === "Unknown Data Source Format")
+  ) {
+    return "Loading…";
+  }
+  return value || fallback;
+}
+
+function postureItems(asset, detailLoading = false) {
   const managementType = displayManagementType(asset);
   const items = [
-    { label: "Catalog", value: asset.catalog || "—" },
-    { label: "Schema", value: asset.schema || "—" },
-    { label: "Object Type", value: displayObjectType(asset) || "—" },
-    { label: "Rows", value: asset.rows || "—" },
-    { label: "Storage Format", value: displayStorageFormat(asset) },
-    { label: "Size", value: asset.size || "—" },
-    { label: "Files", value: asset.files || "—" },
+    { label: "Catalog", value: loadingAwareValue(asset.catalog, "—", detailLoading) },
+    { label: "Schema", value: loadingAwareValue(asset.schema, "—", detailLoading) },
+    { label: "Object Type", value: loadingAwareValue(displayObjectType(asset), "—", detailLoading) },
+    { label: "Rows", value: loadingAwareValue(asset.rows, "—", detailLoading) },
+    { label: "Storage Format", value: loadingAwareValue(displayStorageFormat(asset), "—", detailLoading) },
+    { label: "Size", value: loadingAwareValue(asset.size, "—", detailLoading) },
+    { label: "Files", value: loadingAwareValue(asset.files, "—", detailLoading) },
     { label: "Domain", value: asset.domain || "Unassigned" },
     { label: "Tier", value: asset.tier || "Unassigned" },
     { label: "Certification", value: asset.certification || "Unassigned" },
@@ -70,17 +91,17 @@ function postureItems(asset) {
     { label: "Criticality", value: asset.criticality || "Unassigned" },
   ];
   if (managementType !== "—") {
-    items.splice(3, 0, { label: "Management", value: managementType });
+    items.splice(3, 0, { label: "Management", value: loadingAwareValue(managementType, "—", detailLoading) });
   }
   return items;
 }
 
-function governancePostureSubset(asset) {
+function governancePostureSubset(asset, detailLoading = false) {
   const keep = new Set(["Domain", "Tier", "Certification", "Sensitivity", "Criticality"]);
-  return postureItems(asset).filter((item) => keep.has(item.label));
+  return postureItems(asset, detailLoading).filter((item) => keep.has(item.label));
 }
 
-function recordIdentitySubset(asset) {
+function recordIdentitySubset(asset, detailLoading = false) {
   const keep = new Set([
     "Catalog",
     "Schema",
@@ -91,16 +112,31 @@ function recordIdentitySubset(asset) {
     "Size",
     "Files",
   ]);
-  return postureItems(asset).filter((item) => keep.has(item.label));
+  return postureItems(asset, detailLoading).filter((item) => keep.has(item.label));
 }
 
-function relatedAssetsFromGraph(graphBundle, focusFqn) {
-  const { upstream, downstream } = lineageNeighborGroups(graphBundle, focusFqn);
+function selectGraph(graphBundle, context = "Data Lineage") {
+  if (!graphBundle) return null;
+  return context === "Operational Context" ? graphBundle.operational || null : graphBundle.data || null;
+}
+
+function relatedAssetsFromGraph(graphBundle, focusFqn, context = "Data Lineage") {
+  const { upstream, downstream } = lineageNeighborGroups(graphBundle, focusFqn, context);
   return [...new Set([...upstream, ...downstream])];
 }
 
-function lineageNeighborGroups(graphBundle, focusFqn) {
-  const graph = graphBundle?.data || null;
+function dedupeLinkedAssets(values, focusFqn = "") {
+  return [...new Set(
+    (values || []).filter(
+      (value) =>
+        value &&
+        value !== focusFqn,
+    ),
+  )];
+}
+
+function lineageNeighborGroups(graphBundle, focusFqn, context = "Data Lineage") {
+  const graph = selectGraph(graphBundle, context);
   const nodes = graph?.nodes || [];
   const edges = graph?.edges || [];
   const focusId =
@@ -357,6 +393,8 @@ function MetadataEditorPanel({
 export default function EntityWorkspace({
   assetFqn,
   bootstrap,
+  contextSeedAssets = [],
+  sharedVisibleAssetSet,
   onBack,
   onOpenGovernance,
   onOpenLineage,
@@ -371,18 +409,20 @@ export default function EntityWorkspace({
   const [localOverrides, setLocalOverrides] = useState({});
   const [metadataDraft, setMetadataDraft] = useState(metadataDraftFromAsset(null));
   const [metadataDirty, setMetadataDirty] = useState(false);
-  const launchAssets = (bootstrap?.assets || []).slice(0, 6);
-  const visibleAssetSet = useMemo(
-    () => new Set((bootstrap?.assets || []).map((candidate) => candidate.fqn)),
-    [bootstrap?.assets],
-  );
-  const seeded = useSeededAssetContext(assetFqn, bootstrap, bootstrap?.assets || [], {
+  const seedAssets = contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [];
+  const launchAssets = seedAssets.slice(0, 6);
+  const visibleAssetSet = useMemo(() => {
+    if (sharedVisibleAssetSet?.size) return new Set(sharedVisibleAssetSet);
+    return new Set(seedAssets.map((candidate) => candidate?.fqn).filter(Boolean));
+  }, [seedAssets, sharedVisibleAssetSet]);
+  const seeded = useSeededAssetContext(assetFqn, bootstrap, seedAssets, {
     allowFallback: false,
   });
   const assetDetail = useAssetDetail(assetFqn || "");
   const lineageEnabled = activeTab === "Overview" || activeTab === "Lineage";
   const lineage = useLineage(assetFqn || "", seeded.seededGraph, lineageEnabled);
-  const baseAsset = assetDetail.detail || seeded.summary;
+  const usableDetail = isUsableAssetDetail(assetDetail.detail) ? assetDetail.detail : null;
+  const baseAsset = usableDetail || seeded.summary;
   const asset = useMemo(
     () => (baseAsset ? { ...baseAsset, ...localOverrides } : baseAsset),
     [baseAsset, localOverrides],
@@ -390,20 +430,72 @@ export default function EntityWorkspace({
   const lineageBundle = lineage.graph;
   const lineageLoading = lineage.loading;
   const editor = useAssetMetadataEditor({ assetFqn: assetFqn || "", asset, bootstrap });
+  const focusAssetFqn = asset?.fqn || assetFqn || "";
   const graphRelatedAssets = useMemo(
-    () => relatedAssetsFromGraph(lineageBundle, asset?.fqn || assetFqn),
-    [asset?.fqn, assetFqn, lineageBundle],
+    () =>
+      dedupeLinkedAssets(
+        relatedAssetsFromGraph(lineageBundle, focusAssetFqn, localLineageContext),
+        focusAssetFqn,
+      ),
+    [focusAssetFqn, lineageBundle, localLineageContext],
   );
   const lineageNeighbors = useMemo(
-    () => lineageNeighborGroups(lineageBundle, asset?.fqn || assetFqn),
-    [asset?.fqn, assetFqn, lineageBundle],
+    () => lineageNeighborGroups(lineageBundle, focusAssetFqn, localLineageContext),
+    [focusAssetFqn, lineageBundle, localLineageContext],
   );
   const relatedAssets = useMemo(
-    () =>
-      [...new Set([...(asset?.relatedAssets || []), ...graphRelatedAssets])]
-        .filter((value) => value && value !== asset?.fqn),
+    () => dedupeLinkedAssets([...(asset?.relatedAssets || []), ...graphRelatedAssets], asset?.fqn),
     [asset?.fqn, asset?.relatedAssets, graphRelatedAssets],
   );
+  const columns = asset?.columns || [];
+  const preview = asset?.preview || [];
+  const detailLoading = assetDetail.loading;
+  const detailReady = Boolean(usableDetail);
+  const detailHydrating = detailLoading && !detailReady;
+  const detailUnavailable = Boolean(assetDetail.error) && !detailReady;
+  const liveColumns = detailReady ? columns : [];
+  const livePreview = detailReady ? preview : [];
+  const upstreamAssets = useMemo(
+    () => dedupeLinkedAssets(lineageNeighbors.upstream, focusAssetFqn),
+    [focusAssetFqn, lineageNeighbors.upstream],
+  );
+  const downstreamAssets = useMemo(
+    () => dedupeLinkedAssets(lineageNeighbors.downstream, focusAssetFqn),
+    [focusAssetFqn, lineageNeighbors.downstream],
+  );
+  const linkedAssetCandidates = useMemo(
+    () => [...new Set([...upstreamAssets, ...downstreamAssets, ...relatedAssets])],
+    [downstreamAssets, relatedAssets, upstreamAssets],
+  );
+  const linkedAssetAvailability = useAssetAvailability(linkedAssetCandidates, visibleAssetSet, {
+    strict: true,
+    requireRenderableDetail: false,
+  });
+  const connectedAssetCount = useMemo(
+    () => new Set([...upstreamAssets, ...downstreamAssets, ...relatedAssets]).size,
+    [downstreamAssets, relatedAssets, upstreamAssets],
+  );
+  const previewKeys = livePreview[0] ? Object.keys(livePreview[0]) : [];
+  const tasks = governanceTasks(asset || {});
+  const objectType = asset ? displayObjectType(asset) || (detailHydrating ? "Loading…" : "") : "";
+  const identityLine = asset ? assetPathLabel(asset) : assetFqn;
+  const lineageUnavailable =
+    Boolean(lineage.error) && !upstreamAssets.length && !downstreamAssets.length && !relatedAssets.length;
+  const completeness = tasks.filter((task) => task.complete).length;
+  const liveDetailStatus = detailHydrating
+    ? "Loading live detail…"
+    : detailLoading
+      ? "Refreshing live detail…"
+      : "";
+  const metricTiles = [
+    { label: "Coverage", value: `${asset?.coverageScore ?? 0}` },
+    { label: "Owners", value: `${asset?.owners?.length || 0}` },
+    { label: "Open Requests", value: `${asset?.openRequests || 0}` },
+    {
+      label: "Connected Assets",
+      value: lineageLoading && !connectedAssetCount ? "Loading…" : `${connectedAssetCount}`,
+    },
+  ];
 
   useEffect(() => {
     const nextContext = consumeWorkspaceIntent("lineageContext", assetFqn, "") || "Data Lineage";
@@ -508,29 +600,6 @@ export default function EntityWorkspace({
     );
   }
 
-  const columns = asset.columns || [];
-  const preview = asset.preview || [];
-  const detailReady = Boolean(assetDetail.detail);
-  const detailHydrating = assetDetail.loading && !detailReady;
-  const detailUnavailable = Boolean(assetDetail.error) && !detailReady;
-  const liveColumns = detailReady ? columns : [];
-  const livePreview = detailReady ? preview : [];
-  const upstreamAssets = lineageNeighbors.upstream;
-  const downstreamAssets = lineageNeighbors.downstream;
-  const previewKeys = livePreview[0] ? Object.keys(livePreview[0]) : [];
-  const tasks = governanceTasks(asset);
-  const posture = postureItems(asset);
-  const objectType = displayObjectType(asset);
-  const identityLine = assetPathLabel(asset);
-  const lineageUnavailable = Boolean(lineage.error) && !relatedAssets.length;
-  const completeness = tasks.filter((task) => task.complete).length;
-  const metricTiles = [
-    { label: "Coverage", value: `${asset.coverageScore ?? 0}` },
-    { label: "Owners", value: `${asset.owners?.length || 0}` },
-    { label: "Open Requests", value: `${asset.openRequests || 0}` },
-    { label: "Connected Assets", value: `${relatedAssets.length}` },
-  ];
-
   const handleMetadataChange = (key, value) => {
     setMetadataDirty(true);
     setMetadataDraft((current) => ({
@@ -571,14 +640,44 @@ export default function EntityWorkspace({
     setMetadataDirty(false);
   };
 
-  const openRelatedAsset = (nextAssetFqn) => {
-    if (visibleAssetSet.has(nextAssetFqn)) {
-      prefetchAssetDetail(nextAssetFqn);
-      setWorkspaceIntent("lineageContext", nextAssetFqn, "Data Lineage");
-      onSelectAsset(nextAssetFqn, "Overview");
-      return;
+  const openRelatedAsset = async (nextAssetFqn) => {
+    if (!nextAssetFqn) return;
+    if (linkedAssetAvailability[nextAssetFqn] !== true) return;
+    const availabilityPromise = prefetchAssetAvailability([nextAssetFqn], { force: true });
+    const detailPromise = prefetchAssetDetail(nextAssetFqn, { force: true });
+    const availability = (await availabilityPromise)?.[nextAssetFqn] || null;
+    const detail = await detailPromise;
+    if (!canOpenLinkedAssetRecord(detail, availability)) return;
+    setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
+    onSelectAsset(nextAssetFqn, "Overview");
+  };
+
+  const renderLinkedAssetRow = (item, keyPrefix) => {
+    const availabilityState = linkedAssetAvailability[item];
+    if (availabilityState !== true) {
+      return (
+        <div className="gh-lineage-linked-row is-readonly" key={`${keyPrefix}-${item}`}>
+          <span>{item}</span>
+          <span>{availabilityState === false ? "Unavailable in catalog" : "Checking asset…"}</span>
+        </div>
+      );
     }
-    onOpenLineage(nextAssetFqn, "Data Lineage");
+
+    return (
+      <button
+        className="gh-lineage-linked-row"
+        key={`${keyPrefix}-${item}`}
+        onClick={() => openRelatedAsset(item)}
+        onMouseEnter={() => {
+          prefetchAssetAvailability([item]);
+          prefetchAssetDetail(item);
+        }}
+        type="button"
+      >
+        <span>{item}</span>
+        <span>Open Linked Asset</span>
+      </button>
+    );
   };
 
   return (
@@ -597,10 +696,10 @@ export default function EntityWorkspace({
               </div>
               <div className="gh-action-row gh-entity-action-row">
                 <button className="gh-secondary-button" onClick={() => onOpenLineage(asset.fqn, "Data Lineage")} type="button">
-                  Open lineage
+                  Open Lineage
                 </button>
                 <button className="gh-secondary-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">
-                  Open governance
+                  Open Governance
                 </button>
               </div>
             </div>
@@ -609,6 +708,7 @@ export default function EntityWorkspace({
               <span className={`gh-status-chip tone-${statusTone(asset)}`}>
                 {asset.governanceStatus || "Needs Work"}
               </span>
+              {liveDetailStatus ? <span className="gh-chip gh-chip-soft">{liveDetailStatus}</span> : null}
               {asset.domain && asset.domain !== "Unassigned" ? (
                 <span className="gh-chip gh-chip-soft">{asset.domain}</span>
               ) : null}
@@ -660,29 +760,27 @@ export default function EntityWorkspace({
                     <div className="gh-support-copy">
                       {lineageLoading && !relatedAssets.length
                         ? "Loading connected lineage context for this asset."
+                        : renderableUpstreamAssets.length || renderableDownstreamAssets.length
+                        ? "Review upstream and downstream neighbors before changing the asset."
                         : lineageUnavailable
                         ? "Lineage signals are temporarily unavailable for this asset right now."
-                        : relatedAssets.length
-                          ? "Review upstream and downstream neighbors before changing the asset."
+                        : renderableRelatedAssets.length
+                          ? "Review connected lineage neighbors before changing the asset."
                           : "No connected lineage edges are surfaced for this asset yet."}
                     </div>
                   </div>
                 </div>
-                <div className="gh-action-grid gh-action-grid-inline">
-                  <button
-                    className="gh-tertiary-button gh-inline-link-button"
-                    onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
-                    type="button"
-                  >
-                    Open data lineage
-                  </button>
-                  <button
-                    className="gh-tertiary-button gh-inline-link-button"
-                    onClick={() => onOpenLineage(asset.fqn, "Operational Context")}
-                    type="button"
-                  >
-                    Open operational context
-                  </button>
+                <div className="gh-subtabs gh-lineage-context-toggle">
+                  {["Data Lineage", "Operational Context"].map((option) => (
+                    <button
+                      className={`gh-subtab ${localLineageContext === option ? "is-active" : ""}`}
+                      key={option}
+                      onClick={() => setLocalLineageContext(option)}
+                      type="button"
+                    >
+                      {option}
+                    </button>
+                  ))}
                 </div>
                 {upstreamAssets.length || downstreamAssets.length ? (
                   <div className="gh-lineage-context-groups">
@@ -692,22 +790,7 @@ export default function EntityWorkspace({
                       </div>
                       {upstreamAssets.length ? (
                         <div className="gh-lineage-linked-list">
-                          {upstreamAssets.slice(0, 4).map((item) => (
-                            <button
-                              className="gh-lineage-linked-row"
-                              key={`up-${item}`}
-                              onClick={() => openRelatedAsset(item)}
-                              onMouseEnter={() => {
-                                if (visibleAssetSet.has(item)) {
-                                  prefetchAssetDetail(item);
-                                }
-                              }}
-                              type="button"
-                            >
-                              <span>{item}</span>
-                              <span>{visibleAssetSet.has(item) ? "Open linked asset" : "View lineage only"}</span>
-                            </button>
-                          ))}
+                          {upstreamAssets.slice(0, 4).map((item) => renderLinkedAssetRow(item, "up"))}
                         </div>
                       ) : (
                         <div className="gh-support-copy">No upstream assets are currently surfaced.</div>
@@ -719,22 +802,7 @@ export default function EntityWorkspace({
                       </div>
                       {downstreamAssets.length ? (
                         <div className="gh-lineage-linked-list">
-                          {downstreamAssets.slice(0, 4).map((item) => (
-                            <button
-                              className="gh-lineage-linked-row"
-                              key={`down-${item}`}
-                              onClick={() => openRelatedAsset(item)}
-                              onMouseEnter={() => {
-                                if (visibleAssetSet.has(item)) {
-                                  prefetchAssetDetail(item);
-                                }
-                              }}
-                              type="button"
-                            >
-                              <span>{item}</span>
-                              <span>{visibleAssetSet.has(item) ? "Open linked asset" : "View lineage only"}</span>
-                            </button>
-                          ))}
+                          {downstreamAssets.slice(0, 4).map((item) => renderLinkedAssetRow(item, "down"))}
                         </div>
                       ) : (
                         <div className="gh-support-copy">No downstream assets are currently surfaced.</div>
@@ -743,22 +811,7 @@ export default function EntityWorkspace({
                   </div>
                 ) : relatedAssets.length ? (
                   <div className="gh-lineage-linked-list">
-                    {relatedAssets.slice(0, 6).map((item) => (
-                      <button
-                        className="gh-lineage-linked-row"
-                        key={item}
-                        onClick={() => openRelatedAsset(item)}
-                        onMouseEnter={() => {
-                          if (visibleAssetSet.has(item)) {
-                            prefetchAssetDetail(item);
-                          }
-                        }}
-                        type="button"
-                      >
-                        <span>{item}</span>
-                        <span>{visibleAssetSet.has(item) ? "Open linked asset" : "View lineage only"}</span>
-                      </button>
-                    ))}
+                    {relatedAssets.slice(0, 6).map((item) => renderLinkedAssetRow(item, "related"))}
                   </div>
                 ) : null}
               </section>
@@ -796,7 +849,9 @@ export default function EntityWorkspace({
                       </div>
                     ))}
                   </div>
-                ) : null}
+                ) : (
+                  <div className="gh-empty-state">No schema metadata is available for this asset.</div>
+                )}
               </section>
             </div>
 
@@ -810,7 +865,7 @@ export default function EntityWorkspace({
                     </div>
                   </div>
                 </div>
-                <AttributeList items={recordIdentitySubset(asset)} />
+                <AttributeList items={recordIdentitySubset(asset, detailHydrating)} />
               </section>
 
               <section className="gh-panel gh-record-card">
@@ -894,7 +949,7 @@ export default function EntityWorkspace({
                 <div className="gh-record-card-head">
                   <div className="gh-panel-title">Operational Metadata</div>
                 </div>
-                <AttributeList items={governancePostureSubset(asset)} />
+                <AttributeList items={governancePostureSubset(asset, detailHydrating)} />
               </section>
             </div>
           </div>
