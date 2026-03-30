@@ -313,7 +313,44 @@ FROM {quote_ident(catalog)}.information_schema.columns
 WHERE table_schema = {sql_literal(schema)}
   AND table_name   = {sql_literal(table)}
 ORDER BY ordinal_position"""
-        return self.query_df(q)
+        try:
+            info_df = self.query_df(q)
+        except Exception:
+            info_df = pd.DataFrame()
+        if not info_df.empty:
+            return info_df
+
+        full = quote_uc_3part(catalog, schema, table)
+        try:
+            describe_df = self.query_df(f"DESCRIBE TABLE {full}")
+        except Exception:
+            return pd.DataFrame(
+                columns=["ordinal_position", "column_name", "data_type", "comment"]
+            )
+        if describe_df.empty or "col_name" not in describe_df.columns:
+            return pd.DataFrame(
+                columns=["ordinal_position", "column_name", "data_type", "comment"]
+            )
+
+        normalized = describe_df.copy()
+        if "data_type" not in normalized.columns:
+            normalized["data_type"] = ""
+        if "comment" not in normalized.columns:
+            normalized["comment"] = ""
+        normalized["col_name"] = normalized["col_name"].map(
+            lambda value: str(value or "").strip()
+        )
+        normalized = normalized[normalized["col_name"].ne("")]
+        normalized = normalized[
+            ~normalized["col_name"].str.startswith("#")
+            & normalized["data_type"].notna()
+        ].copy()
+        normalized = normalized.reset_index(drop=True)
+        normalized["ordinal_position"] = range(1, len(normalized) + 1)
+        normalized = normalized.rename(columns={"col_name": "column_name"})
+        return normalized[
+            ["ordinal_position", "column_name", "data_type", "comment"]
+        ]
 
     def get_table_tags(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
         q = f"""SELECT tag_name, tag_value

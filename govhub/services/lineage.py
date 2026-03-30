@@ -1,27 +1,43 @@
 from __future__ import annotations
 
+import importlib
 import time
+from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 
-import app as legacy_streamlit
 from govhub.uc import UCSQLClient
 
 from govhub.services import assets as asset_service
 
 
-def _raw(fn: Callable[..., Any]) -> Callable[..., Any]:
-    return getattr(fn, "__wrapped__", fn)
+@lru_cache(maxsize=1)
+def _legacy_streamlit():
+    return importlib.import_module("app")
 
 
-_cached_lineage_up = _raw(legacy_streamlit._cached_lineage_up)
-_cached_lineage_down = _raw(legacy_streamlit._cached_lineage_down)
-_cached_operational_context_up = _raw(legacy_streamlit._cached_operational_context_up)
-_cached_operational_context_down = _raw(legacy_streamlit._cached_operational_context_down)
+def _legacy_attr(name: str) -> Callable[..., Any]:
+    return getattr(_legacy_streamlit(), name)
 
-enrich_operational_context_names = legacy_streamlit._enrich_operational_context_names
-summarize_operational_context = legacy_streamlit._summarize_operational_context
+
+def _legacy_callable(name: str, *, raw: bool = False) -> Callable[..., Any]:
+    def _call(*args, **kwargs):
+        fn = _legacy_attr(name)
+        if raw:
+            fn = getattr(fn, "__wrapped__", fn)
+        return fn(*args, **kwargs)
+
+    return _call
+
+
+_cached_lineage_up = _legacy_callable("_cached_lineage_up", raw=True)
+_cached_lineage_down = _legacy_callable("_cached_lineage_down", raw=True)
+_cached_operational_context_up = _legacy_callable("_cached_operational_context_up", raw=True)
+_cached_operational_context_down = _legacy_callable("_cached_operational_context_down", raw=True)
+
+enrich_operational_context_names = _legacy_callable("_enrich_operational_context_names")
+summarize_operational_context = _legacy_callable("_summarize_operational_context")
 
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}

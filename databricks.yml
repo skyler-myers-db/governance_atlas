@@ -54,20 +54,13 @@ targets:
     variables:
       gov_catalog: dev
       gov_schema: governance_hub
-    workspace:
-      # Uses the DEFAULT profile in ~/.databrickscfg unless overridden
-      host: ${workspace.host}
 
   staging:
     variables:
       gov_catalog: staging
       gov_schema: governance_hub
-    workspace:
-      host: ${workspace.host}
 
   prod:
     variables:
       gov_catalog: prod
       gov_schema: governance_hub
-    workspace:
-      host: ${workspace.host}

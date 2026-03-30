@@ -1,6 +1,11 @@
 import LineageStage from "./LineageStage";
 import { useEffect, useState } from "react";
-import { useAssetDetail } from "../hooks/useAssetDetail";
+import {
+  canOpenLinkedAssetRecord,
+  prefetchAssetAvailability,
+  prefetchAssetDetail,
+  useAssetDetail,
+} from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
 import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
@@ -26,6 +31,8 @@ function readLineageContext(assetFqn, fallback = "Data Lineage") {
 export default function LineageWorkspace({
   initialAssetFqn,
   bootstrap,
+  contextSeedAssets = [],
+  sharedVisibleAssetSet,
   onRouteAssetChange,
   onOpenGovernance,
   onOpenAsset,
@@ -38,14 +45,21 @@ export default function LineageWorkspace({
     )
   );
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
-  const seeded = useSeededAssetContext(focusAssetFqn, bootstrap, bootstrap?.assets || []);
+  const seedAssets = contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [];
+  const seeded = useSeededAssetContext(focusAssetFqn, bootstrap, seedAssets, {
+    allowFallback: false,
+  });
+  const visibleAssetSet =
+    sharedVisibleAssetSet?.size
+      ? new Set(sharedVisibleAssetSet)
+      : new Set(seedAssets.map((asset) => asset?.fqn).filter(Boolean));
   const assetDetail = useAssetDetail(focusAssetFqn || "");
   const lineage = useLineage(focusAssetFqn || "", seeded.seededGraph);
   const asset = assetDetail.detail || seeded.summary;
   const assetSearch = useAssetSearch(
     assetSearchQuery,
     assetSearchQuery.trim().length >= 2,
-    bootstrap?.assets || [],
+    seedAssets,
   );
   const searchReady =
     !assetSearch.loading && assetSearch.resolvedQuery === assetSearchQuery.trim();
@@ -146,6 +160,17 @@ export default function LineageWorkspace({
     </div>
   );
 
+  const openLineageAsset = async (assetFqn, nextTab = "Overview") => {
+    if (!assetFqn) return;
+    const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
+    const detailPromise = prefetchAssetDetail(assetFqn, { force: true });
+    const availability = (await availabilityPromise)?.[assetFqn] || null;
+    const detail = await detailPromise;
+    if (!canOpenLinkedAssetRecord(detail, availability)) return;
+    setWorkspaceIntent("lineageContext", assetFqn, localContext);
+    onOpenAsset?.(assetFqn, nextTab);
+  };
+
   return (
     <section className="gh-lineage-shell">
       <LineageStage
@@ -165,13 +190,17 @@ export default function LineageWorkspace({
           setLocalContext(nextContext);
         }}
         onOpenGovernance={onOpenGovernance}
-        onOpenAsset={(assetFqn, nextTab = "Lineage") => {
-          setWorkspaceIntent("lineageContext", assetFqn, localContext);
-          onOpenAsset?.(assetFqn, nextTab);
-        }}
+        onOpenAsset={openLineageAsset}
         onSelectAsset={(assetFqn) => {
-          setFocusAssetFqn(assetFqn);
-          onRouteAssetChange?.(assetFqn, localContext);
+          void Promise.all([
+            prefetchAssetAvailability([assetFqn], { force: true }),
+            prefetchAssetDetail(assetFqn, { force: true }),
+          ]).then(([availabilityMap, detail]) => {
+            const availability = availabilityMap?.[assetFqn] || null;
+            if (!canOpenLinkedAssetRecord(detail, availability)) return;
+            setFocusAssetFqn(assetFqn);
+            onRouteAssetChange?.(assetFqn, localContext);
+          });
         }}
       />
     </section>
