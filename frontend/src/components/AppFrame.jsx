@@ -126,7 +126,9 @@ export default function AppFrame({
   bootState,
   bootMessage,
   liveCatalogVisibleCount = null,
+  navigationState,
   onBrowseCatalog,
+  onNavigationStateChange,
   onSearchResultSelect,
   children,
 }) {
@@ -146,12 +148,19 @@ export default function AppFrame({
     searchQuery.trim() && !shellSearch.error ? shellSearch.assets?.[0] || null : null;
   const openSearchResult = async (assetFqn) => {
     if (!assetFqn) return;
-    const availabilityPromise = prefetchAssetAvailability([assetFqn]);
-    const detailPromise = prefetchAssetDetail(assetFqn, { sections: ["header", "activity"] });
-    const availability = (await availabilityPromise)?.[assetFqn] || null;
-    const detail = await detailPromise;
-    if (availability?.openable === false && !canOpenAssetRecord(detail, availability)) return;
-    onSearchResultSelect?.(assetFqn);
+    onNavigationStateChange?.(true, "Opening metadata record…");
+    let opened = false;
+    try {
+      const availabilityPromise = prefetchAssetAvailability([assetFqn]);
+      const detailPromise = prefetchAssetDetail(assetFqn, { sections: ["header", "activity"] });
+      const availability = (await availabilityPromise)?.[assetFqn] || null;
+      const detail = await detailPromise;
+      if (availability?.openable === false && !canOpenAssetRecord(detail, availability)) return;
+      opened = true;
+      onSearchResultSelect?.(assetFqn);
+    } finally {
+      if (!opened) onNavigationStateChange?.(false, "");
+    }
   };
 
   useEffect(() => {
@@ -204,7 +213,10 @@ export default function AppFrame({
                 type="button"
               >
                 <div className="gh-shell-brand-mark" aria-hidden="true">
-                  <span>GH</span>
+                  <span className="gh-shell-brand-aura" />
+                  <span className="gh-shell-brand-core">
+                    <span className="gh-shell-brand-glyph">GH</span>
+                  </span>
                 </div>
                 <div className="gh-shell-brand-copy">
                   <div className="gh-shell-brand-title">Governance Hub</div>
@@ -249,6 +261,14 @@ export default function AppFrame({
         </div>
 
         <div className="gh-shell-commandbar">
+          {navigationState?.pending ? (
+            <div className="gh-shell-progress" role="status" aria-live="polite">
+              <span className="gh-shell-progress-bar" aria-hidden="true" />
+              <span className="gh-shell-progress-copy">
+                {navigationState.label || "Opening workspace…"}
+              </span>
+            </div>
+          ) : null}
           <form
             className="gh-global-search gh-global-search-shell"
             onSubmit={(event) => {
@@ -256,7 +276,7 @@ export default function AppFrame({
               submitSearch();
             }}
           >
-            <div className="gh-global-search-field" ref={searchRootRef}>
+            <div className={`gh-global-search-field ${searchPanelOpen ? "is-open" : ""}`} ref={searchRootRef}>
               <div className="gh-global-search-frame">
                 <div className="gh-global-search-copy">
                   <label className="gh-global-search-label" htmlFor="gh-global-search-input">

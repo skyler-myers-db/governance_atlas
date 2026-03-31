@@ -6,7 +6,7 @@ import streamlit as st
 
 
 def get_headers() -> Dict[str, str]:
-    """Streamlit in Databricks Apps provides request headers via st.context.headers."""
+    """Legacy Streamlit header access for the archived app.py runtime only."""
     try:
         headers = dict(st.context.headers)  # type: ignore[attr-defined]
     except Exception:

@@ -11,6 +11,7 @@ import {
   getBezierPath,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { assetPathLabel } from "../lib/assetPresentation";
 
 function nodeColor(kind) {
   if (kind === "View") return "#5b6af7";
@@ -19,83 +20,258 @@ function nodeColor(kind) {
   return "#1d2a44";
 }
 
-function collectDepths(seedId, edges, direction) {
-  if (!seedId) return new Map();
-  const depths = new Map();
-  const queue = [{ id: seedId, depth: 0 }];
+function normalizeNodeSortValue(value) {
+  return String(value || "").trim().toLowerCase();
+}
 
+function compareNodes(left, right) {
+  return normalizeNodeSortValue(left?.label || left?.subtitle || left?.id).localeCompare(
+    normalizeNodeSortValue(right?.label || right?.subtitle || right?.id)
+  );
+}
+
+function estimateNodeWidth(node) {
+  const labelLength = String(node?.label || "").trim().length;
+  const subtitleLength = String(node?.subtitle || "").trim().length;
+  const longest = Math.max(labelLength, Math.min(subtitleLength, 52));
+  const base = node?.role === "focus" ? 260 : 220;
+  return Math.max(base, Math.min(320, 168 + longest * 2.4));
+}
+
+function estimateNodeHeight(node) {
+  const labelLines = Math.max(1, Math.ceil(String(node?.label || "").trim().length / 22));
+  const subtitleLines = Math.max(1, Math.ceil(String(node?.subtitle || "").trim().length / 28));
+  const footLines = Math.max(1, Math.ceil(((node?.foot || []).join(" • ").length || 0) / 24));
+  return 72 + labelLines * 18 + subtitleLines * 16 + footLines * 12;
+}
+
+function buildAdjacencyMaps(nodes, edges) {
+  const lookup = new Map((nodes || []).map((node) => [node.id, node]));
+  const forward = new Map();
+  const reverse = new Map();
+
+  const addEdge = (map, fromId, toId) => {
+    if (!fromId || !toId) return;
+    const bucket = map.get(fromId) || [];
+    bucket.push(toId);
+    map.set(fromId, bucket);
+  };
+
+  (edges || []).forEach((edge) => {
+    addEdge(forward, edge.source, edge.target);
+    addEdge(reverse, edge.target, edge.source);
+  });
+
+  for (const map of [forward, reverse]) {
+    for (const [nodeId, nodeIds] of map.entries()) {
+      nodeIds.sort((leftId, rightId) => compareNodes(lookup.get(leftId), lookup.get(rightId)));
+      map.set(nodeId, [...new Set(nodeIds)]);
+    }
+  }
+
+  return { lookup, forward, reverse };
+}
+
+function traverseBranchGraph(focusId, adjacency, lookup) {
+  const depths = new Map();
+  const parents = new Map();
+  const branchRoots = new Map();
+
+  if (!focusId) return { depths, parents, branchRoots };
+
+  depths.set(focusId, 0);
+  parents.set(focusId, null);
+  branchRoots.set(focusId, focusId);
+
+  const queue = [focusId];
   while (queue.length) {
     const current = queue.shift();
-    const matching = edges.filter((edge) =>
-      direction === "upstream" ? edge.target === current.id : edge.source === current.id
-    );
-    matching.forEach((edge) => {
-      const nextId = direction === "upstream" ? edge.source : edge.target;
-      const nextDepth = current.depth + 1;
-      if (depths.has(nextId) && depths.get(nextId) <= nextDepth) return;
+    const neighbors = adjacency.get(current) || [];
+    neighbors.forEach((nextId) => {
+      const nextDepth = (depths.get(current) || 0) + 1;
+      const existingDepth = depths.get(nextId);
+      const existingBranch = branchRoots.get(nextId) || "";
+      const currentBranch = current === focusId ? nextId : branchRoots.get(current) || nextId;
+      const candidateBranch = normalizeNodeSortValue(lookup.get(currentBranch)?.label || lookup.get(currentBranch)?.subtitle || currentBranch);
+      const existingBranchSort = normalizeNodeSortValue(lookup.get(existingBranch)?.label || lookup.get(existingBranch)?.subtitle || existingBranch);
+      const shouldReplace =
+        existingDepth == null || nextDepth < existingDepth || (nextDepth === existingDepth && candidateBranch < existingBranchSort);
+      if (!shouldReplace) return;
       depths.set(nextId, nextDepth);
-      queue.push({ id: nextId, depth: nextDepth });
+      parents.set(nextId, current);
+      branchRoots.set(nextId, current === focusId ? nextId : currentBranch);
+      queue.push(nextId);
     });
   }
 
-  return depths;
-}
-
-function lineageLevelMap(nodes, edges) {
-  const focusId = nodes.find((node) => node.role === "focus")?.id || nodes[0]?.id || "";
-  const upstreamDepths = collectDepths(focusId, edges, "upstream");
-  const downstreamDepths = collectDepths(focusId, edges, "downstream");
-
-  return new Map(
-    nodes.map((node) => {
-      if (node.id === focusId) return [node.id, 0];
-      if (upstreamDepths.has(node.id)) return [node.id, upstreamDepths.get(node.id) * -1];
-      if (downstreamDepths.has(node.id)) return [node.id, downstreamDepths.get(node.id)];
-      if (node.role === "source") return [node.id, -1];
-      if (node.role === "target") return [node.id, 1];
-      return [node.id, 2];
-    })
-  );
+  return { depths, parents, branchRoots };
 }
 
 function layoutGraphNodes(nodes, edges) {
   const ranked = [...(nodes || [])].sort((left, right) => {
-    const leftRank = typeof left.y === "number" ? left.y : Number.MAX_SAFE_INTEGER;
-    const rightRank = typeof right.y === "number" ? right.y : Number.MAX_SAFE_INTEGER;
-    if (leftRank !== rightRank) return leftRank - rightRank;
-    return String(left.label || left.id).localeCompare(String(right.label || right.id));
+    if (left.role === "focus") return -1;
+    if (right.role === "focus") return 1;
+    const leftRole = normalizeNodeSortValue(left.role);
+    const rightRole = normalizeNodeSortValue(right.role);
+    if (leftRole !== rightRole) return leftRole.localeCompare(rightRole);
+    return compareNodes(left, right);
   });
 
-  const levels = lineageLevelMap(ranked, edges || []);
-  const buckets = new Map();
+  const focusNode = ranked.find((node) => node.role === "focus") || ranked[0] || null;
+  const focusId = focusNode?.id || "";
+  const { lookup, forward, reverse } = buildAdjacencyMaps(ranked, edges || []);
+  const upstream = traverseBranchGraph(focusId, reverse, lookup);
+  const downstream = traverseBranchGraph(focusId, forward, lookup);
+  const buckets = {
+    upstream: new Map(),
+    downstream: new Map(),
+    orphan: new Map(),
+  };
 
-  ranked.forEach((node) => {
-    const level = levels.get(node.id) || 0;
-    const bucket = buckets.get(level) || [];
-    bucket.push(node);
-    buckets.set(level, bucket);
-  });
+  const placementFor = (node) => {
+    if (!node || node.id === focusId) {
+      return {
+        side: "focus",
+        depth: 0,
+        branchRoot: focusId,
+      };
+    }
 
-  const orderedLevels = [...buckets.keys()].sort((left, right) => left - right);
-  const minLevel = orderedLevels[0] ?? 0;
-  const focusY = 240;
-  const gapY = 70;
-  const gapX = 164;
+    const upstreamDepth = upstream.depths.get(node.id);
+    const downstreamDepth = downstream.depths.get(node.id);
+    const upstreamBranch = upstream.branchRoots.get(node.id) || node.id;
+    const downstreamBranch = downstream.branchRoots.get(node.id) || node.id;
 
-  return ranked.map((node) => {
-    const level = levels.get(node.id) || 0;
-    const bucket = buckets.get(level) || [];
-    const index = bucket.findIndex((candidate) => candidate.id === node.id);
-    const offsetY = bucket.length > 1 ? ((bucket.length - 1) * gapY) / 2 : 0;
+    if (upstreamDepth == null && downstreamDepth == null) {
+      return {
+        side: "orphan",
+        depth: 0,
+        branchRoot: node.id,
+      };
+    }
+
+    if (
+      upstreamDepth != null &&
+      (downstreamDepth == null || upstreamDepth < downstreamDepth || (upstreamDepth === downstreamDepth && compareNodes(lookup.get(upstreamBranch), lookup.get(downstreamBranch)) <= 0))
+    ) {
+      return {
+        side: "upstream",
+        depth: upstreamDepth,
+        branchRoot: upstreamBranch,
+      };
+    }
 
     return {
-      ...node,
-      position: {
-        x: 120 + (level - minLevel) * gapX,
-        y: focusY + index * gapY - offsetY + (level === 0 ? 0 : 8),
-      },
+      side: "downstream",
+      depth: downstreamDepth || 0,
+      branchRoot: downstreamBranch,
     };
+  };
+
+  ranked.forEach((node) => {
+    const placement = placementFor(node);
+    if (placement.side === "focus") return;
+    const depthBucket = buckets[placement.side].get(placement.depth) || [];
+    depthBucket.push({
+      node,
+      branchRoot: placement.branchRoot,
+    });
+    buckets[placement.side].set(placement.depth, depthBucket);
   });
+
+  const focusX = 0;
+  const focusY = 0;
+  const depthGapX = 320;
+  const branchGapY = 60;
+  const stackGapY = 20;
+  const levelNudgeY = 18;
+
+  const positioned = ranked
+    .filter((node) => node.id === focusId)
+    .map((node) => ({
+      ...node,
+      width: estimateNodeWidth(node),
+      height: estimateNodeHeight(node),
+      position: {
+        x: focusX - estimateNodeWidth(node) / 2,
+        y: focusY - estimateNodeHeight(node) / 2,
+      },
+      layout: {
+        side: "focus",
+        depth: 0,
+        branchRoot: focusId,
+      },
+    }));
+
+  const sideOrder = ["upstream", "downstream", "orphan"];
+  sideOrder.forEach((side) => {
+    const depthMap = buckets[side];
+    [...depthMap.keys()]
+      .sort((left, right) => left - right)
+      .forEach((depth) => {
+        const depthEntries = depthMap.get(depth) || [];
+        const branchMap = new Map();
+        depthEntries.forEach((entry) => {
+          const branchBucket = branchMap.get(entry.branchRoot) || [];
+          branchBucket.push(entry.node);
+          branchMap.set(entry.branchRoot, branchBucket);
+        });
+
+        const branchEntries = [...branchMap.entries()].sort((left, right) =>
+          compareNodes(lookup.get(left[0]), lookup.get(right[0]))
+        );
+        const laidOutBranches = branchEntries.map(([branchRoot, branchNodes]) => {
+          const members = branchNodes.sort(compareNodes).map((node) => ({
+            node,
+            width: estimateNodeWidth(node),
+            height: estimateNodeHeight(node),
+          }));
+          return {
+            branchRoot,
+            members,
+            height:
+              members.reduce((total, member) => total + member.height, 0) +
+              Math.max(0, members.length - 1) * stackGapY,
+          };
+        });
+        const totalBranchHeight =
+          laidOutBranches.reduce((total, branch) => total + branch.height, 0) +
+          Math.max(0, laidOutBranches.length - 1) * branchGapY;
+        let branchCursor = focusY - totalBranchHeight / 2;
+
+        laidOutBranches.forEach(({ branchRoot, members, height: branchHeight }) => {
+          let nodeCursor = branchCursor;
+          members.forEach(({ node, width, height }) => {
+            const depthDistance = depth * depthGapX;
+            const sideDirection =
+              side === "upstream" ? -1 : side === "downstream" ? 1 : 0.76;
+            const centerX =
+              focusX +
+              sideDirection * (node.role === "focus" ? 0 : 210 + depthDistance);
+            const centerY = nodeCursor + height / 2 + depth * levelNudgeY;
+
+            positioned.push({
+              ...node,
+              width,
+              height,
+              position: {
+                x: centerX - width / 2,
+                y: centerY - height / 2,
+              },
+              layout: {
+                side,
+                depth,
+                branchRoot,
+              },
+            });
+            nodeCursor += height + stackGapY;
+          });
+          branchCursor += branchHeight + branchGapY;
+        });
+      });
+  });
+
+  return positioned;
 }
 
 function transformGraph(graph) {
@@ -108,12 +284,31 @@ function transformGraph(graph) {
       position: node.position,
       data: node,
       style: {
-        width: node.role === "focus" ? 186 : 146,
-        borderRadius: 10,
-        border: node.role === "focus" ? "2px solid #5b6af7" : "1px solid #c9d6ee",
-        background: "#ffffff",
-        boxShadow: node.role === "focus" ? "0 8px 18px rgba(74,95,206,0.08)" : "0 1px 2px rgba(19,31,65,0.02)",
-        padding: 6,
+        width: node.width || estimateNodeWidth(node),
+        borderRadius: 14,
+        border:
+          node.role === "focus"
+            ? "2px solid #5b43ee"
+            : node.layout?.side === "upstream"
+              ? "1px solid rgba(84, 117, 255, 0.35)"
+              : node.layout?.side === "downstream"
+                ? "1px solid rgba(126, 79, 238, 0.35)"
+                : "1px solid #c9d6ee",
+        borderLeftWidth: node.layout?.side === "upstream" ? 4 : 1,
+        borderRightWidth: node.layout?.side === "downstream" ? 4 : 1,
+        background:
+          node.role === "focus"
+            ? "linear-gradient(180deg, #ffffff 0%, #f7f5ff 100%)"
+            : node.layout?.side === "upstream"
+              ? "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)"
+              : node.layout?.side === "downstream"
+                ? "linear-gradient(180deg, #ffffff 0%, #fbf8ff 100%)"
+                : "#ffffff",
+        boxShadow:
+          node.role === "focus"
+            ? "0 14px 24px rgba(74,95,206,0.10)"
+            : "0 1px 2px rgba(19,31,65,0.03)",
+        padding: 8,
       },
       type: "assetNode",
       sourcePosition: "right",
@@ -254,6 +449,10 @@ function NodeLabel({ data }) {
           style={{ backgroundColor: nodeColor(data.kind) }}
         />
         <span>{data.kind}</span>
+        {data.layout?.side ? <span className="gh-graph-node-pill">{data.layout.side}</span> : null}
+        {typeof data.layout?.depth === "number" && data.layout.depth > 0 ? (
+          <span className="gh-graph-node-pill">{`d${data.layout.depth}`}</span>
+        ) : null}
       </div>
     </div>
   );
@@ -306,6 +505,129 @@ function AssetNode({ data }) {
   );
 }
 
+function nodeDetailRecord(node) {
+  if (Array.isArray(node?.details)) return node.details[0] || {};
+  return node?.details || {};
+}
+
+function LineageRecordCard({
+  title,
+  node,
+  tone = "neutral",
+  onOpenAsset,
+  onOpenGovernance,
+  onRefocus,
+  onTraceUpstream,
+  onShowImpact,
+}) {
+  const detail = nodeDetailRecord(node);
+  const isOpenable = detail?.isOpenable !== false;
+  const tags = [
+    node?.kind,
+    node?.role === "focus" ? "Focus" : node?.role === "source" ? "Upstream" : node?.role === "target" ? "Downstream" : "",
+    detail?.governanceStatus,
+    detail?.domain,
+    detail?.tier,
+    detail?.certification,
+    detail?.sensitivity,
+    !isOpenable ? "Lineage only" : "",
+  ]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean)
+    .slice(0, 5);
+  const identifier = detail?.statementId || detail?.entityId || node?.assetFqn || node?.subtitle || "";
+  const description = detail?.description || node?.subtitle || "";
+
+  return (
+    <section className={`gh-lineage-record-card tone-${tone}`}>
+      <div className="gh-lineage-record-card-head">
+        <div className="gh-lineage-record-card-copy">
+          <div className="gh-panel-title">{title}</div>
+          <h3>{node?.label || "No selected node"}</h3>
+          <div className="gh-support-copy">{node?.subtitle || identifier || "No additional context"}</div>
+        </div>
+        <span className="gh-chip gh-chip-soft">{node?.kind || "Asset"}</span>
+      </div>
+
+      {tags.length ? (
+        <div className="gh-chip-row gh-lineage-record-tags">
+          {tags.map((tag) => (
+            <span className="gh-chip gh-chip-soft" key={`${node?.id || title}-${tag}`}>
+              {tag}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {description ? <div className="gh-support-copy">{description}</div> : null}
+
+      <div className="gh-attribute-list gh-lineage-record-meta">
+        {identifier ? (
+          <div className="gh-attribute-row">
+            <span className="gh-attribute-label">Identifier</span>
+            <span className="gh-attribute-value">{identifier}</span>
+          </div>
+        ) : null}
+        {node?.assetFqn ? (
+          <div className="gh-attribute-row">
+            <span className="gh-attribute-label">Asset</span>
+            <span className="gh-attribute-value">{node.assetFqn}</span>
+          </div>
+        ) : null}
+        {!isOpenable ? (
+          <div className="gh-attribute-row">
+            <span className="gh-attribute-label">Availability</span>
+            <span className="gh-attribute-value">Lineage-only reference</span>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="gh-lineage-record-actions">
+        {node?.assetFqn && onOpenAsset ? (
+          <button
+            className="gh-secondary-button gh-secondary-button-compact"
+            disabled={!isOpenable}
+            onClick={() => onOpenAsset(node.assetFqn)}
+            type="button"
+          >
+            Open Record
+          </button>
+        ) : null}
+        {node?.assetFqn && onOpenGovernance ? (
+          <button
+            className="gh-secondary-button gh-secondary-button-compact"
+            disabled={!isOpenable}
+            onClick={() => onOpenGovernance(node.assetFqn)}
+            type="button"
+          >
+            Open Governance
+          </button>
+        ) : null}
+        {node?.assetFqn && onRefocus ? (
+          <button
+            className="gh-primary-button gh-secondary-button-compact"
+            disabled={!isOpenable}
+            onClick={() => onRefocus(node.assetFqn)}
+            type="button"
+          >
+            Refocus
+          </button>
+        ) : null}
+        {onTraceUpstream ? (
+          <button className="gh-secondary-button gh-secondary-button-compact" onClick={onTraceUpstream} type="button">
+            Trace Upstream
+          </button>
+        ) : null}
+        {onShowImpact ? (
+          <button className="gh-secondary-button gh-secondary-button-compact" onClick={onShowImpact} type="button">
+            Show Impact
+          </button>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 export default function LineageGraph({
   asset,
   assetSearchLoading,
@@ -335,6 +657,7 @@ export default function LineageGraph({
   const [allowDefaultSelection, setAllowDefaultSelection] = useState(true);
   const [refocusOpen, setRefocusOpen] = useState(false);
   const refocusRootRef = useRef(null);
+  const canvasRef = useRef(null);
 
   const clearSelection = (options = {}) => {
     const { keepDrawer = false, keepFocusNode = true } = options;
@@ -373,8 +696,12 @@ export default function LineageGraph({
 
   useEffect(() => {
     setSelectedEdgeId("");
+    setSelectedNodeId(defaultFocusNodeId);
+    setDrawerOpen(false);
+    setGraphMode("explore");
+    setAllowDefaultSelection(true);
     setRefocusOpen(false);
-  }, [context]);
+  }, [context, defaultFocusNodeId]);
 
   useEffect(() => {
     if (!graphHasEdges && graphMode !== "explore") {
@@ -508,11 +835,23 @@ export default function LineageGraph({
   }, [onAssetSearchQueryChange, refocusOpen]);
 
   useEffect(() => {
-    if (!flowInstance || !transformed.nodes.length) return;
-    const frame = requestAnimationFrame(() => {
-      flowInstance.fitView?.({ padding: 0.18, duration: 220 });
+    if (!flowInstance || !transformed.nodes.length) return undefined;
+    let frameOne = 0;
+    let frameTwo = 0;
+    let timeoutId = 0;
+    const fitGraph = () => {
+      flowInstance.fitView?.({ padding: 0.24, duration: 240 });
+    };
+    frameOne = requestAnimationFrame(() => {
+      fitGraph();
+      frameTwo = requestAnimationFrame(fitGraph);
     });
-    return () => cancelAnimationFrame(frame);
+    timeoutId = window.setTimeout(fitGraph, 220);
+    return () => {
+      cancelAnimationFrame(frameOne);
+      cancelAnimationFrame(frameTwo);
+      window.clearTimeout(timeoutId);
+    };
   }, [asset?.fqn, context, flowInstance, transformed.edges.length, transformed.nodes.length]);
 
   useEffect(() => {
@@ -537,8 +876,19 @@ export default function LineageGraph({
     return () => cancelAnimationFrame(frame);
   }, [flowInstance, graphMode, selectedNodeId, transformed.edges, transformed.nodes]);
 
+  useEffect(() => {
+    if (!flowInstance || typeof ResizeObserver === "undefined" || !canvasRef.current) return undefined;
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(() => {
+        flowInstance.fitView?.({ padding: 0.24, duration: 180 });
+      });
+    });
+    observer.observe(canvasRef.current);
+    return () => observer.disconnect();
+  }, [flowInstance]);
+
   return (
-    <div className="gh-lineage-canvas">
+    <div className="gh-lineage-canvas" ref={canvasRef}>
       <div className="gh-lineage-canvas-controls">
         <div className="gh-lineage-command-strip">
           {allowRefocus ? (
@@ -592,9 +942,9 @@ export default function LineageGraph({
                         </button>
                       ))
                     ) : (
-                      <div className="gh-lineage-search-empty">
+                <div className="gh-lineage-search-empty">
                         {assetSearchQuery ? "No matching assets." : "Start typing to refocus the graph."}
-                      </div>
+                </div>
                     )}
                   </div>
                 </div>
@@ -627,6 +977,7 @@ export default function LineageGraph({
         </div>
       </div>
       <ReactFlow
+        key={`${asset?.fqn || "none"}:${context}`}
         edges={transformed.edges.map((edge) => ({
           ...edge,
           className: activeEdgeIds.includes(edge.id)
@@ -686,36 +1037,94 @@ export default function LineageGraph({
 
       <aside className={`gh-lineage-drawer ${drawerOpen ? "is-open" : ""}`}>
         <div className="gh-lineage-drawer-head">
-          <div className="gh-panel-title">{selectedEdge ? "Relationship" : "Selected node"}</div>
+          <div className="gh-panel-title">{selectedEdge ? "Relationship" : "Selected Node"}</div>
           <button className="gh-secondary-button" onClick={() => closeDrawer()} type="button">
-            Close details
+            Close drawer
           </button>
         </div>
 
         {selectedEdge ? (
           <>
-            <h2>
-              {selectedSource?.label || selectedEdge.source} → {selectedTarget?.label || selectedEdge.target}
-            </h2>
-            <div className="gh-chip-stack">
-              <span className="gh-chip">Lineage edge</span>
-              <span className="gh-chip gh-chip-soft">
-                {selectedSource?.kind || "Asset"} → {selectedTarget?.kind || "Asset"}
-              </span>
-            </div>
-            <div className="gh-support-copy">
-              {edgeDetails?.summary || "Reroot, trace, or open the linked assets directly."}
-            </div>
-            <div className="gh-attribute-list">
-              <div className="gh-attribute-row">
-                <span className="gh-attribute-label">Source</span>
-                <span className="gh-attribute-value">{selectedSource?.subtitle || selectedEdge.source}</span>
+            <div className="gh-lineage-edge-summary">
+              <div className="gh-lineage-edge-summary-copy">
+                <h2>
+                  {selectedSource?.label || selectedEdge.source} → {selectedTarget?.label || selectedEdge.target}
+                </h2>
+                <div className="gh-support-copy">
+                  {edgeDetails?.summary || "Inspect the source and target records, the mapping payload, and the connected operational context."}
+                </div>
               </div>
-              <div className="gh-attribute-row">
-                <span className="gh-attribute-label">Target</span>
-                <span className="gh-attribute-value">{selectedTarget?.subtitle || selectedEdge.target}</span>
+              <div className="gh-chip-stack">
+                <span className="gh-chip">Lineage edge</span>
+                <span className="gh-chip gh-chip-soft">
+                  {edgeDetails?.kind || selectedSource?.kind || "Asset"} → {selectedTarget?.kind || "Asset"}
+                </span>
+                {edgeDetails?.mappingCount ? (
+                  <span className="gh-chip gh-chip-soft">{edgeDetails.mappingCount} column mappings</span>
+                ) : null}
+                {edgeDetails?.entities?.length ? (
+                  <span className="gh-chip gh-chip-soft">{edgeDetails.entities.length} operational entities</span>
+                ) : null}
               </div>
             </div>
+
+            <div className="gh-lineage-edge-grid">
+              <LineageRecordCard
+                title="Source record"
+                node={selectedSource}
+                tone="source"
+                onOpenAsset={onOpenAsset}
+                onOpenGovernance={onOpenGovernance}
+                onRefocus={(assetFqn) => onSelectAsset(assetFqn)}
+                onTraceUpstream={
+                  selectedSource?.id
+                    ? () => {
+                        setAllowDefaultSelection(false);
+                        setSelectedEdgeId("");
+                        setSelectedNodeId(selectedSource.id);
+                        setGraphMode("upstream");
+                        setDrawerOpen(true);
+                        setRefocusOpen(false);
+                      }
+                    : null
+                }
+              />
+              <LineageRecordCard
+                title="Target record"
+                node={selectedTarget}
+                tone="target"
+                onOpenAsset={onOpenAsset}
+                onOpenGovernance={onOpenGovernance}
+                onRefocus={(assetFqn) => onSelectAsset(assetFqn)}
+                onShowImpact={
+                  selectedTarget?.id
+                    ? () => {
+                        setAllowDefaultSelection(false);
+                        setSelectedEdgeId("");
+                        setSelectedNodeId(selectedTarget.id);
+                        setGraphMode("impact");
+                        setDrawerOpen(true);
+                        setRefocusOpen(false);
+                      }
+                    : null
+                }
+              />
+            </div>
+
+            {edgeDetails?.kind === "operational" && edgeDetails.entities?.length ? (
+              <div className="gh-detail-section">
+                <div className="gh-panel-title">Operational context</div>
+                <div className="gh-lineage-linked-list">
+                  {edgeDetails.entities.map((entity) => (
+                    <div className="gh-lineage-linked-row is-readonly" key={entity.key}>
+                      <span>{entity.name}</span>
+                      <span>{entity.entityLabel}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             {edgeDetails?.columnMappings?.length ? (
               <div className="gh-detail-section">
                 <div className="gh-panel-title">Column mappings</div>
@@ -729,19 +1138,22 @@ export default function LineageGraph({
                 </div>
               </div>
             ) : null}
-            {edgeDetails?.entities?.length ? (
-              <div className="gh-detail-section">
-                <div className="gh-panel-title">Operational entities</div>
-                <div className="gh-lineage-linked-list">
-                  {edgeDetails.entities.map((entity) => (
-                    <div className="gh-lineage-linked-row is-readonly" key={entity.key}>
-                      <span>{entity.name}</span>
-                      <span>{entity.entityLabel}</span>
-                    </div>
-                  ))}
-                </div>
+
+            <div className="gh-attribute-list gh-lineage-edge-attributes">
+              <div className="gh-attribute-row">
+                <span className="gh-attribute-label">Source</span>
+                <span className="gh-attribute-value">{selectedSource?.subtitle || selectedEdge.source}</span>
               </div>
-            ) : null}
+              <div className="gh-attribute-row">
+                <span className="gh-attribute-label">Target</span>
+                <span className="gh-attribute-value">{selectedTarget?.subtitle || selectedEdge.target}</span>
+              </div>
+              <div className="gh-attribute-row">
+                <span className="gh-attribute-label">Relationship</span>
+                <span className="gh-attribute-value">{selectedEdge.data?.kind || "Lineage"}</span>
+              </div>
+            </div>
+
             {activePathNodes.length ? (
               <div className="gh-detail-section">
                 <div className="gh-panel-title">Path nodes</div>
@@ -766,77 +1178,77 @@ export default function LineageGraph({
                 </div>
               </div>
             ) : null}
+
             <div className="gh-action-grid gh-lineage-drawer-actions">
               <button
                 className="gh-secondary-button"
-                  onClick={() => {
-                    setAllowDefaultSelection(false);
-                    setSelectedEdgeId("");
-                    setSelectedNodeId(selectedSource?.id || "");
-                    setGraphMode("upstream");
-                    setDrawerOpen(true);
-                    setRefocusOpen(false);
-                  }}
-                  type="button"
-                >
-                Trace upstream
+                onClick={() => {
+                  setAllowDefaultSelection(false);
+                  setSelectedEdgeId("");
+                  setSelectedNodeId(selectedSource?.id || "");
+                  setGraphMode("upstream");
+                  setDrawerOpen(true);
+                  setRefocusOpen(false);
+                }}
+                type="button"
+              >
+                Trace Upstream
               </button>
               <button
                 className="gh-secondary-button"
-                  onClick={() => {
-                    setAllowDefaultSelection(false);
-                    setSelectedEdgeId("");
-                    setSelectedNodeId(selectedTarget?.id || "");
-                    setGraphMode("impact");
-                    setDrawerOpen(true);
-                    setRefocusOpen(false);
-                  }}
-                  type="button"
-                >
-                Show impact
+                onClick={() => {
+                  setAllowDefaultSelection(false);
+                  setSelectedEdgeId("");
+                  setSelectedNodeId(selectedTarget?.id || "");
+                  setGraphMode("impact");
+                  setDrawerOpen(true);
+                  setRefocusOpen(false);
+                }}
+                type="button"
+              >
+                Show Impact
               </button>
               {selectedSource?.assetFqn ? (
-                <button
-                  className="gh-primary-button"
-                  onClick={() => onSelectAsset(selectedSource.assetFqn)}
-                  type="button"
-                >
-                  Refocus source
+                <button className="gh-primary-button" onClick={() => onSelectAsset(selectedSource.assetFqn)} type="button">
+                  Refocus Source
                 </button>
               ) : null}
               {selectedTarget?.assetFqn ? (
-                <button
-                  className="gh-primary-button"
-                  onClick={() => onSelectAsset(selectedTarget.assetFqn)}
-                  type="button"
-                >
-                  Refocus target
+                <button className="gh-primary-button" onClick={() => onSelectAsset(selectedTarget.assetFqn)} type="button">
+                  Refocus Target
                 </button>
               ) : null}
             </div>
           </>
         ) : selectedNode ? (
           <>
-            <h2>{selectedNode.label}</h2>
-            <div className="gh-support-copy">{selectedNode.subtitle}</div>
-            <div className="gh-chip-stack">
-              <span className="gh-chip">{selectedNode.kind}</span>
-              <span className="gh-chip gh-chip-soft">{selectedNode.kicker || selectedNode.role}</span>
-              <span className="gh-chip gh-chip-soft">{nodeStats.upstream} upstream</span>
-              <span className="gh-chip gh-chip-soft">{nodeStats.downstream} downstream</span>
-            </div>
-            {selectedNode.details?.[0]?.statementId || selectedNode.details?.[0]?.entityId ? (
-              <div className="gh-attribute-list">
-                <div className="gh-attribute-row">
-                  <span className="gh-attribute-label">Identifier</span>
-                  <span className="gh-attribute-value">
-                    {selectedNode.details?.[0]?.statementId || selectedNode.details?.[0]?.entityId}
-                  </span>
-                </div>
-              </div>
-            ) : selectedNode.details?.description ? (
-              <div className="gh-support-copy">{selectedNode.details.description}</div>
-            ) : null}
+            <LineageRecordCard
+              title="Selected Node"
+              node={selectedNode}
+              tone={selectedNode.role === "focus" ? "focus" : selectedNode.role || "neutral"}
+              onOpenAsset={onOpenAsset}
+              onOpenGovernance={onOpenGovernance}
+              onRefocus={(assetFqn) => {
+                setAllowDefaultSelection(true);
+                onSelectAsset(assetFqn);
+              }}
+              onTraceUpstream={
+                selectedNode.assetFqn
+                  ? () => {
+                      setGraphMode("upstream");
+                      setDrawerOpen(true);
+                    }
+                  : null
+              }
+              onShowImpact={
+                selectedNode.assetFqn
+                  ? () => {
+                      setGraphMode("impact");
+                      setDrawerOpen(true);
+                    }
+                  : null
+              }
+            />
             <div className="gh-detail-section">
               <div className="gh-support-copy">
                 {selectedNode.role === "focus"
@@ -932,19 +1344,11 @@ export default function LineageGraph({
                 >
                   Recenter
                 </button>
-                <button
-                  className="gh-secondary-button"
-                  onClick={() => onOpenAsset(selectedNode.assetFqn)}
-                  type="button"
-                >
-                  Open asset
+                <button className="gh-secondary-button" onClick={() => onOpenAsset(selectedNode.assetFqn)} type="button">
+                  Open Record
                 </button>
-                <button
-                  className="gh-secondary-button"
-                  onClick={() => onOpenGovernance(selectedNode.assetFqn)}
-                  type="button"
-                >
-                  Open governance
+                <button className="gh-secondary-button" onClick={() => onOpenGovernance(selectedNode.assetFqn)} type="button">
+                  Open Governance
                 </button>
               </div>
             ) : null}

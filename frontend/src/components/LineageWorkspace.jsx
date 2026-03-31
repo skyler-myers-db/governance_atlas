@@ -32,6 +32,8 @@ export default function LineageWorkspace({
   initialAssetFqn,
   bootstrap,
   contextSeedAssets = [],
+  onNavigationStateChange,
+  onSurfaceReady,
   sharedVisibleAssetSet,
   onRouteAssetChange,
   onOpenGovernance,
@@ -45,6 +47,7 @@ export default function LineageWorkspace({
     )
   );
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
+  const [linkFeedback, setLinkFeedback] = useState("");
   const seedAssets = contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [];
   const seeded = useSeededAssetContext(focusAssetFqn, bootstrap, seedAssets, {
     allowFallback: false,
@@ -70,6 +73,10 @@ export default function LineageWorkspace({
   }, [focusAssetFqn]);
 
   useEffect(() => {
+    setLinkFeedback("");
+  }, [focusAssetFqn, localContext]);
+
+  useEffect(() => {
     const nextAssetFqn = initialAssetFqn || "";
     setFocusAssetFqn(nextAssetFqn);
   }, [initialAssetFqn]);
@@ -91,6 +98,22 @@ export default function LineageWorkspace({
     }
   }, [focusAssetFqn, localContext]);
 
+  useEffect(() => {
+    if (!focusAssetFqn) {
+      onSurfaceReady?.();
+      return;
+    }
+    if (!lineage.loading && (!assetDetail.loading || assetDetail.detail?.fqn === focusAssetFqn)) {
+      onSurfaceReady?.();
+    }
+  }, [
+    assetDetail.detail?.fqn,
+    assetDetail.loading,
+    focusAssetFqn,
+    lineage.loading,
+    onSurfaceReady,
+  ]);
+
   const searchOverlay = (
     <div className="gh-lineage-overlay-card">
       <div className="gh-panel-title">{localContext}</div>
@@ -106,6 +129,7 @@ export default function LineageWorkspace({
           onKeyDown={(event) => {
             if (event.key === "Enter" && searchReady && assetSearch.assets[0]) {
               event.preventDefault();
+              onNavigationStateChange?.(true, "Loading lineage asset…");
               setFocusAssetFqn(assetSearch.assets[0].fqn);
               onRouteAssetChange?.(assetSearch.assets[0].fqn, localContext);
             }
@@ -122,6 +146,7 @@ export default function LineageWorkspace({
                 className="gh-lineage-search-row"
                 key={candidate.fqn}
                 onClick={() => {
+                  onNavigationStateChange?.(true, "Loading lineage asset…");
                   setFocusAssetFqn(candidate.fqn);
                   onRouteAssetChange?.(candidate.fqn, localContext);
                 }}
@@ -162,13 +187,26 @@ export default function LineageWorkspace({
 
   const openLineageAsset = async (assetFqn, nextTab = "Overview") => {
     if (!assetFqn) return;
-    const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
-    const detailPromise = prefetchAssetDetail(assetFqn, { force: true, sections: ["header", "activity"] });
-    const availability = (await availabilityPromise)?.[assetFqn] || null;
-    const detail = await detailPromise;
-    if (!canOpenLinkedAssetRecord(detail, availability)) return;
-    setWorkspaceIntent("lineageContext", assetFqn, localContext);
-    onOpenAsset?.(assetFqn, nextTab);
+    onNavigationStateChange?.(true, "Opening metadata record…");
+    try {
+      const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
+      const detailPromise = prefetchAssetDetail(assetFqn, { force: true, sections: ["header", "activity"] });
+      const availability = (await availabilityPromise)?.[assetFqn] || null;
+      const detail = await detailPromise;
+      if (!canOpenLinkedAssetRecord(detail, availability)) {
+        onNavigationStateChange?.(false, "");
+        setLinkFeedback(
+          "That linked asset is visible in lineage, but the live record is not openable with the current permissions.",
+        );
+        return;
+      }
+      setLinkFeedback("");
+      setWorkspaceIntent("lineageContext", assetFqn, localContext);
+      onOpenAsset?.(assetFqn, nextTab);
+    } catch {
+      onNavigationStateChange?.(false, "");
+      setLinkFeedback("The linked asset could not be opened right now. Refresh the workspace and try again.");
+    }
   };
 
   return (
@@ -185,6 +223,7 @@ export default function LineageWorkspace({
         graphBundle={lineage.graph}
         lineagePayload={lineage.payload}
         loading={lineage.loading}
+        notice={linkFeedback}
         overlay={!focusAssetFqn && !hasGraph ? searchOverlay : null}
         onAssetSearchQueryChange={setAssetSearchQuery}
         onContextChange={(nextContext) => {
@@ -193,15 +232,28 @@ export default function LineageWorkspace({
         onOpenGovernance={onOpenGovernance}
         onOpenAsset={openLineageAsset}
         onSelectAsset={(assetFqn) => {
+          onNavigationStateChange?.(true, "Refocusing lineage…");
           void Promise.all([
             prefetchAssetAvailability([assetFqn], { force: true }),
             prefetchAssetDetail(assetFqn, { force: true, sections: ["header", "activity"] }),
-          ]).then(([availabilityMap, detail]) => {
-            const availability = availabilityMap?.[assetFqn] || null;
-            if (!canOpenLinkedAssetRecord(detail, availability)) return;
-            setFocusAssetFqn(assetFqn);
-            onRouteAssetChange?.(assetFqn, localContext);
-          });
+          ])
+            .then(([availabilityMap, detail]) => {
+              const availability = availabilityMap?.[assetFqn] || null;
+              if (!canOpenLinkedAssetRecord(detail, availability)) {
+                onNavigationStateChange?.(false, "");
+                setLinkFeedback(
+                  "That linked asset is available in lineage context only. Open it from the graph only after the live record becomes visible.",
+                );
+                return;
+              }
+              setLinkFeedback("");
+              setFocusAssetFqn(assetFqn);
+              onRouteAssetChange?.(assetFqn, localContext);
+            })
+            .catch(() => {
+              onNavigationStateChange?.(false, "");
+              setLinkFeedback("The graph could not refocus on that linked asset right now. Try again after the lineage refresh settles.");
+            });
         }}
       />
     </section>

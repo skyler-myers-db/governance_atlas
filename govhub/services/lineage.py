@@ -12,6 +12,9 @@ from govhub.services import live_metadata as metadata_service
 
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
+TABLE_LINEAGE_LIMIT = 50
+COLUMN_LINEAGE_LIMIT = 500
+OPERATIONAL_CONTEXT_LIMIT = 200
 
 
 def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
@@ -52,6 +55,7 @@ def graph_node_for_asset(
     depth: int = 1,
 ) -> Dict[str, Any]:
     row = asset_service.inventory_row(uc, store, asset_fqn)
+    identity_resolved = bool(asset_service.normalize_str(row.get("table_type")))
     label = asset_service.normalize_str(row.get("table_name")) or asset_fqn.split(".")[-1]
     subtitle = " / ".join(
         part
@@ -65,7 +69,11 @@ def graph_node_for_asset(
         row.get("table_type"),
         row.get("data_source_format"),
     )
+    if not identity_resolved and not item_kind:
+        item_kind = "Lineage Reference"
     footer = foot or [item_kind]
+    if not identity_resolved and "Lineage only" not in footer:
+        footer = [*footer, "Lineage only"]
     return {
         "id": f"{role}-{asset_fqn}",
         "assetFqn": asset_fqn,
@@ -81,13 +89,19 @@ def graph_node_for_asset(
         "details": {
             "fqn": asset_fqn,
             "description": asset_service.normalize_str(row.get("comment"))
-            or asset_service.PLACEHOLDER_DESCRIPTION,
+            or (
+                "This related asset is present in lineage metadata, but its live record is not currently openable from this workspace."
+                if not identity_resolved
+                else asset_service.PLACEHOLDER_DESCRIPTION
+            ),
             "governanceStatus": asset_service.normalize_str(row.get("governance_status"))
             or "Needs Work",
             "domain": asset_service.normalize_str(row.get("domain")) or "Unassigned",
             "tier": asset_service.normalize_str(row.get("tier")) or "Unassigned",
             "certification": asset_service.normalize_str(row.get("certification")) or "Unassigned",
             "sensitivity": asset_service.normalize_str(row.get("sensitivity")) or "Unassigned",
+            "isOpenable": identity_resolved,
+            "resolutionState": "resolved" if identity_resolved else "lineage-only",
         },
     }
 
@@ -116,14 +130,24 @@ def _operational_edge_key(source_id: str, target_id: str) -> str:
     return f"operational:{source_id}->{target_id}"
 
 
-def _column_lineage_payload(uc: UCSQLClient, asset_fqn: str) -> Dict[str, List[Dict[str, Any]]]:
+def _column_lineage_payload(uc: UCSQLClient, asset_fqn: str) -> Dict[str, Any]:
     catalog, schema, table = asset_service.split_uc_name(asset_fqn)
     try:
-        upstream_df = uc.get_column_lineage_upstream(catalog, schema, table)
+        upstream_df = uc.get_column_lineage_upstream(
+            catalog,
+            schema,
+            table,
+            limit=COLUMN_LINEAGE_LIMIT,
+        )
     except Exception:
         upstream_df = pd.DataFrame()
     try:
-        downstream_df = uc.get_column_lineage_downstream(catalog, schema, table)
+        downstream_df = uc.get_column_lineage_downstream(
+            catalog,
+            schema,
+            table,
+            limit=COLUMN_LINEAGE_LIMIT,
+        )
     except Exception:
         downstream_df = pd.DataFrame()
 
@@ -160,6 +184,13 @@ def _column_lineage_payload(uc: UCSQLClient, asset_fqn: str) -> Dict[str, List[D
             {"column": column, "targets": targets}
             for column, targets in sorted(downstream.items())
         ],
+        "meta": {
+            "limit": COLUMN_LINEAGE_LIMIT,
+            "truncated": bool(
+                (upstream_df is not None and len(upstream_df.index) >= COLUMN_LINEAGE_LIMIT)
+                or (downstream_df is not None and len(downstream_df.index) >= COLUMN_LINEAGE_LIMIT)
+            ),
+        },
     }
 
 
@@ -263,7 +294,12 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
     )
     try:
         upstream_df = asset_service.filter_asset_rows(
-            metadata_service.cached_lineage_up(uc, catalog, schema, table),
+            uc.get_table_lineage_upstream(
+                catalog,
+                schema,
+                table,
+                limit=TABLE_LINEAGE_LIMIT,
+            ),
             ["source_table_name", "source_table_full_name"],
             exclude_fqn=asset_fqn,
         )
@@ -271,7 +307,12 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
         upstream_df = pd.DataFrame()
     try:
         downstream_df = asset_service.filter_asset_rows(
-            metadata_service.cached_lineage_down(uc, catalog, schema, table),
+            uc.get_table_lineage_downstream(
+                catalog,
+                schema,
+                table,
+                limit=TABLE_LINEAGE_LIMIT,
+            ),
             ["target_table_name", "target_table_full_name"],
             exclude_fqn=asset_fqn,
         )
@@ -324,8 +365,30 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
         )
 
     if len(nodes) == 1:
-        return {"nodes": [focus], "edges": []}
-    return {"nodes": nodes, "edges": edges}
+        return {
+            "nodes": [focus],
+            "edges": [],
+            "meta": {
+                "upstreamLimit": TABLE_LINEAGE_LIMIT,
+                "downstreamLimit": TABLE_LINEAGE_LIMIT,
+                "upstreamTruncated": False,
+                "downstreamTruncated": False,
+            },
+        }
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "meta": {
+            "upstreamLimit": TABLE_LINEAGE_LIMIT,
+            "downstreamLimit": TABLE_LINEAGE_LIMIT,
+            "upstreamTruncated": bool(
+                upstream_df is not None and len(upstream_df.index) >= TABLE_LINEAGE_LIMIT
+            ),
+            "downstreamTruncated": bool(
+                downstream_df is not None and len(downstream_df.index) >= TABLE_LINEAGE_LIMIT
+            ),
+        },
+    }
 
 
 def build_operational_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, Any]:
@@ -351,14 +414,24 @@ def build_operational_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict
     try:
         upstream_df = metadata_service.enrich_operational_context_names(
             uc,
-            metadata_service.cached_operational_context_up(uc, catalog, schema, table),
+            uc.get_operational_context_upstream(
+                catalog,
+                schema,
+                table,
+                limit=OPERATIONAL_CONTEXT_LIMIT,
+            ),
         )
     except Exception:
         upstream_df = pd.DataFrame()
     try:
         downstream_df = metadata_service.enrich_operational_context_names(
             uc,
-            metadata_service.cached_operational_context_down(uc, catalog, schema, table),
+            uc.get_operational_context_downstream(
+                catalog,
+                schema,
+                table,
+                limit=OPERATIONAL_CONTEXT_LIMIT,
+            ),
         )
     except Exception:
         downstream_df = pd.DataFrame()
@@ -418,7 +491,20 @@ def build_operational_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict
             }
         )
 
-    return {"nodes": nodes, "edges": edges}
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "meta": {
+            "producerLimit": OPERATIONAL_CONTEXT_LIMIT,
+            "consumerLimit": OPERATIONAL_CONTEXT_LIMIT,
+            "producerTruncated": bool(
+                upstream_df is not None and len(upstream_df.index) >= OPERATIONAL_CONTEXT_LIMIT
+            ),
+            "consumerTruncated": bool(
+                downstream_df is not None and len(downstream_df.index) >= OPERATIONAL_CONTEXT_LIMIT
+            ),
+        },
+    }
 
 
 def lineage_payload(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, Any]:
@@ -442,6 +528,7 @@ def _build_lineage_payload(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[
 
     return {
         "fqn": asset_fqn,
+        "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
         "graphs": {
             "data": data_graph,
             "operational": operational_graph,
@@ -464,5 +551,18 @@ def _build_lineage_payload(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[
             "operationalConsumerCount": sum(
                 1 for node in operational_graph.get("nodes", []) if node.get("role") == "target"
             ),
+            "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+            "limits": {
+                "tableLineage": TABLE_LINEAGE_LIMIT,
+                "columnLineage": COLUMN_LINEAGE_LIMIT,
+                "operationalContext": OPERATIONAL_CONTEXT_LIMIT,
+            },
+            "truncated": {
+                "upstream": bool(data_graph.get("meta", {}).get("upstreamTruncated")),
+                "downstream": bool(data_graph.get("meta", {}).get("downstreamTruncated")),
+                "columnLineage": bool(column_lineage.get("meta", {}).get("truncated")),
+                "operationalProducers": bool(operational_graph.get("meta", {}).get("producerTruncated")),
+                "operationalConsumers": bool(operational_graph.get("meta", {}).get("consumerTruncated")),
+            },
         },
     }

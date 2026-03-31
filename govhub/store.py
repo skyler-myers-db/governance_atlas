@@ -73,6 +73,34 @@ class GovernanceStore:
             updated_by  STRING
         ) USING DELTA""")
 
+        self.uc.execute(f"""CREATE TABLE IF NOT EXISTS {self._fq("glossary_term_reviewers")} (
+            term_id        STRING NOT NULL,
+            reviewer_email STRING NOT NULL,
+            reviewer_role  STRING COMMENT 'reviewer | approver | steward | owner',
+            created_at     TIMESTAMP,
+            created_by     STRING,
+            updated_at     TIMESTAMP,
+            updated_by     STRING
+        ) USING DELTA""")
+
+        self.uc.execute(f"""CREATE TABLE IF NOT EXISTS {self._fq("glossary_term_versions")} (
+            version_id           STRING NOT NULL,
+            term_id              STRING NOT NULL,
+            version_number       BIGINT,
+            action               STRING COMMENT 'created | updated | reviewers-updated',
+            change_note          STRING,
+            name                 STRING NOT NULL,
+            definition           STRING,
+            domain               STRING,
+            owner_email          STRING,
+            status               STRING COMMENT 'draft | approved | deprecated',
+            reviewer_snapshot_json STRING,
+            created_at           TIMESTAMP,
+            created_by           STRING,
+            updated_at           TIMESTAMP,
+            updated_by           STRING
+        ) USING DELTA""")
+
         self.uc.execute(f"""CREATE TABLE IF NOT EXISTS {self._fq("data_owners")} (
             uc_full_name STRING NOT NULL COMMENT 'catalog.schema.table',
             owner_email  STRING NOT NULL,
@@ -160,6 +188,152 @@ WHEN NOT MATCHED THEN INSERT * """)
         )
         return df.iloc[0] if not df.empty else None
 
+    def list_glossary_reviewers(self, term_id: str | None = None) -> pd.DataFrame:
+        where = f"WHERE term_id = {sql_literal(term_id)}" if term_id else ""
+        return self.uc.query_df(
+            f"SELECT term_id, reviewer_email, reviewer_role, created_at, created_by, updated_at, updated_by "
+            f"FROM {self._fq('glossary_term_reviewers')} {where} "
+            f"ORDER BY term_id, lower(reviewer_email)"
+        )
+
+    def upsert_glossary_reviewers(
+        self,
+        term_id: str,
+        reviewers: List[Dict[str, Any]] | None,
+        updated_by: str,
+    ) -> List[Dict[str, str]]:
+        normalized: List[Dict[str, str]] = []
+        seen: set[str] = set()
+        for entry in reviewers or []:
+            reviewer_email = str(entry.get("reviewerEmail") or entry.get("email") or "").strip().lower()
+            if not reviewer_email or reviewer_email in seen:
+                continue
+            seen.add(reviewer_email)
+            reviewer_role = str(entry.get("reviewerRole") or entry.get("role") or "reviewer").strip().lower()
+            if not reviewer_role:
+                reviewer_role = "reviewer"
+            normalized.append(
+                {
+                    "reviewerEmail": reviewer_email,
+                    "reviewerRole": reviewer_role,
+                }
+            )
+
+        self.uc.execute(
+            f"DELETE FROM {self._fq('glossary_term_reviewers')} "
+            f"WHERE term_id = {sql_literal(term_id)}"
+        )
+
+        if not normalized:
+            return []
+
+        ts = _utc_now_ts()
+        rows = ", ".join(
+            (
+                "("
+                f"{sql_literal(term_id)}, "
+                f"{sql_literal(entry['reviewerEmail'])}, "
+                f"{sql_literal(entry['reviewerRole'])}, "
+                f"timestamp({sql_literal(ts)}), "
+                f"{sql_literal(updated_by)}, "
+                f"timestamp({sql_literal(ts)}), "
+                f"{sql_literal(updated_by)}"
+                ")"
+            )
+            for entry in normalized
+        )
+        self.uc.execute(
+            f"""INSERT INTO {self._fq("glossary_term_reviewers")} (
+    term_id, reviewer_email, reviewer_role,
+    created_at, created_by, updated_at, updated_by
+) VALUES {rows}"""
+        )
+        return normalized
+
+    def list_glossary_versions(self, term_id: str | None = None) -> pd.DataFrame:
+        where = f"WHERE term_id = {sql_literal(term_id)}" if term_id else ""
+        return self.uc.query_df(
+            f"SELECT version_id, term_id, version_number, action, change_note, name, definition, domain, owner_email, status, "
+            f"reviewer_snapshot_json, created_at, created_by, updated_at, updated_by "
+            f"FROM {self._fq('glossary_term_versions')} {where} "
+            f"ORDER BY term_id, version_number DESC, created_at DESC"
+        )
+
+    def append_glossary_version(
+        self,
+        term_id: str,
+        action: str,
+        change_note: str | None,
+        updated_by: str,
+    ) -> Dict[str, Any]:
+        term_df = self.uc.query_df(
+            f"SELECT * FROM {self._fq('glossary_terms')} "
+            f"WHERE term_id = {sql_literal(term_id)} LIMIT 1"
+        )
+        if term_df.empty:
+            raise ValueError(f"Glossary term {term_id!r} not found.")
+        reviewers_df = self.list_glossary_reviewers(term_id)
+        max_df = self.uc.query_df(
+            f"SELECT COALESCE(MAX(version_number), 0) AS max_version "
+            f"FROM {self._fq('glossary_term_versions')} "
+            f"WHERE term_id = {sql_literal(term_id)}"
+        )
+        max_version = 0
+        if not max_df.empty:
+            raw_max = max_df.iloc[0].get("max_version")
+            if raw_max is not None and not pd.isna(raw_max):
+                try:
+                    max_version = int(raw_max)
+                except Exception:
+                    max_version = 0
+        version_number = max_version + 1
+        row = term_df.iloc[0]
+        ts = _utc_now_ts()
+        reviewer_snapshot = []
+        if reviewers_df is not None and not reviewers_df.empty:
+            reviewer_snapshot = [
+                {
+                    "reviewerEmail": str(record.get("reviewer_email") or "").strip().lower(),
+                    "reviewerRole": str(record.get("reviewer_role") or "reviewer").strip().lower() or "reviewer",
+                    "updatedAt": str(record.get("updated_at")) if record.get("updated_at") else None,
+                    "updatedBy": str(record.get("updated_by")) if record.get("updated_by") else None,
+                }
+                for record in reviewers_df.to_dict(orient="records")
+                if str(record.get("reviewer_email") or "").strip()
+            ]
+        version_id = uuid.uuid4().hex
+        self.uc.execute(
+            f"""INSERT INTO {self._fq("glossary_term_versions")} (
+    version_id, term_id, version_number, action, change_note,
+    name, definition, domain, owner_email, status, reviewer_snapshot_json,
+    created_at, created_by, updated_at, updated_by
+) VALUES (
+    {sql_literal(version_id)},
+    {sql_literal(term_id)},
+    {int(version_number)},
+    {sql_literal(action)},
+    {sql_literal(change_note)},
+    {sql_literal(row.get("name"))},
+    {sql_literal(row.get("definition"))},
+    {sql_literal(row.get("domain"))},
+    {sql_literal(row.get("owner_email"))},
+    {sql_literal(row.get("status"))},
+    {sql_literal(json.dumps(reviewer_snapshot)) if reviewer_snapshot else "NULL"},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(updated_by)},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(updated_by)}
+)"""
+        )
+        return {
+            "versionId": version_id,
+            "termId": term_id,
+            "versionNumber": version_number,
+            "action": action,
+            "changeNote": change_note or "",
+            "reviewerSnapshot": reviewer_snapshot,
+        }
+
     def upsert_glossary_term(
         self,
         term_id: str,
@@ -169,8 +343,12 @@ WHEN NOT MATCHED THEN INSERT * """)
         owner_email: str | None = None,
         status: str = "draft",
         updated_by: str = "",
-    ) -> None:
+        reviewers: List[Dict[str, Any]] | None = None,
+        change_note: str | None = None,
+    ) -> Dict[str, Any]:
         ts = _utc_now_ts()
+        existing = self.get_glossary_term(term_id)
+        action = "created" if existing is None or existing.empty else "updated"
         self.uc.execute(f"""MERGE INTO {self._fq("glossary_terms")} t
 USING (SELECT {sql_literal(term_id)} AS term_id,
               {sql_literal(name)} AS name,
@@ -192,6 +370,16 @@ WHEN NOT MATCHED THEN INSERT (
     s.term_id, s.name, s.definition, s.domain, s.owner_email, s.status,
     s.updated_at, s.updated_by, s.updated_at, s.updated_by
 )""")
+        if reviewers is not None:
+            self.upsert_glossary_reviewers(term_id, reviewers, updated_by)
+            if action == "updated":
+                action = "reviewers-updated" if not change_note else action
+        return self.append_glossary_version(
+            term_id=term_id,
+            action=action,
+            change_note=change_note,
+            updated_by=updated_by,
+        )
 
     def search_glossary(self, query: str, limit: int = 25) -> pd.DataFrame:
         q = query.strip().lower()

@@ -8,6 +8,8 @@ const ASSET_AVAILABILITY_IN_FLIGHT = new Map();
 const PLACEHOLDER_DESCRIPTION = "No description has been captured for this asset yet.";
 const DETAIL_CACHE_TTL_MS = 20_000;
 const AVAILABILITY_CACHE_TTL_MS = 10_000;
+const ASSET_DETAIL_EVENT = "gh:asset-detail-updated";
+const ASSET_AVAILABILITY_EVENT = "gh:asset-availability-updated";
 const DETAIL_SECTION_FIELDS = {
   header: [
     "fqn",
@@ -115,10 +117,18 @@ function readCachedDetail(assetFqn, options = {}) {
 function rememberDetail(assetFqn, detail) {
   if (!assetFqn || !detail) return;
   const current = readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null);
+  const mergedDetail = mergeAssetDetail(current, detail);
   ASSET_DETAIL_CACHE.set(assetFqn, {
-    detail: mergeAssetDetail(current, detail),
+    detail: mergedDetail,
     updatedAt: Date.now(),
   });
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(ASSET_DETAIL_EVENT, {
+        detail: { assetFqn, sections: mergedDetail?.loadedSections || [] },
+      }),
+    );
+  }
 }
 
 function readCachedAvailability(assetFqn, options = {}) {
@@ -136,6 +146,13 @@ function rememberAvailability(assetFqn, detail) {
     detail,
     updatedAt: Date.now(),
   });
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(ASSET_AVAILABILITY_EVENT, {
+        detail: { assetFqn },
+      }),
+    );
+  }
 }
 
 export function primeAssetDetail(assetFqn, detail) {
@@ -425,6 +442,48 @@ export function useAssetAvailability(assetFqns = [], knownVisibleAssetSet = null
     };
   }, [knownVisibleAssetSet, requireRenderableDetail, strict, targets]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !targets.length) return undefined;
+    const refreshFromCache = () => {
+      setAvailability((current) =>
+        Object.fromEntries(
+          targets.map((assetFqn) => {
+            const knownVisible = knownVisibleAssetSet?.has?.(assetFqn) === true;
+            const cachedAvailability = readCachedAvailability(assetFqn, {
+              maxAgeMs: strict ? AVAILABILITY_CACHE_TTL_MS : null,
+            });
+            const cachedDetail = requireRenderableDetail
+              ? readCachedDetail(assetFqn, { maxAgeMs: DETAIL_CACHE_TTL_MS })
+              : null;
+            return [
+              assetFqn,
+              resolveAvailabilityState(
+                cachedAvailability,
+                knownVisible,
+                strict,
+                requireRenderableDetail,
+                cachedDetail,
+              ) ?? current[assetFqn],
+            ];
+          }),
+        ),
+      );
+    };
+    const onAvailability = (event) => {
+      if (targets.includes(event?.detail?.assetFqn)) refreshFromCache();
+    };
+    const onDetail = (event) => {
+      if (!requireRenderableDetail) return;
+      if (targets.includes(event?.detail?.assetFqn)) refreshFromCache();
+    };
+    window.addEventListener(ASSET_AVAILABILITY_EVENT, onAvailability);
+    window.addEventListener(ASSET_DETAIL_EVENT, onDetail);
+    return () => {
+      window.removeEventListener(ASSET_AVAILABILITY_EVENT, onAvailability);
+      window.removeEventListener(ASSET_DETAIL_EVENT, onDetail);
+    };
+  }, [knownVisibleAssetSet, requireRenderableDetail, strict, targets]);
+
   return availability;
 }
 
@@ -493,6 +552,26 @@ export function useAssetDetail(assetFqn, options = {}) {
       canceled = true;
     };
   }, [assetFqn, enabled, sections.join(",")]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !assetFqn) return undefined;
+    const normalizedSections = normalizeDetailSections(sections);
+    const onDetailUpdated = (event) => {
+      if (event?.detail?.assetFqn !== assetFqn) return;
+      const cached = readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null);
+      if (!cached) return;
+      if (normalizedSections.length && !cachedDetailHasSections(cached, normalizedSections)) return;
+      setState((current) => ({
+        loading: false,
+        error: "",
+        detail: cached || current.detail || null,
+      }));
+    };
+    window.addEventListener(ASSET_DETAIL_EVENT, onDetailUpdated);
+    return () => {
+      window.removeEventListener(ASSET_DETAIL_EVENT, onDetailUpdated);
+    };
+  }, [assetFqn, sections.join(",")]);
 
   return state;
 }

@@ -475,7 +475,7 @@ def _resolve_inventory_df(
 
 
 def friendly_table_type(raw: Any, data_source_format: Any = None) -> str:
-    normalized = normalize_str(raw).upper()
+    normalized = normalize_str(raw).upper().replace("_", " ")
     normalized_format = normalize_str(data_source_format).upper()
     mapping = {
         "BASE TABLE": "Table",
@@ -503,6 +503,40 @@ def friendly_table_type(raw: Any, data_source_format: Any = None) -> str:
     if not normalized or normalized.startswith("UNKNOWN"):
         return ""
     return normalize_str(raw).replace("_", " ").title()
+
+
+def _prefer_specific_table_type(detail_type: Any, inventory_type: Any) -> str:
+    detail_normalized = normalize_str(detail_type).upper().replace("_", " ")
+    inventory_normalized = normalize_str(inventory_type).upper().replace("_", " ")
+    generic_table_types = {
+        "",
+        "TABLE",
+        "BASE TABLE",
+        "MANAGED",
+        "MANAGED TABLE",
+        "EXTERNAL",
+        "EXTERNAL TABLE",
+    }
+    specific_types = {
+        "MATERIALIZED VIEW",
+        "STREAMING TABLE",
+        "VIEW",
+    }
+    if detail_normalized in generic_table_types and inventory_normalized in specific_types:
+        return normalize_str(inventory_type)
+    return normalize_str(detail_type) or normalize_str(inventory_type)
+
+
+def supports_direct_metadata_write(raw_table_type: Any) -> bool:
+    normalized = normalize_str(raw_table_type).upper().replace("_", " ")
+    return normalized in {
+        "TABLE",
+        "BASE TABLE",
+        "MANAGED",
+        "MANAGED TABLE",
+        "EXTERNAL",
+        "EXTERNAL TABLE",
+    }
 
 
 def friendly_storage_format(raw: Any) -> str:
@@ -1146,6 +1180,21 @@ def table_property_records(properties_df: pd.DataFrame) -> List[Dict[str, str]]:
     return rows
 
 
+def infer_storage_format_from_properties(properties_df: pd.DataFrame) -> str:
+    if properties_df is None or properties_df.empty:
+        return ""
+    keys = {
+        normalize_str(row.get("key")).lower()
+        for _, row in properties_df.iterrows()
+        if normalize_str(row.get("key"))
+    }
+    if any(key.startswith("delta.") for key in keys):
+        return "Delta"
+    if any(key.startswith("iceberg.") for key in keys):
+        return "Iceberg"
+    return ""
+
+
 def constraint_records(constraints_df: pd.DataFrame) -> List[Dict[str, Any]]:
     if constraints_df is None or constraints_df.empty:
         return []
@@ -1315,14 +1364,19 @@ def operational_entity_records(
         current = grouped.get(key)
         if current is None:
             resolved_name = uc.resolve_operational_entity_name(entity_type, entity_id) if entity_type and entity_id else ""
+            entity_label = _operational_entity_label(entity_type)
+            fallback_identifier = entity_id or statement_id or run_id
+            fallback_name = resolved_name or normalize_str(row.get("entity_name"))
+            if not fallback_name and fallback_identifier:
+                fallback_name = f"{entity_label} {fallback_identifier[:8]}".strip()
             current = {
                 "key": key,
                 "entityType": entity_type,
-                "entityLabel": _operational_entity_label(entity_type),
+                "entityLabel": entity_label,
                 "entityId": entity_id,
                 "statementId": statement_id,
                 "runId": run_id,
-                "name": resolved_name or entity_id or statement_id or "Unknown entity",
+                "name": fallback_name or entity_label or "Unknown entity",
                 "metadata": normalize_str(row.get("entity_metadata")),
                 "relatedAssets": [],
             }
@@ -1533,7 +1587,10 @@ def asset_detail_payload(
             except Exception:
                 row_count = coalesce(detail.get("numrows"))
             base["rows"] = f"{safe_int(row_count):,}" if safe_int(row_count) else "—"
-            raw_detail_type = coalesce(detail.get("type"), base.get("tableTypeRaw"))
+            raw_detail_type = _prefer_specific_table_type(
+                detail.get("type"),
+                base.get("tableTypeRaw"),
+            )
             raw_detail_format = coalesce(detail.get("format"), base.get("storageFormat"))
             base["tableTypeRaw"] = raw_detail_type or base.get("tableTypeRaw", "")
             base["objectType"] = coalesce(
@@ -1545,13 +1602,27 @@ def asset_detail_payload(
                 friendly_storage_format(raw_detail_format),
                 base.get("storageFormat"),
             )
+            if base["storageFormat"] == "—":
+                try:
+                    properties_for_identity_df = uc.get_table_properties(catalog, schema, table)
+                except Exception:
+                    properties_for_identity_df = pd.DataFrame()
+                inferred_storage_format = infer_storage_format_from_properties(properties_for_identity_df)
+                if inferred_storage_format:
+                    base["storageFormat"] = inferred_storage_format
             base["format"] = base["storageFormat"] or "—"
             base["size"] = human_bytes(detail.get("sizeinbytes"))
             base["files"] = str(safe_int(detail.get("numfiles"))) if safe_int(detail.get("numfiles")) else "—"
+            metadata_write_supported = supports_direct_metadata_write(base.get("tableTypeRaw"))
             base["metadataEditor"] = {
-                "available": True,
+                "available": metadata_write_supported,
                 "updatePath": "/api/assets/:fqn/metadata",
                 "updateMethod": "PATCH",
+                "message": (
+                    ""
+                    if metadata_write_supported
+                    else "Direct metadata edits are currently available only on writable Delta tables. Views, materialized views, and streaming tables remain read only."
+                ),
                 "fields": [
                     {
                         "key": "description",

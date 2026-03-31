@@ -15,7 +15,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from govhub.auth import get_current_user_email
+from govhub.legacy_auth import get_current_user_email
 from govhub.config import AppConfig
 from govhub.openmetadata import OpenMetadataClient, OpenMetadataError
 from govhub.store import GovernanceStore

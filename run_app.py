@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Dual-mode launcher for Governance Hub.
+"""Governance Hub launcher.
 
-Default mode preserves the existing Streamlit app. Set `GOVHUB_APP_MODE=modern`
-to launch the new ASGI frontend once `modern_app:app` is present.
+The modern ASGI runtime is the default. A legacy Streamlit mode remains available
+only for archival/troubleshooting workflows through `GOVHUB_APP_MODE=legacy`.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ FRONTEND_DIST: Final[Path] = FRONTEND_DIR / "dist" / "index.html"
 
 
 def _normalized_mode() -> str:
-    raw = os.getenv("GOVHUB_APP_MODE", LEGACY_MODE).strip().lower()
+    raw = os.getenv("GOVHUB_APP_MODE", MODERN_MODE).strip().lower()
     aliases = {
         "streamlit": LEGACY_MODE,
         "legacy": LEGACY_MODE,

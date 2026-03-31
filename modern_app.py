@@ -1,9 +1,8 @@
 """Modern Governance Hub runtime.
 
-Serves a JS-first metadata workspace while preserving the legacy Streamlit app.
-The modern shell reuses the existing Python metadata plane and gracefully falls
-back to the bundled static demo shell when live Databricks runtime access is not
-available.
+Serves a JS-first metadata workspace on top of the live Python metadata plane.
+The modern shell reuses the existing metadata services and gracefully falls back
+to the bundled static shell when live Databricks runtime access is not available.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -108,6 +107,40 @@ class _NullGovernanceStore:
 
     def list_glossary_terms(self, limit: int = 200) -> pd.DataFrame:
         return pd.DataFrame(columns=["term_id", "name", "definition"])
+
+    def list_glossary_reviewers(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            columns=[
+                "term_id",
+                "reviewer_email",
+                "reviewer_role",
+                "created_at",
+                "created_by",
+                "updated_at",
+                "updated_by",
+            ]
+        )
+
+    def list_glossary_versions(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            columns=[
+                "version_id",
+                "term_id",
+                "version_number",
+                "action",
+                "change_note",
+                "name",
+                "definition",
+                "domain",
+                "owner_email",
+                "status",
+                "reviewer_snapshot_json",
+                "created_at",
+                "created_by",
+                "updated_at",
+                "updated_by",
+            ]
+        )
 
     def get_role(self, email: str, admin_emails: Optional[List[str]] = None) -> str:
         return "reader"
@@ -504,6 +537,21 @@ def _facet_payload(
     return items
 
 
+def _inventory_option_counts(
+    inventory: pd.DataFrame,
+    extractor: Callable[[pd.Series], str],
+) -> Dict[str, int]:
+    if inventory is None or inventory.empty:
+        return {}
+    counts: Dict[str, int] = {}
+    for _, row in inventory.iterrows():
+        value = _normalize_str(extractor(row))
+        if not value or value == "Unassigned":
+            continue
+        counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items()))
+
+
 def _sort_discovery_assets(
     assets: List[Dict[str, Any]],
     *,
@@ -747,10 +795,9 @@ def _bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
         inventory = _visible_assets(normalized_scope)
         available_catalogs = _inventory_catalogs()
         observed_catalogs = _lineage_observed_catalogs()
-        catalogs = asset_service.catalog_filter_options(
+        visible_catalogs = _inventory_option_values(
             inventory,
-            available_catalogs=available_catalogs,
-            observed_catalogs=observed_catalogs,
+            lambda row: row.get("table_catalog"),
         )
         asset_types = _inventory_option_values(
             inventory,
@@ -758,6 +805,17 @@ def _bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
                 row.get("table_type"),
                 row.get("data_source_format"),
             ),
+        )
+        asset_type_counts = _inventory_option_counts(
+            inventory,
+            lambda row: asset_service.friendly_table_type(
+                row.get("table_type"),
+                row.get("data_source_format"),
+            ),
+        )
+        catalog_counts = _inventory_option_counts(
+            inventory,
+            lambda row: row.get("table_catalog"),
         )
         domains = _inventory_option_values(inventory, lambda row: row.get("domain"))
         tiers = _inventory_option_values(inventory, lambda row: row.get("tier"))
@@ -776,20 +834,22 @@ def _bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
         )
         owned_assets = sum(1 for _, row in inventory.iterrows() if asset_service.owner_entries(row))
         return {
-            "catalogs": catalogs,
+            "catalogs": visible_catalogs,
             "assetTypes": asset_types,
             "domains": domains,
             "tiers": tiers,
             "certifications": certifications,
             "sensitivities": sensitivities,
             "visibleAssets": len(inventory.index) if inventory is not None else 0,
-            "catalogCount": len(catalogs),
+            "catalogCount": len(visible_catalogs),
             "availableCatalogCount": len(available_catalogs),
             "observedCatalogCount": len(observed_catalogs),
             "governanceGaps": governance_gaps,
             "certifiedAssets": certified_assets,
             "ownedAssets": owned_assets,
-            "catalogSnapshot": catalogs[:8],
+            "assetTypeCounts": asset_type_counts,
+            "catalogCounts": catalog_counts,
+            "catalogSnapshot": visible_catalogs[:8],
         }
 
     return _ttl_value(
@@ -910,6 +970,8 @@ def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
                     "governanceGaps": 1 if _normalize_str(selected_asset.get("governanceStatus")) == "Needs Work" else 0,
                     "certifiedAssets": 1 if selected_certification and selected_certification != "Unassigned" else 0,
                     "ownedAssets": 1 if selected_asset.get("owners") else 0,
+                    "assetTypeCounts": {selected_type: 1} if selected_type else {},
+                    "catalogCounts": {selected_catalog: 1} if selected_catalog else {},
                     "catalogSnapshot": [selected_catalog] if selected_catalog else [],
                 },
             },
@@ -1003,6 +1065,8 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
                         "governanceGaps": int(summary.get("governanceGaps") or 0),
                         "certifiedAssets": int(summary.get("certifiedAssets") or 0),
                         "ownedAssets": int(summary.get("ownedAssets") or 0),
+                        "assetTypeCounts": dict(summary.get("assetTypeCounts") or {}),
+                        "catalogCounts": dict(summary.get("catalogCounts") or {}),
                         "catalogSnapshot": list(summary.get("catalogSnapshot") or []),
                     },
                 },
@@ -1088,6 +1152,23 @@ class GlossaryTermUpsert(BaseModel):
     domain: str = ""
     ownerEmail: str = ""
     status: str = "draft"
+    reviewers: Optional[List[Dict[str, Any]]] = None
+    changeNote: str = ""
+
+    @field_validator("reviewers", mode="before")
+    @classmethod
+    def _coerce_reviewers(cls, value: Any) -> Any:
+        if value is None:
+            return None
+        if not isinstance(value, list):
+            return value
+        coerced: List[Dict[str, Any]] = []
+        for item in value:
+            if isinstance(item, str):
+                coerced.append({"reviewerEmail": item})
+            elif isinstance(item, dict):
+                coerced.append(item)
+        return coerced
 
 
 def _normalized_tag_map(df: pd.DataFrame) -> Dict[str, str]:
@@ -1234,6 +1315,8 @@ def _bootstrap_unavailable_payload(
                 "governanceGaps": 0,
                 "certifiedAssets": 0,
                 "ownedAssets": 0,
+                "assetTypeCounts": {},
+                "catalogCounts": {},
                 "catalogSnapshot": [],
             },
         },
@@ -1406,7 +1489,7 @@ def api_runtime_status() -> JSONResponse:
         "runtime": runtime_status,
         "store": store_status,
         "config": {
-            "appMode": _normalize_str(os.getenv("GOVHUB_APP_MODE")) or "legacy",
+            "appMode": _normalize_str(os.getenv("GOVHUB_APP_MODE")) or "modern",
             "warehouseId": _normalize_str(os.getenv("DATABRICKS_WAREHOUSE_ID")),
             "govCatalog": _normalize_str(os.getenv("GOVHUB_CATALOG")),
             "govSchema": _normalize_str(os.getenv("GOVHUB_SCHEMA")),
@@ -1665,13 +1748,23 @@ def api_patch_column_metadata(
 
 
 @app.get("/api/lineage/{asset_fqn:path}")
-def api_lineage(asset_fqn: str) -> JSONResponse:
+def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
     _ensure_live_runtime()
-    try:
-        _split_uc_name(asset_fqn)
-    except Exception as exc:
-        raise HTTPException(status_code=404, detail="Asset not found.") from exc
-    return JSONResponse(_lineage_payload(asset_fqn))
+    payload = _lineage_payload(asset_fqn)
+    stats = payload.get("stats") or {}
+    column_lineage = payload.get("columnLineage") or {}
+    has_lineage_context = any(
+        _safe_int(stats.get(key)) > 0
+        for key in [
+            "upstreamCount",
+            "downstreamCount",
+            "operationalProducerCount",
+            "operationalConsumerCount",
+        ]
+    ) or bool(column_lineage.get("upstream") or column_lineage.get("downstream"))
+    if not _asset_is_openable(asset_fqn, request) and not has_lineage_context:
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    return JSONResponse(payload)
 
 
 @app.get("/api/governance/summary")
@@ -1797,7 +1890,7 @@ def api_governance_upsert_glossary(
     status = (_normalize_str(payload.status) or "draft").lower()
     if not name:
         raise HTTPException(status_code=400, detail="name is required.")
-    governance_service.upsert_glossary_term(
+    version = governance_service.upsert_glossary_term(
         term_id=term_id,
         name=name,
         definition=definition,
@@ -1806,8 +1899,10 @@ def api_governance_upsert_glossary(
         status=status,
         store=store,
         updated_by=_user_email(request),
+        reviewers=payload.reviewers,
+        change_note=_normalize_str(payload.changeNote) or None,
     )
-    return JSONResponse({"ok": True, "termId": term_id, "governance": _governance_summary()})
+    return JSONResponse({"ok": True, "termId": term_id, "version": version, "governance": _governance_summary()})
 
 
 @app.patch("/api/governance/glossary/{term_id}")
@@ -1822,7 +1917,7 @@ def api_governance_patch_glossary(
     name = _normalize_str(payload.name)
     if not name:
         raise HTTPException(status_code=400, detail="name is required.")
-    governance_service.upsert_glossary_term(
+    version = governance_service.upsert_glossary_term(
         term_id=normalized_term_id,
         name=name,
         definition=_normalize_str(payload.definition),
@@ -1831,5 +1926,7 @@ def api_governance_patch_glossary(
         status=(_normalize_str(payload.status) or "draft").lower(),
         store=store,
         updated_by=_user_email(request),
+        reviewers=payload.reviewers,
+        change_note=_normalize_str(payload.changeNote) or None,
     )
-    return JSONResponse({"ok": True, "termId": normalized_term_id, "governance": _governance_summary()})
+    return JSONResponse({"ok": True, "termId": normalized_term_id, "version": version, "governance": _governance_summary()})
