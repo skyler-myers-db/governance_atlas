@@ -8,7 +8,7 @@ import {
   useAssetAvailability,
   useAssetDetail,
 } from "../hooks/useAssetDetail";
-import { useLineage } from "../hooks/useLineage";
+import { prefetchLineage, useLineage } from "../hooks/useLineage";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 
@@ -103,6 +103,13 @@ function resultMetaItems(asset) {
 function facetCount(facets, key, value) {
   const entries = facets?.[key] || [];
   return entries.find((entry) => entry.value === value)?.count || 0;
+}
+
+function summaryFacetCount(summary, key, value, allLabel, fallbackCount = 0) {
+  const counts = summary?.[key];
+  if (value === allLabel) return fallbackCount;
+  if (!counts || typeof counts !== "object") return 0;
+  return Number(counts[value] || 0);
 }
 
 function previewRelatedAssetsFromGraph(graphBundle, focusFqn) {
@@ -216,20 +223,21 @@ function SidebarSection({ title, children }) {
 }
 
 function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, onClose }) {
+  const fallbackOptions = (values = []) => values.filter(Boolean);
   return (
-    <div className="gh-filters-popover-v3">
-      <div className="gh-filters-popover-head-v3">
+    <div className="gh-filters-popover">
+      <div className="gh-filters-popover-head">
         <div className="gh-panel-title">Filters</div>
         <button className="gh-secondary-button" onClick={onClose} type="button">
           Close
         </button>
       </div>
-      <div className="gh-filters-popover-grid-v3">
+      <div className="gh-filters-popover-grid">
         <ToggleChipSection
           allLabel="All types"
           label="Asset type"
           onToggle={(value, allLabel) => toggleMulti(filters, "types", value, allLabel, onDiscoveryStateChange)}
-          options={bootstrap.discovery.assetTypes}
+          options={facetValues(facets, "assetTypes", fallbackOptions(bootstrap.discovery.assetTypes), filters.types)}
           selected={filters.types}
         />
         <ToggleChipSection
@@ -245,7 +253,7 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "catalogs", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(facets, "catalogs", bootstrap.discovery.catalogs, filters.catalogs)}
+          options={facetValues(facets, "catalogs", fallbackOptions(bootstrap.discovery.catalogs), filters.catalogs)}
           selected={filters.catalogs}
         />
         <FilterSection
@@ -254,7 +262,7 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "domains", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(facets, "domains", bootstrap.discovery.domains, filters.domains)}
+          options={facetValues(facets, "domains", fallbackOptions(bootstrap.discovery.domains), filters.domains)}
           selected={filters.domains}
         />
         <FilterSection
@@ -263,7 +271,7 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "tiers", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(facets, "tiers", bootstrap.discovery.tiers, filters.tiers)}
+          options={facetValues(facets, "tiers", fallbackOptions(bootstrap.discovery.tiers), filters.tiers)}
           selected={filters.tiers}
         />
         <FilterSection
@@ -275,7 +283,7 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
           options={facetValues(
             facets,
             "certifications",
-            bootstrap.discovery.certifications,
+            fallbackOptions(bootstrap.discovery.certifications),
             filters.certifications,
           )}
           selected={filters.certifications}
@@ -289,7 +297,7 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
           options={facetValues(
             facets,
             "sensitivities",
-            bootstrap.discovery.sensitivities,
+            fallbackOptions(bootstrap.discovery.sensitivities),
             filters.sensitivities,
           )}
           selected={filters.sensitivities}
@@ -313,7 +321,16 @@ function DiscoveryResultCard({
 
   return (
     <article className={`gh-discovery-result-row ${selected ? "is-selected" : ""}`}>
-      <button className="gh-discovery-result-hit" onClick={() => onSelect(asset.fqn)} type="button">
+      <button
+        className="gh-discovery-result-hit"
+        onClick={() => onSelect(asset.fqn)}
+        onMouseEnter={() => {
+          prefetchAssetAvailability([asset.fqn]);
+          prefetchAssetDetail(asset.fqn, { sections: ["header", "schema"] });
+          prefetchLineage(asset.fqn);
+        }}
+        type="button"
+      >
         <div className="gh-discovery-result-head">
           <div className="gh-discovery-result-title-block">
             <div className="gh-discovery-result-title-row">
@@ -351,19 +368,19 @@ function DiscoveryResultCard({
         ) : null}
       </button>
 
-      <div className="gh-discovery-result-actions">
+      <div className="gh-action-grid gh-discovery-action-grid">
         <button className="gh-secondary-button gh-secondary-button-compact" onClick={() => onOpenAsset(asset.fqn)} type="button">
           Open Record
         </button>
         <button
-          className="gh-tertiary-button gh-inline-link-button"
+          className="gh-secondary-button gh-secondary-button-compact"
           onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
           type="button"
         >
           Open Lineage
         </button>
         <button
-          className="gh-tertiary-button gh-inline-link-button"
+          className="gh-secondary-button gh-secondary-button-compact"
           onClick={() => onOpenGovernance(asset.fqn)}
           type="button"
         >
@@ -407,18 +424,12 @@ function SelectionPreview({
   visibleAssetSet,
   seededLineageGraph,
 }) {
-  const [showLineageContext, setShowLineageContext] = useState(false);
-
-  useEffect(() => {
-    setShowLineageContext(false);
-  }, [asset?.fqn]);
-
   const lineage = useLineage(
     asset?.fqn || "",
     seededLineageGraph || null,
-    Boolean(asset?.fqn) && showLineageContext,
+    Boolean(asset?.fqn),
   );
-  const previewRelatedAssets = asset && showLineageContext
+  const previewRelatedAssets = asset
     ? [
         ...new Set([
           ...(asset.relatedAssets || []),
@@ -431,9 +442,18 @@ function SelectionPreview({
     requireRenderableDetail: false,
   });
 
+  useEffect(() => {
+    if (!previewRelatedAssets.length) return;
+    const targets = previewRelatedAssets.slice(0, 4);
+    void prefetchAssetAvailability(targets);
+    targets.forEach((assetFqn) => {
+      void prefetchAssetDetail(assetFqn, { sections: ["header"] });
+    });
+  }, [previewRelatedAssets]);
+
   if (!asset) {
     return (
-      <aside className="gh-panel gh-selection-preview-v3">
+      <aside className="gh-panel gh-selection-preview">
         <div className="gh-panel-title">Preview</div>
         <div className="gh-empty-state">Select a result to review metadata, schema, and stewardship posture.</div>
       </aside>
@@ -444,18 +464,18 @@ function SelectionPreview({
   const signalItems = previewSignalItems(
     asset,
     asset.columns?.length || 0,
-    showLineageContext ? previewRelatedAssets.length : 0,
+    previewRelatedAssets.length,
     detailLoading,
-    showLineageContext && lineage.loading,
-    showLineageContext,
+    lineage.loading,
+    true,
   );
 
   return (
-    <aside className="gh-panel gh-selection-preview-v3">
-      <div className="gh-selection-preview-head-v2">
-        <div className="gh-selection-preview-title-block-v2">
+    <aside className="gh-panel gh-selection-preview">
+      <div className="gh-selection-preview-head">
+        <div className="gh-selection-preview-title-block">
           <div className="gh-eyebrow">Selected Asset</div>
-          <div className="gh-selection-preview-title-row-v2">
+          <div className="gh-selection-preview-title-row">
             <h3>{asset.name}</h3>
             <span className={`gh-status-chip tone-${statusTone(asset)}`}>
               {asset.governanceStatus || "Needs Work"}
@@ -465,19 +485,19 @@ function SelectionPreview({
         </div>
       </div>
 
-      <div className="gh-selection-preview-actions-v2">
+      <div className="gh-action-grid gh-selection-preview-actions">
         <button className="gh-secondary-button" onClick={() => onOpenAsset(asset.fqn)} type="button">
           Open Record
         </button>
         <button
-          className="gh-tertiary-button gh-inline-link-button"
+          className="gh-secondary-button"
           onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
           type="button"
         >
           Open Lineage
         </button>
         <button
-          className="gh-tertiary-button gh-inline-link-button"
+          className="gh-secondary-button"
           onClick={() => onOpenGovernance(asset.fqn)}
           type="button"
         >
@@ -524,52 +544,37 @@ function SelectionPreview({
       <PreviewSection
         title="Connected Assets"
         empty={
-          showLineageContext
-            ? lineage.loading
-              ? "Loading connected lineage edges..."
-              : "No connected lineage edges are surfaced for this asset yet."
-            : "Lineage loads on demand so preview stays fast."
+          lineage.loading
+            ? "Loading connected lineage edges..."
+            : "No connected lineage edges are surfaced for this asset yet."
         }
       >
-        {showLineageContext ? (
-          previewRelatedAssets.length ? (
-            <div className="gh-lineage-linked-list">
-              {previewRelatedAssets.map((item) =>
-                relatedAssetAvailability[item] !== true ? (
-                  <div className="gh-lineage-linked-row is-readonly" key={item}>
-                    <span>{item}</span>
-                    <span>
-                      {relatedAssetAvailability[item] === false ? "Lineage-only asset" : "Checking asset…"}
-                    </span>
-                  </div>
-                ) : (
-                  <button
-                    className="gh-lineage-linked-row"
-                    key={item}
-                    onClick={() => onOpenLinkedAsset(item)}
-                    onMouseEnter={() => {
-                      prefetchAssetAvailability([item]);
-                      prefetchAssetDetail(item, { sections: ["header"] });
-                    }}
-                    type="button"
-                  >
-                    <span>{item}</span>
-                    <span>{relatedAssetAvailability[item] ? "Open Linked Asset" : "Checking asset…"}</span>
-                  </button>
-                ),
-              )}
-            </div>
-          ) : null
-        ) : null}
-        {!showLineageContext ? (
-          <div className="gh-action-grid">
-            <button
-              className="gh-secondary-button"
-              onClick={() => setShowLineageContext(true)}
-              type="button"
-            >
-              Load connected assets
-            </button>
+        {previewRelatedAssets.length ? (
+          <div className="gh-lineage-linked-list">
+            {previewRelatedAssets.map((item) =>
+              relatedAssetAvailability[item] !== true ? (
+                <div className="gh-lineage-linked-row is-readonly" key={item}>
+                  <span>{item}</span>
+                  <span>
+                    {relatedAssetAvailability[item] === false ? "Lineage-only asset" : "Checking asset…"}
+                  </span>
+                </div>
+              ) : (
+                <button
+                  className="gh-lineage-linked-row"
+                  key={item}
+                  onClick={() => onOpenLinkedAsset(item)}
+                  onMouseEnter={() => {
+                    prefetchAssetAvailability([item]);
+                    prefetchAssetDetail(item, { sections: ["header"] });
+                  }}
+                  type="button"
+                >
+                  <span>{item}</span>
+                  <span>{relatedAssetAvailability[item] ? "Open Linked Asset" : "Checking asset…"}</span>
+                </button>
+              ),
+            )}
           </div>
         ) : null}
       </PreviewSection>
@@ -584,6 +589,8 @@ export default function DiscoveryWorkspace({
   effectiveVisibleCount = 0,
   allowSeededDiscovery = true,
   initialQuery,
+  onNavigationStateChange,
+  onSurfaceReady,
   querySeedKey,
   querySeedFresh,
   onLiveCatalogStateChange,
@@ -595,6 +602,7 @@ export default function DiscoveryWorkspace({
 }) {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedAssetFqn, setSelectedAssetFqn] = useState("");
+  const [navigationNotice, setNavigationNotice] = useState("");
   const filterCommandRef = useRef(null);
   const { filters, setFilters, results: discoveryResults } = useDiscoveryWorkspace({
     bootstrap,
@@ -667,6 +675,13 @@ export default function DiscoveryWorkspace({
     });
   }, [renderableDiscoveryAssets]);
 
+  useEffect(() => {
+    if (!selectedSeedAsset?.fqn) return;
+    void prefetchAssetAvailability([selectedSeedAsset.fqn]);
+    void prefetchAssetDetail(selectedSeedAsset.fqn, { sections: ["header", "schema"] });
+    void prefetchLineage(selectedSeedAsset.fqn);
+  }, [selectedSeedAsset?.fqn]);
+
   const resultsCount = discoveryResults.count;
   const resultsLoading = discoveryResults.loading;
   const resultsError = discoveryResults.error;
@@ -676,13 +691,21 @@ export default function DiscoveryWorkspace({
   const directFilterCount = filterVisibilityCount(filters);
   const discoverySummary = bootstrap.discovery?.summary || {};
   const visibleAssetsSummary = effectiveVisibleCount || discoverySummary.visibleAssets || resultsCount || 0;
-  const assetTypeOptions = (bootstrap.discovery.assetTypes || []).filter(Boolean);
+  const useBootstrapFacetFallback = !resultsSettled;
+  const assetTypeOptions = facetValues(
+    resultsFacets,
+    "assetTypes",
+    useBootstrapFacetFallback ? bootstrap.discovery.assetTypes : [],
+    filters.types,
+  ).filter(Boolean);
   const catalogOptions = facetValues(
     resultsFacets,
     "catalogs",
-    bootstrap.discovery.catalogs,
+    useBootstrapFacetFallback ? bootstrap.discovery.catalogs : [],
     filters.catalogs,
   ).filter((value) => value && value !== "All catalogs");
+  const assetTypeSummaryCounts = discoverySummary.assetTypeCounts || {};
+  const catalogSummaryCounts = discoverySummary.catalogCounts || {};
   const onDiscoveryStateChange = (nextState) => setFilters(nextState);
   const resetBrowse = () =>
     onDiscoveryStateChange({
@@ -699,27 +722,61 @@ export default function DiscoveryWorkspace({
 
   const openAssetRecord = async (assetFqn) => {
     if (!assetFqn) return;
-    const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
-    const detailPromise = prefetchAssetDetail(assetFqn, {
-      force: true,
-      sections: ["header", "activity"],
-    });
-    const availability = (await availabilityPromise)?.[assetFqn] || null;
-    const detail = await detailPromise;
-    if (availability?.openable === false && !canOpenAssetRecord(detail, availability)) return;
-    onOpenAsset(assetFqn);
+    setNavigationNotice("");
+    onNavigationStateChange?.(true, "Opening metadata record…");
+    let opened = false;
+    try {
+      const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
+      const detailPromise = prefetchAssetDetail(assetFqn, {
+        force: true,
+        sections: ["header", "activity"],
+      });
+      const availability = (await availabilityPromise)?.[assetFqn] || null;
+      const detail = await detailPromise;
+      if (availability?.openable === false && !canOpenAssetRecord(detail, availability)) {
+        setNavigationNotice("That record is visible in discovery, but the live metadata record is not openable with the current permissions.");
+        return;
+      }
+      opened = true;
+      onOpenAsset(assetFqn);
+    } finally {
+      if (!opened) onNavigationStateChange?.(false, "");
+    }
   };
   const openLinkedAsset = async (assetFqn) => {
     if (!assetFqn) return;
-    const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
-    const detailPromise = prefetchAssetDetail(assetFqn, {
-      force: true,
-      sections: ["header", "activity"],
-    });
-    const availability = (await availabilityPromise)?.[assetFqn] || null;
-    const detail = await detailPromise;
-    if (availability?.openable === false && !canOpenLinkedAssetRecord(detail, availability)) return;
-    onOpenAsset(assetFqn);
+    setNavigationNotice("");
+    onNavigationStateChange?.(true, "Opening linked metadata record…");
+    let opened = false;
+    try {
+      const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
+      const detailPromise = prefetchAssetDetail(assetFqn, {
+        force: true,
+        sections: ["header", "activity"],
+      });
+      const availability = (await availabilityPromise)?.[assetFqn] || null;
+      const detail = await detailPromise;
+      if (availability?.openable === false && !canOpenLinkedAssetRecord(detail, availability)) {
+        setNavigationNotice("That linked asset is visible in preview context, but the live metadata record is not openable with the current permissions.");
+        return;
+      }
+      opened = true;
+      onOpenAsset(assetFqn);
+    } finally {
+      if (!opened) onNavigationStateChange?.(false, "");
+    }
+  };
+  const openLineageWorkspace = (nextAssetFqn, context = "Data Lineage") => {
+    if (!nextAssetFqn) return;
+    setNavigationNotice("");
+    onNavigationStateChange?.(true, context === "Operational Context" ? "Opening operational context…" : "Opening lineage…");
+    onOpenLineage(nextAssetFqn, context);
+  };
+  const openGovernanceWorkbench = (nextAssetFqn) => {
+    if (!nextAssetFqn) return;
+    setNavigationNotice("");
+    onNavigationStateChange?.(true, "Opening governance…");
+    onOpenGovernance(nextAssetFqn);
   };
   const hasRenderableResults = renderableDiscoveryAssets.length > 0;
   const showInventoryEmptyState = resultsSettled && suppressCatalogRows && !hasRenderableResults;
@@ -750,10 +807,29 @@ export default function DiscoveryWorkspace({
     resultsSettled,
   ]);
 
+  useEffect(() => {
+    const previewReady =
+      !selectedSeedAsset ||
+      !previewDetail.loading ||
+      Boolean(previewDetail.error) ||
+      isUsableAssetDetail(previewDetail.detail);
+    if (!resultsLoading && resultsSettled && previewReady) {
+      onSurfaceReady?.();
+    }
+  }, [
+    onSurfaceReady,
+    previewDetail.detail,
+    previewDetail.error,
+    previewDetail.loading,
+    resultsLoading,
+    resultsSettled,
+    selectedSeedAsset,
+  ]);
+
   return (
     <section className="gh-workspace gh-discovery-shell">
       <section className="gh-discovery-main gh-discovery-main-grid">
-        <aside className="gh-panel gh-discovery-sidebar-v3">
+        <aside className="gh-panel gh-discovery-sidebar">
           <div className="gh-discovery-sidebar-head">
             <div className="gh-eyebrow">Discovery Scope</div>
             <h3>Browse Asset Types and Filters</h3>
@@ -772,7 +848,17 @@ export default function DiscoveryWorkspace({
                   type="button"
                 >
                   <span>{option}</span>
-                  <span className="gh-category-count">{facetCount(resultsFacets, "assetTypes", option)}</span>
+                  <span className="gh-category-count">
+                    {resultsSettled
+                      ? facetCount(resultsFacets, "assetTypes", option)
+                      : summaryFacetCount(
+                          discoverySummary,
+                          "assetTypeCounts",
+                          option,
+                          "All types",
+                          visibleAssetsSummary,
+                        )}
+                  </span>
                 </button>
               ))}
             </div>
@@ -807,8 +893,14 @@ export default function DiscoveryWorkspace({
                     key={catalog}
                     onClick={() => toggleMulti(filters, "catalogs", catalog, "All catalogs", onDiscoveryStateChange)}
                     type="button"
+                    title={`Filter to ${catalog}`}
                   >
                     {catalog}
+                    <span className="gh-chip-count-inline">
+                      {resultsSettled
+                        ? facetCount(resultsFacets, "catalogs", catalog)
+                        : summaryFacetCount(discoverySummary, "catalogCounts", catalog, "All catalogs")}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -819,7 +911,7 @@ export default function DiscoveryWorkspace({
         </aside>
 
         <section className="gh-results-column">
-          <div className="gh-panel gh-discovery-command-panel-v3" ref={filterCommandRef}>
+          <div className="gh-panel gh-discovery-command-panel" ref={filterCommandRef}>
             <div className="gh-discovery-command-topline">
               <div>
                 <h2 className="gh-workspace-title">Metadata Catalog</h2>
@@ -833,8 +925,8 @@ export default function DiscoveryWorkspace({
               </span>
             </div>
 
-            <div className="gh-discovery-toolbar-shell-v3">
-              <div className="gh-discovery-toolbar-v3">
+            <div className="gh-discovery-toolbar-shell">
+              <div className="gh-discovery-toolbar">
                 <input
                   className="gh-input"
                   onChange={(event) =>
@@ -846,7 +938,7 @@ export default function DiscoveryWorkspace({
                   placeholder="Filter visible assets by name, schema, owner, domain, or tag"
                   value={filters.query}
                 />
-                <div className="gh-discovery-sort-v3">
+                <div className="gh-discovery-sort">
                   <span className="gh-field-label gh-field-label-inline">Sort by</span>
                   <select
                     className="gh-select gh-select-sort"
@@ -864,9 +956,9 @@ export default function DiscoveryWorkspace({
                     ))}
                   </select>
                 </div>
-                <div className="gh-discovery-toolbar-actions-v3">
+                <div className="gh-discovery-toolbar-actions">
                   <button
-                    className={`gh-secondary-button gh-discovery-stack-trigger-v3 ${showAdvancedFilters ? "is-active" : ""}`}
+                    className={`gh-secondary-button gh-discovery-stack-trigger ${showAdvancedFilters ? "is-active" : ""}`}
                     onClick={() => setShowAdvancedFilters((current) => !current)}
                     aria-controls="gh-discovery-filter-popover"
                     aria-expanded={showAdvancedFilters}
@@ -878,7 +970,7 @@ export default function DiscoveryWorkspace({
                 </div>
               </div>
               {showAdvancedFilters ? (
-                <div className="gh-discovery-filter-shell-v3" id="gh-discovery-filter-popover">
+                <div className="gh-discovery-filter-shell" id="gh-discovery-filter-popover">
                   <FiltersPopover
                     bootstrap={bootstrap}
                     facets={resultsFacets}
@@ -891,7 +983,7 @@ export default function DiscoveryWorkspace({
             </div>
 
             {filtersApplied.length ? (
-              <div className="gh-active-filter-row gh-active-filter-row-inline gh-discovery-active-row gh-discovery-active-row-v2">
+              <div className="gh-active-filter-row gh-active-filter-row-inline gh-discovery-active-row">
                 {filtersApplied.map((chip) => (
                   <button
                     className="gh-chip gh-chip-soft"
@@ -925,6 +1017,13 @@ export default function DiscoveryWorkspace({
             ) : null}
           </div>
 
+          {navigationNotice ? (
+            <div className="gh-inline-alert tone-warn">
+              <div className="gh-inline-alert-title">Navigation limited</div>
+              <div>{navigationNotice}</div>
+            </div>
+          ) : null}
+
           {resultsError && !hasRenderableResults ? (
             <div className="gh-inline-alert tone-warn">
               <div className="gh-inline-alert-title">Discovery search degraded</div>
@@ -939,8 +1038,8 @@ export default function DiscoveryWorkspace({
                   asset={asset}
                   key={asset.fqn}
                   onOpenAsset={openAssetRecord}
-                  onOpenGovernance={onOpenGovernance}
-                  onOpenLineage={onOpenLineage}
+                  onOpenGovernance={openGovernanceWorkbench}
+                  onOpenLineage={openLineageWorkspace}
                   onSelect={setSelectedAssetFqn}
                   selected={asset.fqn === selectedAssetFqn}
                 />
@@ -1019,17 +1118,17 @@ export default function DiscoveryWorkspace({
         </section>
 
         <SelectionPreview
-          asset={previewAsset}
-          detailError={previewDetail.error}
-          detailLoading={previewDetail.loading}
-          onOpenAsset={openAssetRecord}
-          onOpenGovernance={onOpenGovernance}
-          onOpenLinkedAsset={openLinkedAsset}
-          onOpenLineage={onOpenLineage}
-          seededLineageGraph={previewLineageSeedGraph}
-          visibleAssetSet={visibleAssetSet}
-        />
-      </section>
+            asset={previewAsset}
+            detailError={previewDetail.error}
+            detailLoading={previewDetail.loading}
+            onOpenAsset={openAssetRecord}
+            onOpenGovernance={openGovernanceWorkbench}
+            onOpenLinkedAsset={openLinkedAsset}
+            onOpenLineage={openLineageWorkspace}
+            seededLineageGraph={previewLineageSeedGraph}
+            visibleAssetSet={visibleAssetSet}
+          />
+        </section>
     </section>
   );
 }

@@ -122,6 +122,10 @@ function workspaceLoading(title, body) {
 
 export default function App() {
   const { loading, error, refreshError, data } = useBootstrap();
+  const [navigationState, setNavigationState] = useState({
+    pending: false,
+    label: "",
+  });
   const [liveDiscoveryState, setLiveDiscoveryState] = useState({
     assets: [],
     count: null,
@@ -184,12 +188,59 @@ export default function App() {
     if (!nextGovernance) return;
     setLiveGovernanceState(nextGovernance);
   }, []);
+  const handleNavigationStateChange = useCallback((pending, label = "") => {
+    setNavigationState({
+      pending: Boolean(pending),
+      label: pending ? label || "Opening workspace…" : "",
+    });
+  }, []);
+  const handleSurfaceReady = useCallback(() => {
+    setNavigationState((current) =>
+      current.pending ? { pending: false, label: "" } : current,
+    );
+  }, []);
+  const handleModuleSurfaceChange = useCallback((nextModule) => {
+    const labels = {
+      discovery: "Opening discovery…",
+      lineage: "Opening lineage…",
+      governance: "Opening governance…",
+    };
+    handleNavigationStateChange(true, labels[nextModule] || "Opening workspace…");
+    onModuleChange(nextModule);
+  }, [handleNavigationStateChange, onModuleChange]);
+  const handleBrowseCatalog = useCallback((query) => {
+    handleNavigationStateChange(true, query ? "Opening discovery results…" : "Opening discovery…");
+    openDiscoveryWorkspace(query, { fresh: true });
+  }, [handleNavigationStateChange, openDiscoveryWorkspace]);
 
   useEffect(() => {
     if (data?.governance) {
       setLiveGovernanceState(data.governance);
     }
   }, [data]);
+
+  useEffect(() => {
+    if (!navigationState.pending) return undefined;
+    const progressTimeout = window.setTimeout(() => {
+      setNavigationState((current) =>
+        current.pending
+          ? {
+              pending: true,
+              label: "Still loading live metadata…",
+            }
+          : current,
+      );
+    }, 8000);
+    const timeout = window.setTimeout(() => {
+      setNavigationState((current) =>
+        current.pending ? { pending: false, label: "" } : current,
+      );
+    }, 24000);
+    return () => {
+      window.clearTimeout(progressTimeout);
+      window.clearTimeout(timeout);
+    };
+  }, [navigationState.pending]);
 
   if (loading) {
     return bootShell(
@@ -281,6 +332,8 @@ export default function App() {
             effectiveBootState={effectiveBootState}
             effectiveVisibleCount={effectiveVisibleCount}
             initialQuery={discoveryRouteState.query}
+            onNavigationStateChange={handleNavigationStateChange}
+            onSurfaceReady={handleSurfaceReady}
             onRouteQueryChange={setDiscoveryRouteQuery}
             onOpenAsset={openEntityWorkspace}
             onOpenGovernance={openGovernanceWorkspace}
@@ -305,6 +358,8 @@ export default function App() {
             assetFqn={surface === "entity" ? routeAssetFqn : ""}
             bootstrap={data}
             contextSeedAssets={contextSeedAssets}
+            onNavigationStateChange={handleNavigationStateChange}
+            onSurfaceReady={handleSurfaceReady}
             sharedVisibleAssetSet={visibleAssetSet}
             onGovernanceChange={handleGovernanceChange}
             onBack={() => {
@@ -330,6 +385,8 @@ export default function App() {
             bootstrap={data}
             contextSeedAssets={contextSeedAssets}
             initialAssetFqn={surface === "lineage" ? routeAssetFqn : ""}
+            onNavigationStateChange={handleNavigationStateChange}
+            onSurfaceReady={handleSurfaceReady}
             sharedVisibleAssetSet={visibleAssetSet}
             onRouteAssetChange={(assetFqn, nextContext = "Data Lineage") =>
               openLineageWorkspace(assetFqn, nextContext)
@@ -352,6 +409,8 @@ export default function App() {
             contextSeedAssets={contextSeedAssets}
             initialAssetFqn={surface === "governance" ? routeAssetFqn : ""}
             governance={governance}
+            onNavigationStateChange={handleNavigationStateChange}
+            onSurfaceReady={handleSurfaceReady}
             onGovernanceChange={handleGovernanceChange}
             onRouteAssetChange={(assetFqn) => openGovernanceWorkspace(assetFqn || "")}
             onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
@@ -364,12 +423,20 @@ export default function App() {
 
   return (
     <AppFrame
-      activeModule={["discovery", "lineage", "governance"].includes(surface) ? surface : ""}
+      activeModule={
+        surface === "entity"
+          ? "discovery"
+          : ["discovery", "lineage", "governance"].includes(surface)
+            ? surface
+            : ""
+      }
       bootMessage={effectiveBootMessage}
       bootState={effectiveBootState}
       liveCatalogVisibleCount={effectiveVisibleCount}
-      onBrowseCatalog={(query) => openDiscoveryWorkspace(query, { fresh: true })}
-      onModuleChange={onModuleChange}
+      navigationState={navigationState}
+      onBrowseCatalog={handleBrowseCatalog}
+      onModuleChange={handleModuleSurfaceChange}
+      onNavigationStateChange={handleNavigationStateChange}
       onSearchResultSelect={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
       searchSeedAssets={searchSeedAssets}
       shell={shell}

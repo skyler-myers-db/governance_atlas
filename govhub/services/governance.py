@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 import uuid
+import json
 from typing import Any, Callable, Dict, List, Sequence, Tuple
 
 import pandas as pd
@@ -91,6 +92,87 @@ def _sorted_recent_requests(requests: List[Dict[str, Any]], limit: int = 3) -> L
     return requests[:limit]
 
 
+def _reviewer_records(reviewers_df: pd.DataFrame) -> List[Dict[str, Any]]:
+    if reviewers_df is None or reviewers_df.empty:
+        return []
+    records: List[Dict[str, Any]] = []
+    for _, row in reviewers_df.iterrows():
+        term_id = asset_service.normalize_str(row.get("term_id"))
+        reviewer_email = asset_service.normalize_str(row.get("reviewer_email")).lower()
+        if not term_id or not reviewer_email:
+            continue
+        records.append(
+            {
+                "termId": term_id,
+                "reviewerEmail": reviewer_email,
+                "reviewerRole": asset_service.normalize_str(row.get("reviewer_role")).lower()
+                or "reviewer",
+                "createdAt": asset_service.normalize_str(row.get("created_at")),
+                "createdBy": asset_service.normalize_str(row.get("created_by")),
+                "updatedAt": asset_service.normalize_str(row.get("updated_at")),
+                "updatedBy": asset_service.normalize_str(row.get("updated_by")),
+            }
+        )
+    records.sort(
+        key=lambda item: (
+            asset_service.normalize_str(item.get("termId")),
+            asset_service.normalize_str(item.get("reviewerRole")),
+            asset_service.normalize_str(item.get("reviewerEmail")),
+        )
+    )
+    return records
+
+
+def _version_records(versions_df: pd.DataFrame) -> List[Dict[str, Any]]:
+    if versions_df is None or versions_df.empty:
+        return []
+    records: List[Dict[str, Any]] = []
+    for _, row in versions_df.iterrows():
+        term_id = asset_service.normalize_str(row.get("term_id"))
+        if not term_id:
+            continue
+        reviewer_snapshot: List[Dict[str, Any]] = []
+        raw_snapshot = row.get("reviewer_snapshot_json")
+        if asset_service.normalize_str(raw_snapshot):
+            try:
+                parsed = json.loads(str(raw_snapshot))
+                if isinstance(parsed, list):
+                    reviewer_snapshot = [
+                        item
+                        for item in parsed
+                        if isinstance(item, dict)
+                    ]
+            except Exception:
+                reviewer_snapshot = []
+        records.append(
+            {
+                "versionId": asset_service.normalize_str(row.get("version_id")),
+                "termId": term_id,
+                "versionNumber": int(row.get("version_number") or 0),
+                "action": asset_service.normalize_str(row.get("action")) or "updated",
+                "changeNote": asset_service.normalize_str(row.get("change_note")),
+                "name": asset_service.normalize_str(row.get("name")),
+                "definition": asset_service.normalize_str(row.get("definition")),
+                "domain": asset_service.normalize_str(row.get("domain")),
+                "ownerEmail": asset_service.normalize_str(row.get("owner_email")),
+                "status": asset_service.normalize_str(row.get("status")),
+                "reviewerSnapshot": reviewer_snapshot,
+                "createdAt": asset_service.normalize_str(row.get("created_at")),
+                "createdBy": asset_service.normalize_str(row.get("created_by")),
+                "updatedAt": asset_service.normalize_str(row.get("updated_at")),
+                "updatedBy": asset_service.normalize_str(row.get("updated_by")),
+            }
+        )
+    records.sort(
+        key=lambda item: (
+            asset_service.normalize_str(item.get("termId")),
+            -int(item.get("versionNumber") or 0),
+            asset_service.normalize_str(item.get("createdAt")),
+        )
+    )
+    return records
+
+
 def _asset_preview_record(row: pd.Series) -> Dict[str, Any]:
     payload = asset_service.base_asset_payload(row)
     return {
@@ -140,6 +222,14 @@ def governance_summary(
             glossary = store.list_glossary_terms(limit=200)
         except Exception:
             glossary = pd.DataFrame()
+        try:
+            reviewers = store.list_glossary_reviewers()
+        except Exception:
+            reviewers = pd.DataFrame()
+        try:
+            versions = store.list_glossary_versions()
+        except Exception:
+            versions = pd.DataFrame()
         try:
             requests = store.list_change_requests(limit=500)
         except Exception:
@@ -225,6 +315,12 @@ def governance_summary(
 
         glossary_asset_map: Dict[str, List[str]] = {}
         glossary_asset_preview_map: Dict[str, List[Dict[str, Any]]] = {}
+        reviewer_roster_by_term: Dict[str, List[Dict[str, Any]]] = {}
+        version_history_by_term: Dict[str, List[Dict[str, Any]]] = {}
+        for reviewer_record in _reviewer_records(reviewers):
+            reviewer_roster_by_term.setdefault(_lookup_key(reviewer_record.get("termId")), []).append(reviewer_record)
+        for version_record in _version_records(versions):
+            version_history_by_term.setdefault(_lookup_key(version_record.get("termId")), []).append(version_record)
         if inventory is not None and not inventory.empty and "glossary_term" in inventory.columns:
             glossary_inventory = inventory[
                 inventory["glossary_term"].fillna("").astype(str).ne("")
@@ -275,9 +371,12 @@ def governance_summary(
                     ),
                     reverse=True,
                 )
+                term_id = asset_service.normalize_str(row.get("term_id"))
+                reviewer_roster = reviewer_roster_by_term.get(_lookup_key(term_id), [])
+                version_history = version_history_by_term.get(_lookup_key(term_id), [])
                 glossary_rows.append(
                     {
-                        "termId": asset_service.normalize_str(row.get("term_id")),
+                        "termId": term_id,
                         "term": term_name,
                         "definition": asset_service.normalize_str(row.get("definition"))
                         or "No definition",
@@ -294,6 +393,19 @@ def governance_summary(
                         "createdBy": asset_service.normalize_str(row.get("created_by")),
                         "updatedAt": asset_service.normalize_str(row.get("updated_at")),
                         "updatedBy": asset_service.normalize_str(row.get("updated_by")),
+                        "reviewerRoster": reviewer_roster,
+                        "reviewers": [entry.get("reviewerEmail") for entry in reviewer_roster if entry.get("reviewerEmail")],
+                        "reviewState": asset_service.normalize_str(row.get("status")).title() or "Draft",
+                        "currentVersion": (
+                            f"v{version_history[0].get('versionNumber')}"
+                            if version_history and version_history[0].get("versionNumber")
+                            else ""
+                        ),
+                        "termHistory": version_history,
+                        "versionHistory": version_history,
+                        "versions": version_history,
+                        "versionCount": len(version_history),
+                        "latestVersion": version_history[0] if version_history else None,
                         "requestCount": len(related_requests),
                         "pendingRequestCount": sum(
                             1 for request_record in related_requests if asset_service.normalize_str(request_record.get("status")).lower() == "pending"
@@ -304,14 +416,6 @@ def governance_summary(
                         "rejectedRequestCount": sum(
                             1 for request_record in related_requests if asset_service.normalize_str(request_record.get("status")).lower() == "rejected"
                         ),
-                        "reviewers": [
-                            reviewer
-                            for reviewer in dict.fromkeys(
-                                asset_service.normalize_str(request_record.get("reviewedBy"))
-                                for request_record in related_requests
-                                if asset_service.normalize_str(request_record.get("reviewedBy"))
-                            )
-                        ][:6],
                         "recentRequests": _sorted_recent_requests(related_requests, 4),
                     }
                 )
@@ -476,8 +580,10 @@ def upsert_glossary_term(
     owner_email: str,
     status: str,
     updated_by: str,
-) -> None:
-    store.upsert_glossary_term(
+    reviewers: Sequence[Dict[str, Any]] | None = None,
+    change_note: str | None = None,
+) -> Dict[str, Any]:
+    version = store.upsert_glossary_term(
         term_id=term_id or uuid.uuid4().hex[:12],
         name=name,
         definition=definition,
@@ -485,5 +591,8 @@ def upsert_glossary_term(
         owner_email=owner_email or None,
         status=status,
         updated_by=updated_by,
+        reviewers=list(reviewers) if reviewers is not None else None,
+        change_note=change_note,
     )
     invalidate_governance_caches()
+    return version

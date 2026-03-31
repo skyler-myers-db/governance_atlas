@@ -516,7 +516,7 @@ ORDER BY tc.constraint_name, kcu.ordinal_position"""
             return
         full = quote_uc_3part(catalog, schema, table)
         parts = ", ".join(
-            f"{quote_ident(k)} = {sql_literal(v)}" for k, v in tags.items()
+            f"{sql_literal(k)} = {sql_literal(v)}" for k, v in tags.items()
         )
         self.execute(f"ALTER TABLE {full} SET TAGS ({parts})")
 
@@ -526,7 +526,7 @@ ORDER BY tc.constraint_name, kcu.ordinal_position"""
         if not tag_keys:
             return
         full = quote_uc_3part(catalog, schema, table)
-        parts = ", ".join(quote_ident(k) for k in tag_keys)
+        parts = ", ".join(sql_literal(k) for k in tag_keys)
         self.execute(f"ALTER TABLE {full} UNSET TAGS ({parts})")
 
     def list_workspace_principals(self) -> pd.DataFrame:
@@ -897,7 +897,7 @@ ORDER BY column_name, tag_name"""
             return
         full = quote_uc_3part(catalog, schema, table)
         parts = ", ".join(
-            f"{quote_ident(k)} = {sql_literal(v)}" for k, v in tags.items()
+            f"{sql_literal(k)} = {sql_literal(v)}" for k, v in tags.items()
         )
         self.execute(
             f"ALTER TABLE {full} ALTER COLUMN {quote_ident(column)} "
@@ -911,7 +911,7 @@ ORDER BY column_name, tag_name"""
         if not tag_keys:
             return
         full = quote_uc_3part(catalog, schema, table)
-        parts = ", ".join(quote_ident(k) for k in tag_keys)
+        parts = ", ".join(sql_literal(k) for k in tag_keys)
         self.execute(
             f"ALTER TABLE {full} ALTER COLUMN {quote_ident(column)} "
             f"UNSET TAGS ({parts})"

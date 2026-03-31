@@ -44,6 +44,93 @@ function glossaryIdentity(item, index) {
   return basis ? `glossary-${basis}` : `glossary-${index}`;
 }
 
+function normalizeGlossaryReviewer(entry, index) {
+  if (typeof entry === "string") {
+    const email = entry.trim();
+    return {
+      id: email || `reviewer-${index}`,
+      email,
+      role: "Reviewer",
+      state: "active",
+      reviewedAt: "",
+      note: "",
+    };
+  }
+
+  const value = entry && typeof entry === "object" ? entry : {};
+  const email = String(value.email || value.ownerEmail || value.reviewerEmail || value.reviewedBy || "").trim();
+  return {
+    id: value.id || email || `reviewer-${index}`,
+    email,
+    role: String(value.role || value.reviewerRole || "Reviewer").trim() || "Reviewer",
+    state: String(value.state || value.status || "active").trim() || "active",
+    reviewedAt: String(value.reviewedAt || value.updatedAt || "").trim(),
+    note: String(value.note || value.reviewNote || "").trim(),
+  };
+}
+
+function normalizeGlossaryHistory(entry, index) {
+  if (typeof entry === "string") {
+    const note = entry.trim();
+    return {
+      id: `history-${index}`,
+      version: `v${index + 1}`,
+      title: note || "Term update",
+      changedAt: "",
+      changedBy: "",
+      status: "",
+      note,
+    };
+  }
+
+  const value = entry && typeof entry === "object" ? entry : {};
+  return {
+    id: value.id || value.versionId || value.requestId || value.termVersionId || `history-${index}`,
+    version:
+      String(
+        value.version ||
+          value.versionLabel ||
+          value.revision ||
+          value.label ||
+          (value.versionNumber ? `v${value.versionNumber}` : "")
+      ).trim() || `v${index + 1}`,
+    title: String(value.title || value.name || value.action || "Term update").trim(),
+    changedAt: String(value.changedAt || value.createdAt || value.updatedAt || "").trim(),
+    changedBy: String(value.changedBy || value.createdBy || value.updatedBy || value.reviewedBy || "").trim(),
+    status: String(value.status || value.state || "").trim(),
+    note: String(value.note || value.changeNote || value.detail || value.reviewNote || value.description || "").trim(),
+  };
+}
+
+function glossaryReviewerText(entries = []) {
+  return (entries || [])
+    .map((entry) => {
+      const reviewer = normalizeGlossaryReviewer(entry, 0);
+      if (!reviewer.email) return "";
+      const role = String(reviewer.role || "").trim();
+      return role && role.toLowerCase() !== "reviewer"
+        ? `${reviewer.email}:${role.toLowerCase()}`
+        : reviewer.email;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+function parseGlossaryReviewers(value = "") {
+  return String(value || "")
+    .split(/\r?\n|,/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [email, role] = entry.split(":").map((part) => part.trim());
+      return {
+        reviewerEmail: email || "",
+        reviewerRole: role || "reviewer",
+      };
+    })
+    .filter((entry) => entry.reviewerEmail);
+}
+
 function governanceViews(governance) {
   const backlog = governance?.backlog || [];
   const glossary = governance?.glossary || [];
@@ -81,9 +168,32 @@ function governanceViews(governance) {
       pendingRequestCount: item.pendingRequestCount || 0,
       approvedRequestCount: item.approvedRequestCount || 0,
       rejectedRequestCount: item.rejectedRequestCount || 0,
-      reviewers: item.reviewers || [],
+      reviewers: (item.reviewers || [])
+        .map((reviewer) => {
+          if (typeof reviewer === "string") return reviewer.trim();
+          return String(
+            reviewer.email ||
+              reviewer.ownerEmail ||
+              reviewer.reviewerEmail ||
+              reviewer.name ||
+              reviewer.reviewedBy ||
+              "",
+          ).trim();
+        })
+        .filter(Boolean),
+      reviewerRoster: (item.reviewerRoster || item.reviewerAssignments || item.reviewers || []).map(
+        (reviewer, reviewerIndex) => normalizeGlossaryReviewer(reviewer, reviewerIndex),
+      ),
       assetPreview: item.assetPreview || [],
       recentRequests: item.recentRequests || [],
+      termHistory: (item.termHistory || item.versionHistory || item.history || item.recentRequests || []).map(
+        (entry, entryIndex) => normalizeGlossaryHistory(entry, entryIndex),
+      ),
+      currentVersion:
+        item.currentVersion ||
+        item.version ||
+        (item.latestVersion?.versionNumber ? `v${item.latestVersion.versionNumber}` : ""),
+      reviewState: item.reviewState || item.status || "Draft",
     })),
   };
 }
@@ -192,6 +302,8 @@ export default function GovernanceWorkspace({
   bootstrap,
   contextSeedAssets = [],
   governance,
+  onNavigationStateChange,
+  onSurfaceReady,
   onGovernanceChange,
   onRouteAssetChange,
   onOpenAsset,
@@ -220,12 +332,16 @@ export default function GovernanceWorkspace({
   const [glossaryDomain, setGlossaryDomain] = useState("");
   const [glossaryOwnerEmail, setGlossaryOwnerEmail] = useState("");
   const [glossaryStatus, setGlossaryStatus] = useState("draft");
+  const [glossaryReviewerText, setGlossaryReviewerText] = useState("");
+  const [glossaryChangeNote, setGlossaryChangeNote] = useState("");
   const [glossaryDraft, setGlossaryDraft] = useState({
     name: "",
     definition: "",
     domain: "",
     ownerEmail: "",
     status: "draft",
+    reviewersText: "",
+    changeNote: "",
   });
   const [mutationState, setMutationState] = useState({
     kind: "",
@@ -256,11 +372,32 @@ export default function GovernanceWorkspace({
   }, [assetDetail.detail, focusedAssetFqn]);
 
   useEffect(() => {
+    if (!focusedAssetFqn) {
+      onSurfaceReady?.();
+      return;
+    }
+    if (focusedAsset?.fqn === focusedAssetFqn && (!assetDetail.loading || assetDetail.detail?.fqn === focusedAssetFqn)) {
+      onSurfaceReady?.();
+    }
+  }, [
+    assetDetail.detail?.fqn,
+    assetDetail.loading,
+    focusedAsset?.fqn,
+    focusedAssetFqn,
+    onSurfaceReady,
+  ]);
+
+  useEffect(() => {
     setLiveGovernance(governance);
   }, [governance]);
 
   const focusAsset = (assetFqn, options = {}) => {
-    const { preserveWork = false, preserveGlossary = false, preserveLane = false, syncRoute = false } = options;
+    const {
+      preserveWork = false,
+      preserveGlossary = mode === "glossary",
+      preserveLane = false,
+      syncRoute = false,
+    } = options;
     setFocusedAssetFqn(assetFqn || "");
     setAssetSearchQuery("");
     setSelectedWorkId((current) => (preserveWork ? current : ""));
@@ -312,8 +449,9 @@ export default function GovernanceWorkspace({
       );
     });
   }, [glossaryCollection, glossaryQuery, views.glossary]);
-  const selectedGlossary = glossaryItems.find((item) => item.id === selectedGlossaryId) || null;
-  const selectedGlossaryRequests = selectedGlossary?.recentRequests || [];
+  const selectedGlossary = views.glossary.find((item) => item.id === selectedGlossaryId) || null;
+  const selectedGlossaryReviewers = selectedGlossary?.reviewerRoster || [];
+  const selectedGlossaryHistory = selectedGlossary?.termHistory || selectedGlossary?.recentRequests || [];
   const focusedAssetAttributes = focusedAsset
     ? [
         { label: "Domain", value: focusedAsset.domain || "Unassigned" },
@@ -328,10 +466,12 @@ export default function GovernanceWorkspace({
     ? [
         { label: "Domain", value: selectedGlossary.subtitle || "Unassigned" },
         { label: "Owner", value: selectedGlossary.ownerEmail || "Unassigned" },
-        { label: "Status", value: selectedGlossary.status || "Draft" },
+        { label: "Status", value: selectedGlossary.reviewState || selectedGlossary.status || "Draft" },
+        { label: "Version", value: selectedGlossary.currentVersion || "—" },
         { label: "Assets", value: `${selectedGlossary.assetCount || 0}` },
         { label: "Requests", value: `${selectedGlossary.requestCount || 0}` },
-        { label: "Reviewers", value: `${selectedGlossary.reviewers?.length || 0}` },
+        { label: "Reviewers", value: `${selectedGlossary.reviewerRoster?.length || 0}` },
+        { label: "History", value: `${selectedGlossary.termHistory?.length || 0}` },
         { label: "Created", value: selectedGlossary.createdAt || "—" },
         { label: "Updated", value: selectedGlossary.updatedAt || "—" },
       ]
@@ -346,10 +486,10 @@ export default function GovernanceWorkspace({
 
   useEffect(() => {
     setSelectedGlossaryId((current) => {
-      if (glossaryItems.some((item) => item.id === current)) return current;
+      if (views.glossary.some((item) => item.id === current)) return current;
       return "";
     });
-  }, [glossaryItems]);
+  }, [views.glossary]);
 
   useEffect(() => {
     if (glossaryCollectionsList.some((item) => item.key === glossaryCollection)) return;
@@ -364,6 +504,8 @@ export default function GovernanceWorkspace({
         domain: "",
         ownerEmail: "",
         status: "draft",
+        reviewersText: "",
+        changeNote: "",
       });
       return;
     }
@@ -373,6 +515,8 @@ export default function GovernanceWorkspace({
       domain: selectedGlossary.subtitle || "",
       ownerEmail: selectedGlossary.ownerEmail && selectedGlossary.ownerEmail !== "Unassigned" ? selectedGlossary.ownerEmail : "",
       status: String(selectedGlossary.status || "draft").toLowerCase(),
+      reviewersText: glossaryReviewerText(selectedGlossary.reviewerRoster || []),
+      changeNote: "",
     });
   }, [selectedGlossary]);
 
@@ -405,6 +549,8 @@ export default function GovernanceWorkspace({
     setGlossaryDomain("");
     setGlossaryOwnerEmail("");
     setGlossaryStatus("draft");
+    setGlossaryReviewerText("");
+    setGlossaryChangeNote("");
     setMutationState({ kind: "", loading: false, error: "", success: "" });
   }, [focusedAssetFqn]);
 
@@ -437,6 +583,7 @@ export default function GovernanceWorkspace({
 
   const openAssetSafely = async (assetFqn) => {
     if (!assetFqn) return;
+    onNavigationStateChange?.(true, "Opening metadata record…");
     try {
       const [availabilityMap, detail] = await Promise.all([
         prefetchAssetAvailability([assetFqn], { force: true }),
@@ -446,9 +593,13 @@ export default function GovernanceWorkspace({
         }),
       ]);
       const availability = availabilityMap?.[assetFqn] || null;
-      if (!canOpenAssetRecord(detail, availability)) return;
+      if (!canOpenAssetRecord(detail, availability)) {
+        onNavigationStateChange?.(false, "");
+        return;
+      }
       onOpenAsset(assetFqn);
     } catch {
+      onNavigationStateChange?.(false, "");
       return;
     }
   };
@@ -465,6 +616,8 @@ export default function GovernanceWorkspace({
           domain: glossaryDraft.domain.trim(),
           ownerEmail: glossaryDraft.ownerEmail.trim(),
           status: String(glossaryDraft.status || "draft").trim().toLowerCase() || "draft",
+          reviewers: parseGlossaryReviewers(glossaryDraft.reviewersText),
+          changeNote: glossaryDraft.changeNote.trim(),
         }),
       "Glossary term updated.",
     );
@@ -668,6 +821,42 @@ export default function GovernanceWorkspace({
                         >
                           Open lineage
                         </button>
+                        <button
+                          className="gh-secondary-button"
+                          disabled={!selectedItem.requestId}
+                          onClick={() =>
+                            runGovernanceMutation(
+                              "request-status",
+                              () =>
+                                updateGovernanceRequest(selectedItem.requestId, {
+                                  status: "approved",
+                                  reviewNote: "Approved from governance workbench.",
+                                }),
+                              "Request approved.",
+                            )
+                          }
+                          type="button"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className="gh-secondary-button"
+                          disabled={!selectedItem.requestId}
+                          onClick={() =>
+                            runGovernanceMutation(
+                              "request-status",
+                              () =>
+                                updateGovernanceRequest(selectedItem.requestId, {
+                                  status: "rejected",
+                                  reviewNote: "Rejected from governance workbench.",
+                                }),
+                              "Request rejected.",
+                            )
+                          }
+                          type="button"
+                        >
+                          Reject
+                        </button>
                       </div>
                     ) : null}
                   </section>
@@ -774,10 +963,10 @@ export default function GovernanceWorkspace({
                             rows={3}
                             value={requestNote}
                           />
-                          <button
-                            className="gh-secondary-button gh-secondary-button-compact"
-                            disabled={!requestTitle.trim() || mutationState.loading}
-                            onClick={() =>
+                        <button
+                          className="gh-secondary-button gh-secondary-button-compact"
+                          disabled={!requestTitle.trim() || mutationState.loading}
+                          onClick={() =>
                               runGovernanceMutation(
                                 "request",
                                 () =>
@@ -787,12 +976,17 @@ export default function GovernanceWorkspace({
                                     note: requestNote.trim(),
                                   }),
                                 "Governance request created.",
-                              ).then(() => {
+                              ).then((next) => {
+                                const nextRequestId = String(next?.requestId || next?.id || "").trim();
+                                setSelectedLaneKey("open-work");
+                                if (nextRequestId) {
+                                  setSelectedWorkId(nextRequestId);
+                                }
                                 setRequestTitle("");
                                 setRequestNote("");
                               })
                             }
-                            type="button"
+                          type="button"
                           >
                             Create request
                           </button>
@@ -834,6 +1028,20 @@ export default function GovernanceWorkspace({
                             placeholder="draft"
                             value={glossaryStatus}
                           />
+                          <textarea
+                            className="gh-input gh-textarea"
+                            onChange={(event) => setGlossaryReviewerText(event.target.value)}
+                            placeholder={"Initial reviewers\nauthor@company.com\napprover@company.com:approver"}
+                            rows={3}
+                            value={glossaryReviewerText}
+                          />
+                          <textarea
+                            className="gh-input gh-textarea"
+                            onChange={(event) => setGlossaryChangeNote(event.target.value)}
+                            placeholder="Optional creation note"
+                            rows={2}
+                            value={glossaryChangeNote}
+                          />
                           <button
                             className="gh-secondary-button gh-secondary-button-compact"
                             disabled={!glossaryName.trim() || mutationState.loading}
@@ -847,6 +1055,8 @@ export default function GovernanceWorkspace({
                                     domain: glossaryDomain.trim(),
                                     ownerEmail: glossaryOwnerEmail.trim(),
                                     status: String(glossaryStatus || "draft").trim().toLowerCase() || "draft",
+                                    reviewers: parseGlossaryReviewers(glossaryReviewerText),
+                                    changeNote: glossaryChangeNote.trim(),
                                   }),
                                 "Glossary term saved.",
                               ).then((next) => {
@@ -855,6 +1065,8 @@ export default function GovernanceWorkspace({
                                 setGlossaryDomain("");
                                 setGlossaryOwnerEmail("");
                                 setGlossaryStatus("draft");
+                                setGlossaryReviewerText("");
+                                setGlossaryChangeNote("");
                                 if (next?.termId) {
                                   setMode("glossary");
                                   setSelectedGlossaryId(next.termId);
@@ -1188,20 +1400,33 @@ export default function GovernanceWorkspace({
                     <div className="gh-support-copy">{selectedGlossary.detail}</div>
                   </div>
                   <div className="gh-chip-row">
-                    <span className="gh-chip">{selectedGlossary.status}</span>
+                    <span className="gh-chip">{selectedGlossary.reviewState || selectedGlossary.status}</span>
+                    {selectedGlossary.currentVersion ? (
+                      <span className="gh-chip gh-chip-soft">{selectedGlossary.currentVersion}</span>
+                    ) : null}
                     <span className="gh-chip gh-chip-soft">{selectedGlossary.subtitle}</span>
                     <span className="gh-chip gh-chip-soft">{selectedGlossary.ownerEmail}</span>
                   </div>
                 </div>
                 <AttributeList items={selectedGlossaryAttributes} />
-                {selectedGlossary.reviewers?.length ? (
+                {selectedGlossaryReviewers.length ? (
                   <section className="gh-detail-section">
-                    <div className="gh-panel-title">Recent reviewers</div>
-                    <div className="gh-chip-row">
-                      {selectedGlossary.reviewers.map((reviewer) => (
-                        <span className="gh-chip gh-chip-soft" key={reviewer}>
-                          {reviewer}
-                        </span>
+                    <div className="gh-panel-title">Reviewer roster</div>
+                    <div className="gh-governance-reviewer-grid">
+                      {selectedGlossaryReviewers.map((reviewer) => (
+                        <div className="gh-governance-reviewer-card" key={reviewer.id}>
+                          <div className="gh-governance-reviewer-card-head">
+                            <div className="gh-governance-reviewer-email">{reviewer.email || "Unassigned"}</div>
+                            <span className="gh-chip gh-chip-soft">{reviewer.role || "Reviewer"}</span>
+                          </div>
+                          <div className="gh-governance-reviewer-meta">
+                            <span className={`gh-status-chip tone-${String(reviewer.state || "").toLowerCase().includes("active") ? "good" : "warn"}`}>
+                              {reviewer.state || "active"}
+                            </span>
+                            {reviewer.reviewedAt ? <span className="gh-support-copy">Reviewed {reviewer.reviewedAt}</span> : null}
+                          </div>
+                          {reviewer.note ? <div className="gh-support-copy">{reviewer.note}</div> : null}
+                        </div>
                       ))}
                     </div>
                   </section>
@@ -1261,6 +1486,30 @@ export default function GovernanceWorkspace({
                         value={glossaryDraft.status}
                       />
                     </label>
+                    <label className="gh-metadata-edit-field">
+                      <span>Reviewer roster</span>
+                      <textarea
+                        className="gh-input gh-textarea"
+                        onChange={(event) =>
+                          setGlossaryDraft((current) => ({ ...current, reviewersText: event.target.value }))
+                        }
+                        placeholder={"reviewer@company.com\napprover@company.com:approver"}
+                        rows={4}
+                        value={glossaryDraft.reviewersText}
+                      />
+                    </label>
+                    <label className="gh-metadata-edit-field">
+                      <span>Change note</span>
+                      <textarea
+                        className="gh-input gh-textarea"
+                        onChange={(event) =>
+                          setGlossaryDraft((current) => ({ ...current, changeNote: event.target.value }))
+                        }
+                        placeholder="Summarize what changed in this glossary revision"
+                        rows={3}
+                        value={glossaryDraft.changeNote}
+                      />
+                    </label>
                     {mutationState.error ? (
                       <div className="gh-inline-alert tone-warn">
                         <div>{mutationState.error}</div>
@@ -1282,29 +1531,30 @@ export default function GovernanceWorkspace({
                   </div>
                 </section>
                 <section className="gh-detail-section">
-                  <div className="gh-panel-title">Recent activity</div>
-                  {selectedGlossaryRequests.length ? (
-                    <div className="gh-request-list gh-request-list-dense gh-governance-glossary-list">
-                      {selectedGlossaryRequests.map((request) => (
-                        <div className="gh-request-card gh-request-row is-readonly" key={request.requestId || request.createdAt || request.title}>
-                          <div className="gh-request-card-topline">
-                            <div>
-                              <div className="gh-request-title">{request.title}</div>
-                              <div className="gh-request-meta">
-                                {request.createdAt || "Unknown time"} · {request.createdBy || "Unknown author"}
-                              </div>
-                            </div>
-                            <div className="gh-chip-row">
-                              <span className="gh-chip gh-chip-soft">{request.status}</span>
-                              {request.reviewedBy ? <span className="gh-chip gh-chip-soft">{request.reviewedBy}</span> : null}
-                            </div>
+                  <div className="gh-panel-title">Term history</div>
+                  {selectedGlossaryHistory.length ? (
+                    <div className="gh-governance-timeline">
+                      {selectedGlossaryHistory.map((entry) => (
+                        <div className="gh-governance-timeline-row" key={entry.id || `${entry.version}-${entry.changedAt}`}>
+                          <div className="gh-governance-timeline-mark">
+                            <span className="gh-chip gh-chip-soft">{entry.version || "v1"}</span>
                           </div>
-                          <div className="gh-support-copy">{request.reviewNote || request.detail}</div>
+                          <div className="gh-governance-timeline-copy">
+                            <div className="gh-governance-timeline-head">
+                              <div className="gh-governance-timeline-title">{entry.title || "Term update"}</div>
+                              {entry.status ? <span className="gh-chip gh-chip-soft">{entry.status}</span> : null}
+                            </div>
+                            <div className="gh-support-copy">
+                              {(entry.changedAt || "Unknown time") +
+                                (entry.changedBy ? ` · ${entry.changedBy}` : "")}
+                            </div>
+                            {entry.note ? <div className="gh-support-copy">{entry.note}</div> : null}
+                          </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="gh-empty-state">No recent requests are linked to this term yet.</div>
+                    <div className="gh-empty-state">No version history is linked to this term yet.</div>
                   )}
                 </section>
                 <section className="gh-detail-section">

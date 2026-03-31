@@ -12,6 +12,7 @@ export default function LineageStage({
   lineagePayload = null,
   loading,
   error,
+  notice = "",
   overlay = null,
   context,
   onContextChange,
@@ -29,6 +30,8 @@ export default function LineageStage({
 }) {
   const graph = selectGraph(graphBundle, context);
   const stats = lineagePayload?.stats || {};
+  const limits = stats?.limits || {};
+  const truncated = stats?.truncated || {};
   const hasGraph = Boolean(graph?.nodes?.length);
   const hasEdges = Boolean(graph?.edges?.length);
   const showTopbar = Boolean(asset);
@@ -56,6 +59,15 @@ export default function LineageStage({
                     <span>{stats.operationalConsumerCount || 0} consumers</span>
                   </>
                 )}
+                {stats.generatedAt ? <span>{stats.generatedAt}</span> : null}
+                {context === "Data Lineage" && (truncated.upstream || truncated.downstream || truncated.columnLineage) ? (
+                  <span>
+                    Limited to {limits.tableLineage || "?"} table edges and {limits.columnLineage || "?"} column mappings
+                  </span>
+                ) : null}
+                {context === "Operational Context" && (truncated.operationalProducers || truncated.operationalConsumers) ? (
+                  <span>Limited to {limits.operationalContext || "?"} operational records per direction</span>
+                ) : null}
               </div>
             </div>
             <div className="gh-lineage-stage-topbar-actions">
@@ -77,6 +89,11 @@ export default function LineageStage({
                 </button>
               ) : null}
             </div>
+          </div>
+        ) : null}
+        {notice ? (
+          <div className="gh-inline-alert tone-warn">
+            <div>{notice}</div>
           </div>
         ) : null}
         <div className="gh-lineage-stage-canvas">
