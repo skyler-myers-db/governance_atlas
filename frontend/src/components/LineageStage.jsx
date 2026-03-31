@@ -9,6 +9,7 @@ function selectGraph(graphBundle, context) {
 export default function LineageStage({
   asset,
   graphBundle,
+  lineagePayload = null,
   loading,
   error,
   overlay = null,
@@ -27,6 +28,7 @@ export default function LineageStage({
   allowRefocus = true,
 }) {
   const graph = selectGraph(graphBundle, context);
+  const stats = lineagePayload?.stats || {};
   const hasGraph = Boolean(graph?.nodes?.length);
   const hasEdges = Boolean(graph?.edges?.length);
   const showTopbar = Boolean(asset);
@@ -43,6 +45,17 @@ export default function LineageStage({
               <div className="gh-lineage-headbar-meta">
                 <span>{assetPathLabel(asset)}</span>
                 {displayObjectType(asset) ? <span>{displayObjectType(asset)}</span> : null}
+                {context === "Data Lineage" ? (
+                  <>
+                    <span>{stats.upstreamCount || 0} upstream</span>
+                    <span>{stats.downstreamCount || 0} downstream</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{stats.operationalProducerCount || 0} producers</span>
+                    <span>{stats.operationalConsumerCount || 0} consumers</span>
+                  </>
+                )}
               </div>
             </div>
             <div className="gh-lineage-stage-topbar-actions">
@@ -80,6 +93,7 @@ export default function LineageStage({
               assetSearchResolvedQuery={assetSearchResolvedQuery}
               allowRefocus={allowRefocus}
               context={context}
+              lineagePayload={lineagePayload}
               graph={graph || emptyGraph}
               hasEdges={hasEdges}
               onAssetSearchQueryChange={onAssetSearchQueryChange}

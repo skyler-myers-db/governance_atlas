@@ -1,12 +1,12 @@
-import { Suspense, lazy, useCallback, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import AppFrame from "./components/AppFrame";
 import DiscoveryWorkspace from "./components/DiscoveryWorkspace";
+import EntityWorkspace from "./components/EntityWorkspace";
+import LineageWorkspace from "./components/LineageWorkspace";
 import { useAppRouteState } from "./hooks/useAppRouteState";
 import { useBootstrap } from "./hooks/useBootstrap";
 
-const EntityWorkspace = lazy(() => import("./components/EntityWorkspace"));
 const GovernanceWorkspace = lazy(() => import("./components/GovernanceWorkspace"));
-const LineageWorkspace = lazy(() => import("./components/LineageWorkspace"));
 
 function visibleAssetSetFromGroups(...groups) {
   const visible = new Set();
@@ -132,6 +132,7 @@ export default function App() {
     baselineScope: false,
     authoritative: false,
   });
+  const [liveGovernanceState, setLiveGovernanceState] = useState(null);
   const {
     surface,
     setSurface,
@@ -144,26 +145,6 @@ export default function App() {
     openGovernanceWorkspace,
     onModuleChange,
   } = useAppRouteState();
-
-  if (loading) {
-    return bootShell(
-      "Loading",
-      "Preparing the metadata workspace.",
-      "Connecting the discovery plane, lineage graph, and governance workbench.",
-    );
-  }
-
-  if (error || !data) {
-    return bootShell(
-      "Workspace Unavailable",
-      "The workspace could not load.",
-      error || "Bootstrap payload was unavailable.",
-    );
-  }
-
-  const bootstrapAssets = data.assets || [];
-  const bootstrapVisibleCount = data.discovery?.summary?.visibleAssets ?? bootstrapAssets.length ?? 0;
-  const bootstrapRefreshFailed = Boolean(refreshError);
   const handleLiveCatalogStateChange = useCallback((nextState) => {
     setLiveDiscoveryState((current) => {
       const nextAuthoritative = nextState.authoritative === true;
@@ -199,6 +180,36 @@ export default function App() {
       };
     });
   }, []);
+  const handleGovernanceChange = useCallback((nextGovernance) => {
+    if (!nextGovernance) return;
+    setLiveGovernanceState(nextGovernance);
+  }, []);
+
+  useEffect(() => {
+    if (data?.governance) {
+      setLiveGovernanceState(data.governance);
+    }
+  }, [data]);
+
+  if (loading) {
+    return bootShell(
+      "Loading",
+      "Preparing the metadata workspace.",
+      "Connecting the discovery plane, lineage graph, and governance workbench.",
+    );
+  }
+
+  if (error || !data) {
+    return bootShell(
+      "Workspace Unavailable",
+      "The workspace could not load.",
+      error || "Bootstrap payload was unavailable.",
+    );
+  }
+
+  const bootstrapAssets = data.assets || [];
+  const bootstrapVisibleCount = data.discovery?.summary?.visibleAssets ?? bootstrapAssets.length ?? 0;
+  const bootstrapRefreshFailed = Boolean(refreshError);
   const hasCurrentDiscoveryTruth =
     liveDiscoveryState.authoritative &&
     liveDiscoveryState.settled &&
@@ -228,6 +239,7 @@ export default function App() {
   const visibleAssetSet = visibleAssetSetFromGroups(contextSeedAssets);
 
   const shell = data.shell || {};
+  const governance = liveGovernanceState || data.governance || { metrics: [], backlog: [], glossary: [] };
   const bootState = data.bootState || "live";
   const bootMessage = data.bootMessage || "";
   const effectiveVisibleCount =
@@ -239,12 +251,14 @@ export default function App() {
     baselineDiscoveryAssets.length > 0 ||
     searchSeedAssets.length > 0 ||
     (hasBaselineDiscoveryTruth && Number(liveDiscoveryState.baselineCount || 0) > 0);
-  const effectiveBootState = hasRenderableCatalogSeed
-    ? "live"
-    : bootstrapRefreshFailed
-      ? "degraded"
-      : bootState;
-  const effectiveBootMessage = hasRenderableCatalogSeed ? "" : refreshError || bootMessage;
+  const effectiveBootState =
+    bootState === "unavailable" || bootState === "error"
+      ? bootState
+      : bootstrapRefreshFailed || bootState === "degraded"
+        ? "degraded"
+        : "live";
+  const effectiveBootMessage =
+    effectiveBootState === "live" && hasRenderableCatalogSeed ? "" : refreshError || bootMessage;
   const discoveryWorkspaceKey = [
     shell.userEmail || shell.userName || "workspace",
     effectiveBootState,
@@ -294,6 +308,7 @@ export default function App() {
             bootstrap={data}
             contextSeedAssets={contextSeedAssets}
             sharedVisibleAssetSet={visibleAssetSet}
+            onGovernanceChange={handleGovernanceChange}
             onBack={() => {
               openDiscoveryWorkspace(discoveryRouteState.query, { fresh: false });
             }}
@@ -338,7 +353,8 @@ export default function App() {
             bootstrap={data}
             contextSeedAssets={contextSeedAssets}
             initialAssetFqn={surface === "governance" ? routeAssetFqn : ""}
-            governance={data.governance}
+            governance={governance}
+            onGovernanceChange={handleGovernanceChange}
             onRouteAssetChange={(assetFqn) => openGovernanceWorkspace(assetFqn || "")}
             onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
             onOpenLineage={openLineageWorkspace}

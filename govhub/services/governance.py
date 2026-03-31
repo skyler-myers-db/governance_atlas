@@ -102,6 +102,7 @@ def governance_summary(
             for _, req in pending.head(8).iterrows():
                 backlog.append(
                     {
+                        "requestId": asset_service.normalize_str(req.get("request_id")),
                         "title": asset_service.normalize_str(req.get("new_comment"))
                         or "Open governance request",
                         "asset": asset_service.normalize_str(req.get("uc_full_name")),
@@ -119,6 +120,7 @@ def governance_summary(
             for _, row in needs_owner.iterrows():
                 backlog.append(
                     {
+                        "requestId": "",
                         "title": f"Assign owner to {asset_service.normalize_str(row.get('table_name'))}",
                         "asset": asset_service.normalize_str(row.get("fqn")),
                         "assetFqn": asset_service.normalize_str(row.get("fqn")),

@@ -70,6 +70,7 @@ DISCOVERY_SORTS = [
     "Name (A-Z)",
     "Open requests",
 ]
+BOOTSTRAP_ASSET_SEED_LIMIT = 24
 
 
 app = FastAPI(title="Governance Hub Modern Runtime")
@@ -147,15 +148,34 @@ def _store() -> GovernanceStore:
     return store
 
 
-def _uc_runtime_status() -> Dict[str, str]:
-    def _loader() -> Dict[str, str]:
+def _format_runtime_message(exc: Exception) -> str:
+    message = _normalize_str(exc)
+    error_type = exc.__class__.__name__
+    if not message:
+        return error_type
+    if message.startswith(f"{error_type}:"):
+        return message
+    return f"{error_type}: {message}"
+
+
+def _uc_runtime_status() -> Dict[str, Any]:
+    def _loader() -> Dict[str, Any]:
         try:
-            _uc().list_catalogs()
-            return {"state": "live", "message": ""}
+            uc = _uc()
+            catalogs = uc.list_catalogs()
+            return {
+                "state": "live",
+                "message": "",
+                "catalogCount": int(len(catalogs.index)) if isinstance(catalogs, pd.DataFrame) else 0,
+                "client": uc.runtime_context(),
+            }
         except Exception as exc:
             return {
                 "state": "unavailable",
-                "message": _normalize_str(exc) or "Live Databricks metadata runtime is unavailable.",
+                "message": _format_runtime_message(exc)
+                or "Live Databricks metadata runtime is unavailable.",
+                "errorType": exc.__class__.__name__,
+                "client": _uc().runtime_context() if _uc.cache_info().currsize else {},
             }
 
     return _ttl_value("modern_uc_runtime_status", 30, _loader)
@@ -218,7 +238,7 @@ def _user_role(request: Optional[Request]) -> str:
 
 
 def _request_cache_scope(request: Optional[Request]) -> str:
-    return _normalize_str(_user_email(request)) or _normalize_str(_user_role(request)) or "shared"
+    return _normalize_str(_user_email(request)) or "shared"
 
 
 def _inventory() -> pd.DataFrame:
@@ -559,13 +579,19 @@ def _related_assets(catalog: str, schema: str, table: str, focus_fqn: str) -> Li
     return asset_service.related_assets(_uc(), catalog, schema, table, focus_fqn)
 
 
-def _asset_detail_payload(asset_fqn: str, request: Optional[Request] = None) -> Dict[str, Any]:
+def _asset_detail_payload(
+    asset_fqn: str,
+    request: Optional[Request] = None,
+    *,
+    sections: Optional[List[str]] = None,
+) -> Dict[str, Any]:
     return asset_service.asset_detail_payload(
         _uc(),
         _store_for_read(),
         asset_fqn,
         cache_scope=_request_cache_scope(request),
         hidden_catalogs=HIDDEN_CATALOGS,
+        sections=sections,
     )
 
 
@@ -663,14 +689,192 @@ def _governance_summary() -> Dict[str, Any]:
     )
 
 
+def _bootstrap_seed_assets(
+    assets: List[Dict[str, Any]],
+    *,
+    selected_fqn: str = "",
+    limit: int = BOOTSTRAP_ASSET_SEED_LIMIT,
+) -> List[Dict[str, Any]]:
+    if not assets or limit <= 0:
+        return []
+
+    seeded: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def remember(asset: Optional[Dict[str, Any]]) -> bool:
+        if not asset:
+            return False
+        asset_fqn = _normalize_str(asset.get("fqn"))
+        if not asset_fqn or asset_fqn in seen:
+            return False
+        seen.add(asset_fqn)
+        seeded.append(asset)
+        return True
+
+    if selected_fqn:
+        for asset in assets:
+            if _normalize_str(asset.get("fqn")) == selected_fqn:
+                remember(asset)
+                break
+
+    for asset in assets:
+        remember(asset)
+        if len(seeded) >= limit:
+            break
+
+    return seeded
+
+
+def _bootstrap_seed_inventory_assets(
+    inventory: pd.DataFrame,
+    *,
+    limit: int = BOOTSTRAP_ASSET_SEED_LIMIT,
+) -> List[Dict[str, Any]]:
+    if inventory is None or inventory.empty or limit <= 0:
+        return []
+    seeded_assets: List[Dict[str, Any]] = []
+    for _, row in inventory.head(limit).iterrows():
+        seeded_assets.append(asset_service.base_asset_payload(row))
+    return seeded_assets
+
+
+def _bootstrap_selected_asset_seed(
+    request: Request,
+    asset_fqn: str,
+) -> Optional[Dict[str, Any]]:
+    normalized_fqn = _normalize_str(asset_fqn)
+    if not normalized_fqn:
+        return None
+    try:
+        inventory = _visible_assets(_request_cache_scope(request))
+        if asset_service.asset_is_visible(inventory, normalized_fqn):
+            return asset_service.base_asset_payload(asset_service.inventory_row(inventory, normalized_fqn))
+    except Exception:
+        return None
+    return None
+
+
+def _inventory_option_values(
+    inventory: pd.DataFrame,
+    extractor: Callable[[pd.Series], str],
+) -> List[str]:
+    if inventory is None or inventory.empty:
+        return []
+    values: set[str] = set()
+    for _, row in inventory.iterrows():
+        value = _normalize_str(extractor(row))
+        if value and value != "Unassigned":
+            values.add(value)
+    return sorted(values)
+
+
+def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
+    selected_fqn = _normalize_str(request.query_params.get("asset"))
+    if not selected_fqn:
+        return None
+    selected_asset = _bootstrap_selected_asset_seed(request, selected_fqn)
+    if not selected_asset:
+        return None
+
+    store_status = _store_status()
+    boot_state = "live" if store_status["state"] == "live" else "degraded"
+    boot_message = "" if store_status["state"] == "live" else store_status["message"]
+    selected_catalog = _normalize_str(selected_asset.get("catalog"))
+    selected_domain = _normalize_str(selected_asset.get("domain"))
+    selected_tier = _normalize_str(selected_asset.get("tier"))
+    selected_certification = _normalize_str(selected_asset.get("certification"))
+    selected_sensitivity = _normalize_str(selected_asset.get("sensitivity"))
+    selected_type = _normalize_str(selected_asset.get("objectType"))
+
+    base_payload = {
+        "_assetPool": [selected_asset],
+        "payload": {
+            "version": "modern-ui-route-seed-1",
+            "bootState": boot_state,
+            "bootMessage": boot_message,
+            "apiBase": "/api",
+            "graphs": {},
+            "discovery": {
+                "catalogs": ["All catalogs", *([selected_catalog] if selected_catalog else [])],
+                "domains": ["All domains", *([selected_domain] if selected_domain and selected_domain != "Unassigned" else [])],
+                "tiers": ["All tiers", *([selected_tier] if selected_tier and selected_tier != "Unassigned" else [])],
+                "certifications": [
+                    "All certifications",
+                    *([selected_certification] if selected_certification and selected_certification != "Unassigned" else []),
+                ],
+                "sensitivities": [
+                    "All sensitivities",
+                    *([selected_sensitivity] if selected_sensitivity and selected_sensitivity != "Unassigned" else []),
+                ],
+                "assetTypes": ["All types", *([selected_type] if selected_type else [])],
+                "views": DISCOVERY_VIEWS,
+                "sortOptions": DISCOVERY_SORTS,
+                "defaultQuery": "",
+                "summary": {
+                    "visibleAssets": 1,
+                    "catalogCount": 1 if selected_catalog else 0,
+                    "availableCatalogCount": 0,
+                    "observedCatalogCount": 0,
+                    "governanceGaps": 1 if _normalize_str(selected_asset.get("governanceStatus")) == "Needs Work" else 0,
+                    "certifiedAssets": 1 if selected_certification and selected_certification != "Unassigned" else 0,
+                    "ownedAssets": 1 if selected_asset.get("owners") else 0,
+                    "catalogSnapshot": [selected_catalog] if selected_catalog else [],
+                },
+            },
+            "governance": {"metrics": [], "backlog": [], "glossary": []},
+            "help": HELP_ITEMS,
+        },
+    }
+    return _compose_bootstrap_payload(request, base_payload)
+
+
+def _compose_bootstrap_payload(
+    request: Request,
+    base_payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    payload = base_payload.get("payload", base_payload)
+    asset_pool = list(base_payload.get("_assetPool") or payload.get("assets") or [])
+    selected_fqn = request.query_params.get("asset") or (asset_pool[0]["fqn"] if asset_pool else "")
+    if selected_fqn and not any(_normalize_str(asset.get("fqn")) == selected_fqn for asset in asset_pool):
+        selected_asset = _bootstrap_selected_asset_seed(request, selected_fqn)
+        if selected_asset:
+            asset_pool = [selected_asset, *asset_pool]
+    seeded_assets = _bootstrap_seed_assets(asset_pool, selected_fqn=selected_fqn)
+    asset_index = {asset["fqn"]: asset for asset in seeded_assets}
+
+    return {
+        **payload,
+        "assets": seeded_assets,
+        "assetIndex": asset_index,
+        "initialSelection": {"primaryAssetFqn": selected_fqn},
+        "shell": {
+            "metrics": payload.get("governance", {}).get("metrics", []),
+            "role": _user_role(request),
+            "userEmail": _user_email(request),
+        },
+        "apiContract": {
+            "bootstrap": "/api/bootstrap",
+            "discoverySearch": "/api/discovery/search",
+            "assetDetail": "/api/assets/:fqn",
+            "assetAvailability": "/api/assets/availability",
+            "assetMetadataUpdate": "/api/assets/:fqn/metadata",
+            "lineage": "/api/lineage/:fqn",
+            "governanceSummary": "/api/governance/summary",
+            "glossary": "/api/governance/glossary",
+            "governanceRequest": "/api/governance/requests/:id",
+            "governanceGlossaryTerm": "/api/governance/glossary/:id",
+            "runtimeStatus": "/api/runtime/status",
+        },
+    }
+
+
 def _bootstrap_payload(request: Request) -> Dict[str, Any]:
     cache_scope = _request_cache_scope(request)
 
     def load_base() -> Dict[str, Any]:
         store_status = _store_status()
         inventory = _visible_assets(cache_scope)
-        assets = [asset_service.base_asset_payload(row) for _, row in inventory.iterrows()]
-        asset_index = {asset["fqn"]: asset for asset in assets}
+        seeded_assets = _bootstrap_seed_inventory_assets(inventory)
         available_catalogs = asset_service.inventory_catalogs(_uc(), HIDDEN_CATALOGS)
         observed_catalogs = asset_service.lineage_observed_catalogs(
             _uc(),
@@ -681,37 +885,31 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
             available_catalogs=available_catalogs,
             observed_catalogs=observed_catalogs,
         )
-        asset_types = sorted({asset["objectType"] for asset in assets if asset["objectType"]})
-        domains = sorted(
-            {asset["domain"] for asset in assets if asset["domain"] and asset["domain"] != "Unassigned"}
+        asset_types = _inventory_option_values(
+            inventory,
+            lambda row: asset_service.friendly_table_type(row.get("table_type"), row.get("data_source_format")),
         )
-        tiers = sorted({asset["tier"] for asset in assets if asset["tier"] and asset["tier"] != "Unassigned"})
-        certifications = sorted(
-            {
-                asset["certification"]
-                for asset in assets
-                if asset["certification"] and asset["certification"] != "Unassigned"
-            }
+        domains = _inventory_option_values(inventory, lambda row: row.get("domain"))
+        tiers = _inventory_option_values(inventory, lambda row: row.get("tier"))
+        certifications = _inventory_option_values(inventory, lambda row: row.get("certification"))
+        sensitivities = _inventory_option_values(inventory, lambda row: row.get("sensitivity"))
+        governance_gaps = sum(
+            1
+            for _, row in inventory.iterrows()
+            if _normalize_str(row.get("governance_status")) == "Needs Work"
         )
-        sensitivities = sorted(
-            {
-                asset["sensitivity"]
-                for asset in assets
-                if asset["sensitivity"] and asset["sensitivity"] != "Unassigned"
-            }
-        )
-        governance = _governance_summary()
-        governance_gaps = sum(1 for asset in assets if asset.get("governanceStatus") == "Needs Work")
         certified_assets = sum(
             1
-            for asset in assets
-            if asset.get("certification") and asset.get("certification") != "Unassigned"
+            for _, row in inventory.iterrows()
+            if _normalize_str(row.get("certification"))
+            and _normalize_str(row.get("certification")) != "Unassigned"
         )
-        owned_assets = sum(1 for asset in assets if asset.get("owners"))
+        governance = _governance_summary()
+        owned_assets = sum(1 for _, row in inventory.iterrows() if asset_service.owner_entries(row))
 
         boot_state = "live" if store_status["state"] == "live" else "degraded"
         boot_message = "" if store_status["state"] == "live" else store_status["message"]
-        if not assets:
+        if inventory is None or inventory.empty:
             boot_state = "degraded"
             if not boot_message:
                 if available_catalogs:
@@ -732,66 +930,50 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
                     )
 
         return {
-            "version": "modern-ui-live-2",
-            "bootState": boot_state,
-            "bootMessage": boot_message,
-            "apiBase": "/api",
-            "assets": assets,
-            "assetIndex": asset_index,
-            "graphs": {},
-            "discovery": {
-                "catalogs": ["All catalogs", *catalogs],
-                "domains": ["All domains", *domains],
-                "tiers": ["All tiers", *tiers],
-                "certifications": ["All certifications", *certifications],
-                "sensitivities": ["All sensitivities", *sensitivities],
-                "assetTypes": ["All types", *asset_types],
-                "views": DISCOVERY_VIEWS,
-                "sortOptions": DISCOVERY_SORTS,
-                "defaultQuery": "",
-                "summary": {
-                    "visibleAssets": len(assets),
-                    "catalogCount": len(catalogs),
-                    "availableCatalogCount": len(available_catalogs),
-                    "observedCatalogCount": len(observed_catalogs),
-                    "governanceGaps": governance_gaps,
-                    "certifiedAssets": certified_assets,
-                    "ownedAssets": owned_assets,
-                    "catalogSnapshot": catalogs[:8],
+            "_assetPool": seeded_assets,
+            "payload": {
+                "version": "modern-ui-live-4",
+                "bootState": boot_state,
+                "bootMessage": boot_message,
+                "apiBase": "/api",
+                "graphs": {},
+                "discovery": {
+                    "catalogs": ["All catalogs", *catalogs],
+                    "domains": ["All domains", *domains],
+                    "tiers": ["All tiers", *tiers],
+                    "certifications": ["All certifications", *certifications],
+                    "sensitivities": ["All sensitivities", *sensitivities],
+                    "assetTypes": ["All types", *asset_types],
+                    "views": DISCOVERY_VIEWS,
+                    "sortOptions": DISCOVERY_SORTS,
+                    "defaultQuery": "",
+                    "summary": {
+                        "visibleAssets": len(inventory.index) if inventory is not None else 0,
+                        "catalogCount": len(catalogs),
+                        "availableCatalogCount": len(available_catalogs),
+                        "observedCatalogCount": len(observed_catalogs),
+                        "governanceGaps": governance_gaps,
+                        "certifiedAssets": certified_assets,
+                        "ownedAssets": owned_assets,
+                        "catalogSnapshot": catalogs[:8],
+                    },
                 },
+                "governance": governance,
+                "help": HELP_ITEMS,
             },
-            "governance": governance,
-            "help": HELP_ITEMS,
         }
 
     base_payload = _ttl_value(f"modern_bootstrap_base:{cache_scope}", 10, load_base)
-    assets = base_payload["assets"]
-    selected_fqn = request.query_params.get("asset") or (assets[0]["fqn"] if assets else "")
-
-    return {
-        **base_payload,
-        "initialSelection": {"primaryAssetFqn": selected_fqn},
-        "shell": {
-            "metrics": base_payload["governance"]["metrics"],
-            "role": _user_role(request),
-            "userEmail": _user_email(request),
-        },
-        "apiContract": {
-            "bootstrap": "/api/bootstrap",
-            "discoverySearch": "/api/discovery/search",
-            "assetDetail": "/api/assets/:fqn",
-            "assetAvailability": "/api/assets/availability",
-            "assetMetadataUpdate": "/api/assets/:fqn/metadata",
-            "lineage": "/api/lineage/:fqn",
-            "governanceSummary": "/api/governance/summary",
-            "glossary": "/api/governance/glossary",
-        },
-    }
+    return _compose_bootstrap_payload(request, base_payload)
 
 
 def _ensure_live_runtime() -> None:
-    if not _live_runtime_available():
-        raise HTTPException(status_code=503, detail="Live Databricks runtime is not available.")
+    status = _uc_runtime_status()
+    if status.get("state") != "live":
+        raise HTTPException(
+            status_code=503,
+            detail=status.get("message") or "Live Databricks runtime is not available.",
+        )
 
 
 def _ensure_governance_store() -> GovernanceStore:
@@ -839,6 +1021,20 @@ class ColumnDescriptionPatch(BaseModel):
 
 class ColumnTagsPatch(BaseModel):
     tags: Dict[str, str] = Field(default_factory=dict)
+
+
+class GovernanceRequestStatusPatch(BaseModel):
+    status: str
+    reviewNote: str = ""
+
+
+class GlossaryTermUpsert(BaseModel):
+    termId: str = ""
+    name: str
+    definition: str = ""
+    domain: str = ""
+    ownerEmail: str = ""
+    status: str = "draft"
 
 
 def _normalized_tag_map(df: pd.DataFrame) -> Dict[str, str]:
@@ -996,6 +1192,7 @@ def _bootstrap_unavailable_payload(
             "lineage": "/api/lineage/:fqn",
             "governanceSummary": "/api/governance/summary",
             "glossary": "/api/governance/glossary",
+            "runtimeStatus": "/api/runtime/status",
         },
         "help": [
             {
@@ -1042,27 +1239,7 @@ def _cached_bootstrap_seed(request: Request) -> Optional[Dict[str, Any]]:
     cached_at, base_payload = cached
     if time.time() - cached_at > 60:
         return None
-    assets = base_payload.get("assets", [])
-    selected_fqn = request.query_params.get("asset") or (assets[0]["fqn"] if assets else "")
-    return {
-        **base_payload,
-        "initialSelection": {"primaryAssetFqn": selected_fqn},
-        "shell": {
-            "metrics": base_payload.get("governance", {}).get("metrics", {}),
-            "role": _user_role(request),
-            "userEmail": _user_email(request),
-        },
-        "apiContract": {
-            "bootstrap": "/api/bootstrap",
-            "discoverySearch": "/api/discovery/search",
-            "assetDetail": "/api/assets/:fqn",
-            "assetAvailability": "/api/assets/availability",
-            "assetMetadataUpdate": "/api/assets/:fqn/metadata",
-            "lineage": "/api/lineage/:fqn",
-            "governanceSummary": "/api/governance/summary",
-            "glossary": "/api/governance/glossary",
-        },
-    }
+    return _compose_bootstrap_payload(request, base_payload)
 
 
 def _render_index(live_payload: Optional[Dict[str, Any]] = None) -> str:
@@ -1116,7 +1293,10 @@ def index(request: Request) -> HTMLResponse:
                 status_code=200,
             )
     try:
-        return HTMLResponse(_render_index(_cached_bootstrap_seed(request)))
+        seeded_payload = _cached_bootstrap_seed(request)
+        if seeded_payload is None and _normalize_str(request.query_params.get("asset")):
+            seeded_payload = _cold_route_seed_payload(request)
+        return HTMLResponse(_render_index(seeded_payload))
     except Exception as exc:
         return HTMLResponse(
             _render_index(
@@ -1132,11 +1312,14 @@ def index(request: Request) -> HTMLResponse:
 
 @app.get("/api/bootstrap")
 def api_bootstrap(request: Request) -> JSONResponse:
-    if not _live_runtime_available():
+    runtime_status = _uc_runtime_status()
+    if runtime_status.get("state") != "live":
         return JSONResponse(
             _bootstrap_unavailable_payload(
                 request,
-                "Live Databricks metadata runtime is unavailable. Fix the warehouse or governance configuration or warehouse access, then retry.",
+                runtime_status.get("message")
+                or "Live Databricks metadata runtime is unavailable. Fix the warehouse or governance configuration or warehouse access, then retry.",
+                state=str(runtime_status.get("state") or "unavailable"),
             )
         )
     try:
@@ -1149,6 +1332,27 @@ def api_bootstrap(request: Request) -> JSONResponse:
                 state="error",
             )
         )
+
+
+@app.get("/api/runtime/status")
+def api_runtime_status() -> JSONResponse:
+    runtime_status = _uc_runtime_status()
+    store_status = _store_status() if runtime_status.get("state") == "live" else {
+        "state": "skipped",
+        "message": "Governance store check skipped until the SQL runtime recovers.",
+    }
+    payload = {
+        "runtime": runtime_status,
+        "store": store_status,
+        "config": {
+            "appMode": _normalize_str(os.getenv("GOVHUB_APP_MODE")) or "legacy",
+            "warehouseId": _normalize_str(os.getenv("DATABRICKS_WAREHOUSE_ID")),
+            "govCatalog": _normalize_str(os.getenv("GOVHUB_CATALOG")),
+            "govSchema": _normalize_str(os.getenv("GOVHUB_SCHEMA")),
+            "adminEmailsConfigured": bool(_config().admin_emails),
+        },
+    }
+    return JSONResponse(payload)
 
 
 @app.get("/api/discovery/search")
@@ -1207,11 +1411,15 @@ def api_asset_availability(
 
 
 @app.get("/api/assets/{asset_fqn:path}")
-def api_asset_detail(asset_fqn: str, request: Request) -> JSONResponse:
+def api_asset_detail(
+    asset_fqn: str,
+    request: Request,
+    sections: List[str] = Query(default=[]),
+) -> JSONResponse:
     _ensure_live_runtime()
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    payload = _asset_detail_payload(asset_fqn, request=request)
+    payload = _asset_detail_payload(asset_fqn, request=request, sections=sections)
     return JSONResponse(payload)
 
 
@@ -1251,7 +1459,14 @@ def api_patch_asset_metadata(
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     asset = _apply_asset_metadata(asset_fqn, payload, request=request)
-    return JSONResponse({"ok": True, "fqn": asset_fqn, "asset": asset})
+    return JSONResponse(
+        {
+            "ok": True,
+            "fqn": asset_fqn,
+            "asset": asset,
+            "governance": _governance_summary(),
+        }
+    )
 
 
 @app.patch("/api/assets/{asset_fqn:path}/owners")
@@ -1399,7 +1614,53 @@ async def api_governance_create_request(request: Request) -> JSONResponse:
         title=title,
         note=note,
     )
-    return JSONResponse({"ok": True, "requestId": request_id, "governance": _governance_summary()})
+    return JSONResponse(
+        {
+            "ok": True,
+            "requestId": request_id,
+            "asset": _asset_detail_payload(asset_fqn, request=request),
+            "governance": _governance_summary(),
+        }
+    )
+
+
+@app.patch("/api/governance/requests/{request_id}")
+def api_governance_patch_request(
+    request_id: str,
+    payload: GovernanceRequestStatusPatch,
+    request: Request,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    store = _ensure_governance_store()
+    change_request = store.get_change_request(request_id)
+    if change_request is None:
+        raise HTTPException(status_code=404, detail="Request not found.")
+    status = _normalize_str(payload.status).lower()
+    if status not in {"pending", "approved", "rejected"}:
+        raise HTTPException(status_code=400, detail="status must be pending, approved, or rejected.")
+    store.set_request_status(
+        request_id=request_id,
+        status=status,
+        reviewed_by=_user_email(request),
+        review_note=_normalize_str(payload.reviewNote) or None,
+    )
+    if change_request.uc_full_name:
+        _invalidate_asset_caches(change_request.uc_full_name)
+    else:
+        governance_service.invalidate_governance_caches()
+    asset_payload = (
+        _asset_detail_payload(change_request.uc_full_name, request=request)
+        if change_request.uc_full_name
+        else None
+    )
+    return JSONResponse(
+        {
+            "ok": True,
+            "requestId": request_id,
+            "asset": asset_payload,
+            "governance": _governance_summary(),
+        }
+    )
 
 
 @app.post("/api/governance/owners")
@@ -1431,16 +1692,18 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
 
 
 @app.post("/api/governance/glossary")
-async def api_governance_upsert_glossary(request: Request) -> JSONResponse:
+def api_governance_upsert_glossary(
+    payload: GlossaryTermUpsert,
+    request: Request,
+) -> JSONResponse:
     _ensure_live_runtime()
     store = _ensure_governance_store()
-    payload = await request.json()
-    term_id = _normalize_str(payload.get("termId")) or uuid.uuid4().hex[:12]
-    name = _normalize_str(payload.get("name"))
-    definition = _normalize_str(payload.get("definition"))
-    domain = _normalize_str(payload.get("domain"))
-    owner_email = _normalize_str(payload.get("ownerEmail")).lower()
-    status = (_normalize_str(payload.get("status")) or "draft").lower()
+    term_id = _normalize_str(payload.termId) or uuid.uuid4().hex[:12]
+    name = _normalize_str(payload.name)
+    definition = _normalize_str(payload.definition)
+    domain = _normalize_str(payload.domain)
+    owner_email = _normalize_str(payload.ownerEmail).lower()
+    status = (_normalize_str(payload.status) or "draft").lower()
     if not name:
         raise HTTPException(status_code=400, detail="name is required.")
     governance_service.upsert_glossary_term(
@@ -1450,6 +1713,30 @@ async def api_governance_upsert_glossary(request: Request) -> JSONResponse:
         domain=domain,
         owner_email=owner_email,
         status=status,
+        store=store,
+        updated_by=_user_email(request),
+    )
+    return JSONResponse({"ok": True, "governance": _governance_summary()})
+
+
+@app.patch("/api/governance/glossary/{term_id}")
+def api_governance_patch_glossary(
+    term_id: str,
+    payload: GlossaryTermUpsert,
+    request: Request,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    store = _ensure_governance_store()
+    name = _normalize_str(payload.name)
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required.")
+    governance_service.upsert_glossary_term(
+        term_id=_normalize_str(term_id),
+        name=name,
+        definition=_normalize_str(payload.definition),
+        domain=_normalize_str(payload.domain),
+        owner_email=_normalize_str(payload.ownerEmail).lower(),
+        status=(_normalize_str(payload.status) or "draft").lower(),
         store=store,
         updated_by=_user_email(request),
     )

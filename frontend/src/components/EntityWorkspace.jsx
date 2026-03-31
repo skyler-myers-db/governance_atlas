@@ -1,13 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  updateAssetColumnDescription,
+  updateAssetColumnTags,
+} from "../lib/api";
 import { useAssetMetadataEditor } from "../hooks/useAssetMetadataEditor";
 import {
   canOpenLinkedAssetRecord,
   isUsableAssetDetail,
   prefetchAssetAvailability,
   prefetchAssetDetail,
+  primeAssetDetail,
   useAssetAvailability,
   useAssetDetail,
 } from "../hooks/useAssetDetail";
+import { clearAssetSearchCache } from "../hooks/useAssetSearch";
 import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import {
@@ -185,13 +191,33 @@ function metadataDraftFromAsset(asset) {
   };
 }
 
+function detailSectionsForTab(activeTab) {
+  switch (activeTab) {
+    case "Schema":
+      return ["header", "activity", "schema"];
+    case "SampleData":
+      return ["header", "activity", "preview"];
+    case "Queries":
+      return ["header", "activity", "operational"];
+    case "Profiler":
+      return ["header", "activity", "profiler"];
+    case "CustomProperties":
+      return ["header", "activity", "properties"];
+    default:
+      return ["header", "activity"];
+  }
+}
+
 function EntityTabs({ activeTab, onTabChange }) {
   const tabs = [
     { key: "Overview", label: "Overview" },
     { key: "Schema", label: "Schema" },
-    { key: "Preview", label: "Sample Data" },
+    { key: "Activity", label: "Activity & Tasks" },
+    { key: "SampleData", label: "Sample Data" },
+    { key: "Queries", label: "Queries" },
+    { key: "Profiler", label: "Profiler & Data Quality" },
     { key: "Lineage", label: "Lineage" },
-    { key: "Governance", label: "Governance" },
+    { key: "CustomProperties", label: "Custom Properties" },
   ];
 
   return (
@@ -390,11 +416,144 @@ function MetadataEditorPanel({
   );
 }
 
+function ActivityFeed({ items, onOpenGovernance }) {
+  if (!items?.length) {
+    return (
+      <div className="gh-empty-state">
+        No governance activity is recorded for this asset yet.
+        <div className="gh-empty-state-actions">
+          <button className="gh-secondary-button" onClick={onOpenGovernance} type="button">
+            Open governance workbench
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="gh-task-list gh-task-list-rows">
+      {items.map((item) => (
+        <div className="gh-task-row" key={item.id || `${item.title}-${item.createdAt}`}>
+          <div className="gh-task-row-main">
+            <div className="gh-task-row-head">
+              <span className="gh-task-title">{item.title}</span>
+              <span className={`gh-status-chip tone-${item.status === "Approved" ? "good" : item.status === "Rejected" ? "bad" : "warn"}`}>
+                {item.status}
+              </span>
+            </div>
+            <div className="gh-support-copy">{item.detail}</div>
+            <div className="gh-support-copy">
+              {item.createdBy || "Unknown"}{item.createdAt ? ` • ${item.createdAt}` : ""}
+            </div>
+            {item.reviewNote ? <div className="gh-support-copy">{item.reviewNote}</div> : null}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function QueryRecords({ producers = [], consumers = [] }) {
+  const sections = [
+    { key: "producers", label: "Producing Workloads", items: producers },
+    { key: "consumers", label: "Consuming Workloads", items: consumers },
+  ];
+
+  return (
+    <div className="gh-entity-record-primary">
+      {sections.map((section) => (
+        <section className="gh-panel gh-record-card" key={section.key}>
+          <div className="gh-record-card-head">
+            <div>
+              <div className="gh-panel-title">{section.label}</div>
+              <div className="gh-support-copy">
+                Jobs, queries, dashboards, and pipelines linked through Unity Catalog lineage.
+              </div>
+            </div>
+          </div>
+          {section.items.length ? (
+            <div className="gh-task-list gh-task-list-rows">
+              {section.items.map((item) => (
+                <div className="gh-task-row" key={item.key}>
+                  <div className="gh-task-row-main">
+                    <div className="gh-task-row-head">
+                      <span className="gh-task-title">{item.name}</span>
+                      <span className="gh-chip gh-chip-soft">{item.entityLabel}</span>
+                    </div>
+                    <div className="gh-support-copy">
+                      {item.statementId || item.entityId || "No workload identifier was surfaced."}
+                    </div>
+                    {item.relatedAssets?.length ? (
+                      <div className="gh-chip-row">
+                        {item.relatedAssets.slice(0, 4).map((assetFqn) => (
+                          <span className="gh-chip gh-chip-soft" key={`${item.key}-${assetFqn}`}>
+                            {assetFqn.split(".").slice(-2).join(" / ")}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="gh-empty-state">No workload usage was surfaced for this direction.</div>
+          )}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function ProfilerCards({ cards = [] }) {
+  if (!cards.length) {
+    return <div className="gh-empty-state">No profiler or metadata quality signals are available yet.</div>;
+  }
+
+  return (
+    <div className="gh-preview-stat-grid gh-entity-record-metrics">
+      {cards.map((card) => (
+        <div className="gh-preview-stat-card gh-entity-metric-card" key={card.title}>
+          <span>{card.title}</span>
+          <strong>{card.value}</strong>
+          <span className={`gh-status-chip tone-${card.status === "good" ? "good" : card.status === "missing" ? "warn" : card.status === "bad" ? "bad" : "warn"}`}>
+            {card.status === "good" ? "Available" : card.status === "missing" ? "Missing" : "Needs work"}
+          </span>
+          <div className="gh-support-copy">{card.note}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PropertyList({ title, items = [], renderValue }) {
+  return (
+    <section className="gh-panel gh-record-card">
+      <div className="gh-record-card-head">
+        <div className="gh-panel-title">{title}</div>
+      </div>
+      {items.length ? (
+        <div className="gh-attribute-list">
+          {items.map((item) => (
+            <div className="gh-attribute-row" key={item.key || item.name}>
+              <span className="gh-attribute-label">{item.key || item.name}</span>
+              <span className="gh-attribute-value">{renderValue ? renderValue(item) : item.value}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="gh-empty-state">No values were surfaced for this section.</div>
+      )}
+    </section>
+  );
+}
+
 export default function EntityWorkspace({
   assetFqn,
   bootstrap,
   contextSeedAssets = [],
   sharedVisibleAssetSet,
+  onGovernanceChange,
   onBack,
   onOpenGovernance,
   onOpenLineage,
@@ -409,6 +568,13 @@ export default function EntityWorkspace({
   const [localOverrides, setLocalOverrides] = useState({});
   const [metadataDraft, setMetadataDraft] = useState(metadataDraftFromAsset(null));
   const [metadataDirty, setMetadataDirty] = useState(false);
+  const [selectedColumnName, setSelectedColumnName] = useState("");
+  const [columnDraft, setColumnDraft] = useState({ description: "", tags: "" });
+  const [columnMutation, setColumnMutation] = useState({
+    loading: false,
+    error: "",
+    success: "",
+  });
   const seedAssets = contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [];
   const launchAssets = seedAssets.slice(0, 6);
   const visibleAssetSet = useMemo(() => {
@@ -418,16 +584,30 @@ export default function EntityWorkspace({
   const seeded = useSeededAssetContext(assetFqn, bootstrap, seedAssets, {
     allowFallback: false,
   });
-  const assetDetail = useAssetDetail(assetFqn || "");
-  const lineageEnabled = activeTab === "Overview" || activeTab === "Lineage";
-  const lineage = useLineage(assetFqn || "", seeded.seededGraph, lineageEnabled);
+  const requestedDetailSections = useMemo(() => detailSectionsForTab(activeTab), [activeTab]);
+  const assetDetail = useAssetDetail(assetFqn || "", { sections: requestedDetailSections });
   const usableDetail = isUsableAssetDetail(assetDetail.detail) ? assetDetail.detail : null;
   const baseAsset = usableDetail || seeded.summary;
   const asset = useMemo(
     () => (baseAsset ? { ...baseAsset, ...localOverrides } : baseAsset),
     [baseAsset, localOverrides],
   );
+  const loadedSections = useMemo(
+    () => new Set(assetDetail.detail?.loadedSections || []),
+    [assetDetail.detail?.loadedSections],
+  );
+  const schemaLoaded = loadedSections.has("schema");
+  const previewLoaded = loadedSections.has("preview");
+  const operationalLoaded = loadedSections.has("operational") || loadedSections.has("profiler");
+  const propertiesLoaded = loadedSections.has("properties");
+  const profilerLoaded = loadedSections.has("profiler");
+  const lineageEnabled =
+    activeTab === "Lineage" ||
+    activeTab === "Queries" ||
+    (activeTab === "Overview" && Boolean(asset?.fqn) && loadedSections.has("header"));
+  const lineage = useLineage(assetFqn || "", seeded.seededGraph, lineageEnabled);
   const lineageBundle = lineage.graph;
+  const lineagePayload = lineage.payload;
   const lineageLoading = lineage.loading;
   const editor = useAssetMetadataEditor({ assetFqn: assetFqn || "", asset, bootstrap });
   const focusAssetFqn = asset?.fqn || assetFqn || "";
@@ -451,10 +631,15 @@ export default function EntityWorkspace({
   const preview = asset?.preview || [];
   const detailLoading = assetDetail.loading;
   const detailReady = Boolean(usableDetail);
-  const detailHydrating = detailLoading && !detailReady;
+  const detailHydrating = detailLoading && !asset;
   const detailUnavailable = Boolean(assetDetail.error) && !detailReady;
-  const liveColumns = detailReady ? columns : [];
-  const livePreview = detailReady ? preview : [];
+  const schemaUnavailable = Boolean(assetDetail.error) && !schemaLoaded;
+  const previewUnavailable = Boolean(assetDetail.error) && !previewLoaded;
+  const operationalUnavailable = Boolean(assetDetail.error) && !operationalLoaded;
+  const propertiesUnavailable = Boolean(assetDetail.error) && !propertiesLoaded;
+  const profilerUnavailable = Boolean(assetDetail.error) && !profilerLoaded;
+  const liveColumns = detailReady && schemaLoaded ? columns : [];
+  const livePreview = detailReady && previewLoaded ? preview : [];
   const upstreamAssets = useMemo(
     () => dedupeLinkedAssets(lineageNeighbors.upstream, focusAssetFqn),
     [focusAssetFqn, lineageNeighbors.upstream],
@@ -471,6 +656,18 @@ export default function EntityWorkspace({
     strict: true,
     requireRenderableDetail: false,
   });
+  const renderableUpstreamAssets = useMemo(
+    () => upstreamAssets.filter((item) => linkedAssetAvailability[item] === true),
+    [linkedAssetAvailability, upstreamAssets],
+  );
+  const renderableDownstreamAssets = useMemo(
+    () => downstreamAssets.filter((item) => linkedAssetAvailability[item] === true),
+    [downstreamAssets, linkedAssetAvailability],
+  );
+  const renderableRelatedAssets = useMemo(
+    () => relatedAssets.filter((item) => linkedAssetAvailability[item] === true),
+    [linkedAssetAvailability, relatedAssets],
+  );
   const connectedAssetCount = useMemo(
     () => new Set([...upstreamAssets, ...downstreamAssets, ...relatedAssets]).size,
     [downstreamAssets, relatedAssets, upstreamAssets],
@@ -487,10 +684,23 @@ export default function EntityWorkspace({
     : detailLoading
       ? "Refreshing live detail…"
       : "";
+  const schemaPending = activeTab === "Schema" && detailLoading && !schemaLoaded;
+  const previewPending = activeTab === "SampleData" && detailLoading && !previewLoaded;
+  const operationalPending = activeTab === "Queries" && detailLoading && !operationalLoaded;
+  const propertiesPending = activeTab === "CustomProperties" && detailLoading && !propertiesLoaded;
+  const profilerPending = activeTab === "Profiler" && detailLoading && !profilerLoaded;
   const metricTiles = [
     { label: "Coverage", value: `${asset?.coverageScore ?? 0}` },
     { label: "Owners", value: `${asset?.owners?.length || 0}` },
     { label: "Open Requests", value: `${asset?.openRequests || 0}` },
+    {
+      label: "Queries",
+      value: operationalLoaded
+        ? `${asset?.usage?.queryCount || asset?.queries?.length || 0}`
+        : detailLoading
+          ? "Loading…"
+          : "—",
+    },
     {
       label: "Connected Assets",
       value: lineageLoading && !connectedAssetCount ? "Loading…" : `${connectedAssetCount}`,
@@ -504,9 +714,22 @@ export default function EntityWorkspace({
 
   useEffect(() => {
     const nextTab = consumeWorkspaceIntent("entityTab", assetFqn, "Overview") || "Overview";
-    setActiveTab(nextTab);
+    const allowedTabs = new Set([
+      "Overview",
+      "Schema",
+      "Activity",
+      "SampleData",
+      "Queries",
+      "Profiler",
+      "Lineage",
+      "CustomProperties",
+    ]);
+    setActiveTab(allowedTabs.has(nextTab) ? nextTab : "Overview");
     setLocalOverrides({});
     setMetadataDirty(false);
+    setSelectedColumnName("");
+    setColumnDraft({ description: "", tags: "" });
+    setColumnMutation({ loading: false, error: "", success: "" });
   }, [assetFqn]);
 
   useEffect(() => {
@@ -522,13 +745,42 @@ export default function EntityWorkspace({
     metadataDirty,
   ]);
 
+  useEffect(() => {
+    if (!selectedColumnName) return;
+    const selectedColumn = (asset?.columns || []).find((column) => column.name === selectedColumnName);
+    if (!selectedColumn) {
+      setSelectedColumnName("");
+      setColumnDraft({ description: "", tags: "" });
+      return;
+    }
+    setColumnDraft({
+      description:
+        selectedColumn.description && selectedColumn.description !== "No description"
+          ? selectedColumn.description
+          : "",
+      tags: (selectedColumn.tags || [])
+        .map((tag) => {
+          const key = tag?.name || "";
+          const value = tag?.value || "";
+          return value ? `${key}=${value}` : key;
+        })
+        .filter(Boolean)
+        .join(", "),
+    });
+  }, [asset?.columns, selectedColumnName]);
+
+  useEffect(() => {
+    if (selectedColumnName || !liveColumns.length) return;
+    setSelectedColumnName(liveColumns[0].name);
+  }, [liveColumns, selectedColumnName]);
+
   if (assetFqn && assetDetail.loading && !asset) {
     return (
       <section className="gh-workspace gh-entity-workspace">
         <div className="gh-panel gh-unavailable-panel">
           <div className="gh-panel-title">Loading Asset</div>
           <h2>Refreshing the metadata record.</h2>
-          <p>Loading live schema, sample data, and lineage context for {assetFqn}.</p>
+          <p>Loading the record header and recent activity for {assetFqn}.</p>
         </div>
       </section>
     );
@@ -628,23 +880,74 @@ export default function EntityWorkspace({
       sensitivity: sensitivity || null,
     };
 
-    await editor.save(payload);
-    setLocalOverrides((current) => ({
-      ...current,
-      description: description || "No description has been captured for this asset yet.",
-      domain: domain || "Unassigned",
-      tier: tier || "Unassigned",
-      certification: certification || "Unassigned",
-      sensitivity: sensitivity || "Unassigned",
-    }));
+    const response = await editor.save(payload);
+    const nextAsset = response?.asset || null;
+    if (nextAsset?.fqn) {
+      primeAssetDetail(nextAsset.fqn, nextAsset);
+      clearAssetSearchCache();
+      setLocalOverrides(nextAsset);
+    } else {
+      setLocalOverrides((current) => ({
+        ...current,
+        description: description || "No description has been captured for this asset yet.",
+        domain: domain || "Unassigned",
+        tier: tier || "Unassigned",
+        certification: certification || "Unassigned",
+        sensitivity: sensitivity || "Unassigned",
+      }));
+    }
+    if (response?.governance) {
+      onGovernanceChange?.(response.governance);
+    }
     setMetadataDirty(false);
+  };
+
+  const saveColumnMetadata = async () => {
+    if (!asset?.fqn || !selectedColumnName) return;
+    const description = columnDraft.description.trim();
+    const tags = columnDraft.tags
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .reduce((acc, entry) => {
+        const [rawKey, ...valueParts] = entry.split("=");
+        const key = rawKey.trim();
+        const value = valueParts.join("=").trim();
+        if (key) acc[key] = value;
+        return acc;
+      }, {});
+
+    setColumnMutation({ loading: true, error: "", success: "" });
+    try {
+      let nextAsset = null;
+      const descriptionResponse = await updateAssetColumnDescription(asset.fqn, selectedColumnName, description);
+      nextAsset = descriptionResponse?.asset || nextAsset;
+      const tagsResponse = await updateAssetColumnTags(asset.fqn, selectedColumnName, tags);
+      nextAsset = tagsResponse?.asset || nextAsset;
+      if (nextAsset?.fqn) {
+        primeAssetDetail(nextAsset.fqn, nextAsset);
+        clearAssetSearchCache();
+        setLocalOverrides(nextAsset);
+      }
+      onGovernanceChange?.(descriptionResponse?.governance || tagsResponse?.governance || null);
+      setColumnMutation({ loading: false, error: "", success: "Column metadata saved." });
+    } catch (error) {
+      setColumnMutation({
+        loading: false,
+        error: error?.message || "Unable to save column metadata.",
+        success: "",
+      });
+    }
   };
 
   const openRelatedAsset = async (nextAssetFqn) => {
     if (!nextAssetFqn) return;
     if (linkedAssetAvailability[nextAssetFqn] !== true) return;
     const availabilityPromise = prefetchAssetAvailability([nextAssetFqn], { force: true });
-    const detailPromise = prefetchAssetDetail(nextAssetFqn, { force: true });
+    const detailPromise = prefetchAssetDetail(nextAssetFqn, {
+      force: true,
+      sections: ["header", "activity"],
+    });
     const availability = (await availabilityPromise)?.[nextAssetFqn] || null;
     const detail = await detailPromise;
     if (!canOpenLinkedAssetRecord(detail, availability)) return;
@@ -656,10 +959,15 @@ export default function EntityWorkspace({
     const availabilityState = linkedAssetAvailability[item];
     if (availabilityState !== true) {
       return (
-        <div className="gh-lineage-linked-row is-readonly" key={`${keyPrefix}-${item}`}>
+        <button
+          className="gh-lineage-linked-row is-readonly"
+          key={`${keyPrefix}-${item}`}
+          onClick={() => onOpenLineage(item, localLineageContext)}
+          type="button"
+        >
           <span>{item}</span>
-          <span>{availabilityState === false ? "Unavailable in catalog" : "Checking asset…"}</span>
-        </div>
+          <span>{availabilityState === false ? "Inspect in lineage" : "Checking asset…"}</span>
+        </button>
       );
     }
 
@@ -670,7 +978,7 @@ export default function EntityWorkspace({
         onClick={() => openRelatedAsset(item)}
         onMouseEnter={() => {
           prefetchAssetAvailability([item]);
-          prefetchAssetDetail(item);
+          prefetchAssetDetail(item, { sections: ["header"] });
         }}
         type="button"
       >
@@ -679,6 +987,32 @@ export default function EntityWorkspace({
       </button>
     );
   };
+
+  const selectedColumn =
+    liveColumns.find((column) => column.name === selectedColumnName) || liveColumns[0] || null;
+  const operationalContext =
+    operationalLoaded && asset.operationalContext
+      ? asset.operationalContext
+      : { producers: [], consumers: [] };
+  const lineageStats = lineagePayload?.stats || {};
+  const columnLineage = lineagePayload?.columnLineage || { upstream: [], downstream: [] };
+  const selectedColumnUpstream =
+    columnLineage.upstream.find((entry) => entry.column === selectedColumn?.name)?.sources || [];
+  const selectedColumnDownstream =
+    columnLineage.downstream.find((entry) => entry.column === selectedColumn?.name)?.targets || [];
+  const quickFacts = [
+    { label: "Catalog", value: asset.catalog || "—" },
+    { label: "Schema", value: asset.schema || "—" },
+    { label: "Rows", value: asset.rows || "—" },
+    { label: "Format", value: asset.storageFormat || "—" },
+    { label: "Size", value: asset.size || "—" },
+    { label: "Files", value: asset.files || "—" },
+    { label: "Owners", value: `${asset.ownerAssignments?.length || asset.owners?.length || 0}` },
+    {
+      label: "Queries",
+      value: operationalLoaded ? `${asset.usage?.queryCount || asset.queries?.length || 0}` : "—",
+    },
+  ];
 
   return (
     <section className="gh-workspace gh-entity-workspace">
@@ -722,6 +1056,7 @@ export default function EntityWorkspace({
             <div className="gh-support-copy gh-entity-record-summary">
               {asset.description || "No description has been captured for this asset yet."}
             </div>
+            <AttributeList items={quickFacts} />
             {detailUnavailable ? (
               <div className="gh-support-copy">
                 {assetDetail.error ||
@@ -819,39 +1154,13 @@ export default function EntityWorkspace({
               <section className="gh-panel gh-record-card">
                 <div className="gh-record-card-head">
                   <div>
-                    <div className="gh-panel-title">Schema Summary</div>
+                    <div className="gh-panel-title">Recent Activity</div>
                     <div className="gh-support-copy">
-                      {detailHydrating
-                        ? "Loading live schema metadata for this asset."
-                        : detailUnavailable
-                          ? "Live schema metadata is temporarily unavailable for this asset."
-                        : liveColumns.length
-                          ? `${liveColumns.length} columns surfaced from the live asset definition.`
-                        : "No schema metadata is available for this asset."}
+                      Change requests and review events tied to this record.
                     </div>
                   </div>
                 </div>
-                {detailHydrating ? (
-                  <div className="gh-empty-state">Loading schema metadata...</div>
-                ) : detailUnavailable ? (
-                  <div className="gh-empty-state">
-                    {assetDetail.error || "Live schema metadata is unavailable for this asset right now."}
-                  </div>
-                ) : liveColumns.length ? (
-                  <div className="gh-preview-column-list">
-                    {liveColumns.slice(0, 8).map((column) => (
-                      <div className="gh-preview-column-row" key={column.name}>
-                        <div>
-                          <strong>{column.name}</strong>
-                          <span>{column.type}</span>
-                        </div>
-                        <p>{column.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="gh-empty-state">No schema metadata is available for this asset.</div>
-                )}
+                <ActivityFeed items={(asset.activity || []).slice(0, 4)} onOpenGovernance={() => onOpenGovernance(asset.fqn)} />
               </section>
             </div>
 
@@ -859,13 +1168,13 @@ export default function EntityWorkspace({
               <section className="gh-panel gh-record-card">
                 <div className="gh-record-card-head">
                   <div>
-                    <div className="gh-panel-title">Stewardship Posture</div>
+                    <div className="gh-panel-title">Record Summary</div>
                     <div className="gh-support-copy">
-                      {completeness} of {tasks.length} core governance checks are complete for this asset.
+                      Catalog identity, storage shape, and immediate usage context.
                     </div>
                   </div>
                 </div>
-                <AttributeList items={recordIdentitySubset(asset, detailHydrating)} />
+                <AttributeList items={quickFacts} />
               </section>
 
               <section className="gh-panel gh-record-card">
@@ -874,6 +1183,17 @@ export default function EntityWorkspace({
                 </div>
                 <OwnerList owners={asset.owners} />
               </section>
+
+              <MetadataEditorPanel
+                asset={asset}
+                bootstrap={bootstrap}
+                dirty={metadataDirty}
+                draft={metadataDraft}
+                editor={editor}
+                onChange={handleMetadataChange}
+                onReset={resetMetadataDraft}
+                onSave={saveMetadata}
+              />
 
               <section className="gh-panel gh-record-card">
                 <div className="gh-record-card-head">
@@ -901,6 +1221,7 @@ export default function EntityWorkspace({
             embedded
             error={lineage.error}
             graphBundle={lineageBundle}
+            lineagePayload={lineagePayload}
             loading={lineageLoading}
             onAssetSearchQueryChange={() => {}}
             onContextChange={setLocalLineageContext}
@@ -917,84 +1238,132 @@ export default function EntityWorkspace({
           />
         ) : null}
 
-        {activeTab === "Governance" ? (
+        {activeTab === "Schema" ? (
           <div className="gh-entity-record-layout gh-entity-record-layout-governance">
-            <div className="gh-entity-record-primary">
-              <MetadataEditorPanel
-                asset={asset}
-                bootstrap={bootstrap}
-                dirty={metadataDirty}
-                draft={metadataDraft}
-                editor={editor}
-                onChange={handleMetadataChange}
-                onReset={resetMetadataDraft}
-                onSave={saveMetadata}
-              />
-            </div>
+            <section className="gh-panel gh-record-card">
+              <div className="gh-record-card-head">
+                <div>
+                  <div className="gh-panel-title">Schema</div>
+                  <div className="gh-support-copy">Column descriptions, tags, and glossary linkage.</div>
+                </div>
+              </div>
+              {schemaPending ? (
+                <div className="gh-empty-state">Loading schema metadata...</div>
+              ) : schemaUnavailable ? (
+                <div className="gh-empty-state">
+                  {assetDetail.error || "Live schema metadata is unavailable for this asset right now."}
+                </div>
+              ) : liveColumns.length ? (
+                <table className="gh-table">
+                  <thead>
+                    <tr>
+                      <th>Column</th>
+                      <th>Type</th>
+                      <th>Description</th>
+                      <th>Tags</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {liveColumns.map((column) => (
+                      <tr
+                        className={selectedColumn?.name === column.name ? "is-active" : ""}
+                        key={column.name}
+                        onClick={() => setSelectedColumnName(column.name)}
+                      >
+                        <td>{column.name}</td>
+                        <td>{column.type}</td>
+                        <td>{column.description}</td>
+                        <td>{column.tagLabels?.join(", ") || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="gh-empty-state">No schema metadata is available for this asset.</div>
+              )}
+            </section>
 
-            <div className="gh-entity-record-secondary">
+            <aside className="gh-entity-record-secondary">
               <section className="gh-panel gh-record-card">
                 <div className="gh-record-card-head">
                   <div>
-                    <div className="gh-panel-title">Governance Checklist</div>
+                    <div className="gh-panel-title">Selected Column</div>
                     <div className="gh-support-copy">
-                      Resolve the remaining stewardship gaps for this asset from the workbench.
+                      Update descriptions and tags directly against Unity Catalog.
                     </div>
                   </div>
                 </div>
-                <GovernanceGapRows items={tasks} onOpenGovernance={() => onOpenGovernance(asset.fqn)} />
+                {selectedColumn ? (
+                  <div className="gh-metadata-edit-form">
+                    <label className="gh-metadata-edit-field">
+                      <span>Description</span>
+                      <textarea
+                        className="gh-input gh-textarea"
+                        onChange={(event) => setColumnDraft((current) => ({ ...current, description: event.target.value }))}
+                        rows={4}
+                        value={columnDraft.description}
+                      />
+                    </label>
+                    <label className="gh-metadata-edit-field">
+                      <span>Tags</span>
+                      <input
+                        className="gh-input"
+                        onChange={(event) => setColumnDraft((current) => ({ ...current, tags: event.target.value }))}
+                        placeholder="domain=Finance, sensitivity=PII"
+                        value={columnDraft.tags}
+                      />
+                      <small>Comma-separated `key=value` pairs.</small>
+                    </label>
+                    {columnMutation.error ? <div className="gh-inline-alert tone-warn">{columnMutation.error}</div> : null}
+                    {columnMutation.success ? <div className="gh-inline-alert">{columnMutation.success}</div> : null}
+                    <div className="gh-record-form-actions">
+                      <button className="gh-primary-button" disabled={columnMutation.loading} onClick={saveColumnMetadata} type="button">
+                        {columnMutation.loading ? "Saving..." : "Save column"}
+                      </button>
+                    </div>
+                    <div className="gh-detail-section">
+                      <div className="gh-panel-title">Column Lineage</div>
+                      {selectedColumnUpstream.length || selectedColumnDownstream.length ? (
+                        <div className="gh-lineage-linked-list">
+                          {selectedColumnUpstream.map((item) => (
+                            <div className="gh-lineage-linked-row is-readonly" key={`up-${selectedColumn.name}-${item.assetFqn}-${item.column}`}>
+                              <span>{item.assetFqn}</span>
+                              <span>{item.column} → {selectedColumn.name}</span>
+                            </div>
+                          ))}
+                          {selectedColumnDownstream.map((item) => (
+                            <div className="gh-lineage-linked-row is-readonly" key={`down-${selectedColumn.name}-${item.assetFqn}-${item.column}`}>
+                              <span>{item.assetFqn}</span>
+                              <span>{selectedColumn.name} → {item.column}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="gh-empty-state">No column-level lineage was surfaced for this column.</div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="gh-empty-state">Select a column to inspect and edit it.</div>
+                )}
               </section>
-
-              <section className="gh-panel gh-record-card">
-                <div className="gh-record-card-head">
-                  <div className="gh-panel-title">Operational Metadata</div>
-                </div>
-                <AttributeList items={governancePostureSubset(asset, detailHydrating)} />
-              </section>
-            </div>
+            </aside>
           </div>
         ) : null}
 
-        {activeTab === "Schema" ? (
+        {activeTab === "Activity" ? (
           <section className="gh-panel gh-record-card">
             <div className="gh-record-card-head">
               <div>
-                <div className="gh-panel-title">Schema</div>
-                <div className="gh-support-copy">Column-level metadata for the selected asset.</div>
+                <div className="gh-panel-title">Activity & Tasks</div>
+                <div className="gh-support-copy">Review governance requests and approval activity for this asset.</div>
               </div>
             </div>
-            {detailHydrating ? (
-              <div className="gh-empty-state">Loading schema metadata...</div>
-            ) : detailUnavailable ? (
-              <div className="gh-empty-state">
-                {assetDetail.error || "Live schema metadata is unavailable for this asset right now."}
-              </div>
-            ) : liveColumns.length ? (
-              <table className="gh-table">
-                <thead>
-                  <tr>
-                    <th>Column</th>
-                    <th>Type</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {liveColumns.map((column) => (
-                    <tr key={column.name}>
-                      <td>{column.name}</td>
-                      <td>{column.type}</td>
-                      <td>{column.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="gh-empty-state">No schema metadata is available for this asset.</div>
-            )}
+            <ActivityFeed items={asset.activity || []} onOpenGovernance={() => onOpenGovernance(asset.fqn)} />
           </section>
         ) : null}
 
-        {activeTab === "Preview" ? (
+        {activeTab === "SampleData" ? (
           <section className="gh-panel gh-record-card">
             <div className="gh-record-card-head">
               <div>
@@ -1002,9 +1371,9 @@ export default function EntityWorkspace({
                 <div className="gh-support-copy">Sample rows returned from the live asset preview.</div>
               </div>
             </div>
-            {detailHydrating ? (
+            {previewPending ? (
               <div className="gh-empty-state">Loading preview rows...</div>
-            ) : detailUnavailable ? (
+            ) : previewUnavailable ? (
               <div className="gh-empty-state">
                 {assetDetail.error || "Live preview rows are unavailable for this asset right now."}
               </div>
@@ -1031,6 +1400,76 @@ export default function EntityWorkspace({
               <div className="gh-empty-state">No preview rows are available for this asset.</div>
             )}
           </section>
+        ) : null}
+
+        {activeTab === "Queries" ? (
+          operationalPending ? (
+            <section className="gh-panel gh-record-card">
+              <div className="gh-empty-state">Loading workload and operational context...</div>
+            </section>
+          ) : operationalUnavailable ? (
+            <section className="gh-panel gh-record-card">
+              <div className="gh-empty-state">
+                {assetDetail.error || "Live workload and operational context are unavailable for this asset right now."}
+              </div>
+            </section>
+          ) : (
+            <QueryRecords
+              consumers={operationalContext.consumers || []}
+              producers={operationalContext.producers || []}
+            />
+          )
+        ) : null}
+
+        {activeTab === "Profiler" ? (
+          <section className="gh-panel gh-record-card">
+            <div className="gh-record-card-head">
+              <div>
+                <div className="gh-panel-title">Profiler & Data Quality</div>
+                <div className="gh-support-copy">
+                  Live metadata quality signals derived from schema coverage, sample data, lineage, and governance posture.
+                </div>
+              </div>
+            <div className="gh-chip-row">
+              <span className="gh-chip gh-chip-soft">{lineageStats.upstreamCount || 0} upstream</span>
+              <span className="gh-chip gh-chip-soft">{lineageStats.downstreamCount || 0} downstream</span>
+              <span className="gh-chip gh-chip-soft">{asset.profiler?.summary?.producerCount || 0} producers</span>
+              <span className="gh-chip gh-chip-soft">{asset.profiler?.summary?.consumerCount || 0} consumers</span>
+            </div>
+            </div>
+            {profilerPending ? (
+              <div className="gh-empty-state">Loading profiler and metadata quality signals...</div>
+            ) : profilerUnavailable ? (
+              <div className="gh-empty-state">
+                {assetDetail.error || "Live profiler and metadata quality signals are unavailable for this asset right now."}
+              </div>
+            ) : (
+              <ProfilerCards cards={asset.profiler?.cards || []} />
+            )}
+          </section>
+        ) : null}
+
+        {activeTab === "CustomProperties" ? (
+          propertiesPending ? (
+            <section className="gh-panel gh-record-card">
+              <div className="gh-empty-state">Loading custom properties and constraints...</div>
+            </section>
+          ) : propertiesUnavailable ? (
+            <section className="gh-panel gh-record-card">
+              <div className="gh-empty-state">
+                {assetDetail.error || "Live custom properties are unavailable for this asset right now."}
+              </div>
+            </section>
+          ) : (
+            <div className="gh-entity-record-layout gh-entity-record-layout-governance">
+              <PropertyList title="Custom Properties" items={asset.customProperties || []} />
+              <PropertyList
+                title="Constraints"
+                items={asset.constraints || []}
+                renderValue={(item) => item.columns?.length ? `${item.type} • ${item.columns.join(", ")}` : item.type}
+              />
+            </div>
+          )
         ) : null}
       </section>
     </section>

@@ -3,6 +3,10 @@ import { fetchDiscoverySearch } from "../lib/api";
 
 const SEARCH_CACHE = new Map();
 
+export function clearAssetSearchCache() {
+  SEARCH_CACHE.clear();
+}
+
 function normalizeSearchText(...values) {
   return values
     .join(" ")
@@ -27,6 +31,8 @@ function localSearchScore(asset, trimmedQuery) {
     asset?.certification,
     asset?.sensitivity,
     asset?.objectType,
+    ...(asset?.tags || []),
+    ...((asset?.owners || []).flatMap((owner) => [owner?.name, owner?.email, owner?.title])),
   );
   if (!terms.every((term) => haystack.includes(term))) return 0;
 

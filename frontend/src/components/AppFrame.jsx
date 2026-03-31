@@ -147,10 +147,10 @@ export default function AppFrame({
   const openSearchResult = async (assetFqn) => {
     if (!assetFqn) return;
     const availabilityPromise = prefetchAssetAvailability([assetFqn]);
-    const detailPromise = prefetchAssetDetail(assetFqn);
+    const detailPromise = prefetchAssetDetail(assetFqn, { sections: ["header", "activity"] });
     const availability = (await availabilityPromise)?.[assetFqn] || null;
     const detail = await detailPromise;
-    if (!canOpenAssetRecord(detail, availability)) return;
+    if (availability?.openable === false && !canOpenAssetRecord(detail, availability)) return;
     onSearchResultSelect?.(assetFqn);
   };
 
