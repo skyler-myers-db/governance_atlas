@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import importlib
 import math
 import re
 import time
-from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
 
 from govhub.uc import _is_skippable_metadata_error
+from govhub.services import live_metadata as metadata_service
 
 
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
@@ -26,45 +25,25 @@ ASSET_DETAIL_SECTIONS = (
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
 
+cached_asset_inventory = metadata_service.cached_asset_inventory
+cached_catalog_inventory = metadata_service.cached_catalog_inventory
+cached_catalog_table_tags = metadata_service.cached_catalog_table_tags
+cached_catalogs = metadata_service.cached_catalogs
+cached_comment = metadata_service.cached_comment
+cached_columns = metadata_service.cached_columns
+cached_table_detail = metadata_service.cached_table_detail
+cached_table_row_count = metadata_service.cached_table_row_count
+cached_sample_rows = metadata_service.cached_sample_rows
+cached_lineage_up = metadata_service.cached_lineage_up
+cached_lineage_down = metadata_service.cached_lineage_down
 
-@lru_cache(maxsize=1)
-def _legacy_streamlit():
-    return importlib.import_module("app")
-
-
-def _legacy_attr(name: str):
-    return getattr(_legacy_streamlit(), name)
-
-
-def _legacy_callable(name: str, *, raw: bool = False):
-    def _call(*args, **kwargs):
-        fn = _legacy_attr(name)
-        if raw:
-            fn = getattr(fn, "__wrapped__", fn)
-        return fn(*args, **kwargs)
-
-    return _call
-
-
-cached_asset_inventory = _legacy_callable("_cached_asset_inventory", raw=True)
-cached_catalog_inventory = _legacy_callable("_cached_catalog_inventory", raw=True)
-cached_catalog_table_tags = _legacy_callable("_cached_catalog_table_tags", raw=True)
-cached_catalogs = _legacy_callable("_cached_catalogs", raw=True)
-cached_comment = _legacy_callable("_cached_comment", raw=True)
-cached_columns = _legacy_callable("_cached_columns", raw=True)
-cached_table_detail = _legacy_callable("_cached_table_detail", raw=True)
-cached_table_row_count = _legacy_callable("_cached_table_row_count", raw=True)
-cached_sample_rows = _legacy_callable("_cached_sample_rows", raw=True)
-cached_lineage_up = _legacy_callable("_cached_lineage_up", raw=True)
-cached_lineage_down = _legacy_callable("_cached_lineage_down", raw=True)
-
-normalize_str = _legacy_callable("_normalize_str")
-filter_asset_rows = _legacy_callable("_filter_asset_rows")
-split_uc_name = _legacy_callable("_split_uc_name")
-catalog_filter_options = _legacy_callable("_catalog_filter_options")
-tag_value = _legacy_callable("_tag_value")
-lineage_asset_stub = _legacy_callable("_lineage_asset_stub")
-empty_inventory = _legacy_callable("_empty_inventory")
+normalize_str = metadata_service.normalize_str
+filter_asset_rows = metadata_service.filter_asset_rows
+split_uc_name = metadata_service.split_uc_name
+catalog_filter_options = metadata_service.catalog_filter_options
+tag_value = metadata_service.tag_value
+lineage_asset_stub = metadata_service.lineage_asset_stub
+empty_inventory = metadata_service.empty_inventory
 
 
 def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
@@ -82,16 +61,19 @@ def _warehouse_key(uc: Any) -> str:
 
 
 def invalidate_asset_caches(asset_fqn: str | None = None) -> None:
-    if asset_fqn is None:
-        _TTL_CACHE.clear()
-        return
-    suffix = f":{normalize_str(asset_fqn)}"
+    metadata_service.invalidate_live_metadata_caches(asset_fqn)
     for key in list(_TTL_CACHE):
-        if key.startswith("inventory:") or key.startswith("visible_assets:"):
+        if key.startswith("inventory:") or key.startswith("visible_assets:") or key.startswith("discovery_index:"):
             _TTL_CACHE.pop(key, None)
             continue
-        if key.startswith("asset_detail:") and suffix in key:
+        if asset_fqn and key.startswith("asset_detail:") and normalize_str(asset_fqn) in key:
             _TTL_CACHE.pop(key, None)
+    try:
+        from govhub.services import lineage as lineage_service
+
+        lineage_service.invalidate_lineage_caches(asset_fqn)
+    except Exception:
+        pass
 
 
 def inventory_catalogs(uc, hidden_catalogs: Sequence[str]) -> List[str]:
@@ -100,16 +82,6 @@ def inventory_catalogs(uc, hidden_catalogs: Sequence[str]) -> List[str]:
         values.update(cached_catalogs(uc))
     except Exception:
         pass
-    try:
-        df = uc.list_lineage_catalogs()
-    except Exception:
-        df = pd.DataFrame()
-    if df is not None and not df.empty:
-        values.update(
-            normalize_str(value)
-            for value in df.iloc[:, 0].tolist()
-            if normalize_str(value)
-        )
     hidden = {str(value).lower() for value in hidden_catalogs}
     return sorted(value for value in values if value and value.lower() not in hidden)
 
@@ -804,12 +776,12 @@ def normalized_search_text(*values: Any) -> str:
     return re.sub(r"\s+", " ", normalized).strip()
 
 
-def discovery_match_score(asset: Dict[str, Any], query: str) -> int:
+def discovery_match_score(asset: Dict[str, Any], query: str, *, haystack: str = "") -> int:
     q = normalized_search_text(query)
     if not q:
         return 0
     terms = [term for term in q.split(" ") if term]
-    haystack = discovery_result_haystack(asset)
+    haystack = haystack or discovery_result_haystack(asset)
     if not all(term in haystack for term in terms):
         return 0
 
@@ -948,6 +920,47 @@ def sort_discovery_assets(
     return sorted(assets, key=_best_match_key, reverse=True)
 
 
+def _discovery_index_key(uc: Any) -> str:
+    return f"discovery_index:{_warehouse_key(uc)}"
+
+
+def _discovery_index(
+    inventory_or_uc,
+    store=None,
+    *,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> List[Dict[str, Any]]:
+    inventory = _resolve_inventory_df(
+        inventory_or_uc,
+        store,
+        hidden_catalogs=hidden_catalogs,
+    )
+    entries: List[Dict[str, Any]] = []
+    for _, row in inventory.iterrows():
+        asset = base_asset_payload(row)
+        entries.append({"asset": asset, "haystack": discovery_result_haystack(asset)})
+    return entries
+
+
+def cached_discovery_index(
+    inventory_or_uc,
+    store=None,
+    *,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> List[Dict[str, Any]]:
+    if isinstance(inventory_or_uc, pd.DataFrame):
+        return _discovery_index(inventory_or_uc, store, hidden_catalogs=hidden_catalogs)
+    return _ttl_value(
+        _discovery_index_key(inventory_or_uc),
+        300,
+        lambda: _discovery_index(
+            inventory_or_uc,
+            store,
+            hidden_catalogs=hidden_catalogs,
+        ),
+    )
+
+
 def discovery_search_payload(
     inventory_or_uc,
     store=None,
@@ -965,12 +978,11 @@ def discovery_search_payload(
     offset: int = 0,
     hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
 ) -> Dict[str, Any]:
-    inventory = _resolve_inventory_df(
+    index_entries = cached_discovery_index(
         inventory_or_uc,
         store,
         hidden_catalogs=hidden_catalogs,
     )
-    assets = [base_asset_payload(row) for _, row in inventory.iterrows()]
     query_text = normalize_str(query)
     selected_views = normalize_filter_values(views, "All assets")
     selected_catalogs = normalize_filter_values(catalogs, "All catalogs")
@@ -981,8 +993,9 @@ def discovery_search_payload(
     selected_types = normalize_filter_values(asset_types, "All types")
 
     matched_assets: List[Dict[str, Any]] = []
-    for asset in assets:
-        if query_text and discovery_match_score(asset, query_text) <= 0:
+    for entry in index_entries:
+        asset = entry["asset"]
+        if query_text and discovery_match_score(asset, query_text, haystack=entry.get("haystack", "")) <= 0:
             continue
         matched_assets.append(asset)
 

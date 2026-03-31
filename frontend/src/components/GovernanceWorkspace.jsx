@@ -1,13 +1,48 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { primeAssetDetail, useAssetDetail } from "../hooks/useAssetDetail";
+import {
+  canOpenAssetRecord,
+  prefetchAssetAvailability,
+  prefetchAssetDetail,
+  primeAssetDetail,
+  useAssetDetail,
+} from "../hooks/useAssetDetail";
 import { clearAssetSearchCache, useAssetSearch } from "../hooks/useAssetSearch";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import {
   createGovernanceRequest,
+  updateGovernanceGlossaryTerm,
   updateGovernanceRequest,
   upsertGovernanceGlossaryTerm,
   upsertGovernanceOwner,
 } from "../lib/api";
+
+function governanceIdentityPrefix(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function requestIdentity(item, index) {
+  const requestId = String(item?.requestId || "").trim();
+  if (requestId) return requestId;
+  const basis = [item?.assetFqn || item?.asset || "", item?.title || "", item?.status || ""]
+    .map((value) => governanceIdentityPrefix(value))
+    .filter(Boolean)
+    .join("-");
+  return basis ? `request-${basis}` : `request-${index}`;
+}
+
+function glossaryIdentity(item, index) {
+  const termId = String(item?.termId || "").trim();
+  if (termId) return termId;
+  const basis = [item?.title || "", item?.subtitle || ""]
+    .map((value) => governanceIdentityPrefix(value))
+    .filter(Boolean)
+    .join("-");
+  return basis ? `glossary-${basis}` : `glossary-${index}`;
+}
 
 function governanceViews(governance) {
   const backlog = governance?.backlog || [];
@@ -15,16 +50,21 @@ function governanceViews(governance) {
 
   return {
     requests: backlog.map((item, index) => ({
-      id: item.requestId || `request-${index}`,
+      id: requestIdentity(item, index),
       requestId: item.requestId || "",
       title: item.title,
       subtitle: item.asset,
       assetFqn: item.assetFqn || item.asset,
       status: item.status,
       detail: item.note,
+      createdAt: item.createdAt || "",
+      createdBy: item.createdBy || "",
+      reviewedAt: item.reviewedAt || "",
+      reviewedBy: item.reviewedBy || "",
+      reviewNote: item.reviewNote || "",
     })),
     glossary: glossary.map((item, index) => ({
-      id: `glossary-${index}`,
+      id: glossaryIdentity(item, index),
       termId: item.termId,
       title: item.term,
       subtitle: item.domain || "Unassigned",
@@ -33,6 +73,17 @@ function governanceViews(governance) {
       ownerEmail: item.ownerEmail || "Unassigned",
       assetCount: item.assetCount || 0,
       assets: item.assets || [],
+      createdAt: item.createdAt || "",
+      createdBy: item.createdBy || "",
+      updatedAt: item.updatedAt || "",
+      updatedBy: item.updatedBy || "",
+      requestCount: item.requestCount || 0,
+      pendingRequestCount: item.pendingRequestCount || 0,
+      approvedRequestCount: item.approvedRequestCount || 0,
+      rejectedRequestCount: item.rejectedRequestCount || 0,
+      reviewers: item.reviewers || [],
+      assetPreview: item.assetPreview || [],
+      recentRequests: item.recentRequests || [],
     })),
   };
 }
@@ -166,6 +217,16 @@ export default function GovernanceWorkspace({
   const [requestNote, setRequestNote] = useState("");
   const [glossaryName, setGlossaryName] = useState("");
   const [glossaryDefinition, setGlossaryDefinition] = useState("");
+  const [glossaryDomain, setGlossaryDomain] = useState("");
+  const [glossaryOwnerEmail, setGlossaryOwnerEmail] = useState("");
+  const [glossaryStatus, setGlossaryStatus] = useState("draft");
+  const [glossaryDraft, setGlossaryDraft] = useState({
+    name: "",
+    definition: "",
+    domain: "",
+    ownerEmail: "",
+    status: "draft",
+  });
   const [mutationState, setMutationState] = useState({
     kind: "",
     loading: false,
@@ -252,6 +313,7 @@ export default function GovernanceWorkspace({
     });
   }, [glossaryCollection, glossaryQuery, views.glossary]);
   const selectedGlossary = glossaryItems.find((item) => item.id === selectedGlossaryId) || null;
+  const selectedGlossaryRequests = selectedGlossary?.recentRequests || [];
   const focusedAssetAttributes = focusedAsset
     ? [
         { label: "Domain", value: focusedAsset.domain || "Unassigned" },
@@ -260,6 +322,18 @@ export default function GovernanceWorkspace({
         { label: "Sensitivity", value: focusedAsset.sensitivity || "Unassigned" },
         { label: "Coverage", value: `${focusedAsset.coverageScore ?? 0}` },
         { label: "Requests", value: `${focusedAsset.openRequests ?? 0}` },
+      ]
+    : [];
+  const selectedGlossaryAttributes = selectedGlossary
+    ? [
+        { label: "Domain", value: selectedGlossary.subtitle || "Unassigned" },
+        { label: "Owner", value: selectedGlossary.ownerEmail || "Unassigned" },
+        { label: "Status", value: selectedGlossary.status || "Draft" },
+        { label: "Assets", value: `${selectedGlossary.assetCount || 0}` },
+        { label: "Requests", value: `${selectedGlossary.requestCount || 0}` },
+        { label: "Reviewers", value: `${selectedGlossary.reviewers?.length || 0}` },
+        { label: "Created", value: selectedGlossary.createdAt || "—" },
+        { label: "Updated", value: selectedGlossary.updatedAt || "—" },
       ]
     : [];
 
@@ -281,6 +355,26 @@ export default function GovernanceWorkspace({
     if (glossaryCollectionsList.some((item) => item.key === glossaryCollection)) return;
     setGlossaryCollection("All terms");
   }, [glossaryCollection, glossaryCollectionsList]);
+
+  useEffect(() => {
+    if (!selectedGlossary) {
+      setGlossaryDraft({
+        name: "",
+        definition: "",
+        domain: "",
+        ownerEmail: "",
+        status: "draft",
+      });
+      return;
+    }
+    setGlossaryDraft({
+      name: selectedGlossary.title || "",
+      definition: selectedGlossary.detail || "",
+      domain: selectedGlossary.subtitle || "",
+      ownerEmail: selectedGlossary.ownerEmail && selectedGlossary.ownerEmail !== "Unassigned" ? selectedGlossary.ownerEmail : "",
+      status: String(selectedGlossary.status || "draft").toLowerCase(),
+    });
+  }, [selectedGlossary]);
 
   useEffect(() => {
     if (!assetSearchQuery.trim()) return undefined;
@@ -308,6 +402,9 @@ export default function GovernanceWorkspace({
     setRequestNote("");
     setGlossaryName("");
     setGlossaryDefinition("");
+    setGlossaryDomain("");
+    setGlossaryOwnerEmail("");
+    setGlossaryStatus("draft");
     setMutationState({ kind: "", loading: false, error: "", success: "" });
   }, [focusedAssetFqn]);
 
@@ -326,6 +423,7 @@ export default function GovernanceWorkspace({
       setLiveGovernance(nextGovernance);
       onGovernanceChange?.(nextGovernance);
       setMutationState({ kind, loading: false, error: "", success });
+      return next;
     } catch (error) {
       setMutationState({
         kind,
@@ -333,7 +431,43 @@ export default function GovernanceWorkspace({
         error: error?.message || "Unable to update governance right now.",
         success: "",
       });
+      throw error;
     }
+  };
+
+  const openAssetSafely = async (assetFqn) => {
+    if (!assetFqn) return;
+    try {
+      const [availabilityMap, detail] = await Promise.all([
+        prefetchAssetAvailability([assetFqn], { force: true }),
+        prefetchAssetDetail(assetFqn, {
+          force: true,
+          sections: ["header", "activity"],
+        }),
+      ]);
+      const availability = availabilityMap?.[assetFqn] || null;
+      if (!canOpenAssetRecord(detail, availability)) return;
+      onOpenAsset(assetFqn);
+    } catch {
+      return;
+    }
+  };
+
+  const saveSelectedGlossaryTerm = async () => {
+    if (!selectedGlossary?.termId) return;
+    await runGovernanceMutation(
+      "glossary-update",
+      () =>
+        updateGovernanceGlossaryTerm(selectedGlossary.termId, {
+          termId: selectedGlossary.termId,
+          name: glossaryDraft.name.trim(),
+          definition: glossaryDraft.definition.trim(),
+          domain: glossaryDraft.domain.trim(),
+          ownerEmail: glossaryDraft.ownerEmail.trim(),
+          status: String(glossaryDraft.status || "draft").trim().toLowerCase() || "draft",
+        }),
+      "Glossary term updated.",
+    );
   };
 
   return (
@@ -496,6 +630,15 @@ export default function GovernanceWorkspace({
                     <h2>{selectedItem.title}</h2>
                     <div className="gh-support-copy">{selectedItem.subtitle}</div>
                     <div className="gh-support-copy">{selectedItem.detail}</div>
+                    <div className="gh-chip-row">
+                      {selectedItem.createdAt ? <span className="gh-chip gh-chip-soft">Created {selectedItem.createdAt}</span> : null}
+                      {selectedItem.createdBy ? <span className="gh-chip gh-chip-soft">By {selectedItem.createdBy}</span> : null}
+                      {selectedItem.reviewedAt ? <span className="gh-chip gh-chip-soft">Reviewed {selectedItem.reviewedAt}</span> : null}
+                      {selectedItem.reviewedBy ? <span className="gh-chip gh-chip-soft">By {selectedItem.reviewedBy}</span> : null}
+                    </div>
+                    {selectedItem.reviewNote ? (
+                      <div className="gh-support-copy">{selectedItem.reviewNote}</div>
+                    ) : null}
                     {selectedItem.assetFqn ? (
                       <div className="gh-action-grid">
                         <button
@@ -513,7 +656,7 @@ export default function GovernanceWorkspace({
                         </button>
                         <button
                           className="gh-secondary-button"
-                          onClick={() => onOpenAsset(selectedItem.assetFqn)}
+                          onClick={() => openAssetSafely(selectedItem.assetFqn)}
                           type="button"
                         >
                           Open asset
@@ -671,6 +814,26 @@ export default function GovernanceWorkspace({
                             rows={3}
                             value={glossaryDefinition}
                           />
+                          <div className="gh-form-inline">
+                            <input
+                              className="gh-input"
+                              onChange={(event) => setGlossaryDomain(event.target.value)}
+                              placeholder="Domain"
+                              value={glossaryDomain}
+                            />
+                            <input
+                              className="gh-input"
+                              onChange={(event) => setGlossaryOwnerEmail(event.target.value)}
+                              placeholder="Owner email"
+                              value={glossaryOwnerEmail}
+                            />
+                          </div>
+                          <input
+                            className="gh-input"
+                            onChange={(event) => setGlossaryStatus(event.target.value)}
+                            placeholder="draft"
+                            value={glossaryStatus}
+                          />
                           <button
                             className="gh-secondary-button gh-secondary-button-compact"
                             disabled={!glossaryName.trim() || mutationState.loading}
@@ -681,11 +844,21 @@ export default function GovernanceWorkspace({
                                   upsertGovernanceGlossaryTerm({
                                     name: glossaryName.trim(),
                                     definition: glossaryDefinition.trim(),
+                                    domain: glossaryDomain.trim(),
+                                    ownerEmail: glossaryOwnerEmail.trim(),
+                                    status: String(glossaryStatus || "draft").trim().toLowerCase() || "draft",
                                   }),
                                 "Glossary term saved.",
-                              ).then(() => {
+                              ).then((next) => {
                                 setGlossaryName("");
                                 setGlossaryDefinition("");
+                                setGlossaryDomain("");
+                                setGlossaryOwnerEmail("");
+                                setGlossaryStatus("draft");
+                                if (next?.termId) {
+                                  setMode("glossary");
+                                  setSelectedGlossaryId(next.termId);
+                                }
                               })
                             }
                             type="button"
@@ -739,7 +912,7 @@ export default function GovernanceWorkspace({
                 <div className="gh-action-grid">
                   {focusedAsset ? (
                     <>
-                      <button className="gh-secondary-button" onClick={() => onOpenAsset(focusedAsset.fqn)} type="button">
+                      <button className="gh-secondary-button" onClick={() => openAssetSafely(focusedAsset.fqn)} type="button">
                         Open asset
                       </button>
                       <button
@@ -843,7 +1016,7 @@ export default function GovernanceWorkspace({
                         </button>
                         <button
                           className="gh-secondary-button"
-                          onClick={() => onOpenAsset(selectedItem.assetFqn)}
+                          onClick={() => openAssetSafely(selectedItem.assetFqn)}
                           type="button"
                         >
                           Open asset
@@ -1020,9 +1193,155 @@ export default function GovernanceWorkspace({
                     <span className="gh-chip gh-chip-soft">{selectedGlossary.ownerEmail}</span>
                   </div>
                 </div>
+                <AttributeList items={selectedGlossaryAttributes} />
+                {selectedGlossary.reviewers?.length ? (
+                  <section className="gh-detail-section">
+                    <div className="gh-panel-title">Recent reviewers</div>
+                    <div className="gh-chip-row">
+                      {selectedGlossary.reviewers.map((reviewer) => (
+                        <span className="gh-chip gh-chip-soft" key={reviewer}>
+                          {reviewer}
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                ) : null}
+                <section className="gh-detail-section">
+                  <div className="gh-panel-title">Edit term</div>
+                  <div className="gh-form-stack">
+                    <label className="gh-metadata-edit-field">
+                      <span>Term name</span>
+                      <input
+                        className="gh-input"
+                        onChange={(event) => setGlossaryDraft((current) => ({ ...current, name: event.target.value }))}
+                        value={glossaryDraft.name}
+                      />
+                    </label>
+                    <label className="gh-metadata-edit-field">
+                      <span>Definition</span>
+                      <textarea
+                        className="gh-input gh-textarea"
+                        onChange={(event) =>
+                          setGlossaryDraft((current) => ({ ...current, definition: event.target.value }))
+                        }
+                        rows={4}
+                        value={glossaryDraft.definition}
+                      />
+                    </label>
+                    <div className="gh-form-inline">
+                      <label className="gh-metadata-edit-field">
+                        <span>Domain</span>
+                        <input
+                          className="gh-input"
+                          onChange={(event) =>
+                            setGlossaryDraft((current) => ({ ...current, domain: event.target.value }))
+                          }
+                          value={glossaryDraft.domain}
+                        />
+                      </label>
+                      <label className="gh-metadata-edit-field">
+                        <span>Owner email</span>
+                        <input
+                          className="gh-input"
+                          onChange={(event) =>
+                            setGlossaryDraft((current) => ({ ...current, ownerEmail: event.target.value }))
+                          }
+                          value={glossaryDraft.ownerEmail}
+                        />
+                      </label>
+                    </div>
+                    <label className="gh-metadata-edit-field">
+                      <span>Status</span>
+                      <input
+                        className="gh-input"
+                        onChange={(event) =>
+                          setGlossaryDraft((current) => ({ ...current, status: event.target.value }))
+                        }
+                        placeholder="draft"
+                        value={glossaryDraft.status}
+                      />
+                    </label>
+                    {mutationState.error ? (
+                      <div className="gh-inline-alert tone-warn">
+                        <div>{mutationState.error}</div>
+                      </div>
+                    ) : null}
+                    {mutationState.success && mutationState.kind === "glossary-update" ? (
+                      <div className="gh-support-copy gh-success-copy">{mutationState.success}</div>
+                    ) : null}
+                    <div className="gh-record-form-actions">
+                      <button
+                        className="gh-primary-button"
+                        disabled={!selectedGlossary.termId || mutationState.loading || !glossaryDraft.name.trim()}
+                        onClick={saveSelectedGlossaryTerm}
+                        type="button"
+                      >
+                        {mutationState.kind === "glossary-update" && mutationState.loading ? "Saving..." : "Save term"}
+                      </button>
+                    </div>
+                  </div>
+                </section>
+                <section className="gh-detail-section">
+                  <div className="gh-panel-title">Recent activity</div>
+                  {selectedGlossaryRequests.length ? (
+                    <div className="gh-request-list gh-request-list-dense gh-governance-glossary-list">
+                      {selectedGlossaryRequests.map((request) => (
+                        <div className="gh-request-card gh-request-row is-readonly" key={request.requestId || request.createdAt || request.title}>
+                          <div className="gh-request-card-topline">
+                            <div>
+                              <div className="gh-request-title">{request.title}</div>
+                              <div className="gh-request-meta">
+                                {request.createdAt || "Unknown time"} · {request.createdBy || "Unknown author"}
+                              </div>
+                            </div>
+                            <div className="gh-chip-row">
+                              <span className="gh-chip gh-chip-soft">{request.status}</span>
+                              {request.reviewedBy ? <span className="gh-chip gh-chip-soft">{request.reviewedBy}</span> : null}
+                            </div>
+                          </div>
+                          <div className="gh-support-copy">{request.reviewNote || request.detail}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="gh-empty-state">No recent requests are linked to this term yet.</div>
+                  )}
+                </section>
                 <section className="gh-detail-section">
                   <div className="gh-panel-title">Linked assets</div>
-                  {selectedGlossary.assets?.length ? (
+                  {selectedGlossary.assetPreview?.length ? (
+                    <div className="gh-governance-linked-list">
+                      {selectedGlossary.assetPreview.map((asset) => (
+                        <div className="gh-governance-linked-row" key={asset.fqn}>
+                          <div>
+                            <button
+                              className="gh-filter-chip gh-chip-soft"
+                              onClick={() => {
+                                setMode("stewardship");
+                                focusAsset(asset.fqn, { syncRoute: true });
+                              }}
+                              type="button"
+                            >
+                              {asset.name || asset.fqn?.split(".").slice(-1)[0]}
+                            </button>
+                            <div className="gh-support-copy">
+                              {asset.catalog} / {asset.schema} · {asset.domain || "Unassigned"} · {asset.tier || "Unassigned"}
+                            </div>
+                          </div>
+                          <div className="gh-chip-row">
+                            <span className="gh-chip gh-chip-soft">{asset.governanceStatus || "Needs Work"}</span>
+                            <button
+                              className="gh-secondary-button gh-inline-action"
+                              onClick={() => openAssetSafely(asset.fqn)}
+                              type="button"
+                            >
+                              Open asset
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : selectedGlossary.assets?.length ? (
                     <div className="gh-governance-linked-list">
                       {selectedGlossary.assets.map((assetFqn) => (
                         <div className="gh-governance-linked-row" key={assetFqn}>
@@ -1038,7 +1357,7 @@ export default function GovernanceWorkspace({
                           </button>
                           <button
                             className="gh-secondary-button gh-inline-action"
-                            onClick={() => onOpenAsset(assetFqn)}
+                            onClick={() => openAssetSafely(assetFqn)}
                             type="button"
                           >
                             Open asset

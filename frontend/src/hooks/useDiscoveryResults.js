@@ -94,16 +94,23 @@ export function useDiscoveryResults(filters, seededAssets = []) {
         })
         .catch((error) => {
           if (canceled) return;
-          setState({
-            loading: false,
-            error: error?.message || "Failed to search metadata assets.",
-            assets: [],
-            count: 0,
-            facets: null,
-            requestKey: nextRequestKey,
-            seededSignature,
-            settled: true,
-            authoritative: false,
+          setState((current) => {
+            const fallbackAssets = current.assets?.length
+              ? current.assets
+              : useSeeded
+                ? seededAssets
+                : [];
+            return {
+              loading: false,
+              error: error?.message || "Failed to search metadata assets.",
+              assets: fallbackAssets,
+              count: fallbackAssets.length ? current.count || fallbackAssets.length : 0,
+              facets: current.facets || null,
+              requestKey: nextRequestKey,
+              seededSignature,
+              settled: true,
+              authoritative: false,
+            };
           });
         });
     }, 60);

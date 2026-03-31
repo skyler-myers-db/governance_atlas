@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import importlib
 import time
-from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -10,34 +8,7 @@ import pandas as pd
 from govhub.uc import UCSQLClient
 
 from govhub.services import assets as asset_service
-
-
-@lru_cache(maxsize=1)
-def _legacy_streamlit():
-    return importlib.import_module("app")
-
-
-def _legacy_attr(name: str) -> Callable[..., Any]:
-    return getattr(_legacy_streamlit(), name)
-
-
-def _legacy_callable(name: str, *, raw: bool = False) -> Callable[..., Any]:
-    def _call(*args, **kwargs):
-        fn = _legacy_attr(name)
-        if raw:
-            fn = getattr(fn, "__wrapped__", fn)
-        return fn(*args, **kwargs)
-
-    return _call
-
-
-_cached_lineage_up = _legacy_callable("_cached_lineage_up", raw=True)
-_cached_lineage_down = _legacy_callable("_cached_lineage_down", raw=True)
-_cached_operational_context_up = _legacy_callable("_cached_operational_context_up", raw=True)
-_cached_operational_context_down = _legacy_callable("_cached_operational_context_down", raw=True)
-
-enrich_operational_context_names = _legacy_callable("_enrich_operational_context_names")
-summarize_operational_context = _legacy_callable("_summarize_operational_context")
+from govhub.services import live_metadata as metadata_service
 
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
@@ -292,7 +263,7 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
     )
     try:
         upstream_df = asset_service.filter_asset_rows(
-            _cached_lineage_up(uc, catalog, schema, table),
+            metadata_service.cached_lineage_up(uc, catalog, schema, table),
             ["source_table_name", "source_table_full_name"],
             exclude_fqn=asset_fqn,
         )
@@ -300,7 +271,7 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
         upstream_df = pd.DataFrame()
     try:
         downstream_df = asset_service.filter_asset_rows(
-            _cached_lineage_down(uc, catalog, schema, table),
+            metadata_service.cached_lineage_down(uc, catalog, schema, table),
             ["target_table_name", "target_table_full_name"],
             exclude_fqn=asset_fqn,
         )
@@ -378,16 +349,16 @@ def build_operational_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict
         depth=0,
     )
     try:
-        upstream_df = enrich_operational_context_names(
+        upstream_df = metadata_service.enrich_operational_context_names(
             uc,
-            _cached_operational_context_up(uc, catalog, schema, table),
+            metadata_service.cached_operational_context_up(uc, catalog, schema, table),
         )
     except Exception:
         upstream_df = pd.DataFrame()
     try:
-        downstream_df = enrich_operational_context_names(
+        downstream_df = metadata_service.enrich_operational_context_names(
             uc,
-            _cached_operational_context_down(uc, catalog, schema, table),
+            metadata_service.cached_operational_context_down(uc, catalog, schema, table),
         )
     except Exception:
         downstream_df = pd.DataFrame()

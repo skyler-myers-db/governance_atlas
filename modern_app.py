@@ -329,6 +329,8 @@ def _invalidate_asset_caches(asset_fqn: str) -> None:
     _TTL_CACHE.pop(f"modern_asset:{asset_fqn}", None)
     _TTL_CACHE.pop(f"modern_lineage:{asset_fqn}", None)
     _invalidate_cache_prefix("modern_inventory:")
+    _invalidate_cache_prefix("modern_bootstrap_inventory_summary:")
+    _invalidate_cache_prefix("modern_bootstrap_seed_assets:")
     _invalidate_cache_prefix("modern_bootstrap_base:")
     _TTL_CACHE.pop("modern_governance", None)
 
@@ -738,6 +740,96 @@ def _bootstrap_seed_inventory_assets(
     return seeded_assets
 
 
+def _bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
+    normalized_scope = _normalize_str(cache_scope) or "shared"
+
+    def load() -> Dict[str, Any]:
+        inventory = _visible_assets(normalized_scope)
+        available_catalogs = _inventory_catalogs()
+        observed_catalogs = _lineage_observed_catalogs()
+        catalogs = asset_service.catalog_filter_options(
+            inventory,
+            available_catalogs=available_catalogs,
+            observed_catalogs=observed_catalogs,
+        )
+        asset_types = _inventory_option_values(
+            inventory,
+            lambda row: asset_service.friendly_table_type(
+                row.get("table_type"),
+                row.get("data_source_format"),
+            ),
+        )
+        domains = _inventory_option_values(inventory, lambda row: row.get("domain"))
+        tiers = _inventory_option_values(inventory, lambda row: row.get("tier"))
+        certifications = _inventory_option_values(inventory, lambda row: row.get("certification"))
+        sensitivities = _inventory_option_values(inventory, lambda row: row.get("sensitivity"))
+        governance_gaps = sum(
+            1
+            for _, row in inventory.iterrows()
+            if _normalize_str(row.get("governance_status")) == "Needs Work"
+        )
+        certified_assets = sum(
+            1
+            for _, row in inventory.iterrows()
+            if _normalize_str(row.get("certification"))
+            and _normalize_str(row.get("certification")) != "Unassigned"
+        )
+        owned_assets = sum(1 for _, row in inventory.iterrows() if asset_service.owner_entries(row))
+        return {
+            "catalogs": catalogs,
+            "assetTypes": asset_types,
+            "domains": domains,
+            "tiers": tiers,
+            "certifications": certifications,
+            "sensitivities": sensitivities,
+            "visibleAssets": len(inventory.index) if inventory is not None else 0,
+            "catalogCount": len(catalogs),
+            "availableCatalogCount": len(available_catalogs),
+            "observedCatalogCount": len(observed_catalogs),
+            "governanceGaps": governance_gaps,
+            "certifiedAssets": certified_assets,
+            "ownedAssets": owned_assets,
+            "catalogSnapshot": catalogs[:8],
+        }
+
+    return _ttl_value(
+        f"modern_bootstrap_inventory_summary:{normalized_scope}",
+        15,
+        load,
+    )
+
+
+def _bootstrap_seed_asset_pool(cache_scope: str) -> List[Dict[str, Any]]:
+    normalized_scope = _normalize_str(cache_scope) or "shared"
+    return _ttl_value(
+        f"modern_bootstrap_seed_assets:{normalized_scope}",
+        10,
+        lambda: _bootstrap_seed_inventory_assets(_visible_assets(normalized_scope)),
+    )
+
+
+def _empty_inventory_boot_message(summary: Dict[str, Any]) -> str:
+    if int(summary.get("visibleAssets") or 0) > 0:
+        return ""
+    available_catalog_count = int(summary.get("availableCatalogCount") or 0)
+    observed_catalog_count = int(summary.get("observedCatalogCount") or 0)
+    if available_catalog_count:
+        return (
+            f"The workspace can enumerate {available_catalog_count} catalog(s), but no visible tables or views "
+            "were surfaced after filtering. Confirm the current principal can query Unity Catalog information_schema "
+            "inventory for those catalogs."
+        )
+    if observed_catalog_count:
+        return (
+            f"Lineage system tables show activity in {observed_catalog_count} catalog(s), but direct catalog "
+            "inventory could not be enumerated. Confirm SHOW CATALOGS and information_schema access for the current principal."
+        )
+    return (
+        "The workspace connected successfully, but no visible metadata assets were returned yet. "
+        "Confirm the current principal can enumerate Unity Catalog objects in the selected workspace."
+    )
+
+
 def _bootstrap_selected_asset_seed(
     request: Request,
     asset_fqn: str,
@@ -858,6 +950,7 @@ def _compose_bootstrap_payload(
             "assetDetail": "/api/assets/:fqn",
             "assetAvailability": "/api/assets/availability",
             "assetMetadataUpdate": "/api/assets/:fqn/metadata",
+            "assetColumnMetadataUpdate": "/api/assets/:fqn/columns/:column/metadata",
             "lineage": "/api/lineage/:fqn",
             "governanceSummary": "/api/governance/summary",
             "glossary": "/api/governance/glossary",
@@ -873,89 +966,44 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
 
     def load_base() -> Dict[str, Any]:
         store_status = _store_status()
-        inventory = _visible_assets(cache_scope)
-        seeded_assets = _bootstrap_seed_inventory_assets(inventory)
-        available_catalogs = asset_service.inventory_catalogs(_uc(), HIDDEN_CATALOGS)
-        observed_catalogs = asset_service.lineage_observed_catalogs(
-            _uc(),
-            hidden_catalogs=HIDDEN_CATALOGS,
-        )
-        catalogs = asset_service.catalog_filter_options(
-            inventory,
-            available_catalogs=available_catalogs,
-            observed_catalogs=observed_catalogs,
-        )
-        asset_types = _inventory_option_values(
-            inventory,
-            lambda row: asset_service.friendly_table_type(row.get("table_type"), row.get("data_source_format")),
-        )
-        domains = _inventory_option_values(inventory, lambda row: row.get("domain"))
-        tiers = _inventory_option_values(inventory, lambda row: row.get("tier"))
-        certifications = _inventory_option_values(inventory, lambda row: row.get("certification"))
-        sensitivities = _inventory_option_values(inventory, lambda row: row.get("sensitivity"))
-        governance_gaps = sum(
-            1
-            for _, row in inventory.iterrows()
-            if _normalize_str(row.get("governance_status")) == "Needs Work"
-        )
-        certified_assets = sum(
-            1
-            for _, row in inventory.iterrows()
-            if _normalize_str(row.get("certification"))
-            and _normalize_str(row.get("certification")) != "Unassigned"
-        )
+        summary = _bootstrap_inventory_summary(cache_scope)
+        seeded_assets = _bootstrap_seed_asset_pool(cache_scope)
         governance = _governance_summary()
-        owned_assets = sum(1 for _, row in inventory.iterrows() if asset_service.owner_entries(row))
 
         boot_state = "live" if store_status["state"] == "live" else "degraded"
         boot_message = "" if store_status["state"] == "live" else store_status["message"]
-        if inventory is None or inventory.empty:
+        if int(summary.get("visibleAssets") or 0) <= 0:
             boot_state = "degraded"
             if not boot_message:
-                if available_catalogs:
-                    boot_message = (
-                        f"The workspace can enumerate {len(available_catalogs)} catalog(s), but no visible tables or views "
-                        "were surfaced after filtering. Confirm the current principal can query Unity Catalog information_schema "
-                        "inventory for those catalogs."
-                    )
-                elif observed_catalogs:
-                    boot_message = (
-                        f"Lineage system tables show activity in {len(observed_catalogs)} catalog(s), but direct catalog "
-                        "inventory could not be enumerated. Confirm SHOW CATALOGS and information_schema access for the current principal."
-                    )
-                else:
-                    boot_message = (
-                        "The workspace connected successfully, but no visible metadata assets were returned yet. "
-                        "Confirm the current principal can enumerate Unity Catalog objects in the selected workspace."
-                    )
+                boot_message = _empty_inventory_boot_message(summary)
 
         return {
             "_assetPool": seeded_assets,
             "payload": {
-                "version": "modern-ui-live-4",
+                "version": "modern-ui-live-5",
                 "bootState": boot_state,
                 "bootMessage": boot_message,
                 "apiBase": "/api",
                 "graphs": {},
                 "discovery": {
-                    "catalogs": ["All catalogs", *catalogs],
-                    "domains": ["All domains", *domains],
-                    "tiers": ["All tiers", *tiers],
-                    "certifications": ["All certifications", *certifications],
-                    "sensitivities": ["All sensitivities", *sensitivities],
-                    "assetTypes": ["All types", *asset_types],
+                    "catalogs": ["All catalogs", *(summary.get("catalogs") or [])],
+                    "domains": ["All domains", *(summary.get("domains") or [])],
+                    "tiers": ["All tiers", *(summary.get("tiers") or [])],
+                    "certifications": ["All certifications", *(summary.get("certifications") or [])],
+                    "sensitivities": ["All sensitivities", *(summary.get("sensitivities") or [])],
+                    "assetTypes": ["All types", *(summary.get("assetTypes") or [])],
                     "views": DISCOVERY_VIEWS,
                     "sortOptions": DISCOVERY_SORTS,
                     "defaultQuery": "",
                     "summary": {
-                        "visibleAssets": len(inventory.index) if inventory is not None else 0,
-                        "catalogCount": len(catalogs),
-                        "availableCatalogCount": len(available_catalogs),
-                        "observedCatalogCount": len(observed_catalogs),
-                        "governanceGaps": governance_gaps,
-                        "certifiedAssets": certified_assets,
-                        "ownedAssets": owned_assets,
-                        "catalogSnapshot": catalogs[:8],
+                        "visibleAssets": int(summary.get("visibleAssets") or 0),
+                        "catalogCount": int(summary.get("catalogCount") or 0),
+                        "availableCatalogCount": int(summary.get("availableCatalogCount") or 0),
+                        "observedCatalogCount": int(summary.get("observedCatalogCount") or 0),
+                        "governanceGaps": int(summary.get("governanceGaps") or 0),
+                        "certifiedAssets": int(summary.get("certifiedAssets") or 0),
+                        "ownedAssets": int(summary.get("ownedAssets") or 0),
+                        "catalogSnapshot": list(summary.get("catalogSnapshot") or []),
                     },
                 },
                 "governance": governance,
@@ -1020,6 +1068,11 @@ class ColumnDescriptionPatch(BaseModel):
 
 
 class ColumnTagsPatch(BaseModel):
+    tags: Dict[str, str] = Field(default_factory=dict)
+
+
+class ColumnMetadataPatch(BaseModel):
+    description: str = ""
     tags: Dict[str, str] = Field(default_factory=dict)
 
 
@@ -1119,6 +1172,13 @@ def _apply_column_tags(asset_fqn: str, column_name: str, tags: Dict[str, str]) -
     return normalized_tags
 
 
+def _ensure_asset_column_exists(asset_fqn: str, column_name: str) -> None:
+    columns_df = asset_service.asset_columns_df(_uc(), asset_fqn)
+    column_names = set(columns_df["column_name"].dropna().astype(str).tolist())
+    if column_name not in column_names:
+        raise HTTPException(status_code=404, detail="Column not found.")
+
+
 def _asset_availability_payload(
     asset_fqns: List[str],
     request: Optional[Request] = None,
@@ -1189,6 +1249,7 @@ def _bootstrap_unavailable_payload(
             "assetDetail": "/api/assets/:fqn",
             "assetAvailability": "/api/assets/availability",
             "assetMetadataUpdate": "/api/assets/:fqn/metadata",
+            "assetColumnMetadataUpdate": "/api/assets/:fqn/columns/:column/metadata",
             "lineage": "/api/lineage/:fqn",
             "governanceSummary": "/api/governance/summary",
             "glossary": "/api/governance/glossary",
@@ -1528,10 +1589,7 @@ def api_patch_column_description(
     _ensure_governance_store()
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    columns_df = asset_service.asset_columns_df(_uc(), asset_fqn)
-    column_names = set(columns_df["column_name"].dropna().astype(str).tolist())
-    if column_name not in column_names:
-        raise HTTPException(status_code=404, detail="Column not found.")
+    _ensure_asset_column_exists(asset_fqn, column_name)
     governance_service.patch_column_description(
         _uc(),
         asset_fqn=asset_fqn,
@@ -1560,6 +1618,7 @@ def api_patch_column_tags(
     _ensure_live_runtime()
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    _ensure_asset_column_exists(asset_fqn, column_name)
     applied = _apply_column_tags(asset_fqn, column_name, payload.tags)
     _invalidate_asset_caches(asset_fqn)
     return JSONResponse(
@@ -1569,6 +1628,38 @@ def api_patch_column_tags(
             "column": column_name,
             "tags": applied,
             "asset": _asset_detail_payload(asset_fqn, request=request),
+        }
+    )
+
+
+@app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/metadata")
+def api_patch_column_metadata(
+    asset_fqn: str,
+    column_name: str,
+    payload: ColumnMetadataPatch,
+    request: Request,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    _ensure_governance_store()
+    if not _asset_is_openable(asset_fqn, request):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    _ensure_asset_column_exists(asset_fqn, column_name)
+    applied = governance_service.patch_column_metadata(
+        _uc(),
+        asset_fqn=asset_fqn,
+        column_name=column_name,
+        description=payload.description or "",
+        tags=payload.tags,
+    )
+    return JSONResponse(
+        {
+            "ok": True,
+            "fqn": asset_fqn,
+            "column": column_name,
+            "description": applied["description"],
+            "tags": applied["tags"],
+            "asset": _asset_detail_payload(asset_fqn, request=request),
+            "governance": _governance_summary(),
         }
     )
 
@@ -1716,7 +1807,7 @@ def api_governance_upsert_glossary(
         store=store,
         updated_by=_user_email(request),
     )
-    return JSONResponse({"ok": True, "governance": _governance_summary()})
+    return JSONResponse({"ok": True, "termId": term_id, "governance": _governance_summary()})
 
 
 @app.patch("/api/governance/glossary/{term_id}")
@@ -1727,11 +1818,12 @@ def api_governance_patch_glossary(
 ) -> JSONResponse:
     _ensure_live_runtime()
     store = _ensure_governance_store()
+    normalized_term_id = _normalize_str(term_id)
     name = _normalize_str(payload.name)
     if not name:
         raise HTTPException(status_code=400, detail="name is required.")
     governance_service.upsert_glossary_term(
-        term_id=_normalize_str(term_id),
+        term_id=normalized_term_id,
         name=name,
         definition=_normalize_str(payload.definition),
         domain=_normalize_str(payload.domain),
@@ -1740,4 +1832,4 @@ def api_governance_patch_glossary(
         store=store,
         updated_by=_user_email(request),
     )
-    return JSONResponse({"ok": True, "governance": _governance_summary()})
+    return JSONResponse({"ok": True, "termId": normalized_term_id, "governance": _governance_summary()})
