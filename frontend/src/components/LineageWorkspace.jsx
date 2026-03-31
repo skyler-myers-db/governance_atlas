@@ -53,7 +53,7 @@ export default function LineageWorkspace({
     sharedVisibleAssetSet?.size
       ? new Set(sharedVisibleAssetSet)
       : new Set(seedAssets.map((asset) => asset?.fqn).filter(Boolean));
-  const assetDetail = useAssetDetail(focusAssetFqn || "");
+  const assetDetail = useAssetDetail(focusAssetFqn || "", { sections: ["header"] });
   const lineage = useLineage(focusAssetFqn || "", seeded.seededGraph);
   const asset = assetDetail.detail || seeded.summary;
   const assetSearch = useAssetSearch(
@@ -163,7 +163,7 @@ export default function LineageWorkspace({
   const openLineageAsset = async (assetFqn, nextTab = "Overview") => {
     if (!assetFqn) return;
     const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
-    const detailPromise = prefetchAssetDetail(assetFqn, { force: true });
+    const detailPromise = prefetchAssetDetail(assetFqn, { force: true, sections: ["header", "activity"] });
     const availability = (await availabilityPromise)?.[assetFqn] || null;
     const detail = await detailPromise;
     if (!canOpenLinkedAssetRecord(detail, availability)) return;
@@ -183,6 +183,7 @@ export default function LineageWorkspace({
         embedded={false}
         error={lineage.error}
         graphBundle={lineage.graph}
+        lineagePayload={lineage.payload}
         loading={lineage.loading}
         overlay={!focusAssetFqn && !hasGraph ? searchOverlay : null}
         onAssetSearchQueryChange={setAssetSearchQuery}
@@ -194,7 +195,7 @@ export default function LineageWorkspace({
         onSelectAsset={(assetFqn) => {
           void Promise.all([
             prefetchAssetAvailability([assetFqn], { force: true }),
-            prefetchAssetDetail(assetFqn, { force: true }),
+            prefetchAssetDetail(assetFqn, { force: true, sections: ["header", "activity"] }),
           ]).then(([availabilityMap, detail]) => {
             const availability = availabilityMap?.[assetFqn] || null;
             if (!canOpenLinkedAssetRecord(detail, availability)) return;

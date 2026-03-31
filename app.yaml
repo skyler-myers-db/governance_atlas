@@ -11,7 +11,7 @@ env:
     value: modern
   # ── Required ──────────────────────────────────────────────
   - name: DATABRICKS_WAREHOUSE_ID
-    valueFrom: "sql-warehouse"
+    valueFrom: "uc_warehouse"
 
   # ── Governance Hub defaults ───────────────────────────────
   - name: GOVHUB_CATALOG

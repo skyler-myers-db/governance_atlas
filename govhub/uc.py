@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from typing import Any, Dict, List
 
@@ -56,12 +57,84 @@ def _is_skippable_metadata_error(exc: Exception) -> bool:
     return any(marker in message for marker in markers)
 
 
+def _env(name: str) -> str:
+    return os.getenv(name, "").strip()
+
+
+def _safe_error_text(exc: Exception | None) -> str:
+    if exc is None:
+        return ""
+    message = str(exc or "").strip()
+    if not message:
+        return exc.__class__.__name__
+    if message.startswith(f"{exc.__class__.__name__}:"):
+        return message
+    return f"{exc.__class__.__name__}: {message}"
+
+
 class UCSQLClient:
     """Run SQL via Statement Execution API against a Databricks SQL Warehouse."""
 
     def __init__(self, warehouse_id: str):
         self.warehouse_id = warehouse_id
-        self.w = WorkspaceClient()
+        self._client_context = self._build_client_context()
+        self.w = self._build_workspace_client()
+
+    def _build_client_context(self) -> Dict[str, Any]:
+        host = _env("DATABRICKS_HOST")
+        client_id = _env("DATABRICKS_CLIENT_ID")
+        client_secret = _env("DATABRICKS_CLIENT_SECRET")
+        auth_type = _env("DATABRICKS_AUTH_TYPE")
+        app_name = _env("DATABRICKS_APP_NAME")
+        return {
+            "authMode": "default",
+            "authType": auth_type or "",
+            "appName": app_name or "",
+            "host": host or "",
+            "hostPresent": bool(host),
+            "clientIdPresent": bool(client_id),
+            "clientSecretPresent": bool(client_secret),
+            "warehouseId": self.warehouse_id,
+            "workspaceId": _env("DATABRICKS_WORKSPACE_ID"),
+        }
+
+    def _build_workspace_client(self) -> WorkspaceClient:
+        host = self._client_context["host"]
+        client_id = _env("DATABRICKS_CLIENT_ID")
+        client_secret = _env("DATABRICKS_CLIENT_SECRET")
+        auth_type = self._client_context["authType"] or "oauth-m2m"
+        explicit_error = None
+        if host and client_id and client_secret:
+            try:
+                client = WorkspaceClient(
+                    host=host,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    auth_type=auth_type,
+                    product="governance-hub",
+                    product_version="modern-runtime",
+                )
+                self._client_context["authMode"] = "oauth-m2m-env"
+                self._client_context["authType"] = auth_type
+                return client
+            except Exception as exc:
+                explicit_error = exc
+                self._client_context["authMode"] = "default-fallback"
+                self._client_context["clientInitError"] = _safe_error_text(exc)
+        try:
+            client = WorkspaceClient(
+                product="governance-hub",
+                product_version="modern-runtime",
+            )
+            if self._client_context["authMode"] == "default":
+                self._client_context["authMode"] = "default"
+            return client
+        except Exception as exc:
+            self._client_context["clientInitError"] = _safe_error_text(explicit_error or exc)
+            raise explicit_error or exc
+
+    def runtime_context(self) -> Dict[str, Any]:
+        return dict(self._client_context)
 
     # ── low-level execution ─────────────────────────────────
 
@@ -802,6 +875,19 @@ ORDER BY tag_name"""
             return self.query_df(q)
         except Exception:
             return pd.DataFrame(columns=["tag_name", "tag_value"])
+
+    def get_table_column_tags(
+        self, catalog: str, schema: str, table: str
+    ) -> pd.DataFrame:
+        q = f"""SELECT column_name, tag_name, tag_value
+FROM {quote_ident(catalog)}.information_schema.column_tags
+WHERE table_schema = {sql_literal(schema)}
+  AND table_name   = {sql_literal(table)}
+ORDER BY column_name, tag_name"""
+        try:
+            return self.query_df(q)
+        except Exception:
+            return pd.DataFrame(columns=["column_name", "tag_name", "tag_value"])
 
     def set_column_tags(
         self, catalog: str, schema: str, table: str, column: str,

@@ -120,7 +120,7 @@ function transformGraph(graph) {
       targetPosition: "left",
     })),
     edges: (graph.edges || []).map((edge, index) => ({
-      id: `${edge.source}-${edge.target}-${index}`,
+      id: edge.key || `${edge.source}-${edge.target}-${index}`,
       source: edge.source,
       target: edge.target,
       type: "assetEdge",
@@ -315,6 +315,7 @@ export default function LineageGraph({
   allowRefocus = true,
   context,
   graph,
+  lineagePayload = null,
   hasEdges,
   overlay = null,
   onAssetSearchQueryChange,
@@ -402,6 +403,7 @@ export default function LineageGraph({
       ? nodesById[defaultFocusNodeId] || null
       : null;
   const selectedEdge = transformed.edges.find((edge) => edge.id === selectedEdgeId) || null;
+  const edgeDetails = selectedEdge ? lineagePayload?.edgeDetails?.[selectedEdge.id] || null : null;
   const selectedSource = selectedEdge ? nodesById[selectedEdge.source] || null : null;
   const selectedTarget = selectedEdge ? nodesById[selectedEdge.target] || null : null;
   const showMiniMap = false;
@@ -702,7 +704,7 @@ export default function LineageGraph({
               </span>
             </div>
             <div className="gh-support-copy">
-              Reroot, trace, or open the linked assets directly.
+              {edgeDetails?.summary || "Reroot, trace, or open the linked assets directly."}
             </div>
             <div className="gh-attribute-list">
               <div className="gh-attribute-row">
@@ -714,6 +716,32 @@ export default function LineageGraph({
                 <span className="gh-attribute-value">{selectedTarget?.subtitle || selectedEdge.target}</span>
               </div>
             </div>
+            {edgeDetails?.columnMappings?.length ? (
+              <div className="gh-detail-section">
+                <div className="gh-panel-title">Column mappings</div>
+                <div className="gh-lineage-linked-list">
+                  {edgeDetails.columnMappings.map((mapping, index) => (
+                    <div className="gh-lineage-linked-row is-readonly" key={`${selectedEdge.id}-mapping-${index}`}>
+                      <span>{mapping.sourceColumn}</span>
+                      <span>{mapping.targetColumn}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {edgeDetails?.entities?.length ? (
+              <div className="gh-detail-section">
+                <div className="gh-panel-title">Operational entities</div>
+                <div className="gh-lineage-linked-list">
+                  {edgeDetails.entities.map((entity) => (
+                    <div className="gh-lineage-linked-row is-readonly" key={entity.key}>
+                      <span>{entity.name}</span>
+                      <span>{entity.entityLabel}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {activePathNodes.length ? (
               <div className="gh-detail-section">
                 <div className="gh-panel-title">Path nodes</div>
@@ -797,6 +825,18 @@ export default function LineageGraph({
               <span className="gh-chip gh-chip-soft">{nodeStats.upstream} upstream</span>
               <span className="gh-chip gh-chip-soft">{nodeStats.downstream} downstream</span>
             </div>
+            {selectedNode.details?.[0]?.statementId || selectedNode.details?.[0]?.entityId ? (
+              <div className="gh-attribute-list">
+                <div className="gh-attribute-row">
+                  <span className="gh-attribute-label">Identifier</span>
+                  <span className="gh-attribute-value">
+                    {selectedNode.details?.[0]?.statementId || selectedNode.details?.[0]?.entityId}
+                  </span>
+                </div>
+              </div>
+            ) : selectedNode.details?.description ? (
+              <div className="gh-support-copy">{selectedNode.details.description}</div>
+            ) : null}
             <div className="gh-detail-section">
               <div className="gh-support-copy">
                 {selectedNode.role === "focus"
@@ -843,6 +883,19 @@ export default function LineageGraph({
                       <span>↓ {node.label}</span>
                       <span>{node.subtitle}</span>
                     </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {Array.isArray(selectedNode.details) && selectedNode.details.length ? (
+              <div className="gh-detail-section">
+                <div className="gh-panel-title">Entity details</div>
+                <div className="gh-lineage-linked-list">
+                  {selectedNode.details.map((item) => (
+                    <div className="gh-lineage-linked-row is-readonly" key={item.key}>
+                      <span>{item.name}</span>
+                      <span>{item.entityLabel}</span>
+                    </div>
                   ))}
                 </div>
               </div>

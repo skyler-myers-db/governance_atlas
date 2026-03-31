@@ -1050,6 +1050,18 @@ body {
   border-bottom: none;
 }
 
+.gh-table tbody tr {
+  transition: background 140ms ease;
+}
+
+.gh-table tbody tr:hover {
+  background: rgba(246, 249, 255, 0.92);
+}
+
+.gh-table tbody tr.is-active {
+  background: rgba(230, 240, 255, 0.9);
+}
+
 .gh-inline-action {
   width: 100%;
   justify-content: center;
@@ -3563,7 +3575,7 @@ body {
 }
 
 .gh-entity-record-metrics {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 
 .gh-entity-record-tabs {

@@ -8,6 +8,42 @@ const ASSET_AVAILABILITY_IN_FLIGHT = new Map();
 const PLACEHOLDER_DESCRIPTION = "No description has been captured for this asset yet.";
 const DETAIL_CACHE_TTL_MS = 20_000;
 const AVAILABILITY_CACHE_TTL_MS = 10_000;
+const DETAIL_SECTION_FIELDS = {
+  header: [
+    "fqn",
+    "name",
+    "catalog",
+    "schema",
+    "objectType",
+    "description",
+    "coverageScore",
+    "rows",
+    "format",
+    "storageFormat",
+    "tableTypeRaw",
+    "managementType",
+    "size",
+    "files",
+    "domain",
+    "tier",
+    "certification",
+    "sensitivity",
+    "criticality",
+    "openRequests",
+    "owners",
+    "tags",
+    "governanceStatus",
+    "omTableFqn",
+    "metadataEditor",
+  ],
+  activity: ["ownerAssignments", "activity"],
+  schema: ["columns", "columnCount"],
+  preview: ["preview"],
+  properties: ["tableProperties", "customProperties", "constraints"],
+  operational: ["relatedAssets", "operationalContext", "queries", "usage"],
+  profiler: ["profiler"],
+};
+const DEFAULT_DETAIL_SECTIONS = Object.keys(DETAIL_SECTION_FIELDS);
 
 function readCachedEntry(cache, key, maxAgeMs = null) {
   if (!key) return null;
@@ -19,15 +55,68 @@ function readCachedEntry(cache, key, maxAgeMs = null) {
   return cached.detail || null;
 }
 
+function normalizeDetailSections(sections = []) {
+  if (!Array.isArray(sections) || !sections.length) return [];
+  return [...new Set(sections.map((section) => String(section || "").trim().toLowerCase()).filter(Boolean))].sort();
+}
+
+function detailRequestKey(assetFqn, sections = []) {
+  const normalizedSections = normalizeDetailSections(sections);
+  return `${assetFqn || ""}::${normalizedSections.join(",") || "all"}`;
+}
+
+function cachedDetailHasSections(detail, sections = []) {
+  const normalizedSections = normalizeDetailSections(sections);
+  if (!normalizedSections.length) return Boolean(detail);
+  const loadedSections = new Set(detail?.loadedSections || []);
+  return normalizedSections.every((section) => loadedSections.has(section));
+}
+
+function mergeLoadedSections(currentDetail, incomingDetail) {
+  const merged = new Set([...(currentDetail?.loadedSections || []), ...(incomingDetail?.loadedSections || [])]);
+  return [...merged].sort();
+}
+
+function mergeAssetDetail(currentDetail, incomingDetail) {
+  if (!currentDetail) return incomingDetail;
+  if (!incomingDetail) return currentDetail;
+
+  const merged = {
+    ...currentDetail,
+  };
+  const incomingSections = new Set(incomingDetail.loadedSections || []);
+  const mergedSections = mergeLoadedSections(currentDetail, incomingDetail);
+
+  Object.entries(DETAIL_SECTION_FIELDS).forEach(([section, fields]) => {
+    if (!incomingSections.has(section)) return;
+    fields.forEach((field) => {
+      merged[field] = incomingDetail[field];
+    });
+  });
+
+  Object.keys(incomingDetail).forEach((field) => {
+    if (field in merged) return;
+    merged[field] = incomingDetail[field];
+  });
+
+  merged.loadedSections = mergedSections;
+  merged.deferredSections = DEFAULT_DETAIL_SECTIONS.filter((section) => !mergedSections.includes(section));
+  return merged;
+}
+
 function readCachedDetail(assetFqn, options = {}) {
   if (!assetFqn) return null;
-  return readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, options.maxAgeMs ?? DETAIL_CACHE_TTL_MS);
+  const detail = readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, options.maxAgeMs ?? DETAIL_CACHE_TTL_MS);
+  if (!detail) return null;
+  if (!cachedDetailHasSections(detail, options.sections)) return null;
+  return detail;
 }
 
 function rememberDetail(assetFqn, detail) {
   if (!assetFqn || !detail) return;
+  const current = readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null);
   ASSET_DETAIL_CACHE.set(assetFqn, {
-    detail,
+    detail: mergeAssetDetail(current, detail),
     updatedAt: Date.now(),
   });
 }
@@ -47,6 +136,14 @@ function rememberAvailability(assetFqn, detail) {
     detail,
     updatedAt: Date.now(),
   });
+}
+
+export function primeAssetDetail(assetFqn, detail) {
+  rememberDetail(assetFqn, detail);
+}
+
+export function primeAssetAvailability(assetFqn, availability) {
+  rememberAvailability(assetFqn, availability);
 }
 
 function availabilityRequest(assetFqns) {
@@ -208,22 +305,23 @@ export function canOpenAssetRecord(detail, availability = null) {
   return hasRenderableAssetRecord(detail);
 }
 
-function detailRequest(assetFqn) {
+function detailRequest(assetFqn, options = {}) {
   if (!assetFqn) return Promise.resolve(null);
-  if (ASSET_DETAIL_IN_FLIGHT.has(assetFqn)) {
-    return ASSET_DETAIL_IN_FLIGHT.get(assetFqn);
+  const requestKey = detailRequestKey(assetFqn, options.sections);
+  if (ASSET_DETAIL_IN_FLIGHT.has(requestKey)) {
+    return ASSET_DETAIL_IN_FLIGHT.get(requestKey);
   }
-  const request = fetchAssetDetail(assetFqn)
+  const request = fetchAssetDetail(assetFqn, { sections: options.sections })
     .then((detail) => {
       rememberDetail(assetFqn, detail);
-      ASSET_DETAIL_IN_FLIGHT.delete(assetFqn);
-      return detail;
+      ASSET_DETAIL_IN_FLIGHT.delete(requestKey);
+      return readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null) || detail;
     })
     .catch((error) => {
-      ASSET_DETAIL_IN_FLIGHT.delete(assetFqn);
+      ASSET_DETAIL_IN_FLIGHT.delete(requestKey);
       throw error;
     });
-  ASSET_DETAIL_IN_FLIGHT.set(assetFqn, request);
+  ASSET_DETAIL_IN_FLIGHT.set(requestKey, request);
   return request;
 }
 
@@ -231,9 +329,9 @@ export function prefetchAssetDetail(assetFqn, options = {}) {
   if (!assetFqn) return Promise.resolve(null);
   const force = options.force === true;
   const maxAgeMs = force ? 0 : options.maxAgeMs ?? DETAIL_CACHE_TTL_MS;
-  const cachedDetail = force ? null : readCachedDetail(assetFqn, { maxAgeMs });
+  const cachedDetail = force ? null : readCachedDetail(assetFqn, { maxAgeMs, sections: options.sections });
   if (cachedDetail) return Promise.resolve(cachedDetail);
-  return detailRequest(assetFqn).catch(() => null);
+  return detailRequest(assetFqn, options).catch(() => readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null) || null);
 }
 
 export function useAssetAvailability(assetFqns = [], knownVisibleAssetSet = null, options = {}) {
@@ -330,28 +428,43 @@ export function useAssetAvailability(assetFqns = [], knownVisibleAssetSet = null
   return availability;
 }
 
-export function useAssetDetail(assetFqn) {
-  const initialDetail = readCachedDetail(assetFqn);
+export function useAssetDetail(assetFqn, options = {}) {
+  const enabled = options.enabled !== false;
+  const sections = options.sections || [];
+  const initialDetail = readCachedDetail(assetFqn, { sections });
   const [state, setState] = useState(() => ({
-    loading: Boolean(assetFqn && !initialDetail),
+    loading: Boolean(enabled && assetFqn && !initialDetail),
     error: "",
     detail: initialDetail,
   }));
 
   useEffect(() => {
+    if (!enabled) {
+      setState((current) => ({
+        loading: false,
+        error: "",
+        detail: readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null) || current.detail || null,
+      }));
+      return;
+    }
+
     if (!assetFqn) {
       setState({ loading: false, error: "", detail: null });
       return;
     }
 
     let canceled = false;
-    const cachedDetail = readCachedDetail(assetFqn);
+    const cachedDetail = readCachedDetail(assetFqn, { sections });
+    const missingRequestedSections = (detail) => !cachedDetailHasSections(detail, sections);
     setState((current) => ({
-      loading: true,
+      loading: missingRequestedSections(cachedDetail || current.detail),
       error: "",
-      detail: cachedDetail || (current.detail?.fqn === assetFqn ? current.detail : null),
+      detail:
+        readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null) ||
+        cachedDetail ||
+        (current.detail?.fqn === assetFqn ? current.detail : null),
     }));
-    detailRequest(assetFqn)
+    detailRequest(assetFqn, { sections })
       .then((detail) => {
         if (canceled) return;
         setState({ loading: false, error: "", detail });
@@ -360,19 +473,26 @@ export function useAssetDetail(assetFqn) {
         if (canceled) return;
         setState((current) => ({
           loading: false,
-          error:
-            cachedDetail || current.detail?.fqn === assetFqn
-              ? ""
-              : error?.message || "Failed to load asset detail.",
+          error: (() => {
+            const retainedDetail =
+              readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null) ||
+              cachedDetail ||
+              (current.detail?.fqn === assetFqn ? current.detail : null);
+            return missingRequestedSections(retainedDetail)
+              ? error?.message || "Failed to load asset detail."
+              : "";
+          })(),
           detail:
-            cachedDetail || (current.detail?.fqn === assetFqn ? current.detail : null),
+            readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null) ||
+            cachedDetail ||
+            (current.detail?.fqn === assetFqn ? current.detail : null),
         }));
       });
 
     return () => {
       canceled = true;
     };
-  }, [assetFqn]);
+  }, [assetFqn, enabled, sections.join(",")]);
 
   return state;
 }

@@ -14,6 +14,15 @@ from govhub.uc import _is_skippable_metadata_error
 
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
 PLACEHOLDER_DESCRIPTION = "No description has been captured for this asset yet."
+ASSET_DETAIL_SECTIONS = (
+    "header",
+    "activity",
+    "schema",
+    "preview",
+    "properties",
+    "operational",
+    "profiler",
+)
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
 
@@ -81,7 +90,7 @@ def invalidate_asset_caches(asset_fqn: str | None = None) -> None:
         if key.startswith("inventory:") or key.startswith("visible_assets:"):
             _TTL_CACHE.pop(key, None)
             continue
-        if key.startswith("asset_detail:") and key.endswith(suffix):
+        if key.startswith("asset_detail:") and suffix in key:
             _TTL_CACHE.pop(key, None)
 
 
@@ -591,6 +600,20 @@ def detail_map(detail_df: pd.DataFrame) -> Dict[str, Any]:
     return {str(key).lower(): value for key, value in row.items()}
 
 
+def normalize_asset_detail_sections(sections: Optional[Sequence[str]] = None) -> Tuple[str, ...]:
+    normalized = {
+        normalize_str(section).lower()
+        for section in (sections or [])
+        if normalize_str(section)
+    }
+    if not normalized:
+        normalized = set(ASSET_DETAIL_SECTIONS)
+    normalized.add("header")
+    if "profiler" in normalized:
+        normalized.update({"activity", "schema", "preview", "operational"})
+    return tuple(section for section in ASSET_DETAIL_SECTIONS if section in normalized)
+
+
 def owner_entries(row: pd.Series) -> List[Dict[str, str]]:
     owners: List[Dict[str, str]] = []
     owner_fields = [
@@ -1097,19 +1120,305 @@ def preview_records(sample_df: pd.DataFrame) -> List[Dict[str, str]]:
     return rows
 
 
-def column_records(columns_df: pd.DataFrame) -> List[Dict[str, Any]]:
+def table_property_records(properties_df: pd.DataFrame) -> List[Dict[str, str]]:
+    if properties_df is None or properties_df.empty:
+        return []
+    rows: List[Dict[str, str]] = []
+    for _, row in properties_df.iterrows():
+        key = normalize_str(row.get("key"))
+        value = normalize_str(row.get("value"))
+        if not key:
+            continue
+        rows.append({"key": key, "value": value or "—"})
+    return rows
+
+
+def constraint_records(constraints_df: pd.DataFrame) -> List[Dict[str, Any]]:
+    if constraints_df is None or constraints_df.empty:
+        return []
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for _, row in constraints_df.iterrows():
+        name = normalize_str(row.get("constraint_name")) or "constraint"
+        current = grouped.setdefault(
+            name,
+            {
+                "name": name,
+                "type": normalize_str(row.get("constraint_type")) or "Constraint",
+                "columns": [],
+                "matchOption": normalize_str(row.get("match_option")),
+                "updateRule": normalize_str(row.get("update_rule")),
+                "deleteRule": normalize_str(row.get("delete_rule")),
+            },
+        )
+        column_name = normalize_str(row.get("column_name"))
+        if column_name and column_name not in current["columns"]:
+            current["columns"].append(column_name)
+    return list(grouped.values())
+
+
+def column_tag_lookup(column_tags_df: pd.DataFrame) -> Dict[str, List[Dict[str, str]]]:
+    if column_tags_df is None or column_tags_df.empty:
+        return {}
+    lookup: Dict[str, List[Dict[str, str]]] = {}
+    for _, row in column_tags_df.iterrows():
+        column_name = normalize_str(row.get("column_name"))
+        tag_name = normalize_str(row.get("tag_name"))
+        tag_value = normalize_str(row.get("tag_value"))
+        if not column_name or not tag_name:
+            continue
+        lookup.setdefault(column_name, []).append({"name": tag_name, "value": tag_value})
+    return lookup
+
+
+def column_records(
+    columns_df: pd.DataFrame,
+    column_tags_df: Optional[pd.DataFrame] = None,
+) -> List[Dict[str, Any]]:
     if columns_df is None or columns_df.empty:
         return []
+    tag_lookup = column_tag_lookup(column_tags_df)
     rows: List[Dict[str, Any]] = []
     for _, row in columns_df.head(50).iterrows():
+        column_name = normalize_str(row.get("column_name"))
+        tags = tag_lookup.get(column_name, [])
+        glossary_term = next(
+            (
+                normalize_str(item.get("value"))
+                for item in tags
+                if normalize_str(item.get("name")).lower() == "glossary_term"
+            ),
+            "",
+        )
         rows.append(
             {
-                "name": normalize_str(row.get("column_name")),
+                "name": column_name,
                 "type": normalize_str(row.get("data_type")),
                 "description": normalize_str(row.get("comment")) or "No description",
+                "tags": tags,
+                "tagLabels": [
+                    f"{normalize_str(item.get('name'))}: {normalize_str(item.get('value'))}"
+                    if normalize_str(item.get("value"))
+                    else normalize_str(item.get("name"))
+                    for item in tags
+                    if normalize_str(item.get("name"))
+                ],
+                "glossaryTerm": glossary_term,
             }
         )
     return rows
+
+
+def owner_assignment_records(store: Any, asset_fqn: str) -> List[Dict[str, str]]:
+    if store is None or not hasattr(store, "get_owners"):
+        return []
+    try:
+        owners_df = store.get_owners(asset_fqn)
+    except Exception:
+        return []
+    if owners_df is None or owners_df.empty:
+        return []
+    rows: List[Dict[str, str]] = []
+    for _, row in owners_df.iterrows():
+        owner_email = normalize_str(row.get("owner_email"))
+        owner_type = normalize_str(row.get("owner_type"))
+        if not owner_email:
+            continue
+        rows.append(
+            {
+                "ownerEmail": owner_email,
+                "ownerType": owner_type or "steward",
+                "updatedAt": normalize_str(row.get("updated_at")),
+                "updatedBy": normalize_str(row.get("updated_by")),
+            }
+        )
+    return rows
+
+
+def activity_records(store: Any, asset_fqn: str, limit: int = 20) -> List[Dict[str, str]]:
+    if store is None or not hasattr(store, "list_change_requests"):
+        return []
+    try:
+        requests_df = store.list_change_requests(limit=200)
+    except Exception:
+        return []
+    if requests_df is None or requests_df.empty:
+        return []
+    scoped = requests_df[
+        requests_df["uc_full_name"].fillna("").astype(str).eq(asset_fqn)
+    ].head(limit)
+    rows: List[Dict[str, str]] = []
+    for _, row in scoped.iterrows():
+        note = normalize_str(row.get("review_note"))
+        raw_title = normalize_str(row.get("new_comment")) or "Governance request"
+        rows.append(
+            {
+                "id": normalize_str(row.get("request_id")),
+                "title": raw_title.split(":")[0] if ":" in raw_title else raw_title,
+                "detail": raw_title,
+                "status": normalize_str(row.get("status")).title() or "Pending",
+                "createdAt": normalize_str(row.get("created_at")),
+                "createdBy": normalize_str(row.get("created_by")),
+                "reviewNote": note,
+                "reviewedAt": normalize_str(row.get("reviewed_at")),
+                "reviewedBy": normalize_str(row.get("reviewed_by")),
+            }
+        )
+    return rows
+
+
+def _operational_entity_label(raw: Any) -> str:
+    normalized = normalize_str(raw).upper().replace(" ", "_").replace("-", "_")
+    mapping = {
+        "JOB": "Job",
+        "WORKFLOW": "Workflow",
+        "PIPELINE": "Pipeline",
+        "DLT_PIPELINE": "DLT Pipeline",
+        "LAKEFLOW_PIPELINE": "Lakeflow Pipeline",
+        "NOTEBOOK": "Notebook",
+        "SQL": "SQL Query",
+        "SQL_QUERY": "SQL Query",
+        "DBSQL_QUERY": "DBSQL Query",
+        "QUERY": "Query",
+        "DASHBOARD": "Dashboard",
+        "DBSQL_DASHBOARD": "DBSQL Dashboard",
+    }
+    return mapping.get(normalized, normalize_str(raw).replace("_", " ").title() or "Operational Entity")
+
+
+def operational_entity_records(
+    uc,
+    operational_df: pd.DataFrame,
+) -> List[Dict[str, Any]]:
+    if operational_df is None or operational_df.empty:
+        return []
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for _, row in operational_df.iterrows():
+        entity_type = normalize_str(row.get("entity_type"))
+        entity_id = normalize_str(row.get("entity_id"))
+        statement_id = normalize_str(row.get("statement_id"))
+        run_id = normalize_str(row.get("entity_run_id"))
+        group_key = entity_type or entity_id or statement_id or str(len(grouped))
+        key = f"{group_key}:{entity_id or statement_id or run_id or len(grouped)}"
+        current = grouped.get(key)
+        if current is None:
+            resolved_name = uc.resolve_operational_entity_name(entity_type, entity_id) if entity_type and entity_id else ""
+            current = {
+                "key": key,
+                "entityType": entity_type,
+                "entityLabel": _operational_entity_label(entity_type),
+                "entityId": entity_id,
+                "statementId": statement_id,
+                "runId": run_id,
+                "name": resolved_name or entity_id or statement_id or "Unknown entity",
+                "metadata": normalize_str(row.get("entity_metadata")),
+                "relatedAssets": [],
+            }
+            grouped[key] = current
+        related_asset = normalize_str(row.get("related_table_full_name"))
+        if related_asset and related_asset not in current["relatedAssets"]:
+            current["relatedAssets"].append(related_asset)
+    return sorted(
+        grouped.values(),
+        key=lambda item: (
+            item["entityLabel"],
+            item["name"].lower(),
+            item["statementId"],
+        ),
+    )
+
+
+def query_records(operational_entities: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    query_types = {"SQL", "SQL_QUERY", "DBSQL_QUERY", "QUERY"}
+    return [
+        entity
+        for entity in operational_entities
+        if normalize_str(entity.get("entityType")).upper() in query_types
+    ]
+
+
+def profiler_payload(
+    asset: Dict[str, Any],
+    columns: Sequence[Dict[str, Any]],
+    preview: Sequence[Dict[str, Any]],
+    related_assets: Sequence[str],
+    activity: Sequence[Dict[str, str]],
+    operational_context: Dict[str, Sequence[Dict[str, Any]]],
+) -> Dict[str, Any]:
+    column_count = len(columns)
+    described_count = sum(
+        1 for column in columns if normalize_str(column.get("description")) not in {"", "No description"}
+    )
+    classified_count = sum(1 for column in columns if column.get("tags"))
+    glossary_count = sum(1 for column in columns if normalize_str(column.get("glossaryTerm")))
+    producer_count = len(operational_context.get("producers", []))
+    consumer_count = len(operational_context.get("consumers", []))
+
+    def status_for(count: int, total: int) -> str:
+        if total <= 0:
+            return "missing"
+        if count == total:
+            return "good"
+        if count > 0:
+            return "warn"
+        return "bad"
+
+    return {
+        "cards": [
+            {
+                "title": "Description Coverage",
+                "value": f"{described_count}/{column_count}" if column_count else "No schema",
+                "status": status_for(described_count, column_count),
+                "note": "Columns with captured descriptions.",
+            },
+            {
+                "title": "Classification Coverage",
+                "value": f"{classified_count}/{column_count}" if column_count else "No schema",
+                "status": status_for(classified_count, column_count),
+                "note": "Columns with at least one governance tag.",
+            },
+            {
+                "title": "Glossary Coverage",
+                "value": f"{glossary_count}/{column_count}" if column_count else "No schema",
+                "status": status_for(glossary_count, column_count),
+                "note": "Columns linked to glossary terms.",
+            },
+            {
+                "title": "Sample Data",
+                "value": "Available" if preview else "Missing",
+                "status": "good" if preview else "warn",
+                "note": "Sample rows surfaced from the live asset.",
+            },
+            {
+                "title": "Lineage Context",
+                "value": f"{len(related_assets)} assets",
+                "status": "good" if related_assets else "warn",
+                "note": "Connected assets surfaced in lineage.",
+            },
+            {
+                "title": "Operational Usage",
+                "value": f"{producer_count + consumer_count} workloads",
+                "status": "good" if producer_count or consumer_count else "warn",
+                "note": "Jobs, queries, pipelines, and dashboards linked through UC lineage.",
+            },
+            {
+                "title": "Open Work",
+                "value": str(len(activity)),
+                "status": "warn" if activity else "good",
+                "note": "Governance tasks or requests currently tied to this asset.",
+            },
+        ],
+        "summary": {
+            "columnCount": column_count,
+            "describedColumns": described_count,
+            "classifiedColumns": classified_count,
+            "glossaryLinkedColumns": glossary_count,
+            "hasSampleData": bool(preview),
+            "openActivityCount": len(activity),
+            "producerCount": producer_count,
+            "consumerCount": consumer_count,
+            "governanceStatus": normalize_str(asset.get("governanceStatus")) or "Needs Work",
+        },
+    }
 
 
 def asset_detail_payload(
@@ -1119,9 +1428,14 @@ def asset_detail_payload(
     *,
     cache_scope: str = "",
     hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+    sections: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     normalized_scope = normalize_str(cache_scope) or "shared"
-    cache_key = f"asset_detail:{_warehouse_key(uc)}:{normalized_scope}:{normalize_str(asset_fqn)}"
+    requested_sections = normalize_asset_detail_sections(sections)
+    section_key = ",".join(requested_sections)
+    cache_key = (
+        f"asset_detail:{_warehouse_key(uc)}:{normalized_scope}:{normalize_str(asset_fqn)}:{section_key}"
+    )
 
     cached = _TTL_CACHE.get(cache_key)
     if cached:
@@ -1132,9 +1446,10 @@ def asset_detail_payload(
             return payload
 
     def load() -> Dict[str, Any]:
+        store = None if isinstance(inventory_or_store, pd.DataFrame) else inventory_or_store
         inventory = _resolve_inventory_df(
             inventory_or_store if isinstance(inventory_or_store, pd.DataFrame) else uc,
-            None if isinstance(inventory_or_store, pd.DataFrame) else inventory_or_store,
+            store,
             hidden_catalogs=hidden_catalogs,
         )
         if isinstance(inventory_or_store, pd.DataFrame):
@@ -1153,95 +1468,181 @@ def asset_detail_payload(
             )
         base = base_asset_payload(row)
         catalog, schema, table = split_uc_name(base["fqn"])
-        try:
-            detail_df = cached_table_detail(uc, catalog, schema, table)
-        except Exception:
-            detail_df = pd.DataFrame()
-        if detail_df.empty:
+        detail_df = pd.DataFrame()
+        detail = {}
+        columns_df = pd.DataFrame()
+        sample_df = pd.DataFrame()
+        properties_df = pd.DataFrame()
+        constraints_df = pd.DataFrame()
+        column_tags_df = pd.DataFrame()
+        operational_upstream_df = pd.DataFrame()
+        operational_downstream_df = pd.DataFrame()
+        loaded_sections = set(requested_sections)
+
+        base["columnCount"] = 0
+        base["ownerAssignments"] = []
+        base["activity"] = []
+        base["tableProperties"] = []
+        base["constraints"] = []
+        base["customProperties"] = []
+        base["operationalContext"] = {"producers": [], "consumers": []}
+        base["queries"] = []
+        base["usage"] = {"queryCount": 0, "producerCount": 0, "consumerCount": 0}
+        base["profiler"] = {"cards": [], "summary": {}}
+
+        if "header" in loaded_sections:
             try:
-                detail_df = uc.get_table_detail(catalog, schema, table)
+                detail_df = cached_table_detail(uc, catalog, schema, table)
             except Exception:
                 detail_df = pd.DataFrame()
-        detail = detail_map(detail_df)
-        try:
-            columns_df = cached_columns(uc, catalog, schema, table)
-        except Exception:
-            columns_df = pd.DataFrame()
-        if columns_df.empty:
-            try:
-                columns_df = uc.get_table_columns(catalog, schema, table)
-            except Exception:
-                columns_df = pd.DataFrame()
-        try:
-            sample_df = cached_sample_rows(uc, catalog, schema, table)
-        except Exception:
-            sample_df = pd.DataFrame()
-        if sample_df.empty:
-            try:
-                sample_df = uc.get_table_sample(catalog, schema, table, limit=15)
-            except Exception:
-                sample_df = pd.DataFrame()
-
-        if normalize_str(base["description"]) == PLACEHOLDER_DESCRIPTION:
-            try:
-                base["description"] = cached_comment(uc, catalog, schema, table)
-            except Exception:
-                base["description"] = ""
-            if not normalize_str(base["description"]):
+            if detail_df.empty:
                 try:
-                    base["description"] = uc.get_table_comment(catalog, schema, table)
+                    detail_df = uc.get_table_detail(catalog, schema, table)
+                except Exception:
+                    detail_df = pd.DataFrame()
+            detail = detail_map(detail_df)
+
+            if normalize_str(base["description"]) == PLACEHOLDER_DESCRIPTION:
+                try:
+                    base["description"] = cached_comment(uc, catalog, schema, table)
                 except Exception:
                     base["description"] = ""
-            if not normalize_str(base["description"]):
-                base["description"] = PLACEHOLDER_DESCRIPTION
+                if not normalize_str(base["description"]):
+                    try:
+                        base["description"] = uc.get_table_comment(catalog, schema, table)
+                    except Exception:
+                        base["description"] = ""
+                if not normalize_str(base["description"]):
+                    base["description"] = PLACEHOLDER_DESCRIPTION
 
-        try:
-            row_count = coalesce(detail.get("numrows"), cached_table_row_count(uc, catalog, schema, table))
-        except Exception:
-            row_count = coalesce(detail.get("numrows"))
-        base["rows"] = f"{safe_int(row_count):,}" if safe_int(row_count) else "—"
-        raw_detail_type = coalesce(detail.get("type"), base.get("tableTypeRaw"))
-        raw_detail_format = coalesce(detail.get("format"), base.get("storageFormat"))
-        base["tableTypeRaw"] = raw_detail_type or base.get("tableTypeRaw", "")
-        base["objectType"] = coalesce(
-            friendly_table_type(raw_detail_type, raw_detail_format),
-            base["objectType"],
-        )
-        base["managementType"] = management_type(base.get("tableTypeRaw"))
-        base["storageFormat"] = coalesce(
-            friendly_storage_format(raw_detail_format),
-            base.get("storageFormat"),
-        )
-        base["format"] = base["storageFormat"] or "—"
-        base["size"] = human_bytes(detail.get("sizeinbytes"))
-        base["files"] = str(safe_int(detail.get("numfiles"))) if safe_int(detail.get("numfiles")) else "—"
-        base["relatedAssets"] = related_assets(
-            uc,
-            catalog,
-            schema,
-            table,
-            base["fqn"],
-            inventory_df=inventory,
-        )
-        base["preview"] = preview_records(sample_df)
-        base["columns"] = column_records(columns_df)
-        base["metadataEditor"] = {
-            "available": True,
-            "updatePath": "/api/assets/:fqn/metadata",
-            "updateMethod": "PATCH",
-            "fields": [
-                {
-                    "key": "description",
-                    "label": "Description",
-                    "type": "textarea",
-                    "placeholder": "Add a description for this asset",
-                },
-                {"key": "domain", "label": "Domain", "type": "text"},
-                {"key": "tier", "label": "Tier", "type": "text"},
-                {"key": "certification", "label": "Certification", "type": "text"},
-                {"key": "sensitivity", "label": "Sensitivity", "type": "text"},
-            ],
-        }
+            try:
+                row_count = coalesce(detail.get("numrows"), cached_table_row_count(uc, catalog, schema, table))
+            except Exception:
+                row_count = coalesce(detail.get("numrows"))
+            base["rows"] = f"{safe_int(row_count):,}" if safe_int(row_count) else "—"
+            raw_detail_type = coalesce(detail.get("type"), base.get("tableTypeRaw"))
+            raw_detail_format = coalesce(detail.get("format"), base.get("storageFormat"))
+            base["tableTypeRaw"] = raw_detail_type or base.get("tableTypeRaw", "")
+            base["objectType"] = coalesce(
+                friendly_table_type(raw_detail_type, raw_detail_format),
+                base["objectType"],
+            )
+            base["managementType"] = management_type(base.get("tableTypeRaw"))
+            base["storageFormat"] = coalesce(
+                friendly_storage_format(raw_detail_format),
+                base.get("storageFormat"),
+            )
+            base["format"] = base["storageFormat"] or "—"
+            base["size"] = human_bytes(detail.get("sizeinbytes"))
+            base["files"] = str(safe_int(detail.get("numfiles"))) if safe_int(detail.get("numfiles")) else "—"
+            base["metadataEditor"] = {
+                "available": True,
+                "updatePath": "/api/assets/:fqn/metadata",
+                "updateMethod": "PATCH",
+                "fields": [
+                    {
+                        "key": "description",
+                        "label": "Description",
+                        "type": "textarea",
+                        "placeholder": "Add a description for this asset",
+                    },
+                    {"key": "domain", "label": "Domain", "type": "text"},
+                    {"key": "tier", "label": "Tier", "type": "text"},
+                    {"key": "certification", "label": "Certification", "type": "text"},
+                    {"key": "sensitivity", "label": "Sensitivity", "type": "text"},
+                ],
+            }
+
+        if "activity" in loaded_sections:
+            base["ownerAssignments"] = owner_assignment_records(store, base["fqn"])
+            base["activity"] = activity_records(store, base["fqn"])
+
+        if "schema" in loaded_sections:
+            try:
+                columns_df = cached_columns(uc, catalog, schema, table)
+            except Exception:
+                columns_df = pd.DataFrame()
+            if columns_df.empty:
+                try:
+                    columns_df = uc.get_table_columns(catalog, schema, table)
+                except Exception:
+                    columns_df = pd.DataFrame()
+            try:
+                column_tags_df = uc.get_table_column_tags(catalog, schema, table)
+            except Exception:
+                column_tags_df = pd.DataFrame()
+            base["columns"] = column_records(columns_df, column_tags_df)
+            base["columnCount"] = len(base["columns"])
+
+        if "preview" in loaded_sections:
+            try:
+                sample_df = cached_sample_rows(uc, catalog, schema, table)
+            except Exception:
+                sample_df = pd.DataFrame()
+            if sample_df.empty:
+                try:
+                    sample_df = uc.get_table_sample(catalog, schema, table, limit=15)
+                except Exception:
+                    sample_df = pd.DataFrame()
+            base["preview"] = preview_records(sample_df)
+
+        if "properties" in loaded_sections:
+            try:
+                properties_df = uc.get_table_properties(catalog, schema, table)
+            except Exception:
+                properties_df = pd.DataFrame()
+            try:
+                constraints_df = uc.get_table_constraints(catalog, schema, table)
+            except Exception:
+                constraints_df = pd.DataFrame()
+            base["tableProperties"] = table_property_records(properties_df)
+            base["constraints"] = constraint_records(constraints_df)
+            base["customProperties"] = list(base["tableProperties"])
+
+        if "operational" in loaded_sections:
+            try:
+                operational_upstream_df = uc.get_operational_context_upstream(catalog, schema, table)
+            except Exception:
+                operational_upstream_df = pd.DataFrame()
+            try:
+                operational_downstream_df = uc.get_operational_context_downstream(catalog, schema, table)
+            except Exception:
+                operational_downstream_df = pd.DataFrame()
+            base["relatedAssets"] = related_assets(
+                uc,
+                catalog,
+                schema,
+                table,
+                base["fqn"],
+                inventory_df=inventory,
+            )
+            base["operationalContext"] = {
+                "producers": operational_entity_records(uc, operational_upstream_df),
+                "consumers": operational_entity_records(uc, operational_downstream_df),
+            }
+            base["queries"] = query_records(
+                [*base["operationalContext"]["producers"], *base["operationalContext"]["consumers"]]
+            )
+            base["usage"] = {
+                "queryCount": len(base["queries"]),
+                "producerCount": len(base["operationalContext"]["producers"]),
+                "consumerCount": len(base["operationalContext"]["consumers"]),
+            }
+
+        if "profiler" in loaded_sections:
+            base["profiler"] = profiler_payload(
+                base,
+                base["columns"],
+                base["preview"],
+                base["relatedAssets"],
+                base["activity"],
+                base["operationalContext"],
+            )
+
+        base["loadedSections"] = list(requested_sections)
+        base["deferredSections"] = [
+            section for section in ASSET_DETAIL_SECTIONS if section not in loaded_sections
+        ]
         return base
 
     payload = load()

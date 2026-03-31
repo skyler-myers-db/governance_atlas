@@ -396,6 +396,19 @@ function SelectionPreview({
   onOpenLineage,
   visibleAssetSet,
 }) {
+  const previewRelatedAssets = asset
+    ? [
+        ...new Set([
+          ...(asset.relatedAssets || []),
+          ...previewRelatedAssetsFromGraph(lineageGraph, asset.fqn),
+        ]),
+      ].slice(0, 4)
+    : [];
+  const relatedAssetAvailability = useAssetAvailability(previewRelatedAssets, visibleAssetSet, {
+    strict: true,
+    requireRenderableDetail: false,
+  });
+
   if (!asset) {
     return (
       <aside className="gh-panel gh-selection-preview-v3">
@@ -406,16 +419,7 @@ function SelectionPreview({
   }
 
   const columns = (asset.columns || []).slice(0, 4);
-  const relatedAssets = [
-    ...new Set([
-      ...(asset.relatedAssets || []),
-      ...previewRelatedAssetsFromGraph(lineageGraph, asset.fqn),
-    ]),
-  ].slice(0, 4);
-  const relatedAssetAvailability = useAssetAvailability(relatedAssets, visibleAssetSet, {
-    strict: true,
-    requireRenderableDetail: false,
-  });
+  const relatedAssets = previewRelatedAssets;
   const signalItems = previewSignalItems(
     asset,
     asset.columns?.length || 0,
@@ -523,7 +527,7 @@ function SelectionPreview({
                   onClick={() => onOpenLinkedAsset(item)}
                   onMouseEnter={() => {
                     prefetchAssetAvailability([item]);
-                    prefetchAssetDetail(item);
+                    prefetchAssetDetail(item, { sections: ["header"] });
                   }}
                   type="button"
                 >
@@ -658,19 +662,25 @@ export default function DiscoveryWorkspace({
   const openAssetRecord = async (assetFqn) => {
     if (!assetFqn) return;
     const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
-    const detailPromise = prefetchAssetDetail(assetFqn, { force: true });
+    const detailPromise = prefetchAssetDetail(assetFqn, {
+      force: true,
+      sections: ["header", "activity"],
+    });
     const availability = (await availabilityPromise)?.[assetFqn] || null;
     const detail = await detailPromise;
-    if (!canOpenAssetRecord(detail, availability)) return;
+    if (availability?.openable === false && !canOpenAssetRecord(detail, availability)) return;
     onOpenAsset(assetFqn);
   };
   const openLinkedAsset = async (assetFqn) => {
     if (!assetFqn) return;
     const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
-    const detailPromise = prefetchAssetDetail(assetFqn, { force: true });
+    const detailPromise = prefetchAssetDetail(assetFqn, {
+      force: true,
+      sections: ["header", "activity"],
+    });
     const availability = (await availabilityPromise)?.[assetFqn] || null;
     const detail = await detailPromise;
-    if (!canOpenLinkedAssetRecord(detail, availability)) return;
+    if (availability?.openable === false && !canOpenLinkedAssetRecord(detail, availability)) return;
     onOpenAsset(assetFqn);
   };
   const hasRenderableResults = renderableDiscoveryAssets.length > 0;

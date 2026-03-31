@@ -107,6 +107,17 @@ def graph_node_for_asset(
         "x": x,
         "y": y,
         "foot": footer,
+        "details": {
+            "fqn": asset_fqn,
+            "description": asset_service.normalize_str(row.get("comment"))
+            or asset_service.PLACEHOLDER_DESCRIPTION,
+            "governanceStatus": asset_service.normalize_str(row.get("governance_status"))
+            or "Needs Work",
+            "domain": asset_service.normalize_str(row.get("domain")) or "Unassigned",
+            "tier": asset_service.normalize_str(row.get("tier")) or "Unassigned",
+            "certification": asset_service.normalize_str(row.get("certification")) or "Unassigned",
+            "sensitivity": asset_service.normalize_str(row.get("sensitivity")) or "Unassigned",
+        },
     }
 
 
@@ -124,6 +135,139 @@ def stack_positions(
     span = max(bottom - top, 10)
     step = span / (count - 1)
     return [(x, round(top + idx * step)) for idx in range(count)]
+
+
+def _data_edge_key(source_id: str, target_id: str) -> str:
+    return f"data:{source_id}->{target_id}"
+
+
+def _operational_edge_key(source_id: str, target_id: str) -> str:
+    return f"operational:{source_id}->{target_id}"
+
+
+def _column_lineage_payload(uc: UCSQLClient, asset_fqn: str) -> Dict[str, List[Dict[str, Any]]]:
+    catalog, schema, table = asset_service.split_uc_name(asset_fqn)
+    try:
+        upstream_df = uc.get_column_lineage_upstream(catalog, schema, table)
+    except Exception:
+        upstream_df = pd.DataFrame()
+    try:
+        downstream_df = uc.get_column_lineage_downstream(catalog, schema, table)
+    except Exception:
+        downstream_df = pd.DataFrame()
+
+    upstream: Dict[str, List[Dict[str, str]]] = {}
+    if upstream_df is not None and not upstream_df.empty:
+        for _, row in upstream_df.iterrows():
+            target_column = asset_service.normalize_str(row.get("target_column_name"))
+            source_asset = asset_service.normalize_str(row.get("source_table_full_name"))
+            source_column = asset_service.normalize_str(row.get("source_column_name"))
+            if not target_column or not source_asset or not source_column:
+                continue
+            upstream.setdefault(target_column, []).append(
+                {"assetFqn": source_asset, "column": source_column}
+            )
+
+    downstream: Dict[str, List[Dict[str, str]]] = {}
+    if downstream_df is not None and not downstream_df.empty:
+        for _, row in downstream_df.iterrows():
+            source_column = asset_service.normalize_str(row.get("source_column_name"))
+            target_asset = asset_service.normalize_str(row.get("target_table_full_name"))
+            target_column = asset_service.normalize_str(row.get("target_column_name"))
+            if not source_column or not target_asset or not target_column:
+                continue
+            downstream.setdefault(source_column, []).append(
+                {"assetFqn": target_asset, "column": target_column}
+            )
+
+    return {
+        "upstream": [
+            {"column": column, "sources": sources}
+            for column, sources in sorted(upstream.items())
+        ],
+        "downstream": [
+            {"column": column, "targets": targets}
+            for column, targets in sorted(downstream.items())
+        ],
+    }
+
+
+def _data_edge_details(
+    graph: Dict[str, Any],
+    column_lineage: Dict[str, List[Dict[str, Any]]],
+) -> Dict[str, Dict[str, Any]]:
+    focus_node = next((node for node in graph.get("nodes", []) if node.get("role") == "focus"), None)
+    focus_fqn = asset_service.normalize_str(focus_node.get("assetFqn")) if focus_node else ""
+    upstream_lookup: Dict[str, List[Dict[str, str]]] = {}
+    for entry in column_lineage.get("upstream", []):
+        target_column = asset_service.normalize_str(entry.get("column"))
+        for source in entry.get("sources", []) or []:
+            source_fqn = asset_service.normalize_str(source.get("assetFqn"))
+            if not source_fqn or not target_column:
+                continue
+            upstream_lookup.setdefault(source_fqn, []).append(
+                {
+                    "sourceColumn": asset_service.normalize_str(source.get("column")),
+                    "targetColumn": target_column,
+                }
+            )
+    downstream_lookup: Dict[str, List[Dict[str, str]]] = {}
+    for entry in column_lineage.get("downstream", []):
+        source_column = asset_service.normalize_str(entry.get("column"))
+        for target in entry.get("targets", []) or []:
+            target_fqn = asset_service.normalize_str(target.get("assetFqn"))
+            if not target_fqn or not source_column:
+                continue
+            downstream_lookup.setdefault(target_fqn, []).append(
+                {
+                    "sourceColumn": source_column,
+                    "targetColumn": asset_service.normalize_str(target.get("column")),
+                }
+            )
+
+    details: Dict[str, Dict[str, Any]] = {}
+    for edge in graph.get("edges", []) or []:
+        source_id = edge.get("source")
+        target_id = edge.get("target")
+        source_node = next((node for node in graph.get("nodes", []) if node.get("id") == source_id), {})
+        target_node = next((node for node in graph.get("nodes", []) if node.get("id") == target_id), {})
+        key = edge.get("key") or _data_edge_key(source_id, target_id)
+        source_fqn = asset_service.normalize_str(source_node.get("assetFqn"))
+        target_fqn = asset_service.normalize_str(target_node.get("assetFqn"))
+        mappings = []
+        if target_fqn == focus_fqn:
+            mappings = upstream_lookup.get(source_fqn, [])
+        elif source_fqn == focus_fqn:
+            mappings = downstream_lookup.get(target_fqn, [])
+        details[key] = {
+            "kind": "data",
+            "sourceAssetFqn": source_fqn,
+            "targetAssetFqn": target_fqn,
+            "mappingCount": len(mappings),
+            "columnMappings": mappings[:20],
+            "summary": (
+                f"{len(mappings)} column mapping{'s' if len(mappings) != 1 else ''}"
+                if mappings
+                else "Table-level lineage relationship"
+            ),
+        }
+    return details
+
+
+def _operational_edge_details(graph: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    details: Dict[str, Dict[str, Any]] = {}
+    node_lookup = {node.get("id"): node for node in graph.get("nodes", [])}
+    for edge in graph.get("edges", []) or []:
+        source_node = node_lookup.get(edge.get("source"), {})
+        target_node = node_lookup.get(edge.get("target"), {})
+        key = edge.get("key") or _operational_edge_key(edge.get("source", ""), edge.get("target", ""))
+        payload_node = source_node if source_node.get("role") != "focus" else target_node
+        details[key] = {
+            "kind": "operational",
+            "summary": asset_service.normalize_str(payload_node.get("subtitle")) or "Operational context relationship",
+            "entities": payload_node.get("details", []) or [],
+        }
+    return details
 
 
 def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, Any]:
@@ -187,12 +331,26 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
         upstream_fqn = asset_service.normalize_str(upstream_assets[idx])
         node = graph_node_for_asset(uc, store, upstream_fqn, "source", x, y, kicker="Source")
         nodes.append(node)
-        edges.append({"source": node["id"], "target": focus["id"], "depth": 1})
+        edges.append(
+            {
+                "source": node["id"],
+                "target": focus["id"],
+                "depth": 1,
+                "key": _data_edge_key(node["id"], focus["id"]),
+            }
+        )
     for idx, (x, y) in enumerate(stack_positions(len(downstream_assets), x=80)):
         downstream_fqn = asset_service.normalize_str(downstream_assets[idx])
         node = graph_node_for_asset(uc, store, downstream_fqn, "target", x, y, kicker="Target")
         nodes.append(node)
-        edges.append({"source": focus["id"], "target": node["id"], "depth": 1})
+        edges.append(
+            {
+                "source": focus["id"],
+                "target": node["id"],
+                "depth": 1,
+                "key": _data_edge_key(focus["id"], node["id"]),
+            }
+        )
 
     if len(nodes) == 1:
         return {"nodes": [focus], "edges": []}
@@ -233,53 +391,61 @@ def build_operational_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict
         )
     except Exception:
         downstream_df = pd.DataFrame()
-    upstream_cards = summarize_operational_context(
-        upstream_df,
-        direction="upstream",
-        focus_asset_name=focus["label"],
-    )
-    downstream_cards = summarize_operational_context(
-        downstream_df,
-        direction="downstream",
-        focus_asset_name=focus["label"],
-    )
+    upstream_entities = asset_service.operational_entity_records(uc, upstream_df)
+    downstream_entities = asset_service.operational_entity_records(uc, downstream_df)
 
     nodes = [focus]
     edges: List[Dict[str, Any]] = []
 
-    for idx, (x, y) in enumerate(stack_positions(len(upstream_cards), x=21)):
-        card = upstream_cards[idx]
+    for idx, (x, y) in enumerate(stack_positions(len(upstream_entities), x=21)):
+        entity = upstream_entities[idx]
         node = {
             "id": f"op-up-{idx + 1}",
-            "label": card["title"],
-            "subtitle": card["subtitle"] or card["note"],
-            "kicker": card["entity_label"],
-            "kind": card["entity_label"],
+            "label": entity["name"],
+            "subtitle": entity.get("statementId") or entity.get("entityId") or "Operational producer",
+            "kicker": entity["entityLabel"],
+            "kind": entity["entityLabel"],
             "role": "source",
             "depth": 1,
             "x": x,
             "y": y,
-            "foot": [f"{card['asset_count']} {card['assets_label']}"],
+            "foot": [f"{len(entity.get('relatedAssets', []))} related asset(s)"],
+            "details": [entity],
         }
         nodes.append(node)
-        edges.append({"source": node["id"], "target": focus["id"], "depth": 1})
+        edges.append(
+            {
+                "source": node["id"],
+                "target": focus["id"],
+                "depth": 1,
+                "key": _operational_edge_key(node["id"], focus["id"]),
+            }
+        )
 
-    for idx, (x, y) in enumerate(stack_positions(len(downstream_cards), x=79)):
-        card = downstream_cards[idx]
+    for idx, (x, y) in enumerate(stack_positions(len(downstream_entities), x=79)):
+        entity = downstream_entities[idx]
         node = {
             "id": f"op-down-{idx + 1}",
-            "label": card["title"],
-            "subtitle": card["subtitle"] or card["note"],
-            "kicker": card["entity_label"],
-            "kind": card["entity_label"],
+            "label": entity["name"],
+            "subtitle": entity.get("statementId") or entity.get("entityId") or "Operational consumer",
+            "kicker": entity["entityLabel"],
+            "kind": entity["entityLabel"],
             "role": "target",
             "depth": 1,
             "x": x,
             "y": y,
-            "foot": [f"{card['asset_count']} {card['assets_label']}"],
+            "foot": [f"{len(entity.get('relatedAssets', []))} related asset(s)"],
+            "details": [entity],
         }
         nodes.append(node)
-        edges.append({"source": focus["id"], "target": node["id"], "depth": 1})
+        edges.append(
+            {
+                "source": focus["id"],
+                "target": node["id"],
+                "depth": 1,
+                "key": _operational_edge_key(focus["id"], node["id"]),
+            }
+        )
 
     return {"nodes": nodes, "edges": edges}
 
@@ -288,11 +454,44 @@ def lineage_payload(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, An
     return _ttl_value(
         f"lineage:{_warehouse_key(uc)}:{asset_service.normalize_str(asset_fqn)}",
         300,
-        lambda: {
-            "fqn": asset_fqn,
-            "graphs": {
-                "data": build_data_graph(uc, store, asset_fqn),
-                "operational": build_operational_graph(uc, store, asset_fqn),
-            },
-        },
+        lambda: _build_lineage_payload(uc, store, asset_fqn),
     )
+
+
+def _build_lineage_payload(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, Any]:
+    data_graph = build_data_graph(uc, store, asset_fqn)
+    operational_graph = build_operational_graph(uc, store, asset_fqn)
+    column_lineage = _column_lineage_payload(uc, asset_fqn)
+    data_edge_details = _data_edge_details(data_graph, column_lineage)
+    operational_edge_details = _operational_edge_details(operational_graph)
+    data_focus_id = next(
+        (node.get("id") for node in data_graph.get("nodes", []) if node.get("role") == "focus"),
+        "",
+    )
+
+    return {
+        "fqn": asset_fqn,
+        "graphs": {
+            "data": data_graph,
+            "operational": operational_graph,
+        },
+        "columnLineage": column_lineage,
+        "edgeDetails": {
+            **data_edge_details,
+            **operational_edge_details,
+        },
+        "stats": {
+            "upstreamCount": sum(
+                1 for edge in data_graph.get("edges", []) if edge.get("target") == data_focus_id
+            ),
+            "downstreamCount": sum(
+                1 for edge in data_graph.get("edges", []) if edge.get("source") == data_focus_id
+            ),
+            "operationalProducerCount": sum(
+                1 for node in operational_graph.get("nodes", []) if node.get("role") == "source"
+            ),
+            "operationalConsumerCount": sum(
+                1 for node in operational_graph.get("nodes", []) if node.get("role") == "target"
+            ),
+        },
+    }

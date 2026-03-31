@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useAssetDetail } from "../hooks/useAssetDetail";
-import { useAssetSearch } from "../hooks/useAssetSearch";
+import { primeAssetDetail, useAssetDetail } from "../hooks/useAssetDetail";
+import { clearAssetSearchCache, useAssetSearch } from "../hooks/useAssetSearch";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import {
   createGovernanceRequest,
+  updateGovernanceRequest,
   upsertGovernanceGlossaryTerm,
   upsertGovernanceOwner,
 } from "../lib/api";
@@ -14,7 +15,8 @@ function governanceViews(governance) {
 
   return {
     requests: backlog.map((item, index) => ({
-      id: `request-${index}`,
+      id: item.requestId || `request-${index}`,
+      requestId: item.requestId || "",
       title: item.title,
       subtitle: item.asset,
       assetFqn: item.assetFqn || item.asset,
@@ -139,6 +141,7 @@ export default function GovernanceWorkspace({
   bootstrap,
   contextSeedAssets = [],
   governance,
+  onGovernanceChange,
   onRouteAssetChange,
   onOpenAsset,
   onOpenLineage,
@@ -147,8 +150,9 @@ export default function GovernanceWorkspace({
   const [liveGovernance, setLiveGovernance] = useState(governance);
   const seedAssets = contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [];
   const seeded = useSeededAssetContext(focusedAssetFqn, bootstrap, seedAssets);
-  const assetDetail = useAssetDetail(focusedAssetFqn || "");
-  const focusedAsset = assetDetail.detail || seeded.summary;
+  const assetDetail = useAssetDetail(focusedAssetFqn || "", { sections: ["header", "activity"] });
+  const [focusedAssetSnapshot, setFocusedAssetSnapshot] = useState(null);
+  const focusedAsset = focusedAssetSnapshot || assetDetail.detail || seeded.summary;
   const views = useMemo(() => governanceViews(liveGovernance), [liveGovernance]);
   const [mode, setMode] = useState("stewardship");
   const [selectedLaneKey, setSelectedLaneKey] = useState("open-work");
@@ -179,6 +183,16 @@ export default function GovernanceWorkspace({
     const nextAssetFqn = initialAssetFqn || "";
     setFocusedAssetFqn(nextAssetFqn);
   }, [initialAssetFqn]);
+
+  useEffect(() => {
+    setFocusedAssetSnapshot(null);
+  }, [focusedAssetFqn]);
+
+  useEffect(() => {
+    if (assetDetail.detail?.fqn && assetDetail.detail?.fqn === focusedAssetFqn) {
+      setFocusedAssetSnapshot(assetDetail.detail);
+    }
+  }, [assetDetail.detail, focusedAssetFqn]);
 
   useEffect(() => {
     setLiveGovernance(governance);
@@ -301,7 +315,16 @@ export default function GovernanceWorkspace({
     setMutationState({ kind, loading: true, error: "", success: "" });
     try {
       const next = await executor();
-      setLiveGovernance(next);
+      if (next?.asset?.fqn) {
+        primeAssetDetail(next.asset.fqn, next.asset);
+        if (next.asset.fqn === focusedAssetFqn) {
+          setFocusedAssetSnapshot(next.asset);
+        }
+      }
+      clearAssetSearchCache();
+      const nextGovernance = next?.governance || next;
+      setLiveGovernance(nextGovernance);
+      onGovernanceChange?.(nextGovernance);
       setMutationState({ kind, loading: false, error: "", success });
     } catch (error) {
       setMutationState({
@@ -831,6 +854,42 @@ export default function GovernanceWorkspace({
                           type="button"
                         >
                           Open lineage
+                        </button>
+                        <button
+                          className="gh-secondary-button"
+                          disabled={!selectedItem.requestId}
+                          onClick={() =>
+                            runGovernanceMutation(
+                              "request-status",
+                              () =>
+                                updateGovernanceRequest(selectedItem.requestId, {
+                                  status: "approved",
+                                  reviewNote: "Approved from governance workbench.",
+                                }),
+                              "Request approved.",
+                            )
+                          }
+                          type="button"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className="gh-secondary-button"
+                          disabled={!selectedItem.requestId}
+                          onClick={() =>
+                            runGovernanceMutation(
+                              "request-status",
+                              () =>
+                                updateGovernanceRequest(selectedItem.requestId, {
+                                  status: "rejected",
+                                  reviewNote: "Rejected from governance workbench.",
+                                }),
+                              "Request rejected.",
+                            )
+                          }
+                          type="button"
+                        >
+                          Reject
                         </button>
                       </div>
                     ) : null}
