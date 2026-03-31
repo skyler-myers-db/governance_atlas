@@ -134,12 +134,20 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
         })
         .catch((error) => {
           if (canceled) return;
-          setState({
+          const fallbackMatches = mergeAssets(
+            SEARCH_CACHE.get(cacheKey) || [],
+            seededMatches,
+            8,
+          );
+          setState((current) => ({
             loading: false,
-            error: seededMatches.length ? "" : error?.message || "Failed to search assets.",
-            assets: seededMatches,
+            error:
+              fallbackMatches.length || current.assets.length
+                ? ""
+                : error?.message || "Failed to search assets.",
+            assets: current.assets.length ? current.assets : fallbackMatches,
             resolvedQuery: trimmedQuery,
-          });
+          }));
         });
     }, cachedMatches.length ? 10 : 20);
 

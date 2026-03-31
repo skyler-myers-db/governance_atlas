@@ -228,9 +228,7 @@ export default function App() {
     ? baselineDiscoveryAssets
     : currentDiscoveryAssets.length
       ? currentDiscoveryAssets
-      : bootstrapRefreshFailed || !bootstrapHasVisibleAssets
-        ? []
-        : bootstrapAssets;
+      : bootstrapAssets;
   const contextSeedAssets = mergeAssetGroups(
     currentDiscoveryAssets,
     baselineDiscoveryAssets,
@@ -287,7 +285,7 @@ export default function App() {
             onOpenAsset={openEntityWorkspace}
             onOpenGovernance={openGovernanceWorkspace}
             onOpenLineage={openLineageWorkspace}
-            allowSeededDiscovery={!bootstrapRefreshFailed && bootstrapHasVisibleAssets}
+            allowSeededDiscovery={bootstrapAssets.length > 0}
             querySeedFresh={discoveryRouteState.fresh}
             querySeedKey={discoveryRouteState.requestKey}
             onLiveCatalogStateChange={handleLiveCatalogStateChange}

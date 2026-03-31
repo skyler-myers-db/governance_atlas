@@ -114,7 +114,14 @@ function previewRelatedAssetsFromGraph(graphBundle, focusFqn) {
   )].slice(0, 6);
 }
 
-function previewSignalItems(asset, columnsCount, relatedCount, detailLoading, lineageLoading) {
+function previewSignalItems(
+  asset,
+  columnsCount,
+  relatedCount,
+  detailLoading,
+  lineageLoading,
+  lineageEnabled = true,
+) {
   return [
     {
       label: "Stewardship",
@@ -130,7 +137,13 @@ function previewSignalItems(asset, columnsCount, relatedCount, detailLoading, li
     },
     {
       label: "Lineage",
-      value: lineageLoading && !relatedCount ? "Loading lineage neighbors..." : relatedCount ? `${relatedCount} linked assets` : "No linked assets surfaced",
+      value: !lineageEnabled
+        ? "Load lineage on demand"
+        : lineageLoading && !relatedCount
+          ? "Loading lineage neighbors..."
+          : relatedCount
+            ? `${relatedCount} linked assets`
+            : "No linked assets surfaced",
     },
   ];
 }
@@ -387,20 +400,29 @@ function SelectionPreview({
   asset,
   detailLoading,
   detailError,
-  lineageLoading,
-  lineageError,
-  lineageGraph,
   onOpenAsset,
   onOpenGovernance,
   onOpenLinkedAsset,
   onOpenLineage,
   visibleAssetSet,
+  seededLineageGraph,
 }) {
-  const previewRelatedAssets = asset
+  const [showLineageContext, setShowLineageContext] = useState(false);
+
+  useEffect(() => {
+    setShowLineageContext(false);
+  }, [asset?.fqn]);
+
+  const lineage = useLineage(
+    asset?.fqn || "",
+    seededLineageGraph || null,
+    Boolean(asset?.fqn) && showLineageContext,
+  );
+  const previewRelatedAssets = asset && showLineageContext
     ? [
         ...new Set([
           ...(asset.relatedAssets || []),
-          ...previewRelatedAssetsFromGraph(lineageGraph, asset.fqn),
+          ...previewRelatedAssetsFromGraph(lineage.graph, asset.fqn),
         ]),
       ].slice(0, 4)
     : [];
@@ -419,13 +441,13 @@ function SelectionPreview({
   }
 
   const columns = (asset.columns || []).slice(0, 4);
-  const relatedAssets = previewRelatedAssets;
   const signalItems = previewSignalItems(
     asset,
     asset.columns?.length || 0,
-    relatedAssets.length,
+    showLineageContext ? previewRelatedAssets.length : 0,
     detailLoading,
-    lineageLoading,
+    showLineageContext && lineage.loading,
+    showLineageContext,
   );
 
   return (
@@ -464,10 +486,7 @@ function SelectionPreview({
       </div>
 
       {detailError ? <div className="gh-inline-alert tone-warn">{detailError}</div> : null}
-      {lineageError && !relatedAssets.length ? <div className="gh-inline-alert tone-warn">{lineageError}</div> : null}
-      {detailLoading || lineageLoading ? (
-        <div className="gh-support-copy">Refreshing live metadata for this selection...</div>
-      ) : null}
+      {detailLoading ? <div className="gh-support-copy">Refreshing live header and schema metadata...</div> : null}
 
       <PreviewSection title="Definition">
         <div className="gh-support-copy">
@@ -503,39 +522,54 @@ function SelectionPreview({
       </PreviewSection>
 
       <PreviewSection
-        title="Related Assets"
+        title="Connected Assets"
         empty={
-          lineageLoading
-            ? "Loading connected lineage edges..."
-            : "No connected lineage edges are surfaced for this asset yet."
+          showLineageContext
+            ? lineage.loading
+              ? "Loading connected lineage edges..."
+              : "No connected lineage edges are surfaced for this asset yet."
+            : "Lineage loads on demand so preview stays fast."
         }
       >
-        {relatedAssets.length ? (
-          <div className="gh-lineage-linked-list">
-            {relatedAssets.map((item) => (
-              relatedAssetAvailability[item] !== true ? (
-                <div className="gh-lineage-linked-row is-readonly" key={item}>
-                  <span>{item}</span>
-                  <span>
-                    {relatedAssetAvailability[item] === false ? "Lineage-only asset" : "Checking asset…"}
-                  </span>
-                </div>
-              ) : (
-                <button
-                  className="gh-lineage-linked-row"
-                  key={item}
-                  onClick={() => onOpenLinkedAsset(item)}
-                  onMouseEnter={() => {
-                    prefetchAssetAvailability([item]);
-                    prefetchAssetDetail(item, { sections: ["header"] });
-                  }}
-                  type="button"
-                >
-                  <span>{item}</span>
-                  <span>{relatedAssetAvailability[item] ? "Open Linked Asset" : "Checking asset…"}</span>
-                </button>
-              )
-            ))}
+        {showLineageContext ? (
+          previewRelatedAssets.length ? (
+            <div className="gh-lineage-linked-list">
+              {previewRelatedAssets.map((item) =>
+                relatedAssetAvailability[item] !== true ? (
+                  <div className="gh-lineage-linked-row is-readonly" key={item}>
+                    <span>{item}</span>
+                    <span>
+                      {relatedAssetAvailability[item] === false ? "Lineage-only asset" : "Checking asset…"}
+                    </span>
+                  </div>
+                ) : (
+                  <button
+                    className="gh-lineage-linked-row"
+                    key={item}
+                    onClick={() => onOpenLinkedAsset(item)}
+                    onMouseEnter={() => {
+                      prefetchAssetAvailability([item]);
+                      prefetchAssetDetail(item, { sections: ["header"] });
+                    }}
+                    type="button"
+                  >
+                    <span>{item}</span>
+                    <span>{relatedAssetAvailability[item] ? "Open Linked Asset" : "Checking asset…"}</span>
+                  </button>
+                ),
+              )}
+            </div>
+          ) : null
+        ) : null}
+        {!showLineageContext ? (
+          <div className="gh-action-grid">
+            <button
+              className="gh-secondary-button"
+              onClick={() => setShowLineageContext(true)}
+              type="button"
+            >
+              Load connected assets
+            </button>
           </div>
         ) : null}
       </PreviewSection>
@@ -571,21 +605,24 @@ export default function DiscoveryWorkspace({
     querySeedFresh,
   });
 
-  const suppressCatalogRows = effectiveBootState !== "live" && !discoveryResults.authoritative;
+  const suppressCatalogRows =
+    effectiveBootState !== "live" &&
+    !discoveryResults.authoritative &&
+    !(discoveryResults.assets || []).length;
   const renderableDiscoveryAssets = suppressCatalogRows ? [] : discoveryResults.assets;
   const selectedSeedAsset =
     renderableDiscoveryAssets.find((asset) => asset.fqn === selectedAssetFqn) ||
     renderableDiscoveryAssets[0] ||
     null;
-  const previewDetail = useAssetDetail(selectedSeedAsset?.fqn || "");
-  const previewLineage = useLineage(
-    selectedSeedAsset?.fqn || "",
-    selectedSeedAsset?.fqn ? bootstrap?.graphs?.[selectedSeedAsset.fqn] || null : null,
-    Boolean(selectedSeedAsset?.fqn),
-  );
+  const previewDetail = useAssetDetail(selectedSeedAsset?.fqn || "", {
+    sections: ["header", "schema"],
+  });
   const previewAsset = isUsableAssetDetail(previewDetail.detail)
     ? previewDetail.detail
     : selectedSeedAsset;
+  const previewLineageSeedGraph = selectedSeedAsset?.fqn
+    ? bootstrap?.graphs?.[selectedSeedAsset.fqn] || null
+    : null;
   const visibleAssetSet = useMemo(() => {
     const next = new Set();
     if (sharedVisibleAssetSet?.forEach) {
@@ -638,6 +675,7 @@ export default function DiscoveryWorkspace({
   const filtersApplied = activeFilters(filters);
   const directFilterCount = filterVisibilityCount(filters);
   const discoverySummary = bootstrap.discovery?.summary || {};
+  const visibleAssetsSummary = effectiveVisibleCount || discoverySummary.visibleAssets || resultsCount || 0;
   const assetTypeOptions = (bootstrap.discovery.assetTypes || []).filter(Boolean);
   const catalogOptions = facetValues(
     resultsFacets,
@@ -947,7 +985,7 @@ export default function DiscoveryWorkspace({
               <div className="gh-discovery-summary-grid gh-discovery-summary-grid-inline">
                 <div className="gh-discovery-summary-card">
                   <span>Visible assets</span>
-                  <strong>{discoverySummary.visibleAssets || 0}</strong>
+                  <strong>{visibleAssetsSummary}</strong>
                 </div>
                 <div className="gh-discovery-summary-card">
                   <span>Catalogs</span>
@@ -984,13 +1022,11 @@ export default function DiscoveryWorkspace({
           asset={previewAsset}
           detailError={previewDetail.error}
           detailLoading={previewDetail.loading}
-          lineageError={previewLineage.error}
-          lineageGraph={previewLineage.graph}
-          lineageLoading={previewLineage.loading}
           onOpenAsset={openAssetRecord}
           onOpenGovernance={onOpenGovernance}
           onOpenLinkedAsset={openLinkedAsset}
           onOpenLineage={onOpenLineage}
+          seededLineageGraph={previewLineageSeedGraph}
           visibleAssetSet={visibleAssetSet}
         />
       </section>

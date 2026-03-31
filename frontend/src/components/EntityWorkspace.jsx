@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   updateAssetColumnDescription,
+  updateAssetColumnMetadata,
   updateAssetColumnTags,
 } from "../lib/api";
 import { useAssetMetadataEditor } from "../hooks/useAssetMetadataEditor";
@@ -919,17 +920,31 @@ export default function EntityWorkspace({
 
     setColumnMutation({ loading: true, error: "", success: "" });
     try {
-      let nextAsset = null;
-      const descriptionResponse = await updateAssetColumnDescription(asset.fqn, selectedColumnName, description);
-      nextAsset = descriptionResponse?.asset || nextAsset;
-      const tagsResponse = await updateAssetColumnTags(asset.fqn, selectedColumnName, tags);
-      nextAsset = tagsResponse?.asset || nextAsset;
+      let response = null;
+      try {
+        response = await updateAssetColumnMetadata(asset.fqn, selectedColumnName, {
+          description,
+          tags,
+        });
+      } catch (error) {
+        if (![404, 405, 501].includes(error?.status)) {
+          throw error;
+        }
+        const descriptionResponse = await updateAssetColumnDescription(
+          asset.fqn,
+          selectedColumnName,
+          description,
+        );
+        const tagsResponse = await updateAssetColumnTags(asset.fqn, selectedColumnName, tags);
+        response = tagsResponse || descriptionResponse;
+      }
+      const nextAsset = response?.asset || null;
       if (nextAsset?.fqn) {
         primeAssetDetail(nextAsset.fqn, nextAsset);
         clearAssetSearchCache();
         setLocalOverrides(nextAsset);
       }
-      onGovernanceChange?.(descriptionResponse?.governance || tagsResponse?.governance || null);
+      onGovernanceChange?.(response?.governance || null);
       setColumnMutation({ loading: false, error: "", success: "Column metadata saved." });
     } catch (error) {
       setColumnMutation({
