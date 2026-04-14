@@ -3,8 +3,6 @@ import path from "path";
 import { chromium } from "playwright";
 
 const BASE_URL = "https://governance-hub-7405619023278880.0.azure.databricksapps.com";
-const ASSET_FQN = "test.silver.ap_self_assessed_tax_dist";
-const COLUMN_NAME = "INVOICE_DISTRIBUTION_ID";
 const WRITABLE_ASSET_FQN = "dev.wacs_silver_test.slv_work_req_latest_status";
 const WRITABLE_COLUMN_NAME = "work_req_id";
 const OUT_DIR = "/tmp/govhub-live-qa";
@@ -20,8 +18,9 @@ const glossaryReviewerUpdated = "skyler.myers@tristategt.org:approver";
 
 const report = {
   generatedAt: new Date().toISOString(),
-  assetFqn: ASSET_FQN,
-  columnName: COLUMN_NAME,
+  assetFqn: "",
+  lineageAssetFqn: "",
+  columnName: "",
   writableAssetFqn: WRITABLE_ASSET_FQN,
   writableColumnName: WRITABLE_COLUMN_NAME,
   requestTitle,
@@ -37,12 +36,7 @@ function pushCheck(name, status, detail = {}) {
 async function connect() {
   const browser = await chromium.connectOverCDP("http://127.0.0.1:9223");
   const context = browser.contexts()[0];
-  const existingPages = context.pages();
-  const page =
-    existingPages.find((candidate) => candidate.url().startsWith(BASE_URL)) ||
-    existingPages.find((candidate) => /^https?:/i.test(candidate.url())) ||
-    existingPages[0] ||
-    (await context.newPage());
+  const page = await context.newPage();
   await page.bringToFront();
   await page.setViewportSize({ width: 1600, height: 1040 });
   return { browser, page };
@@ -96,26 +90,132 @@ async function waitForOverviewWarmup(page, timeoutMs = 8000) {
   }
 }
 
-async function fetchJson(page, url, init = {}) {
+async function fetchJson(page, url, init = {}, timeoutMs = 15000) {
   return page.evaluate(
-    async ({ url: targetUrl, init: targetInit }) => {
-      const response = await fetch(targetUrl, targetInit);
-      const text = await response.text();
-      let json = null;
+    async ({ url: targetUrl, init: targetInit, timeoutMs: targetTimeoutMs }) => {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort("Timed out"), targetTimeoutMs);
       try {
-        json = JSON.parse(text);
-      } catch {
-        json = null;
+        const response = await fetch(targetUrl, {
+          ...targetInit,
+          signal: controller.signal,
+        });
+        const text = await response.text();
+        let json = null;
+        try {
+          json = JSON.parse(text);
+        } catch {
+          json = null;
+        }
+        return {
+          ok: response.ok,
+          status: response.status,
+          text,
+          json,
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          status: 0,
+          text: String(error?.message || error || "Request failed"),
+          json: null,
+        };
+      } finally {
+        window.clearTimeout(timeoutId);
       }
-      return {
-        ok: response.ok,
-        status: response.status,
-        text,
-        json,
-      };
     },
-    { url, init },
+    { url, init, timeoutMs },
   );
+}
+
+function assetApiPath(assetFqn, query = "") {
+  const encoded = encodeURIComponent(assetFqn || "");
+  return `/api/assets/${encoded}${query}`;
+}
+
+function lineageApiPath(assetFqn, query = "") {
+  const encoded = encodeURIComponent(assetFqn || "");
+  return `/api/lineage/${encoded}${query}`;
+}
+
+async function resolveVisibleAssetTargets(page) {
+  const candidateFqns = await page.evaluate(() => {
+    const selected = document.querySelector(".gh-selection-preview[data-asset-fqn]")?.dataset?.assetFqn || "";
+    const resultRows = [...document.querySelectorAll(".gh-discovery-result-row[data-asset-fqn]")]
+      .map((row) => row.dataset.assetFqn || "")
+      .filter(Boolean);
+    const bootstrapAssets = (window.__GOVHUB_BOOTSTRAP__?.assets || [])
+      .map((asset) => asset?.fqn || "")
+      .filter(Boolean);
+    return [...new Set([selected, ...resultRows, ...bootstrapAssets])].filter(Boolean);
+  });
+
+  if (!candidateFqns.length) {
+    return { assetFqn: "", columnName: "", lineageAssetFqn: "" };
+  }
+
+  let assetFqn = candidateFqns[0] || "";
+  let columnName = "";
+  for (const candidate of candidateFqns.slice(0, 12)) {
+    const assetDetail = await fetchJson(page, `${assetApiPath(candidate, `?sections=schema&_qa=${Date.now()}`)}`);
+    const nextColumnName = assetDetail.json?.columns?.[0]?.name || "";
+    if (nextColumnName) {
+      assetFqn = candidate;
+      columnName = nextColumnName;
+      break;
+    }
+  }
+
+  let lineageAssetFqn = assetFqn;
+  for (const candidate of candidateFqns.slice(0, 12)) {
+    const lineagePayload = await fetchJson(page, `${lineageApiPath(candidate, `?_qa=${Date.now()}`)}`);
+    const dataEdges = lineagePayload.json?.graphs?.data?.edges?.length || 0;
+    const opEdges = lineagePayload.json?.graphs?.operational?.edges?.length || 0;
+    if (dataEdges || opEdges) {
+      lineageAssetFqn = candidate;
+      break;
+    }
+  }
+
+  return {
+    assetFqn,
+    columnName,
+    lineageAssetFqn,
+  };
+}
+
+async function resolveWritableAssetTarget(page) {
+  const seededCandidates = await page.evaluate(() => {
+    const resultRows = [...document.querySelectorAll(".gh-discovery-result-row[data-asset-fqn]")]
+      .map((row) => row.dataset.assetFqn || "")
+      .filter(Boolean);
+    const bootstrapAssets = (window.__GOVHUB_BOOTSTRAP__?.assets || [])
+      .map((asset) => asset?.fqn || "")
+      .filter(Boolean);
+    return [...new Set([...resultRows, ...bootstrapAssets])].filter(Boolean);
+  });
+  const deltaSearch = await fetchJson(
+    page,
+    `/api/discovery/search?types=${encodeURIComponent("Delta Table")}&limit=120&_qa=${Date.now()}`,
+  );
+  const apiCandidates = (deltaSearch.json?.assets || [])
+    .map((asset) => asset?.fqn || "")
+    .filter(Boolean);
+  const candidateFqns = [...new Set([...seededCandidates, ...apiCandidates])];
+
+  for (const candidate of candidateFqns.slice(0, 120)) {
+    const detail = await fetchJson(
+      page,
+      assetApiPath(candidate, `?sections=header,schema&_qa=${Date.now()}`),
+    );
+    const writable = detail.json?.metadataEditor?.available === true;
+    const columnName = detail.json?.columns?.[0]?.name || "";
+    if (writable && columnName) {
+      return { assetFqn: candidate, columnName };
+    }
+  }
+
+  return { assetFqn: "", columnName: "" };
 }
 
 function rowMap(rows = []) {
@@ -139,6 +239,11 @@ const { browser, page } = await connect();
 let originalWritableColumnDraft = { description: "", tags: "" };
 let createdRequestId = "";
 let createdGlossaryTermId = "";
+let visibleAssetFqn = "";
+let visibleLineageAssetFqn = "";
+let visibleColumnName = "";
+let writableAssetFqn = WRITABLE_ASSET_FQN;
+let writableColumnName = WRITABLE_COLUMN_NAME;
 
 try {
   await resetDiscoverySession(page);
@@ -192,6 +297,39 @@ try {
   });
   pushCheck("discovery-shell", "ok", discoverySummary);
 
+  const resolvedTargets = await resolveVisibleAssetTargets(page);
+  visibleAssetFqn = resolvedTargets.assetFqn;
+  visibleLineageAssetFqn = resolvedTargets.lineageAssetFqn || resolvedTargets.assetFqn;
+  visibleColumnName = resolvedTargets.columnName;
+  report.assetFqn = visibleAssetFqn;
+  report.lineageAssetFqn = visibleLineageAssetFqn;
+  report.columnName = visibleColumnName;
+  pushCheck(
+    "visible-asset-resolution",
+    visibleAssetFqn ? "ok" : "warn",
+    resolvedTargets,
+  );
+  if (!visibleAssetFqn) {
+    throw new Error("No visible discovery asset could be resolved from the authenticated workspace.");
+  }
+
+  const resolvedWritableTarget = await resolveWritableAssetTarget(page);
+  if (resolvedWritableTarget.assetFqn && resolvedWritableTarget.columnName) {
+    writableAssetFqn = resolvedWritableTarget.assetFqn;
+    writableColumnName = resolvedWritableTarget.columnName;
+    report.writableAssetFqn = writableAssetFqn;
+    report.writableColumnName = writableColumnName;
+  }
+  pushCheck(
+    "writable-asset-resolution",
+    writableAssetFqn && writableColumnName ? "ok" : "warn",
+    {
+      assetFqn: writableAssetFqn,
+      columnName: writableColumnName,
+      fallback: !resolvedWritableTarget.assetFqn,
+    },
+  );
+
   await page.locator("#gh-global-search-input").fill("ta");
   await page.waitForSelector(".gh-search-dropdown", { timeout: 15000 });
   await screenshot(page, "discovery-search-open");
@@ -217,7 +355,7 @@ try {
 
   await gotoSurface(
     page,
-    `${BASE_URL}/?module=discovery&surface=entity&asset=${ASSET_FQN}&_cb=codex-qa-entity-${suffix}`,
+    `${BASE_URL}/?module=discovery&surface=entity&asset=${visibleAssetFqn}&_cb=codex-qa-entity-${suffix}`,
     ".gh-entity-record-tabs",
   );
   await waitForOverviewWarmup(page);
@@ -287,12 +425,12 @@ try {
 
   await gotoSurface(
     page,
-    `${BASE_URL}/?module=discovery&surface=entity&asset=${ASSET_FQN}&_cb=codex-qa-entity-schema-${suffix}`,
+    `${BASE_URL}/?module=discovery&surface=entity&asset=${visibleAssetFqn}&_cb=codex-qa-entity-schema-${suffix}`,
     ".gh-entity-record-tabs",
   );
   await page.getByRole("button", { name: "Schema" }).click();
   await page.waitForSelector(".gh-table tbody tr", { timeout: 15000 });
-  await page.locator(".gh-table tbody tr", { hasText: COLUMN_NAME }).click();
+  await page.locator(".gh-table tbody tr").filter({ hasText: visibleColumnName }).first().click();
   const selectedColumnCard = page.locator(".gh-record-card").filter({ hasText: "Selected Column" }).first();
   await selectedColumnCard.waitFor({ timeout: 15000 });
   const readOnlySchemaState = await page.evaluate(() => {
@@ -315,73 +453,101 @@ try {
     readOnlySchemaState || {},
   );
 
+  const writableTargetValidation = writableAssetFqn
+    ? await fetchJson(page, assetApiPath(writableAssetFqn, `?sections=header,schema&_qa=${Date.now()}`))
+    : null;
+  const canExerciseWritableColumnFlow = Boolean(
+    writableTargetValidation?.ok &&
+      writableTargetValidation.json?.metadataEditor?.available === true &&
+      (writableTargetValidation.json?.columns || []).some((column) => column.name === writableColumnName),
+  );
+
+  if (canExerciseWritableColumnFlow) {
+    await gotoSurface(
+      page,
+      `${BASE_URL}/?module=discovery&surface=entity&asset=${writableAssetFqn}&_cb=codex-qa-entity-schema-write-${suffix}`,
+      ".gh-entity-record-tabs",
+    );
+    await page.getByRole("button", { name: "Schema" }).click();
+    await page.waitForSelector(".gh-table tbody tr", { timeout: 15000 });
+    await page.locator(".gh-table tbody tr", { hasText: writableColumnName }).click();
+    const writableColumnCard = page.locator(".gh-record-card").filter({ hasText: "Selected Column" }).first();
+    await writableColumnCard.waitFor({ timeout: 15000 });
+    const descriptionField = writableColumnCard.locator("textarea").first();
+    const tagsField = writableColumnCard.locator('input[placeholder="domain=Finance, sensitivity=PII"]').first();
+    originalWritableColumnDraft = {
+      description: await descriptionField.inputValue(),
+      tags: await tagsField.inputValue(),
+    };
+    const updatedColumnDraft = {
+      description: `Codex QA column description ${suffix}`,
+      tags: originalWritableColumnDraft.tags
+        ? `${originalWritableColumnDraft.tags}, qa_probe=${suffix}`
+        : `qa_probe=${suffix}`,
+    };
+    await descriptionField.fill(updatedColumnDraft.description);
+    await tagsField.fill(updatedColumnDraft.tags);
+    await writableColumnCard.getByRole("button", { name: "Save column" }).click();
+    await page.waitForTimeout(1800);
+    const columnAfterUpdate = await fetchJson(
+      page,
+      assetApiPath(writableAssetFqn, `?sections=schema&_qa=${Date.now()}`),
+    );
+    const updatedColumn =
+      (columnAfterUpdate.json?.columns || []).find((column) => column.name === writableColumnName) || null;
+    const columnUpdateOk =
+      columnAfterUpdate.ok &&
+      updatedColumn &&
+      String(updatedColumn.description || "").includes(updatedColumnDraft.description) &&
+      (updatedColumn.tagLabels || []).some((tag) => String(tag).includes(`qa_probe=${suffix}`));
+    pushCheck("schema-column-update", columnUpdateOk ? "ok" : "warn", {
+      originalWritableColumnDraft,
+      updatedColumnDraft,
+      apiColumn: updatedColumn,
+    });
+
+    await descriptionField.fill(originalWritableColumnDraft.description);
+    await tagsField.fill(originalWritableColumnDraft.tags);
+    await writableColumnCard.getByRole("button", { name: "Save column" }).click();
+    await page.waitForTimeout(1500);
+    const columnAfterRestore = await fetchJson(
+      page,
+      assetApiPath(writableAssetFqn, `?sections=schema&_qa=${Date.now()}`),
+    );
+    const restoredColumn =
+      (columnAfterRestore.json?.columns || []).find((column) => column.name === writableColumnName) || null;
+    const restoredTagLabels = restoredColumn?.tagLabels || [];
+    pushCheck(
+      "schema-column-restore",
+      columnAfterRestore.ok &&
+        String(restoredColumn?.description || "") === String(originalWritableColumnDraft.description || "") &&
+        !restoredTagLabels.some((tag) => String(tag).includes(`qa_probe=${suffix}`))
+        ? "ok"
+        : "warn",
+      {
+        restoredTo: originalWritableColumnDraft,
+        apiColumn: restoredColumn,
+      },
+    );
+  } else {
+    pushCheck("schema-column-update", "warn", {
+      assetFqn: writableAssetFqn,
+      columnName: writableColumnName,
+      reason: "No writable Delta-table column editor was reachable in the live workspace session.",
+      validation: writableTargetValidation?.json || null,
+    });
+    pushCheck("schema-column-restore", "warn", {
+      assetFqn: writableAssetFqn,
+      columnName: writableColumnName,
+      reason: "Skipped restore because the writable column editor was not reachable in the live workspace session.",
+    });
+  }
+
   await gotoSurface(
     page,
-    `${BASE_URL}/?module=discovery&surface=entity&asset=${WRITABLE_ASSET_FQN}&_cb=codex-qa-entity-schema-write-${suffix}`,
+    `${BASE_URL}/?module=discovery&surface=entity&asset=${visibleLineageAssetFqn}&_cb=codex-qa-entity-lineage-${suffix}`,
     ".gh-entity-record-tabs",
   );
-  await page.getByRole("button", { name: "Schema" }).click();
-  await page.waitForSelector(".gh-table tbody tr", { timeout: 15000 });
-  await page.locator(".gh-table tbody tr", { hasText: WRITABLE_COLUMN_NAME }).click();
-  const writableColumnCard = page.locator(".gh-record-card").filter({ hasText: "Selected Column" }).first();
-  await writableColumnCard.waitFor({ timeout: 15000 });
-  const descriptionField = writableColumnCard.locator("textarea").first();
-  const tagsField = writableColumnCard.locator('input[placeholder="domain=Finance, sensitivity=PII"]').first();
-  originalWritableColumnDraft = {
-    description: await descriptionField.inputValue(),
-    tags: await tagsField.inputValue(),
-  };
-  const updatedColumnDraft = {
-    description: `Codex QA column description ${suffix}`,
-    tags: originalWritableColumnDraft.tags
-      ? `${originalWritableColumnDraft.tags}, qa_probe=${suffix}`
-      : `qa_probe=${suffix}`,
-  };
-  await descriptionField.fill(updatedColumnDraft.description);
-  await tagsField.fill(updatedColumnDraft.tags);
-  await writableColumnCard.getByRole("button", { name: "Save column" }).click();
-  await page.waitForTimeout(1800);
-  const columnAfterUpdate = await fetchJson(
-    page,
-    `/api/assets/${WRITABLE_ASSET_FQN}?sections=schema&_qa=${Date.now()}`,
-  );
-  const updatedColumn =
-    (columnAfterUpdate.json?.columns || []).find((column) => column.name === WRITABLE_COLUMN_NAME) || null;
-  const columnUpdateOk =
-    columnAfterUpdate.ok &&
-    updatedColumn &&
-    String(updatedColumn.description || "").includes(updatedColumnDraft.description) &&
-    (updatedColumn.tagLabels || []).some((tag) => String(tag).includes(`qa_probe=${suffix}`));
-  pushCheck("schema-column-update", columnUpdateOk ? "ok" : "warn", {
-    originalWritableColumnDraft,
-    updatedColumnDraft,
-    apiColumn: updatedColumn,
-  });
-
-  await descriptionField.fill(originalWritableColumnDraft.description);
-  await tagsField.fill(originalWritableColumnDraft.tags);
-  await writableColumnCard.getByRole("button", { name: "Save column" }).click();
-  await page.waitForTimeout(1500);
-  const columnAfterRestore = await fetchJson(
-    page,
-    `/api/assets/${WRITABLE_ASSET_FQN}?sections=schema&_qa=${Date.now()}`,
-  );
-  const restoredColumn =
-    (columnAfterRestore.json?.columns || []).find((column) => column.name === WRITABLE_COLUMN_NAME) || null;
-  const restoredTagLabels = restoredColumn?.tagLabels || [];
-  pushCheck(
-    "schema-column-restore",
-    columnAfterRestore.ok &&
-      String(restoredColumn?.description || "") === String(originalWritableColumnDraft.description || "") &&
-      !restoredTagLabels.some((tag) => String(tag).includes(`qa_probe=${suffix}`))
-      ? "ok"
-      : "warn",
-    {
-      restoredTo: originalWritableColumnDraft,
-      apiColumn: restoredColumn,
-    },
-  );
-
   await page.locator(".gh-entity-record-tabs .gh-subtab", { hasText: /^Lineage$/ }).click();
   await page.waitForTimeout(3500);
   await screenshot(page, "entity-lineage-tab");
@@ -439,7 +605,7 @@ try {
 
   await gotoSurface(
     page,
-    `${BASE_URL}/?module=governance&surface=governance&asset=${ASSET_FQN}&_cb=codex-qa-governance-${suffix}`,
+    `${BASE_URL}/?module=governance&surface=governance&asset=${visibleAssetFqn}&_cb=codex-qa-governance-${suffix}`,
     ".gh-governance-workbench",
   );
   await page.waitForTimeout(1500);

@@ -94,19 +94,19 @@ export function useLineage(assetFqn, seededGraph = null, enabled = true) {
     let canceled = false;
     const assetChanged = previousAssetRef.current !== assetFqn;
     const cached = readCachedLineage(assetFqn);
+    const fallbackPayload = cached || (seededGraph ? { graphs: seededGraph } : null);
+    const fallbackGraph = fallbackPayload?.graphs || null;
     previousAssetRef.current = assetFqn;
     setState((current) => ({
-      loading: true,
+      loading: !(current.graph || fallbackGraph),
       error: "",
       graph: assetChanged
-        ? cached?.graphs || seededGraph || null
-        : current.graph || cached?.graphs || seededGraph || null,
+        ? fallbackGraph
+        : current.graph || fallbackGraph,
       payload:
         assetChanged
-          ? cached || (seededGraph
-            ? { graphs: seededGraph }
-            : null)
-          : current.payload || cached || (seededGraph ? { graphs: seededGraph } : null),
+          ? fallbackPayload
+          : current.payload || fallbackPayload,
     }));
     lineageRequest(assetFqn)
       .then((payload) => {

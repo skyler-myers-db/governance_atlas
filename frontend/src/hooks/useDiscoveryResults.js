@@ -50,7 +50,10 @@ export function useDiscoveryResults(filters, seededAssets = []) {
     const nextRequestKey = requestKey(filters);
     const useSeeded = canSeedFromBootstrap(filters);
     let canceled = false;
-    const timeout = setTimeout(() => {
+    let timeoutId = 0;
+    let idleId = 0;
+    const fetchResults = () => {
+      if (canceled) return;
       setState((current) => {
         const seededFallbackAssets = useSeeded ? seededAssets : [];
         const sameRequest = current.requestKey === nextRequestKey;
@@ -113,11 +116,20 @@ export function useDiscoveryResults(filters, seededAssets = []) {
             };
           });
         });
-    }, 60);
+    };
+
+    if (useSeeded && typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(fetchResults, { timeout: 1600 });
+    } else {
+      timeoutId = setTimeout(fetchResults, useSeeded ? 180 : 60);
+    }
 
     return () => {
       canceled = true;
-      clearTimeout(timeout);
+      if (typeof window !== "undefined" && idleId && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
+      clearTimeout(timeoutId);
     };
   }, [
     filters.catalogs,

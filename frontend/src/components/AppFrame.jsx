@@ -1,9 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  canOpenAssetRecord,
-  prefetchAssetAvailability,
-  prefetchAssetDetail,
-} from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 
@@ -146,21 +141,10 @@ export default function AppFrame({
 
   const topDirectResult =
     searchQuery.trim() && !shellSearch.error ? shellSearch.assets?.[0] || null : null;
-  const openSearchResult = async (assetFqn) => {
+  const openSearchResult = (assetFqn) => {
     if (!assetFqn) return;
     onNavigationStateChange?.(true, "Opening metadata record…");
-    let opened = false;
-    try {
-      const availabilityPromise = prefetchAssetAvailability([assetFqn]);
-      const detailPromise = prefetchAssetDetail(assetFqn, { sections: ["header", "activity"] });
-      const availability = (await availabilityPromise)?.[assetFqn] || null;
-      const detail = await detailPromise;
-      if (availability?.openable === false && !canOpenAssetRecord(detail, availability)) return;
-      opened = true;
-      onSearchResultSelect?.(assetFqn);
-    } finally {
-      if (!opened) onNavigationStateChange?.(false, "");
-    }
+    onSearchResultSelect?.(assetFqn);
   };
 
   useEffect(() => {
@@ -213,10 +197,7 @@ export default function AppFrame({
                 type="button"
               >
                 <div className="gh-shell-brand-mark" aria-hidden="true">
-                  <span className="gh-shell-brand-aura" />
-                  <span className="gh-shell-brand-core">
-                    <span className="gh-shell-brand-glyph">GH</span>
-                  </span>
+                  <span className="gh-shell-brand-glyph">GH</span>
                 </div>
                 <div className="gh-shell-brand-copy">
                   <div className="gh-shell-brand-title">Governance Hub</div>

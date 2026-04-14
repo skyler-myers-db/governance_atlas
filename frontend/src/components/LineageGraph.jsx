@@ -514,6 +514,7 @@ function LineageRecordCard({
   title,
   node,
   tone = "neutral",
+  focusActionLabel = "Set as focus",
   onOpenAsset,
   onOpenGovernance,
   onRefocus,
@@ -610,7 +611,7 @@ function LineageRecordCard({
             onClick={() => onRefocus(node.assetFqn)}
             type="button"
           >
-            Refocus
+            {focusActionLabel}
           </button>
         ) : null}
         {onTraceUpstream ? (
@@ -658,6 +659,7 @@ export default function LineageGraph({
   const [refocusOpen, setRefocusOpen] = useState(false);
   const refocusRootRef = useRef(null);
   const canvasRef = useRef(null);
+  const lastAutoFitKeyRef = useRef("");
 
   const clearSelection = (options = {}) => {
     const { keepDrawer = false, keepFocusNode = true } = options;
@@ -834,210 +836,170 @@ export default function LineageGraph({
     };
   }, [onAssetSearchQueryChange, refocusOpen]);
 
+  const autoFitKey = `${asset?.fqn || "none"}:${context}:${transformed.nodes.length}:${transformed.edges.length}`;
+
   useEffect(() => {
     if (!flowInstance || !transformed.nodes.length) return undefined;
-    let frameOne = 0;
-    let frameTwo = 0;
-    let timeoutId = 0;
-    const fitGraph = () => {
-      flowInstance.fitView?.({ padding: 0.24, duration: 240 });
-    };
-    frameOne = requestAnimationFrame(() => {
-      fitGraph();
-      frameTwo = requestAnimationFrame(fitGraph);
-    });
-    timeoutId = window.setTimeout(fitGraph, 220);
-    return () => {
-      cancelAnimationFrame(frameOne);
-      cancelAnimationFrame(frameTwo);
-      window.clearTimeout(timeoutId);
-    };
-  }, [asset?.fqn, context, flowInstance, transformed.edges.length, transformed.nodes.length]);
-
-  useEffect(() => {
-    if (!flowInstance) return;
-    if (graphMode === "explore" && !selectedEdgeId) return;
-    const activeNodes = transformed.nodes.filter((node) => activeNodeIds.includes(node.id));
-    if (!activeNodes.length) return;
+    if (lastAutoFitKeyRef.current === autoFitKey) return undefined;
+    lastAutoFitKeyRef.current = autoFitKey;
     const frame = requestAnimationFrame(() => {
-      flowInstance.fitView?.({ nodes: activeNodes, padding: 0.3, duration: 220 });
+      flowInstance.fitView?.({ padding: 0.24, duration: 180 });
     });
     return () => cancelAnimationFrame(frame);
-  }, [activeNodeIds, flowInstance, graphMode, selectedEdgeId, transformed.nodes]);
-
-  useEffect(() => {
-    if (!flowInstance || !selectedNodeId || graphMode !== "explore") return;
-    const related = connectedSelection(transformed.edges, selectedNodeId);
-    const activeNodes = transformed.nodes.filter((node) => related.nodeIds.includes(node.id));
-    if (!activeNodes.length) return;
-    const frame = requestAnimationFrame(() => {
-      flowInstance.fitView?.({ nodes: activeNodes, padding: 0.34, duration: 220 });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [flowInstance, graphMode, selectedNodeId, transformed.edges, transformed.nodes]);
-
-  useEffect(() => {
-    if (!flowInstance || typeof ResizeObserver === "undefined" || !canvasRef.current) return undefined;
-    const observer = new ResizeObserver(() => {
-      requestAnimationFrame(() => {
-        flowInstance.fitView?.({ padding: 0.24, duration: 180 });
-      });
-    });
-    observer.observe(canvasRef.current);
-    return () => observer.disconnect();
-  }, [flowInstance]);
+  }, [autoFitKey, flowInstance, transformed.nodes.length]);
 
   return (
-    <div className="gh-lineage-canvas" ref={canvasRef}>
-      <div className="gh-lineage-canvas-controls">
-        <div className="gh-lineage-command-strip">
-          {allowRefocus ? (
-            <div className="gh-lineage-command" ref={refocusRootRef}>
-              <button
-                className={`gh-secondary-button ${refocusOpen ? "is-active" : ""}`}
-                onClick={() => {
-                  setRefocusOpen((open) => {
-                    if (open) onAssetSearchQueryChange?.("");
-                    return !open;
-                  });
-                }}
-                type="button"
-              >
-                Refocus
-              </button>
-              {refocusOpen ? (
-                <div className="gh-lineage-command-popover">
-                  <div className="gh-filter-title">Refocus graph</div>
-                  <input
-                    className="gh-input"
-                    onChange={(event) => onAssetSearchQueryChange?.(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" && topRefocusCandidate) {
-                        event.preventDefault();
-                        setRefocusOpen(false);
-                        onAssetSearchQueryChange?.("");
-                        onSelectAsset(topRefocusCandidate.fqn);
-                      }
-                    }}
-                    placeholder={asset?.name ? `Search from ${asset.name}` : "Search for an asset"}
-                    value={assetSearchQuery}
-                  />
-                  <div className="gh-lineage-search-list">
-                    {assetSearchLoading ? (
-                      <div className="gh-lineage-search-empty">Searching assets…</div>
-                    ) : assetSearchResults?.length ? (
-                      assetSearchResults.map((candidate) => (
-                        <button
-                          className={`gh-lineage-search-row ${candidate.fqn === asset?.fqn ? "is-active" : ""}`}
-                          key={candidate.fqn}
-                          onClick={() => {
-                            setRefocusOpen(false);
-                            onAssetSearchQueryChange?.("");
-                            onSelectAsset(candidate.fqn);
-                          }}
-                          type="button"
-                        >
-                          <span>{candidate.name}</span>
-                          <span>{assetPathLabel(candidate)}</span>
-                        </button>
-                      ))
-                    ) : (
-                <div className="gh-lineage-search-empty">
-                        {assetSearchQuery ? "No matching assets." : "Start typing to refocus the graph."}
-                </div>
-                    )}
+    <div className={`gh-lineage-canvas ${drawerOpen ? "has-drawer" : ""}`} ref={canvasRef}>
+      <div className="gh-lineage-main-stage">
+        <div className="gh-lineage-canvas-controls">
+          <div className="gh-lineage-command-strip">
+            {allowRefocus ? (
+              <div className="gh-lineage-command" ref={refocusRootRef}>
+                <button
+                  className={`gh-secondary-button ${refocusOpen ? "is-active" : ""}`}
+                  onClick={() => {
+                    setRefocusOpen((open) => {
+                      if (open) onAssetSearchQueryChange?.("");
+                      return !open;
+                    });
+                  }}
+                  type="button"
+                >
+                  Refocus
+                </button>
+                {refocusOpen ? (
+                  <div className="gh-lineage-command-popover">
+                    <div className="gh-filter-title">Refocus graph</div>
+                    <input
+                      className="gh-input"
+                      onChange={(event) => onAssetSearchQueryChange?.(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" && topRefocusCandidate) {
+                          event.preventDefault();
+                          setRefocusOpen(false);
+                          onAssetSearchQueryChange?.("");
+                          onSelectAsset(topRefocusCandidate.fqn);
+                        }
+                      }}
+                      placeholder={asset?.name ? `Search from ${asset.name}` : "Search for an asset"}
+                      value={assetSearchQuery}
+                    />
+                    <div className="gh-lineage-search-list">
+                      {assetSearchLoading ? (
+                        <div className="gh-lineage-search-empty">Searching assets…</div>
+                      ) : assetSearchResults?.length ? (
+                        assetSearchResults.map((candidate) => (
+                          <button
+                            className={`gh-lineage-search-row ${candidate.fqn === asset?.fqn ? "is-active" : ""}`}
+                            key={candidate.fqn}
+                            onClick={() => {
+                              setRefocusOpen(false);
+                              onAssetSearchQueryChange?.("");
+                              onSelectAsset(candidate.fqn);
+                            }}
+                            type="button"
+                          >
+                            <span>{candidate.name}</span>
+                            <span>{assetPathLabel(candidate)}</span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="gh-lineage-search-empty">
+                          {assetSearchQuery ? "No matching assets." : "Start typing to refocus the graph."}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          <button
-            className="gh-secondary-button"
-            onClick={() => {
-              flowInstance?.fitView?.({ padding: 0.18 });
-            }}
-            type="button"
-          >
-            Reset view
-          </button>
-          {canReturnToFocus ? (
+                ) : null}
+              </div>
+            ) : null}
             <button
               className="gh-secondary-button"
               onClick={() => {
-                clearSelection({ keepDrawer: false, keepFocusNode: true });
-                setRefocusOpen(false);
-                setGraphMode("explore");
                 flowInstance?.fitView?.({ padding: 0.18 });
               }}
               type="button"
             >
-              Return to focus
+              Reset view
             </button>
-          ) : null}
+            {canReturnToFocus ? (
+              <button
+                className="gh-secondary-button"
+                onClick={() => {
+                  clearSelection({ keepDrawer: false, keepFocusNode: true });
+                  setRefocusOpen(false);
+                  setGraphMode("explore");
+                  flowInstance?.fitView?.({ padding: 0.18 });
+                }}
+                type="button"
+              >
+                Return to focus
+              </button>
+            ) : null}
+          </div>
+        </div>
+        <div className="gh-lineage-flow-shell">
+          <ReactFlow
+            edges={transformed.edges.map((edge) => ({
+              ...edge,
+              className: activeEdgeIds.includes(edge.id)
+                ? "is-active"
+                : hasActiveGraphSelection
+                  ? "is-muted"
+                  : "",
+            }))}
+            onInit={setFlowInstance}
+            minZoom={0.3}
+            nodes={transformed.nodes.map((node) => ({
+              ...node,
+              data: node.data,
+              className: activeNodeIds.includes(node.id)
+                ? "is-active"
+                : hasActiveGraphSelection
+                  ? "is-muted"
+                  : "",
+              type: "assetNode",
+            }))}
+            edgeTypes={edgeTypes}
+            nodeTypes={nodeTypes}
+            onEdgeClick={(_, edge) => {
+              setAllowDefaultSelection(false);
+              setSelectedEdgeId(edge.id);
+              setSelectedNodeId("");
+              setDrawerOpen(true);
+              setRefocusOpen(false);
+              setGraphMode("path");
+            }}
+            onNodeClick={(_, node) => {
+              setAllowDefaultSelection(false);
+              setSelectedNodeId(node.id);
+              setSelectedEdgeId("");
+              setDrawerOpen(true);
+              setRefocusOpen(false);
+              setGraphMode("explore");
+            }}
+            onPaneClick={() => {
+              if (refocusOpen) setRefocusOpen(false);
+              if (drawerOpen) setDrawerOpen(false);
+            }}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            selectionOnDrag={false}
+            zoomOnDoubleClick={false}
+            proOptions={{ hideAttribution: true }}
+            defaultEdgeOptions={{ type: "assetEdge" }}
+          >
+            {showMiniMap ? <MiniMap pannable zoomable maskColor="rgba(16, 24, 40, 0.06)" nodeColor="#d7dff4" /> : null}
+            {showControls ? <Controls showInteractive={false} /> : null}
+            <Background color="#d9e2ff" gap={22} />
+          </ReactFlow>
+          {overlay ? <div className="gh-lineage-overlay">{overlay}</div> : null}
         </div>
       </div>
-      <ReactFlow
-        key={`${asset?.fqn || "none"}:${context}`}
-        edges={transformed.edges.map((edge) => ({
-          ...edge,
-          className: activeEdgeIds.includes(edge.id)
-            ? "is-active"
-            : hasActiveGraphSelection
-              ? "is-muted"
-              : "",
-        }))}
-        onInit={setFlowInstance}
-        fitView
-        fitViewOptions={{ padding: 0.18 }}
-        minZoom={0.3}
-        nodes={transformed.nodes.map((node) => ({
-          ...node,
-          data: node.data,
-          className: activeNodeIds.includes(node.id)
-            ? "is-active"
-            : hasActiveGraphSelection
-              ? "is-muted"
-              : "",
-          type: "assetNode",
-        }))}
-        edgeTypes={edgeTypes}
-        nodeTypes={nodeTypes}
-        onEdgeClick={(_, edge) => {
-          setAllowDefaultSelection(false);
-          setSelectedEdgeId(edge.id);
-          setSelectedNodeId("");
-          setDrawerOpen(true);
-          setRefocusOpen(false);
-          setGraphMode("path");
-        }}
-        onNodeClick={(_, node) => {
-          setAllowDefaultSelection(false);
-          setSelectedNodeId(node.id);
-          setSelectedEdgeId("");
-          setDrawerOpen(true);
-          setRefocusOpen(false);
-          setGraphMode("explore");
-        }}
-        onPaneClick={() => {
-          if (refocusOpen) setRefocusOpen(false);
-          if (drawerOpen) setDrawerOpen(false);
-        }}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        selectionOnDrag={false}
-        zoomOnDoubleClick={false}
-        proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ type: "assetEdge" }}
-      >
-        {showMiniMap ? <MiniMap pannable zoomable maskColor="rgba(16, 24, 40, 0.06)" nodeColor="#d7dff4" /> : null}
-        {showControls ? <Controls showInteractive={false} /> : null}
-        <Background color="#d9e2ff" gap={22} />
-      </ReactFlow>
-      {overlay ? <div className="gh-lineage-overlay">{overlay}</div> : null}
 
       <aside className={`gh-lineage-drawer ${drawerOpen ? "is-open" : ""}`}>
         <div className="gh-lineage-drawer-head">
-          <div className="gh-panel-title">{selectedEdge ? "Relationship" : "Selected Node"}</div>
+          <div className="gh-panel-title">{selectedEdge ? "Relationship details" : "Selected node"}</div>
           <button className="gh-secondary-button" onClick={() => closeDrawer()} type="button">
             Close drawer
           </button>
@@ -1073,11 +1035,12 @@ export default function LineageGraph({
                 title="Source record"
                 node={selectedSource}
                 tone="source"
-                onOpenAsset={onOpenAsset}
-                onOpenGovernance={onOpenGovernance}
-                onRefocus={(assetFqn) => onSelectAsset(assetFqn)}
-                onTraceUpstream={
-                  selectedSource?.id
+              onOpenAsset={onOpenAsset}
+              onOpenGovernance={onOpenGovernance}
+              onRefocus={(assetFqn) => onSelectAsset(assetFqn)}
+              focusActionLabel="Set as focus"
+              onTraceUpstream={
+                selectedSource?.id
                     ? () => {
                         setAllowDefaultSelection(false);
                         setSelectedEdgeId("");
@@ -1093,11 +1056,12 @@ export default function LineageGraph({
                 title="Target record"
                 node={selectedTarget}
                 tone="target"
-                onOpenAsset={onOpenAsset}
-                onOpenGovernance={onOpenGovernance}
-                onRefocus={(assetFqn) => onSelectAsset(assetFqn)}
-                onShowImpact={
-                  selectedTarget?.id
+              onOpenAsset={onOpenAsset}
+              onOpenGovernance={onOpenGovernance}
+              onRefocus={(assetFqn) => onSelectAsset(assetFqn)}
+              focusActionLabel="Set as focus"
+              onShowImpact={
+                selectedTarget?.id
                     ? () => {
                         setAllowDefaultSelection(false);
                         setSelectedEdgeId("");
@@ -1179,75 +1143,15 @@ export default function LineageGraph({
               </div>
             ) : null}
 
-            <div className="gh-action-grid gh-lineage-drawer-actions">
-              <button
-                className="gh-secondary-button"
-                onClick={() => {
-                  setAllowDefaultSelection(false);
-                  setSelectedEdgeId("");
-                  setSelectedNodeId(selectedSource?.id || "");
-                  setGraphMode("upstream");
-                  setDrawerOpen(true);
-                  setRefocusOpen(false);
-                }}
-                type="button"
-              >
-                Trace Upstream
-              </button>
-              <button
-                className="gh-secondary-button"
-                onClick={() => {
-                  setAllowDefaultSelection(false);
-                  setSelectedEdgeId("");
-                  setSelectedNodeId(selectedTarget?.id || "");
-                  setGraphMode("impact");
-                  setDrawerOpen(true);
-                  setRefocusOpen(false);
-                }}
-                type="button"
-              >
-                Show Impact
-              </button>
-              {selectedSource?.assetFqn ? (
-                <button className="gh-primary-button" onClick={() => onSelectAsset(selectedSource.assetFqn)} type="button">
-                  Refocus Source
-                </button>
-              ) : null}
-              {selectedTarget?.assetFqn ? (
-                <button className="gh-primary-button" onClick={() => onSelectAsset(selectedTarget.assetFqn)} type="button">
-                  Refocus Target
-                </button>
-              ) : null}
-            </div>
           </>
         ) : selectedNode ? (
           <>
             <LineageRecordCard
-              title="Selected Node"
+              title="Selected node"
               node={selectedNode}
               tone={selectedNode.role === "focus" ? "focus" : selectedNode.role || "neutral"}
               onOpenAsset={onOpenAsset}
               onOpenGovernance={onOpenGovernance}
-              onRefocus={(assetFqn) => {
-                setAllowDefaultSelection(true);
-                onSelectAsset(assetFqn);
-              }}
-              onTraceUpstream={
-                selectedNode.assetFqn
-                  ? () => {
-                      setGraphMode("upstream");
-                      setDrawerOpen(true);
-                    }
-                  : null
-              }
-              onShowImpact={
-                selectedNode.assetFqn
-                  ? () => {
-                      setGraphMode("impact");
-                      setDrawerOpen(true);
-                    }
-                  : null
-              }
             />
             <div className="gh-detail-section">
               <div className="gh-support-copy">
@@ -1314,41 +1218,38 @@ export default function LineageGraph({
             ) : null}
             {selectedNode.assetFqn ? (
               <div className="gh-action-grid gh-lineage-drawer-actions">
-                <button
-                  className="gh-primary-button"
-                  onClick={() => {
-                    setAllowDefaultSelection(true);
-                    onSelectAsset(selectedNode.assetFqn);
-                  }}
-                  type="button"
-                >
-                  Refocus graph
-                </button>
+                {selectedNode.role !== "focus" ? (
+                  <button
+                    className="gh-primary-button"
+                    onClick={() => {
+                      setAllowDefaultSelection(true);
+                      onSelectAsset(selectedNode.assetFqn);
+                    }}
+                    type="button"
+                  >
+                    Set as focus
+                  </button>
+                ) : null}
+                {selectedNode.role !== "focus" ? (
                 <button
                   className="gh-secondary-button"
                   onClick={() => {
-                    setGraphMode("path");
-                    setDrawerOpen(true);
-                  }}
-                  type="button"
-                >
-                  Trace to focus
-                </button>
+                      setGraphMode("path");
+                      setDrawerOpen(true);
+                    }}
+                    type="button"
+                  >
+                    Trace to Focus
+                  </button>
+                ) : null}
                 <button
                   className="gh-secondary-button"
                   onClick={() => {
                     flowInstance?.fitView?.({ padding: 0.18 });
-                    setDrawerOpen(false);
                   }}
                   type="button"
                 >
-                  Recenter
-                </button>
-                <button className="gh-secondary-button" onClick={() => onOpenAsset(selectedNode.assetFqn)} type="button">
-                  Open Record
-                </button>
-                <button className="gh-secondary-button" onClick={() => onOpenGovernance(selectedNode.assetFqn)} type="button">
-                  Open Governance
+                  Center in graph
                 </button>
               </div>
             ) : null}
