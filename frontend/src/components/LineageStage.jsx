@@ -123,7 +123,7 @@ export default function LineageStage({
               </div>
               {embedded && onOpenFullGraph ? (
                 <button className="gh-secondary-button" onClick={() => onOpenFullGraph(context)} type="button">
-                  Open full graph
+                  Open Full Graph
                 </button>
               ) : null}
             </div>
@@ -135,29 +135,37 @@ export default function LineageStage({
           </div>
         ) : null}
         <div className="gh-lineage-stage-canvas">
-          {loading ? (
-            <div className="gh-empty-state">Loading lineage graph…</div>
+        {loading && !hasGraph ? (
+          <div className="gh-empty-state">Loading lineage graph…</div>
+          ) : hasGraph || overlay ? (
+            <>
+              {error ? (
+                <div className="gh-inline-alert tone-warn gh-lineage-inline-warning">
+                  <div className="gh-inline-alert-title">Lineage refresh degraded</div>
+                  <div>{error}</div>
+                </div>
+              ) : null}
+              <LineageGraph
+                asset={asset}
+                assetSearchLoading={assetSearchLoading}
+                assetSearchQuery={assetSearchQuery}
+                assetSearchResults={assetSearchResults}
+                assetSearchResolvedQuery={assetSearchResolvedQuery}
+                allowRefocus={allowRefocus}
+                context={context}
+                lineagePayload={lineagePayload}
+                graph={graph || emptyGraph}
+                hasEdges={hasEdges}
+                onAssetSearchQueryChange={onAssetSearchQueryChange}
+                onContextChange={onContextChange}
+                onOpenAsset={onOpenAsset}
+                onOpenGovernance={onOpenGovernance}
+                overlay={overlay}
+                onSelectAsset={onSelectAsset}
+              />
+            </>
           ) : error ? (
             <div className="gh-empty-state">{error}</div>
-          ) : hasGraph || overlay ? (
-            <LineageGraph
-              asset={asset}
-              assetSearchLoading={assetSearchLoading}
-              assetSearchQuery={assetSearchQuery}
-              assetSearchResults={assetSearchResults}
-              assetSearchResolvedQuery={assetSearchResolvedQuery}
-              allowRefocus={allowRefocus}
-              context={context}
-              lineagePayload={lineagePayload}
-              graph={graph || emptyGraph}
-              hasEdges={hasEdges}
-              onAssetSearchQueryChange={onAssetSearchQueryChange}
-              onContextChange={onContextChange}
-              onOpenAsset={onOpenAsset}
-              onOpenGovernance={onOpenGovernance}
-              overlay={overlay}
-              onSelectAsset={onSelectAsset}
-            />
           ) : (
             <div className="gh-empty-state">
               {context === "Operational Context"

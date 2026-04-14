@@ -119,9 +119,9 @@ export function useDiscoveryResults(filters, seededAssets = []) {
     };
 
     if (useSeeded && typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
-      idleId = window.requestIdleCallback(fetchResults, { timeout: 1600 });
+      idleId = window.requestIdleCallback(fetchResults, { timeout: 2600 });
     } else {
-      timeoutId = setTimeout(fetchResults, useSeeded ? 180 : 60);
+      timeoutId = setTimeout(fetchResults, useSeeded ? 540 : 120);
     }
 
     return () => {

@@ -453,9 +453,9 @@ function SelectionPreview({
       setLineageWarm(true);
     };
     if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
-      idleId = window.requestIdleCallback(enableWarmLineage, { timeout: 1200 });
+      idleId = window.requestIdleCallback(enableWarmLineage, { timeout: 2400 });
     } else if (typeof window !== "undefined") {
-      timeoutId = window.setTimeout(enableWarmLineage, 320);
+      timeoutId = window.setTimeout(enableWarmLineage, 820);
     } else {
       enableWarmLineage();
     }
@@ -616,6 +616,7 @@ export default function DiscoveryWorkspace({
   const [selectedAssetFqn, setSelectedAssetFqn] = useState("");
   const [visibleResultCount, setVisibleResultCount] = useState(DISCOVERY_RESULT_PAGE_SIZE);
   const [navigationNotice, setNavigationNotice] = useState("");
+  const [previewSchemaWarm, setPreviewSchemaWarm] = useState(false);
   const filterCommandRef = useRef(null);
   const { filters, setFilters, results: discoveryResults } = useDiscoveryWorkspace({
     bootstrap,
@@ -640,11 +641,17 @@ export default function DiscoveryWorkspace({
     renderableDiscoveryAssets[0] ||
     null;
   const previewDetail = useAssetDetail(selectedSeedAsset?.fqn || "", {
-    sections: ["header", "schema"],
+    sections: ["header"],
   });
-  const previewAsset = isUsableAssetDetail(previewDetail.detail)
-    ? previewDetail.detail
-    : selectedSeedAsset;
+  const previewSchemaDetail = useAssetDetail(selectedSeedAsset?.fqn || "", {
+    sections: ["header", "schema"],
+    enabled: Boolean(selectedSeedAsset?.fqn) && previewSchemaWarm,
+  });
+  const previewAsset = isUsableAssetDetail(previewSchemaDetail.detail)
+    ? previewSchemaDetail.detail
+    : isUsableAssetDetail(previewDetail.detail)
+      ? previewDetail.detail
+      : selectedSeedAsset;
   const previewLineageSeedGraph = selectedSeedAsset?.fqn
     ? bootstrap?.graphs?.[selectedSeedAsset.fqn] || null
     : null;
@@ -691,6 +698,34 @@ export default function DiscoveryWorkspace({
       return renderableDiscoveryAssets[0].fqn;
     });
   }, [renderableDiscoveryAssets]);
+
+  useEffect(() => {
+    if (!selectedSeedAsset?.fqn) {
+      setPreviewSchemaWarm(false);
+      return undefined;
+    }
+    let timeoutId = 0;
+    let idleId = 0;
+    setPreviewSchemaWarm(false);
+    const warmSchema = () => {
+      setPreviewSchemaWarm(true);
+    };
+    if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(warmSchema, { timeout: 1600 });
+    } else if (typeof window !== "undefined") {
+      timeoutId = window.setTimeout(warmSchema, 480);
+    } else {
+      warmSchema();
+    }
+    return () => {
+      if (typeof window !== "undefined" && idleId && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
+      if (typeof window !== "undefined" && timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [selectedSeedAsset?.fqn]);
 
   useEffect(() => {
     setVisibleResultCount(DISCOVERY_RESULT_PAGE_SIZE);
@@ -1129,8 +1164,8 @@ export default function DiscoveryWorkspace({
 
         <SelectionPreview
             asset={previewAsset}
-            detailError={previewDetail.error}
-            detailLoading={previewDetail.loading}
+            detailError={previewSchemaDetail.error || previewDetail.error}
+            detailLoading={previewDetail.loading || (previewSchemaDetail.loading && !previewSchemaDetail.detail?.columns?.length)}
             onOpenAsset={openAssetRecord}
             onOpenGovernance={openGovernanceWorkbench}
             onOpenLinkedAsset={openLinkedAsset}

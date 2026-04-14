@@ -913,14 +913,14 @@ export default function EntityWorkspace({
     };
 
     if (typeof window !== "undefined") {
-      firstWaveTimeoutId = window.setTimeout(warmFirstWave, 420);
+      firstWaveTimeoutId = window.setTimeout(warmFirstWave, 1100);
       if (secondWaveSections.length && typeof window.requestIdleCallback === "function") {
-        idleId = window.requestIdleCallback(warmSecondWave, { timeout: 2600 });
+        idleId = window.requestIdleCallback(warmSecondWave, { timeout: 4200 });
       } else if (secondWaveSections.length) {
-        secondWaveTimeoutId = window.setTimeout(warmSecondWave, 1800);
+        secondWaveTimeoutId = window.setTimeout(warmSecondWave, 2800);
       }
       if (thirdWaveSections.length) {
-        thirdWaveTimeoutId = window.setTimeout(warmThirdWave, 4200);
+        thirdWaveTimeoutId = window.setTimeout(warmThirdWave, 5600);
       }
     } else {
       warmFirstWave();

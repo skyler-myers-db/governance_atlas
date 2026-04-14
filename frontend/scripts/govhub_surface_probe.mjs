@@ -23,10 +23,23 @@ try {
   const context = contexts[0] || (await browser.newContext());
   page = await context.newPage();
   await page.setViewportSize({ width: 1600, height: 1040 });
-  await page.goto(targetUrl, {
-    waitUntil: "domcontentloaded",
-    timeout: 45_000,
-  });
+  try {
+    await page.goto(targetUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: 20_000,
+    });
+  } catch (error) {
+    await page.goto(targetUrl, {
+      waitUntil: "commit",
+      timeout: 45_000,
+    });
+    console.error(
+      JSON.stringify({
+        probeWarning: "domcontentloaded-timeout",
+        message: error?.message || String(error),
+      }),
+    );
+  }
   if (selector) {
     try {
       await page.waitForSelector(selector, { timeout: Math.max(waitMs, 6000) });
@@ -52,10 +65,39 @@ try {
     metrics: {
       width: document.documentElement.clientWidth,
       height: document.documentElement.clientHeight,
+      devicePixelRatio: window.devicePixelRatio,
       nodeCount: document.querySelectorAll(".react-flow__node").length,
       edgeCount: document.querySelectorAll(".react-flow__edge").length,
       lineageLoading: document.body.innerText.includes("Loading lineage graph"),
     },
+    layout: (() => {
+      const rect = (selector) => {
+        const node = document.querySelector(selector);
+        if (!node) return null;
+        const { width, height, left, top, right, bottom } = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return {
+          width,
+          height,
+          left,
+          top,
+          right,
+          bottom,
+          computedWidth: style.width,
+          maxWidth: style.maxWidth,
+          minWidth: style.minWidth,
+        };
+      };
+      return {
+        app: rect(".gh-app"),
+        shell: rect(".gh-shell-header"),
+        discoveryGrid: rect(".gh-discovery-main-grid"),
+        entityLayout: rect(".gh-entity-record-layout"),
+        lineageCanvas: rect(".gh-lineage-canvas"),
+        lineageDrawer: rect(".gh-lineage-drawer"),
+        selectionPreview: rect(".gh-selection-preview"),
+      };
+    })(),
     selectors: {
       entityTabs: Boolean(document.querySelector(".gh-entity-record-tabs")),
       discoveryGrid: Boolean(document.querySelector(".gh-discovery-main-grid")),
