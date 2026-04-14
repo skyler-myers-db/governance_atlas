@@ -557,12 +557,16 @@ function LineageRecordCard({
   title,
   node,
   tone = "neutral",
-  focusActionLabel = "Set as focus",
+  focusActionLabel = "Set as Focus",
   onOpenAsset,
   onOpenGovernance,
   onRefocus,
   onTraceUpstream,
   onShowImpact,
+  includeOpenAssetAction = true,
+  includeOpenGovernanceAction = true,
+  includeFocusAction = true,
+  includeTraceActions = true,
 }) {
   const detail = nodeDetailRecord(node);
   const isOpenable = detail?.isOpenable !== false;
@@ -627,7 +631,7 @@ function LineageRecordCard({
       </div>
 
       <div className="gh-lineage-record-actions">
-        {node?.assetFqn && onOpenAsset ? (
+        {includeOpenAssetAction && node?.assetFqn && onOpenAsset ? (
           <button
             className="gh-secondary-button gh-secondary-button-compact"
             disabled={!isOpenable}
@@ -637,7 +641,7 @@ function LineageRecordCard({
             Open Record
           </button>
         ) : null}
-        {node?.assetFqn && onOpenGovernance ? (
+        {includeOpenGovernanceAction && node?.assetFqn && onOpenGovernance ? (
           <button
             className="gh-secondary-button gh-secondary-button-compact"
             disabled={!isOpenable}
@@ -647,7 +651,7 @@ function LineageRecordCard({
             Open Governance
           </button>
         ) : null}
-        {node?.assetFqn && onRefocus ? (
+        {includeFocusAction && node?.assetFqn && onRefocus ? (
           <button
             className="gh-primary-button gh-secondary-button-compact"
             disabled={!isOpenable}
@@ -657,12 +661,12 @@ function LineageRecordCard({
             {focusActionLabel}
           </button>
         ) : null}
-        {onTraceUpstream ? (
+        {includeTraceActions && onTraceUpstream ? (
           <button className="gh-secondary-button gh-secondary-button-compact" onClick={onTraceUpstream} type="button">
-            Trace Inputs
+            Trace Upstream
           </button>
         ) : null}
-        {onShowImpact ? (
+        {includeTraceActions && onShowImpact ? (
           <button className="gh-secondary-button gh-secondary-button-compact" onClick={onShowImpact} type="button">
             Trace Impact
           </button>
@@ -703,6 +707,7 @@ export default function LineageGraph({
   const [collapsedBranches, setCollapsedBranches] = useState({});
   const refocusRootRef = useRef(null);
   const canvasRef = useRef(null);
+  const viewportRef = useRef(null);
   const lastAutoFitKeyRef = useRef("");
 
   const focusNode = transformedBase.nodes.find((node) => node.data.role === "focus")?.data || null;
@@ -949,7 +954,7 @@ export default function LineageGraph({
       .filter(Boolean)
       .slice(0, 6);
   }, [activeNodeIds, nodesById]);
-  const drawerTitle = selectedEdge ? "Relationship details" : "Selected node";
+  const drawerTitle = selectedEdge ? "Relationship Details" : "Selected Node";
 
   useEffect(() => {
     if (!refocusOpen) return undefined;
@@ -984,6 +989,30 @@ export default function LineageGraph({
     });
     return () => cancelAnimationFrame(frame);
   }, [autoFitKey, flowInstance, transformed.nodes.length]);
+
+  useEffect(() => {
+    if (!flowInstance || !transformed.nodes.length) return undefined;
+    const frame = requestAnimationFrame(() => {
+      flowInstance.fitView?.({ padding: drawerOpen ? 0.18 : 0.22, duration: 180 });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [drawerOpen, flowInstance, transformed.nodes.length]);
+
+  useEffect(() => {
+    if (!flowInstance || !viewportRef.current || typeof ResizeObserver === "undefined") return undefined;
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        flowInstance.fitView?.({ padding: drawerOpen ? 0.18 : 0.22, duration: 140 });
+      });
+    });
+    observer.observe(viewportRef.current);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [drawerOpen, flowInstance]);
 
   return (
     <div className={`gh-lineage-canvas ${drawerOpen ? "has-drawer" : ""}`} ref={canvasRef}>
@@ -1076,61 +1105,63 @@ export default function LineageGraph({
           </div>
         </div>
         <div className="gh-lineage-flow-shell">
-          <ReactFlow
-            edges={transformed.edges.map((edge) => ({
-              ...edge,
-              className: activeEdgeIds.includes(edge.id)
-                ? "is-active"
-                : hasActiveGraphSelection
-                  ? "is-muted"
-                  : "",
-            }))}
-            onInit={setFlowInstance}
-            minZoom={0.3}
-            nodes={transformed.nodes.map((node) => ({
-              ...node,
-              data: node.data,
-              className: activeNodeIds.includes(node.id)
-                ? "is-active"
-                : hasActiveGraphSelection
-                  ? "is-muted"
-                  : "",
-              type: "assetNode",
-            }))}
-            edgeTypes={edgeTypes}
-            nodeTypes={nodeTypes}
-            onEdgeClick={(_, edge) => {
-              setAllowDefaultSelection(false);
-              setSelectedEdgeId(edge.id);
-              setSelectedNodeId("");
-              setDrawerOpen(true);
-              setRefocusOpen(false);
-              setGraphMode("path");
-            }}
-            onNodeClick={(_, node) => {
-              setAllowDefaultSelection(false);
-              setSelectedNodeId(node.id);
-              setSelectedEdgeId("");
-              setDrawerOpen(true);
-              setRefocusOpen(false);
-              setGraphMode("explore");
-            }}
-            onPaneClick={() => {
-              if (refocusOpen) setRefocusOpen(false);
-              if (drawerOpen) setDrawerOpen(false);
-            }}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            selectionOnDrag={false}
-            zoomOnDoubleClick={false}
-            proOptions={{ hideAttribution: true }}
-            defaultEdgeOptions={{ type: "assetEdge" }}
-          >
-            {showMiniMap ? <MiniMap pannable zoomable maskColor="rgba(16, 24, 40, 0.06)" nodeColor="#d7dff4" /> : null}
-            {showControls ? <Controls showInteractive={false} /> : null}
-            <Background color="#d9e2ff" gap={22} />
-          </ReactFlow>
-          {overlay ? <div className="gh-lineage-overlay">{overlay}</div> : null}
+          <div className="gh-lineage-viewport" ref={viewportRef}>
+            <ReactFlow
+              edges={transformed.edges.map((edge) => ({
+                ...edge,
+                className: activeEdgeIds.includes(edge.id)
+                  ? "is-active"
+                  : hasActiveGraphSelection
+                    ? "is-muted"
+                    : "",
+              }))}
+              onInit={setFlowInstance}
+              minZoom={0.3}
+              nodes={transformed.nodes.map((node) => ({
+                ...node,
+                data: node.data,
+                className: activeNodeIds.includes(node.id)
+                  ? "is-active"
+                  : hasActiveGraphSelection
+                    ? "is-muted"
+                    : "",
+                type: "assetNode",
+              }))}
+              edgeTypes={edgeTypes}
+              nodeTypes={nodeTypes}
+              onEdgeClick={(_, edge) => {
+                setAllowDefaultSelection(false);
+                setSelectedEdgeId(edge.id);
+                setSelectedNodeId("");
+                setDrawerOpen(true);
+                setRefocusOpen(false);
+                setGraphMode("path");
+              }}
+              onNodeClick={(_, node) => {
+                setAllowDefaultSelection(false);
+                setSelectedNodeId(node.id);
+                setSelectedEdgeId("");
+                setDrawerOpen(true);
+                setRefocusOpen(false);
+                setGraphMode("explore");
+              }}
+              onPaneClick={() => {
+                if (refocusOpen) setRefocusOpen(false);
+                if (drawerOpen) setDrawerOpen(false);
+              }}
+              nodesDraggable={false}
+              nodesConnectable={false}
+              selectionOnDrag={false}
+              zoomOnDoubleClick={false}
+              proOptions={{ hideAttribution: true }}
+              defaultEdgeOptions={{ type: "assetEdge" }}
+            >
+              {showMiniMap ? <MiniMap pannable zoomable maskColor="rgba(16, 24, 40, 0.06)" nodeColor="#d7dff4" /> : null}
+              {showControls ? <Controls showInteractive={false} /> : null}
+              <Background color="#d9e2ff" gap={22} />
+            </ReactFlow>
+            {overlay ? <div className="gh-lineage-overlay">{overlay}</div> : null}
+          </div>
         </div>
       </div>
 
@@ -1257,7 +1288,7 @@ export default function LineageGraph({
 
             {activePathNodes.length ? (
               <div className="gh-detail-section">
-                <div className="gh-panel-title">Path nodes</div>
+                <div className="gh-panel-title">Path Nodes</div>
                 <div className="gh-lineage-linked-list">
                   {activePathNodes.map((node) => (
                     <button
@@ -1284,11 +1315,13 @@ export default function LineageGraph({
         ) : selectedNode ? (
           <>
             <LineageRecordCard
-              title="Selected node"
+              title="Selected Node"
               node={selectedNode}
               tone={selectedNode.role === "focus" ? "focus" : selectedNode.role || "neutral"}
               onOpenAsset={onOpenAsset}
               onOpenGovernance={onOpenGovernance}
+              includeFocusAction={false}
+              includeTraceActions={false}
             />
             <div className="gh-detail-section">
               <div className="gh-support-copy">
@@ -1355,7 +1388,7 @@ export default function LineageGraph({
             ) : null}
             {selectedNode.assetFqn ? (
               <div className="gh-detail-section">
-                <div className="gh-panel-title">Graph tools</div>
+                <div className="gh-panel-title">Graph Actions</div>
                 <div className="gh-action-grid gh-lineage-drawer-actions">
                   {selectedNode.role !== "focus" ? (
                     <button
@@ -1366,7 +1399,7 @@ export default function LineageGraph({
                       }}
                       type="button"
                     >
-                      Set as focus
+                      Set as Focus
                     </button>
                   ) : null}
                   {selectedNode.role !== "focus" ? (
@@ -1378,7 +1411,7 @@ export default function LineageGraph({
                       }}
                       type="button"
                     >
-                      Trace to focus
+                      Trace to Focus
                     </button>
                   ) : null}
                   {selectedNode.branchDescendantCount ? (
@@ -1389,7 +1422,7 @@ export default function LineageGraph({
                       }}
                       type="button"
                     >
-                      {selectedNode.branchCollapsed ? "Expand branch" : "Collapse branch"}
+                      {selectedNode.branchCollapsed ? "Expand Branch" : "Collapse Branch"}
                     </button>
                   ) : null}
                   <button
@@ -1400,7 +1433,7 @@ export default function LineageGraph({
                     }}
                     type="button"
                   >
-                    Center in graph
+                    Center in Graph
                   </button>
                 </div>
               </div>

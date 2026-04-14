@@ -951,6 +951,7 @@ def _inventory_option_values(
 
 def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
     selected_fqn = _normalize_str(request.query_params.get("asset"))
+    requested_surface = _normalize_str(request.query_params.get("surface"))
     if not selected_fqn:
         return None
     selected_asset = _bootstrap_selected_asset_seed(request, selected_fqn)
@@ -1008,12 +1009,18 @@ def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
             "help": HELP_ITEMS,
         },
     }
-    return _compose_bootstrap_payload(request, base_payload)
+    return _compose_bootstrap_payload(
+        request,
+        base_payload,
+        seed_selected_graphs=requested_surface != "lineage",
+    )
 
 
 def _compose_bootstrap_payload(
     request: Request,
     base_payload: Dict[str, Any],
+    *,
+    seed_selected_graphs: bool = True,
 ) -> Dict[str, Any]:
     payload = base_payload.get("payload", base_payload)
     asset_pool = list(base_payload.get("_assetPool") or payload.get("assets") or [])
@@ -1028,6 +1035,8 @@ def _compose_bootstrap_payload(
     seeded_graphs = dict(payload.get("graphs") or {})
 
     if (
+        seed_selected_graphs
+        and
         _normalize_str(selected_fqn)
         and requested_surface in {"entity", "lineage"}
         and selected_fqn not in seeded_graphs
