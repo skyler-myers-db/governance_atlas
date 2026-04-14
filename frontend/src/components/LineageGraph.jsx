@@ -3,6 +3,7 @@ import {
   BaseEdge,
   Background,
   Controls,
+  EdgeLabelRenderer,
   Handle,
   MarkerType,
   MiniMap,
@@ -34,15 +35,15 @@ function estimateNodeWidth(node) {
   const labelLength = String(node?.label || "").trim().length;
   const subtitleLength = String(node?.subtitle || "").trim().length;
   const longest = Math.max(labelLength, Math.min(subtitleLength, 52));
-  const base = node?.role === "focus" ? 260 : 220;
-  return Math.max(base, Math.min(320, 168 + longest * 2.4));
+  const base = node?.role === "focus" ? 316 : 252;
+  return Math.max(base, Math.min(408, 196 + longest * 3.05));
 }
 
 function estimateNodeHeight(node) {
   const labelLines = Math.max(1, Math.ceil(String(node?.label || "").trim().length / 22));
   const subtitleLines = Math.max(1, Math.ceil(String(node?.subtitle || "").trim().length / 28));
   const footLines = Math.max(1, Math.ceil(((node?.foot || []).join(" • ").length || 0) / 24));
-  return 72 + labelLines * 18 + subtitleLines * 16 + footLines * 12;
+  return 82 + labelLines * 19 + subtitleLines * 17 + footLines * 13;
 }
 
 function buildAdjacencyMaps(nodes, edges) {
@@ -181,10 +182,10 @@ function layoutGraphNodes(nodes, edges) {
 
   const focusX = 0;
   const focusY = 0;
-  const depthGapX = 320;
-  const branchGapY = 60;
-  const stackGapY = 20;
-  const levelNudgeY = 18;
+  const depthGapX = 388;
+  const branchGapY = 84;
+  const stackGapY = 30;
+  const levelNudgeY = 22;
 
   const positioned = ranked
     .filter((node) => node.id === focusId)
@@ -438,9 +439,26 @@ function upstreamSelection(edges, startId) {
 }
 
 function NodeLabel({ data }) {
+  const branchToggleVisible =
+    typeof data?.onToggleBranchCollapse === "function" && Number(data?.branchDescendantCount || 0) > 0;
+
   return (
     <div className="gh-graph-node-card">
-      <div className="gh-graph-node-kicker">{data.kicker || data.kind}</div>
+      <div className="gh-graph-node-head">
+        <div className="gh-graph-node-kicker">{data.kicker || data.kind}</div>
+        {branchToggleVisible ? (
+          <button
+            className={`gh-graph-branch-toggle ${data.branchCollapsed ? "is-collapsed" : ""}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              data.onToggleBranchCollapse?.();
+            }}
+            type="button"
+          >
+            {data.branchCollapsed ? `Expand ${data.branchDescendantCount}` : `Collapse ${data.branchDescendantCount}`}
+          </button>
+        ) : null}
+      </div>
       <div className="gh-graph-node-title">{data.label}</div>
       <div className="gh-graph-node-subtitle">{data.subtitle}</div>
       <div className="gh-graph-node-foot">
@@ -479,19 +497,44 @@ function AssetEdge({
     targetPosition,
     curvature: 0.28,
   });
+  const branchToggleVisible =
+    typeof data?.onToggleBranchCollapse === "function" && data?.depth === 1 && Number(data?.branchDescendantCount || 0) > 0;
+  const toggleX =
+    data?.focusAnchor === "target" ? targetX - 26 : data?.focusAnchor === "source" ? sourceX + 26 : (sourceX + targetX) / 2;
+  const toggleY =
+    data?.focusAnchor === "target" ? targetY - 16 : data?.focusAnchor === "source" ? sourceY - 16 : (sourceY + targetY) / 2;
 
   return (
-    <BaseEdge
-      id={id}
-      interactionWidth={40}
-      markerEnd={markerEnd}
-      path={path}
-      style={{
-        stroke: selected ? "#3a2ce0" : "#4453db",
-        strokeWidth: data?.depth === 1 ? (selected ? 5.2 : 4.2) : selected ? 4.4 : 3.6,
-        opacity: selected ? 1 : 0.96,
-      }}
-    />
+    <>
+      <BaseEdge
+        id={id}
+        interactionWidth={40}
+        markerEnd={markerEnd}
+        path={path}
+        style={{
+          stroke: selected ? "#3a2ce0" : "#4453db",
+          strokeWidth: data?.depth === 1 ? (selected ? 5.2 : 4.2) : selected ? 4.4 : 3.6,
+          opacity: selected ? 1 : 0.96,
+        }}
+      />
+      {branchToggleVisible ? (
+        <EdgeLabelRenderer>
+          <button
+            className={`gh-lineage-edge-toggle ${data?.branchCollapsed ? "is-collapsed" : ""}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              data?.onToggleBranchCollapse?.();
+            }}
+            style={{
+              transform: `translate(-50%, -50%) translate(${toggleX}px, ${toggleY}px)`,
+            }}
+            type="button"
+          >
+            {data?.branchCollapsed ? "+" : "−"}
+          </button>
+        </EdgeLabelRenderer>
+      ) : null}
+    </>
   );
 }
 
@@ -616,12 +659,12 @@ function LineageRecordCard({
         ) : null}
         {onTraceUpstream ? (
           <button className="gh-secondary-button gh-secondary-button-compact" onClick={onTraceUpstream} type="button">
-            Trace Upstream
+            Trace Inputs
           </button>
         ) : null}
         {onShowImpact ? (
           <button className="gh-secondary-button gh-secondary-button-compact" onClick={onShowImpact} type="button">
-            Show Impact
+            Trace Impact
           </button>
         ) : null}
       </div>
@@ -649,7 +692,7 @@ export default function LineageGraph({
 }) {
   const nodeTypes = useMemo(() => ({ assetNode: AssetNode }), []);
   const edgeTypes = useMemo(() => ({ assetEdge: AssetEdge }), []);
-  const transformed = useMemo(() => transformGraph(graph), [graph]);
+  const transformedBase = useMemo(() => transformGraph(graph), [graph]);
   const [selectedNodeId, setSelectedNodeId] = useState("");
   const [selectedEdgeId, setSelectedEdgeId] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -657,9 +700,104 @@ export default function LineageGraph({
   const [flowInstance, setFlowInstance] = useState(null);
   const [allowDefaultSelection, setAllowDefaultSelection] = useState(true);
   const [refocusOpen, setRefocusOpen] = useState(false);
+  const [collapsedBranches, setCollapsedBranches] = useState({});
   const refocusRootRef = useRef(null);
   const canvasRef = useRef(null);
   const lastAutoFitKeyRef = useRef("");
+
+  const focusNode = transformedBase.nodes.find((node) => node.data.role === "focus")?.data || null;
+  const defaultFocusNodeId = focusNode?.id || transformedBase.nodes[0]?.id || "";
+  const graphHasEdges = hasEdges ?? transformedBase.edges.length > 0;
+
+  const toggleBranchCollapse = (branchRootId) => {
+    if (!branchRootId) return;
+    setCollapsedBranches((current) => ({
+      ...current,
+      [branchRootId]: !current[branchRootId],
+    }));
+  };
+
+  const branchMetadata = useMemo(() => {
+    return transformedBase.nodes.reduce((acc, node) => {
+      const branchRootId = node.data?.layout?.branchRoot;
+      if (!branchRootId || branchRootId === defaultFocusNodeId) return acc;
+      const current = acc[branchRootId] || {
+        rootNodeId: branchRootId,
+        side: node.data?.layout?.side || "",
+        nodeCount: 0,
+        descendantCount: 0,
+        maxDepth: 0,
+      };
+      current.nodeCount += 1;
+      current.maxDepth = Math.max(current.maxDepth, Number(node.data?.layout?.depth || 0));
+      if (node.id !== branchRootId) current.descendantCount += 1;
+      acc[branchRootId] = current;
+      return acc;
+    }, {});
+  }, [defaultFocusNodeId, transformedBase.nodes]);
+
+  const transformed = useMemo(() => {
+    const visibleNodeIds = new Set(
+      transformedBase.nodes
+        .filter((node) => {
+          const branchRootId = node.data?.layout?.branchRoot;
+          if (!branchRootId || branchRootId === defaultFocusNodeId) return true;
+          if (!collapsedBranches[branchRootId]) return true;
+          return node.id === branchRootId;
+        })
+        .map((node) => node.id),
+    );
+
+    return {
+      nodes: transformedBase.nodes
+        .filter((node) => visibleNodeIds.has(node.id))
+        .map((node) => {
+          const branch = branchMetadata[node.id] || null;
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              branchDescendantCount: branch?.descendantCount || 0,
+              branchCollapsed: Boolean(branch && collapsedBranches[node.id]),
+              onToggleBranchCollapse:
+                branch && branch.descendantCount
+                  ? () => toggleBranchCollapse(node.id)
+                  : null,
+            },
+          };
+        }),
+      edges: transformedBase.edges
+        .filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
+        .map((edge) => {
+          const branchRootId =
+            edge.target === defaultFocusNodeId
+              ? edge.source
+              : edge.source === defaultFocusNodeId
+                ? edge.target
+                : "";
+          const branch = branchRootId ? branchMetadata[branchRootId] || null : null;
+          return {
+            ...edge,
+            data: {
+              ...edge.data,
+              focusAnchor:
+                edge.target === defaultFocusNodeId
+                  ? "target"
+                  : edge.source === defaultFocusNodeId
+                    ? "source"
+                    : "",
+              branchRootId,
+              branchDescendantCount: branch?.descendantCount || 0,
+              branchCollapsed: Boolean(branchRootId && collapsedBranches[branchRootId]),
+              onToggleBranchCollapse:
+                branchRootId && branch?.descendantCount
+                  ? () => toggleBranchCollapse(branchRootId)
+                  : null,
+            },
+          };
+        }),
+    };
+  }, [branchMetadata, collapsedBranches, defaultFocusNodeId, transformedBase.edges, transformedBase.nodes]);
 
   const clearSelection = (options = {}) => {
     const { keepDrawer = false, keepFocusNode = true } = options;
@@ -682,10 +820,6 @@ export default function LineageGraph({
     [transformed.nodes]
   );
 
-  const focusNode = transformed.nodes.find((node) => node.data.role === "focus")?.data || null;
-  const defaultFocusNodeId = focusNode?.id || transformed.nodes[0]?.id || "";
-  const graphHasEdges = hasEdges ?? transformed.edges.length > 0;
-
   useEffect(() => {
     setSelectedNodeId(defaultFocusNodeId);
     setSelectedEdgeId("");
@@ -693,6 +827,7 @@ export default function LineageGraph({
     setGraphMode("explore");
     setAllowDefaultSelection(true);
     setRefocusOpen(false);
+    setCollapsedBranches({});
     onAssetSearchQueryChange?.("");
   }, [asset?.fqn, defaultFocusNodeId]);
 
@@ -703,6 +838,7 @@ export default function LineageGraph({
     setGraphMode("explore");
     setAllowDefaultSelection(true);
     setRefocusOpen(false);
+    setCollapsedBranches({});
   }, [context, defaultFocusNodeId]);
 
   useEffect(() => {
@@ -813,6 +949,7 @@ export default function LineageGraph({
       .filter(Boolean)
       .slice(0, 6);
   }, [activeNodeIds, nodesById]);
+  const drawerTitle = selectedEdge ? "Relationship details" : "Selected node";
 
   useEffect(() => {
     if (!refocusOpen) return undefined;
@@ -999,7 +1136,7 @@ export default function LineageGraph({
 
       <aside className={`gh-lineage-drawer ${drawerOpen ? "is-open" : ""}`}>
         <div className="gh-lineage-drawer-head">
-          <div className="gh-panel-title">{selectedEdge ? "Relationship details" : "Selected node"}</div>
+          <div className="gh-panel-title">{drawerTitle}</div>
           <button className="gh-secondary-button" onClick={() => closeDrawer()} type="button">
             Close drawer
           </button>
@@ -1077,7 +1214,7 @@ export default function LineageGraph({
 
             {edgeDetails?.kind === "operational" && edgeDetails.entities?.length ? (
               <div className="gh-detail-section">
-                <div className="gh-panel-title">Operational context</div>
+                <div className="gh-panel-title">Operational Context</div>
                 <div className="gh-lineage-linked-list">
                   {edgeDetails.entities.map((entity) => (
                     <div className="gh-lineage-linked-row is-readonly" key={entity.key}>
@@ -1091,7 +1228,7 @@ export default function LineageGraph({
 
             {edgeDetails?.columnMappings?.length ? (
               <div className="gh-detail-section">
-                <div className="gh-panel-title">Column mappings</div>
+                <div className="gh-panel-title">Column Mappings</div>
                 <div className="gh-lineage-linked-list">
                   {edgeDetails.columnMappings.map((mapping, index) => (
                     <div className="gh-lineage-linked-row is-readonly" key={`${selectedEdge.id}-mapping-${index}`}>
@@ -1124,7 +1261,7 @@ export default function LineageGraph({
                 <div className="gh-lineage-linked-list">
                   {activePathNodes.map((node) => (
                     <button
-                      className="gh-lineage-linked-row"
+                      className="gh-lineage-linked-row is-node-link"
                       key={node.id}
                       onClick={() => {
                         setAllowDefaultSelection(false);
@@ -1156,19 +1293,19 @@ export default function LineageGraph({
             <div className="gh-detail-section">
               <div className="gh-support-copy">
                 {selectedNode.role === "focus"
-                  ? "This asset anchors the current graph."
+                  ? "This asset anchors the current lineage view."
                   : selectedNode.role === "source"
-                    ? "This node flows into the focused asset."
-                    : "This node depends on the focused asset."}
+                    ? "This node flows into the current focus."
+                    : "This node depends on the current focus."}
               </div>
             </div>
             {neighborBuckets.upstream.length || neighborBuckets.downstream.length ? (
               <div className="gh-detail-section">
-                <div className="gh-panel-title">Connected nodes</div>
+                <div className="gh-panel-title">Connected Nodes</div>
                 <div className="gh-lineage-linked-list">
                   {neighborBuckets.upstream.slice(0, 3).map((node) => (
                     <button
-                      className="gh-lineage-linked-row"
+                      className="gh-lineage-linked-row is-node-link"
                       key={`up-${node.id}`}
                       onClick={() => {
                         setAllowDefaultSelection(false);
@@ -1185,7 +1322,7 @@ export default function LineageGraph({
                   ))}
                   {neighborBuckets.downstream.slice(0, 3).map((node) => (
                     <button
-                      className="gh-lineage-linked-row"
+                      className="gh-lineage-linked-row is-node-link"
                       key={`down-${node.id}`}
                       onClick={() => {
                         setAllowDefaultSelection(false);
@@ -1205,7 +1342,7 @@ export default function LineageGraph({
             ) : null}
             {Array.isArray(selectedNode.details) && selectedNode.details.length ? (
               <div className="gh-detail-section">
-                <div className="gh-panel-title">Entity details</div>
+                <div className="gh-panel-title">Entity Details</div>
                 <div className="gh-lineage-linked-list">
                   {selectedNode.details.map((item) => (
                     <div className="gh-lineage-linked-row is-readonly" key={item.key}>
@@ -1217,40 +1354,55 @@ export default function LineageGraph({
               </div>
             ) : null}
             {selectedNode.assetFqn ? (
-              <div className="gh-action-grid gh-lineage-drawer-actions">
-                {selectedNode.role !== "focus" ? (
+              <div className="gh-detail-section">
+                <div className="gh-panel-title">Graph tools</div>
+                <div className="gh-action-grid gh-lineage-drawer-actions">
+                  {selectedNode.role !== "focus" ? (
+                    <button
+                      className="gh-primary-button"
+                      onClick={() => {
+                        setAllowDefaultSelection(true);
+                        onSelectAsset(selectedNode.assetFqn);
+                      }}
+                      type="button"
+                    >
+                      Set as focus
+                    </button>
+                  ) : null}
+                  {selectedNode.role !== "focus" ? (
+                    <button
+                      className="gh-secondary-button"
+                      onClick={() => {
+                        setGraphMode("path");
+                        setDrawerOpen(true);
+                      }}
+                      type="button"
+                    >
+                      Trace to focus
+                    </button>
+                  ) : null}
+                  {selectedNode.branchDescendantCount ? (
+                    <button
+                      className="gh-secondary-button"
+                      onClick={() => {
+                        selectedNode.onToggleBranchCollapse?.();
+                      }}
+                      type="button"
+                    >
+                      {selectedNode.branchCollapsed ? "Expand branch" : "Collapse branch"}
+                    </button>
+                  ) : null}
                   <button
-                    className="gh-primary-button"
+                    className="gh-secondary-button"
                     onClick={() => {
-                      setAllowDefaultSelection(true);
-                      onSelectAsset(selectedNode.assetFqn);
-                    }}
-                    type="button"
-                  >
-                    Set as focus
-                  </button>
-                ) : null}
-                {selectedNode.role !== "focus" ? (
-                <button
-                  className="gh-secondary-button"
-                  onClick={() => {
                       setGraphMode("path");
                       setDrawerOpen(true);
                     }}
                     type="button"
                   >
-                    Trace to Focus
+                    Center in graph
                   </button>
-                ) : null}
-                <button
-                  className="gh-secondary-button"
-                  onClick={() => {
-                    flowInstance?.fitView?.({ padding: 0.18 });
-                  }}
-                  type="button"
-                >
-                  Center in graph
-                </button>
+                </div>
               </div>
             ) : null}
           </>

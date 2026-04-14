@@ -10,6 +10,7 @@ import { clearAssetSearchCache, useAssetSearch } from "../hooks/useAssetSearch";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import {
   createGovernanceRequest,
+  normalizeGovernancePayload,
   updateGovernanceGlossaryTerm,
   updateGovernanceRequest,
   upsertGovernanceGlossaryTerm,
@@ -102,7 +103,7 @@ function normalizeGlossaryHistory(entry, index) {
   };
 }
 
-function glossaryReviewerText(entries = []) {
+function formatGlossaryReviewerText(entries = []) {
   return (entries || [])
     .map((entry) => {
       const reviewer = normalizeGlossaryReviewer(entry, 0);
@@ -515,7 +516,7 @@ export default function GovernanceWorkspace({
       domain: selectedGlossary.subtitle || "",
       ownerEmail: selectedGlossary.ownerEmail && selectedGlossary.ownerEmail !== "Unassigned" ? selectedGlossary.ownerEmail : "",
       status: String(selectedGlossary.status || "draft").toLowerCase(),
-      reviewersText: glossaryReviewerText(selectedGlossary.reviewerRoster || []),
+      reviewersText: formatGlossaryReviewerText(selectedGlossary.reviewerRoster || []),
       changeNote: "",
     });
   }, [selectedGlossary]);
@@ -565,7 +566,7 @@ export default function GovernanceWorkspace({
         }
       }
       clearAssetSearchCache();
-      const nextGovernance = next?.governance || next;
+      const nextGovernance = normalizeGovernancePayload(next?.governance || next);
       setLiveGovernance(nextGovernance);
       onGovernanceChange?.(nextGovernance);
       setMutationState({ kind, loading: false, error: "", success });

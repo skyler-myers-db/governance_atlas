@@ -6,9 +6,21 @@ const BASE_URL = "https://governance-hub-7405619023278880.0.azure.databricksapps
 const WRITABLE_ASSET_FQN = "dev.wacs_silver_test.slv_work_req_latest_status";
 const WRITABLE_COLUMN_NAME = "work_req_id";
 const OUT_DIR = "/tmp/govhub-live-qa";
+const CHROME_PROFILE_ROOT =
+  process.env.GOVHUB_CHROME_PROFILE_ROOT ||
+  path.join(process.env.HOME || "", "Library", "Application Support", "Google", "Chrome");
+const CHROME_PROFILE_COPY_ROOT = path.join(OUT_DIR, "chrome-profile");
+const RESPONSIVE_VIEWPORTS = [
+  { name: "desktop-wide", width: 1600, height: 1040 },
+  { name: "laptop", width: 1280, height: 960 },
+  { name: "tablet", width: 920, height: 1180 },
+  { name: "mobile", width: 720, height: 1280 },
+];
 const suffix = `${Date.now()}`.slice(-8);
-const requestTitle = `Codex QA request ${suffix}`;
-const requestNote = `Codex QA request note ${suffix}`;
+const approveRequestTitle = `Codex QA approve request ${suffix}`;
+const approveRequestNote = `Codex QA approve request note ${suffix}`;
+const rejectRequestTitle = `Codex QA reject request ${suffix}`;
+const rejectRequestNote = `Codex QA reject request note ${suffix}`;
 const glossaryName = `Codex QA Term ${suffix}`;
 const glossaryDefinition = `Codex QA definition ${suffix}`;
 const glossaryDefinitionUpdated = `Codex QA definition updated ${suffix}`;
@@ -23,10 +35,13 @@ const report = {
   columnName: "",
   writableAssetFqn: WRITABLE_ASSET_FQN,
   writableColumnName: WRITABLE_COLUMN_NAME,
-  requestTitle,
+  approveRequestTitle,
+  rejectRequestTitle,
   glossaryName,
   screenshots: [],
   checks: [],
+  pageErrors: [],
+  consoleErrors: [],
 };
 
 function pushCheck(name, status, detail = {}) {
@@ -34,17 +49,150 @@ function pushCheck(name, status, detail = {}) {
 }
 
 async function connect() {
-  const browser = await chromium.connectOverCDP("http://127.0.0.1:9223");
-  const context = browser.contexts()[0];
-  const page = await context.newPage();
+  try {
+    const browser = await chromium.connectOverCDP("http://127.0.0.1:9223");
+    const context = browser.contexts()[0];
+    const existingPages = context.pages();
+    const page =
+      existingPages.find((candidate) => candidate.url().startsWith(BASE_URL)) ||
+      existingPages.find((candidate) => /^https?:/i.test(candidate.url())) ||
+      existingPages[0] ||
+      (await context.newPage());
+    await page.bringToFront();
+    await page.setViewportSize({ width: 1600, height: 1040 });
+    attachRuntimeListeners(page);
+    return { browser, context, page, close: null, mode: "cdp" };
+  } catch (error) {
+    pushCheck("browser-connect-fallback", "warn", {
+      message: `CDP connection unavailable. Launching a copied Chrome profile instead.`,
+      detail: error?.message || String(error),
+    });
+    return launchCopiedChromeContext();
+  }
+}
+
+function attachRuntimeListeners(page) {
+  page.on("pageerror", (error) => {
+    report.pageErrors.push({
+      message: error?.message || String(error),
+      stack: error?.stack || "",
+      url: page.url(),
+    });
+  });
+  page.on("console", (message) => {
+    if (!["error", "warning"].includes(message.type())) return;
+    report.consoleErrors.push({
+      type: message.type(),
+      text: message.text(),
+      url: page.url(),
+    });
+  });
+}
+
+async function resolveChromeProfileName() {
+  try {
+    const localStateRaw = await fs.readFile(path.join(CHROME_PROFILE_ROOT, "Local State"), "utf8");
+    const localState = JSON.parse(localStateRaw);
+    return localState?.profile?.last_used || "Default";
+  } catch {
+    return "Default";
+  }
+}
+
+async function copyChromeProfile(profileName) {
+  await fs.rm(CHROME_PROFILE_COPY_ROOT, { recursive: true, force: true });
+  await fs.mkdir(CHROME_PROFILE_COPY_ROOT, { recursive: true });
+
+  const itemsToCopy = [
+    path.join(CHROME_PROFILE_ROOT, "Local State"),
+    path.join(CHROME_PROFILE_ROOT, profileName),
+  ];
+
+  for (const sourcePath of itemsToCopy) {
+    const targetPath = path.join(CHROME_PROFILE_COPY_ROOT, path.basename(sourcePath));
+    try {
+      const stats = await fs.stat(sourcePath);
+      if (stats.isDirectory()) {
+        await fs.cp(sourcePath, targetPath, { recursive: true, force: true });
+      } else {
+        await fs.copyFile(sourcePath, targetPath);
+      }
+    } catch {
+      // Best-effort only. Missing files will surface at launch time.
+    }
+  }
+}
+
+async function launchCopiedChromeContext() {
+  const profileName = await resolveChromeProfileName();
+  await copyChromeProfile(profileName);
+  const context = await chromium.launchPersistentContext(CHROME_PROFILE_COPY_ROOT, {
+    channel: "chrome",
+    headless: false,
+    viewport: { width: 1600, height: 1040 },
+    args: [`--profile-directory=${profileName}`],
+  });
+  const existingPages = context.pages();
+  const page =
+    existingPages.find((candidate) => candidate.url().startsWith(BASE_URL)) ||
+    existingPages.find((candidate) => /^https?:/i.test(candidate.url())) ||
+    existingPages[0] ||
+    (await context.newPage());
   await page.bringToFront();
-  await page.setViewportSize({ width: 1600, height: 1040 });
-  return { browser, page };
+  attachRuntimeListeners(page);
+  return {
+    browser: context.browser(),
+    context,
+    page,
+    mode: "persistent",
+    close: async () => {
+      await context.close().catch(() => {});
+    },
+  };
 }
 
 async function gotoSurface(page, url, selector, waitMs = 1200) {
-  await page.goto(url, { waitUntil: "domcontentloaded" });
-  await page.waitForSelector(selector, { timeout: 45000 });
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
+  try {
+    await page.waitForSelector(selector, { timeout: 90000 });
+  } catch (error) {
+    let debug = {};
+    try {
+      debug = await page.evaluate((targetSelector) => {
+        const target = document.querySelector(targetSelector);
+        const rect = target?.getBoundingClientRect?.();
+        return {
+          url: window.location.href,
+          title: document.title,
+          readyState: document.readyState,
+          bodyPreview: (document.body?.innerText || "").slice(0, 1400),
+          selectors: {
+            shellHeader: Boolean(document.querySelector(".gh-shell-header")),
+            discoveryGrid: Boolean(document.querySelector(".gh-discovery-main-grid")),
+            entityTabs: Boolean(document.querySelector(".gh-entity-record-tabs")),
+            lineageShell: Boolean(document.querySelector(".gh-lineage-stage-shell")),
+            governanceWorkbench: Boolean(document.querySelector(".gh-governance-workbench")),
+            progress: Boolean(document.querySelector(".gh-shell-progress")),
+            unavailable: Boolean(document.querySelector(".gh-unavailable-panel")),
+          },
+          targetState: target
+            ? {
+                display: getComputedStyle(target).display,
+                visibility: getComputedStyle(target).visibility,
+                width: rect?.width || 0,
+                height: rect?.height || 0,
+              }
+            : null,
+        };
+      }, selector);
+      await screenshot(page, `surface-timeout-${Date.now()}`);
+    } catch {
+      // Best-effort only.
+    }
+    throw new Error(
+      `${error?.message || error}\nSurface debug: ${JSON.stringify(debug)}`
+    );
+  }
   await page.waitForTimeout(waitMs);
 }
 
@@ -67,7 +215,169 @@ async function screenshot(page, name, fullPage = false) {
   report.screenshots.push(filePath);
 }
 
-async function waitForOverviewWarmup(page, timeoutMs = 8000) {
+function currentRoute(page) {
+  const parsed = new URL(page.url());
+  const params = parsed.searchParams;
+  return {
+    url: parsed.href,
+    module: params.get("module") || "",
+    surface: params.get("surface") || "",
+    asset: params.get("asset") || "",
+    q: params.get("q") || "",
+  };
+}
+
+async function collectDiscoveryCards(page, limit = 6) {
+  return page.evaluate(
+    ({ maxCards }) =>
+      [...document.querySelectorAll(".gh-discovery-result-row")]
+        .slice(0, maxCards)
+        .map((row) => ({
+          title: row.querySelector(".gh-discovery-result-title")?.textContent?.trim() || "",
+          fqn: row.querySelector(".gh-discovery-result-fqn")?.textContent?.trim() || "",
+          buttonLabels: [...row.querySelectorAll("button")].map((button) => button.textContent.trim()),
+        })),
+    { maxCards: limit },
+  );
+}
+
+async function finalizeRuntimeChecks() {
+  const pageErrorCount = report.pageErrors.length;
+  const consoleWarningCount = report.consoleErrors.filter((entry) => entry.type === "warning").length;
+  const consoleErrorCount = report.consoleErrors.filter((entry) => entry.type === "error").length;
+
+  pushCheck("page-errors", pageErrorCount ? "error" : "ok", {
+    count: pageErrorCount,
+    messages: report.pageErrors.slice(0, 5),
+  });
+  pushCheck("console-errors", consoleErrorCount ? "error" : consoleWarningCount ? "warn" : "ok", {
+    warningCount: consoleWarningCount,
+    errorCount: consoleErrorCount,
+    messages: report.consoleErrors.slice(0, 10),
+  });
+
+  if (pageErrorCount || consoleErrorCount) {
+    process.exitCode = 1;
+  }
+}
+
+async function captureResponsiveSnapshot(page, name, url, selector, viewportSize, detailSelector = selector) {
+  await page.setViewportSize(viewportSize);
+  await gotoSurface(page, url, selector, 900);
+  const snapshot = await page.evaluate(
+    ({ targetSelector }) => {
+      const target = document.querySelector(targetSelector);
+      const targetRect = target?.getBoundingClientRect?.() || null;
+      const layoutSelectors = [
+        ".gh-discovery-main-grid",
+        ".gh-entity-record-layout",
+        ".gh-entity-record-layout-governance",
+        ".gh-governance-workbench",
+        ".gh-governance-glossary-workbench",
+        ".gh-lineage-stage-shell",
+      ];
+      return {
+        url: window.location.href,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        bodyScrollWidth: document.documentElement?.scrollWidth || 0,
+        bodyScrollHeight: document.documentElement?.scrollHeight || 0,
+        horizontalOverflow: (document.documentElement?.scrollWidth || 0) > window.innerWidth + 4,
+        targetVisible: Boolean(target) && Boolean(targetRect) && targetRect.width > 0 && targetRect.height > 0,
+        targetDisplay: target ? getComputedStyle(target).display : "",
+        targetGridTemplateColumns: target ? getComputedStyle(target).gridTemplateColumns : "",
+        discoveryGridColumns: document.querySelector(".gh-discovery-main-grid")
+          ? getComputedStyle(document.querySelector(".gh-discovery-main-grid")).gridTemplateColumns
+          : "",
+        entityLayoutColumns: document.querySelector(".gh-entity-record-layout")
+          ? getComputedStyle(document.querySelector(".gh-entity-record-layout")).gridTemplateColumns
+          : "",
+        governanceLayoutColumns: document.querySelector(".gh-governance-workbench")
+          ? getComputedStyle(document.querySelector(".gh-governance-workbench")).gridTemplateColumns
+          : "",
+        lineageStageColumns: document.querySelector(".gh-lineage-stage-shell")
+          ? getComputedStyle(document.querySelector(".gh-lineage-stage-shell")).gridTemplateColumns
+          : "",
+        visibleLayoutSelectors: layoutSelectors.filter((layoutSelector) => Boolean(document.querySelector(layoutSelector))),
+      };
+    },
+    { targetSelector: detailSelector },
+  );
+  pushCheck(name, snapshot.targetVisible && !snapshot.horizontalOverflow ? "ok" : "warn", snapshot);
+}
+
+async function createGovernanceRequest(page, requestTitle, requestNote) {
+  const requestBlock = page.locator(".gh-form-block").filter({ hasText: "Create request" }).first();
+  await requestBlock.locator('input[placeholder="Request title"]').fill(requestTitle);
+  await requestBlock.locator('textarea[placeholder="Optional note"]').fill(requestNote);
+  await requestBlock.getByRole("button", { name: "Create request" }).click();
+  await page
+    .waitForFunction(
+      (title) => {
+        const text = document.body?.innerText || "";
+        return text.includes(title) || text.includes("Governance request created.");
+      },
+      requestTitle,
+      { timeout: 15000 },
+    )
+    .catch(() => {});
+  await page.waitForTimeout(1000);
+  const summary = await fetchJson(page, `/api/governance/summary?_qa=${Date.now()}`);
+  const requestMatch =
+    (summary.json?.backlog || []).find((item) => item.title === requestTitle) || null;
+  return {
+    summary,
+    requestMatch,
+    requestId: requestMatch?.requestId || "",
+    bodyPreview: (await page.evaluate(() => document.body?.innerText || "")).slice(0, 1800),
+  };
+}
+
+async function actOnGovernanceRequest(page, { requestTitle, requestId, buttonName, successText }) {
+  const selectedWorkSection = page.locator(".gh-detail-section").filter({ hasText: "Selected work" }).first();
+  const requestRow = page.locator(".gh-request-row").filter({ hasText: requestTitle }).first();
+  const selectedActionButton = selectedWorkSection.getByRole("button", { name: buttonName }).first();
+
+  if (await selectedActionButton.count()) {
+    await selectedActionButton.click();
+  } else if (await requestRow.count()) {
+    await requestRow.click();
+    await page.waitForTimeout(800);
+    await page.getByRole("button", { name: buttonName }).click();
+  } else {
+    return {
+      acted: false,
+      requestStillOpen: true,
+      reason: "Neither the selected-work action nor the request row was visible.",
+      summary: null,
+    };
+  }
+
+  await page
+    .waitForFunction(
+      (message) => {
+        const text = document.body?.innerText || "";
+        return text.includes(message) || text.includes(message.replace(".", ""));
+      },
+      successText,
+      { timeout: 15000 },
+    )
+    .catch(() => {});
+  await page.waitForTimeout(1000);
+  const summary = await fetchJson(page, `/api/governance/summary?_qa=${Date.now()}`);
+  const requestStillOpen = (summary.json?.backlog || []).some(
+    (item) => item.requestId === requestId || item.title === requestTitle,
+  );
+  return {
+    acted: true,
+    requestStillOpen,
+    summary,
+    selectedWorkVisible: Boolean(await selectedWorkSection.count()),
+    requestRowVisible: Boolean(await requestRow.count()),
+  };
+}
+
+async function waitForOverviewWarmup(page, timeoutMs = 12000) {
   try {
     await page.waitForFunction(
       () => {
@@ -80,13 +390,16 @@ async function waitForOverviewWarmup(page, timeoutMs = 8000) {
         return (
           !liveText.includes("Loading…") &&
           !liveText.includes("Loading connected lineage") &&
-          !lineageText.includes("Loading connected lineage")
+          !liveText.includes("Workloads\n—") &&
+          !lineageText.includes("Loading connected lineage") &&
+          !lineageText.includes("Loading connected")
         );
       },
       { timeout: timeoutMs },
     );
+    return true;
   } catch {
-    // Keep the current state in the report when the warm-up does not settle in time.
+    return false;
   }
 }
 
@@ -234,16 +547,19 @@ function rowMap(rows = []) {
 
 await fs.mkdir(OUT_DIR, { recursive: true });
 
-const { browser, page } = await connect();
+const runtime = await connect();
+const { page } = runtime;
 
 let originalWritableColumnDraft = { description: "", tags: "" };
-let createdRequestId = "";
+let createdApproveRequestId = "";
+let createdRejectRequestId = "";
 let createdGlossaryTermId = "";
 let visibleAssetFqn = "";
 let visibleLineageAssetFqn = "";
 let visibleColumnName = "";
 let writableAssetFqn = WRITABLE_ASSET_FQN;
 let writableColumnName = WRITABLE_COLUMN_NAME;
+let discoveryRouteCandidate = null;
 
 try {
   await resetDiscoverySession(page);
@@ -353,13 +669,86 @@ try {
   pushCheck("global-search-overlay", searchOverlay?.dropdownOnTop ? "ok" : "warn", searchOverlay || {});
   await page.keyboard.press("Escape");
 
+  const discoveryCards = await collectDiscoveryCards(page);
+  discoveryRouteCandidate =
+    discoveryCards.find((item) => item.fqn && item.fqn !== visibleAssetFqn) ||
+    discoveryCards.find((item) => item.fqn) ||
+    null;
+  pushCheck("discovery-link-routing-candidate", discoveryRouteCandidate ? "ok" : "warn", {
+    discoveryRouteCandidate,
+    discoveryCards: discoveryCards.slice(0, 4),
+  });
+  const discoveryRouteCard = discoveryRouteCandidate
+    ? page.locator(".gh-discovery-result-row").filter({ hasText: discoveryRouteCandidate.title }).first()
+    : page.locator(".gh-discovery-result-row").first();
+  const discoveryOpenRecordButton = discoveryRouteCard.getByRole("button", { name: "Open Record" }).first();
+  if (await discoveryOpenRecordButton.count()) {
+    const beforeRoute = currentRoute(page);
+    await discoveryOpenRecordButton.click();
+    await page
+      .waitForFunction(
+        (previousUrl) => {
+          const next = new URL(window.location.href);
+          return (
+            window.location.href !== previousUrl &&
+            next.searchParams.get("surface") === "entity" &&
+            Boolean(next.searchParams.get("asset"))
+          );
+        },
+        beforeRoute.url,
+        { timeout: 15000 },
+      )
+      .catch(() => {});
+    const afterRoute = currentRoute(page);
+    pushCheck("discovery-link-routing", afterRoute.surface === "entity" && afterRoute.asset ? "ok" : "warn", {
+      beforeRoute,
+      afterRoute,
+      candidate: discoveryRouteCandidate,
+    });
+  } else {
+    pushCheck("discovery-link-routing", "warn", {
+      reason: "Open Record was not available on the first discovery result card.",
+      candidate: discoveryRouteCandidate,
+    });
+  }
+
   await gotoSurface(
     page,
     `${BASE_URL}/?module=discovery&surface=entity&asset=${visibleAssetFqn}&_cb=codex-qa-entity-${suffix}`,
     ".gh-entity-record-tabs",
   );
-  await waitForOverviewWarmup(page);
+  const overviewWarmSettled = await waitForOverviewWarmup(page);
   await screenshot(page, "entity-overview");
+
+  const operationalApi = await fetchJson(
+    page,
+    assetApiPath(visibleAssetFqn, `?sections=header&sections=activity&sections=operational&_qa=${Date.now()}`),
+  );
+  const lineageApi = await fetchJson(
+    page,
+    lineageApiPath(visibleLineageAssetFqn, `?_qa=${Date.now()}`),
+  );
+  pushCheck(
+    "entity-operational-api",
+    operationalApi.ok &&
+      (operationalApi.json?.usage?.producerCount || 0) + (operationalApi.json?.usage?.consumerCount || 0) > 0
+      ? "ok"
+      : "warn",
+    {
+      warmSettled: overviewWarmSettled,
+      usage: operationalApi.json?.usage || null,
+      operationalContext: operationalApi.json?.operationalContext || null,
+    },
+  );
+  pushCheck(
+    "entity-lineage-api",
+    lineageApi.ok && (lineageApi.json?.graphs?.data?.nodes || []).length > 0 ? "ok" : "warn",
+    {
+      stats: lineageApi.json?.stats || null,
+      dataNodes: lineageApi.json?.graphs?.data?.nodes?.length || 0,
+      dataEdges: lineageApi.json?.graphs?.data?.edges?.length || 0,
+    },
+  );
 
   const overviewRaw = await page.evaluate(() => {
     const liveSignalCard = [...document.querySelectorAll(".gh-record-card")].find((card) =>
@@ -386,8 +775,111 @@ try {
   };
   pushCheck("entity-overview", "ok", overview);
 
+  const metadataEditorCard = page.locator(".gh-record-card").filter({ hasText: "Metadata Controls" }).first();
+  const metadataSaveButton = metadataEditorCard.getByRole("button", { name: "Save metadata" }).first();
+  const metadataEditorEditable = await metadataSaveButton.count();
+  if (metadataEditorEditable) {
+    const metadataDescriptionField = metadataEditorCard
+      .locator('.gh-metadata-edit-field:has-text("Description") textarea')
+      .first();
+    const metadataDomainField = metadataEditorCard.locator('.gh-metadata-edit-field:has-text("Domain") input').first();
+    const metadataTierField = metadataEditorCard.locator('.gh-metadata-edit-field:has-text("Tier") input').first();
+    const metadataCertificationField = metadataEditorCard
+      .locator('.gh-metadata-edit-field:has-text("Certification") input')
+      .first();
+    const metadataSensitivityField = metadataEditorCard
+      .locator('.gh-metadata-edit-field:has-text("Sensitivity") input')
+      .first();
+    const originalAssetMetadataDraft = {
+      description: await metadataDescriptionField.inputValue().catch(() => ""),
+      domain: await metadataDomainField.inputValue().catch(() => ""),
+      tier: await metadataTierField.inputValue().catch(() => ""),
+      certification: await metadataCertificationField.inputValue().catch(() => ""),
+      sensitivity: await metadataSensitivityField.inputValue().catch(() => ""),
+    };
+    const updatedAssetMetadataDraft = {
+      ...originalAssetMetadataDraft,
+      description: `Codex QA asset description ${suffix}`,
+    };
+    await metadataDescriptionField.fill(updatedAssetMetadataDraft.description);
+    await metadataDomainField.fill(updatedAssetMetadataDraft.domain);
+    await metadataTierField.fill(updatedAssetMetadataDraft.tier);
+    await metadataCertificationField.fill(updatedAssetMetadataDraft.certification);
+    await metadataSensitivityField.fill(updatedAssetMetadataDraft.sensitivity);
+    await metadataSaveButton.click();
+    await page
+      .waitForFunction(
+        () => {
+          const text = document.body?.innerText || "";
+          return text.includes("Metadata saved.") || text.includes("Saving...");
+        },
+        { timeout: 30000 },
+      )
+      .catch(() => {});
+    await page.waitForTimeout(1500);
+    const metadataAfterUpdate = await fetchJson(
+      page,
+      assetApiPath(visibleAssetFqn, `?sections=header&_qa=${Date.now()}`),
+    );
+    const metadataUpdated =
+      metadataAfterUpdate.ok &&
+      String(metadataAfterUpdate.json?.description || "").includes(updatedAssetMetadataDraft.description);
+    pushCheck("asset-metadata-edit", metadataUpdated ? "ok" : "warn", {
+      originalAssetMetadataDraft,
+      updatedAssetMetadataDraft,
+      apiAsset: metadataAfterUpdate.json || null,
+    });
+    if (metadataUpdated) {
+      await metadataDescriptionField.fill(originalAssetMetadataDraft.description);
+      await metadataDomainField.fill(originalAssetMetadataDraft.domain);
+      await metadataTierField.fill(originalAssetMetadataDraft.tier);
+      await metadataCertificationField.fill(originalAssetMetadataDraft.certification);
+      await metadataSensitivityField.fill(originalAssetMetadataDraft.sensitivity);
+      await metadataSaveButton.click();
+      await page.waitForTimeout(1500);
+      const metadataAfterRestore = await fetchJson(
+        page,
+        assetApiPath(visibleAssetFqn, `?sections=header&_qa=${Date.now()}`),
+      );
+      const metadataRestored =
+        metadataAfterRestore.ok &&
+        String(metadataAfterRestore.json?.description || "") === String(originalAssetMetadataDraft.description || "");
+      pushCheck("asset-metadata-restore", metadataRestored ? "ok" : "warn", {
+        restoredAssetMetadataDraft: originalAssetMetadataDraft,
+        apiAsset: metadataAfterRestore.json || null,
+      });
+    } else {
+      pushCheck("asset-metadata-restore", "warn", {
+        reason: "Asset metadata update did not round-trip cleanly, so restore was skipped.",
+        originalAssetMetadataDraft,
+        updatedAssetMetadataDraft,
+      });
+    }
+  } else {
+    pushCheck("asset-metadata-edit", "warn", {
+      reason: "Metadata Controls were not editable on the entity overview surface.",
+    });
+    pushCheck("asset-metadata-restore", "warn", {
+      reason: "Metadata Controls were not editable on the entity overview surface.",
+    });
+  }
+
   await page.getByRole("button", { name: "Usage & Workloads" }).click();
-  await page.waitForTimeout(1800);
+  await page
+    .waitForFunction(
+      () => {
+        const taskTitles = document.querySelectorAll(".gh-task-row .gh-task-title").length;
+        if (taskTitles > 0) return true;
+        const text = document.body?.innerText || "";
+        return (
+          text.includes("Loading workload and operational context") ||
+          text.includes("No workload usage was surfaced for this direction.")
+        );
+      },
+      { timeout: 15000 },
+    )
+    .catch(() => {});
+  await page.waitForTimeout(1000);
   await screenshot(page, "entity-usage-workloads");
   const usageState = await page.evaluate(() => {
     const titles = [...document.querySelectorAll(".gh-task-title")].map((node) => node.textContent.trim());
@@ -397,6 +889,8 @@ try {
     return {
       titles,
       relatedButtons,
+      loadingVisible: document.body.innerText.includes("Loading workload and operational context"),
+      emptyVisible: document.body.innerText.includes("No workload usage was surfaced for this direction."),
       rawUuidOnlyTitles: titles.filter((title) =>
         /^[0-9a-f]{8,}(-[0-9a-f]{4,}){0,}$/i.test(title),
       ),
@@ -411,14 +905,27 @@ try {
   const usageLinkedAsset = page.locator(".gh-task-row .gh-chip-row button").first();
   if (await usageLinkedAsset.count()) {
     const linkedLabel = await usageLinkedAsset.textContent();
+    const beforeRoute = currentRoute(page);
     await usageLinkedAsset.click();
-    await page.waitForSelector(".gh-entity-record-tabs", { timeout: 15000 });
-    pushCheck("usage-linked-asset-navigation", "ok", {
+    await page
+      .waitForFunction(
+        (previousUrl) => window.location.href !== previousUrl && window.location.search.includes("asset="),
+        beforeRoute.url,
+        { timeout: 15000 },
+      )
+      .catch(() => {});
+    const navigatedRoute = currentRoute(page);
+    pushCheck(
+      "usage-linked-asset-routing",
+      navigatedRoute.surface === "entity" && navigatedRoute.asset && navigatedRoute.url !== beforeRoute.url ? "ok" : "warn",
+      {
       linkedLabel: (linkedLabel || "").trim(),
-      navigatedUrl: page.url(),
-    });
+      beforeRoute,
+      navigatedRoute,
+      },
+    );
   } else {
-    pushCheck("usage-linked-asset-navigation", "warn", {
+    pushCheck("usage-linked-asset-routing", "warn", {
       reason: "No linked asset buttons were rendered in Usage & Workloads.",
     });
   }
@@ -549,11 +1056,26 @@ try {
     ".gh-entity-record-tabs",
   );
   await page.locator(".gh-entity-record-tabs .gh-subtab", { hasText: /^Lineage$/ }).click();
-  await page.waitForTimeout(3500);
+  await page
+    .waitForFunction(
+      () => {
+        const nodeCount = document.querySelectorAll(".react-flow__node").length;
+        const text = document.body?.innerText || "";
+        return (
+          nodeCount > 0 ||
+          text.includes("Loading lineage graph") ||
+          text.includes("No connected lineage edges are available for this asset yet.")
+        );
+      },
+      { timeout: 15000 },
+    )
+    .catch(() => {});
+  await page.waitForTimeout(1200);
   await screenshot(page, "entity-lineage-tab");
   const entityLineage = await page.evaluate(() => ({
     nodeCount: document.querySelectorAll(".react-flow__node").length,
     edgeCount: document.querySelectorAll(".react-flow__edge").length,
+    loadingVisible: document.body.innerText.includes("Loading lineage graph"),
     hasBlankCanvas:
       Boolean(document.querySelector(".gh-lineage-stage-shell")) &&
       document.querySelectorAll(".react-flow__node").length === 0,
@@ -566,7 +1088,21 @@ try {
 
   await page.getByRole("button", { name: "Open full graph" }).click();
   await page.waitForSelector(".gh-lineage-stage-shell", { timeout: 15000 });
-  await page.waitForTimeout(2200);
+  await page
+    .waitForFunction(
+      () => {
+        const nodeCount = document.querySelectorAll(".react-flow__node").length;
+        const text = document.body?.innerText || "";
+        return (
+          nodeCount > 0 ||
+          text.includes("Loading lineage graph") ||
+          text.includes("No connected lineage edges are available for this asset yet.")
+        );
+      },
+      { timeout: 15000 },
+    )
+    .catch(() => {});
+  await page.waitForTimeout(1200);
   await screenshot(page, "lineage-full-graph");
   const fullLineage = await page.evaluate(() => {
     const nodes = [...document.querySelectorAll(".react-flow__node")].map((node) => {
@@ -594,6 +1130,7 @@ try {
       nodeCount: nodes.length,
       edgeCount: document.querySelectorAll(".react-flow__edge").length,
       overlaps,
+      loadingVisible: document.body.innerText.includes("Loading lineage graph"),
       drawerTitle: document.querySelector(".gh-lineage-drawer-head")?.textContent?.trim() || "",
     };
   });
@@ -603,60 +1140,183 @@ try {
     fullLineage,
   );
 
+  const lineageNodes = page.locator(".react-flow__node");
+  if (await lineageNodes.count()) {
+    await lineageNodes.first().click({ force: true }).catch(() => {});
+    await page.waitForTimeout(800);
+    const lineageDrawerDetails = await page.evaluate(() => {
+      const drawer = document.querySelector(".gh-lineage-drawer");
+      const drawerHead = document.querySelector(".gh-lineage-drawer-head");
+      return {
+        drawerOpen: Boolean(drawer?.classList.contains("is-open")),
+        head: drawerHead?.textContent?.trim() || "",
+        actionButtons: [...document.querySelectorAll(".gh-lineage-drawer .gh-lineage-drawer-actions button")].map((button) =>
+          button.textContent.trim(),
+        ),
+        attributeRows: [...document.querySelectorAll(".gh-lineage-drawer .gh-attribute-row")].map((row) =>
+          row.textContent.trim(),
+        ),
+        linkedRows: [...document.querySelectorAll(".gh-lineage-drawer .gh-lineage-linked-row")]
+          .slice(0, 8)
+          .map((row) => row.textContent.trim()),
+        entityDetails: [...document.querySelectorAll(".gh-lineage-drawer .gh-lineage-linked-row.is-readonly")].map((row) =>
+          row.textContent.trim(),
+        ),
+      };
+    });
+    pushCheck(
+      "lineage-drawer-details",
+      lineageDrawerDetails.drawerOpen &&
+        lineageDrawerDetails.head.length > 0 &&
+        lineageDrawerDetails.actionButtons.length > 0 &&
+        lineageDrawerDetails.attributeRows.length > 0
+        ? "ok"
+        : "warn",
+      lineageDrawerDetails,
+    );
+  } else {
+    pushCheck("lineage-drawer-details", "warn", {
+      reason: "No lineage nodes were available to open the drawer.",
+    });
+  }
+
+  if (discoveryRouteCandidate?.title) {
+    const originalLineageRoute = currentRoute(page);
+    const refocusButton = page.getByRole("button", { name: "Refocus" }).first();
+    if (await refocusButton.count()) {
+      await refocusButton.click();
+      await page.waitForTimeout(600);
+      const refocusInput = page.locator(".gh-lineage-command-popover input").first();
+      await refocusInput.fill(discoveryRouteCandidate.title);
+      await page.waitForTimeout(1200);
+      const refocusCandidateRow = page
+        .locator(".gh-lineage-search-row")
+        .filter({ hasText: discoveryRouteCandidate.title })
+        .first();
+      const refocusSearchBefore = currentRoute(page);
+      if (await refocusCandidateRow.count()) {
+        await refocusCandidateRow.click();
+        await page
+          .waitForFunction(
+            (previousAsset) => {
+              const next = new URL(window.location.href);
+              return next.searchParams.get("asset") && next.searchParams.get("asset") !== previousAsset;
+            },
+            originalLineageRoute.asset,
+            { timeout: 20000 },
+          )
+          .catch(() => {});
+        const refocusedRoute = currentRoute(page);
+        let returnedRoute = null;
+        const returnToFocusButton = page.getByRole("button", { name: "Return to focus" }).first();
+        if (await returnToFocusButton.count()) {
+          await returnToFocusButton.click();
+          await page
+            .waitForFunction(
+              (previousAsset) => {
+                const next = new URL(window.location.href);
+                return next.searchParams.get("asset") === previousAsset;
+              },
+              originalLineageRoute.asset,
+              { timeout: 20000 },
+            )
+            .catch(() => {});
+          returnedRoute = currentRoute(page);
+        }
+        pushCheck(
+          "lineage-workspace-refocus",
+          refocusedRoute.asset && refocusedRoute.asset !== originalLineageRoute.asset ? "ok" : "warn",
+          {
+            originalLineageRoute,
+            refocusSearchBefore,
+            refocusedRoute,
+            returnedRoute,
+            candidate: discoveryRouteCandidate,
+          },
+        );
+      } else {
+        pushCheck("lineage-workspace-refocus", "warn", {
+          reason: "The refocus search did not surface a matching asset row.",
+          originalLineageRoute,
+          candidate: discoveryRouteCandidate,
+        });
+      }
+    } else {
+      pushCheck("lineage-workspace-refocus", "warn", {
+        reason: "The Refocus control was not available in the full lineage workspace.",
+        candidate: discoveryRouteCandidate,
+      });
+    }
+  } else {
+    pushCheck("lineage-workspace-refocus", "warn", {
+      reason: "No alternate discovery route candidate was captured to drive a lineage refocus.",
+    });
+  }
+
   await gotoSurface(
     page,
     `${BASE_URL}/?module=governance&surface=governance&asset=${visibleAssetFqn}&_cb=codex-qa-governance-${suffix}`,
     ".gh-governance-workbench",
   );
   await page.waitForTimeout(1500);
-  await page.locator('input[placeholder="Request title"]').fill(requestTitle);
-  await page.locator('textarea[placeholder="Optional note"]').fill(requestNote);
-  await page.getByRole("button", { name: "Create request" }).click();
-  await page.waitForTimeout(1800);
-  const governanceAfterRequest = await fetchJson(page, `/api/governance/summary?_qa=${Date.now()}`);
-  const requestMatch =
-    (governanceAfterRequest.json?.backlog || []).find((item) => item.title === requestTitle) || null;
-  createdRequestId = requestMatch?.requestId || "";
-  pushCheck(
-    "governance-request-create",
-    createdRequestId ? "ok" : "warn",
-    { requestId: createdRequestId, requestMatch },
-  );
+  await screenshot(page, "governance-workbench");
+  const approveRequestCreate = await createGovernanceRequest(page, approveRequestTitle, approveRequestNote);
+  createdApproveRequestId = approveRequestCreate.requestId;
+  pushCheck("governance-request-approve-create", createdApproveRequestId ? "ok" : "warn", {
+    requestId: createdApproveRequestId,
+    requestMatch: approveRequestCreate.requestMatch,
+    bodyPreview: approveRequestCreate.bodyPreview,
+  });
+  if (createdApproveRequestId) {
+    const approveAction = await actOnGovernanceRequest(page, {
+      requestTitle: approveRequestTitle,
+      requestId: createdApproveRequestId,
+      buttonName: "Approve",
+      successText: "Request approved.",
+    });
+    pushCheck(
+      "governance-request-approve",
+      approveAction.acted && !approveAction.requestStillOpen ? "ok" : "warn",
+      {
+        requestId: createdApproveRequestId,
+        requestStillOpen: approveAction.requestStillOpen,
+        summary: approveAction.summary?.json || null,
+        reason: approveAction.reason || "",
+      },
+    );
+  } else {
+    pushCheck("governance-request-approve", "warn", {
+      reason: "The approval request was not returned by the governance API.",
+    });
+  }
 
-  const selectedWorkRejectButton = page
-    .locator(".gh-detail-section")
-    .filter({ hasText: "Selected work" })
-    .getByRole("button", { name: "Reject" })
-    .first();
-  const requestRow = page.locator(".gh-request-row").filter({ hasText: requestTitle }).first();
-  if (await selectedWorkRejectButton.count()) {
-    await selectedWorkRejectButton.click();
-    await page.waitForTimeout(1800);
-    const governanceAfterReject = await fetchJson(page, `/api/governance/summary?_qa=${Date.now()}`);
-    const requestStillOpen = (governanceAfterReject.json?.backlog || []).some(
-      (item) => item.requestId === createdRequestId || item.title === requestTitle,
-    );
-    pushCheck("governance-request-reject", requestStillOpen ? "warn" : "ok", {
-      requestId: createdRequestId,
-      requestStillOpen,
+  const rejectRequestCreate = await createGovernanceRequest(page, rejectRequestTitle, rejectRequestNote);
+  createdRejectRequestId = rejectRequestCreate.requestId;
+  pushCheck("governance-request-reject-create", createdRejectRequestId ? "ok" : "warn", {
+    requestId: createdRejectRequestId,
+    requestMatch: rejectRequestCreate.requestMatch,
+    bodyPreview: rejectRequestCreate.bodyPreview,
+  });
+  if (createdRejectRequestId) {
+    const rejectAction = await actOnGovernanceRequest(page, {
+      requestTitle: rejectRequestTitle,
+      requestId: createdRejectRequestId,
+      buttonName: "Reject",
+      successText: "Request rejected.",
     });
-  } else if (await requestRow.count()) {
-    await requestRow.click();
-    await page.waitForTimeout(800);
-    await page.getByRole("button", { name: "Reject" }).click();
-    await page.waitForTimeout(1800);
-    const governanceAfterReject = await fetchJson(page, `/api/governance/summary?_qa=${Date.now()}`);
-    const requestStillOpen = (governanceAfterReject.json?.backlog || []).some(
-      (item) => item.requestId === createdRequestId || item.title === requestTitle,
+    pushCheck(
+      "governance-request-reject",
+      rejectAction.acted && !rejectAction.requestStillOpen ? "ok" : "warn",
+      {
+        requestId: createdRejectRequestId,
+        requestStillOpen: rejectAction.requestStillOpen,
+        summary: rejectAction.summary?.json || null,
+        reason: rejectAction.reason || "",
+      },
     );
-    pushCheck("governance-request-reject", requestStillOpen ? "warn" : "ok", {
-      requestId: createdRequestId,
-      requestStillOpen,
-    });
   } else {
     pushCheck("governance-request-reject", "warn", {
-      requestId: createdRequestId,
-      reason: "Neither the selected-work reject action nor the request row was visible after creation.",
+      reason: "The rejection request was not returned by the governance API.",
     });
   }
 
@@ -670,16 +1330,40 @@ try {
     .locator('textarea[placeholder*="Initial reviewers"]')
     .fill(glossaryReviewerInitial);
   await glossaryCreateBlock.locator('textarea[placeholder="Optional creation note"]').fill(`Created ${suffix}`);
+  await page
+    .waitForFunction(
+      () => {
+        const buttons = [...document.querySelectorAll(".gh-form-block button")];
+        const createButton = buttons.find((button) => button.textContent.trim() === "Create term");
+        return Boolean(createButton && !createButton.disabled);
+      },
+      { timeout: 15000 },
+    )
+    .catch(() => {});
   await glossaryCreateBlock.getByRole("button", { name: "Create term" }).click();
-  await page.waitForTimeout(2200);
+  await page
+    .waitForFunction(
+      (title) => {
+        const text = document.body?.innerText || "";
+        return text.includes(title) || text.includes("Glossary term saved.");
+      },
+      glossaryName,
+      { timeout: 15000 },
+    )
+    .catch(() => {});
+  await page.waitForTimeout(1200);
+  await screenshot(page, "governance-glossary-create");
   const glossaryAfterCreate = await fetchJson(page, `/api/governance/glossary?_qa=${Date.now()}`);
   const glossaryMatch =
-    (glossaryAfterCreate.json?.glossary || []).find((item) => item.title === glossaryName) || null;
+    (glossaryAfterCreate.json?.glossary || []).find(
+      (item) => item.title === glossaryName || item.term === glossaryName,
+    ) || null;
   createdGlossaryTermId = glossaryMatch?.termId || glossaryMatch?.id || "";
+  const glossaryBodyAfterCreate = await page.evaluate(() => document.body?.innerText || "");
   pushCheck(
     "glossary-create",
     createdGlossaryTermId ? "ok" : "warn",
-    { termId: createdGlossaryTermId, glossaryMatch },
+    { termId: createdGlossaryTermId, glossaryMatch, bodyPreview: glossaryBodyAfterCreate.slice(0, 1800) },
   );
 
   if (createdGlossaryTermId) {
@@ -700,10 +1384,37 @@ try {
     await page.locator('.gh-metadata-edit-field:has-text("Reviewer roster") textarea').fill(glossaryReviewerUpdated);
     await page.locator('.gh-metadata-edit-field:has-text("Change note") textarea').fill(`Edited ${suffix}`);
     await page.getByRole("button", { name: "Save term" }).click();
-    await page.waitForTimeout(2200);
-    const glossaryAfterEdit = await fetchJson(page, `/api/governance/glossary?_qa=${Date.now()}`);
-    const glossaryEdited =
-      (glossaryAfterEdit.json?.glossary || []).find((item) => item.title === glossaryName) || null;
+    await page
+      .waitForFunction(
+        () => {
+          const text = document.body?.innerText || "";
+          return text.includes("Glossary term updated.");
+        },
+        { timeout: 30000 },
+      )
+      .catch(() => {});
+    await page.waitForTimeout(1500);
+    let glossaryAfterEdit = null;
+    let glossaryEdited = null;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      glossaryAfterEdit = await fetchJson(page, `/api/governance/glossary?_qa=${Date.now()}`);
+      glossaryEdited =
+        (glossaryAfterEdit.json?.glossary || []).find(
+        (item) => item.title === glossaryName || item.term === glossaryName,
+        ) || null;
+      const roles = (glossaryEdited?.reviewerRoster || []).map((reviewer) =>
+        `${reviewer.email || reviewer.reviewerEmail || ""}:${reviewer.role || reviewer.reviewerRole || ""}`,
+      );
+      if (
+        glossaryEdited &&
+        String(glossaryEdited.definition || glossaryEdited.detail || "").includes(glossaryDefinitionUpdated) &&
+        roles.some((entry) => entry.includes("approver")) &&
+        (glossaryEdited.termHistory || glossaryEdited.versionHistory || []).length > 1
+      ) {
+        break;
+      }
+      await page.waitForTimeout(1500);
+    }
     const reviewerRoles = (glossaryEdited?.reviewerRoster || []).map((reviewer) =>
       `${reviewer.email || reviewer.reviewerEmail || ""}:${reviewer.role || reviewer.reviewerRole || ""}`,
     );
@@ -721,12 +1432,115 @@ try {
       reviewerRoles,
     },
     );
+    const glossaryModeButton = page.getByRole("button", { name: "Glossary" }).first();
+    if (await glossaryModeButton.count()) {
+      await glossaryModeButton.click();
+      await page.waitForTimeout(1000);
+    }
+    const glossaryToolbar = page.locator(".gh-governance-glossary-toolbar");
+    const glossarySearchField = glossaryToolbar
+      .locator('input[placeholder="Search terms, definitions, or domains"]')
+      .first();
+    await glossarySearchField.fill(glossaryName);
+    const glossaryFinanceChip = glossaryToolbar.locator(".gh-filter-chip").filter({ hasText: "Finance" }).first();
+    if (await glossaryFinanceChip.count()) {
+      await glossaryFinanceChip.click();
+    }
+    await page.waitForTimeout(800);
+    const glossaryBeforePersistence = await page.evaluate(() => {
+      const searchInput = document.querySelector(
+        '.gh-governance-glossary-toolbar input[placeholder="Search terms, definitions, or domains"]',
+      );
+      return {
+        queryValue: searchInput?.value || "",
+        activeFilters: [...document.querySelectorAll(".gh-governance-glossary-toolbar .gh-filter-chip.is-active")].map(
+          (button) => button.textContent.trim(),
+        ),
+        visibleTermCount: document.querySelectorAll(".gh-governance-glossary-list .gh-request-row").length,
+        visibleTerms: [...document.querySelectorAll(".gh-governance-glossary-list .gh-request-row")]
+          .slice(0, 5)
+          .map((node) => node.textContent.trim()),
+      };
+    });
+    const stewardshipButton = page.getByRole("button", { name: "Stewardship" }).first();
+    if (await stewardshipButton.count()) {
+      await stewardshipButton.click();
+      await page.waitForTimeout(1000);
+    }
+    if (await glossaryModeButton.count()) {
+      await glossaryModeButton.click();
+      await page.waitForTimeout(1000);
+    }
+    const glossaryAfterPersistence = await page.evaluate(() => {
+      const searchInput = document.querySelector(
+        '.gh-governance-glossary-toolbar input[placeholder="Search terms, definitions, or domains"]',
+      );
+      return {
+        queryValue: searchInput?.value || "",
+        activeFilters: [...document.querySelectorAll(".gh-governance-glossary-toolbar .gh-filter-chip.is-active")].map(
+          (button) => button.textContent.trim(),
+        ),
+        visibleTermCount: document.querySelectorAll(".gh-governance-glossary-list .gh-request-row").length,
+        visibleTerms: [...document.querySelectorAll(".gh-governance-glossary-list .gh-request-row")]
+          .slice(0, 5)
+          .map((node) => node.textContent.trim()),
+      };
+    });
+    const glossaryPersistenceOk =
+      glossaryAfterPersistence.queryValue === glossaryName &&
+      glossaryAfterPersistence.visibleTermCount === glossaryBeforePersistence.visibleTermCount &&
+      glossaryAfterPersistence.activeFilters.join("|") === glossaryBeforePersistence.activeFilters.join("|");
+    pushCheck("glossary-query-filter-persistence", glossaryPersistenceOk ? "ok" : "warn", {
+      before: glossaryBeforePersistence,
+      after: glossaryAfterPersistence,
+      glossaryName,
+    });
   } else {
     pushCheck("glossary-edit", "warn", {
       termId: createdGlossaryTermId,
       reason: "Created glossary term was not returned by the glossary API.",
     });
+    pushCheck("glossary-query-filter-persistence", "warn", {
+      reason: "Glossary persistence was skipped because the created term was not returned by the API.",
+    });
   }
+
+  for (const responsiveCheck of [
+    {
+      name: "responsive-discovery-tablet",
+      viewport: RESPONSIVE_VIEWPORTS[2],
+      url: `${BASE_URL}/?module=discovery&surface=discovery&_cb=codex-qa-responsive-discovery-${suffix}`,
+      selector: ".gh-discovery-main-grid",
+    },
+    {
+      name: "responsive-entity-tablet",
+      viewport: RESPONSIVE_VIEWPORTS[2],
+      url: `${BASE_URL}/?module=discovery&surface=entity&asset=${visibleAssetFqn}&_cb=codex-qa-responsive-entity-${suffix}`,
+      selector: ".gh-entity-record-layout",
+    },
+    {
+      name: "responsive-lineage-mobile",
+      viewport: RESPONSIVE_VIEWPORTS[3],
+      url: `${BASE_URL}/?module=lineage&surface=lineage&asset=${visibleLineageAssetFqn}&_cb=codex-qa-responsive-lineage-${suffix}`,
+      selector: ".gh-lineage-stage-shell",
+    },
+    {
+      name: "responsive-governance-tablet",
+      viewport: RESPONSIVE_VIEWPORTS[2],
+      url: `${BASE_URL}/?module=governance&surface=governance&asset=${visibleAssetFqn}&_cb=codex-qa-responsive-governance-${suffix}`,
+      selector: ".gh-governance-workbench",
+    },
+  ]) {
+    await captureResponsiveSnapshot(
+      page,
+      responsiveCheck.name,
+      responsiveCheck.url,
+      responsiveCheck.selector,
+      responsiveCheck.viewport,
+    );
+  }
+
+  await finalizeRuntimeChecks();
 
   await fs.writeFile(path.join(OUT_DIR, "report.json"), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
@@ -735,9 +1549,11 @@ try {
     message: error?.message || String(error),
     stack: error?.stack || "",
   });
+  await finalizeRuntimeChecks();
   await fs.writeFile(path.join(OUT_DIR, "report.json"), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
   process.exitCode = 1;
 } finally {
-  await browser.close();
+  await runtime?.close?.();
+  process.exit(process.exitCode || 0);
 }

@@ -5,6 +5,7 @@ import EntityWorkspace from "./components/EntityWorkspace";
 import LineageWorkspace from "./components/LineageWorkspace";
 import { useAppRouteState } from "./hooks/useAppRouteState";
 import { useBootstrap } from "./hooks/useBootstrap";
+import { normalizeGovernancePayload } from "./lib/api";
 
 const GovernanceWorkspace = lazy(() => import("./components/GovernanceWorkspace"));
 
@@ -33,7 +34,9 @@ function bootShell(kicker, title, body) {
       <div className="gh-launch-shell">
         <div className="gh-launch-header">
           <div className="gh-launch-brand">
-            <div className="gh-launch-brand-mark">GH</div>
+            <div className="gh-launch-brand-mark">
+              <span className="gh-launch-brand-glyph">GH</span>
+            </div>
             <div className="gh-launch-brand-copy">
               <strong>Governance Hub</strong>
               <span>Metadata Workspace</span>
@@ -186,7 +189,7 @@ export default function App() {
   }, []);
   const handleGovernanceChange = useCallback((nextGovernance) => {
     if (!nextGovernance) return;
-    setLiveGovernanceState(nextGovernance);
+    setLiveGovernanceState(normalizeGovernancePayload(nextGovernance));
   }, []);
   const handleNavigationStateChange = useCallback((pending, label = "") => {
     setNavigationState({
@@ -215,7 +218,7 @@ export default function App() {
 
   useEffect(() => {
     if (data?.governance) {
-      setLiveGovernanceState(data.governance);
+      setLiveGovernanceState(normalizeGovernancePayload(data.governance));
     }
   }, [data]);
 
