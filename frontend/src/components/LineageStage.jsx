@@ -6,6 +6,41 @@ function selectGraph(graphBundle, context) {
   return context === "Operational Context" ? graphBundle.operational : graphBundle.data;
 }
 
+function fallbackStats(graphBundle, context) {
+  const graph = selectGraph(graphBundle, context);
+  const nodes = graph?.nodes || [];
+  const edges = graph?.edges || [];
+  const focusId =
+    nodes.find((node) => node?.role === "focus")?.id ||
+    nodes.find((node) => node?.assetFqn)?.id ||
+    "";
+
+  if (!focusId) {
+    return {
+      upstreamCount: 0,
+      downstreamCount: 0,
+      operationalProducerCount: 0,
+      operationalConsumerCount: 0,
+    };
+  }
+
+  if (context === "Operational Context") {
+    return {
+      upstreamCount: 0,
+      downstreamCount: 0,
+      operationalProducerCount: edges.filter((edge) => edge.target === focusId).length,
+      operationalConsumerCount: edges.filter((edge) => edge.source === focusId).length,
+    };
+  }
+
+  return {
+    upstreamCount: edges.filter((edge) => edge.target === focusId).length,
+    downstreamCount: edges.filter((edge) => edge.source === focusId).length,
+    operationalProducerCount: 0,
+    operationalConsumerCount: 0,
+  };
+}
+
 export default function LineageStage({
   asset,
   graphBundle,
@@ -29,7 +64,10 @@ export default function LineageStage({
   allowRefocus = true,
 }) {
   const graph = selectGraph(graphBundle, context);
-  const stats = lineagePayload?.stats || {};
+  const stats = {
+    ...fallbackStats(graphBundle, context),
+    ...(lineagePayload?.stats || {}),
+  };
   const limits = stats?.limits || {};
   const truncated = stats?.truncated || {};
   const hasGraph = Boolean(graph?.nodes?.length);

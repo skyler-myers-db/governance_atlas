@@ -6,16 +6,14 @@ import {
 } from "../lib/api";
 import { useAssetMetadataEditor } from "../hooks/useAssetMetadataEditor";
 import {
-  canOpenLinkedAssetRecord,
   isUsableAssetDetail,
-  prefetchAssetAvailability,
   prefetchAssetDetail,
   primeAssetDetail,
   useAssetAvailability,
   useAssetDetail,
 } from "../hooks/useAssetDetail";
 import { clearAssetSearchCache } from "../hooks/useAssetSearch";
-import { prefetchLineage, useLineage } from "../hooks/useLineage";
+import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import {
   assetPathLabel,
@@ -180,6 +178,10 @@ function metadataDraftFromAsset(asset) {
 
 function detailSectionsForTab(activeTab) {
   switch (activeTab) {
+    case "Overview":
+      return ["header"];
+    case "Activity":
+      return ["header", "activity"];
     case "Schema":
       return ["header", "activity", "schema"];
     case "SampleData":
@@ -498,20 +500,14 @@ function QueryRecords({
                     {item.relatedAssets?.length ? (
                       <div className="gh-chip-row">
                         {item.relatedAssets.slice(0, 4).map((assetFqn) => (
-                          linkedAssetAvailability[assetFqn] === true ? (
-                            <button
-                              className="gh-chip gh-chip-soft"
-                              key={`${item.key}-${assetFqn}`}
-                              onClick={() => onOpenLinkedAsset?.(assetFqn)}
-                              type="button"
-                            >
-                              {assetFqn.split(".").slice(-2).join(" / ")}
-                            </button>
-                          ) : (
-                            <span className="gh-chip gh-chip-soft" key={`${item.key}-${assetFqn}`}>
-                              {assetFqn.split(".").slice(-2).join(" / ")}
-                            </span>
-                          )
+                          <button
+                            className={`gh-chip gh-chip-soft ${linkedAssetAvailability[assetFqn] === true ? "" : "gh-chip-link-pending"}`}
+                            key={`${item.key}-${assetFqn}`}
+                            onClick={() => onOpenLinkedAsset?.(assetFqn)}
+                            type="button"
+                          >
+                            {assetFqn.split(".").slice(-2).join(" / ")}
+                          </button>
                         ))}
                       </div>
                     ) : null}
@@ -626,10 +622,14 @@ export default function EntityWorkspace({
   const operationalLoaded = loadedSections.has("operational") || loadedSections.has("profiler");
   const propertiesLoaded = loadedSections.has("properties");
   const profilerLoaded = loadedSections.has("profiler");
+  const [overviewLineageWarm, setOverviewLineageWarm] = useState(false);
   const lineageEnabled =
     activeTab === "Lineage" ||
     activeTab === "Queries" ||
-    (activeTab === "Overview" && Boolean(asset?.fqn) && loadedSections.has("header"));
+    (activeTab === "Overview" &&
+      overviewLineageWarm &&
+      Boolean(asset?.fqn) &&
+      loadedSections.has("header"));
   const lineage = useLineage(assetFqn || "", seeded.seededGraph, lineageEnabled);
   const lineageBundle = lineage.graph;
   const lineagePayload = lineage.payload;
@@ -816,50 +816,94 @@ export default function EntityWorkspace({
   }, [liveColumns, selectedColumnName]);
 
   useEffect(() => {
-    if (!assetFqn || !loadedSections.has("header")) return undefined;
-    const prioritySections = ["schema", "preview", "operational"].filter((section) => !loadedSections.has(section));
-    const secondarySections = ["profiler", "properties"].filter((section) => !loadedSections.has(section));
-    if (!prioritySections.length && !secondarySections.length) return undefined;
-    let cancelled = false;
-    let warmTimeoutId = 0;
-    let secondaryTimeoutId = 0;
+    if (activeTab === "Lineage" || activeTab === "Queries") {
+      setOverviewLineageWarm(true);
+      return undefined;
+    }
+    if (activeTab !== "Overview" || !asset?.fqn || !loadedSections.has("header")) {
+      setOverviewLineageWarm(false);
+      return undefined;
+    }
+    let timeoutId = 0;
     let idleId = 0;
-    const warmPriorityDetail = () => {
-      if (cancelled) return;
-      void prefetchLineage(assetFqn);
-      if (prioritySections.length) {
-        void prefetchAssetDetail(assetFqn, { sections: prioritySections });
+    setOverviewLineageWarm(false);
+    const enableOverviewLineage = () => {
+      setOverviewLineageWarm(true);
+    };
+    if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(enableOverviewLineage, { timeout: 1400 });
+    } else if (typeof window !== "undefined") {
+      timeoutId = window.setTimeout(enableOverviewLineage, 360);
+    } else {
+      enableOverviewLineage();
+    }
+    return () => {
+      if (typeof window !== "undefined" && idleId && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
+      if (typeof window !== "undefined" && timeoutId) {
+        window.clearTimeout(timeoutId);
       }
     };
-    const warmSecondaryDetail = () => {
-      if (cancelled || !secondarySections.length) return;
-      void prefetchAssetDetail(assetFqn, { sections: secondarySections });
+  }, [activeTab, asset?.fqn, loadedSections]);
+
+  useEffect(() => {
+    if (activeTab !== "Overview" || !assetFqn || !loadedSections.has("header") || detailLoading) return undefined;
+    const firstWaveSections = ["activity", "schema"].filter((section) => !loadedSections.has(section));
+    const secondWaveSections = ["preview", "operational"].filter((section) => !loadedSections.has(section));
+    const thirdWaveSections = ["profiler", "properties"].filter((section) => !loadedSections.has(section));
+    if (!firstWaveSections.length && !secondWaveSections.length && !thirdWaveSections.length) return undefined;
+    let cancelled = false;
+    let firstWaveTimeoutId = 0;
+    let secondWaveTimeoutId = 0;
+    let thirdWaveTimeoutId = 0;
+    let idleId = 0;
+    const warmFirstWave = () => {
+      if (cancelled) return;
+      if (firstWaveSections.length) {
+        void prefetchAssetDetail(assetFqn, { sections: firstWaveSections });
+      }
+    };
+    const warmSecondWave = () => {
+      if (cancelled || !secondWaveSections.length) return;
+      void prefetchAssetDetail(assetFqn, { sections: secondWaveSections });
+    };
+    const warmThirdWave = () => {
+      if (cancelled || !thirdWaveSections.length) return;
+      void prefetchAssetDetail(assetFqn, { sections: thirdWaveSections });
     };
 
     if (typeof window !== "undefined") {
-      warmTimeoutId = window.setTimeout(warmPriorityDetail, 80);
-      if (secondarySections.length && typeof window.requestIdleCallback === "function") {
-        idleId = window.requestIdleCallback(warmSecondaryDetail, { timeout: 1600 });
-      } else if (secondarySections.length) {
-        secondaryTimeoutId = window.setTimeout(warmSecondaryDetail, 680);
+      firstWaveTimeoutId = window.setTimeout(warmFirstWave, 420);
+      if (secondWaveSections.length && typeof window.requestIdleCallback === "function") {
+        idleId = window.requestIdleCallback(warmSecondWave, { timeout: 2600 });
+      } else if (secondWaveSections.length) {
+        secondWaveTimeoutId = window.setTimeout(warmSecondWave, 1800);
+      }
+      if (thirdWaveSections.length) {
+        thirdWaveTimeoutId = window.setTimeout(warmThirdWave, 4200);
       }
     } else {
-      warmPriorityDetail();
-      warmSecondaryDetail();
+      warmFirstWave();
+      warmSecondWave();
+      warmThirdWave();
     }
     return () => {
       cancelled = true;
       if (typeof window !== "undefined" && idleId && typeof window.cancelIdleCallback === "function") {
         window.cancelIdleCallback(idleId);
       }
-      if (typeof window !== "undefined" && warmTimeoutId) {
-        window.clearTimeout(warmTimeoutId);
+      if (typeof window !== "undefined" && firstWaveTimeoutId) {
+        window.clearTimeout(firstWaveTimeoutId);
       }
-      if (typeof window !== "undefined" && secondaryTimeoutId) {
-        window.clearTimeout(secondaryTimeoutId);
+      if (typeof window !== "undefined" && secondWaveTimeoutId) {
+        window.clearTimeout(secondWaveTimeoutId);
+      }
+      if (typeof window !== "undefined" && thirdWaveTimeoutId) {
+        window.clearTimeout(thirdWaveTimeoutId);
       }
     };
-  }, [assetFqn, loadedSections]);
+  }, [activeTab, assetFqn, detailLoading, loadedSections]);
 
   if (assetFqn && assetDetail.loading && !asset) {
     return (
@@ -1041,60 +1085,24 @@ export default function EntityWorkspace({
     }
   };
 
-  const openRelatedAsset = async (nextAssetFqn) => {
+  const openRelatedAsset = (nextAssetFqn) => {
     if (!nextAssetFqn) return;
-    if (linkedAssetAvailability[nextAssetFqn] !== true) return;
     onNavigationStateChange?.(true, "Opening linked metadata record…");
-    let opened = false;
-    try {
-      const availabilityPromise = prefetchAssetAvailability([nextAssetFqn], { force: true });
-      const detailPromise = prefetchAssetDetail(nextAssetFqn, {
-        force: true,
-        sections: ["header", "activity"],
-      });
-      const availability = (await availabilityPromise)?.[nextAssetFqn] || null;
-      const detail = await detailPromise;
-      if (!canOpenLinkedAssetRecord(detail, availability)) return;
-      setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
-      opened = true;
-      onSelectAsset(nextAssetFqn, "Overview");
-    } finally {
-      if (!opened) onNavigationStateChange?.(false, "");
-    }
+    setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
+    onSelectAsset(nextAssetFqn, "Overview");
   };
 
   const renderLinkedAssetRow = (item, keyPrefix) => {
     const availabilityState = linkedAssetAvailability[item];
-    if (availabilityState !== true) {
-      return (
-        <button
-          className="gh-lineage-linked-row is-readonly"
-          key={`${keyPrefix}-${item}`}
-          onClick={() => {
-            onNavigationStateChange?.(true, "Opening lineage…");
-            onOpenLineage(item, localLineageContext);
-          }}
-          type="button"
-        >
-          <span>{item}</span>
-          <span>{availabilityState === false ? "Inspect in lineage" : "Checking asset…"}</span>
-        </button>
-      );
-    }
-
     return (
       <button
-        className="gh-lineage-linked-row"
+        className={`gh-lineage-linked-row ${availabilityState === true ? "" : "is-readonly"}`}
         key={`${keyPrefix}-${item}`}
         onClick={() => openRelatedAsset(item)}
-        onMouseEnter={() => {
-          prefetchAssetAvailability([item]);
-          prefetchAssetDetail(item, { sections: ["header"] });
-        }}
         type="button"
       >
         <span>{item}</span>
-        <span>Open Linked Asset</span>
+        <span>{availabilityState === null ? "Loading record" : "Open Record"}</span>
       </button>
     );
   };
@@ -1233,11 +1241,11 @@ export default function EntityWorkspace({
                     <div className="gh-support-copy">
                       {lineageLoading && !relatedAssets.length
                         ? "Loading connected lineage context for this asset."
-                        : renderableUpstreamAssets.length || renderableDownstreamAssets.length
+                        : upstreamAssets.length || downstreamAssets.length
                         ? "Review upstream and downstream neighbors before changing the asset."
                         : lineageUnavailable
                         ? "Lineage signals are temporarily unavailable for this asset right now."
-                        : renderableRelatedAssets.length
+                        : relatedAssets.length
                           ? "Review connected lineage neighbors before changing the asset."
                           : "No connected lineage edges are surfaced for this asset yet."}
                     </div>

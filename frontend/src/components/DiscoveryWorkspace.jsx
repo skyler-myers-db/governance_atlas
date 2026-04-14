@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  canOpenAssetRecord,
-  canOpenLinkedAssetRecord,
   isUsableAssetDetail,
-  prefetchAssetAvailability,
-  prefetchAssetDetail,
   useAssetAvailability,
   useAssetDetail,
 } from "../hooks/useAssetDetail";
-import { prefetchLineage, useLineage } from "../hooks/useLineage";
+import { useLineage } from "../hooks/useLineage";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
+
+const DISCOVERY_RESULT_PAGE_SIZE = 60;
 
 function statusTone(asset) {
   if (asset?.governanceStatus === "Enterprise Ready") return "good";
@@ -320,15 +318,13 @@ function DiscoveryResultCard({
   const objectType = displayObjectType(asset);
 
   return (
-    <article className={`gh-discovery-result-row ${selected ? "is-selected" : ""}`}>
+    <article
+      className={`gh-discovery-result-row ${selected ? "is-selected" : ""}`}
+      data-asset-fqn={asset.fqn}
+    >
       <button
         className="gh-discovery-result-hit"
         onClick={() => onSelect(asset.fqn)}
-        onMouseEnter={() => {
-          prefetchAssetAvailability([asset.fqn]);
-          prefetchAssetDetail(asset.fqn, { sections: ["header", "schema"] });
-          prefetchLineage(asset.fqn);
-        }}
         type="button"
       >
         <div className="gh-discovery-result-head">
@@ -424,32 +420,54 @@ function SelectionPreview({
   visibleAssetSet,
   seededLineageGraph,
 }) {
+  const [lineageWarm, setLineageWarm] = useState(false);
   const lineage = useLineage(
     asset?.fqn || "",
     seededLineageGraph || null,
-    Boolean(asset?.fqn),
+    Boolean(asset?.fqn) && lineageWarm,
   );
-  const previewRelatedAssets = asset
-    ? [
-        ...new Set([
-          ...(asset.relatedAssets || []),
-          ...previewRelatedAssetsFromGraph(lineage.graph, asset.fqn),
-        ]),
-      ].slice(0, 4)
-    : [];
+  const relatedAssetSeedKey = (asset?.relatedAssets || []).join("|");
+  const previewRelatedAssets = useMemo(() => {
+    if (!asset) return [];
+    return [
+      ...new Set([
+        ...(asset.relatedAssets || []),
+        ...previewRelatedAssetsFromGraph(lineage.graph, asset.fqn),
+      ]),
+    ].slice(0, 4);
+  }, [asset?.fqn, lineage.graph, relatedAssetSeedKey]);
   const relatedAssetAvailability = useAssetAvailability(previewRelatedAssets, visibleAssetSet, {
     strict: true,
     requireRenderableDetail: false,
   });
 
   useEffect(() => {
-    if (!previewRelatedAssets.length) return;
-    const targets = previewRelatedAssets.slice(0, 4);
-    void prefetchAssetAvailability(targets);
-    targets.forEach((assetFqn) => {
-      void prefetchAssetDetail(assetFqn, { sections: ["header"] });
-    });
-  }, [previewRelatedAssets]);
+    if (!asset?.fqn) {
+      setLineageWarm(false);
+      return undefined;
+    }
+    let timeoutId = 0;
+    let idleId = 0;
+    setLineageWarm(false);
+    const enableWarmLineage = () => {
+      setLineageWarm(true);
+    };
+    if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(enableWarmLineage, { timeout: 1200 });
+    } else if (typeof window !== "undefined") {
+      timeoutId = window.setTimeout(enableWarmLineage, 320);
+    } else {
+      enableWarmLineage();
+    }
+    return () => {
+      if (typeof window !== "undefined" && idleId && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
+      if (typeof window !== "undefined" && timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [asset?.fqn]);
 
   if (!asset) {
     return (
@@ -471,7 +489,7 @@ function SelectionPreview({
   );
 
   return (
-    <aside className="gh-panel gh-selection-preview">
+    <aside className="gh-panel gh-selection-preview" data-asset-fqn={asset.fqn}>
       <div className="gh-selection-preview-head">
         <div className="gh-selection-preview-title-block">
           <div className="gh-eyebrow">Selected Asset</div>
@@ -551,30 +569,21 @@ function SelectionPreview({
       >
         {previewRelatedAssets.length ? (
           <div className="gh-lineage-linked-list">
-            {previewRelatedAssets.map((item) =>
-              relatedAssetAvailability[item] !== true ? (
-                <div className="gh-lineage-linked-row is-readonly" key={item}>
-                  <span>{item}</span>
-                  <span>
-                    {relatedAssetAvailability[item] === false ? "Lineage-only asset" : "Checking asset…"}
-                  </span>
-                </div>
-              ) : (
-                <button
-                  className="gh-lineage-linked-row"
-                  key={item}
-                  onClick={() => onOpenLinkedAsset(item)}
-                  onMouseEnter={() => {
-                    prefetchAssetAvailability([item]);
-                    prefetchAssetDetail(item, { sections: ["header"] });
-                  }}
-                  type="button"
-                >
-                  <span>{item}</span>
-                  <span>{relatedAssetAvailability[item] ? "Open Linked Asset" : "Checking asset…"}</span>
-                </button>
-              ),
-            )}
+            {previewRelatedAssets.map((item) => (
+              <button
+                className={`gh-lineage-linked-row ${relatedAssetAvailability[item] === true ? "" : "is-readonly"}`}
+                key={item}
+                onClick={() => onOpenLinkedAsset(item)}
+                type="button"
+              >
+                <span>{item}</span>
+                <span>
+                  {relatedAssetAvailability[item] === null
+                    ? "Loading record"
+                    : "Open Record"}
+                </span>
+              </button>
+            ))}
           </div>
         ) : null}
       </PreviewSection>
@@ -602,6 +611,7 @@ export default function DiscoveryWorkspace({
 }) {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedAssetFqn, setSelectedAssetFqn] = useState("");
+  const [visibleResultCount, setVisibleResultCount] = useState(DISCOVERY_RESULT_PAGE_SIZE);
   const [navigationNotice, setNavigationNotice] = useState("");
   const filterCommandRef = useRef(null);
   const { filters, setFilters, results: discoveryResults } = useDiscoveryWorkspace({
@@ -618,6 +628,10 @@ export default function DiscoveryWorkspace({
     !discoveryResults.authoritative &&
     !(discoveryResults.assets || []).length;
   const renderableDiscoveryAssets = suppressCatalogRows ? [] : discoveryResults.assets;
+  const renderedDiscoveryAssets = useMemo(
+    () => renderableDiscoveryAssets.slice(0, visibleResultCount),
+    [renderableDiscoveryAssets, visibleResultCount],
+  );
   const selectedSeedAsset =
     renderableDiscoveryAssets.find((asset) => asset.fqn === selectedAssetFqn) ||
     renderableDiscoveryAssets[0] ||
@@ -676,11 +690,20 @@ export default function DiscoveryWorkspace({
   }, [renderableDiscoveryAssets]);
 
   useEffect(() => {
-    if (!selectedSeedAsset?.fqn) return;
-    void prefetchAssetAvailability([selectedSeedAsset.fqn]);
-    void prefetchAssetDetail(selectedSeedAsset.fqn, { sections: ["header", "schema"] });
-    void prefetchLineage(selectedSeedAsset.fqn);
-  }, [selectedSeedAsset?.fqn]);
+    setVisibleResultCount(DISCOVERY_RESULT_PAGE_SIZE);
+  }, [
+    discoveryResults.authoritative,
+    discoveryResults.resolvedQuery,
+    filters.query,
+    filters.sortBy,
+    filters.views.join("|"),
+    filters.types.join("|"),
+    filters.catalogs.join("|"),
+    filters.domains.join("|"),
+    filters.tiers.join("|"),
+    filters.certifications.join("|"),
+    filters.sensitivities.join("|"),
+  ]);
 
   const resultsCount = discoveryResults.count;
   const resultsLoading = discoveryResults.loading;
@@ -720,51 +743,17 @@ export default function DiscoveryWorkspace({
       sensitivities: [],
     });
 
-  const openAssetRecord = async (assetFqn) => {
+  const openAssetRecord = (assetFqn) => {
     if (!assetFqn) return;
     setNavigationNotice("");
     onNavigationStateChange?.(true, "Opening metadata record…");
-    let opened = false;
-    try {
-      const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
-      const detailPromise = prefetchAssetDetail(assetFqn, {
-        force: true,
-        sections: ["header", "activity"],
-      });
-      const availability = (await availabilityPromise)?.[assetFqn] || null;
-      const detail = await detailPromise;
-      if (availability?.openable === false && !canOpenAssetRecord(detail, availability)) {
-        setNavigationNotice("That record is visible in discovery, but the live metadata record is not openable with the current permissions.");
-        return;
-      }
-      opened = true;
-      onOpenAsset(assetFqn);
-    } finally {
-      if (!opened) onNavigationStateChange?.(false, "");
-    }
+    onOpenAsset(assetFqn);
   };
-  const openLinkedAsset = async (assetFqn) => {
+  const openLinkedAsset = (assetFqn) => {
     if (!assetFqn) return;
     setNavigationNotice("");
     onNavigationStateChange?.(true, "Opening linked metadata record…");
-    let opened = false;
-    try {
-      const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
-      const detailPromise = prefetchAssetDetail(assetFqn, {
-        force: true,
-        sections: ["header", "activity"],
-      });
-      const availability = (await availabilityPromise)?.[assetFqn] || null;
-      const detail = await detailPromise;
-      if (availability?.openable === false && !canOpenLinkedAssetRecord(detail, availability)) {
-        setNavigationNotice("That linked asset is visible in preview context, but the live metadata record is not openable with the current permissions.");
-        return;
-      }
-      opened = true;
-      onOpenAsset(assetFqn);
-    } finally {
-      if (!opened) onNavigationStateChange?.(false, "");
-    }
+    onOpenAsset(assetFqn);
   };
   const openLineageWorkspace = (nextAssetFqn, context = "Data Lineage") => {
     if (!nextAssetFqn) return;
@@ -1033,7 +1022,7 @@ export default function DiscoveryWorkspace({
 
           {hasRenderableResults ? (
             <div className="gh-result-list gh-discovery-card-list">
-              {renderableDiscoveryAssets.map((asset) => (
+              {renderedDiscoveryAssets.map((asset) => (
                 <DiscoveryResultCard
                   asset={asset}
                   key={asset.fqn}
@@ -1044,6 +1033,24 @@ export default function DiscoveryWorkspace({
                   selected={asset.fqn === selectedAssetFqn}
                 />
               ))}
+              {renderableDiscoveryAssets.length > renderedDiscoveryAssets.length ? (
+                <div className="gh-panel gh-discovery-results-more">
+                  <div className="gh-support-copy">
+                    Showing {renderedDiscoveryAssets.length} of {renderableDiscoveryAssets.length} results to keep the catalog responsive.
+                  </div>
+                  <button
+                    className="gh-secondary-button"
+                    onClick={() =>
+                      setVisibleResultCount((current) =>
+                        Math.min(current + DISCOVERY_RESULT_PAGE_SIZE, renderableDiscoveryAssets.length),
+                      )
+                    }
+                    type="button"
+                  >
+                    Load more results
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : resultsLoading ? (
             <div className="gh-panel gh-empty-state gh-discovery-empty-state">

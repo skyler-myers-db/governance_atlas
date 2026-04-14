@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchDiscoverySearch } from "../lib/api";
 
 const SEARCH_CACHE = new Map();
@@ -80,6 +80,11 @@ function cacheKeyForQuery(query) {
 }
 
 export function useAssetSearch(query, enabled = true, seedAssets = []) {
+  const seededSignature = (seedAssets || [])
+    .map((asset) => asset?.fqn || "")
+    .filter(Boolean)
+    .join("|");
+  const stableSeedAssets = useMemo(() => seedAssets, [seededSignature]);
   const [state, setState] = useState({
     loading: false,
     error: "",
@@ -101,7 +106,7 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
 
     let canceled = false;
     const cacheKey = cacheKeyForQuery(trimmedQuery);
-    const seededMatches = localMatches(seedAssets, trimmedQuery, 8);
+    const seededMatches = localMatches(stableSeedAssets, trimmedQuery, 8);
     const cachedMatches = SEARCH_CACHE.get(cacheKey) || [];
     const initialMatches = mergeAssets(cachedMatches, seededMatches, 8);
     setState((prev) => ({
@@ -155,7 +160,7 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
       canceled = true;
       clearTimeout(timeout);
     };
-  }, [enabled, query, seedAssets]);
+  }, [enabled, query, stableSeedAssets]);
 
   return state;
 }

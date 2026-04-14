@@ -1,9 +1,6 @@
 import LineageStage from "./LineageStage";
 import { useEffect, useState } from "react";
 import {
-  canOpenLinkedAssetRecord,
-  prefetchAssetAvailability,
-  prefetchAssetDetail,
   useAssetDetail,
 } from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
@@ -185,28 +182,12 @@ export default function LineageWorkspace({
     </div>
   );
 
-  const openLineageAsset = async (assetFqn, nextTab = "Overview") => {
+  const openLineageAsset = (assetFqn, nextTab = "Overview") => {
     if (!assetFqn) return;
     onNavigationStateChange?.(true, "Opening metadata record…");
-    try {
-      const availabilityPromise = prefetchAssetAvailability([assetFqn], { force: true });
-      const detailPromise = prefetchAssetDetail(assetFqn, { force: true, sections: ["header", "activity"] });
-      const availability = (await availabilityPromise)?.[assetFqn] || null;
-      const detail = await detailPromise;
-      if (!canOpenLinkedAssetRecord(detail, availability)) {
-        onNavigationStateChange?.(false, "");
-        setLinkFeedback(
-          "That linked asset is visible in lineage, but the live record is not openable with the current permissions.",
-        );
-        return;
-      }
-      setLinkFeedback("");
-      setWorkspaceIntent("lineageContext", assetFqn, localContext);
-      onOpenAsset?.(assetFqn, nextTab);
-    } catch {
-      onNavigationStateChange?.(false, "");
-      setLinkFeedback("The linked asset could not be opened right now. Refresh the workspace and try again.");
-    }
+    setLinkFeedback("");
+    setWorkspaceIntent("lineageContext", assetFqn, localContext);
+    onOpenAsset?.(assetFqn, nextTab);
   };
 
   return (
@@ -233,27 +214,9 @@ export default function LineageWorkspace({
         onOpenAsset={openLineageAsset}
         onSelectAsset={(assetFqn) => {
           onNavigationStateChange?.(true, "Refocusing lineage…");
-          void Promise.all([
-            prefetchAssetAvailability([assetFqn], { force: true }),
-            prefetchAssetDetail(assetFqn, { force: true, sections: ["header", "activity"] }),
-          ])
-            .then(([availabilityMap, detail]) => {
-              const availability = availabilityMap?.[assetFqn] || null;
-              if (!canOpenLinkedAssetRecord(detail, availability)) {
-                onNavigationStateChange?.(false, "");
-                setLinkFeedback(
-                  "That linked asset is available in lineage context only. Open it from the graph only after the live record becomes visible.",
-                );
-                return;
-              }
-              setLinkFeedback("");
-              setFocusAssetFqn(assetFqn);
-              onRouteAssetChange?.(assetFqn, localContext);
-            })
-            .catch(() => {
-              onNavigationStateChange?.(false, "");
-              setLinkFeedback("The graph could not refocus on that linked asset right now. Try again after the lineage refresh settles.");
-            });
+          setLinkFeedback("");
+          setFocusAssetFqn(assetFqn);
+          onRouteAssetChange?.(assetFqn, localContext);
         }}
       />
     </section>

@@ -308,12 +308,6 @@ export default function App() {
         : "live";
   const effectiveBootMessage =
     effectiveBootState === "live" && hasRenderableCatalogSeed ? "" : refreshError || bootMessage;
-  const discoveryWorkspaceKey = [
-    shell.userEmail || shell.userName || "workspace",
-    effectiveBootState,
-    bootstrapVisibleCount,
-    bootstrapRefreshFailed ? "stale" : "fresh",
-  ].join(":");
   let content = unavailableWorkspace(effectiveBootMessage);
 
   if (effectiveBootState !== "unavailable" && effectiveBootState !== "error") {
@@ -326,7 +320,6 @@ export default function App() {
           )}
         >
           <DiscoveryWorkspace
-            key={discoveryWorkspaceKey}
             bootstrap={data}
             effectiveBootMessage={effectiveBootMessage}
             effectiveBootState={effectiveBootState}

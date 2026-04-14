@@ -989,17 +989,33 @@ def _compose_bootstrap_payload(
     payload = base_payload.get("payload", base_payload)
     asset_pool = list(base_payload.get("_assetPool") or payload.get("assets") or [])
     selected_fqn = request.query_params.get("asset") or (asset_pool[0]["fqn"] if asset_pool else "")
+    requested_surface = _normalize_str(request.query_params.get("surface"))
     if selected_fqn and not any(_normalize_str(asset.get("fqn")) == selected_fqn for asset in asset_pool):
         selected_asset = _bootstrap_selected_asset_seed(request, selected_fqn)
         if selected_asset:
             asset_pool = [selected_asset, *asset_pool]
     seeded_assets = _bootstrap_seed_assets(asset_pool, selected_fqn=selected_fqn)
     asset_index = {asset["fqn"]: asset for asset in seeded_assets}
+    seeded_graphs = dict(payload.get("graphs") or {})
+
+    if (
+        _normalize_str(selected_fqn)
+        and requested_surface in {"entity", "lineage"}
+        and selected_fqn not in seeded_graphs
+    ):
+        try:
+            seeded_graphs[selected_fqn] = {
+                "data": _build_data_graph(selected_fqn),
+                "operational": _build_operational_graph(selected_fqn),
+            }
+        except Exception:
+            pass
 
     return {
         **payload,
         "assets": seeded_assets,
         "assetIndex": asset_index,
+        "graphs": seeded_graphs,
         "initialSelection": {"primaryAssetFqn": selected_fqn},
         "shell": {
             "metrics": payload.get("governance", {}).get("metrics", []),
@@ -1438,8 +1454,13 @@ def index(request: Request) -> HTMLResponse:
             )
     try:
         seeded_payload = _cached_bootstrap_seed(request)
-        if seeded_payload is None and _normalize_str(request.query_params.get("asset")):
-            seeded_payload = _cold_route_seed_payload(request)
+        if seeded_payload is None:
+            requested_asset = _normalize_str(request.query_params.get("asset"))
+            requested_surface = _normalize_str(request.query_params.get("surface"))
+            if requested_asset:
+                seeded_payload = _cold_route_seed_payload(request)
+            elif requested_surface in {"", "discovery"}:
+                seeded_payload = _bootstrap_payload(request)
         return HTMLResponse(_render_index(seeded_payload))
     except Exception as exc:
         return HTMLResponse(
