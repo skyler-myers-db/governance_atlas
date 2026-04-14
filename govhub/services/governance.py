@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 import uuid
+import json
 from typing import Any, Callable, Dict, List, Sequence, Tuple
 
 import pandas as pd
@@ -13,6 +14,7 @@ from govhub.services import assets as asset_service
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
 _OWNER_TYPES = {"business", "technical", "steward"}
+_ASSET_CLASSIFICATION_TAG_KEYS = {"domain", "tier", "certification", "sensitivity"}
 
 
 def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
@@ -38,6 +40,207 @@ def _invalidate_asset_dependent_caches(asset_fqn: str | None = None) -> None:
     invalidate_governance_caches()
 
 
+def _lookup_key(value: Any) -> str:
+    return asset_service.normalize_str(value).lower()
+
+
+def _request_title(new_comment: Any) -> str:
+    text = asset_service.normalize_str(new_comment)
+    if not text:
+        return "Governance request"
+    if ":" in text:
+        return text.split(":", 1)[0].strip() or "Governance request"
+    return text
+
+
+def _request_records(requests_df: pd.DataFrame) -> List[Dict[str, Any]]:
+    if requests_df is None or requests_df.empty:
+        return []
+    records: List[Dict[str, Any]] = []
+    for _, row in requests_df.iterrows():
+        request_id = asset_service.normalize_str(row.get("request_id"))
+        asset_fqn = asset_service.normalize_str(row.get("uc_full_name"))
+        status = asset_service.normalize_str(row.get("status")).title() or "Pending"
+        created_at = asset_service.normalize_str(row.get("created_at"))
+        reviewed_at = asset_service.normalize_str(row.get("reviewed_at"))
+        records.append(
+            {
+                "requestId": request_id,
+                "assetFqn": asset_fqn,
+                "status": status,
+                "title": _request_title(row.get("new_comment")),
+                "detail": asset_service.normalize_str(row.get("new_comment")) or "Governance request",
+                "createdAt": created_at,
+                "createdBy": asset_service.normalize_str(row.get("created_by")),
+                "reviewedAt": reviewed_at,
+                "reviewedBy": asset_service.normalize_str(row.get("reviewed_by")),
+                "reviewNote": asset_service.normalize_str(row.get("review_note")),
+            }
+        )
+    records.sort(
+        key=lambda item: (
+            asset_service.normalize_str(item.get("createdAt")),
+            asset_service.normalize_str(item.get("requestId")),
+        ),
+        reverse=True,
+    )
+    return records
+
+
+def _sorted_recent_requests(requests: List[Dict[str, Any]], limit: int = 3) -> List[Dict[str, Any]]:
+    if not requests:
+        return []
+    return requests[:limit]
+
+
+def _reviewer_records(reviewers_df: pd.DataFrame) -> List[Dict[str, Any]]:
+    if reviewers_df is None or reviewers_df.empty:
+        return []
+    records: List[Dict[str, Any]] = []
+    for _, row in reviewers_df.iterrows():
+        term_id = asset_service.normalize_str(row.get("term_id"))
+        reviewer_email = asset_service.normalize_str(row.get("reviewer_email")).lower()
+        if not term_id or not reviewer_email:
+            continue
+        records.append(
+            {
+                "termId": term_id,
+                "reviewerEmail": reviewer_email,
+                "reviewerRole": asset_service.normalize_str(row.get("reviewer_role")).lower()
+                or "reviewer",
+                "createdAt": asset_service.normalize_str(row.get("created_at")),
+                "createdBy": asset_service.normalize_str(row.get("created_by")),
+                "updatedAt": asset_service.normalize_str(row.get("updated_at")),
+                "updatedBy": asset_service.normalize_str(row.get("updated_by")),
+            }
+        )
+    records.sort(
+        key=lambda item: (
+            asset_service.normalize_str(item.get("termId")),
+            asset_service.normalize_str(item.get("reviewerRole")),
+            asset_service.normalize_str(item.get("reviewerEmail")),
+        )
+    )
+    return records
+
+
+def _version_records(versions_df: pd.DataFrame) -> List[Dict[str, Any]]:
+    if versions_df is None or versions_df.empty:
+        return []
+    records: List[Dict[str, Any]] = []
+    for _, row in versions_df.iterrows():
+        term_id = asset_service.normalize_str(row.get("term_id"))
+        if not term_id:
+            continue
+        reviewer_snapshot: List[Dict[str, Any]] = []
+        raw_snapshot = row.get("reviewer_snapshot_json")
+        if asset_service.normalize_str(raw_snapshot):
+            try:
+                parsed = json.loads(str(raw_snapshot))
+                if isinstance(parsed, list):
+                    reviewer_snapshot = [
+                        item
+                        for item in parsed
+                        if isinstance(item, dict)
+                    ]
+            except Exception:
+                reviewer_snapshot = []
+        records.append(
+            {
+                "versionId": asset_service.normalize_str(row.get("version_id")),
+                "termId": term_id,
+                "versionNumber": int(row.get("version_number") or 0),
+                "action": asset_service.normalize_str(row.get("action")) or "updated",
+                "changeNote": asset_service.normalize_str(row.get("change_note")),
+                "name": asset_service.normalize_str(row.get("name")),
+                "definition": asset_service.normalize_str(row.get("definition")),
+                "domain": asset_service.normalize_str(row.get("domain")),
+                "ownerEmail": asset_service.normalize_str(row.get("owner_email")),
+                "status": asset_service.normalize_str(row.get("status")),
+                "reviewerSnapshot": reviewer_snapshot,
+                "createdAt": asset_service.normalize_str(row.get("created_at")),
+                "createdBy": asset_service.normalize_str(row.get("created_by")),
+                "updatedAt": asset_service.normalize_str(row.get("updated_at")),
+                "updatedBy": asset_service.normalize_str(row.get("updated_by")),
+            }
+        )
+    records.sort(
+        key=lambda item: (
+            asset_service.normalize_str(item.get("termId")),
+            -int(item.get("versionNumber") or 0),
+            asset_service.normalize_str(item.get("createdAt")),
+        )
+    )
+    return records
+
+
+def _asset_preview_record(row: pd.Series) -> Dict[str, Any]:
+    payload = asset_service.base_asset_payload(row)
+    return {
+        "fqn": payload.get("fqn"),
+        "name": payload.get("name"),
+        "catalog": payload.get("catalog"),
+        "schema": payload.get("schema"),
+        "domain": payload.get("domain"),
+        "tier": payload.get("tier"),
+        "certification": payload.get("certification"),
+        "openRequests": payload.get("openRequests"),
+        "coverageScore": payload.get("coverageScore"),
+        "owners": payload.get("owners"),
+        "governanceStatus": payload.get("governanceStatus"),
+    }
+
+
+def _normalized_tag_map(df: pd.DataFrame) -> Dict[str, str]:
+    if df is None or df.empty:
+        return {}
+    tags: Dict[str, str] = {}
+    for _, row in df.iterrows():
+        key = asset_service.normalize_str(row.get("tag_name"))
+        value = asset_service.normalize_str(row.get("tag_value"))
+        if key:
+            tags[key] = value
+    return tags
+
+
+def normalized_tag_values(tags: Dict[str, str] | None) -> Dict[str, str]:
+    return {
+        asset_service.normalize_str(key): asset_service.normalize_str(value)
+        for key, value in (tags or {}).items()
+        if asset_service.normalize_str(key) and asset_service.normalize_str(value)
+    }
+
+
+def tag_write_warning(
+    requested_tags: Dict[str, str],
+    applied_tags: Dict[str, str],
+    *,
+    scope_label: str,
+) -> str:
+    if normalized_tag_values(requested_tags) == normalized_tag_values(applied_tags):
+        return ""
+    return (
+        f"{scope_label} tags did not round-trip through Unity Catalog in this workspace. "
+        "The record description was saved, but tag updates were not visible after write verification."
+    )
+
+
+def _relation_table_type(
+    uc: UCSQLClient,
+    *,
+    catalog: str,
+    schema: str,
+    table: str,
+) -> str:
+    try:
+        identity_df = uc.get_table_identity(catalog, schema, table)
+    except Exception:
+        return ""
+    if identity_df is None or identity_df.empty:
+        return ""
+    return asset_service.normalize_str(identity_df.iloc[0].get("table_type"))
+
+
 def governance_summary(
     uc: UCSQLClient,
     store: Any,
@@ -58,6 +261,26 @@ def governance_summary(
             glossary = store.list_glossary_terms(limit=200)
         except Exception:
             glossary = pd.DataFrame()
+        try:
+            reviewers = store.list_glossary_reviewers()
+        except Exception:
+            reviewers = pd.DataFrame()
+        try:
+            versions = store.list_glossary_versions()
+        except Exception:
+            versions = pd.DataFrame()
+        try:
+            requests = store.list_change_requests(limit=500)
+        except Exception:
+            requests = pd.DataFrame()
+
+        request_records = _request_records(requests)
+        requests_by_asset: Dict[str, List[Dict[str, Any]]] = {}
+        for request_record in request_records:
+            asset_fqn = _lookup_key(request_record.get("assetFqn"))
+            if not asset_fqn:
+                continue
+            requests_by_asset.setdefault(asset_fqn, []).append(request_record)
 
         metrics = [
             {"label": "Assets", "value": int(len(inventory.index))},
@@ -102,6 +325,7 @@ def governance_summary(
             for _, req in pending.head(8).iterrows():
                 backlog.append(
                     {
+                        "requestId": asset_service.normalize_str(req.get("request_id")),
                         "title": asset_service.normalize_str(req.get("new_comment"))
                         or "Open governance request",
                         "asset": asset_service.normalize_str(req.get("uc_full_name")),
@@ -119,6 +343,7 @@ def governance_summary(
             for _, row in needs_owner.iterrows():
                 backlog.append(
                     {
+                        "requestId": "",
                         "title": f"Assign owner to {asset_service.normalize_str(row.get('table_name'))}",
                         "asset": asset_service.normalize_str(row.get("fqn")),
                         "assetFqn": asset_service.normalize_str(row.get("fqn")),
@@ -128,13 +353,23 @@ def governance_summary(
                 )
 
         glossary_asset_map: Dict[str, List[str]] = {}
+        glossary_asset_preview_map: Dict[str, List[Dict[str, Any]]] = {}
+        reviewer_roster_by_term: Dict[str, List[Dict[str, Any]]] = {}
+        version_history_by_term: Dict[str, List[Dict[str, Any]]] = {}
+        for reviewer_record in _reviewer_records(reviewers):
+            reviewer_roster_by_term.setdefault(_lookup_key(reviewer_record.get("termId")), []).append(reviewer_record)
+        for version_record in _version_records(versions):
+            version_history_by_term.setdefault(_lookup_key(version_record.get("termId")), []).append(version_record)
         if inventory is not None and not inventory.empty and "glossary_term" in inventory.columns:
             glossary_inventory = inventory[
                 inventory["glossary_term"].fillna("").astype(str).ne("")
             ].copy()
             if not glossary_inventory.empty:
+                glossary_inventory = glossary_inventory.assign(
+                    _glossary_term_key=glossary_inventory["glossary_term"].map(_lookup_key)
+                )
                 glossary_asset_map = (
-                    glossary_inventory.groupby("glossary_term")["fqn"]
+                    glossary_inventory.groupby("_glossary_term_key")["fqn"]
                     .apply(
                         lambda series: [
                             str(item)
@@ -144,15 +379,43 @@ def governance_summary(
                     )
                     .to_dict()
                 )
+                glossary_asset_preview_map = {
+                    str(term_key): [
+                        _asset_preview_record(row)
+                        for _, row in group.head(6).iterrows()
+                    ]
+                    for term_key, group in glossary_inventory.groupby("_glossary_term_key")
+                }
 
-        glossary_rows: List[Dict[str, str]] = []
+        glossary_rows: List[Dict[str, Any]] = []
         if glossary is not None and not glossary.empty:
             for _, row in glossary.head(50).iterrows():
                 term_name = asset_service.normalize_str(row.get("name"))
-                related_assets = glossary_asset_map.get(term_name, [])
+                term_key = _lookup_key(term_name)
+                related_assets = glossary_asset_map.get(term_key, [])
+                related_requests: List[Dict[str, Any]] = []
+                seen_requests: set[str] = set()
+                for asset_fqn in related_assets:
+                    for request_record in requests_by_asset.get(_lookup_key(asset_fqn), []):
+                        request_id = asset_service.normalize_str(request_record.get("requestId"))
+                        if request_id and request_id in seen_requests:
+                            continue
+                        if request_id:
+                            seen_requests.add(request_id)
+                        related_requests.append(request_record)
+                related_requests.sort(
+                    key=lambda item: (
+                        asset_service.normalize_str(item.get("createdAt")),
+                        asset_service.normalize_str(item.get("requestId")),
+                    ),
+                    reverse=True,
+                )
+                term_id = asset_service.normalize_str(row.get("term_id"))
+                reviewer_roster = reviewer_roster_by_term.get(_lookup_key(term_id), [])
+                version_history = version_history_by_term.get(_lookup_key(term_id), [])
                 glossary_rows.append(
                     {
-                        "termId": asset_service.normalize_str(row.get("term_id")),
+                        "termId": term_id,
                         "term": term_name,
                         "definition": asset_service.normalize_str(row.get("definition"))
                         or "No definition",
@@ -164,6 +427,35 @@ def governance_summary(
                         or "Draft",
                         "assetCount": len(related_assets),
                         "assets": related_assets,
+                        "assetPreview": glossary_asset_preview_map.get(term_key, []),
+                        "createdAt": asset_service.normalize_str(row.get("created_at")),
+                        "createdBy": asset_service.normalize_str(row.get("created_by")),
+                        "updatedAt": asset_service.normalize_str(row.get("updated_at")),
+                        "updatedBy": asset_service.normalize_str(row.get("updated_by")),
+                        "reviewerRoster": reviewer_roster,
+                        "reviewers": [entry.get("reviewerEmail") for entry in reviewer_roster if entry.get("reviewerEmail")],
+                        "reviewState": asset_service.normalize_str(row.get("status")).title() or "Draft",
+                        "currentVersion": (
+                            f"v{version_history[0].get('versionNumber')}"
+                            if version_history and version_history[0].get("versionNumber")
+                            else ""
+                        ),
+                        "termHistory": version_history,
+                        "versionHistory": version_history,
+                        "versions": version_history,
+                        "versionCount": len(version_history),
+                        "latestVersion": version_history[0] if version_history else None,
+                        "requestCount": len(related_requests),
+                        "pendingRequestCount": sum(
+                            1 for request_record in related_requests if asset_service.normalize_str(request_record.get("status")).lower() == "pending"
+                        ),
+                        "approvedRequestCount": sum(
+                            1 for request_record in related_requests if asset_service.normalize_str(request_record.get("status")).lower() == "approved"
+                        ),
+                        "rejectedRequestCount": sum(
+                            1 for request_record in related_requests if asset_service.normalize_str(request_record.get("status")).lower() == "rejected"
+                        ),
+                        "recentRequests": _sorted_recent_requests(related_requests, 4),
                     }
                 )
 
@@ -196,7 +488,8 @@ def patch_asset_description(
     description: str,
 ) -> None:
     catalog, schema, table = asset_service.split_uc_name(asset_fqn)
-    uc.set_table_comment(catalog, schema, table, description)
+    table_type = _relation_table_type(uc, catalog=catalog, schema=schema, table=table)
+    uc.set_table_comment(catalog, schema, table, description, table_type=table_type)
     _invalidate_asset_dependent_caches(asset_fqn)
 
 
@@ -280,8 +573,77 @@ def patch_column_description(
     description: str,
 ) -> None:
     catalog, schema, table = asset_service.split_uc_name(asset_fqn)
-    uc.set_column_comment(catalog, schema, table, column_name, description)
+    table_type = _relation_table_type(uc, catalog=catalog, schema=schema, table=table)
+    uc.set_column_comment(
+        catalog,
+        schema,
+        table,
+        column_name,
+        description,
+        table_type=table_type,
+    )
     asset_service.invalidate_asset_caches(asset_fqn)
+
+
+def patch_column_metadata(
+    uc: UCSQLClient,
+    *,
+    asset_fqn: str,
+    column_name: str,
+    description: str,
+    tags: Dict[str, str],
+) -> Dict[str, Any]:
+    catalog, schema, table = asset_service.split_uc_name(asset_fqn)
+    table_type = _relation_table_type(uc, catalog=catalog, schema=schema, table=table)
+    uc.set_column_comment(
+        catalog,
+        schema,
+        table,
+        column_name,
+        description,
+        table_type=table_type,
+    )
+    normalized_tags = {
+        asset_service.normalize_str(key): asset_service.normalize_str(value)
+        for key, value in (tags or {}).items()
+        if asset_service.normalize_str(key) and asset_service.normalize_str(value)
+    }
+    current_tags = _normalized_tag_map(uc.get_column_tags(catalog, schema, table, column_name))
+    to_unset = [key for key in current_tags if key not in normalized_tags]
+    to_set = {
+        key: value
+        for key, value in normalized_tags.items()
+        if current_tags.get(key) != value
+    }
+    if to_unset:
+        uc.unset_column_tags(
+            catalog,
+            schema,
+            table,
+            column_name,
+            to_unset,
+            table_type=table_type,
+        )
+    if to_set:
+        uc.set_column_tags(
+            catalog,
+            schema,
+            table,
+            column_name,
+            to_set,
+            table_type=table_type,
+        )
+    applied_tags = _normalized_tag_map(uc.get_column_tags(catalog, schema, table, column_name))
+    _invalidate_asset_dependent_caches(asset_fqn)
+    return {
+        "description": description,
+        "tags": applied_tags,
+        "warning": tag_write_warning(
+            normalized_tags,
+            applied_tags,
+            scope_label="Column",
+        ),
+    }
 
 
 def upsert_glossary_term(
@@ -294,8 +656,10 @@ def upsert_glossary_term(
     owner_email: str,
     status: str,
     updated_by: str,
-) -> None:
-    store.upsert_glossary_term(
+    reviewers: Sequence[Dict[str, Any]] | None = None,
+    change_note: str | None = None,
+) -> Dict[str, Any]:
+    version = store.upsert_glossary_term(
         term_id=term_id or uuid.uuid4().hex[:12],
         name=name,
         definition=definition,
@@ -303,5 +667,8 @@ def upsert_glossary_term(
         owner_email=owner_email or None,
         status=status,
         updated_by=updated_by,
+        reviewers=list(reviewers) if reviewers is not None else None,
+        change_note=change_note,
     )
     invalidate_governance_caches()
+    return version

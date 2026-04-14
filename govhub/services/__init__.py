@@ -1,2 +1,1 @@
-"""Shared service layer for the React/FastAPI and legacy Streamlit runtimes."""
-
+"""Shared service layer for the live Governance Hub runtime."""

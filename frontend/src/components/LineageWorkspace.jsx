@@ -1,6 +1,8 @@
 import LineageStage from "./LineageStage";
 import { useEffect, useState } from "react";
-import { useAssetDetail } from "../hooks/useAssetDetail";
+import {
+  useAssetDetail,
+} from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
 import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
@@ -26,6 +28,10 @@ function readLineageContext(assetFqn, fallback = "Data Lineage") {
 export default function LineageWorkspace({
   initialAssetFqn,
   bootstrap,
+  contextSeedAssets = [],
+  onNavigationStateChange,
+  onSurfaceReady,
+  sharedVisibleAssetSet,
   onRouteAssetChange,
   onOpenGovernance,
   onOpenAsset,
@@ -38,14 +44,22 @@ export default function LineageWorkspace({
     )
   );
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
-  const seeded = useSeededAssetContext(focusAssetFqn, bootstrap, bootstrap?.assets || []);
-  const assetDetail = useAssetDetail(focusAssetFqn || "");
+  const [linkFeedback, setLinkFeedback] = useState("");
+  const seedAssets = contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [];
+  const seeded = useSeededAssetContext(focusAssetFqn, bootstrap, seedAssets, {
+    allowFallback: false,
+  });
+  const visibleAssetSet =
+    sharedVisibleAssetSet?.size
+      ? new Set(sharedVisibleAssetSet)
+      : new Set(seedAssets.map((asset) => asset?.fqn).filter(Boolean));
+  const assetDetail = useAssetDetail(focusAssetFqn || "", { sections: ["header"] });
   const lineage = useLineage(focusAssetFqn || "", seeded.seededGraph);
   const asset = assetDetail.detail || seeded.summary;
   const assetSearch = useAssetSearch(
     assetSearchQuery,
     assetSearchQuery.trim().length >= 2,
-    bootstrap?.assets || [],
+    seedAssets,
   );
   const searchReady =
     !assetSearch.loading && assetSearch.resolvedQuery === assetSearchQuery.trim();
@@ -54,6 +68,10 @@ export default function LineageWorkspace({
   useEffect(() => {
     setAssetSearchQuery("");
   }, [focusAssetFqn]);
+
+  useEffect(() => {
+    setLinkFeedback("");
+  }, [focusAssetFqn, localContext]);
 
   useEffect(() => {
     const nextAssetFqn = initialAssetFqn || "";
@@ -77,6 +95,22 @@ export default function LineageWorkspace({
     }
   }, [focusAssetFqn, localContext]);
 
+  useEffect(() => {
+    if (!focusAssetFqn) {
+      onSurfaceReady?.();
+      return;
+    }
+    if (!lineage.loading && (!assetDetail.loading || assetDetail.detail?.fqn === focusAssetFqn)) {
+      onSurfaceReady?.();
+    }
+  }, [
+    assetDetail.detail?.fqn,
+    assetDetail.loading,
+    focusAssetFqn,
+    lineage.loading,
+    onSurfaceReady,
+  ]);
+
   const searchOverlay = (
     <div className="gh-lineage-overlay-card">
       <div className="gh-panel-title">{localContext}</div>
@@ -92,6 +126,7 @@ export default function LineageWorkspace({
           onKeyDown={(event) => {
             if (event.key === "Enter" && searchReady && assetSearch.assets[0]) {
               event.preventDefault();
+              onNavigationStateChange?.(true, "Loading lineage asset…");
               setFocusAssetFqn(assetSearch.assets[0].fqn);
               onRouteAssetChange?.(assetSearch.assets[0].fqn, localContext);
             }
@@ -108,6 +143,7 @@ export default function LineageWorkspace({
                 className="gh-lineage-search-row"
                 key={candidate.fqn}
                 onClick={() => {
+                  onNavigationStateChange?.(true, "Loading lineage asset…");
                   setFocusAssetFqn(candidate.fqn);
                   onRouteAssetChange?.(candidate.fqn, localContext);
                 }}
@@ -146,6 +182,14 @@ export default function LineageWorkspace({
     </div>
   );
 
+  const openLineageAsset = (assetFqn, nextTab = "Overview") => {
+    if (!assetFqn) return;
+    onNavigationStateChange?.(true, "Opening metadata record…");
+    setLinkFeedback("");
+    setWorkspaceIntent("lineageContext", assetFqn, localContext);
+    onOpenAsset?.(assetFqn, nextTab);
+  };
+
   return (
     <section className="gh-lineage-shell">
       <LineageStage
@@ -158,18 +202,19 @@ export default function LineageWorkspace({
         embedded={false}
         error={lineage.error}
         graphBundle={lineage.graph}
+        lineagePayload={lineage.payload}
         loading={lineage.loading}
+        notice={linkFeedback}
         overlay={!focusAssetFqn && !hasGraph ? searchOverlay : null}
         onAssetSearchQueryChange={setAssetSearchQuery}
         onContextChange={(nextContext) => {
           setLocalContext(nextContext);
         }}
         onOpenGovernance={onOpenGovernance}
-        onOpenAsset={(assetFqn, nextTab = "Lineage") => {
-          setWorkspaceIntent("lineageContext", assetFqn, localContext);
-          onOpenAsset?.(assetFqn, nextTab);
-        }}
+        onOpenAsset={openLineageAsset}
         onSelectAsset={(assetFqn) => {
+          onNavigationStateChange?.(true, "Refocusing lineage…");
+          setLinkFeedback("");
           setFocusAssetFqn(assetFqn);
           onRouteAssetChange?.(assetFqn, localContext);
         }}

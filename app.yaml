@@ -5,13 +5,11 @@ command:
   - run_app.py
 
 env:
-  # `legacy` keeps the current Streamlit implementation. Switch to `modern`
-  # once the new frontend lands and `modern_app:app` is available.
   - name: GOVHUB_APP_MODE
     value: modern
   # ── Required ──────────────────────────────────────────────
   - name: DATABRICKS_WAREHOUSE_ID
-    valueFrom: "sql-warehouse"
+    valueFrom: "uc_warehouse"
 
   # ── Governance Hub defaults ───────────────────────────────
   - name: GOVHUB_CATALOG

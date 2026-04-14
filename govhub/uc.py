@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from typing import Any, Dict, List
 
@@ -56,12 +57,201 @@ def _is_skippable_metadata_error(exc: Exception) -> bool:
     return any(marker in message for marker in markers)
 
 
+def _env(name: str) -> str:
+    return os.getenv(name, "").strip()
+
+
+def _safe_error_text(exc: Exception | None) -> str:
+    if exc is None:
+        return ""
+    message = str(exc or "").strip()
+    if not message:
+        return exc.__class__.__name__
+    if message.startswith(f"{exc.__class__.__name__}:"):
+        return message
+    return f"{exc.__class__.__name__}: {message}"
+
+
+def _normalize_relation_type(raw: Any) -> str:
+    return str(raw or "").strip().upper().replace("_", " ")
+
+
+def _relation_ddl_keyword(raw: Any) -> str:
+    normalized = _normalize_relation_type(raw)
+    if normalized in {"VIEW", "METRIC VIEW"}:
+        return "VIEW"
+    if normalized == "MATERIALIZED VIEW":
+        return "MATERIALIZED VIEW"
+    if normalized == "STREAMING TABLE":
+        return "STREAMING TABLE"
+    return "TABLE"
+
+
+def _relation_tag_target_keyword(raw: Any) -> str:
+    return "VIEW" if _relation_ddl_keyword(raw) == "VIEW" else "TABLE"
+
+
+def _relation_tag_target_keywords(raw: Any) -> List[str]:
+    normalized = _normalize_relation_type(raw)
+    if normalized in {"VIEW", "METRIC VIEW"}:
+        return ["VIEW", "TABLE"]
+    if normalized == "MATERIALIZED VIEW":
+        return ["MATERIALIZED VIEW", "VIEW", "TABLE"]
+    if normalized == "STREAMING TABLE":
+        return ["STREAMING TABLE", "TABLE"]
+    return ["TABLE", "VIEW"]
+
+
+def _normalized_columns_df(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame(columns=list(df.columns) if df is not None else [])
+    normalized = df.copy()
+    rename_map: Dict[str, str] = {}
+    for col in normalized.columns:
+        lowered = str(col or "").strip().lower()
+        if lowered:
+            rename_map[col] = lowered
+    if rename_map:
+        normalized = normalized.rename(columns=rename_map)
+    return normalized
+
+
+def _comment_ddl_keywords(raw: Any) -> List[str]:
+    normalized = _normalize_relation_type(raw)
+    if normalized in {"VIEW", "METRIC VIEW"}:
+        return ["VIEW", "TABLE"]
+    if normalized == "MATERIALIZED VIEW":
+        return ["MATERIALIZED VIEW", "VIEW", "TABLE"]
+    if normalized == "STREAMING TABLE":
+        return ["STREAMING TABLE", "TABLE"]
+    return ["TABLE", "VIEW"]
+
+
 class UCSQLClient:
     """Run SQL via Statement Execution API against a Databricks SQL Warehouse."""
 
     def __init__(self, warehouse_id: str):
         self.warehouse_id = warehouse_id
-        self.w = WorkspaceClient()
+        self._client_context = self._build_client_context()
+        self.w = self._build_workspace_client()
+
+    def _build_client_context(self) -> Dict[str, Any]:
+        host = _env("DATABRICKS_HOST")
+        client_id = _env("DATABRICKS_CLIENT_ID")
+        client_secret = _env("DATABRICKS_CLIENT_SECRET")
+        auth_type = _env("DATABRICKS_AUTH_TYPE")
+        app_name = _env("DATABRICKS_APP_NAME")
+        return {
+            "authMode": "default",
+            "authType": auth_type or "",
+            "appName": app_name or "",
+            "host": host or "",
+            "hostPresent": bool(host),
+            "clientIdPresent": bool(client_id),
+            "clientSecretPresent": bool(client_secret),
+            "warehouseId": self.warehouse_id,
+            "workspaceId": _env("DATABRICKS_WORKSPACE_ID"),
+        }
+
+    def _build_workspace_client(self) -> WorkspaceClient:
+        host = self._client_context["host"]
+        client_id = _env("DATABRICKS_CLIENT_ID")
+        client_secret = _env("DATABRICKS_CLIENT_SECRET")
+        auth_type = self._client_context["authType"] or "oauth-m2m"
+        explicit_error = None
+        if host and client_id and client_secret:
+            try:
+                client = WorkspaceClient(
+                    host=host,
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    auth_type=auth_type,
+                    product="governance-hub",
+                    product_version="modern-runtime",
+                )
+                self._client_context["authMode"] = "oauth-m2m-env"
+                self._client_context["authType"] = auth_type
+                return client
+            except Exception as exc:
+                explicit_error = exc
+                self._client_context["authMode"] = "default-fallback"
+                self._client_context["clientInitError"] = _safe_error_text(exc)
+        try:
+            client = WorkspaceClient(
+                product="governance-hub",
+                product_version="modern-runtime",
+            )
+            if self._client_context["authMode"] == "default":
+                self._client_context["authMode"] = "default"
+            return client
+        except Exception as exc:
+            self._client_context["clientInitError"] = _safe_error_text(explicit_error or exc)
+            raise explicit_error or exc
+
+    def runtime_context(self) -> Dict[str, Any]:
+        return dict(self._client_context)
+
+    def _empty_table_tag_df(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            columns=["table_catalog", "table_schema", "table_name", "tag_name", "tag_value"]
+        )
+
+    def _empty_column_tag_df(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            columns=["table_catalog", "table_schema", "table_name", "column_name", "tag_name", "tag_value"]
+        )
+
+    def _relation_type(
+        self,
+        catalog: str,
+        schema: str,
+        table: str,
+        raw_type: str | None = None,
+    ) -> str:
+        if _normalize_relation_type(raw_type):
+            return _normalize_relation_type(raw_type)
+        identity_df = self.get_table_identity(catalog, schema, table)
+        if identity_df is None or identity_df.empty:
+            return ""
+        return _normalize_relation_type(identity_df.iloc[0].get("table_type"))
+
+    def _query_first_non_empty(self, queries: List[str]) -> pd.DataFrame:
+        for query in queries:
+            try:
+                df = self.query_df(query)
+            except Exception:
+                continue
+            if df is None or df.empty:
+                continue
+            return df
+        return pd.DataFrame()
+
+    def _execute_first_success(self, statements: List[str]) -> None:
+        last_error: Exception | None = None
+        for statement in statements:
+            try:
+                self.execute(statement)
+                return
+            except Exception as exc:
+                last_error = exc
+        if last_error is not None:
+            raise last_error
+
+    def _normalize_tag_kv_df(self, df: pd.DataFrame) -> pd.DataFrame:
+        normalized = _normalized_columns_df(df)
+        if normalized.empty:
+            return pd.DataFrame(columns=["tag_name", "tag_value"])
+        if "tag_name" not in normalized.columns:
+            return pd.DataFrame(columns=["tag_name", "tag_value"])
+        if "tag_value" not in normalized.columns:
+            normalized["tag_value"] = ""
+        normalized["tag_name"] = normalized["tag_name"].map(lambda value: str(value or "").strip())
+        normalized["tag_value"] = normalized["tag_value"].map(lambda value: str(value or "").strip())
+        normalized = normalized[normalized["tag_name"].ne("")].copy()
+        if normalized.empty:
+            return pd.DataFrame(columns=["tag_name", "tag_value"])
+        normalized = normalized.drop_duplicates(subset=["tag_name"], keep="last")
+        return normalized[["tag_name", "tag_value"]].reset_index(drop=True)
 
     # ── low-level execution ─────────────────────────────────
 
@@ -167,6 +357,7 @@ ORDER BY catalog
 
     def get_catalog_table_inventory(self, catalog: str) -> pd.DataFrame:
         q_with_format = f"""SELECT
+    table_catalog,
     table_schema,
     table_name,
     table_type,
@@ -176,6 +367,7 @@ FROM {quote_ident(catalog)}.information_schema.tables
 WHERE table_schema <> 'information_schema'
 ORDER BY table_schema, table_name"""
         q = f"""SELECT
+    table_catalog,
     table_schema,
     table_name,
     table_type,
@@ -183,24 +375,48 @@ ORDER BY table_schema, table_name"""
 FROM {quote_ident(catalog)}.information_schema.tables
 WHERE table_schema <> 'information_schema'
 ORDER BY table_schema, table_name"""
-        try:
+        q_system_with_format = f"""SELECT
+    table_catalog,
+    table_schema,
+    table_name,
+    table_type,
+    data_source_format,
+    comment
+FROM system.information_schema.tables
+WHERE table_catalog = {sql_literal(catalog)}
+  AND table_schema <> 'information_schema'
+ORDER BY table_schema, table_name"""
+        q_system = f"""SELECT
+    table_catalog,
+    table_schema,
+    table_name,
+    table_type,
+    comment
+FROM system.information_schema.tables
+WHERE table_catalog = {sql_literal(catalog)}
+  AND table_schema <> 'information_schema'
+ORDER BY table_schema, table_name"""
+        df = pd.DataFrame()
+        had_success = False
+        last_error: Exception | None = None
+        for query in [q_with_format, q, q_system_with_format, q_system]:
             try:
-                df = self.query_df(q_with_format)
-            except Exception:
-                df = self.query_df(q)
-        except Exception as exc:
-            if not _is_skippable_metadata_error(exc):
-                raise
-            return pd.DataFrame(
-                columns=[
-                    "table_catalog",
-                    "table_schema",
-                    "table_name",
-                    "table_type",
-                    "data_source_format",
-                    "comment",
-                ]
-            )
+                candidate = self.query_df(query)
+            except Exception as exc:
+                last_error = exc
+                continue
+            had_success = True
+            if candidate is None or candidate.empty:
+                continue
+            df = candidate
+            break
+        if (
+            df.empty
+            and not had_success
+            and last_error is not None
+            and not _is_skippable_metadata_error(last_error)
+        ):
+            raise last_error
         if df.empty:
             return pd.DataFrame(
                 columns=[
@@ -212,44 +428,88 @@ ORDER BY table_schema, table_name"""
                     "comment",
                 ]
             )
-        df = df.copy()
+        df = _normalized_columns_df(df)
+        if "table_catalog" not in df.columns:
+            df["table_catalog"] = catalog
         if "data_source_format" not in df.columns:
             df["data_source_format"] = ""
-        df.insert(0, "table_catalog", catalog)
-        return df
+        return df[
+            [
+                "table_catalog",
+                "table_schema",
+                "table_name",
+                "table_type",
+                "data_source_format",
+                "comment",
+            ]
+        ].reset_index(drop=True)
 
     def get_catalog_table_tags(self, catalog: str) -> pd.DataFrame:
-        q = f"""SELECT
+        queries = [
+            f"""SELECT
+    catalog_name AS table_catalog,
+    schema_name AS table_schema,
+    table_name,
+    tag_name,
+    tag_value
+FROM {quote_ident(catalog)}.information_schema.table_tags
+ORDER BY schema_name, table_name, tag_name""",
+            f"""SELECT
+    catalog_name AS table_catalog,
+    schema_name AS table_schema,
+    table_name,
+    tag_name,
+    tag_value
+FROM system.information_schema.table_tags
+WHERE catalog_name = {sql_literal(catalog)}
+ORDER BY schema_name, table_name, tag_name""",
+            f"""SELECT
+    {sql_literal(catalog)} AS table_catalog,
     table_schema,
     table_name,
     tag_name,
     tag_value
 FROM {quote_ident(catalog)}.information_schema.table_tags
-ORDER BY table_schema, table_name, tag_name"""
-        try:
-            df = self.query_df(q)
-        except Exception:
-            return pd.DataFrame(
-                columns=["table_catalog", "table_schema", "table_name", "tag_name", "tag_value"]
-            )
-        if df.empty:
-            return pd.DataFrame(
-                columns=["table_catalog", "table_schema", "table_name", "tag_name", "tag_value"]
-            )
-        df = df.copy()
-        df.insert(0, "table_catalog", catalog)
-        return df
+ORDER BY table_schema, table_name, tag_name""",
+        ]
+        for query in queries:
+            try:
+                df = self.query_df(query)
+            except Exception:
+                continue
+            if df.empty:
+                continue
+            normalized = _normalized_columns_df(df)
+            if "table_schema" not in normalized.columns and "schema_name" in normalized.columns:
+                normalized["table_schema"] = normalized["schema_name"]
+            if "table_catalog" not in normalized.columns:
+                normalized["table_catalog"] = catalog
+            return normalized[
+                ["table_catalog", "table_schema", "table_name", "tag_name", "tag_value"]
+            ]
+        return self._empty_table_tag_df()
 
     def get_table_comment(self, catalog: str, schema: str, table: str) -> str:
-        q = f"""SELECT comment
+        queries = [
+            f"""SELECT comment
 FROM {quote_ident(catalog)}.information_schema.tables
 WHERE table_schema = {sql_literal(schema)}
   AND table_name   = {sql_literal(table)}
-LIMIT 1"""
-        df = self.query_df(q)
+LIMIT 1""",
+            f"""SELECT comment
+FROM system.information_schema.tables
+WHERE table_catalog = {sql_literal(catalog)}
+  AND table_schema  = {sql_literal(schema)}
+  AND table_name    = {sql_literal(table)}
+LIMIT 1""",
+        ]
+        df = self._query_first_non_empty(queries)
         if df.empty:
             return ""
-        return str(df.iloc[0]["comment"] or "")
+        normalized = _normalized_columns_df(df)
+        if normalized.empty or "comment" not in normalized.columns:
+            return ""
+        return str(normalized.iloc[0].get("comment") or "")
 
     def get_table_identity(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
         q_with_format = f"""SELECT
@@ -273,22 +533,30 @@ FROM {quote_ident(catalog)}.information_schema.tables
 WHERE table_schema = {sql_literal(schema)}
   AND table_name   = {sql_literal(table)}
 LIMIT 1"""
-        try:
-            try:
-                df = self.query_df(q_with_format)
-            except Exception:
-                df = self.query_df(q)
-        except Exception:
-            return pd.DataFrame(
-                columns=[
-                    "table_catalog",
-                    "table_schema",
-                    "table_name",
-                    "table_type",
-                    "data_source_format",
-                    "comment",
-                ]
-            )
+        q_system_with_format = f"""SELECT
+    table_catalog,
+    table_schema,
+    table_name,
+    table_type,
+    data_source_format,
+    comment
+FROM system.information_schema.tables
+WHERE table_catalog = {sql_literal(catalog)}
+  AND table_schema  = {sql_literal(schema)}
+  AND table_name    = {sql_literal(table)}
+LIMIT 1"""
+        q_system = f"""SELECT
+    table_catalog,
+    table_schema,
+    table_name,
+    table_type,
+    comment
+FROM system.information_schema.tables
+WHERE table_catalog = {sql_literal(catalog)}
+  AND table_schema  = {sql_literal(schema)}
+  AND table_name    = {sql_literal(table)}
+LIMIT 1"""
+        df = self._query_first_non_empty([q_with_format, q, q_system_with_format, q_system])
         if df.empty:
             return pd.DataFrame(
                 columns=[
@@ -300,31 +568,104 @@ LIMIT 1"""
                     "comment",
                 ]
             )
-        df = df.copy()
+        df = _normalized_columns_df(df)
         if "table_catalog" not in df.columns:
-            df.insert(0, "table_catalog", catalog)
+            df["table_catalog"] = catalog
         if "data_source_format" not in df.columns:
             df["data_source_format"] = ""
-        return df.head(1)
+        return df[
+            [
+                "table_catalog",
+                "table_schema",
+                "table_name",
+                "table_type",
+                "data_source_format",
+                "comment",
+            ]
+        ].head(1)
 
     def get_table_columns(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
-        q = f"""SELECT ordinal_position, column_name, data_type, comment
+        queries = [
+            f"""SELECT ordinal_position, column_name, data_type, comment
 FROM {quote_ident(catalog)}.information_schema.columns
 WHERE table_schema = {sql_literal(schema)}
   AND table_name   = {sql_literal(table)}
-ORDER BY ordinal_position"""
-        return self.query_df(q)
+ORDER BY ordinal_position""",
+            f"""SELECT ordinal_position, column_name, data_type, comment
+FROM system.information_schema.columns
+WHERE table_catalog = {sql_literal(catalog)}
+  AND table_schema  = {sql_literal(schema)}
+  AND table_name    = {sql_literal(table)}
+ORDER BY ordinal_position""",
+        ]
+        info_df = self._query_first_non_empty(queries)
+        if not info_df.empty:
+            normalized_info = _normalized_columns_df(info_df)
+            required = ["ordinal_position", "column_name", "data_type", "comment"]
+            if all(column in normalized_info.columns for column in required):
+                return normalized_info[required].reset_index(drop=True)
+
+        full = quote_uc_3part(catalog, schema, table)
+        try:
+            describe_df = self.query_df(f"DESCRIBE TABLE {full}")
+        except Exception:
+            return pd.DataFrame(
+                columns=["ordinal_position", "column_name", "data_type", "comment"]
+            )
+        if describe_df.empty or "col_name" not in describe_df.columns:
+            return pd.DataFrame(
+                columns=["ordinal_position", "column_name", "data_type", "comment"]
+            )
+
+        normalized = _normalized_columns_df(describe_df)
+        if "data_type" not in normalized.columns:
+            normalized["data_type"] = ""
+        if "comment" not in normalized.columns:
+            normalized["comment"] = ""
+        normalized["col_name"] = normalized["col_name"].map(
+            lambda value: str(value or "").strip()
+        )
+        normalized = normalized[normalized["col_name"].ne("")]
+        normalized = normalized[
+            ~normalized["col_name"].str.startswith("#")
+            & normalized["data_type"].notna()
+        ].copy()
+        normalized = normalized.reset_index(drop=True)
+        normalized["ordinal_position"] = range(1, len(normalized) + 1)
+        normalized = normalized.rename(columns={"col_name": "column_name"})
+        return normalized[
+            ["ordinal_position", "column_name", "data_type", "comment"]
+        ]
 
     def get_table_tags(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
-        q = f"""SELECT tag_name, tag_value
+        queries = [
+            f"""SELECT tag_name, tag_value
+FROM {quote_ident(catalog)}.information_schema.table_tags
+WHERE schema_name = {sql_literal(schema)}
+  AND table_name  = {sql_literal(table)}
+ORDER BY tag_name""",
+            f"""SELECT tag_name, tag_value
+FROM system.information_schema.table_tags
+WHERE catalog_name = {sql_literal(catalog)}
+  AND schema_name  = {sql_literal(schema)}
+  AND table_name   = {sql_literal(table)}
+ORDER BY tag_name""",
+            f"""SELECT tag_name, tag_value
 FROM {quote_ident(catalog)}.information_schema.table_tags
 WHERE table_schema = {sql_literal(schema)}
   AND table_name   = {sql_literal(table)}
-ORDER BY tag_name"""
-        try:
-            return self.query_df(q)
-        except Exception:
-            return pd.DataFrame(columns=["tag_name", "tag_value"])
+ORDER BY tag_name""",
+        ]
+        for query in queries:
+            try:
+                df = self.query_df(query)
+            except Exception:
+                continue
+            normalized = self._normalize_tag_kv_df(df)
+            if normalized.empty:
+                continue
+            return normalized
+        return pd.DataFrame(columns=["tag_name", "tag_value"])
 
     def get_table_detail(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
         full = quote_uc_3part(catalog, schema, table)
@@ -394,30 +735,89 @@ ORDER BY tc.constraint_name, kcu.ordinal_position"""
             )
 
     def set_table_comment(
-        self, catalog: str, schema: str, table: str, comment: str
+        self,
+        catalog: str,
+        schema: str,
+        table: str,
+        comment: str,
+        *,
+        table_type: str | None = None,
     ) -> None:
         full = quote_uc_3part(catalog, schema, table)
-        self.execute(f"COMMENT ON TABLE {full} IS {sql_literal(comment)}")
+        relation_type = self._relation_type(catalog, schema, table, table_type)
+        statements: List[str] = []
+        for keyword in _comment_ddl_keywords(relation_type):
+            statements.append(f"COMMENT ON {keyword} {full} IS {sql_literal(comment)}")
+        self._execute_first_success(statements)
 
     def set_table_tags(
-        self, catalog: str, schema: str, table: str, tags: Dict[str, str]
+        self,
+        catalog: str,
+        schema: str,
+        table: str,
+        tags: Dict[str, str],
+        *,
+        table_type: str | None = None,
     ) -> None:
         if not tags:
             return
         full = quote_uc_3part(catalog, schema, table)
+        relation_type = self._relation_type(catalog, schema, table, table_type)
+        ddl_keyword = _relation_ddl_keyword(relation_type)
         parts = ", ".join(
-            f"{quote_ident(k)} = {sql_literal(v)}" for k, v in tags.items()
+            f"{sql_literal(k)} = {sql_literal(v)}" for k, v in tags.items()
         )
-        self.execute(f"ALTER TABLE {full} SET TAGS ({parts})")
+        try:
+            self.execute(f"ALTER {ddl_keyword} {full} SET TAGS ({parts})")
+            return
+        except Exception:
+            pass
+        last_error: Exception | None = None
+        for target_keyword in _relation_tag_target_keywords(relation_type):
+            try:
+                for key, value in tags.items():
+                    self.execute(
+                        f"SET TAG ON {target_keyword} {full} "
+                        f"{sql_literal(key)} = {sql_literal(value)}"
+                    )
+                return
+            except Exception as exc:
+                last_error = exc
+                continue
+        if last_error is not None:
+            raise last_error
 
     def unset_table_tags(
-        self, catalog: str, schema: str, table: str, tag_keys: List[str]
+        self,
+        catalog: str,
+        schema: str,
+        table: str,
+        tag_keys: List[str],
+        *,
+        table_type: str | None = None,
     ) -> None:
         if not tag_keys:
             return
         full = quote_uc_3part(catalog, schema, table)
-        parts = ", ".join(quote_ident(k) for k in tag_keys)
-        self.execute(f"ALTER TABLE {full} UNSET TAGS ({parts})")
+        relation_type = self._relation_type(catalog, schema, table, table_type)
+        ddl_keyword = _relation_ddl_keyword(relation_type)
+        parts = ", ".join(sql_literal(k) for k in tag_keys)
+        try:
+            self.execute(f"ALTER {ddl_keyword} {full} UNSET TAGS ({parts})")
+            return
+        except Exception:
+            pass
+        last_error: Exception | None = None
+        for target_keyword in _relation_tag_target_keywords(relation_type):
+            try:
+                for key in tag_keys:
+                    self.execute(f"UNSET TAG ON {target_keyword} {full} {sql_literal(key)}")
+                return
+            except Exception as exc:
+                last_error = exc
+                continue
+        if last_error is not None:
+            raise last_error
 
     def list_workspace_principals(self) -> pd.DataFrame:
         rows: List[Dict[str, str]] = []
@@ -744,55 +1144,205 @@ LIMIT {int(limit)}
     # ── Column-level metadata ───────────────────────────────
 
     def set_column_comment(
-        self, catalog: str, schema: str, table: str, column: str, comment: str
+        self,
+        catalog: str,
+        schema: str,
+        table: str,
+        column: str,
+        comment: str,
+        *,
+        table_type: str | None = None,
     ) -> None:
         full = quote_uc_3part(catalog, schema, table)
-        self.execute(
-            f"ALTER TABLE {full} ALTER COLUMN {quote_ident(column)} "
-            f"COMMENT {sql_literal(comment)}"
+        relation_type = self._relation_type(catalog, schema, table, table_type)
+        ddl_keyword = _relation_ddl_keyword(relation_type)
+        if ddl_keyword == "VIEW":
+            self._execute_first_success(
+                [
+                    f"COMMENT ON COLUMN {full}.{quote_ident(column)} IS {sql_literal(comment)}",
+                    f"ALTER VIEW {full} ALTER COLUMN {quote_ident(column)} COMMENT {sql_literal(comment)}",
+                ]
+            )
+            return
+        self._execute_first_success(
+            [
+                f"ALTER {ddl_keyword} {full} ALTER COLUMN {quote_ident(column)} "
+                f"COMMENT {sql_literal(comment)}",
+                f"COMMENT ON COLUMN {full}.{quote_ident(column)} IS {sql_literal(comment)}",
+            ]
         )
 
     def get_column_tags(
         self, catalog: str, schema: str, table: str, column: str
     ) -> pd.DataFrame:
-        q = f"""SELECT tag_name, tag_value
+        queries = [
+            f"""SELECT tag_name, tag_value
+FROM {quote_ident(catalog)}.information_schema.column_tags
+WHERE schema_name = {sql_literal(schema)}
+  AND table_name  = {sql_literal(table)}
+  AND column_name = {sql_literal(column)}
+ORDER BY tag_name""",
+            f"""SELECT tag_name, tag_value
+FROM system.information_schema.column_tags
+WHERE catalog_name = {sql_literal(catalog)}
+  AND schema_name  = {sql_literal(schema)}
+  AND table_name   = {sql_literal(table)}
+  AND column_name  = {sql_literal(column)}
+ORDER BY tag_name""",
+            f"""SELECT tag_name, tag_value
 FROM {quote_ident(catalog)}.information_schema.column_tags
 WHERE table_schema = {sql_literal(schema)}
   AND table_name   = {sql_literal(table)}
   AND column_name  = {sql_literal(column)}
-ORDER BY tag_name"""
-        try:
-            return self.query_df(q)
-        except Exception:
-            return pd.DataFrame(columns=["tag_name", "tag_value"])
+ORDER BY tag_name""",
+        ]
+        for query in queries:
+            try:
+                df = self.query_df(query)
+            except Exception:
+                continue
+            normalized = self._normalize_tag_kv_df(df)
+            if normalized.empty:
+                continue
+            return normalized
+        return pd.DataFrame(columns=["tag_name", "tag_value"])
+
+    def get_table_column_tags(
+        self, catalog: str, schema: str, table: str
+    ) -> pd.DataFrame:
+        queries = [
+            f"""SELECT
+    catalog_name AS table_catalog,
+    schema_name AS table_schema,
+    table_name,
+    column_name,
+    tag_name,
+    tag_value
+FROM {quote_ident(catalog)}.information_schema.column_tags
+WHERE schema_name = {sql_literal(schema)}
+  AND table_name  = {sql_literal(table)}
+ORDER BY column_name, tag_name""",
+            f"""SELECT
+    catalog_name AS table_catalog,
+    schema_name AS table_schema,
+    table_name,
+    column_name,
+    tag_name,
+    tag_value
+FROM system.information_schema.column_tags
+WHERE catalog_name = {sql_literal(catalog)}
+  AND schema_name  = {sql_literal(schema)}
+  AND table_name   = {sql_literal(table)}
+ORDER BY column_name, tag_name""",
+            f"""SELECT
+    {sql_literal(catalog)} AS table_catalog,
+    table_schema,
+    table_name,
+    column_name,
+    tag_name,
+    tag_value
+FROM {quote_ident(catalog)}.information_schema.column_tags
+WHERE table_schema = {sql_literal(schema)}
+  AND table_name   = {sql_literal(table)}
+ORDER BY column_name, tag_name""",
+        ]
+        for query in queries:
+            try:
+                df = self.query_df(query)
+            except Exception:
+                continue
+            if df.empty:
+                continue
+            normalized = _normalized_columns_df(df)
+            if "table_catalog" not in normalized.columns:
+                normalized["table_catalog"] = catalog
+            if "table_schema" not in normalized.columns and "schema_name" in normalized.columns:
+                normalized["table_schema"] = normalized["schema_name"]
+            return normalized[
+                [
+                    "table_catalog",
+                    "table_schema",
+                    "table_name",
+                    "column_name",
+                    "tag_name",
+                    "tag_value",
+                ]
+            ]
+        return self._empty_column_tag_df()
 
     def set_column_tags(
-        self, catalog: str, schema: str, table: str, column: str,
+        self,
+        catalog: str,
+        schema: str,
+        table: str,
+        column: str,
         tags: Dict[str, str],
+        *,
+        table_type: str | None = None,
     ) -> None:
         if not tags:
             return
         full = quote_uc_3part(catalog, schema, table)
+        relation_type = self._relation_type(catalog, schema, table, table_type)
+        ddl_keyword = _relation_ddl_keyword(relation_type)
+        if ddl_keyword == "VIEW":
+            for key, value in tags.items():
+                self.execute(
+                    f"SET TAG ON COLUMN {full}.{quote_ident(column)} "
+                    f"{sql_literal(key)} = {sql_literal(value)}"
+                )
+            return
         parts = ", ".join(
-            f"{quote_ident(k)} = {sql_literal(v)}" for k, v in tags.items()
+            f"{sql_literal(k)} = {sql_literal(v)}" for k, v in tags.items()
         )
-        self.execute(
-            f"ALTER TABLE {full} ALTER COLUMN {quote_ident(column)} "
-            f"SET TAGS ({parts})"
-        )
+        try:
+            self.execute(
+                f"ALTER {ddl_keyword} {full} ALTER COLUMN {quote_ident(column)} "
+                f"SET TAGS ({parts})"
+            )
+            return
+        except Exception:
+            pass
+        for key, value in tags.items():
+            self.execute(
+                f"SET TAG ON COLUMN {full}.{quote_ident(column)} "
+                f"{sql_literal(key)} = {sql_literal(value)}"
+            )
 
     def unset_column_tags(
-        self, catalog: str, schema: str, table: str, column: str,
+        self,
+        catalog: str,
+        schema: str,
+        table: str,
+        column: str,
         tag_keys: List[str],
+        *,
+        table_type: str | None = None,
     ) -> None:
         if not tag_keys:
             return
         full = quote_uc_3part(catalog, schema, table)
-        parts = ", ".join(quote_ident(k) for k in tag_keys)
-        self.execute(
-            f"ALTER TABLE {full} ALTER COLUMN {quote_ident(column)} "
-            f"UNSET TAGS ({parts})"
-        )
+        relation_type = self._relation_type(catalog, schema, table, table_type)
+        ddl_keyword = _relation_ddl_keyword(relation_type)
+        if ddl_keyword == "VIEW":
+            for key in tag_keys:
+                self.execute(
+                    f"UNSET TAG ON COLUMN {full}.{quote_ident(column)} {sql_literal(key)}"
+                )
+            return
+        parts = ", ".join(sql_literal(k) for k in tag_keys)
+        try:
+            self.execute(
+                f"ALTER {ddl_keyword} {full} ALTER COLUMN {quote_ident(column)} "
+                f"UNSET TAGS ({parts})"
+            )
+            return
+        except Exception:
+            pass
+        for key in tag_keys:
+            self.execute(
+                f"UNSET TAG ON COLUMN {full}.{quote_ident(column)} {sql_literal(key)}"
+            )
 
     def get_table_sample(
         self, catalog: str, schema: str, table: str, limit: int = 20
