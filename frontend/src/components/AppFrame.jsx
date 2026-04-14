@@ -3,13 +3,11 @@ import { useAssetSearch } from "../hooks/useAssetSearch";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 
 function statusTone(bootState) {
-  if (bootState === "degraded") return "warn";
   if (bootState === "unavailable" || bootState === "error") return "bad";
   return "neutral";
 }
 
 function statusLabel(bootState) {
-  if (bootState === "degraded") return "Read only";
   if (bootState === "unavailable" || bootState === "error") return "Unavailable";
   return "Live";
 }
@@ -117,24 +115,37 @@ function SearchDropdown({
 export default function AppFrame({
   shell,
   searchSeedAssets = [],
+  visibleAssetSet = new Set(),
   activeModule,
   onModuleChange,
   bootState,
   bootMessage,
+  liveCatalogVisibleCount = null,
+  navigationState,
   onBrowseCatalog,
+  onNavigationStateChange,
   onSearchResultSelect,
   children,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
   const searchRootRef = useRef(null);
-  const shellDisabled = bootState === "unavailable" || bootState === "error";
-  const showRuntimeStatus = bootState === "degraded" || bootState === "unavailable" || bootState === "error";
+  const hasRenderableLiveCatalog =
+    (typeof liveCatalogVisibleCount === "number" && liveCatalogVisibleCount > 0) ||
+    visibleAssetSet?.size > 0;
+  const shellDisabled = (bootState === "unavailable" || bootState === "error") && !hasRenderableLiveCatalog;
+  const showRuntimeStatus =
+    (bootState === "unavailable" || bootState === "error") && !hasRenderableLiveCatalog;
   const searchEnabled = !shellDisabled && searchPanelOpen && searchQuery.trim().length >= 2;
   const shellSearch = useAssetSearch(searchQuery, searchEnabled, searchSeedAssets);
 
   const topDirectResult =
     searchQuery.trim() && !shellSearch.error ? shellSearch.assets?.[0] || null : null;
+  const openSearchResult = (assetFqn) => {
+    if (!assetFqn) return;
+    onNavigationStateChange?.(true, "Opening metadata record…");
+    onSearchResultSelect?.(assetFqn);
+  };
 
   useEffect(() => {
     setSearchPanelOpen(false);
@@ -166,7 +177,7 @@ export default function AppFrame({
     if (!query) return;
     if (topDirectResult) {
       setSearchPanelOpen(false);
-      onSearchResultSelect?.(topDirectResult.fqn);
+      void openSearchResult(topDirectResult.fqn);
       return;
     }
     setSearchPanelOpen(false);
@@ -186,7 +197,7 @@ export default function AppFrame({
                 type="button"
               >
                 <div className="gh-shell-brand-mark" aria-hidden="true">
-                  <span>GH</span>
+                  <span className="gh-shell-brand-glyph">GH</span>
                 </div>
                 <div className="gh-shell-brand-copy">
                   <div className="gh-shell-brand-title">Governance Hub</div>
@@ -196,7 +207,23 @@ export default function AppFrame({
             </div>
 
             <div className="gh-shell-nav-band">
-              <div className="gh-shell-module-label">Modules</div>
+              <div className="gh-shell-nav-band-head">
+                <div className="gh-shell-module-label">Modules</div>
+                <div className="gh-shell-identity-inline">
+                  {showRuntimeStatus ? (
+                    <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
+                      {statusLabel(bootState)}
+                    </span>
+                  ) : null}
+                  <div className="gh-shell-identity-block">
+                    <div className="gh-shell-identity">{shell?.role || "workspace user"}</div>
+                    <div className="gh-shell-user">{shell?.userEmail || "unknown"}</div>
+                    {showRuntimeStatus && bootMessage ? (
+                      <div className={`gh-shell-status-note tone-${statusTone(bootState)}`}>{bootMessage}</div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
               <nav className="gh-shell-nav" aria-label="Primary modules">
                 {MODULES.map((module) => (
                   <button
@@ -212,24 +239,17 @@ export default function AppFrame({
               </nav>
             </div>
           </div>
-
-          <div className="gh-shell-topbar-utility">
-            <div className="gh-shell-identity-block">
-              {showRuntimeStatus ? (
-                <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
-                  {statusLabel(bootState)}
-                </span>
-              ) : null}
-              <div className="gh-shell-identity">{shell?.role || "workspace user"}</div>
-              <div className="gh-shell-user">{shell?.userEmail || "unknown"}</div>
-              {showRuntimeStatus && bootMessage ? (
-                <div className={`gh-shell-status-note tone-${statusTone(bootState)}`}>{bootMessage}</div>
-              ) : null}
-            </div>
-          </div>
         </div>
 
         <div className="gh-shell-commandbar">
+          {navigationState?.pending ? (
+            <div className="gh-shell-progress" role="status" aria-live="polite">
+              <span className="gh-shell-progress-bar" aria-hidden="true" />
+              <span className="gh-shell-progress-copy">
+                {navigationState.label || "Opening workspace…"}
+              </span>
+            </div>
+          ) : null}
           <form
             className="gh-global-search gh-global-search-shell"
             onSubmit={(event) => {
@@ -237,7 +257,7 @@ export default function AppFrame({
               submitSearch();
             }}
           >
-            <div className="gh-global-search-field" ref={searchRootRef}>
+            <div className={`gh-global-search-field ${searchPanelOpen ? "is-open" : ""}`} ref={searchRootRef}>
               <div className="gh-global-search-frame">
                 <div className="gh-global-search-copy">
                   <label className="gh-global-search-label" htmlFor="gh-global-search-input">
@@ -287,7 +307,7 @@ export default function AppFrame({
                   onBrowseCatalog={() => submitSearch()}
                   onSelectAsset={(assetFqn) => {
                     setSearchPanelOpen(false);
-                    onSearchResultSelect?.(assetFqn);
+                    void openSearchResult(assetFqn);
                   }}
                   query={searchQuery}
                   topDirectResult={topDirectResult}

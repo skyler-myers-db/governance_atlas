@@ -1,7 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchDiscoverySearch } from "../lib/api";
 
 const SEARCH_CACHE = new Map();
+
+export function clearAssetSearchCache() {
+  SEARCH_CACHE.clear();
+}
 
 function normalizeSearchText(...values) {
   return values
@@ -27,6 +31,8 @@ function localSearchScore(asset, trimmedQuery) {
     asset?.certification,
     asset?.sensitivity,
     asset?.objectType,
+    ...(asset?.tags || []),
+    ...((asset?.owners || []).flatMap((owner) => [owner?.name, owner?.email, owner?.title])),
   );
   if (!terms.every((term) => haystack.includes(term))) return 0;
 
@@ -57,11 +63,28 @@ function localMatches(seedAssets, trimmedQuery, limit = 8) {
     .map((entry) => entry.asset);
 }
 
+function mergeAssets(primary = [], secondary = [], limit = 8) {
+  const merged = [];
+  const seen = new Set();
+  [...(primary || []), ...(secondary || [])].forEach((asset) => {
+    const key = asset?.fqn;
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    merged.push(asset);
+  });
+  return merged.slice(0, limit);
+}
+
 function cacheKeyForQuery(query) {
   return normalizeSearchText(query);
 }
 
 export function useAssetSearch(query, enabled = true, seedAssets = []) {
+  const seededSignature = (seedAssets || [])
+    .map((asset) => asset?.fqn || "")
+    .filter(Boolean)
+    .join("|");
+  const stableSeedAssets = useMemo(() => seedAssets, [seededSignature]);
   const [state, setState] = useState({
     loading: false,
     error: "",
@@ -83,18 +106,17 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
 
     let canceled = false;
     const cacheKey = cacheKeyForQuery(trimmedQuery);
-    const seededMatches = localMatches(seedAssets, trimmedQuery, 8);
+    const seededMatches = localMatches(stableSeedAssets, trimmedQuery, 8);
     const cachedMatches = SEARCH_CACHE.get(cacheKey) || [];
+    const initialMatches = mergeAssets(cachedMatches, seededMatches, 8);
     setState((prev) => ({
-      loading: !cachedMatches.length,
+      loading: !initialMatches.length,
       assets:
-        cachedMatches.length
-          ? cachedMatches
-          : seededMatches.length
-            ? seededMatches
-            : prev.resolvedQuery === trimmedQuery
-              ? prev.assets
-              : [],
+        initialMatches.length
+          ? initialMatches
+          : prev.resolvedQuery === trimmedQuery
+            ? prev.assets
+            : [],
       error: "",
       resolvedQuery: trimmedQuery,
     }));
@@ -106,7 +128,7 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
       })
         .then((payload) => {
           if (canceled) return;
-          const assets = payload.assets || [];
+          const assets = mergeAssets(payload.assets || [], seededMatches, 8);
           SEARCH_CACHE.set(cacheKey, assets);
           setState({
             loading: false,
@@ -117,12 +139,20 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
         })
         .catch((error) => {
           if (canceled) return;
-          setState({
+          const fallbackMatches = mergeAssets(
+            SEARCH_CACHE.get(cacheKey) || [],
+            seededMatches,
+            8,
+          );
+          setState((current) => ({
             loading: false,
-            error: seededMatches.length ? "" : error?.message || "Failed to search assets.",
-            assets: seededMatches,
+            error:
+              fallbackMatches.length || current.assets.length
+                ? ""
+                : error?.message || "Failed to search assets.",
+            assets: current.assets.length ? current.assets : fallbackMatches,
             resolvedQuery: trimmedQuery,
-          });
+          }));
         });
     }, cachedMatches.length ? 10 : 20);
 
@@ -130,7 +160,7 @@ export function useAssetSearch(query, enabled = true, seedAssets = []) {
       canceled = true;
       clearTimeout(timeout);
     };
-  }, [enabled, query, seedAssets]);
+  }, [enabled, query, stableSeedAssets]);
 
   return state;
 }

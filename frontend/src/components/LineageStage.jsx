@@ -6,11 +6,48 @@ function selectGraph(graphBundle, context) {
   return context === "Operational Context" ? graphBundle.operational : graphBundle.data;
 }
 
+function fallbackStats(graphBundle, context) {
+  const graph = selectGraph(graphBundle, context);
+  const nodes = graph?.nodes || [];
+  const edges = graph?.edges || [];
+  const focusId =
+    nodes.find((node) => node?.role === "focus")?.id ||
+    nodes.find((node) => node?.assetFqn)?.id ||
+    "";
+
+  if (!focusId) {
+    return {
+      upstreamCount: 0,
+      downstreamCount: 0,
+      operationalProducerCount: 0,
+      operationalConsumerCount: 0,
+    };
+  }
+
+  if (context === "Operational Context") {
+    return {
+      upstreamCount: 0,
+      downstreamCount: 0,
+      operationalProducerCount: edges.filter((edge) => edge.target === focusId).length,
+      operationalConsumerCount: edges.filter((edge) => edge.source === focusId).length,
+    };
+  }
+
+  return {
+    upstreamCount: edges.filter((edge) => edge.target === focusId).length,
+    downstreamCount: edges.filter((edge) => edge.source === focusId).length,
+    operationalProducerCount: 0,
+    operationalConsumerCount: 0,
+  };
+}
+
 export default function LineageStage({
   asset,
   graphBundle,
+  lineagePayload = null,
   loading,
   error,
+  notice = "",
   overlay = null,
   context,
   onContextChange,
@@ -27,6 +64,12 @@ export default function LineageStage({
   allowRefocus = true,
 }) {
   const graph = selectGraph(graphBundle, context);
+  const stats = {
+    ...fallbackStats(graphBundle, context),
+    ...(lineagePayload?.stats || {}),
+  };
+  const limits = stats?.limits || {};
+  const truncated = stats?.truncated || {};
   const hasGraph = Boolean(graph?.nodes?.length);
   const hasEdges = Boolean(graph?.edges?.length);
   const showTopbar = Boolean(asset);
@@ -43,6 +86,26 @@ export default function LineageStage({
               <div className="gh-lineage-headbar-meta">
                 <span>{assetPathLabel(asset)}</span>
                 {displayObjectType(asset) ? <span>{displayObjectType(asset)}</span> : null}
+                {context === "Data Lineage" ? (
+                  <>
+                    <span>{stats.upstreamCount || 0} upstream</span>
+                    <span>{stats.downstreamCount || 0} downstream</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{stats.operationalProducerCount || 0} producers</span>
+                    <span>{stats.operationalConsumerCount || 0} consumers</span>
+                  </>
+                )}
+                {stats.generatedAt ? <span>{stats.generatedAt}</span> : null}
+                {context === "Data Lineage" && (truncated.upstream || truncated.downstream || truncated.columnLineage) ? (
+                  <span>
+                    Limited to {limits.tableLineage || "?"} table edges and {limits.columnLineage || "?"} column mappings
+                  </span>
+                ) : null}
+                {context === "Operational Context" && (truncated.operationalProducers || truncated.operationalConsumers) ? (
+                  <span>Limited to {limits.operationalContext || "?"} operational records per direction</span>
+                ) : null}
               </div>
             </div>
             <div className="gh-lineage-stage-topbar-actions">
@@ -66,6 +129,11 @@ export default function LineageStage({
             </div>
           </div>
         ) : null}
+        {notice ? (
+          <div className="gh-inline-alert tone-warn">
+            <div>{notice}</div>
+          </div>
+        ) : null}
         <div className="gh-lineage-stage-canvas">
           {loading ? (
             <div className="gh-empty-state">Loading lineage graph…</div>
@@ -80,6 +148,7 @@ export default function LineageStage({
               assetSearchResolvedQuery={assetSearchResolvedQuery}
               allowRefocus={allowRefocus}
               context={context}
+              lineagePayload={lineagePayload}
               graph={graph || emptyGraph}
               hasEdges={hasEdges}
               onAssetSearchQueryChange={onAssetSearchQueryChange}
