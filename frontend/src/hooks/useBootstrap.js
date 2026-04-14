@@ -8,6 +8,10 @@ function initialBootstrap() {
 
 export function useBootstrap() {
   const seeded = useMemo(() => initialBootstrap(), []);
+  const seededHealthy =
+    Boolean(seeded) &&
+    seeded?.bootState === "live" &&
+    Number(seeded?.discovery?.summary?.visibleAssets || 0) > 0;
   const [state, setState] = useState({
     loading: !seeded,
     refreshing: Boolean(seeded),
@@ -60,9 +64,9 @@ export function useBootstrap() {
     if (!seeded) {
       refreshBootstrap();
     } else if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
-      idleId = window.requestIdleCallback(refreshBootstrap, { timeout: 1400 });
+      idleId = window.requestIdleCallback(refreshBootstrap, { timeout: seededHealthy ? 9000 : 3200 });
     } else if (typeof window !== "undefined") {
-      timeoutId = window.setTimeout(refreshBootstrap, 280);
+      timeoutId = window.setTimeout(refreshBootstrap, seededHealthy ? 3000 : 1200);
     } else {
       refreshBootstrap();
     }
@@ -76,7 +80,7 @@ export function useBootstrap() {
         window.clearTimeout(timeoutId);
       }
     };
-  }, [seeded]);
+  }, [seeded, seededHealthy]);
 
   return state;
 }
