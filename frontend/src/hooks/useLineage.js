@@ -65,7 +65,9 @@ export function prefetchLineage(assetFqn, options = {}) {
 
 export function useLineage(assetFqn, seededGraph = null, enabled = true) {
   const previousAssetRef = useRef(assetFqn);
-  const cachedPayload = readCachedLineage(assetFqn);
+  const cachedPayload =
+    readCachedLineage(assetFqn) ||
+    (assetFqn && seededGraph ? rememberLineage(assetFqn, { fqn: assetFqn, graphs: seededGraph }) : null);
   const cachedGraph = cachedPayload?.graphs || null;
   const [state, setState] = useState({
     loading: false,
@@ -94,7 +96,9 @@ export function useLineage(assetFqn, seededGraph = null, enabled = true) {
     let canceled = false;
     const assetChanged = previousAssetRef.current !== assetFqn;
     const cached = readCachedLineage(assetFqn);
-    const fallbackPayload = cached || (seededGraph ? { graphs: seededGraph } : null);
+    const fallbackPayload =
+      cached ||
+      (seededGraph ? rememberLineage(assetFqn, { fqn: assetFqn, graphs: seededGraph }) : null);
     const fallbackGraph = fallbackPayload?.graphs || null;
     previousAssetRef.current = assetFqn;
     setState((current) => ({

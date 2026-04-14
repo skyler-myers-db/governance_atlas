@@ -5187,3 +5187,458 @@ button.gh-lineage-linked-row.is-asset-link span:first-child {
     transform: translate3d(0.8%, 0.6%, 0) scale(1.03);
   }
 }
+
+/* Final regression-recovery overrides */
+body {
+  background:
+    radial-gradient(circle at 12% 14%, rgba(53, 108, 255, 0.14), transparent 24%),
+    radial-gradient(circle at 88% 18%, rgba(92, 64, 255, 0.12), transparent 22%),
+    radial-gradient(circle at 52% 82%, rgba(19, 132, 208, 0.08), transparent 28%),
+    linear-gradient(180deg, #edf3fa 0%, #f5f8fc 34%, #eef3f8 100%);
+}
+
+body::before,
+body::after {
+  inset: -8%;
+  opacity: 0.72;
+}
+
+body::before {
+  filter: blur(2px);
+  animation: gh-background-drift 92s ease-in-out infinite alternate;
+}
+
+body::after {
+  animation: gh-background-drift 116s ease-in-out infinite alternate-reverse;
+}
+
+.gh-app {
+  width: min(2860px, calc(100vw - clamp(16px, 1.15vw, 42px)));
+  margin: clamp(12px, 0.7vw, 20px) auto 28px;
+}
+
+.gh-shell-header,
+.gh-shell-banner,
+.gh-panel,
+.gh-boot-card,
+.gh-discovery-command-panel,
+.gh-discovery-sidebar,
+.gh-selection-preview,
+.gh-record-card,
+.gh-lineage-drawer,
+.gh-lineage-overlay-card,
+.gh-search-dropdown,
+.gh-filters-popover {
+  backdrop-filter: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.96));
+}
+
+.gh-shell-module-label {
+  font-size: clamp(0.64rem, 0.06vw + 0.62rem, 0.74rem);
+  letter-spacing: 0.12em;
+}
+
+.gh-global-search-label,
+.gh-field-label,
+.gh-lineage-context-label,
+.gh-panel-title,
+.gh-eyebrow {
+  font-size: clamp(0.56rem, 0.04vw + 0.56rem, 0.66rem);
+  letter-spacing: 0.12em;
+}
+
+.gh-shell-user {
+  font-size: clamp(0.8rem, 0.06vw + 0.78rem, 0.9rem);
+}
+
+.gh-shell-status-note,
+.gh-support-copy,
+.gh-selection-preview .gh-support-copy,
+.gh-discovery-sidebar-head p,
+.gh-discovery-results-copy {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.gh-shell-spine {
+  grid-template-columns: minmax(360px, 0.76fr) minmax(0, 1.24fr);
+}
+
+.gh-shell-nav-band-head {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.34fr);
+}
+
+.gh-shell-identity-inline,
+.gh-shell-identity-block {
+  justify-items: end;
+  align-content: start;
+  gap: 4px;
+}
+
+.gh-shell-brand-mark,
+.gh-launch-brand-mark {
+  background:
+    radial-gradient(circle at 22% 16%, rgba(255, 255, 255, 0.34), transparent 30%),
+    radial-gradient(circle at 80% 78%, rgba(95, 195, 255, 0.2), transparent 34%),
+    linear-gradient(145deg, #21155d 0%, #4f35e6 54%, #0f7fd0 100%);
+  box-shadow:
+    0 22px 44px rgba(49, 42, 152, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.26),
+    inset 0 -18px 28px rgba(9, 29, 81, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.gh-shell-brand-mark::before,
+.gh-launch-brand-mark::before {
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.32), transparent 36%, rgba(255, 255, 255, 0.05) 64%, transparent 78%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0));
+}
+
+.gh-shell-brand-mark::after,
+.gh-launch-brand-mark::after {
+  content: none;
+}
+
+.gh-shell-brand-glyph,
+.gh-launch-brand-glyph {
+  letter-spacing: 0.12em;
+  text-shadow: 0 10px 24px rgba(8, 15, 66, 0.28);
+}
+
+.gh-shell-brand-mark {
+  width: clamp(82px, 4.8vw, 108px);
+  height: clamp(82px, 4.8vw, 108px);
+  border-radius: 28px;
+}
+
+.gh-shell-brand-glyph {
+  font-size: clamp(1.34rem, 0.34vw + 1.24rem, 1.68rem);
+}
+
+.gh-discovery-main-grid {
+  grid-template-columns: minmax(300px, 0.32fr) minmax(0, 1.22fr) minmax(420px, 0.44fr);
+  gap: 18px;
+}
+
+.gh-discovery-sidebar,
+.gh-selection-preview,
+.gh-results-column,
+.gh-selection-preview-head,
+.gh-selection-preview-title-block,
+.gh-selection-preview-title-row,
+.gh-selection-preview-title-row h3,
+.gh-preview-profile-list,
+.gh-preview-column-list,
+.gh-preview-profile-row,
+.gh-preview-column-row,
+.gh-preview-column-row p,
+.gh-lineage-record-card-copy,
+.gh-lineage-edge-summary-copy,
+.gh-lineage-drawer,
+.gh-attribute-value {
+  min-width: 0;
+}
+
+.gh-selection-preview,
+.gh-discovery-sidebar,
+.gh-record-card {
+  overflow: visible;
+}
+
+.gh-selection-preview-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+
+.gh-selection-preview-title-row h3,
+.gh-entity-record-main h2,
+.gh-lineage-edge-summary h2,
+.gh-lineage-record-card-copy h3,
+.gh-graph-node-title,
+.gh-graph-node-subtitle {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.gh-selection-preview-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gh-selection-preview-actions .gh-secondary-button,
+.gh-discovery-action-grid .gh-secondary-button {
+  min-width: 0;
+  white-space: normal;
+  line-height: 1.2;
+  padding: 0.62rem 0.72rem;
+  font-size: 0.78rem;
+}
+
+.gh-selection-preview-title-row h3 {
+  font-size: clamp(1.34rem, 0.14vw + 1.28rem, 1.6rem);
+  line-height: 1.08;
+}
+
+.gh-preview-profile-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 0.42fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 8px 12px;
+}
+
+.gh-preview-profile-row span,
+.gh-preview-profile-row strong {
+  min-width: 0;
+}
+
+.gh-preview-profile-row strong {
+  justify-self: start;
+  text-align: left;
+  line-height: 1.45;
+}
+
+.gh-preview-column-row div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.gh-product-tab:hover,
+.gh-primary-button:hover,
+.gh-secondary-button:hover,
+.gh-segment-button:hover,
+.gh-filter-chip:hover,
+.gh-saved-view:hover,
+.gh-category-row:hover,
+.gh-request-row:hover {
+  color: var(--gh-ink);
+}
+
+.gh-product-tab.is-active:hover,
+.gh-primary-button:hover,
+.gh-segment-button.is-active:hover,
+.gh-subtab.is-active:hover {
+  color: #fff;
+}
+
+.gh-lineage-canvas {
+  min-height: clamp(620px, 74vh, 1080px);
+  gap: 18px;
+}
+
+.gh-lineage-canvas.has-drawer {
+  grid-template-columns: minmax(0, 1fr) clamp(460px, 31vw, 580px);
+}
+
+.gh-lineage-main-stage,
+.gh-lineage-flow-shell,
+.gh-lineage-viewport,
+.gh-lineage-viewport .react-flow {
+  min-width: 0;
+  min-height: clamp(620px, 74vh, 1080px);
+}
+
+.gh-lineage-viewport {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(201, 212, 232, 0.86);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 14% 16%, rgba(91, 67, 238, 0.16), transparent 26%),
+    radial-gradient(circle at 82% 12%, rgba(15, 92, 192, 0.14), transparent 24%),
+    radial-gradient(circle at 54% 82%, rgba(95, 195, 255, 0.1), transparent 28%),
+    linear-gradient(180deg, rgba(249, 252, 255, 0.82) 0%, rgba(236, 243, 255, 0.96) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 18px 38px rgba(18, 35, 58, 0.06);
+}
+
+.gh-lineage-viewport::before {
+  opacity: 0.74;
+}
+
+.gh-lineage-viewport::after {
+  opacity: 0.34;
+  background-size: 42px 42px;
+}
+
+.gh-lineage-overlay {
+  position: absolute;
+  inset: 18px;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.gh-lineage-overlay > * {
+  pointer-events: auto;
+}
+
+.gh-lineage-drawer {
+  max-height: clamp(620px, 74vh, 1080px);
+  min-width: 0;
+  width: 100%;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.gh-lineage-drawer-head {
+  align-items: start;
+  gap: 10px;
+}
+
+.gh-lineage-edge-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gh-lineage-record-actions,
+.gh-lineage-drawer-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gh-lineage-record-actions > *,
+.gh-lineage-drawer-actions > * {
+  width: 100%;
+}
+
+.gh-lineage-linked-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px 12px;
+}
+
+.gh-lineage-linked-row span:first-child,
+.gh-lineage-linked-row span:last-child,
+.gh-attribute-value {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.gh-lineage-linked-row span:last-child {
+  justify-self: end;
+}
+
+button.gh-lineage-linked-row {
+  cursor: pointer;
+}
+
+button.gh-lineage-linked-row:not(.is-readonly):hover,
+button.gh-lineage-linked-row:not(.is-readonly):focus-visible {
+  color: var(--gh-ink);
+  border-color: rgba(77, 66, 230, 0.32);
+  box-shadow: 0 10px 22px rgba(64, 71, 170, 0.1);
+}
+
+button.gh-lineage-linked-row.is-asset-link span:last-child {
+  white-space: nowrap;
+}
+
+span.gh-chip,
+span.gh-status-chip,
+span.gh-state-pill {
+  cursor: default;
+}
+
+.gh-lineage-inline-warning {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  right: 18px;
+  z-index: 4;
+}
+
+.gh-graph-node-card {
+  gap: 6px;
+  min-height: 88px;
+}
+
+.gh-graph-node-title {
+  font-size: 1rem;
+  line-height: 1.18;
+}
+
+.gh-graph-node-subtitle {
+  font-size: 0.86rem;
+  line-height: 1.38;
+}
+
+.gh-graph-node-foot {
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.76rem;
+}
+
+.gh-graph-branch-toggle {
+  font-size: 0.64rem;
+}
+
+@media (max-width: 1440px) {
+  .gh-app {
+    width: calc(100vw - 20px);
+  }
+
+  .gh-shell-spine,
+  .gh-discovery-main-grid,
+  .gh-entity-record-layout,
+  .gh-entity-record-layout-governance,
+  .gh-governance-workbench,
+  .gh-governance-glossary-workbench,
+  .gh-governance-workbench-single,
+  .gh-lineage-canvas.has-drawer,
+  .gh-lineage-edge-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gh-selection-preview,
+  .gh-discovery-sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 980px) {
+  .gh-shell-nav-band-head,
+  .gh-selection-preview-title-row,
+  .gh-lineage-record-actions,
+  .gh-lineage-drawer-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .gh-selection-preview-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .gh-lineage-linked-row,
+  .gh-preview-profile-row {
+    grid-template-columns: 1fr;
+  }
+
+  .gh-lineage-linked-row span:last-child {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 720px) {
+  .gh-app {
+    width: calc(100vw - 14px);
+  }
+
+  .gh-selection-preview-actions,
+  .gh-discovery-action-grid,
+  .gh-lineage-record-actions,
+  .gh-lineage-drawer-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .gh-shell-brand-mark {
+    width: 74px;
+    height: 74px;
+    border-radius: 22px;
+  }
+}
