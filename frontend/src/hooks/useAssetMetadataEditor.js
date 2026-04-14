@@ -5,7 +5,17 @@ import {
   updateAssetMetadata,
 } from "../lib/api";
 
-const EDITABLE_FIELD_KEYS = ["description", "domain", "tier", "certification", "sensitivity"];
+const EDITABLE_FIELD_KEYS = [
+  "description",
+  "domain",
+  "tier",
+  "certification",
+  "sensitivity",
+  "criticality",
+  "glossaryTerm",
+  "dataProduct",
+  "freeformTags",
+];
 
 function titleCase(value) {
   return value
@@ -32,6 +42,9 @@ function fieldOptions(key, bootstrap, field) {
       (value) => value && value !== "All sensitivities",
     );
   }
+  if (key === "criticality") {
+    return ["Tier 0", "Tier 1", "Tier 2", "Tier 3"];
+  }
   return [];
 }
 
@@ -54,6 +67,14 @@ function normalizeField(field, bootstrap) {
     key !== "description" && !options.length
       ? `No preset ${titleCase(key).toLowerCase()} options are configured yet. Type a value to save it directly on this asset.`
       : "";
+  const helpTextOverride =
+    key === "freeformTags"
+      ? "Comma-separated key=value pairs. Structured classification tags stay in their own fields above."
+      : "";
+  const placeholderOverride =
+    key === "freeformTags"
+      ? "owner_team=FinOps, product_area=ERP"
+      : "";
 
   return {
     key,
@@ -61,12 +82,13 @@ function normalizeField(field, bootstrap) {
     type: resolvedType,
     placeholder:
       field?.placeholder ||
+      placeholderOverride ||
       (key === "description"
         ? "Add a description for this asset"
         : resolvedType === "text"
           ? `Enter ${titleCase(key).toLowerCase()}`
           : `Select ${titleCase(key).toLowerCase()}`),
-    helpText: field?.helpText || field?.description || defaultHelpText,
+    helpText: field?.helpText || field?.description || helpTextOverride || defaultHelpText,
     options,
   };
 }
@@ -206,11 +228,12 @@ export function useAssetMetadataEditor({ assetFqn, asset, bootstrap }) {
     }));
     try {
       const response = await updateAssetMetadata(assetFqn, payload, state.config || {});
+      const warning = String(response?.warning || "").trim();
       setState((current) => ({
         ...current,
         submitting: false,
-        submitError: "",
-        submitSuccess: "Metadata saved.",
+        submitError: warning,
+        submitSuccess: warning ? "Metadata saved with warning." : "Metadata saved.",
       }));
       return response;
     } catch (error) {

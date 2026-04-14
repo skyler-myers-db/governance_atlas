@@ -435,6 +435,15 @@ def _owner_entries(row: pd.Series) -> List[Dict[str, str]]:
 
 
 def _asset_badges(row: pd.Series) -> List[str]:
+    structured_keys = {
+        "domain",
+        "tier",
+        "certification",
+        "sensitivity",
+        "criticality",
+        "glossary_term",
+        "data_product",
+    }
     badges = [
         _normalize_str(row.get("domain")),
         _normalize_str(row.get("tier")),
@@ -446,9 +455,17 @@ def _asset_badges(row: pd.Series) -> List[str]:
         for key, value in row.get("tags", {}).items():
             if key.startswith("__"):
                 continue
-            normalized = _normalize_str(value)
-            if normalized and normalized not in badges:
-                badges.append(normalized)
+            normalized_key = _normalize_str(key)
+            normalized_value = _normalize_str(value)
+            if normalized_key.lower() in structured_keys:
+                continue
+            label = (
+                f"{normalized_key}={normalized_value}"
+                if normalized_key and normalized_value
+                else normalized_key or normalized_value
+            )
+            if label and label not in badges:
+                badges.append(label)
     return [badge for badge in badges if badge]
 
 
@@ -457,6 +474,18 @@ def _base_asset_payload(row: pd.Series) -> Dict[str, Any]:
 
 
 def _discovery_result_haystack(asset: Dict[str, Any]) -> str:
+    raw_tags = asset.get("tags")
+    if isinstance(raw_tags, dict):
+        tag_terms: List[str] = []
+        for key, value in raw_tags.items():
+            normalized_key = _normalize_str(key)
+            normalized_value = _normalize_str(value)
+            if normalized_key:
+                tag_terms.append(normalized_key)
+            if normalized_value:
+                tag_terms.extend([normalized_value, f"{normalized_key} {normalized_value}".strip()])
+    else:
+        tag_terms = [_normalize_str(tag) for tag in asset.get("tags", []) if _normalize_str(tag)]
     return " ".join(
         [
             _normalize_str(asset.get("name")),
@@ -468,7 +497,7 @@ def _discovery_result_haystack(asset: Dict[str, Any]) -> str:
             _normalize_str(asset.get("certification")),
             _normalize_str(asset.get("sensitivity")),
             _normalize_str(asset.get("objectType")),
-            " ".join(_normalize_str(tag) for tag in asset.get("tags", []) if _normalize_str(tag)),
+            " ".join(tag_terms),
         ]
     ).lower()
 
@@ -1133,6 +1162,10 @@ class AssetMetadataPatch(BaseModel):
     tier: Optional[str] = None
     certification: Optional[str] = None
     sensitivity: Optional[str] = None
+    criticality: Optional[str] = None
+    glossaryTerm: Optional[str] = None
+    dataProduct: Optional[str] = None
+    freeformTags: Optional[Dict[str, str]] = None
 
 
 class AssetTagsPatch(BaseModel):
@@ -1199,12 +1232,28 @@ def _normalized_tag_map(df: pd.DataFrame) -> Dict[str, str]:
     return tags
 
 
-def _apply_table_tags(asset_fqn: str, tags: Dict[str, str]) -> Dict[str, str]:
+def _asset_table_type(asset_fqn: str) -> str:
+    catalog, schema, table = _split_uc_name(asset_fqn)
+    try:
+        identity_df = _uc().get_table_identity(catalog, schema, table)
+    except Exception:
+        return ""
+    if identity_df is None or identity_df.empty:
+        return ""
+    return _normalize_str(identity_df.iloc[0].get("table_type"))
+
+
+def _apply_table_tags(
+    asset_fqn: str,
+    tags: Dict[str, str],
+    *,
+    table_type: str = "",
+) -> Dict[str, str]:
     catalog, schema, table = _split_uc_name(asset_fqn)
     normalized_tags = {
         _normalize_str(key): _normalize_str(value)
         for key, value in tags.items()
-        if _normalize_str(key)
+        if _normalize_str(key) and _normalize_str(value)
     }
     current_tags = _normalized_tag_map(_uc().get_table_tags(catalog, schema, table))
     to_unset = [key for key in current_tags if key not in normalized_tags]
@@ -1214,10 +1263,35 @@ def _apply_table_tags(asset_fqn: str, tags: Dict[str, str]) -> Dict[str, str]:
         if current_tags.get(key) != value
     }
     if to_unset:
-        _uc().unset_table_tags(catalog, schema, table, to_unset)
+        _uc().unset_table_tags(
+            catalog,
+            schema,
+            table,
+            to_unset,
+            table_type=table_type,
+        )
     if to_set:
-        _uc().set_table_tags(catalog, schema, table, to_set)
-    return normalized_tags
+        _uc().set_table_tags(
+            catalog,
+            schema,
+            table,
+            to_set,
+            table_type=table_type,
+        )
+    return _normalized_tag_map(_uc().get_table_tags(catalog, schema, table))
+
+
+def _tag_write_warning(
+    requested_tags: Dict[str, str],
+    applied_tags: Dict[str, str],
+    *,
+    scope_label: str,
+) -> str:
+    return governance_service.tag_write_warning(
+        requested_tags,
+        applied_tags,
+        scope_label=scope_label,
+    )
 
 
 def _apply_asset_metadata(
@@ -1225,35 +1299,69 @@ def _apply_asset_metadata(
     payload: AssetMetadataPatch,
     *,
     request: Optional[Request] = None,
-) -> Dict[str, Any]:
+) -> Tuple[Dict[str, Any], str]:
     catalog, schema, table = _split_uc_name(asset_fqn)
-    _uc().set_table_comment(catalog, schema, table, payload.description or "")
+    table_type = _asset_table_type(asset_fqn)
+    _uc().set_table_comment(
+        catalog,
+        schema,
+        table,
+        payload.description or "",
+        table_type=table_type,
+    )
     current_tags = _normalized_tag_map(_uc().get_table_tags(catalog, schema, table))
-    next_tags = {
-        key: value
-        for key, value in current_tags.items()
-        if key not in {"domain", "tier", "certification", "sensitivity"}
-    }
+    next_tags = dict(current_tags)
     structured = {
-        "domain": _normalize_str(payload.domain),
-        "tier": _normalize_str(payload.tier),
-        "certification": _normalize_str(payload.certification),
-        "sensitivity": _normalize_str(payload.sensitivity),
+        "domain": payload.domain,
+        "tier": payload.tier,
+        "certification": payload.certification,
+        "sensitivity": payload.sensitivity,
+        "criticality": payload.criticality,
+        "glossary_term": payload.glossaryTerm,
+        "data_product": payload.dataProduct,
     }
-    for key, value in structured.items():
+    for key, raw_value in structured.items():
+        if raw_value is None:
+            continue
+        value = _normalize_str(raw_value)
         if value:
             next_tags[key] = value
-    _apply_table_tags(asset_fqn, next_tags)
+        else:
+            next_tags.pop(key, None)
+    if payload.freeformTags is not None:
+        structured_keys = set(structured)
+        normalized_freeform_tags = {
+            _normalize_str(key): _normalize_str(value)
+            for key, value in (payload.freeformTags or {}).items()
+            if _normalize_str(key) and _normalize_str(value)
+        }
+        for key in list(next_tags):
+            if key in structured_keys:
+                continue
+            if key not in normalized_freeform_tags:
+                next_tags.pop(key, None)
+        for key, value in normalized_freeform_tags.items():
+            next_tags[key] = value
+    applied_tags = _apply_table_tags(asset_fqn, next_tags, table_type=table_type)
     _invalidate_asset_caches(asset_fqn)
-    return _asset_detail_payload(asset_fqn, request=request)
+    return (
+        _asset_detail_payload(asset_fqn, request=request),
+        _tag_write_warning(next_tags, applied_tags, scope_label="Classification"),
+    )
 
 
-def _apply_column_tags(asset_fqn: str, column_name: str, tags: Dict[str, str]) -> Dict[str, str]:
+def _apply_column_tags(
+    asset_fqn: str,
+    column_name: str,
+    tags: Dict[str, str],
+    *,
+    table_type: str = "",
+) -> Dict[str, str]:
     catalog, schema, table = _split_uc_name(asset_fqn)
     normalized_tags = {
         _normalize_str(key): _normalize_str(value)
         for key, value in tags.items()
-        if _normalize_str(key)
+        if _normalize_str(key) and _normalize_str(value)
     }
     current_tags = _normalized_tag_map(_uc().get_column_tags(catalog, schema, table, column_name))
     to_unset = [key for key in current_tags if key not in normalized_tags]
@@ -1263,10 +1371,24 @@ def _apply_column_tags(asset_fqn: str, column_name: str, tags: Dict[str, str]) -
         if current_tags.get(key) != value
     }
     if to_unset:
-        _uc().unset_column_tags(catalog, schema, table, column_name, to_unset)
+        _uc().unset_column_tags(
+            catalog,
+            schema,
+            table,
+            column_name,
+            to_unset,
+            table_type=table_type,
+        )
     if to_set:
-        _uc().set_column_tags(catalog, schema, table, column_name, to_set)
-    return normalized_tags
+        _uc().set_column_tags(
+            catalog,
+            schema,
+            table,
+            column_name,
+            to_set,
+            table_type=table_type,
+        )
+    return _normalized_tag_map(_uc().get_column_tags(catalog, schema, table, column_name))
 
 
 def _ensure_asset_column_exists(asset_fqn: str, column_name: str) -> None:
@@ -1588,6 +1710,102 @@ def api_asset_detail(
     return JSONResponse(payload)
 
 
+@app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/description")
+def api_patch_column_description(
+    asset_fqn: str,
+    column_name: str,
+    payload: ColumnDescriptionPatch,
+    request: Request,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    _ensure_governance_store()
+    if not _asset_is_openable(asset_fqn, request):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    _ensure_asset_column_exists(asset_fqn, column_name)
+    governance_service.patch_column_description(
+        _uc(),
+        asset_fqn=asset_fqn,
+        column_name=column_name,
+        description=payload.description or "",
+    )
+    return JSONResponse(
+        {
+            "ok": True,
+            "fqn": asset_fqn,
+            "column": column_name,
+            "description": payload.description or "",
+            "asset": _asset_detail_payload(asset_fqn, request=request, sections=["header", "schema"]),
+        }
+    )
+
+
+@app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/tags")
+def api_patch_column_tags(
+    asset_fqn: str,
+    column_name: str,
+    payload: ColumnTagsPatch,
+    request: Request,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    if not _asset_is_openable(asset_fqn, request):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    _ensure_asset_column_exists(asset_fqn, column_name)
+    requested = {
+        _normalize_str(key): _normalize_str(value)
+        for key, value in (payload.tags or {}).items()
+        if _normalize_str(key) and _normalize_str(value)
+    }
+    applied = _apply_column_tags(
+        asset_fqn,
+        column_name,
+        payload.tags,
+        table_type=_asset_table_type(asset_fqn),
+    )
+    _invalidate_asset_caches(asset_fqn)
+    return JSONResponse(
+        {
+            "ok": True,
+            "fqn": asset_fqn,
+            "column": column_name,
+            "tags": applied,
+            "asset": _asset_detail_payload(asset_fqn, request=request, sections=["header", "schema"]),
+            "warning": _tag_write_warning(requested, applied, scope_label="Column"),
+        }
+    )
+
+
+@app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/metadata")
+def api_patch_column_metadata(
+    asset_fqn: str,
+    column_name: str,
+    payload: ColumnMetadataPatch,
+    request: Request,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    _ensure_governance_store()
+    if not _asset_is_openable(asset_fqn, request):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    _ensure_asset_column_exists(asset_fqn, column_name)
+    applied = governance_service.patch_column_metadata(
+        _uc(),
+        asset_fqn=asset_fqn,
+        column_name=column_name,
+        description=payload.description or "",
+        tags=payload.tags,
+    )
+    return JSONResponse(
+        {
+            "ok": True,
+            "fqn": asset_fqn,
+            "column": column_name,
+            "description": applied["description"],
+            "tags": applied["tags"],
+            "asset": _asset_detail_payload(asset_fqn, request=request, sections=["header", "schema"]),
+            "warning": applied.get("warning") or "",
+        }
+    )
+
+
 @app.patch("/api/assets/{asset_fqn:path}/description")
 def api_patch_asset_description(
     asset_fqn: str,
@@ -1623,13 +1841,14 @@ def api_patch_asset_metadata(
     _ensure_live_runtime()
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    asset = _apply_asset_metadata(asset_fqn, payload, request=request)
+    asset, warning = _apply_asset_metadata(asset_fqn, payload, request=request)
     return JSONResponse(
         {
             "ok": True,
             "fqn": asset_fqn,
             "asset": asset,
             "governance": _governance_summary(),
+            "warning": warning,
         }
     )
 
@@ -1670,7 +1889,16 @@ def api_patch_asset_tags(
     _ensure_live_runtime()
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    applied = _apply_table_tags(asset_fqn, payload.tags)
+    requested = {
+        _normalize_str(key): _normalize_str(value)
+        for key, value in (payload.tags or {}).items()
+        if _normalize_str(key) and _normalize_str(value)
+    }
+    applied = _apply_table_tags(
+        asset_fqn,
+        payload.tags,
+        table_type=_asset_table_type(asset_fqn),
+    )
     _invalidate_asset_caches(asset_fqn)
     return JSONResponse(
         {
@@ -1678,92 +1906,7 @@ def api_patch_asset_tags(
             "fqn": asset_fqn,
             "tags": applied,
             "asset": _asset_detail_payload(asset_fqn, request=request),
-        }
-    )
-
-
-@app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/description")
-def api_patch_column_description(
-    asset_fqn: str,
-    column_name: str,
-    payload: ColumnDescriptionPatch,
-    request: Request,
-) -> JSONResponse:
-    _ensure_live_runtime()
-    _ensure_governance_store()
-    if not _asset_is_openable(asset_fqn, request):
-        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    _ensure_asset_column_exists(asset_fqn, column_name)
-    governance_service.patch_column_description(
-        _uc(),
-        asset_fqn=asset_fqn,
-        column_name=column_name,
-        description=payload.description or "",
-    )
-    return JSONResponse(
-        {
-            "ok": True,
-            "fqn": asset_fqn,
-            "column": column_name,
-            "description": payload.description or "",
-            "asset": _asset_detail_payload(asset_fqn, request=request),
-            "governance": _governance_summary(),
-        }
-    )
-
-
-@app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/tags")
-def api_patch_column_tags(
-    asset_fqn: str,
-    column_name: str,
-    payload: ColumnTagsPatch,
-    request: Request,
-) -> JSONResponse:
-    _ensure_live_runtime()
-    if not _asset_is_openable(asset_fqn, request):
-        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    _ensure_asset_column_exists(asset_fqn, column_name)
-    applied = _apply_column_tags(asset_fqn, column_name, payload.tags)
-    _invalidate_asset_caches(asset_fqn)
-    return JSONResponse(
-        {
-            "ok": True,
-            "fqn": asset_fqn,
-            "column": column_name,
-            "tags": applied,
-            "asset": _asset_detail_payload(asset_fqn, request=request),
-        }
-    )
-
-
-@app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/metadata")
-def api_patch_column_metadata(
-    asset_fqn: str,
-    column_name: str,
-    payload: ColumnMetadataPatch,
-    request: Request,
-) -> JSONResponse:
-    _ensure_live_runtime()
-    _ensure_governance_store()
-    if not _asset_is_openable(asset_fqn, request):
-        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    _ensure_asset_column_exists(asset_fqn, column_name)
-    applied = governance_service.patch_column_metadata(
-        _uc(),
-        asset_fqn=asset_fqn,
-        column_name=column_name,
-        description=payload.description or "",
-        tags=payload.tags,
-    )
-    return JSONResponse(
-        {
-            "ok": True,
-            "fqn": asset_fqn,
-            "column": column_name,
-            "description": applied["description"],
-            "tags": applied["tags"],
-            "asset": _asset_detail_payload(asset_fqn, request=request),
-            "governance": _governance_summary(),
+            "warning": _tag_write_warning(requested, applied, scope_label="Asset"),
         }
     )
 

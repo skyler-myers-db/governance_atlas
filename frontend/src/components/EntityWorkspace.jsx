@@ -166,6 +166,24 @@ function toDraftValue(value) {
   return value;
 }
 
+const STRUCTURED_TAG_KEYS = new Set([
+  "domain",
+  "tier",
+  "certification",
+  "sensitivity",
+  "criticality",
+  "glossary_term",
+  "data_product",
+]);
+
+function freeformTagDraftValue(asset) {
+  const tagEntries = Array.isArray(asset?.tagEntries) ? asset.tagEntries : [];
+  return tagEntries
+    .filter((entry) => entry?.name && !STRUCTURED_TAG_KEYS.has(String(entry.name).trim().toLowerCase()))
+    .map((entry) => entry.label)
+    .join(", ");
+}
+
 function metadataDraftFromAsset(asset) {
   return {
     description: toDraftValue(asset?.description),
@@ -173,6 +191,10 @@ function metadataDraftFromAsset(asset) {
     tier: toDraftValue(asset?.tier),
     certification: toDraftValue(asset?.certification),
     sensitivity: toDraftValue(asset?.sensitivity),
+    criticality: toDraftValue(asset?.criticality),
+    glossaryTerm: toDraftValue(asset?.glossary_term || asset?.glossaryTerm),
+    dataProduct: toDraftValue(asset?.data_product || asset?.dataProduct),
+    freeformTags: freeformTagDraftValue(asset),
   };
 }
 
@@ -316,7 +338,7 @@ function MetadataEditorPanel({
             surface is available.
           </div>
         </div>
-        {editor.available ? <span className="gh-chip gh-chip-soft">Editable</span> : null}
+        {editor.available ? <span className="gh-state-pill">Writable</span> : null}
       </div>
 
       {editor.loading ? <div className="gh-support-copy">Checking metadata edit capability...</div> : null}
@@ -399,14 +421,6 @@ function MetadataEditorPanel({
           <AttributeList items={governancePostureSubset(asset)} />
         </div>
       )}
-
-      <div className="gh-chip-row">
-        {(bootstrap?.discovery?.domains || []).slice(1, 4).map((domain) => (
-          <span className="gh-chip gh-chip-soft" key={domain}>
-            {domain}
-          </span>
-        ))}
-      </div>
     </section>
   );
 }
@@ -452,8 +466,13 @@ function workloadDisplayName(item) {
   const explicitName = String(item?.name || "").trim();
   const identifier = String(item?.statementId || item?.entityId || item?.runId || "").trim();
   const entityLabel = String(item?.entityLabel || "Workload").trim();
+  const relatedAsset = String(item?.relatedAssets?.[0] || "").trim();
+  const relatedAssetLabel = relatedAsset ? relatedAsset.split(".").slice(-2).join(" / ") : "";
   if (explicitName && explicitName !== identifier) return explicitName;
-  if (explicitName && explicitName.length <= 32) return explicitName;
+  if (explicitName && explicitName.length <= 32 && !/^[0-9a-f]{8,}(-[0-9a-f]{4,}){0,}$/i.test(explicitName)) {
+    return explicitName;
+  }
+  if (relatedAssetLabel) return relatedAssetLabel;
   if (entityLabel && identifier) return `${entityLabel} ${identifier.slice(0, 8)}`;
   return explicitName || entityLabel || "Workload";
 }
@@ -465,8 +484,7 @@ function workloadIdentifier(item) {
 function QueryRecords({
   producers = [],
   consumers = [],
-  linkedAssetAvailability = {},
-  onOpenLinkedAsset,
+  onOpenAssetReference,
 }) {
   const sections = [
     { key: "producers", label: "Producing Workloads", items: producers },
@@ -499,16 +517,26 @@ function QueryRecords({
                     ) : null}
                     {item.relatedAssets?.length ? (
                       <div className="gh-chip-row">
-                        {item.relatedAssets.slice(0, 4).map((assetFqn) => (
-                          <button
-                            className={`gh-chip gh-chip-soft ${linkedAssetAvailability[assetFqn] === true ? "" : "gh-chip-link-pending"}`}
-                            key={`${item.key}-${assetFqn}`}
-                            onClick={() => onOpenLinkedAsset?.(assetFqn)}
-                            type="button"
-                          >
-                            {assetFqn.split(".").slice(-2).join(" / ")}
-                          </button>
-                        ))}
+                        {item.relatedAssets.slice(0, 4).map((assetFqn) => {
+                          return (
+                            <button
+                              className="gh-chip gh-chip-soft"
+                              data-asset-fqn={assetFqn}
+                              key={`${item.key}-${assetFqn}`}
+                              onClick={() => {
+                                onOpenAssetReference?.(assetFqn, {
+                                  fallbackContext: "Operational Context",
+                                  loadingLabel: "Opening linked asset…",
+                                  nextTab: "Overview",
+                                });
+                              }}
+                              title={assetFqn}
+                              type="button"
+                            >
+                              {assetFqn.split(".").slice(-2).join(" / ")}
+                            </button>
+                          );
+                        })}
                       </div>
                     ) : null}
                   </div>
@@ -596,6 +624,7 @@ export default function EntityWorkspace({
     error: "",
     success: "",
   });
+  const [linkNotice, setLinkNotice] = useState("");
   const seedAssets = contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [];
   const launchAssets = seedAssets.slice(0, 6);
   const visibleAssetSet = useMemo(() => {
@@ -684,6 +713,10 @@ export default function EntityWorkspace({
       onSurfaceReady?.();
     }
   }, [asset?.fqn, assetFqn, detailLoading, onSurfaceReady, usableDetail?.fqn]);
+
+  useEffect(() => {
+    setLinkNotice("");
+  }, [assetFqn]);
   const linkedAssetCandidates = useMemo(
     () => [...new Set([...upstreamAssets, ...downstreamAssets, ...relatedAssets])],
     [downstreamAssets, relatedAssets, upstreamAssets],
@@ -782,6 +815,12 @@ export default function EntityWorkspace({
     asset?.tier,
     asset?.certification,
     asset?.sensitivity,
+    asset?.criticality,
+    asset?.glossary_term,
+    asset?.glossaryTerm,
+    asset?.data_product,
+    asset?.dataProduct,
+    asset?.tagEntries,
     asset?.fqn,
     metadataDirty,
   ]);
@@ -1002,6 +1041,20 @@ export default function EntityWorkspace({
     const tier = metadataDraft.tier.trim();
     const certification = metadataDraft.certification.trim();
     const sensitivity = metadataDraft.sensitivity.trim();
+    const criticality = metadataDraft.criticality.trim();
+    const glossaryTerm = metadataDraft.glossaryTerm.trim();
+    const dataProduct = metadataDraft.dataProduct.trim();
+    const freeformTags = metadataDraft.freeformTags
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .reduce((acc, entry) => {
+        const [rawKey, ...valueParts] = entry.split("=");
+        const key = rawKey.trim();
+        const value = valueParts.join("=").trim();
+        if (key && value) acc[key] = value;
+        return acc;
+      }, {});
     const payload = {
       assetFqn: asset.fqn,
       description,
@@ -1009,6 +1062,10 @@ export default function EntityWorkspace({
       tier: tier || null,
       certification: certification || null,
       sensitivity: sensitivity || null,
+      criticality: criticality || null,
+      glossaryTerm: glossaryTerm || null,
+      dataProduct: dataProduct || null,
+      freeformTags,
     };
 
     const response = await editor.save(payload);
@@ -1025,6 +1082,14 @@ export default function EntityWorkspace({
         tier: tier || "Unassigned",
         certification: certification || "Unassigned",
         sensitivity: sensitivity || "Unassigned",
+        criticality: criticality || "Unassigned",
+        glossaryTerm: glossaryTerm || "Unassigned",
+        dataProduct: dataProduct || "Unassigned",
+        tagEntries: Object.entries(freeformTags).map(([name, value]) => ({
+          name,
+          value,
+          label: value ? `${name}=${value}` : name,
+        })),
       }));
     }
     if (response?.governance) {
@@ -1075,7 +1140,12 @@ export default function EntityWorkspace({
         setLocalOverrides(nextAsset);
       }
       onGovernanceChange?.(response?.governance || null);
-      setColumnMutation({ loading: false, error: "", success: "Column metadata saved." });
+      const warning = String(response?.warning || "").trim();
+      setColumnMutation({
+        loading: false,
+        error: warning,
+        success: warning ? "Column metadata saved with warning." : "Column metadata saved.",
+      });
     } catch (error) {
       setColumnMutation({
         loading: false,
@@ -1085,24 +1155,76 @@ export default function EntityWorkspace({
     }
   };
 
-  const openRelatedAsset = (nextAssetFqn) => {
+  const openAssetReference = async (
+    nextAssetFqn,
+    {
+      fallbackContext = localLineageContext,
+      loadingLabel = "Opening linked metadata record…",
+      nextTab = "Overview",
+    } = {},
+  ) => {
     if (!nextAssetFqn) return;
-    onNavigationStateChange?.(true, "Opening linked metadata record…");
-    setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
-    onSelectAsset(nextAssetFqn, "Overview");
+    setLinkNotice("");
+    onNavigationStateChange?.(true, loadingLabel);
+    let opened = false;
+    try {
+      const availabilityPromise = prefetchAssetAvailability([nextAssetFqn], { force: true });
+      const detailPromise = prefetchAssetDetail(nextAssetFqn, {
+        force: true,
+        sections: ["header", "activity"],
+      }).catch(() => null);
+      const availability = (await availabilityPromise)?.[nextAssetFqn] || null;
+      const detail = await detailPromise;
+      if (availability === true || canOpenLinkedAssetRecord(detail, availability)) {
+        setWorkspaceIntent("lineageContext", nextAssetFqn, fallbackContext);
+        opened = true;
+        onSelectAsset(nextAssetFqn, nextTab);
+        return true;
+      }
+      if (availability == null && nextAssetFqn) {
+        setWorkspaceIntent("lineageContext", nextAssetFqn, fallbackContext);
+        opened = true;
+        onSelectAsset(nextAssetFqn, nextTab);
+        return true;
+      }
+      setLinkNotice(
+        "That linked asset is surfaced by live lineage, but its metadata record is not openable with the current permissions.",
+      );
+      return false;
+    } finally {
+      if (!opened) onNavigationStateChange?.(false, "");
+    }
   };
 
   const renderLinkedAssetRow = (item, keyPrefix) => {
     const availabilityState = linkedAssetAvailability[item];
+    if (availabilityState === false) {
+      return (
+        <div className="gh-lineage-linked-row is-readonly" key={`${keyPrefix}-${item}`}>
+          <span>{item}</span>
+          <span>Metadata record unavailable</span>
+        </div>
+      );
+    }
     return (
       <button
-        className={`gh-lineage-linked-row ${availabilityState === true ? "" : "is-readonly"}`}
+        className="gh-lineage-linked-row is-asset-link"
         key={`${keyPrefix}-${item}`}
-        onClick={() => openRelatedAsset(item)}
+        onClick={() => {
+          void openAssetReference(item, {
+            fallbackContext: localLineageContext,
+            loadingLabel: "Opening linked metadata record…",
+            nextTab: "Overview",
+          });
+        }}
+        onMouseEnter={() => {
+          prefetchAssetAvailability([item]);
+          prefetchAssetDetail(item, { sections: ["header"] });
+        }}
         type="button"
       >
         <span>{item}</span>
-        <span>{availabilityState === null ? "Loading record" : "Open Record"}</span>
+        <span>{availabilityState === null ? "Loading record" : "Open record"}</span>
       </button>
     );
   };
@@ -1211,6 +1333,7 @@ export default function EntityWorkspace({
             ) : assetDetail.loading ? (
               <div className="gh-support-copy">Refreshing live record details...</div>
             ) : null}
+            {linkNotice ? <div className="gh-inline-alert tone-warn">{linkNotice}</div> : null}
           </div>
         </div>
 
@@ -1371,13 +1494,13 @@ export default function EntityWorkspace({
             onContextChange={setLocalLineageContext}
             onOpenAsset={(nextAssetFqn) => {
               setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
-              onSelectAsset(nextAssetFqn, "Lineage");
+              onSelectAsset(nextAssetFqn, "Overview");
             }}
             onOpenFullGraph={(nextContext) => onOpenLineage(asset.fqn, nextContext)}
             onOpenGovernance={onOpenGovernance}
             onSelectAsset={(nextAssetFqn) => {
               setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
-              onSelectAsset(nextAssetFqn, "Lineage");
+              onSelectAsset(nextAssetFqn, "Overview");
             }}
           />
         ) : null}
@@ -1496,12 +1619,11 @@ export default function EntityWorkspace({
                                 className={`gh-lineage-linked-row ${openable ? "" : "is-readonly"}`}
                                 key={`up-${selectedColumn.name}-${item.assetFqn}-${item.column}`}
                                 onClick={() => {
-                                  if (openable) {
-                                    void openRelatedAsset(item.assetFqn);
-                                    return;
-                                  }
-                                  onNavigationStateChange?.(true, "Opening lineage…");
-                                  onOpenLineage(item.assetFqn, localLineageContext);
+                                  void openAssetReference(item.assetFqn, {
+                                    fallbackContext: localLineageContext,
+                                    loadingLabel: openable ? "Opening linked metadata record…" : "Opening lineage…",
+                                    nextTab: "Overview",
+                                  });
                                 }}
                                 type="button"
                               >
@@ -1517,12 +1639,11 @@ export default function EntityWorkspace({
                                 className={`gh-lineage-linked-row ${openable ? "" : "is-readonly"}`}
                                 key={`down-${selectedColumn.name}-${item.assetFqn}-${item.column}`}
                                 onClick={() => {
-                                  if (openable) {
-                                    void openRelatedAsset(item.assetFqn);
-                                    return;
-                                  }
-                                  onNavigationStateChange?.(true, "Opening lineage…");
-                                  onOpenLineage(item.assetFqn, localLineageContext);
+                                  void openAssetReference(item.assetFqn, {
+                                    fallbackContext: localLineageContext,
+                                    loadingLabel: openable ? "Opening linked metadata record…" : "Opening lineage…",
+                                    nextTab: "Overview",
+                                  });
                                 }}
                                 type="button"
                               >
@@ -1610,8 +1731,7 @@ export default function EntityWorkspace({
           ) : (
             <QueryRecords
               consumers={operationalContext.consumers || []}
-              linkedAssetAvailability={linkedAssetAvailability}
-              onOpenLinkedAsset={openRelatedAsset}
+              onOpenAssetReference={openAssetReference}
               producers={operationalContext.producers || []}
             />
           )

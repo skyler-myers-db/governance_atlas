@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import math
 import re
 import time
@@ -536,6 +537,10 @@ def supports_direct_metadata_write(raw_table_type: Any) -> bool:
         "MANAGED TABLE",
         "EXTERNAL",
         "EXTERNAL TABLE",
+        "VIEW",
+        "METRIC VIEW",
+        "MATERIALIZED VIEW",
+        "STREAMING TABLE",
     }
 
 
@@ -642,6 +647,15 @@ def owner_entries(row: pd.Series) -> List[Dict[str, str]]:
 
 
 def asset_badges(row: pd.Series) -> List[str]:
+    structured_keys = {
+        "domain",
+        "tier",
+        "certification",
+        "sensitivity",
+        "criticality",
+        "glossary_term",
+        "data_product",
+    }
     badges = [
         normalize_str(row.get("domain")),
         normalize_str(row.get("tier")),
@@ -653,15 +667,36 @@ def asset_badges(row: pd.Series) -> List[str]:
         for key, value in row.get("tags", {}).items():
             if key.startswith("__"):
                 continue
-            normalized = normalize_str(value)
-            if normalized and normalized not in badges:
-                badges.append(normalized)
+            normalized_key = normalize_str(key)
+            normalized_value = normalize_str(value)
+            if normalized_key.lower() in structured_keys:
+                continue
+            label = (
+                f"{normalized_key}={normalized_value}"
+                if normalized_key and normalized_value
+                else normalized_key or normalized_value
+            )
+            if label and label not in badges:
+                badges.append(label)
     return [badge for badge in badges if badge]
+
+
+def raw_tag_map(row: pd.Series) -> Dict[str, str]:
+    tags = row.get("tags")
+    if not isinstance(tags, dict):
+        return {}
+    return {
+        normalize_str(key): normalize_str(value)
+        for key, value in tags.items()
+        if normalize_str(key)
+    }
 
 
 def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
     raw_table_type = normalize_str(row.get("table_type"))
     raw_storage_format = normalize_str(row.get("data_source_format"))
+    raw_tags = raw_tag_map(row)
+    tag_labels = asset_badges(row)
     return {
         "fqn": normalize_str(row.get("fqn")),
         "name": normalize_str(row.get("table_name")) or normalize_str(row.get("fqn")).split(".")[-1],
@@ -684,7 +719,8 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         "criticality": normalize_str(row.get("criticality")) or "Unassigned",
         "openRequests": safe_int(row.get("pending_requests")),
         "owners": owner_entries(row),
-        "tags": asset_badges(row),
+        "tags": raw_tags,
+        "tagLabels": tag_labels,
         "relatedAssets": [],
         "preview": [],
         "columns": [],
@@ -782,6 +818,18 @@ def merge_identity_row(base_row: pd.Series, exact_row: Optional[pd.Series]) -> p
 
 
 def discovery_result_haystack(asset: Dict[str, Any]) -> str:
+    raw_tags = asset.get("tags")
+    if isinstance(raw_tags, dict):
+        tag_terms = []
+        for key, value in raw_tags.items():
+            normalized_key = normalize_str(key)
+            normalized_value = normalize_str(value)
+            if normalized_key:
+                tag_terms.append(normalized_key)
+            if normalized_value:
+                tag_terms.extend([normalized_value, f"{normalized_key} {normalized_value}".strip()])
+    else:
+        tag_terms = [normalize_str(tag) for tag in asset.get("tags", []) if normalize_str(tag)]
     return normalized_search_text(
         asset.get("fqn"),
         asset.get("name"),
@@ -793,7 +841,7 @@ def discovery_result_haystack(asset: Dict[str, Any]) -> str:
         asset.get("certification"),
         asset.get("sensitivity"),
         asset.get("objectType"),
-        " ".join(normalize_str(tag) for tag in asset.get("tags", []) if normalize_str(tag)),
+        " ".join(tag_terms),
         " ".join(
             normalize_str(owner.get("name"))
             for owner in asset.get("owners", [])
@@ -1347,6 +1395,50 @@ def _operational_entity_label(raw: Any) -> str:
     return mapping.get(normalized, normalize_str(raw).replace("_", " ").title() or "Operational Entity")
 
 
+def _metadata_name_candidate(raw_metadata: Any) -> str:
+    raw_text = normalize_str(raw_metadata)
+    if not raw_text:
+        return ""
+    try:
+        parsed = json.loads(raw_text)
+    except Exception:
+        return ""
+
+    candidate_keys = [
+        "display_name",
+        "displayName",
+        "name",
+        "title",
+        "job_name",
+        "jobName",
+        "pipeline_name",
+        "pipelineName",
+        "query_name",
+        "queryName",
+        "dashboard_name",
+        "dashboardName",
+        "dashboard_title",
+        "dashboardTitle",
+        "notebook_path",
+        "notebookPath",
+        "path",
+    ]
+    queue: List[Any] = [parsed]
+    while queue:
+        current = queue.pop(0)
+        if isinstance(current, dict):
+            for key in candidate_keys:
+                candidate = normalize_str(current.get(key))
+                if candidate:
+                    if "/" in candidate:
+                        return candidate.rstrip("/").split("/")[-1] or candidate
+                    return candidate
+            queue.extend(value for value in current.values() if isinstance(value, (dict, list)))
+        elif isinstance(current, list):
+            queue.extend(value for value in current if isinstance(value, (dict, list)))
+    return ""
+
+
 def operational_entity_records(
     uc,
     operational_df: pd.DataFrame,
@@ -1366,7 +1458,11 @@ def operational_entity_records(
             resolved_name = uc.resolve_operational_entity_name(entity_type, entity_id) if entity_type and entity_id else ""
             entity_label = _operational_entity_label(entity_type)
             fallback_identifier = entity_id or statement_id or run_id
-            fallback_name = resolved_name or normalize_str(row.get("entity_name"))
+            fallback_name = (
+                resolved_name
+                or normalize_str(row.get("entity_name"))
+                or _metadata_name_candidate(row.get("entity_metadata"))
+            )
             if not fallback_name and fallback_identifier:
                 fallback_name = f"{entity_label} {fallback_identifier[:8]}".strip()
             current = {
@@ -1621,7 +1717,7 @@ def asset_detail_payload(
                 "message": (
                     ""
                     if metadata_write_supported
-                    else "Direct metadata edits are currently available only on writable Delta tables. Views, materialized views, and streaming tables remain read only."
+                    else "Direct metadata edits are unavailable for this relation type or the current workspace permissions."
                 ),
                 "fields": [
                     {
@@ -1634,6 +1730,16 @@ def asset_detail_payload(
                     {"key": "tier", "label": "Tier", "type": "text"},
                     {"key": "certification", "label": "Certification", "type": "text"},
                     {"key": "sensitivity", "label": "Sensitivity", "type": "text"},
+                    {"key": "criticality", "label": "Criticality", "type": "text"},
+                    {"key": "glossaryTerm", "label": "Glossary Term", "type": "text"},
+                    {"key": "dataProduct", "label": "Data Product", "type": "text"},
+                    {
+                        "key": "freeformTags",
+                        "label": "Freeform Tags",
+                        "type": "text",
+                        "placeholder": "owner_team=FinOps, product_area=ERP",
+                        "helpText": "Comma-separated key=value pairs for non-structured Unity Catalog tags.",
+                    },
                 ],
             }
 

@@ -569,21 +569,24 @@ function SelectionPreview({
       >
         {previewRelatedAssets.length ? (
           <div className="gh-lineage-linked-list">
-            {previewRelatedAssets.map((item) => (
-              <button
-                className={`gh-lineage-linked-row ${relatedAssetAvailability[item] === true ? "" : "is-readonly"}`}
-                key={item}
-                onClick={() => onOpenLinkedAsset(item)}
-                type="button"
-              >
-                <span>{item}</span>
-                <span>
-                  {relatedAssetAvailability[item] === null
-                    ? "Loading record"
-                    : "Open Record"}
-                </span>
-              </button>
-            ))}
+            {previewRelatedAssets.map((item) =>
+              relatedAssetAvailability[item] === false ? (
+                <div className="gh-lineage-linked-row is-readonly" key={item}>
+                  <span>{item}</span>
+                  <span>Lineage-only asset</span>
+                </div>
+              ) : (
+                <button
+                  className="gh-lineage-linked-row is-asset-link"
+                  key={item}
+                  onClick={() => onOpenLinkedAsset(item)}
+                  type="button"
+                >
+                  <span>{item}</span>
+                  <span>{relatedAssetAvailability[item] === null ? "Loading record" : "Open Record"}</span>
+                </button>
+              ),
+            )}
           </div>
         ) : null}
       </PreviewSection>

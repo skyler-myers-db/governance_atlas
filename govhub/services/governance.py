@@ -14,6 +14,7 @@ from govhub.services import assets as asset_service
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
 _OWNER_TYPES = {"business", "technical", "steward"}
+_ASSET_CLASSIFICATION_TAG_KEYS = {"domain", "tier", "certification", "sensitivity"}
 
 
 def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
@@ -200,6 +201,44 @@ def _normalized_tag_map(df: pd.DataFrame) -> Dict[str, str]:
         if key:
             tags[key] = value
     return tags
+
+
+def normalized_tag_values(tags: Dict[str, str] | None) -> Dict[str, str]:
+    return {
+        asset_service.normalize_str(key): asset_service.normalize_str(value)
+        for key, value in (tags or {}).items()
+        if asset_service.normalize_str(key) and asset_service.normalize_str(value)
+    }
+
+
+def tag_write_warning(
+    requested_tags: Dict[str, str],
+    applied_tags: Dict[str, str],
+    *,
+    scope_label: str,
+) -> str:
+    if normalized_tag_values(requested_tags) == normalized_tag_values(applied_tags):
+        return ""
+    return (
+        f"{scope_label} tags did not round-trip through Unity Catalog in this workspace. "
+        "The record description was saved, but tag updates were not visible after write verification."
+    )
+
+
+def _relation_table_type(
+    uc: UCSQLClient,
+    *,
+    catalog: str,
+    schema: str,
+    table: str,
+) -> str:
+    try:
+        identity_df = uc.get_table_identity(catalog, schema, table)
+    except Exception:
+        return ""
+    if identity_df is None or identity_df.empty:
+        return ""
+    return asset_service.normalize_str(identity_df.iloc[0].get("table_type"))
 
 
 def governance_summary(
@@ -449,7 +488,8 @@ def patch_asset_description(
     description: str,
 ) -> None:
     catalog, schema, table = asset_service.split_uc_name(asset_fqn)
-    uc.set_table_comment(catalog, schema, table, description)
+    table_type = _relation_table_type(uc, catalog=catalog, schema=schema, table=table)
+    uc.set_table_comment(catalog, schema, table, description, table_type=table_type)
     _invalidate_asset_dependent_caches(asset_fqn)
 
 
@@ -533,7 +573,15 @@ def patch_column_description(
     description: str,
 ) -> None:
     catalog, schema, table = asset_service.split_uc_name(asset_fqn)
-    uc.set_column_comment(catalog, schema, table, column_name, description)
+    table_type = _relation_table_type(uc, catalog=catalog, schema=schema, table=table)
+    uc.set_column_comment(
+        catalog,
+        schema,
+        table,
+        column_name,
+        description,
+        table_type=table_type,
+    )
     asset_service.invalidate_asset_caches(asset_fqn)
 
 
@@ -546,11 +594,19 @@ def patch_column_metadata(
     tags: Dict[str, str],
 ) -> Dict[str, Any]:
     catalog, schema, table = asset_service.split_uc_name(asset_fqn)
-    uc.set_column_comment(catalog, schema, table, column_name, description)
+    table_type = _relation_table_type(uc, catalog=catalog, schema=schema, table=table)
+    uc.set_column_comment(
+        catalog,
+        schema,
+        table,
+        column_name,
+        description,
+        table_type=table_type,
+    )
     normalized_tags = {
         asset_service.normalize_str(key): asset_service.normalize_str(value)
         for key, value in (tags or {}).items()
-        if asset_service.normalize_str(key)
+        if asset_service.normalize_str(key) and asset_service.normalize_str(value)
     }
     current_tags = _normalized_tag_map(uc.get_column_tags(catalog, schema, table, column_name))
     to_unset = [key for key in current_tags if key not in normalized_tags]
@@ -560,13 +616,33 @@ def patch_column_metadata(
         if current_tags.get(key) != value
     }
     if to_unset:
-        uc.unset_column_tags(catalog, schema, table, column_name, to_unset)
+        uc.unset_column_tags(
+            catalog,
+            schema,
+            table,
+            column_name,
+            to_unset,
+            table_type=table_type,
+        )
     if to_set:
-        uc.set_column_tags(catalog, schema, table, column_name, to_set)
+        uc.set_column_tags(
+            catalog,
+            schema,
+            table,
+            column_name,
+            to_set,
+            table_type=table_type,
+        )
+    applied_tags = _normalized_tag_map(uc.get_column_tags(catalog, schema, table, column_name))
     _invalidate_asset_dependent_caches(asset_fqn)
     return {
         "description": description,
-        "tags": normalized_tags,
+        "tags": applied_tags,
+        "warning": tag_write_warning(
+            normalized_tags,
+            applied_tags,
+            scope_label="Column",
+        ),
     }
 
 
