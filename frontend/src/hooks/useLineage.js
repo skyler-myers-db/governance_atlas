@@ -1,58 +1,76 @@
-import { useEffect, useRef, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchLineage } from "../lib/api";
+import { govhubQueryClient } from "../lib/queryClient";
 
 const LINEAGE_CACHE_TTL_MS = 45_000;
-const LINEAGE_CACHE = new Map();
-const LINEAGE_IN_FLIGHT = new Map();
-const LINEAGE_EVENT = "gh:lineage-updated";
+const LINEAGE_QUERY_PREFIX = "lineage";
+
+function lineageQueryKey(assetFqn) {
+  return [LINEAGE_QUERY_PREFIX, assetFqn];
+}
+
+function queryUpdatedAt(queryKey) {
+  return govhubQueryClient.getQueryState(queryKey)?.dataUpdatedAt || 0;
+}
+
+function isFresh(queryKey, maxAgeMs = null) {
+  if (maxAgeMs == null) return true;
+  const updatedAt = queryUpdatedAt(queryKey);
+  if (!updatedAt) return false;
+  return Date.now() - updatedAt <= maxAgeMs;
+}
 
 function readCachedLineage(assetFqn, { maxAgeMs = LINEAGE_CACHE_TTL_MS } = {}) {
   if (!assetFqn) return null;
-  const cached = LINEAGE_CACHE.get(assetFqn);
-  if (!cached) return null;
-  if (maxAgeMs !== null && Date.now() - cached.timestamp > maxAgeMs) {
-    LINEAGE_CACHE.delete(assetFqn);
-    return null;
-  }
-  return cached.payload || null;
-}
-
-function rememberLineage(assetFqn, payload) {
-  if (!assetFqn || !payload) return payload;
-  LINEAGE_CACHE.set(assetFqn, {
-    timestamp: Date.now(),
-    payload,
-  });
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(
-      new CustomEvent(LINEAGE_EVENT, {
-        detail: { assetFqn },
-      }),
-    );
-  }
+  const queryKey = lineageQueryKey(assetFqn);
+  const payload = govhubQueryClient.getQueryData(queryKey) || null;
+  if (!payload) return null;
+  if (!isFresh(queryKey, maxAgeMs)) return null;
   return payload;
 }
 
-function lineageRequest(assetFqn) {
-  if (!assetFqn) return Promise.resolve(null);
-  if (LINEAGE_IN_FLIGHT.has(assetFqn)) {
-    return LINEAGE_IN_FLIGHT.get(assetFqn);
-  }
-  const request = fetchLineage(assetFqn)
-    .then((payload) => {
-      LINEAGE_IN_FLIGHT.delete(assetFqn);
-      return rememberLineage(assetFqn, payload);
-    })
-    .catch((error) => {
-      LINEAGE_IN_FLIGHT.delete(assetFqn);
-      throw error;
-    });
-  LINEAGE_IN_FLIGHT.set(assetFqn, request);
-  return request;
+function normalizeCanonicalPayload(assetFqn, payload, { authoritative = true, source = "live" } = {}) {
+  if (!assetFqn || !payload) return null;
+  return {
+    ...payload,
+    fqn: payload.fqn || assetFqn,
+    authoritative,
+    source,
+  };
+}
+
+function setCachedLineage(assetFqn, payload) {
+  const normalized = normalizeCanonicalPayload(assetFqn, payload);
+  if (!normalized) return payload;
+  govhubQueryClient.setQueryData(lineageQueryKey(assetFqn), normalized);
+  return normalized;
+}
+
+function seededLineagePayload(assetFqn, seededGraph) {
+  if (!assetFqn || !seededGraph) return null;
+  return normalizeCanonicalPayload(
+    assetFqn,
+    {
+      graphs: seededGraph,
+    },
+    {
+      authoritative: false,
+      source: "seeded",
+    },
+  );
 }
 
 export function primeLineagePayload(assetFqn, payload) {
-  return rememberLineage(assetFqn, payload);
+  return setCachedLineage(assetFqn, payload);
+}
+
+export function invalidateLineage(assetFqn) {
+  if (!assetFqn) return;
+  govhubQueryClient.removeQueries({
+    queryKey: lineageQueryKey(assetFqn),
+    exact: true,
+  });
 }
 
 export function prefetchLineage(assetFqn, options = {}) {
@@ -60,101 +78,69 @@ export function prefetchLineage(assetFqn, options = {}) {
   const force = options.force === true;
   const cached = force ? null : readCachedLineage(assetFqn);
   if (cached) return Promise.resolve(cached);
-  return lineageRequest(assetFqn).catch(() => readCachedLineage(assetFqn, { maxAgeMs: null }) || null);
+  return govhubQueryClient
+    .fetchQuery({
+      queryKey: lineageQueryKey(assetFqn),
+      staleTime: LINEAGE_CACHE_TTL_MS,
+      queryFn: ({ signal }) => fetchLineage(assetFqn, { signal }),
+    })
+    .then((payload) => setCachedLineage(assetFqn, payload))
+    .catch(() => readCachedLineage(assetFqn, { maxAgeMs: null }) || null);
 }
 
 export function useLineage(assetFqn, seededGraph = null, enabled = true) {
-  const previousAssetRef = useRef(assetFqn);
-  const cachedPayload =
-    readCachedLineage(assetFqn) ||
-    (assetFqn && seededGraph ? rememberLineage(assetFqn, { fqn: assetFqn, graphs: seededGraph }) : null);
-  const cachedGraph = cachedPayload?.graphs || null;
-  const [state, setState] = useState({
-    loading: false,
-    error: "",
-    graph: cachedGraph || seededGraph,
-    payload: cachedPayload || (seededGraph ? { graphs: seededGraph } : null),
+  const seededPayload = useMemo(
+    () => seededLineagePayload(assetFqn, seededGraph),
+    [assetFqn, seededGraph],
+  );
+  const cachedPayload = useMemo(
+    () => readCachedLineage(assetFqn, { maxAgeMs: null }),
+    [assetFqn],
+  );
+
+  const query = useQuery({
+    queryKey: lineageQueryKey(assetFqn || ""),
+    enabled: Boolean(assetFqn) && enabled,
+    staleTime: LINEAGE_CACHE_TTL_MS,
+    queryFn: ({ signal }) => fetchLineage(assetFqn, { signal }),
+    placeholderData: seededPayload || undefined,
   });
 
-  useEffect(() => {
-    if (!enabled) {
-      const cached = readCachedLineage(assetFqn);
-      setState({
-        loading: false,
-        error: "",
-        graph: cached?.graphs || seededGraph || null,
-        payload: cached || (seededGraph ? { graphs: seededGraph } : null),
-      });
-      return;
-    }
-
-    if (!assetFqn) {
-      setState({ loading: false, error: "", graph: null, payload: null });
-      return;
-    }
-
-    let canceled = false;
-    const assetChanged = previousAssetRef.current !== assetFqn;
-    const cached = readCachedLineage(assetFqn);
-    const fallbackPayload =
-      cached ||
-      (seededGraph ? rememberLineage(assetFqn, { fqn: assetFqn, graphs: seededGraph }) : null);
-    const fallbackGraph = fallbackPayload?.graphs || null;
-    previousAssetRef.current = assetFqn;
-    setState((current) => ({
-      loading: !(current.graph || fallbackGraph),
+  if (!assetFqn) {
+    return {
+      loading: false,
       error: "",
-      graph: assetChanged
-        ? fallbackGraph
-        : current.graph || fallbackGraph,
-      payload:
-        assetChanged
-          ? fallbackPayload
-          : current.payload || fallbackPayload,
-    }));
-    lineageRequest(assetFqn)
-      .then((payload) => {
-        if (canceled) return;
-        setState({
-          loading: false,
-          error: "",
-          graph: payload.graphs || null,
-          payload: payload || null,
-        });
-      })
-      .catch((error) => {
-        if (canceled) return;
-        setState((prev) => ({
-          loading: false,
-          error: error?.message || "Failed to load lineage.",
-          graph: prev.graph || cached?.graphs || seededGraph || null,
-          payload: prev.payload || cached || (seededGraph ? { graphs: seededGraph } : null),
-        }));
-      });
-
-    return () => {
-      canceled = true;
+      graph: null,
+      payload: null,
+      authoritative: false,
+      provisional: false,
     };
-  }, [assetFqn, enabled, seededGraph]);
+  }
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !assetFqn) return undefined;
-    const onLineageUpdated = (event) => {
-      if (event?.detail?.assetFqn !== assetFqn) return;
-      const cached = readCachedLineage(assetFqn, { maxAgeMs: null });
-      if (!cached) return;
-      setState({
-        loading: false,
-        error: "",
-        graph: cached.graphs || null,
-        payload: cached,
-      });
-    };
-    window.addEventListener(LINEAGE_EVENT, onLineageUpdated);
-    return () => {
-      window.removeEventListener(LINEAGE_EVENT, onLineageUpdated);
-    };
-  }, [assetFqn]);
+  const payload =
+    query.data ||
+    cachedPayload ||
+    ((!enabled || query.isPending || query.isFetching || query.isError) ? seededPayload : null);
+  const authoritative = Boolean(payload && payload.authoritative !== false);
+  const provisional = Boolean(payload) && !authoritative;
 
-  return state;
+  if (!enabled) {
+    return {
+      loading: false,
+      error: "",
+      graph: payload?.graphs || null,
+      payload: payload || null,
+      authoritative,
+      provisional,
+    };
+  }
+
+  return {
+    loading: query.isPending || (query.isFetching && !authoritative),
+    error: query.isError ? query.error?.message || "Failed to load lineage." : "",
+    graph: payload?.graphs || null,
+    payload: payload || null,
+    authoritative,
+    provisional,
+  };
 }

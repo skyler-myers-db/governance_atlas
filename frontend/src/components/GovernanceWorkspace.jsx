@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   canOpenAssetRecord,
-  prefetchAssetAvailability,
+  invalidateAssetDetail,
   prefetchAssetDetail,
   primeAssetDetail,
   useAssetDetail,
 } from "../hooks/useAssetDetail";
+import { useGovernanceGlossaryTerm } from "../hooks/useGovernanceGlossaryTerm";
 import { clearAssetSearchCache, useAssetSearch } from "../hooks/useAssetSearch";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
+import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import {
   createGovernanceRequest,
   normalizeGovernancePayload,
@@ -16,6 +18,15 @@ import {
   upsertGovernanceGlossaryTerm,
   upsertGovernanceOwner,
 } from "../lib/api";
+import { govhubQueryClient } from "../lib/queryClient";
+
+const GLOSSARY_STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "in_review", label: "In review" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+  { value: "deprecated", label: "Deprecated" },
+];
 
 function governanceIdentityPrefix(value) {
   return String(value || "")
@@ -159,7 +170,16 @@ function governanceViews(governance) {
       status: item.status || "Draft",
       detail: item.definition,
       ownerEmail: item.ownerEmail || "Unassigned",
+      associationSource: item.associationSource || "",
       assetCount: item.assetCount || 0,
+      childCount: item.childCount || 0,
+      reviewerCount:
+        item.reviewerCount == null
+          ? (item.reviewerRoster || item.reviewerAssignments || item.reviewers || []).length
+          : item.reviewerCount,
+      summarySource: item.summarySource || "live",
+      summaryObservedAt: item.summaryObservedAt || "",
+      summaryStaleAfter: item.summaryStaleAfter || "",
       assets: item.assets || [],
       createdAt: item.createdAt || "",
       createdBy: item.createdBy || "",
@@ -196,6 +216,64 @@ function governanceViews(governance) {
         (item.latestVersion?.versionNumber ? `v${item.latestVersion.versionNumber}` : ""),
       reviewState: item.reviewState || item.status || "Draft",
     })),
+  };
+}
+
+function mergeGlossaryWorkspaceItem(summaryItem, detailItem) {
+  if (!summaryItem) return null;
+  if (!detailItem) return summaryItem;
+  return {
+    ...summaryItem,
+    termId: detailItem.termId || summaryItem.termId,
+    title: detailItem.term || summaryItem.title,
+    subtitle: detailItem.domain || summaryItem.subtitle,
+    status: detailItem.status || summaryItem.status,
+    detail: detailItem.definition || summaryItem.detail,
+    ownerEmail: detailItem.ownerEmail || summaryItem.ownerEmail,
+    associationSource: detailItem.associationSource || summaryItem.associationSource,
+    assetCount:
+      detailItem.assetCount == null ? summaryItem.assetCount : detailItem.assetCount,
+    childCount:
+      detailItem.childCount == null ? summaryItem.childCount : detailItem.childCount,
+    reviewerCount:
+      detailItem.reviewerCount == null ? summaryItem.reviewerCount : detailItem.reviewerCount,
+    summarySource: detailItem.summarySource || summaryItem.summarySource,
+    summaryObservedAt: detailItem.summaryObservedAt || summaryItem.summaryObservedAt,
+    summaryStaleAfter: detailItem.summaryStaleAfter || summaryItem.summaryStaleAfter,
+    assets: Array.isArray(detailItem.assets) ? detailItem.assets : summaryItem.assets,
+    createdAt: detailItem.createdAt || summaryItem.createdAt,
+    createdBy: detailItem.createdBy || summaryItem.createdBy,
+    updatedAt: detailItem.updatedAt || summaryItem.updatedAt,
+    updatedBy: detailItem.updatedBy || summaryItem.updatedBy,
+    requestCount:
+      detailItem.requestCount == null ? summaryItem.requestCount : detailItem.requestCount,
+    pendingRequestCount:
+      detailItem.pendingRequestCount == null
+        ? summaryItem.pendingRequestCount
+        : detailItem.pendingRequestCount,
+    approvedRequestCount:
+      detailItem.approvedRequestCount == null
+        ? summaryItem.approvedRequestCount
+        : detailItem.approvedRequestCount,
+    rejectedRequestCount:
+      detailItem.rejectedRequestCount == null
+        ? summaryItem.rejectedRequestCount
+        : detailItem.rejectedRequestCount,
+    reviewers: Array.isArray(detailItem.reviewers) ? detailItem.reviewers : summaryItem.reviewers,
+    reviewerRoster: Array.isArray(detailItem.reviewerRoster)
+      ? detailItem.reviewerRoster
+      : summaryItem.reviewerRoster,
+    assetPreview: Array.isArray(detailItem.assetPreview)
+      ? detailItem.assetPreview
+      : summaryItem.assetPreview,
+    recentRequests: Array.isArray(detailItem.recentRequests)
+      ? detailItem.recentRequests
+      : summaryItem.recentRequests,
+    termHistory: Array.isArray(detailItem.termHistory)
+      ? detailItem.termHistory
+      : summaryItem.termHistory,
+    currentVersion: detailItem.currentVersion || summaryItem.currentVersion,
+    reviewState: detailItem.reviewState || summaryItem.reviewState,
   };
 }
 
@@ -239,8 +317,7 @@ function requestLane(item) {
   return "open-work";
 }
 
-function stewardshipLanes(actionTrack, requests = []) {
-  const incomplete = actionTrack.filter((item) => !item.complete);
+function workLanes(requests = []) {
   const laneCounts = requests.reduce(
     (acc, item) => {
       const lane = requestLane(item);
@@ -251,21 +328,23 @@ function stewardshipLanes(actionTrack, requests = []) {
   );
   return [
     { key: "open-work", label: "Open work", count: laneCounts["open-work"] },
-    { key: "ownership", label: "Ownership gaps", count: Math.max(laneCounts.ownership, incomplete.filter((item) => item.label === "Owners").length) },
+    { key: "ownership", label: "Ownership work", count: laneCounts.ownership },
     {
       key: "classification",
-      label: "Classification gaps",
-      count: Math.max(laneCounts.classification, incomplete.filter((item) => item.label === "Sensitivity").length),
+      label: "Classification work",
+      count: laneCounts.classification,
     },
     {
       key: "trust",
-      label: "Trust gaps",
-      count: Math.max(
-        laneCounts.trust,
-        incomplete.filter((item) => item.label === "Certification" || item.label === "Domain" || item.label === "Tier").length
-      ),
+      label: "Trust work",
+      count: laneCounts.trust,
     },
   ];
+}
+
+function displayMetricValue(value) {
+  if (value === 0) return "0";
+  return value == null || value === "" ? "—" : String(value);
 }
 
 function glossaryCollections(glossaryItems) {
@@ -313,11 +392,15 @@ export default function GovernanceWorkspace({
   const [focusedAssetFqn, setFocusedAssetFqn] = useState(initialAssetFqn || "");
   const [liveGovernance, setLiveGovernance] = useState(governance);
   const seedAssets = contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [];
-  const seeded = useSeededAssetContext(focusedAssetFqn, bootstrap, seedAssets);
+  const seeded = useSeededAssetContext(focusedAssetFqn, bootstrap, seedAssets, { allowFallback: false });
   const assetDetail = useAssetDetail(focusedAssetFqn || "", { sections: ["header", "activity"] });
   const [focusedAssetSnapshot, setFocusedAssetSnapshot] = useState(null);
   const focusedAsset = focusedAssetSnapshot || assetDetail.detail || seeded.summary;
   const views = useMemo(() => governanceViews(liveGovernance), [liveGovernance]);
+  const governanceWarnings = Array.isArray(liveGovernance?.provenance?.warnings)
+    ? liveGovernance.provenance.warnings.filter(Boolean)
+    : [];
+  const governanceAuthoritative = liveGovernance?.authoritative === true;
   const [mode, setMode] = useState("stewardship");
   const [selectedLaneKey, setSelectedLaneKey] = useState("open-work");
   const [selectedWorkId, setSelectedWorkId] = useState("");
@@ -413,23 +496,24 @@ export default function GovernanceWorkspace({
   const focusedAssetUnavailable = Boolean(focusedAssetFqn && assetDetail.error && !focusedAsset);
   const focusedAssetLimited = Boolean(focusedAssetFqn && assetDetail.error);
 
-  const assetScopedRequests = focusedAssetFqn
-    ? focusedAsset
-      ? views.requests.filter((item) => item.assetFqn === focusedAsset.fqn)
-      : focusedAssetUnavailable
-        ? views.requests.filter((item) => item.assetFqn === focusedAssetFqn)
-        : []
-    : views.requests;
-  const assetScopedEmpty =
-    Boolean(focusedAssetFqn) && !assetScopedRequests.length;
-  const workItems = assetScopedEmpty ? [] : assetScopedRequests;
+  const workItems = useMemo(() => {
+    if (!focusedAssetFqn) return views.requests;
+    if (focusedAsset) {
+      return views.requests.filter((item) => item.assetFqn === focusedAsset.fqn);
+    }
+    if (focusedAssetUnavailable) {
+      return views.requests.filter((item) => item.assetFqn === focusedAssetFqn);
+    }
+    return [];
+  }, [focusedAsset, focusedAssetFqn, focusedAssetUnavailable, views.requests]);
+  const assetScopedEmpty = Boolean(focusedAssetFqn) && !workItems.length;
   const visibleWorkItems = useMemo(() => {
     if (selectedLaneKey === "open-work") return workItems;
     return workItems.filter((item) => requestLane(item) === selectedLaneKey);
   }, [selectedLaneKey, workItems]);
   const selectedItem = visibleWorkItems.find((item) => item.id === selectedWorkId) || null;
   const actionTrack = governanceActionTrack(focusedAsset);
-  const laneSummary = stewardshipLanes(actionTrack, workItems);
+  const laneSummary = workLanes(workItems);
   const linkedGlossary = useMemo(() => {
     if (!focusedAsset) return [];
     return views.glossary.filter((item) => item.assets?.includes(focusedAsset.fqn));
@@ -450,7 +534,19 @@ export default function GovernanceWorkspace({
       );
     });
   }, [glossaryCollection, glossaryQuery, views.glossary]);
-  const selectedGlossary = views.glossary.find((item) => item.id === selectedGlossaryId) || null;
+  const selectedGlossarySummary = views.glossary.find((item) => item.id === selectedGlossaryId) || null;
+  const glossaryTermDetail = useGovernanceGlossaryTerm(selectedGlossarySummary?.termId || "", {
+    enabled: mode === "glossary" && Boolean(selectedGlossarySummary?.termId),
+    seedTerm: selectedGlossarySummary,
+  });
+  const selectedGlossary = useMemo(
+    () =>
+      mergeGlossaryWorkspaceItem(
+        selectedGlossarySummary,
+        glossaryTermDetail.term,
+      ),
+    [glossaryTermDetail.term, selectedGlossarySummary],
+  );
   const selectedGlossaryReviewers = selectedGlossary?.reviewerRoster || [];
   const selectedGlossaryHistory = selectedGlossary?.termHistory || selectedGlossary?.recentRequests || [];
   const focusedAssetAttributes = focusedAsset
@@ -459,8 +555,8 @@ export default function GovernanceWorkspace({
         { label: "Tier", value: focusedAsset.tier || "Unassigned" },
         { label: "Certification", value: focusedAsset.certification || "Unassigned" },
         { label: "Sensitivity", value: focusedAsset.sensitivity || "Unassigned" },
-        { label: "Coverage", value: `${focusedAsset.coverageScore ?? 0}` },
-        { label: "Requests", value: `${focusedAsset.openRequests ?? 0}` },
+        { label: "Coverage", value: displayMetricValue(focusedAsset.coverageScore) },
+        { label: "Requests", value: displayMetricValue(focusedAsset.openRequests) },
       ]
     : [];
   const selectedGlossaryAttributes = selectedGlossary
@@ -468,10 +564,12 @@ export default function GovernanceWorkspace({
         { label: "Domain", value: selectedGlossary.subtitle || "Unassigned" },
         { label: "Owner", value: selectedGlossary.ownerEmail || "Unassigned" },
         { label: "Status", value: selectedGlossary.reviewState || selectedGlossary.status || "Draft" },
+        { label: "Association", value: selectedGlossary.associationSource || "tags" },
         { label: "Version", value: selectedGlossary.currentVersion || "—" },
         { label: "Assets", value: `${selectedGlossary.assetCount || 0}` },
+        { label: "Child terms", value: `${selectedGlossary.childCount || 0}` },
         { label: "Requests", value: `${selectedGlossary.requestCount || 0}` },
-        { label: "Reviewers", value: `${selectedGlossary.reviewerRoster?.length || 0}` },
+        { label: "Reviewers", value: `${selectedGlossary.reviewerCount || 0}` },
         { label: "History", value: `${selectedGlossary.termHistory?.length || 0}` },
         { label: "Created", value: selectedGlossary.createdAt || "—" },
         { label: "Updated", value: selectedGlossary.updatedAt || "—" },
@@ -562,11 +660,29 @@ export default function GovernanceWorkspace({
       if (next?.asset?.fqn) {
         primeAssetDetail(next.asset.fqn, next.asset);
         if (next.asset.fqn === focusedAssetFqn) {
-          setFocusedAssetSnapshot(next.asset);
+          setFocusedAssetSnapshot(null);
         }
+      } else if (focusedAssetFqn) {
+        invalidateAssetDetail(focusedAssetFqn);
+        await prefetchAssetDetail(focusedAssetFqn, {
+          force: true,
+          sections: ["header", "activity"],
+        }).catch(() => null);
+        setFocusedAssetSnapshot(null);
       }
       clearAssetSearchCache();
       const nextGovernance = normalizeGovernancePayload(next?.governance || next);
+      if (selectedGlossary?.termId) {
+        void govhubQueryClient.invalidateQueries({
+          queryKey: ["governanceGlossaryTerm", selectedGlossary.termId],
+        });
+      }
+      if (next?.termId && next?.term) {
+        govhubQueryClient.setQueryData(
+          ["governanceGlossaryTerm", next.termId],
+          next.term,
+        );
+      }
       setLiveGovernance(nextGovernance);
       onGovernanceChange?.(nextGovernance);
       setMutationState({ kind, loading: false, error: "", success });
@@ -584,25 +700,15 @@ export default function GovernanceWorkspace({
 
   const openAssetSafely = async (assetFqn) => {
     if (!assetFqn) return;
-    onNavigationStateChange?.(true, "Opening metadata record…");
-    try {
-      const [availabilityMap, detail] = await Promise.all([
-        prefetchAssetAvailability([assetFqn], { force: true }),
-        prefetchAssetDetail(assetFqn, {
-          force: true,
-          sections: ["header", "activity"],
-        }),
-      ]);
-      const availability = availabilityMap?.[assetFqn] || null;
-      if (!canOpenAssetRecord(detail, availability)) {
-        onNavigationStateChange?.(false, "");
-        return;
-      }
-      onOpenAsset(assetFqn);
-    } catch {
-      onNavigationStateChange?.(false, "");
-      return;
-    }
+    return openAssetRecordSafely(assetFqn, {
+      loadingLabel: "Opening metadata record…",
+      sections: ["header", "activity"],
+      canOpen: canOpenAssetRecord,
+      onNavigationStateChange,
+      onOpen: () => {
+        onOpenAsset(assetFqn);
+      },
+    });
   };
 
   const saveSelectedGlossaryTerm = async () => {
@@ -705,6 +811,13 @@ export default function GovernanceWorkspace({
         </div>
       </header>
 
+      {!governanceAuthoritative && governanceWarnings.length ? (
+        <section className="gh-panel gh-governance-status-banner">
+          <div className="gh-panel-title">Governance Plane Degraded</div>
+          <p>{governanceWarnings[0]}</p>
+        </section>
+      ) : null}
+
       {mode === "stewardship" ? (
         <div className="gh-governance-flow-grid">
           {focusedAssetFqn ? (
@@ -713,7 +826,7 @@ export default function GovernanceWorkspace({
                 <section className="gh-detail-section">
                   <div className="gh-governance-section-head">
                     <div>
-                      <div className="gh-panel-title">Stewardship lanes</div>
+                      <div className="gh-panel-title">Work lanes</div>
                     </div>
                     <span className="gh-chip gh-chip-soft">{visibleWorkItems.length} visible</span>
                   </div>
@@ -869,7 +982,7 @@ export default function GovernanceWorkspace({
                   <section className="gh-detail-section">
                     <div className="gh-governance-section-head">
                       <div>
-                        <div className="gh-panel-title">Stewardship actions</div>
+                        <div className="gh-panel-title">Stewardship posture</div>
                         {focusedAsset ? (
                           <div className="gh-support-copy">
                             {focusedAsset.name} · {focusedAsset.catalog} / {focusedAsset.schema}
@@ -892,6 +1005,9 @@ export default function GovernanceWorkspace({
                     {mutationState.success ? (
                       <div className="gh-support-copy gh-success-copy">{mutationState.success}</div>
                     ) : null}
+                    <div className="gh-support-copy">
+                      These cards reflect metadata posture only; persisted governance work appears in the work lanes above.
+                    </div>
                     <div className="gh-task-list gh-task-list-compact">
                       {actionTrack.slice(0, 4).map((item) => (
                         <button
@@ -1023,12 +1139,17 @@ export default function GovernanceWorkspace({
                               value={glossaryOwnerEmail}
                             />
                           </div>
-                          <input
+                          <select
                             className="gh-input"
                             onChange={(event) => setGlossaryStatus(event.target.value)}
-                            placeholder="draft"
                             value={glossaryStatus}
-                          />
+                          >
+                            {GLOSSARY_STATUS_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
                           <textarea
                             className="gh-input gh-textarea"
                             onChange={(event) => setGlossaryReviewerText(event.target.value)}
@@ -1155,7 +1276,7 @@ export default function GovernanceWorkspace({
                 <section className="gh-detail-section">
                   <div className="gh-governance-section-head">
                     <div>
-                      <div className="gh-panel-title">Stewardship lanes</div>
+                      <div className="gh-panel-title">Work lanes</div>
                     </div>
                     <span className="gh-chip gh-chip-soft">{visibleWorkItems.length} visible</span>
                   </div>
@@ -1399,6 +1520,14 @@ export default function GovernanceWorkspace({
                   <div>
                     <h2>{selectedGlossary.title}</h2>
                     <div className="gh-support-copy">{selectedGlossary.detail}</div>
+                    {glossaryTermDetail.refreshing ? (
+                      <div className="gh-support-copy">Refreshing persisted term detail…</div>
+                    ) : null}
+                    {glossaryTermDetail.refreshError ? (
+                      <div className="gh-support-copy">
+                        Persisted term detail is temporarily limited. Showing the governance snapshot.
+                      </div>
+                    ) : null}
                   </div>
                   <div className="gh-chip-row">
                     <span className="gh-chip">{selectedGlossary.reviewState || selectedGlossary.status}</span>
@@ -1478,14 +1607,19 @@ export default function GovernanceWorkspace({
                     </div>
                     <label className="gh-metadata-edit-field">
                       <span>Status</span>
-                      <input
+                      <select
                         className="gh-input"
                         onChange={(event) =>
                           setGlossaryDraft((current) => ({ ...current, status: event.target.value }))
                         }
-                        placeholder="draft"
                         value={glossaryDraft.status}
-                      />
+                      >
+                        {GLOSSARY_STATUS_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                     </label>
                     <label className="gh-metadata-edit-field">
                       <span>Reviewer roster</span>
@@ -1580,7 +1714,9 @@ export default function GovernanceWorkspace({
                             </div>
                           </div>
                           <div className="gh-chip-row">
-                            <span className="gh-chip gh-chip-soft">{asset.governanceStatus || "Needs Work"}</span>
+                            {asset.governanceStatus ? (
+                              <span className="gh-chip gh-chip-soft">{asset.governanceStatus}</span>
+                            ) : null}
                             <button
                               className="gh-secondary-button gh-inline-action"
                               onClick={() => openAssetSafely(asset.fqn)}

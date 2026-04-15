@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAssetSearch } from "../hooks/useAssetSearch";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
+import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 
 function statusTone(bootState) {
   if (bootState === "unavailable" || bootState === "error") return "bad";
@@ -10,6 +11,49 @@ function statusTone(bootState) {
 function statusLabel(bootState) {
   if (bootState === "unavailable" || bootState === "error") return "Unavailable";
   return "Live";
+}
+
+function humanizeStatusLabel(value) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "Unknown";
+  return normalized
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+function setupStatusTone(state) {
+  const normalized = String(state || "").trim().toLowerCase();
+  if (normalized === "blocked" || normalized === "unavailable") return "bad";
+  if (normalized === "attention_required" || normalized === "unknown") return "warn";
+  if (normalized === "ready") return "good";
+  return "neutral";
+}
+
+function setupStatusLabel(state) {
+  const normalized = String(state || "").trim().toLowerCase();
+  if (normalized === "blocked") return "Setup blocked";
+  if (normalized === "attention_required") return "Setup attention";
+  if (normalized === "unavailable") return "Setup unavailable";
+  if (normalized === "unknown") return "Setup unknown";
+  if (normalized === "ready") return "Setup ready";
+  return "Workspace setup";
+}
+
+function inboxStatusTone(state) {
+  const normalized = String(state || "").trim().toLowerCase();
+  if (normalized === "unavailable") return "bad";
+  if (normalized === "degraded" || normalized === "attention_required") return "warn";
+  if (normalized === "ready" || normalized === "available") return "good";
+  return "neutral";
+}
+
+function inboxStatusLabel(state) {
+  const normalized = String(state || "").trim().toLowerCase();
+  if (normalized === "ready" || normalized === "available") return "Inbox ready";
+  if (normalized === "degraded") return "Inbox degraded";
+  if (normalized === "unavailable") return "Inbox unavailable";
+  if (normalized === "attention_required") return "Inbox attention";
+  return "Inbox";
 }
 
 const MODULES = [
@@ -31,6 +75,7 @@ function SearchDropdown({
   assets,
   error,
   loading,
+  notice,
   onBrowseCatalog,
   onSelectAsset,
   query,
@@ -61,6 +106,7 @@ function SearchDropdown({
       </div>
 
       {error ? <div className="gh-search-empty">{error}</div> : null}
+      {!error && notice ? <div className="gh-search-empty">{notice}</div> : null}
 
       {!error && assets.length ? (
         <div className="gh-search-results">
@@ -117,7 +163,15 @@ export default function AppFrame({
   searchSeedAssets = [],
   visibleAssetSet = new Set(),
   activeModule,
+  diagnosticsAvailable = false,
+  diagnosticsStatus = null,
+  diagnosticsOpen = false,
+  governanceInbox = null,
+  inboxOpen = false,
   onModuleChange,
+  onToggleDiagnostics,
+  onToggleInbox,
+  onInboxItemAction,
   bootState,
   bootMessage,
   liveCatalogVisibleCount = null,
@@ -129,6 +183,7 @@ export default function AppFrame({
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
+  const [searchNotice, setSearchNotice] = useState("");
   const searchRootRef = useRef(null);
   const hasRenderableLiveCatalog =
     (typeof liveCatalogVisibleCount === "number" && liveCatalogVisibleCount > 0) ||
@@ -136,6 +191,28 @@ export default function AppFrame({
   const shellDisabled = (bootState === "unavailable" || bootState === "error") && !hasRenderableLiveCatalog;
   const showRuntimeStatus =
     (bootState === "unavailable" || bootState === "error") && !hasRenderableLiveCatalog;
+  const setupStatusState = String(diagnosticsStatus?.state || "").trim().toLowerCase();
+  const showSetupStatus = Boolean(setupStatusState && setupStatusState !== "ready");
+  const setupStatusToneValue = setupStatusTone(setupStatusState);
+  const setupStatusNextStep = diagnosticsAvailable && diagnosticsStatus?.nextStep
+    ? `Next step: ${humanizeStatusLabel(diagnosticsStatus.nextStep)}.`
+    : "Claims narrowed until readiness improves.";
+  const inboxItems = Array.isArray(governanceInbox?.items) ? governanceInbox.items : [];
+  const inboxUnreadCount = Number.isFinite(Number(governanceInbox?.unreadCount))
+    ? Math.max(0, Math.trunc(Number(governanceInbox.unreadCount)))
+    : 0;
+  const inboxState = String(governanceInbox?.state || "").trim().toLowerCase();
+  const showInbox = Boolean(
+    governanceInbox &&
+    shell?.userEmail &&
+    String(shell.userEmail).trim().toLowerCase() !== "unknown",
+  );
+  const showInboxPanel = showInbox && inboxOpen;
+  const inboxTone = inboxStatusTone(inboxState);
+  const inboxLabel = inboxStatusLabel(inboxState);
+  const inboxMessage =
+    String(governanceInbox?.message || "").trim() ||
+    "Unread workflow notifications from governance activity.";
   const searchEnabled = !shellDisabled && searchPanelOpen && searchQuery.trim().length >= 2;
   const shellSearch = useAssetSearch(searchQuery, searchEnabled, searchSeedAssets);
 
@@ -143,13 +220,32 @@ export default function AppFrame({
     searchQuery.trim() && !shellSearch.error ? shellSearch.assets?.[0] || null : null;
   const openSearchResult = (assetFqn) => {
     if (!assetFqn) return;
-    onNavigationStateChange?.(true, "Opening metadata record…");
-    onSearchResultSelect?.(assetFqn);
+    setSearchNotice("");
+    void openAssetRecordSafely(assetFqn, {
+      onNavigationStateChange,
+      onOpen: () => {
+        setSearchPanelOpen(false);
+        onSearchResultSelect?.(assetFqn);
+      },
+      onUnavailable: () => {
+        setSearchPanelOpen(true);
+        setSearchNotice(
+          "That asset appears in search, but its metadata record is not openable with the current permissions.",
+        );
+      },
+    });
   };
 
   useEffect(() => {
     setSearchPanelOpen(false);
+    setSearchNotice("");
   }, [activeModule]);
+
+  useEffect(() => {
+    if (!diagnosticsOpen) return;
+    setSearchPanelOpen(false);
+    setSearchNotice("");
+  }, [diagnosticsOpen]);
 
   useEffect(() => {
     if (!searchPanelOpen) return undefined;
@@ -222,6 +318,43 @@ export default function AppFrame({
                       <div className={`gh-shell-status-note tone-${statusTone(bootState)}`}>{bootMessage}</div>
                     ) : null}
                   </div>
+                  {showSetupStatus ? (
+                    <div className="gh-shell-setup-status">
+                      <span className={`gh-chip gh-chip-status tone-${setupStatusToneValue}`}>
+                        {setupStatusLabel(setupStatusState)}
+                      </span>
+                      <div className={`gh-shell-status-note tone-${setupStatusToneValue}`}>
+                        {setupStatusNextStep}
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="gh-shell-status-actions">
+                    {diagnosticsAvailable ? (
+                      <button
+                        aria-pressed={diagnosticsOpen}
+                        className="gh-tertiary-button gh-inline-link-button"
+                        onClick={onToggleDiagnostics}
+                        type="button"
+                      >
+                        {diagnosticsOpen ? "Hide workspace setup" : "Workspace setup"}
+                      </button>
+                    ) : null}
+                    {showInbox ? (
+                      <button
+                        aria-pressed={inboxOpen}
+                        className="gh-tertiary-button gh-inline-link-button gh-shell-inbox-trigger"
+                        onClick={onToggleInbox}
+                        type="button"
+                      >
+                        <span>Inbox</span>
+                        {inboxUnreadCount > 0 ? (
+                          <span aria-hidden="true" className="gh-shell-inbox-badge">
+                            {inboxUnreadCount}
+                          </span>
+                        ) : null}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
               <nav className="gh-shell-nav" aria-label="Primary modules">
@@ -280,6 +413,7 @@ export default function AppFrame({
                     onChange={(event) => {
                       const next = event.target.value;
                       setSearchQuery(next);
+                      setSearchNotice("");
                       setSearchPanelOpen(next.trim().length >= 2);
                     }}
                     onFocus={() => {
@@ -304,9 +438,9 @@ export default function AppFrame({
                   assets={shellSearch.assets || []}
                   error={shellSearch.error}
                   loading={shellSearch.loading}
+                  notice={searchNotice}
                   onBrowseCatalog={() => submitSearch()}
                   onSelectAsset={(assetFqn) => {
-                    setSearchPanelOpen(false);
                     void openSearchResult(assetFqn);
                   }}
                   query={searchQuery}
@@ -317,6 +451,77 @@ export default function AppFrame({
           </form>
         </div>
       </header>
+
+      {showInboxPanel ? (
+        <section className="gh-panel gh-shell-inbox-panel" aria-label="Governance inbox">
+          <div className="gh-shell-inbox-head">
+            <div className="gh-shell-inbox-title-block">
+              <div className="gh-panel-title">Inbox</div>
+              <div className="gh-support-copy">{inboxMessage}</div>
+            </div>
+            <div className="gh-shell-inbox-head-meta">
+              <span className={`gh-chip gh-chip-status tone-${inboxTone}`}>{inboxLabel}</span>
+              <span className="gh-shell-inbox-count">
+                {inboxUnreadCount > 0 ? `${inboxUnreadCount} unread` : "No unread items"}
+              </span>
+            </div>
+          </div>
+          {inboxItems.length ? (
+            <div className="gh-shell-inbox-list">
+              {inboxItems.map((item, index) => {
+                const itemState = String(item?.inboxState || "").trim().toLowerCase();
+                const itemTone =
+                  itemState === "dismissed"
+                    ? "bad"
+                    : itemState === "read"
+                      ? "neutral"
+                      : "warn";
+                const canMarkRead = itemState !== "read" && itemState !== "dismissed";
+                const canDismiss = itemState !== "dismissed";
+                return (
+                  <article className="gh-shell-inbox-item" key={item.notificationId || `notification-${index}`}>
+                    <div className="gh-shell-inbox-item-copy">
+                      <div className="gh-shell-inbox-item-title">{item.title || "Notification"}</div>
+                      <div className="gh-shell-inbox-item-detail">
+                        {item.detail || "No additional detail is available."}
+                      </div>
+                      <div className="gh-shell-inbox-item-meta">
+                        {item.assetLabel || item.assetFqn ? <span>{item.assetLabel || item.assetFqn}</span> : null}
+                        {item.createdBy ? <span>{item.createdBy}</span> : null}
+                        {item.createdAt ? <span>{item.createdAt}</span> : null}
+                      </div>
+                    </div>
+                    <div className="gh-shell-inbox-item-actions">
+                      <span className="gh-chip gh-chip-soft">{humanizeStatusLabel(item.status || "open")}</span>
+                      <span className={`gh-chip gh-chip-status tone-${itemTone}`}>
+                        {humanizeStatusLabel(item.inboxState || "unread")}
+                      </span>
+                      <button
+                        className="gh-tertiary-button gh-inline-link-button"
+                        disabled={!canMarkRead}
+                        onClick={() => onInboxItemAction?.(item.notificationId, "read")}
+                        type="button"
+                      >
+                        Mark read
+                      </button>
+                      <button
+                        className="gh-tertiary-button gh-inline-link-button"
+                        disabled={!canDismiss}
+                        onClick={() => onInboxItemAction?.(item.notificationId, "dismiss")}
+                        type="button"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="gh-shell-inbox-empty">No inbox items are currently available.</div>
+          )}
+        </section>
+      ) : null}
 
       <main className="gh-main">{children}</main>
     </div>

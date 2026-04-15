@@ -8,22 +8,13 @@ variables:
     description: "SQL Warehouse ID the app uses for UC queries"
   gov_catalog:
     description: "UC catalog where governance tables are created"
-    default: main
+    default: ""
   gov_schema:
     description: "UC schema within the catalog for governance tables"
-    default: governance_hub
+    default: ""
   admin_emails:
     description: "Comma-separated bootstrap admin emails"
     default: ""
-  secret_scope:
-    description: "Secret scope for OpenMetadata connection secrets (set to empty to skip)"
-    default: ""
-  om_server_url_key:
-    description: "Secret key for OpenMetadata server URL"
-    default: om_server_url
-  om_jwt_token_key:
-    description: "Secret key for OpenMetadata JWT token"
-    default: om_jwt_token
 
 # ── App resource ────────────────────────────────────────────
 resources:
@@ -31,8 +22,8 @@ resources:
     governance_hub:
       name: governance-hub
       description: >
-        Governance Hub — a self-service data governance portal extending
-        Unity Catalog, deployable to any Databricks workspace.
+        Governance Hub — a Databricks-native enterprise metadata workspace
+        extending Unity Catalog, deployable to any Databricks workspace.
       source_code_path: .
       resources:
         - name: uc_warehouse

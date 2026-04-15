@@ -49,6 +49,8 @@ export default function LineageStage({
   error,
   notice = "",
   overlay = null,
+  authoritative = true,
+  provisional = false,
   context,
   onContextChange,
   onOpenGovernance,
@@ -100,7 +102,7 @@ export default function LineageStage({
                 {stats.generatedAt ? <span>{stats.generatedAt}</span> : null}
                 {context === "Data Lineage" && (truncated.upstream || truncated.downstream || truncated.columnLineage) ? (
                   <span>
-                    Limited to {limits.tableLineage || "?"} table edges and {limits.columnLineage || "?"} column mappings
+                    Limited to {limits.tableLineage || "?"} table edges. Column lineage may be partial or unavailable in this workspace.
                   </span>
                 ) : null}
                 {context === "Operational Context" && (truncated.operationalProducers || truncated.operationalConsumers) ? (
@@ -132,6 +134,16 @@ export default function LineageStage({
         {notice ? (
           <div className="gh-inline-alert tone-warn">
             <div>{notice}</div>
+          </div>
+        ) : null}
+        {provisional ? (
+          <div className="gh-inline-alert tone-warn gh-lineage-inline-warning">
+            <div className="gh-inline-alert-title">Live lineage still loading</div>
+            <div>
+              {authoritative
+                ? "Showing cached live lineage while the graph refresh completes."
+                : "Showing provisional lineage context until the authoritative graph resolves."}
+            </div>
           </div>
         ) : null}
         <div className="gh-lineage-stage-canvas">

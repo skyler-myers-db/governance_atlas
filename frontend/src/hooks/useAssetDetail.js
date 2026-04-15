@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchAssetAvailability, fetchAssetDetail } from "../lib/api";
+import { govhubQueryClient } from "../lib/queryClient";
 
-const ASSET_DETAIL_CACHE = new Map();
-const ASSET_DETAIL_IN_FLIGHT = new Map();
-const ASSET_AVAILABILITY_CACHE = new Map();
-const ASSET_AVAILABILITY_IN_FLIGHT = new Map();
 const PLACEHOLDER_DESCRIPTION = "No description has been captured for this asset yet.";
 const DETAIL_CACHE_TTL_MS = 20_000;
 const AVAILABILITY_CACHE_TTL_MS = 10_000;
-const ASSET_DETAIL_EVENT = "gh:asset-detail-updated";
-const ASSET_AVAILABILITY_EVENT = "gh:asset-availability-updated";
+const ASSET_DETAIL_CANONICAL_PREFIX = "assetDetailCanonical";
+const ASSET_DETAIL_REQUEST_PREFIX = "assetDetail";
+const ASSET_AVAILABILITY_CANONICAL_PREFIX = "assetAvailabilityCanonical";
+const ASSET_AVAILABILITY_REQUEST_PREFIX = "assetAvailability";
 const DETAIL_SECTION_FIELDS = {
   header: [
     "fqn",
@@ -34,11 +34,13 @@ const DETAIL_SECTION_FIELDS = {
     "openRequests",
     "owners",
     "tags",
+    "glossaryTerm",
+    "glossaryTerms",
+    "glossaryLinks",
     "governanceStatus",
-    "omTableFqn",
     "metadataEditor",
   ],
-  activity: ["ownerAssignments", "activity"],
+  activity: ["ownerAssignments", "activity", "metadataAudit"],
   schema: ["columns", "columnCount"],
   preview: ["preview"],
   properties: ["tableProperties", "customProperties", "constraints"],
@@ -47,24 +49,61 @@ const DETAIL_SECTION_FIELDS = {
 };
 const DEFAULT_DETAIL_SECTIONS = Object.keys(DETAIL_SECTION_FIELDS);
 
-function readCachedEntry(cache, key, maxAgeMs = null) {
-  if (!key) return null;
-  const cached = cache.get(key);
-  if (!cached) return null;
-  if (maxAgeMs != null && Date.now() - cached.updatedAt > maxAgeMs) {
-    return null;
-  }
-  return cached.detail || null;
-}
-
 function normalizeDetailSections(sections = []) {
   if (!Array.isArray(sections) || !sections.length) return [];
   return [...new Set(sections.map((section) => String(section || "").trim().toLowerCase()).filter(Boolean))].sort();
 }
 
-function detailRequestKey(assetFqn, sections = []) {
+function assetDetailCanonicalKey(assetFqn) {
+  return [ASSET_DETAIL_CANONICAL_PREFIX, assetFqn];
+}
+
+function assetDetailRequestKey(assetFqn, sections = []) {
   const normalizedSections = normalizeDetailSections(sections);
-  return `${assetFqn || ""}::${normalizedSections.join(",") || "all"}`;
+  return [ASSET_DETAIL_REQUEST_PREFIX, assetFqn, normalizedSections.join(",") || "all"];
+}
+
+function assetAvailabilityCanonicalKey(assetFqn) {
+  return [ASSET_AVAILABILITY_CANONICAL_PREFIX, assetFqn];
+}
+
+function assetAvailabilityRequestKey(targets = [], strict = false, requireRenderableDetail = false, visibilitySignature = "") {
+  return [
+    ASSET_AVAILABILITY_REQUEST_PREFIX,
+    targets.slice().sort().join("|"),
+    strict ? 1 : 0,
+    requireRenderableDetail ? 1 : 0,
+    visibilitySignature,
+  ];
+}
+
+function queryUpdatedAt(queryKey) {
+  return govhubQueryClient.getQueryState(queryKey)?.dataUpdatedAt || 0;
+}
+
+function isFresh(queryKey, maxAgeMs = null) {
+  if (maxAgeMs == null) return true;
+  const updatedAt = queryUpdatedAt(queryKey);
+  if (!updatedAt) return false;
+  return Date.now() - updatedAt <= maxAgeMs;
+}
+
+function readCanonicalDetail(assetFqn, options = {}) {
+  if (!assetFqn) return null;
+  const queryKey = assetDetailCanonicalKey(assetFqn);
+  const detail = govhubQueryClient.getQueryData(queryKey) || null;
+  if (!detail) return null;
+  if (!isFresh(queryKey, options.maxAgeMs ?? DETAIL_CACHE_TTL_MS)) return null;
+  return detail;
+}
+
+function readCanonicalAvailability(assetFqn, options = {}) {
+  if (!assetFqn) return null;
+  const queryKey = assetAvailabilityCanonicalKey(assetFqn);
+  const detail = govhubQueryClient.getQueryData(queryKey) || null;
+  if (!detail) return null;
+  if (!isFresh(queryKey, options.maxAgeMs ?? AVAILABILITY_CACHE_TTL_MS)) return null;
+  return detail;
 }
 
 function cachedDetailHasSections(detail, sections = []) {
@@ -106,124 +145,294 @@ function mergeAssetDetail(currentDetail, incomingDetail) {
   return merged;
 }
 
+function setCanonicalDetail(assetFqn, detail) {
+  const current = readCanonicalDetail(assetFqn, { maxAgeMs: null });
+  const mergedDetail = mergeAssetDetail(current, detail);
+  govhubQueryClient.setQueryData(assetDetailCanonicalKey(assetFqn), mergedDetail);
+  govhubQueryClient.setQueriesData(
+    { queryKey: [ASSET_DETAIL_REQUEST_PREFIX, assetFqn] },
+    mergedDetail,
+  );
+  syncAvailabilityRequestsForAsset(assetFqn);
+  return mergedDetail;
+}
+
+function setCanonicalAvailability(assetFqn, availability) {
+  govhubQueryClient.setQueryData(assetAvailabilityCanonicalKey(assetFqn), availability);
+  syncAvailabilityRequestsForAsset(assetFqn);
+  return availability;
+}
+
+function buildVisibilitySignature(targets = [], knownVisibleAssetSet = null) {
+  return targets.map((assetFqn) => (knownVisibleAssetSet?.has?.(assetFqn) ? "1" : "0")).join("");
+}
+
+function knownVisibleLookup(targets = [], visibilitySignature = "") {
+  return {
+    has(assetFqn) {
+      const index = targets.indexOf(assetFqn);
+      return index >= 0 && visibilitySignature.charAt(index) === "1";
+    },
+  };
+}
+
+function parseAvailabilityRequestKey(queryKey = /** @type {readonly unknown[]} */ ([])) {
+  const targets = String(queryKey?.[1] || "")
+    .split("|")
+    .filter(Boolean);
+  return {
+    targets,
+    strict: Number(queryKey?.[2] || 0) === 1,
+    requireRenderableDetail: Number(queryKey?.[3] || 0) === 1,
+    visibilitySignature: String(queryKey?.[4] || ""),
+  };
+}
+
+function syncAvailabilityRequestsForAsset(assetFqn) {
+  govhubQueryClient
+    .getQueryCache()
+    .findAll({ queryKey: [ASSET_AVAILABILITY_REQUEST_PREFIX] })
+    .forEach((query) => {
+      const { targets, strict, requireRenderableDetail, visibilitySignature } = parseAvailabilityRequestKey(query.queryKey);
+      if (!targets.includes(assetFqn)) return;
+      govhubQueryClient.setQueryData(
+        query.queryKey,
+        buildAvailabilityStateMap(
+          targets,
+          knownVisibleLookup(targets, visibilitySignature),
+          {
+            strict,
+            requireRenderableDetail,
+            maxAgeMs: strict ? AVAILABILITY_CACHE_TTL_MS : null,
+          },
+        ),
+      );
+    });
+}
+
 function readCachedDetail(assetFqn, options = {}) {
-  if (!assetFqn) return null;
-  const detail = readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, options.maxAgeMs ?? DETAIL_CACHE_TTL_MS);
+  const detail = readCanonicalDetail(assetFqn, { maxAgeMs: options.maxAgeMs ?? DETAIL_CACHE_TTL_MS });
   if (!detail) return null;
   if (!cachedDetailHasSections(detail, options.sections)) return null;
   return detail;
 }
 
-function rememberDetail(assetFqn, detail) {
-  if (!assetFqn || !detail) return;
-  const current = readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null);
-  const mergedDetail = mergeAssetDetail(current, detail);
-  ASSET_DETAIL_CACHE.set(assetFqn, {
-    detail: mergedDetail,
-    updatedAt: Date.now(),
-  });
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(
-      new CustomEvent(ASSET_DETAIL_EVENT, {
-        detail: { assetFqn, sections: mergedDetail?.loadedSections || [] },
-      }),
-    );
-  }
+function availabilityOpenableValue(availability = null) {
+  if (!availability || typeof availability !== "object") return null;
+  if (typeof availability.openable === "boolean") return availability.openable;
+  if (typeof availability.visible === "boolean") return availability.visible;
+  return null;
 }
 
-function readCachedAvailability(assetFqn, options = {}) {
-  if (!assetFqn) return null;
-  return readCachedEntry(
-    ASSET_AVAILABILITY_CACHE,
-    assetFqn,
-    options.maxAgeMs ?? AVAILABILITY_CACHE_TTL_MS,
+function resolveAvailabilityState(
+  availability = null,
+  knownVisible = false,
+  strict = false,
+  requireRenderableDetail = false,
+  detail = null,
+) {
+  const availabilityOpenable = strict
+    ? availabilityOpenableValue(availability) === true
+      ? true
+      : availabilityOpenableValue(availability) === false
+        ? false
+        : null
+    : knownVisible || availabilityOpenableValue(availability) === true
+      ? true
+      : availabilityOpenableValue(availability) === false
+        ? false
+        : null;
+  if (availabilityOpenable !== true) return availabilityOpenable;
+  if (!requireRenderableDetail) return true;
+  if (!detail) return null;
+  return hasRenderableAssetRecord(detail) ? true : false;
+}
+
+function buildAvailabilityStateMap(targets = [], knownVisibleAssetSet = null, options = {}) {
+  const strict = options.strict === true;
+  const requireRenderableDetail = options.requireRenderableDetail === true;
+  const maxAgeMs = options.maxAgeMs ?? (strict ? AVAILABILITY_CACHE_TTL_MS : null);
+  return Object.fromEntries(
+    targets.map((assetFqn) => {
+      const knownVisible = knownVisibleAssetSet?.has?.(assetFqn) === true;
+      const availability = readCanonicalAvailability(assetFqn, { maxAgeMs });
+      const detail = requireRenderableDetail
+        ? readCanonicalDetail(assetFqn, { maxAgeMs: DETAIL_CACHE_TTL_MS })
+        : null;
+      return [
+        assetFqn,
+        resolveAvailabilityState(
+          availability,
+          knownVisible,
+          strict,
+          requireRenderableDetail,
+          detail,
+        ),
+      ];
+    }),
   );
 }
 
-function rememberAvailability(assetFqn, detail) {
-  if (!assetFqn || !detail) return;
-  ASSET_AVAILABILITY_CACHE.set(assetFqn, {
-    detail,
-    updatedAt: Date.now(),
+async function ensureAssetDetail(assetFqn, options = {}) {
+  if (!assetFqn) return null;
+  const cachedDetail = options.force !== true
+    ? readCachedDetail(assetFqn, {
+        sections: options.sections,
+        maxAgeMs: options.maxAgeMs ?? DETAIL_CACHE_TTL_MS,
+      })
+    : null;
+  if (cachedDetail) return cachedDetail;
+
+  const detail = await fetchAssetDetail(assetFqn, {
+    sections: options.sections,
+    signal: options.signal,
   });
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(
-      new CustomEvent(ASSET_AVAILABILITY_EVENT, {
-        detail: { assetFqn },
-      }),
-    );
-  }
+  return setCanonicalDetail(assetFqn, detail);
 }
 
-export function primeAssetDetail(assetFqn, detail) {
-  rememberDetail(assetFqn, detail);
-}
+async function ensureAssetAvailability(assetFqns = [], options = {}) {
+  const targets = [...new Set((assetFqns || []).filter(Boolean))].sort();
+  if (!targets.length) return {};
 
-export function primeAssetAvailability(assetFqn, availability) {
-  rememberAvailability(assetFqn, availability);
-}
+  const strict = options.strict === true;
+  const requireRenderableDetail = options.requireRenderableDetail === true;
+  const maxAgeMs = options.force === true
+    ? 0
+    : options.maxAgeMs ?? (strict ? AVAILABILITY_CACHE_TTL_MS : null);
 
-function availabilityRequest(assetFqns) {
-  const targets = [...new Set((assetFqns || []).filter(Boolean))];
-  if (!targets.length) return Promise.resolve({});
-  const requestKey = targets.slice().sort().join("|");
-  if (ASSET_AVAILABILITY_IN_FLIGHT.has(requestKey)) {
-    return ASSET_AVAILABILITY_IN_FLIGHT.get(requestKey);
-  }
-  const request = fetchAssetAvailability(targets)
-    .then((payload) => {
-      const assets = payload?.assets || {};
-      targets.forEach((assetFqn) => {
-        rememberAvailability(assetFqn, assets[assetFqn] || {
+  const missing = options.force === true
+    ? targets
+    : targets.filter((assetFqn) => !readCanonicalAvailability(assetFqn, { maxAgeMs }));
+
+  if (missing.length) {
+    const payload = await fetchAssetAvailability(missing, { signal: options.signal });
+    const assets = payload?.assets || {};
+    missing.forEach((assetFqn) => {
+      setCanonicalAvailability(
+        assetFqn,
+        assets[assetFqn] || {
           visible: false,
           exists: false,
           openable: false,
-        });
-      });
-      ASSET_AVAILABILITY_IN_FLIGHT.delete(requestKey);
-      return assets;
-    })
-    .catch((error) => {
-      ASSET_AVAILABILITY_IN_FLIGHT.delete(requestKey);
-      throw error;
+        },
+      );
     });
-  ASSET_AVAILABILITY_IN_FLIGHT.set(requestKey, request);
-  return request;
+  }
+
+  if (requireRenderableDetail) {
+    const renderableTargets = targets.filter((assetFqn) => {
+      const availability = readCanonicalAvailability(assetFqn, { maxAgeMs: null });
+      return availabilityOpenableValue(availability) === true;
+    });
+    await Promise.all(
+      renderableTargets.map((assetFqn) =>
+        prefetchAssetDetail(assetFqn, {
+          sections: ["header"],
+          signal: options.signal,
+        }).catch(() => null)),
+    );
+  }
+
+  return buildAvailabilityStateMap(targets, options.knownVisibleAssetSet, {
+    strict,
+    requireRenderableDetail,
+    maxAgeMs: strict ? AVAILABILITY_CACHE_TTL_MS : null,
+  });
+}
+
+export function primeAssetDetail(assetFqn, detail) {
+  if (!assetFqn || !detail) return detail || null;
+  return setCanonicalDetail(assetFqn, detail);
+}
+
+export function primeAssetAvailability(assetFqn, availability) {
+  if (!assetFqn || !availability) return availability || null;
+  return setCanonicalAvailability(assetFqn, availability);
+}
+
+export function invalidateAssetDetail(assetFqn) {
+  if (!assetFqn) return Promise.resolve();
+  govhubQueryClient.removeQueries({ queryKey: assetDetailCanonicalKey(assetFqn), exact: true });
+  return govhubQueryClient.invalidateQueries({ queryKey: [ASSET_DETAIL_REQUEST_PREFIX, assetFqn] });
+}
+
+export function invalidateAssetAvailability(assetFqns = []) {
+  const targets = [...new Set((assetFqns || []).filter(Boolean))];
+  targets.forEach((assetFqn) => {
+    govhubQueryClient.removeQueries({ queryKey: assetAvailabilityCanonicalKey(assetFqn), exact: true });
+  });
+  return govhubQueryClient.invalidateQueries({ queryKey: [ASSET_AVAILABILITY_REQUEST_PREFIX] });
+}
+
+export function prefetchAssetDetail(assetFqn, options = {}) {
+  if (!assetFqn) return Promise.resolve(null);
+  const force = options.force === true;
+  const cachedDetail = force
+    ? null
+    : readCachedDetail(assetFqn, {
+        sections: options.sections,
+        maxAgeMs: options.maxAgeMs ?? DETAIL_CACHE_TTL_MS,
+      });
+  if (cachedDetail) return Promise.resolve(cachedDetail);
+
+  return govhubQueryClient.fetchQuery({
+    queryKey: assetDetailRequestKey(assetFqn, options.sections),
+    staleTime: force ? 0 : DETAIL_CACHE_TTL_MS,
+    queryFn: ({ signal }) =>
+      ensureAssetDetail(assetFqn, {
+        sections: options.sections,
+        signal: options.signal || signal,
+        force,
+        maxAgeMs: options.maxAgeMs,
+      }),
+  }).catch(() => readCanonicalDetail(assetFqn, { maxAgeMs: null }) || null);
 }
 
 export function prefetchAssetAvailability(assetFqns = [], options = {}) {
-  const targets = [...new Set((assetFqns || []).filter(Boolean))];
+  const targets = [...new Set((assetFqns || []).filter(Boolean))].sort();
   if (!targets.length) return Promise.resolve({});
-  const force = options.force === true;
-  const maxAgeMs = force ? 0 : options.maxAgeMs ?? AVAILABILITY_CACHE_TTL_MS;
-  const missing = force
-    ? targets
-    : targets.filter((assetFqn) => !readCachedAvailability(assetFqn, { maxAgeMs }));
-  if (!missing.length) {
-    return Promise.resolve(
-      Object.fromEntries(
-        targets.map((assetFqn) => [assetFqn, readCachedAvailability(assetFqn, { maxAgeMs })]),
-      ),
-    );
+
+  const strict = options.strict === true;
+  const requireRenderableDetail = options.requireRenderableDetail === true;
+  const visibilitySignature = buildVisibilitySignature(targets, options.knownVisibleAssetSet);
+  const cachedAvailability = options.force === true
+    ? null
+    : buildAvailabilityStateMap(targets, options.knownVisibleAssetSet, {
+        strict,
+        requireRenderableDetail,
+        maxAgeMs: strict ? AVAILABILITY_CACHE_TTL_MS : null,
+      });
+  const hasAllCachedValues = cachedAvailability && targets.every((assetFqn) => cachedAvailability[assetFqn] !== undefined);
+  if (hasAllCachedValues && targets.every((assetFqn) => readCanonicalAvailability(assetFqn, {
+    maxAgeMs: options.maxAgeMs ?? (strict ? AVAILABILITY_CACHE_TTL_MS : null),
+  }))) {
+    return Promise.resolve(cachedAvailability);
   }
-  return availabilityRequest(missing)
-    .then(() =>
-      Object.fromEntries(
-        targets.map((assetFqn) => [assetFqn, readCachedAvailability(assetFqn, { maxAgeMs: null })]),
-      ),
-    )
-    .catch(() =>
-      Object.fromEntries(
-        targets.map((assetFqn) => [
-          assetFqn,
-          readCachedAvailability(assetFqn, { maxAgeMs: null }) || {
-            visible: false,
-            exists: false,
-            openable: false,
-          },
-        ]),
-      ),
-    );
+
+  return govhubQueryClient.fetchQuery({
+    queryKey: assetAvailabilityRequestKey(
+      targets,
+      strict,
+      requireRenderableDetail,
+      visibilitySignature,
+    ),
+    staleTime: options.force === true ? 0 : AVAILABILITY_CACHE_TTL_MS,
+    queryFn: ({ signal }) =>
+      ensureAssetAvailability(targets, {
+        force: options.force === true,
+        knownVisibleAssetSet: options.knownVisibleAssetSet,
+        strict,
+        requireRenderableDetail,
+        maxAgeMs: options.maxAgeMs,
+        signal: options.signal || signal,
+      }),
+  }).catch(() =>
+    buildAvailabilityStateMap(targets, options.knownVisibleAssetSet, {
+      strict,
+      requireRenderableDetail,
+      maxAgeMs: null,
+    }),
+  );
 }
 
 export function isUsableAssetDetail(detail) {
@@ -277,37 +486,6 @@ export function hasRenderableAssetRecord(detail) {
   return isNavigableAssetDetail(detail) || hasResolvedAssetIdentity(detail);
 }
 
-function availabilityOpenableValue(availability = null) {
-  if (!availability || typeof availability !== "object") return null;
-  if (typeof availability.openable === "boolean") return availability.openable;
-  if (typeof availability.visible === "boolean") return availability.visible;
-  return null;
-}
-
-function resolveAvailabilityState(
-  availability = null,
-  knownVisible = false,
-  strict = false,
-  requireRenderableDetail = false,
-  detail = null,
-) {
-  const availabilityOpenable = strict
-    ? availabilityOpenableValue(availability) === true
-      ? true
-      : availabilityOpenableValue(availability) === false
-        ? false
-        : null
-    : knownVisible || availabilityOpenableValue(availability) === true
-      ? true
-      : availabilityOpenableValue(availability) === false
-        ? false
-        : null;
-  if (availabilityOpenable !== true) return availabilityOpenable;
-  if (!requireRenderableDetail) return true;
-  if (!detail) return null;
-  return hasRenderableAssetRecord(detail) ? true : false;
-}
-
 export function canOpenLinkedAssetRecord(detail, availability = null) {
   const availabilityOpenable = availabilityOpenableValue(availability);
   if (availabilityOpenable === false) return false;
@@ -322,256 +500,95 @@ export function canOpenAssetRecord(detail, availability = null) {
   return hasRenderableAssetRecord(detail);
 }
 
-function detailRequest(assetFqn, options = {}) {
-  if (!assetFqn) return Promise.resolve(null);
-  const requestKey = detailRequestKey(assetFqn, options.sections);
-  if (ASSET_DETAIL_IN_FLIGHT.has(requestKey)) {
-    return ASSET_DETAIL_IN_FLIGHT.get(requestKey);
-  }
-  const request = fetchAssetDetail(assetFqn, { sections: options.sections })
-    .then((detail) => {
-      rememberDetail(assetFqn, detail);
-      ASSET_DETAIL_IN_FLIGHT.delete(requestKey);
-      return readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null) || detail;
-    })
-    .catch((error) => {
-      ASSET_DETAIL_IN_FLIGHT.delete(requestKey);
-      throw error;
-    });
-  ASSET_DETAIL_IN_FLIGHT.set(requestKey, request);
-  return request;
-}
-
-export function prefetchAssetDetail(assetFqn, options = {}) {
-  if (!assetFqn) return Promise.resolve(null);
-  const force = options.force === true;
-  const maxAgeMs = force ? 0 : options.maxAgeMs ?? DETAIL_CACHE_TTL_MS;
-  const cachedDetail = force ? null : readCachedDetail(assetFqn, { maxAgeMs, sections: options.sections });
-  if (cachedDetail) return Promise.resolve(cachedDetail);
-  return detailRequest(assetFqn, options).catch(() => readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null) || null);
-}
-
 export function useAssetAvailability(assetFqns = [], knownVisibleAssetSet = null, options = {}) {
   const targets = useMemo(
-    () => [...new Set((assetFqns || []).filter(Boolean))],
+    () => [...new Set((assetFqns || []).filter(Boolean))].sort(),
     [assetFqns],
   );
-  const [availability, setAvailability] = useState({});
   const strict = options?.strict === true;
   const requireRenderableDetail = options?.requireRenderableDetail === true;
+  const visibilitySignature = useMemo(
+    () => buildVisibilitySignature(targets, knownVisibleAssetSet),
+    [knownVisibleAssetSet, targets],
+  );
+  const placeholder = useMemo(
+    () =>
+      buildAvailabilityStateMap(targets, knownVisibleAssetSet, {
+        strict,
+        requireRenderableDetail,
+        maxAgeMs: strict ? AVAILABILITY_CACHE_TTL_MS : null,
+      }),
+    [knownVisibleAssetSet, requireRenderableDetail, strict, targets],
+  );
 
-  useEffect(() => {
-    if (!targets.length) {
-      setAvailability({});
-      return;
-    }
+  const query = useQuery({
+    queryKey: assetAvailabilityRequestKey(
+      targets,
+      strict,
+      requireRenderableDetail,
+      visibilitySignature,
+    ),
+    enabled: targets.length > 0,
+    queryFn: ({ signal }) =>
+      ensureAssetAvailability(targets, {
+        knownVisibleAssetSet,
+        strict,
+        requireRenderableDetail,
+        signal,
+      }),
+    placeholderData: placeholder,
+    staleTime: AVAILABILITY_CACHE_TTL_MS,
+  });
 
-    let canceled = false;
-    setAvailability(() => {
-      const next = {};
-      targets.forEach((assetFqn) => {
-        const knownVisible = knownVisibleAssetSet?.has?.(assetFqn) === true;
-        const cachedAvailability = readCachedAvailability(assetFqn, {
-          maxAgeMs: strict ? AVAILABILITY_CACHE_TTL_MS : null,
-        });
-        const cachedDetail = requireRenderableDetail
-          ? readCachedDetail(assetFqn, { maxAgeMs: DETAIL_CACHE_TTL_MS })
-          : null;
-        next[assetFqn] = resolveAvailabilityState(
-          cachedAvailability,
-          knownVisible,
-          strict,
-          requireRenderableDetail,
-          cachedDetail,
-        );
-      });
-      return next;
-    });
-
-    const availabilityPromise = prefetchAssetAvailability(targets, {
-      maxAgeMs: strict ? AVAILABILITY_CACHE_TTL_MS : null,
-    });
-
-    Promise.resolve(availabilityPromise).then(async (entries) => {
-      if (canceled) return;
-      const detailByAssetFqn = new Map();
-      if (requireRenderableDetail) {
-        const renderableTargets = targets.filter((assetFqn) => {
-          const availabilityDetail =
-            entries[assetFqn] ||
-            readCachedAvailability(assetFqn, {
-              maxAgeMs: strict ? AVAILABILITY_CACHE_TTL_MS : null,
-            });
-          return availabilityOpenableValue(availabilityDetail) === true;
-        });
-        await Promise.all(
-          renderableTargets.map(async (assetFqn) => {
-            const detail = await prefetchAssetDetail(assetFqn);
-            detailByAssetFqn.set(assetFqn, detail);
-          }),
-        );
-      }
-      setAvailability(
-        Object.fromEntries(
-          targets.map((assetFqn) => {
-            const availabilityDetail =
-              entries[assetFqn] ||
-              readCachedAvailability(assetFqn, {
-                maxAgeMs: strict ? AVAILABILITY_CACHE_TTL_MS : null,
-              });
-            const knownVisible = knownVisibleAssetSet?.has?.(assetFqn) === true;
-            const detail = requireRenderableDetail
-              ? detailByAssetFqn.get(assetFqn) ||
-                readCachedDetail(assetFqn, { maxAgeMs: DETAIL_CACHE_TTL_MS })
-              : null;
-            const openable = resolveAvailabilityState(
-              availabilityDetail,
-              knownVisible,
-              strict,
-              requireRenderableDetail,
-              detail,
-            );
-            return [assetFqn, openable];
-          }),
-        ),
-      );
-    });
-
-    return () => {
-      canceled = true;
-    };
-  }, [knownVisibleAssetSet, requireRenderableDetail, strict, targets]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !targets.length) return undefined;
-    const refreshFromCache = () => {
-      setAvailability((current) =>
-        Object.fromEntries(
-          targets.map((assetFqn) => {
-            const knownVisible = knownVisibleAssetSet?.has?.(assetFqn) === true;
-            const cachedAvailability = readCachedAvailability(assetFqn, {
-              maxAgeMs: strict ? AVAILABILITY_CACHE_TTL_MS : null,
-            });
-            const cachedDetail = requireRenderableDetail
-              ? readCachedDetail(assetFqn, { maxAgeMs: DETAIL_CACHE_TTL_MS })
-              : null;
-            return [
-              assetFqn,
-              resolveAvailabilityState(
-                cachedAvailability,
-                knownVisible,
-                strict,
-                requireRenderableDetail,
-                cachedDetail,
-              ) ?? current[assetFqn],
-            ];
-          }),
-        ),
-      );
-    };
-    const onAvailability = (event) => {
-      if (targets.includes(event?.detail?.assetFqn)) refreshFromCache();
-    };
-    const onDetail = (event) => {
-      if (!requireRenderableDetail) return;
-      if (targets.includes(event?.detail?.assetFqn)) refreshFromCache();
-    };
-    window.addEventListener(ASSET_AVAILABILITY_EVENT, onAvailability);
-    window.addEventListener(ASSET_DETAIL_EVENT, onDetail);
-    return () => {
-      window.removeEventListener(ASSET_AVAILABILITY_EVENT, onAvailability);
-      window.removeEventListener(ASSET_DETAIL_EVENT, onDetail);
-    };
-  }, [knownVisibleAssetSet, requireRenderableDetail, strict, targets]);
-
-  return availability;
+  return targets.length ? query.data || placeholder : {};
 }
 
 export function useAssetDetail(assetFqn, options = {}) {
   const enabled = options.enabled !== false;
-  const sections = options.sections || [];
-  const initialDetail = readCachedDetail(assetFqn, { sections });
-  const [state, setState] = useState(() => ({
-    loading: Boolean(enabled && assetFqn && !initialDetail),
-    error: "",
-    detail: initialDetail,
-  }));
+  const sections = useMemo(
+    () => normalizeDetailSections(options.sections || []),
+    [options.sections],
+  );
+  const cachedAnyDetail = assetFqn ? readCanonicalDetail(assetFqn, { maxAgeMs: null }) : null;
+  const placeholder = cachedAnyDetail || null;
+  const query = useQuery({
+    queryKey: assetDetailRequestKey(assetFqn || "", sections),
+    enabled: Boolean(enabled && assetFqn),
+    queryFn: ({ signal }) =>
+      ensureAssetDetail(assetFqn, {
+        sections,
+        signal,
+      }),
+    placeholderData: placeholder || undefined,
+    staleTime: DETAIL_CACHE_TTL_MS,
+  });
 
-  useEffect(() => {
-    if (!enabled) {
-      setState((current) => ({
-        loading: false,
-        error: "",
-        detail: readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null) || current.detail || null,
-      }));
-      return;
-    }
-
-    if (!assetFqn) {
-      setState({ loading: false, error: "", detail: null });
-      return;
-    }
-
-    let canceled = false;
-    const cachedDetail = readCachedDetail(assetFqn, { sections });
-    const missingRequestedSections = (detail) => !cachedDetailHasSections(detail, sections);
-    setState((current) => ({
-      loading: missingRequestedSections(cachedDetail || current.detail),
+  if (!assetFqn) {
+    return {
+      loading: false,
       error: "",
-      detail:
-        readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null) ||
-        cachedDetail ||
-        (current.detail?.fqn === assetFqn ? current.detail : null),
-    }));
-    detailRequest(assetFqn, { sections })
-      .then((detail) => {
-        if (canceled) return;
-        setState({ loading: false, error: "", detail });
-      })
-      .catch((error) => {
-        if (canceled) return;
-        setState((current) => ({
-          loading: false,
-          error: (() => {
-            const retainedDetail =
-              readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null) ||
-              cachedDetail ||
-              (current.detail?.fqn === assetFqn ? current.detail : null);
-            return missingRequestedSections(retainedDetail)
-              ? error?.message || "Failed to load asset detail."
-              : "";
-          })(),
-          detail:
-            readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null) ||
-            cachedDetail ||
-            (current.detail?.fqn === assetFqn ? current.detail : null),
-        }));
-      });
-
-    return () => {
-      canceled = true;
+      detail: null,
     };
-  }, [assetFqn, enabled, sections.join(",")]);
+  }
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !assetFqn) return undefined;
-    const normalizedSections = normalizeDetailSections(sections);
-    const onDetailUpdated = (event) => {
-      if (event?.detail?.assetFqn !== assetFqn) return;
-      const cached = readCachedEntry(ASSET_DETAIL_CACHE, assetFqn, null);
-      if (!cached) return;
-      if (normalizedSections.length && !cachedDetailHasSections(cached, normalizedSections)) return;
-      setState((current) => ({
-        loading: false,
-        error: "",
-        detail: cached || current.detail || null,
-      }));
+  if (!enabled) {
+    return {
+      loading: false,
+      error: "",
+      detail: cachedAnyDetail,
     };
-    window.addEventListener(ASSET_DETAIL_EVENT, onDetailUpdated);
-    return () => {
-      window.removeEventListener(ASSET_DETAIL_EVENT, onDetailUpdated);
-    };
-  }, [assetFqn, sections.join(",")]);
+  }
 
-  return state;
+  const detail = query.data || placeholder || null;
+  const missingRequestedSections = !cachedDetailHasSections(detail, sections);
+  return {
+    loading:
+      Boolean(query.isPending && !detail) ||
+      Boolean(query.isFetching && missingRequestedSections),
+    error:
+      query.isError && missingRequestedSections
+        ? query.error?.message || "Failed to load asset detail."
+        : "",
+    detail,
+  };
 }

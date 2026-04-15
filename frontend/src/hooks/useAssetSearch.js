@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchDiscoverySearch } from "../lib/api";
-
-const SEARCH_CACHE = new Map();
+import { govhubQueryClient } from "../lib/queryClient";
 
 export function clearAssetSearchCache() {
-  SEARCH_CACHE.clear();
+  govhubQueryClient.removeQueries({ queryKey: ["assetSearch"] });
+  govhubQueryClient.invalidateQueries({ queryKey: ["discoveryResults"] });
+  govhubQueryClient.invalidateQueries({ queryKey: ["bootstrap"] });
 }
 
 function normalizeSearchText(...values) {
@@ -31,6 +33,13 @@ function localSearchScore(asset, trimmedQuery) {
     asset?.certification,
     asset?.sensitivity,
     asset?.objectType,
+    ...(Array.isArray(asset?.glossaryTerms)
+      ? asset.glossaryTerms.flatMap((term) => {
+          if (typeof term === "string") return [term];
+          const value = String(term?.term || term?.name || "").trim();
+          return value ? [value] : [];
+        })
+      : []),
     ...(asset?.tags || []),
     ...((asset?.owners || []).flatMap((owner) => [owner?.name, owner?.email, owner?.title])),
   );
@@ -80,87 +89,43 @@ function cacheKeyForQuery(query) {
 }
 
 export function useAssetSearch(query, enabled = true, seedAssets = []) {
+  const trimmedQuery = query.trim();
   const seededSignature = (seedAssets || [])
     .map((asset) => asset?.fqn || "")
     .filter(Boolean)
     .join("|");
-  const stableSeedAssets = useMemo(() => seedAssets, [seededSignature]);
-  const [state, setState] = useState({
-    loading: false,
-    error: "",
-    assets: [],
-    resolvedQuery: "",
+  const seededMatches = useMemo(
+    () => localMatches(seedAssets, trimmedQuery, 8),
+    [seedAssets, trimmedQuery],
+  );
+  const queryState = useQuery({
+    queryKey: ["assetSearch", cacheKeyForQuery(trimmedQuery), seededSignature],
+    enabled: enabled && Boolean(trimmedQuery),
+    queryFn: ({ signal }) =>
+      fetchDiscoverySearch(
+        {
+          query: trimmedQuery,
+          sortBy: "Best match",
+          limit: 8,
+        },
+        { signal },
+      ),
+    placeholderData: {
+      assets: seededMatches,
+      count: seededMatches.length,
+    },
   });
+  const assets = trimmedQuery
+    ? mergeAssets(queryState.data?.assets || [], seededMatches, 8)
+    : [];
 
-  useEffect(() => {
-    const trimmedQuery = query.trim();
-    if (!enabled) {
-      setState({ loading: false, error: "", assets: [], resolvedQuery: "" });
-      return;
-    }
-
-    if (!trimmedQuery) {
-      setState({ loading: false, error: "", assets: [], resolvedQuery: "" });
-      return;
-    }
-
-    let canceled = false;
-    const cacheKey = cacheKeyForQuery(trimmedQuery);
-    const seededMatches = localMatches(stableSeedAssets, trimmedQuery, 8);
-    const cachedMatches = SEARCH_CACHE.get(cacheKey) || [];
-    const initialMatches = mergeAssets(cachedMatches, seededMatches, 8);
-    setState((prev) => ({
-      loading: !initialMatches.length,
-      assets:
-        initialMatches.length
-          ? initialMatches
-          : prev.resolvedQuery === trimmedQuery
-            ? prev.assets
-            : [],
-      error: "",
-      resolvedQuery: trimmedQuery,
-    }));
-    const timeout = setTimeout(() => {
-      fetchDiscoverySearch({
-        query: trimmedQuery,
-        sortBy: "Best match",
-        limit: 8,
-      })
-        .then((payload) => {
-          if (canceled) return;
-          const assets = mergeAssets(payload.assets || [], seededMatches, 8);
-          SEARCH_CACHE.set(cacheKey, assets);
-          setState({
-            loading: false,
-            error: "",
-            assets,
-            resolvedQuery: trimmedQuery,
-          });
-        })
-        .catch((error) => {
-          if (canceled) return;
-          const fallbackMatches = mergeAssets(
-            SEARCH_CACHE.get(cacheKey) || [],
-            seededMatches,
-            8,
-          );
-          setState((current) => ({
-            loading: false,
-            error:
-              fallbackMatches.length || current.assets.length
-                ? ""
-                : error?.message || "Failed to search assets.",
-            assets: current.assets.length ? current.assets : fallbackMatches,
-            resolvedQuery: trimmedQuery,
-          }));
-        });
-    }, cachedMatches.length ? 10 : 20);
-
-    return () => {
-      canceled = true;
-      clearTimeout(timeout);
-    };
-  }, [enabled, query, stableSeedAssets]);
-
-  return state;
+  return {
+    loading: enabled && Boolean(trimmedQuery) ? queryState.isPending || (queryState.isFetching && !assets.length) : false,
+    error:
+      queryState.isError && !assets.length
+        ? queryState.error?.message || "Failed to search assets."
+        : "",
+    assets,
+    resolvedQuery: enabled && Boolean(trimmedQuery) ? trimmedQuery : "",
+  };
 }

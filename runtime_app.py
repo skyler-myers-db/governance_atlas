@@ -1,22 +1,17 @@
-"""Modern Governance Hub runtime.
-
-Serves a JS-first metadata workspace on top of the live Python metadata plane.
-The modern shell reuses the existing metadata services and gracefully falls back
-to the bundled static shell when live Databricks runtime access is not available.
-"""
+"""Governance Hub application runtime."""
 
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
-import shutil
-import subprocess
 import time
 import uuid
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
+from urllib.parse import unquote
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -26,19 +21,35 @@ from fastapi.staticfiles import StaticFiles
 
 from govhub.config import AppConfig
 from govhub.services import assets as asset_service
+from govhub.services import capabilities as capability_service
 from govhub.services import governance as governance_service
 from govhub.services import lineage as lineage_service
+from govhub.services import runtime_setup as runtime_setup_service
 from govhub.store import GovernanceStore
 from govhub.uc import UCSQLClient, _is_skippable_metadata_error
 
 
 ROOT = Path(__file__).resolve().parent
-FRONTEND_DIR = ROOT / "frontend"
-LEGACY_UI_DIR = ROOT / "modern_ui"
 REACT_DIST_DIR = ROOT / "frontend" / "dist"
-LEGACY_INDEX_TEMPLATE = (LEGACY_UI_DIR / "index.html").read_text(encoding="utf-8")
-STATIC_INDEX_BOOTSTRAP = '<script id="govhub-bootstrap-script" src="./data.js" defer></script>'
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
+KNOWN_SURFACES = {"discovery", "entity", "lineage", "governance"}
+CLIENT_ROUTE_PREFIXES = {"discovery", "entity", "lineage", "governance", "glossary"}
+MUTATION_ROLES = {"writer", "steward", "admin"}
+APP_VERSION = "governance-hub-runtime-6"
+REQUEST_ID_HEADER = "X-Request-ID"
+CLIENT_REQUEST_ID_HEADER = "X-GovHub-Client-Request-ID"
+BUILD_ID_HEADER = "X-GovHub-Build-ID"
+DURATION_HEADER = "X-GovHub-Request-Duration-Ms"
+
+LOGGER = logging.getLogger("govhub.runtime")
+if not LOGGER.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(message)s"))
+    LOGGER.addHandler(_handler)
+LOGGER.setLevel(
+    getattr(logging, os.getenv("GOVHUB_LOG_LEVEL", "INFO").strip().upper(), logging.INFO)
+)
+LOGGER.propagate = False
 
 HELP_ITEMS = [
     {
@@ -72,8 +83,7 @@ DISCOVERY_SORTS = [
 BOOTSTRAP_ASSET_SEED_LIMIT = 24
 
 
-app = FastAPI(title="Governance Hub Modern Runtime")
-app.mount("/static", StaticFiles(directory=str(LEGACY_UI_DIR)), name="static")
+app = FastAPI(title="Governance Hub Runtime")
 app.mount(
     "/assets",
     StaticFiles(directory=str(REACT_DIST_DIR / "assets"), check_dir=False),
@@ -81,14 +91,51 @@ app.mount(
 )
 
 
+@app.middleware("http")
+async def request_diagnostics_middleware(request: Request, call_next):
+    request_id = (
+        request.headers.get(CLIENT_REQUEST_ID_HEADER)
+        or request.headers.get(REQUEST_ID_HEADER)
+        or uuid.uuid4().hex
+    ).strip() or uuid.uuid4().hex
+    request.state.http_request_id = request_id
+    request.state.request_started_at = time.time()
+    started_at = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        duration_ms = (time.perf_counter() - started_at) * 1000.0
+        _log_request_event(
+            request,
+            status_code=500,
+            duration_ms=duration_ms,
+            outcome="unhandled_exception",
+            error_type=exc.__class__.__name__,
+            error_detail=str(exc)[:500],
+        )
+        raise
+    duration_ms = (time.perf_counter() - started_at) * 1000.0
+    _set_response_diagnostics_headers(response, request_id, duration_ms)
+    _log_request_event(
+        request,
+        status_code=response.status_code,
+        duration_ms=duration_ms,
+        outcome=(
+            "server_error"
+            if response.status_code >= 500
+            else "client_error"
+            if response.status_code >= 400
+            else "success"
+        ),
+    )
+    return response
+
+
 class _NullGovernanceStore:
     def list_owner_assignments(self) -> pd.DataFrame:
         return pd.DataFrame(
             columns=["uc_full_name", "owner_email", "owner_type", "updated_at", "updated_by"]
         )
-
-    def list_asset_links(self) -> pd.DataFrame:
-        return pd.DataFrame(columns=["uc_full_name", "om_table_fqn", "updated_at", "updated_by"])
 
     def list_change_requests(
         self, status: Optional[str] = None, limit: int = 200
@@ -141,6 +188,55 @@ class _NullGovernanceStore:
                 "updated_by",
             ]
         )
+
+    def list_glossary_term_links(self, **_: Any) -> pd.DataFrame:
+        return pd.DataFrame(
+            columns=[
+                "link_id",
+                "term_id",
+                "term_name",
+                "subject_type",
+                "subject_fqn",
+                "column_name",
+                "is_primary",
+                "source",
+                "source_value",
+                "resolution_state",
+                "created_at",
+                "created_by",
+                "updated_at",
+                "updated_by",
+                "removed_at",
+                "removed_by",
+            ]
+        )
+
+    def list_metadata_audit(self, **_: Any) -> pd.DataFrame:
+        return pd.DataFrame(
+            columns=[
+                "audit_id",
+                "entity_type",
+                "entity_id",
+                "entity_fqn",
+                "column_name",
+                "action",
+                "source",
+                "status",
+                "before_json",
+                "after_json",
+                "request_id",
+                "actor_email",
+                "actor_role",
+                "detail",
+                "created_at",
+                "created_by",
+                "updated_at",
+                "updated_by",
+            ]
+        )
+
+    def list_metadata_audit_log(self, **_: Any) -> pd.DataFrame:
+        return self.list_metadata_audit(**_)
 
     def get_role(self, email: str, admin_emails: Optional[List[str]] = None) -> str:
         return "reader"
@@ -211,7 +307,7 @@ def _uc_runtime_status() -> Dict[str, Any]:
                 "client": _uc().runtime_context() if _uc.cache_info().currsize else {},
             }
 
-    return _ttl_value("modern_uc_runtime_status", 30, _loader)
+    return _ttl_value("runtime_uc_status", 30, _loader)
 
 
 def _store_status() -> Dict[str, str]:
@@ -226,7 +322,7 @@ def _store_status() -> Dict[str, str]:
                 or "Governance control plane is unavailable; falling back to read-only metadata.",
             }
 
-    return _ttl_value("modern_store_status", 60, _loader)
+    return _ttl_value("runtime_store_status", 60, _loader)
 
 
 def _live_runtime_available() -> bool:
@@ -240,11 +336,43 @@ def _store_for_read() -> GovernanceStore | _NullGovernanceStore:
     return _NullGovernanceStore()
 
 
-def _allow_demo_fallback() -> bool:
-    if not _normalize_str(os.getenv("DATABRICKS_WAREHOUSE_ID")):
-        return True
-    raw = _normalize_str(os.getenv("GOVHUB_ALLOW_DEMO_FALLBACK"))
-    return raw.lower() in {"1", "true", "yes"}
+def _safe_unquote(value: str) -> str:
+    try:
+        return unquote(value)
+    except Exception:
+        return value
+
+
+def _route_context(request: Request) -> Dict[str, str]:
+    params = request.query_params
+    requested_asset = _normalize_str(params.get("asset"))
+    requested_surface = _normalize_str(params.get("surface"))
+    requested_module = _normalize_str(params.get("module"))
+    discovery_query = _normalize_str(params.get("q"))
+    segments = [segment for segment in request.url.path.split("/") if segment]
+    if segments:
+        root = _normalize_str(segments[0]).lower()
+        remainder = _safe_unquote("/".join(segments[1:]))
+        if root == "discovery":
+            requested_surface = "discovery"
+            requested_asset = ""
+        elif root == "entity" and remainder:
+            requested_surface = "entity"
+            requested_asset = remainder
+        elif root == "lineage" and remainder:
+            requested_surface = "lineage"
+            requested_asset = remainder
+        elif root in {"governance", "glossary"}:
+            requested_surface = "governance"
+    if requested_surface not in KNOWN_SURFACES:
+        requested_surface = requested_module if requested_module in KNOWN_SURFACES else ""
+    if requested_surface == "discovery":
+        requested_asset = ""
+    return {
+        "surface": requested_surface or "discovery",
+        "asset": requested_asset,
+        "query": discovery_query,
+    }
 
 
 def _user_email(request: Optional[Request]) -> str:
@@ -255,23 +383,194 @@ def _user_email(request: Optional[Request]) -> str:
         or request.headers.get("x-forwarded-preferred-username")
         or ""
     )
-    return email.strip() or "unknown"
+    return email.strip().lower() or "unknown"
 
 
-def _user_role(request: Optional[Request]) -> str:
+def _user_role_slug(request: Optional[Request]) -> str:
     email = _user_email(request)
     if email == "unknown":
-        return "Reader"
+        return "reader"
     store = _store_for_read()
     try:
         role = store.get_role(email, admin_emails=_config().admin_emails)
     except Exception:
-        return "Reader"
-    return (role or "reader").title()
+        return "reader"
+    return (role or "reader").strip().lower() or "reader"
+
+
+def _user_role(request: Optional[Request]) -> str:
+    return _user_role_slug(request).title()
+
+
+def _http_request_id(request: Optional[Request]) -> str:
+    if request is None:
+        return ""
+    request_id = getattr(getattr(request, "state", None), "http_request_id", "")
+    if request_id:
+        return str(request_id).strip()
+    return (
+        request.headers.get(CLIENT_REQUEST_ID_HEADER)
+        or request.headers.get(REQUEST_ID_HEADER)
+        or ""
+    ).strip()
+
+
+def _build_id() -> str:
+    return _config().build_id or APP_VERSION
+
+
+def _set_response_diagnostics_headers(response, request_id: str, duration_ms: float) -> None:
+    response.headers[REQUEST_ID_HEADER] = request_id
+    response.headers[BUILD_ID_HEADER] = _build_id()
+    response.headers[DURATION_HEADER] = f"{duration_ms:.1f}"
+    response.headers["Server-Timing"] = f"app;dur={duration_ms:.1f}"
+
+
+def _log_request_event(
+    request: Request,
+    *,
+    status_code: int,
+    duration_ms: float,
+    outcome: str,
+    error_type: str = "",
+    error_detail: str = "",
+) -> None:
+    if not _config().diagnostics_enabled:
+        return
+    path = str(request.url.path)
+    if path.startswith("/assets/"):
+        return
+    route = _route_context(request)
+    payload = {
+        "event": "http_request",
+        "httpRequestId": _http_request_id(request),
+        "clientRequestId": (request.headers.get(CLIENT_REQUEST_ID_HEADER) or "").strip(),
+        "buildId": _build_id(),
+        "method": request.method,
+        "path": path,
+        "surface": route.get("surface") or "",
+        "asset": route.get("asset") or "",
+        "actorEmail": _user_email(request),
+        "statusCode": int(status_code),
+        "durationMs": round(float(duration_ms), 1),
+        "outcome": outcome,
+        "slow": bool(duration_ms >= max(0, _config().slow_request_ms)),
+    }
+    if error_type:
+        payload["errorType"] = error_type
+    if error_detail:
+        payload["errorDetail"] = error_detail
+    LOGGER.info(json.dumps(payload, sort_keys=True))
+
+
+def _require_actor_email(request: Request) -> str:
+    actor_email = _user_email(request)
+    if actor_email == "unknown":
+        raise HTTPException(
+            status_code=401,
+            detail="A forwarded Databricks user identity is required for metadata mutations.",
+        )
+    return actor_email
+
+
+def _ensure_can_mutate(request: Request) -> str:
+    _ensure_governance_store()
+    actor_email = _require_actor_email(request)
+    actor_role = _user_role_slug(request)
+    if actor_role not in MUTATION_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="This action requires writer, steward, or admin permissions.",
+        )
+    return actor_email
 
 
 def _request_cache_scope(request: Optional[Request]) -> str:
-    return _normalize_str(_user_email(request)) or "shared"
+    email = _normalize_str(_user_email(request))
+    return email if email and email != "unknown" else "anonymous"
+
+
+def _capabilities_payload(
+    request: Optional[Request],
+    *,
+    runtime_status: Optional[Dict[str, Any]] = None,
+    store_status: Optional[Dict[str, Any]] = None,
+    summary: Optional[Dict[str, Any]] = None,
+    boot_message: str = "",
+) -> Dict[str, Dict[str, Any]]:
+    resolved_runtime_status = runtime_status or _uc_runtime_status()
+    resolved_store_status = store_status or (
+        _store_status()
+        if resolved_runtime_status.get("state") == "live"
+        else {
+            "state": "skipped",
+            "message": "Governance store check skipped until the SQL runtime recovers.",
+        }
+    )
+    resolved_summary = summary or {}
+    return capability_service.bootstrap_capabilities(
+        actor_role=_user_role_slug(request) if request is not None else "reader",
+        authenticated=_user_email(request) != "unknown" if request is not None else False,
+        runtime_state=_normalize_str(resolved_runtime_status.get("state")) or "unavailable",
+        runtime_message=_normalize_str(resolved_runtime_status.get("message")),
+        store_state=_normalize_str(resolved_store_status.get("state")) or "unknown",
+        store_message=_normalize_str(resolved_store_status.get("message")),
+        visible_asset_count=int(resolved_summary.get("visibleAssets") or 0),
+        available_catalog_count=int(resolved_summary.get("availableCatalogCount") or 0),
+        observed_catalog_count=int(resolved_summary.get("observedCatalogCount") or 0),
+        boot_message=boot_message,
+    )
+
+
+def _runtime_setup_checks_payload(
+    setup: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    return list(setup.get("checks") or [])
+
+
+def _runtime_diagnostics_payload(
+    request: Optional[Request],
+    *,
+    runtime_status: Dict[str, Any],
+    store_status: Dict[str, Any],
+    summary: Dict[str, Any],
+    capabilities: Dict[str, Dict[str, Any]],
+    boot_message: str = "",
+) -> Dict[str, Any]:
+    setup = runtime_setup_service.setup_payload(
+        runtime_status=runtime_status,
+        store_status=store_status,
+        capabilities=capabilities,
+        warehouse_id=_config().warehouse_id,
+        gov_catalog=_config().gov_catalog,
+        gov_schema=_config().gov_schema,
+        authenticated=_user_email(request) != "unknown",
+        actor_role=_user_role_slug(request),
+        diagnostics_enabled=_config().diagnostics_enabled,
+    )
+    return {
+        "buildId": _build_id(),
+        "diagnosticsEnabled": _config().diagnostics_enabled,
+        "slowRequestMs": _config().slow_request_ms,
+        "httpRequestId": _http_request_id(request),
+        "headers": {
+            "requestId": REQUEST_ID_HEADER,
+            "clientRequestId": CLIENT_REQUEST_ID_HEADER,
+            "buildId": BUILD_ID_HEADER,
+            "durationMs": DURATION_HEADER,
+            "serverTiming": "Server-Timing",
+        },
+        "observedAt": setup.get("observedAt", ""),
+        "staleAfter": setup.get("staleAfter", ""),
+        "setupSummary": setup.get("summary", {}),
+        "setupReadiness": setup.get("readiness", {}),
+        "setupSequence": list(setup.get("setupSequence") or []),
+        "workspaceAccess": setup.get("workspaceAccess", {}),
+        "setupChecks": _runtime_setup_checks_payload(setup),
+        "featureFlags": list(setup.get("featureFlags") or []),
+        "auth": setup.get("auth", {}),
+        "bootMessage": boot_message,
+    }
 
 
 def _inventory() -> pd.DataFrame:
@@ -285,7 +584,7 @@ def _inventory() -> pd.DataFrame:
 def _visible_assets(cache_scope: str = "") -> pd.DataFrame:
     normalized_scope = _normalize_str(cache_scope) or "shared"
     return _ttl_value(
-        f"modern_inventory:{normalized_scope}",
+        f"runtime_inventory:{normalized_scope}",
         10,
         lambda: asset_service.visible_assets(
             _uc(),
@@ -359,13 +658,13 @@ def _invalidate_asset_caches(asset_fqn: str) -> None:
     asset_service.invalidate_asset_caches(asset_fqn)
     lineage_service.invalidate_lineage_caches(asset_fqn)
     governance_service.invalidate_governance_caches()
-    _TTL_CACHE.pop(f"modern_asset:{asset_fqn}", None)
-    _TTL_CACHE.pop(f"modern_lineage:{asset_fqn}", None)
-    _invalidate_cache_prefix("modern_inventory:")
-    _invalidate_cache_prefix("modern_bootstrap_inventory_summary:")
-    _invalidate_cache_prefix("modern_bootstrap_seed_assets:")
-    _invalidate_cache_prefix("modern_bootstrap_base:")
-    _TTL_CACHE.pop("modern_governance", None)
+    _TTL_CACHE.pop(f"runtime_asset:{asset_fqn}", None)
+    _TTL_CACHE.pop(f"runtime_lineage:{asset_fqn}", None)
+    _invalidate_cache_prefix("runtime_inventory:")
+    _invalidate_cache_prefix("runtime_bootstrap_inventory_summary:")
+    _invalidate_cache_prefix("runtime_bootstrap_seed_assets:")
+    _invalidate_cache_prefix("runtime_bootstrap_base:")
+    _TTL_CACHE.pop("runtime_governance", None)
 
 
 def _friendly_table_type(raw: Any, data_source_format: Any = None) -> str:
@@ -674,6 +973,110 @@ def _asset_detail_payload(
     )
 
 
+def _metadata_audit_asset_snapshot(
+    asset_fqn: str,
+    request: Optional[Request] = None,
+) -> Dict[str, Any]:
+    try:
+        payload = _asset_detail_payload(asset_fqn, request=request, sections=["header"])
+    except Exception:
+        return {"fqn": asset_fqn}
+    return {
+        "fqn": payload.get("fqn") or asset_fqn,
+        "description": payload.get("description"),
+        "domain": payload.get("domain"),
+        "tier": payload.get("tier"),
+        "certification": payload.get("certification"),
+        "sensitivity": payload.get("sensitivity"),
+        "criticality": payload.get("criticality"),
+        "dataProduct": payload.get("dataProduct") or payload.get("data_product"),
+        "governanceStatus": payload.get("governanceStatus"),
+        "owners": payload.get("owners") or [],
+        "tagEntries": payload.get("tagEntries") or [],
+    }
+
+
+def _metadata_audit_column_snapshot(
+    asset_fqn: str,
+    column_name: str,
+    request: Optional[Request] = None,
+) -> Dict[str, Any]:
+    try:
+        payload = _asset_detail_payload(asset_fqn, request=request, sections=["schema"])
+    except Exception:
+        return {"assetFqn": asset_fqn, "columnName": column_name}
+    column_records = payload.get("columns") or []
+    column = next(
+        (
+            record
+            for record in column_records
+            if _normalize_str(record.get("name")).lower() == _normalize_str(column_name).lower()
+        ),
+        None,
+    )
+    if not column:
+        return {"assetFqn": asset_fqn, "columnName": column_name}
+    return {
+        "assetFqn": asset_fqn,
+        "columnName": column_name,
+        "description": column.get("description"),
+        "dataType": column.get("type"),
+        "tags": column.get("tags") or [],
+        "glossaryTerm": column.get("glossaryTerm"),
+    }
+
+
+def _record_metadata_audit(
+    *,
+    entity_type: str,
+    action: str,
+    actor_email: str,
+    actor_role: str,
+    entity_fqn: str | None = None,
+    entity_id: str | None = None,
+    column_name: str | None = None,
+    request_id: str | None = None,
+    before: Any = None,
+    after: Any = None,
+    source: str = "api",
+    detail: str | None = None,
+) -> None:
+    try:
+        store = _store()
+        if hasattr(store, "append_metadata_audit_log"):
+            store.append_metadata_audit_log(
+                entity_type=entity_type,
+                action=action,
+                actor_email=actor_email,
+                actor_role=actor_role,
+                entity_fqn=entity_fqn,
+                entity_id=entity_id,
+                column_name=column_name,
+                request_id=request_id,
+                before_json=before,
+                after_json=after,
+                source=source,
+                detail=detail,
+            )
+        else:
+            store.append_metadata_audit(
+                entity_type=entity_type,
+                action=action,
+                actor_email=actor_email,
+                actor_role=actor_role,
+                entity_fqn=entity_fqn,
+                entity_id=entity_id,
+                column_name=column_name,
+                request_id=request_id,
+                before=before,
+                after=after,
+                source=source,
+                detail=detail,
+            )
+    except Exception:
+        return
+
+
 def _preview_records(sample_df: pd.DataFrame) -> List[Dict[str, str]]:
     if sample_df is None or sample_df.empty:
         return []
@@ -756,16 +1159,54 @@ def _build_operational_graph(asset_fqn: str) -> Dict[str, Any]:
     )
 
 
-def _lineage_payload(asset_fqn: str) -> Dict[str, Any]:
-    return lineage_service.lineage_payload(_uc(), _store_for_read(), asset_fqn)
-
-
-def _governance_summary() -> Dict[str, Any]:
-    return governance_service.governance_summary(
+def _lineage_payload(
+    asset_fqn: str,
+    request: Optional[Request] = None,
+) -> Dict[str, Any]:
+    return lineage_service.lineage_payload(
         _uc(),
         _store_for_read(),
+        asset_fqn,
+        cache_scope=_request_cache_scope(request),
+    )
+
+
+def _degraded_governance_payload(message: str) -> Dict[str, Any]:
+    return {
+        "metrics": [],
+        "backlog": [],
+        "glossary": [],
+        "inbox": {
+            "state": "degraded",
+            "message": _normalize_str(message) or "Governance inbox is unavailable while the control plane is degraded.",
+            "unreadCount": 0,
+            "items": [],
+        },
+        "authoritative": False,
+        "provenance": {
+            "source": "delta_control_plane",
+            "authoritative": False,
+            "state": "degraded",
+            "warnings": [message] if _normalize_str(message) else [],
+        },
+    }
+
+
+def _governance_summary(request: Optional[Request] = None) -> Dict[str, Any]:
+    payload = governance_service.governance_summary(
+        _uc(),
+        _store(),
+        actor_email=_user_email(request),
         hidden_catalogs=HIDDEN_CATALOGS,
     )
+    payload["authoritative"] = True
+    payload["provenance"] = {
+        "source": "delta_control_plane",
+        "authoritative": True,
+        "state": "live",
+        "warnings": [],
+    }
+    return payload
 
 
 def _bootstrap_seed_assets(
@@ -882,7 +1323,7 @@ def _bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
         }
 
     return _ttl_value(
-        f"modern_bootstrap_inventory_summary:{normalized_scope}",
+        f"runtime_bootstrap_inventory_summary:{normalized_scope}",
         15,
         load,
     )
@@ -891,7 +1332,7 @@ def _bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
 def _bootstrap_seed_asset_pool(cache_scope: str) -> List[Dict[str, Any]]:
     normalized_scope = _normalize_str(cache_scope) or "shared"
     return _ttl_value(
-        f"modern_bootstrap_seed_assets:{normalized_scope}",
+        f"runtime_bootstrap_seed_assets:{normalized_scope}",
         10,
         lambda: _bootstrap_seed_inventory_assets(_visible_assets(normalized_scope)),
     )
@@ -950,8 +1391,9 @@ def _inventory_option_values(
 
 
 def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
-    selected_fqn = _normalize_str(request.query_params.get("asset"))
-    requested_surface = _normalize_str(request.query_params.get("surface"))
+    route = _route_context(request)
+    selected_fqn = route["asset"]
+    requested_surface = route["surface"]
     if not selected_fqn:
         return None
     selected_asset = _bootstrap_selected_asset_seed(request, selected_fqn)
@@ -961,6 +1403,11 @@ def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
     store_status = _store_status()
     boot_state = "live" if store_status["state"] == "live" else "degraded"
     boot_message = "" if store_status["state"] == "live" else store_status["message"]
+    governance_payload = (
+        _governance_summary(request)
+        if store_status["state"] == "live"
+        else _degraded_governance_payload(store_status["message"])
+    )
     selected_catalog = _normalize_str(selected_asset.get("catalog"))
     selected_domain = _normalize_str(selected_asset.get("domain"))
     selected_tier = _normalize_str(selected_asset.get("tier"))
@@ -971,7 +1418,7 @@ def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
     base_payload = {
         "_assetPool": [selected_asset],
         "payload": {
-            "version": "modern-ui-route-seed-1",
+            "version": "governance-hub-route-seed-1",
             "bootState": boot_state,
             "bootMessage": boot_message,
             "apiBase": "/api",
@@ -1005,7 +1452,7 @@ def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
                     "catalogSnapshot": [selected_catalog] if selected_catalog else [],
                 },
             },
-            "governance": {"metrics": [], "backlog": [], "glossary": []},
+            "governance": governance_payload,
             "help": HELP_ITEMS,
         },
     }
@@ -1024,8 +1471,9 @@ def _compose_bootstrap_payload(
 ) -> Dict[str, Any]:
     payload = base_payload.get("payload", base_payload)
     asset_pool = list(base_payload.get("_assetPool") or payload.get("assets") or [])
-    selected_fqn = request.query_params.get("asset") or (asset_pool[0]["fqn"] if asset_pool else "")
-    requested_surface = _normalize_str(request.query_params.get("surface"))
+    route = _route_context(request)
+    selected_fqn = route["asset"] or (asset_pool[0]["fqn"] if asset_pool else "")
+    requested_surface = route["surface"]
     if selected_fqn and not any(_normalize_str(asset.get("fqn")) == selected_fqn for asset in asset_pool):
         selected_asset = _bootstrap_selected_asset_seed(request, selected_fqn)
         if selected_asset:
@@ -1049,16 +1497,41 @@ def _compose_bootstrap_payload(
         except Exception:
             pass
 
+    summary = dict((payload.get("discovery") or {}).get("summary") or {})
+    runtime_status = _uc_runtime_status()
+    store_status = _store_status() if runtime_status.get("state") == "live" else {
+        "state": "skipped",
+        "message": "Governance store check skipped until the SQL runtime recovers.",
+    }
+    capabilities = _capabilities_payload(
+        request,
+        runtime_status=runtime_status,
+        store_status=store_status,
+        summary=summary,
+        boot_message=_normalize_str(payload.get("bootMessage")),
+    )
+
     return {
         **payload,
         "assets": seeded_assets,
         "assetIndex": asset_index,
         "graphs": seeded_graphs,
         "initialSelection": {"primaryAssetFqn": selected_fqn},
+        "capabilities": capabilities,
+        "diagnostics": _runtime_diagnostics_payload(
+            request,
+            runtime_status=runtime_status,
+            store_status=store_status,
+            summary=summary,
+            capabilities=capabilities,
+            boot_message=_normalize_str(payload.get("bootMessage")),
+        ),
         "shell": {
             "metrics": payload.get("governance", {}).get("metrics", []),
             "role": _user_role(request),
             "userEmail": _user_email(request),
+            "buildId": _build_id(),
+            "diagnosticsEnabled": _config().diagnostics_enabled,
         },
         "apiContract": {
             "bootstrap": "/api/bootstrap",
@@ -1071,6 +1544,7 @@ def _compose_bootstrap_payload(
             "governanceSummary": "/api/governance/summary",
             "glossary": "/api/governance/glossary",
             "governanceRequest": "/api/governance/requests/:id",
+            "governanceNotification": "/api/governance/notifications/:id",
             "governanceGlossaryTerm": "/api/governance/glossary/:id",
             "runtimeStatus": "/api/runtime/status",
         },
@@ -1084,7 +1558,11 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
         store_status = _store_status()
         summary = _bootstrap_inventory_summary(cache_scope)
         seeded_assets = _bootstrap_seed_asset_pool(cache_scope)
-        governance = _governance_summary()
+        governance = (
+            _governance_summary(request)
+            if store_status["state"] == "live"
+            else _degraded_governance_payload(store_status["message"])
+        )
 
         boot_state = "live" if store_status["state"] == "live" else "degraded"
         boot_message = "" if store_status["state"] == "live" else store_status["message"]
@@ -1096,7 +1574,7 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
         return {
             "_assetPool": seeded_assets,
             "payload": {
-                "version": "modern-ui-live-5",
+                "version": APP_VERSION,
                 "bootState": boot_state,
                 "bootMessage": boot_message,
                 "apiBase": "/api",
@@ -1129,7 +1607,7 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
             },
         }
 
-    base_payload = _ttl_value(f"modern_bootstrap_base:{cache_scope}", 10, load_base)
+    base_payload = _ttl_value(f"runtime_bootstrap_base:{cache_scope}", 10, load_base)
     return _compose_bootstrap_payload(request, base_payload)
 
 
@@ -1140,6 +1618,20 @@ def _ensure_live_runtime() -> None:
             status_code=503,
             detail=status.get("message") or "Live Databricks runtime is not available.",
         )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if str(request.url.path).startswith("/api/"):
+        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    return HTMLResponse(str(exc.detail), status_code=exc.status_code)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, _exc: Exception):
+    if str(request.url.path).startswith("/api/"):
+        return JSONResponse({"detail": "Internal server error."}, status_code=500)
+    return HTMLResponse("Internal server error.", status_code=500)
 
 
 def _ensure_governance_store() -> GovernanceStore:
@@ -1172,7 +1664,6 @@ class AssetMetadataPatch(BaseModel):
     certification: Optional[str] = None
     sensitivity: Optional[str] = None
     criticality: Optional[str] = None
-    glossaryTerm: Optional[str] = None
     dataProduct: Optional[str] = None
     freeformTags: Optional[Dict[str, str]] = None
 
@@ -1203,6 +1694,10 @@ class GovernanceRequestStatusPatch(BaseModel):
     reviewNote: str = ""
 
 
+class GovernanceNotificationPatch(BaseModel):
+    action: str
+
+
 class GlossaryTermUpsert(BaseModel):
     termId: str = ""
     name: str
@@ -1227,6 +1722,11 @@ class GlossaryTermUpsert(BaseModel):
             elif isinstance(item, dict):
                 coerced.append(item)
         return coerced
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _normalize_status(cls, value: Any) -> str:
+        return governance_service.normalize_glossary_term_status(value)
 
 
 def _normalized_tag_map(df: pd.DataFrame) -> Dict[str, str]:
@@ -1326,7 +1826,6 @@ def _apply_asset_metadata(
         "certification": payload.certification,
         "sensitivity": payload.sensitivity,
         "criticality": payload.criticality,
-        "glossary_term": payload.glossaryTerm,
         "data_product": payload.dataProduct,
     }
     for key, raw_value in structured.items():
@@ -1365,6 +1864,7 @@ def _apply_column_tags(
     tags: Dict[str, str],
     *,
     table_type: str = "",
+    updated_by: str = "unknown",
 ) -> Dict[str, str]:
     catalog, schema, table = _split_uc_name(asset_fqn)
     normalized_tags = {
@@ -1397,7 +1897,19 @@ def _apply_column_tags(
             to_set,
             table_type=table_type,
         )
-    return _normalized_tag_map(_uc().get_column_tags(catalog, schema, table, column_name))
+    applied_tags = _normalized_tag_map(_uc().get_column_tags(catalog, schema, table, column_name))
+    store = _store()
+    linked_terms = store.replace_glossary_term_links(
+        subject_type="column",
+        subject_fqn=asset_fqn,
+        column_name=column_name,
+        links=[normalized_tags["glossary_term"]] if normalized_tags.get("glossary_term") else [],
+        updated_by=updated_by,
+        source="uc_tag",
+    )
+    if normalized_tags.get("glossary_term") and not any(link.get("resolutionState") == "linked" for link in linked_terms):
+        applied_tags["glossary_term_resolution"] = "unresolved"
+    return applied_tags
 
 
 def _ensure_asset_column_exists(asset_fqn: str, column_name: str) -> None:
@@ -1436,8 +1948,29 @@ def _bootstrap_unavailable_payload(
 ) -> Dict[str, Any]:
     role = _user_role(request) if request is not None else "Unavailable"
     email = _user_email(request) if request is not None else "offline"
+    capabilities = _capabilities_payload(
+        request,
+        runtime_status={"state": state, "message": message},
+        store_status={
+            "state": "skipped",
+            "message": "Governance store check skipped until the SQL runtime recovers.",
+        },
+        summary={"visibleAssets": 0, "availableCatalogCount": 0, "observedCatalogCount": 0},
+        boot_message=message,
+    )
+    diagnostics = _runtime_diagnostics_payload(
+        request,
+        runtime_status={"state": state, "message": message},
+        store_status={
+            "state": "skipped",
+            "message": "Governance store check skipped until the SQL runtime recovers.",
+        },
+        summary={"visibleAssets": 0, "availableCatalogCount": 0, "observedCatalogCount": 0},
+        capabilities=capabilities,
+        boot_message=message,
+    )
     return {
-        "version": "modern-ui-unavailable-2",
+        "version": "governance-hub-unavailable-2",
         "bootState": state,
         "bootMessage": message,
         "apiBase": "/api",
@@ -1467,11 +2000,25 @@ def _bootstrap_unavailable_payload(
                 "catalogSnapshot": [],
             },
         },
-        "governance": {"metrics": [], "backlog": [], "glossary": []},
+        "governance": {
+            "metrics": [],
+            "backlog": [],
+            "glossary": [],
+            "inbox": {
+                "state": "unavailable",
+                "message": "A forwarded Databricks user identity is required for a personal governance inbox.",
+                "unreadCount": 0,
+                "items": [],
+            },
+        },
+        "capabilities": capabilities,
+        "diagnostics": diagnostics,
         "shell": {
             "metrics": [],
             "role": role,
             "userEmail": email,
+            "buildId": _build_id(),
+            "diagnosticsEnabled": _config().diagnostics_enabled,
         },
         "apiContract": {
             "bootstrap": "/api/bootstrap",
@@ -1482,6 +2029,7 @@ def _bootstrap_unavailable_payload(
             "assetColumnMetadataUpdate": "/api/assets/:fqn/columns/:column/metadata",
             "lineage": "/api/lineage/:fqn",
             "governanceSummary": "/api/governance/summary",
+            "governanceNotification": "/api/governance/notifications/:id",
             "glossary": "/api/governance/glossary",
             "runtimeStatus": "/api/runtime/status",
         },
@@ -1500,7 +2048,7 @@ def _ensure_react_bundle() -> Path:
     if index_path.exists() and assets_dir.exists():
         return index_path
     raise RuntimeError(
-        "The workspace bundle is missing. Build frontend/dist before running the JS workspace."
+        "The packaged React workspace bundle is missing. Build the frontend and deploy from a packaged directory."
     )
 
 
@@ -1524,7 +2072,7 @@ def _inject_bootstrap(html_text: str, payload: Optional[Dict[str, Any]]) -> str:
 
 def _cached_bootstrap_seed(request: Request) -> Optional[Dict[str, Any]]:
     cache_scope = _request_cache_scope(request)
-    cached = _TTL_CACHE.get(f"modern_bootstrap_base:{cache_scope}")
+    cached = _TTL_CACHE.get(f"runtime_bootstrap_base:{cache_scope}")
     if not cached:
         return None
     cached_at, base_payload = cached
@@ -1554,8 +2102,8 @@ def _render_index(live_payload: Optional[Dict[str, Any]] = None) -> str:
   <body>
     <div class="card">
       <h1>Workspace bundle is missing</h1>
-      <p>The app is running in <code>GOVHUB_APP_MODE=modern</code>, but the compiled frontend assets were not found.</p>
-      <p>Build <code>frontend/dist</code> with <code>npm install</code> and <code>npm run build</code> inside <code>frontend/</code>, then redeploy.</p>
+      <p>The packaged frontend assets were not found in the deployed workspace bundle.</p>
+      <p>Build <code>frontend/dist</code> in CI or a predeploy packaging step, then deploy from that packaged directory.</p>
       <p>Runtime detail: {json.dumps(_normalize_str(exc) or 'unknown error')}</p>
     </div>
   </body>
@@ -1567,9 +2115,8 @@ def _render_unavailable_index(message: str) -> str:
     return _render_index(_bootstrap_unavailable_payload(None, message))
 
 
-@app.get("/", response_class=HTMLResponse)
-def index(request: Request) -> HTMLResponse:
-    cached_status = _TTL_CACHE.get("modern_uc_runtime_status")
+def _spa_shell_response(request: Request) -> HTMLResponse:
+    cached_status = _TTL_CACHE.get("runtime_uc_status")
     if cached_status:
         _, runtime_status = cached_status
         if runtime_status.get("state") == "unavailable":
@@ -1584,10 +2131,11 @@ def index(request: Request) -> HTMLResponse:
                 status_code=200,
             )
     try:
+        route = _route_context(request)
         seeded_payload = _cached_bootstrap_seed(request)
         if seeded_payload is None:
-            requested_asset = _normalize_str(request.query_params.get("asset"))
-            requested_surface = _normalize_str(request.query_params.get("surface"))
+            requested_asset = route["asset"]
+            requested_surface = route["surface"]
             if requested_asset:
                 seeded_payload = _cold_route_seed_payload(request)
             elif requested_surface in {"", "discovery"}:
@@ -1604,6 +2152,11 @@ def index(request: Request) -> HTMLResponse:
             ),
             status_code=200,
         )
+
+
+@app.get("/", response_class=HTMLResponse)
+def index(request: Request) -> HTMLResponse:
+    return _spa_shell_response(request)
 
 
 @app.get("/api/bootstrap")
@@ -1631,22 +2184,46 @@ def api_bootstrap(request: Request) -> JSONResponse:
 
 
 @app.get("/api/runtime/status")
-def api_runtime_status() -> JSONResponse:
+def api_runtime_status(request: Request) -> JSONResponse:
     runtime_status = _uc_runtime_status()
     store_status = _store_status() if runtime_status.get("state") == "live" else {
         "state": "skipped",
         "message": "Governance store check skipped until the SQL runtime recovers.",
     }
+    summary = (
+        _bootstrap_inventory_summary(_request_cache_scope(request))
+        if runtime_status.get("state") == "live"
+        else {"visibleAssets": 0, "availableCatalogCount": 0, "observedCatalogCount": 0}
+    )
+    capabilities = _capabilities_payload(
+        request,
+        runtime_status=runtime_status,
+        store_status=store_status,
+        summary=summary,
+    )
     payload = {
         "runtime": runtime_status,
         "store": store_status,
+        "capabilities": capabilities,
         "config": {
-            "appMode": _normalize_str(os.getenv("GOVHUB_APP_MODE")) or "modern",
             "warehouseId": _normalize_str(os.getenv("DATABRICKS_WAREHOUSE_ID")),
             "govCatalog": _normalize_str(os.getenv("GOVHUB_CATALOG")),
             "govSchema": _normalize_str(os.getenv("GOVHUB_SCHEMA")),
             "adminEmailsConfigured": bool(_config().admin_emails),
         },
+        "identity": {
+            "actorEmail": _user_email(request),
+            "actorRole": _user_role(request),
+            "authenticatedUserPresent": _user_email(request) != "unknown",
+            "source": "x-forwarded-email | x-forwarded-preferred-username",
+        },
+        "diagnostics": _runtime_diagnostics_payload(
+            request,
+            runtime_status=runtime_status,
+            store_status=store_status,
+            summary=summary,
+            capabilities=capabilities,
+        ),
     }
     return JSONResponse(payload)
 
@@ -1727,15 +2304,30 @@ def api_patch_column_description(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    _ensure_governance_store()
+    actor_email = _ensure_can_mutate(request)
+    actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     _ensure_asset_column_exists(asset_fqn, column_name)
+    before = _metadata_audit_column_snapshot(asset_fqn, column_name, request)
     governance_service.patch_column_description(
         _uc(),
         asset_fqn=asset_fqn,
         column_name=column_name,
         description=payload.description or "",
+    )
+    after = _metadata_audit_column_snapshot(asset_fqn, column_name, request)
+    _record_metadata_audit(
+        entity_type="column",
+        action="column-description-updated",
+        actor_email=actor_email,
+        actor_role=actor_role,
+        entity_fqn=asset_fqn,
+        entity_id=asset_fqn,
+        column_name=column_name,
+        before=before,
+        after=after,
+        detail=payload.description or "",
     )
     return JSONResponse(
         {
@@ -1756,9 +2348,12 @@ def api_patch_column_tags(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
+    actor_email = _ensure_can_mutate(request)
+    actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     _ensure_asset_column_exists(asset_fqn, column_name)
+    before = _metadata_audit_column_snapshot(asset_fqn, column_name, request)
     requested = {
         _normalize_str(key): _normalize_str(value)
         for key, value in (payload.tags or {}).items()
@@ -1769,8 +2364,22 @@ def api_patch_column_tags(
         column_name,
         payload.tags,
         table_type=_asset_table_type(asset_fqn),
+        updated_by=actor_email,
     )
     _invalidate_asset_caches(asset_fqn)
+    after = _metadata_audit_column_snapshot(asset_fqn, column_name, request)
+    _record_metadata_audit(
+        entity_type="column",
+        action="column-tags-updated",
+        actor_email=actor_email,
+        actor_role=actor_role,
+        entity_fqn=asset_fqn,
+        entity_id=asset_fqn,
+        column_name=column_name,
+        before=before,
+        after=after,
+        detail=", ".join(f"{key}={value}" for key, value in requested.items()),
+    )
     return JSONResponse(
         {
             "ok": True,
@@ -1791,16 +2400,31 @@ def api_patch_column_metadata(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    _ensure_governance_store()
+    actor_email = _ensure_can_mutate(request)
+    actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     _ensure_asset_column_exists(asset_fqn, column_name)
+    before = _metadata_audit_column_snapshot(asset_fqn, column_name, request)
     applied = governance_service.patch_column_metadata(
         _uc(),
         asset_fqn=asset_fqn,
         column_name=column_name,
         description=payload.description or "",
         tags=payload.tags,
+    )
+    after = _metadata_audit_column_snapshot(asset_fqn, column_name, request)
+    _record_metadata_audit(
+        entity_type="column",
+        action="column-metadata-updated",
+        actor_email=actor_email,
+        actor_role=actor_role,
+        entity_fqn=asset_fqn,
+        entity_id=asset_fqn,
+        column_name=column_name,
+        before=before,
+        after=after,
+        detail=payload.description or "",
     )
     return JSONResponse(
         {
@@ -1822,13 +2446,27 @@ def api_patch_asset_description(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    _ensure_governance_store()
+    actor_email = _ensure_can_mutate(request)
+    actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    before = _metadata_audit_asset_snapshot(asset_fqn, request)
     governance_service.patch_asset_description(
         _uc(),
         asset_fqn=asset_fqn,
         description=payload.description or "",
+    )
+    after = _metadata_audit_asset_snapshot(asset_fqn, request)
+    _record_metadata_audit(
+        entity_type="asset",
+        action="asset-description-updated",
+        actor_email=actor_email,
+        actor_role=actor_role,
+        entity_fqn=asset_fqn,
+        entity_id=asset_fqn,
+        before=before,
+        after=after,
+        detail=payload.description or "",
     )
     return JSONResponse(
         {
@@ -1836,7 +2474,7 @@ def api_patch_asset_description(
             "fqn": asset_fqn,
             "description": payload.description or "",
             "asset": _asset_detail_payload(asset_fqn, request=request),
-            "governance": _governance_summary(),
+            "governance": _governance_summary(request),
         }
     )
 
@@ -1848,15 +2486,30 @@ def api_patch_asset_metadata(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
+    actor_email = _ensure_can_mutate(request)
+    actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    before = _metadata_audit_asset_snapshot(asset_fqn, request)
     asset, warning = _apply_asset_metadata(asset_fqn, payload, request=request)
+    after = _metadata_audit_asset_snapshot(asset_fqn, request)
+    _record_metadata_audit(
+        entity_type="asset",
+        action="asset-metadata-updated",
+        actor_email=actor_email,
+        actor_role=actor_role,
+        entity_fqn=asset_fqn,
+        entity_id=asset_fqn,
+        before=before,
+        after=after,
+        detail=payload.description or "",
+    )
     return JSONResponse(
         {
             "ok": True,
             "fqn": asset_fqn,
             "asset": asset,
-            "governance": _governance_summary(),
+            "governance": _governance_summary(request),
             "warning": warning,
         }
     )
@@ -1869,22 +2522,25 @@ def api_patch_asset_owners(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    store = _ensure_governance_store()
+    actor_email = _ensure_can_mutate(request)
+    actor_role = _user_role_slug(request)
+    store = _store()
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     governance_service.patch_asset_owners(
         store,
         asset_fqn=asset_fqn,
         owner_assignments=[owner.model_dump() for owner in payload.owners],
-        updated_by=_user_email(request),
+        updated_by=actor_email,
         replace=True,
+        actor_role=actor_role,
     )
     return JSONResponse(
         {
             "ok": True,
             "fqn": asset_fqn,
             "asset": _asset_detail_payload(asset_fqn, request=request),
-            "governance": _governance_summary(),
+            "governance": _governance_summary(request),
         }
     )
 
@@ -1896,8 +2552,11 @@ def api_patch_asset_tags(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
+    actor_email = _ensure_can_mutate(request)
+    actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+    before = _metadata_audit_asset_snapshot(asset_fqn, request)
     requested = {
         _normalize_str(key): _normalize_str(value)
         for key, value in (payload.tags or {}).items()
@@ -1909,6 +2568,18 @@ def api_patch_asset_tags(
         table_type=_asset_table_type(asset_fqn),
     )
     _invalidate_asset_caches(asset_fqn)
+    after = _metadata_audit_asset_snapshot(asset_fqn, request)
+    _record_metadata_audit(
+        entity_type="asset",
+        action="asset-tags-updated",
+        actor_email=actor_email,
+        actor_role=actor_role,
+        entity_fqn=asset_fqn,
+        entity_id=asset_fqn,
+        before=before,
+        after=after,
+        detail=", ".join(f"{key}={value}" for key, value in requested.items()),
+    )
     return JSONResponse(
         {
             "ok": True,
@@ -1923,7 +2594,7 @@ def api_patch_asset_tags(
 @app.get("/api/lineage/{asset_fqn:path}")
 def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
     _ensure_live_runtime()
-    payload = _lineage_payload(asset_fqn)
+    payload = _lineage_payload(asset_fqn, request=request)
     stats = payload.get("stats") or {}
     column_lineage = payload.get("columnLineage") or {}
     has_lineage_context = any(
@@ -1941,21 +2612,52 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
 
 
 @app.get("/api/governance/summary")
-def api_governance_summary() -> JSONResponse:
+def api_governance_summary(request: Request) -> JSONResponse:
     _ensure_live_runtime()
-    return JSONResponse(_governance_summary())
+    _ensure_governance_store()
+    return JSONResponse(_governance_summary(request))
 
 
 @app.get("/api/governance/glossary")
-def api_governance_glossary() -> JSONResponse:
+def api_governance_glossary(request: Request) -> JSONResponse:
     _ensure_live_runtime()
-    return JSONResponse({"glossary": _governance_summary()["glossary"]})
+    _ensure_governance_store()
+    store = _store()
+    actor_email = _user_email(request)
+    return JSONResponse(
+        {
+            "glossary": governance_service.glossary_terms(
+                _uc(),
+                store,
+                actor_email=actor_email,
+            )
+        }
+    )
+
+
+@app.get("/api/governance/glossary/{term_id}")
+def api_governance_glossary_term(term_id: str, request: Request) -> JSONResponse:
+    _ensure_live_runtime()
+    _ensure_governance_store()
+    store = _store()
+    actor_email = _user_email(request)
+    term = governance_service.glossary_term_detail(
+        _uc(),
+        store,
+        term_id=_normalize_str(term_id),
+        actor_email=actor_email,
+    )
+    if not term:
+        raise HTTPException(status_code=404, detail="Glossary term not found.")
+    return JSONResponse({"term": term})
 
 
 @app.post("/api/governance/requests")
 async def api_governance_create_request(request: Request) -> JSONResponse:
     _ensure_live_runtime()
-    store = _ensure_governance_store()
+    actor_email = _ensure_can_mutate(request)
+    actor_role = _user_role_slug(request)
+    store = _store()
     payload = await request.json()
     asset_fqn = _normalize_str(payload.get("assetFqn"))
     title = _normalize_str(payload.get("title"))
@@ -1966,17 +2668,18 @@ async def api_governance_create_request(request: Request) -> JSONResponse:
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     request_id = governance_service.create_change_request(
         store,
-        created_by=_user_email(request),
+        created_by=actor_email,
         asset_fqn=asset_fqn,
         title=title,
         note=note,
+        actor_role=actor_role,
     )
     return JSONResponse(
         {
             "ok": True,
             "requestId": request_id,
             "asset": _asset_detail_payload(asset_fqn, request=request),
-            "governance": _governance_summary(),
+            "governance": _governance_summary(request),
         }
     )
 
@@ -1988,7 +2691,9 @@ def api_governance_patch_request(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    store = _ensure_governance_store()
+    actor_email = _ensure_can_mutate(request)
+    actor_role = _user_role_slug(request)
+    store = _store()
     change_request = store.get_change_request(request_id)
     if change_request is None:
         raise HTTPException(status_code=404, detail="Request not found.")
@@ -1998,8 +2703,9 @@ def api_governance_patch_request(
     store.set_request_status(
         request_id=request_id,
         status=status,
-        reviewed_by=_user_email(request),
+        reviewed_by=actor_email,
         review_note=_normalize_str(payload.reviewNote) or None,
+        actor_role=actor_role,
     )
     if change_request.uc_full_name:
         _invalidate_asset_caches(change_request.uc_full_name)
@@ -2015,7 +2721,37 @@ def api_governance_patch_request(
             "ok": True,
             "requestId": request_id,
             "asset": asset_payload,
-            "governance": _governance_summary(),
+            "governance": _governance_summary(request),
+        }
+    )
+
+
+@app.patch("/api/governance/notifications/{notification_id}")
+def api_governance_patch_notification(
+    notification_id: str,
+    payload: GovernanceNotificationPatch,
+    request: Request,
+) -> JSONResponse:
+    _ensure_live_runtime()
+    _ensure_governance_store()
+    actor_email = _require_actor_email(request)
+    action = _normalize_str(payload.action).lower()
+    if action not in {"seen", "read", "dismiss"}:
+        raise HTTPException(status_code=400, detail="action must be seen, read, or dismiss.")
+    try:
+        _store().update_notification_receipt(
+            notification_id=notification_id,
+            recipient_email=actor_email,
+            action=action,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    governance_service.invalidate_governance_caches()
+    return JSONResponse(
+        {
+            "ok": True,
+            "notificationId": _normalize_str(notification_id),
+            "governance": _governance_summary(request),
         }
     )
 
@@ -2023,7 +2759,9 @@ def api_governance_patch_request(
 @app.post("/api/governance/owners")
 async def api_governance_upsert_owner(request: Request) -> JSONResponse:
     _ensure_live_runtime()
-    store = _ensure_governance_store()
+    actor_email = _ensure_can_mutate(request)
+    actor_role = _user_role_slug(request)
+    store = _store()
     payload = await request.json()
     asset_fqn = _normalize_str(payload.get("assetFqn"))
     owner_email = _normalize_str(payload.get("ownerEmail")).lower()
@@ -2037,13 +2775,14 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
         asset_fqn=asset_fqn,
         owner_email=owner_email,
         owner_type=owner_type,
-        updated_by=_user_email(request),
+        updated_by=actor_email,
+        actor_role=actor_role,
     )
     return JSONResponse(
         {
             "ok": True,
             "asset": _asset_detail_payload(asset_fqn, request=request),
-            "governance": _governance_summary(),
+            "governance": _governance_summary(request),
         }
     )
 
@@ -2054,13 +2793,15 @@ def api_governance_upsert_glossary(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    store = _ensure_governance_store()
+    actor_email = _ensure_can_mutate(request)
+    actor_role = _user_role_slug(request)
+    store = _store()
     term_id = _normalize_str(payload.termId) or uuid.uuid4().hex[:12]
     name = _normalize_str(payload.name)
     definition = _normalize_str(payload.definition)
     domain = _normalize_str(payload.domain)
     owner_email = _normalize_str(payload.ownerEmail).lower()
-    status = (_normalize_str(payload.status) or "draft").lower()
+    status = governance_service.normalize_glossary_term_status(payload.status)
     if not name:
         raise HTTPException(status_code=400, detail="name is required.")
     version = governance_service.upsert_glossary_term(
@@ -2071,11 +2812,25 @@ def api_governance_upsert_glossary(
         owner_email=owner_email,
         status=status,
         store=store,
-        updated_by=_user_email(request),
+        updated_by=actor_email,
         reviewers=payload.reviewers,
         change_note=_normalize_str(payload.changeNote) or None,
+        actor_role=actor_role,
     )
-    return JSONResponse({"ok": True, "termId": term_id, "version": version, "governance": _governance_summary()})
+    return JSONResponse(
+        {
+            "ok": True,
+            "termId": term_id,
+            "term": governance_service.glossary_term_detail(
+                _uc(),
+                store,
+                term_id=term_id,
+                actor_email=_user_email(request),
+            ),
+            "version": version,
+            "governance": _governance_summary(request),
+        }
+    )
 
 
 @app.patch("/api/governance/glossary/{term_id}")
@@ -2085,7 +2840,9 @@ def api_governance_patch_glossary(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    store = _ensure_governance_store()
+    actor_email = _ensure_can_mutate(request)
+    actor_role = _user_role_slug(request)
+    store = _store()
     normalized_term_id = _normalize_str(term_id)
     name = _normalize_str(payload.name)
     if not name:
@@ -2096,10 +2853,35 @@ def api_governance_patch_glossary(
         definition=_normalize_str(payload.definition),
         domain=_normalize_str(payload.domain),
         owner_email=_normalize_str(payload.ownerEmail).lower(),
-        status=(_normalize_str(payload.status) or "draft").lower(),
+        status=governance_service.normalize_glossary_term_status(payload.status),
         store=store,
-        updated_by=_user_email(request),
+        updated_by=actor_email,
         reviewers=payload.reviewers,
         change_note=_normalize_str(payload.changeNote) or None,
+        actor_role=actor_role,
     )
-    return JSONResponse({"ok": True, "termId": normalized_term_id, "version": version, "governance": _governance_summary()})
+    return JSONResponse(
+        {
+            "ok": True,
+            "termId": normalized_term_id,
+            "term": governance_service.glossary_term_detail(
+                _uc(),
+                store,
+                term_id=normalized_term_id,
+                actor_email=_user_email(request),
+            ),
+            "version": version,
+            "governance": _governance_summary(request),
+        }
+    )
+
+
+@app.get("/{client_path:path}", response_class=HTMLResponse, include_in_schema=False)
+def client_route_shell(client_path: str, request: Request) -> HTMLResponse:
+    normalized = _normalize_str(client_path)
+    if not normalized:
+        return _spa_shell_response(request)
+    root = normalized.split("/", 1)[0].lower()
+    if root in CLIENT_ROUTE_PREFIXES:
+        return _spa_shell_response(request)
+    raise HTTPException(status_code=404, detail="Not found.")

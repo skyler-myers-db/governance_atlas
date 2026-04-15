@@ -202,11 +202,42 @@ def build_inventory(uc, store, hidden_catalogs: Sequence[str], is_skippable_meta
     inventory["criticality"] = inventory["tags"].map(
         lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "criticality")
     )
-    inventory["glossary_term"] = inventory["tags"].map(
+    inventory["glossary_term_tag"] = inventory["tags"].map(
         lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "glossary_term")
     )
     inventory["data_product"] = inventory["tags"].map(
         lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "data_product")
+    )
+
+    glossary_terms_df = pd.DataFrame()
+    glossary_links_df = pd.DataFrame()
+    if store is not None and hasattr(store, "list_glossary_terms"):
+        try:
+            glossary_terms_df = store.list_glossary_terms(limit=500)
+        except Exception:
+            glossary_terms_df = pd.DataFrame()
+    if store is not None and hasattr(store, "list_glossary_term_links"):
+        try:
+            glossary_links_df = store.list_glossary_term_links()
+        except Exception:
+            glossary_links_df = pd.DataFrame()
+    glossary_term_index = glossary_term_lookup(glossary_terms_df)
+    glossary_link_index = glossary_link_lookup(glossary_links_df, glossary_term_index)
+    inventory["glossaryLinks"] = inventory["fqn"].map(
+        lambda fqn: _glossary_terms_for_subject("asset", str(fqn), glossary_link_index) if pd.notna(fqn) else []
+    )
+    inventory["glossaryTerms"] = inventory["glossaryLinks"].map(
+        lambda links: [
+            normalize_str(link.get("term"))
+            for link in links
+            if normalize_str(link.get("term"))
+        ]
+    )
+    inventory["glossary_term"] = inventory.apply(
+        lambda row: normalize_str(row["glossaryTerms"][0])
+        if row.get("glossaryTerms")
+        else normalize_str(row.get("glossary_term_tag")),
+        axis=1,
     )
 
     owners_df = store.list_owner_assignments()
@@ -269,13 +300,6 @@ def build_inventory(uc, store, hidden_catalogs: Sequence[str], is_skippable_meta
         inventory["technical_owner"] = ""
         inventory["steward"] = ""
 
-    links_df = store.list_asset_links()
-    if not links_df.empty:
-        links_df = links_df.rename(columns={"uc_full_name": "fqn", "om_table_fqn": "om_table_fqn"})
-        inventory = inventory.merge(links_df[["fqn", "om_table_fqn"]], on="fqn", how="left")
-    else:
-        inventory["om_table_fqn"] = ""
-
     requests_df = store.list_change_requests(limit=500)
     if not requests_df.empty:
         request_rollup = (
@@ -313,7 +337,6 @@ def build_inventory(uc, store, hidden_catalogs: Sequence[str], is_skippable_meta
         "business_owner",
         "technical_owner",
         "steward",
-        "om_table_fqn",
     ]:
         if col not in inventory.columns:
             inventory[col] = ""
@@ -697,6 +720,13 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
     raw_storage_format = normalize_str(row.get("data_source_format"))
     raw_tags = raw_tag_map(row)
     tag_labels = asset_badges(row)
+    glossary_links = row.get("glossaryLinks")
+    glossary_terms = row.get("glossaryTerms")
+    normalized_glossary_terms = [
+        normalize_str(term.get("term") if isinstance(term, dict) else term)
+        for term in (glossary_terms if isinstance(glossary_terms, list) else [])
+        if normalize_str(term.get("term") if isinstance(term, dict) else term)
+    ]
     return {
         "fqn": normalize_str(row.get("fqn")),
         "name": normalize_str(row.get("table_name")) or normalize_str(row.get("fqn")).split(".")[-1],
@@ -717,6 +747,16 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         "certification": normalize_str(row.get("certification")) or "Unassigned",
         "sensitivity": normalize_str(row.get("sensitivity")) or "Unassigned",
         "criticality": normalize_str(row.get("criticality")) or "Unassigned",
+        "glossaryTerm": (
+            normalized_glossary_terms[0]
+            if normalized_glossary_terms
+            else normalize_str(row.get("glossary_term"))
+            or normalize_str(row.get("glossaryTerm"))
+        ),
+        "glossaryTerms": normalized_glossary_terms,
+        "glossaryLinks": list(glossary_links or []) if isinstance(glossary_links, list) else [],
+        "dataProduct": normalize_str(row.get("data_product")) or normalize_str(row.get("dataProduct")) or "Unassigned",
+        "data_product": normalize_str(row.get("data_product")) or normalize_str(row.get("dataProduct")) or "Unassigned",
         "openRequests": safe_int(row.get("pending_requests")),
         "owners": owner_entries(row),
         "tags": raw_tags,
@@ -725,7 +765,6 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         "preview": [],
         "columns": [],
         "governanceStatus": normalize_str(row.get("governance_status")) or "Needs Work",
-        "omTableFqn": normalize_str(row.get("om_table_fqn")),
     }
 
 
@@ -774,6 +813,7 @@ def exact_identity_row(
     base["sensitivity"] = tag_value(tags, "sensitivity")
     base["criticality"] = tag_value(tags, "criticality")
     base["glossary_term"] = tag_value(tags, "glossary_term")
+    base["glossaryTerm"] = tag_value(tags, "glossary_term")
     base["data_product"] = tag_value(tags, "data_product")
     base.setdefault("governance_status", "Needs Work")
     return pd.Series(base)
@@ -809,6 +849,7 @@ def merge_identity_row(base_row: pd.Series, exact_row: Optional[pd.Series]) -> p
         "sensitivity",
         "criticality",
         "glossary_term",
+        "glossaryTerm",
         "data_product",
     ]:
         if not normalize_str(merged.get(key)) and normalize_str(exact_row.get(key)):
@@ -840,6 +881,8 @@ def discovery_result_haystack(asset: Dict[str, Any]) -> str:
         asset.get("tier"),
         asset.get("certification"),
         asset.get("sensitivity"),
+        asset.get("glossaryTerm"),
+        " ".join(normalize_str(term) for term in asset.get("glossaryTerms", []) if normalize_str(term)),
         asset.get("objectType"),
         " ".join(tag_terms),
         " ".join(
@@ -1280,24 +1323,140 @@ def column_tag_lookup(column_tags_df: pd.DataFrame) -> Dict[str, List[Dict[str, 
     return lookup
 
 
+def glossary_term_lookup(terms_df: pd.DataFrame | None) -> Dict[str, Dict[str, Any]]:
+    if terms_df is None or terms_df.empty:
+        return {}
+    lookup: Dict[str, Dict[str, Any]] = {}
+    for _, row in terms_df.iterrows():
+        term_id = normalize_str(row.get("term_id"))
+        if not term_id:
+            continue
+        lookup[term_id.lower()] = {
+            "termId": term_id,
+            "name": normalize_str(row.get("name")),
+            "definition": normalize_str(row.get("definition")),
+            "domain": normalize_str(row.get("domain")) or "Unassigned",
+            "ownerEmail": normalize_str(row.get("owner_email")) or "Unassigned",
+            "status": normalize_str(row.get("status")).title() or "Draft",
+            "createdAt": normalize_str(row.get("created_at")),
+            "createdBy": normalize_str(row.get("created_by")),
+            "updatedAt": normalize_str(row.get("updated_at")),
+            "updatedBy": normalize_str(row.get("updated_by")),
+        }
+    return lookup
+
+
+def glossary_link_record(
+    row: pd.Series,
+    term_lookup: Dict[str, Dict[str, Any]] | None = None,
+) -> Dict[str, Any]:
+    term_id = normalize_str(row.get("term_id"))
+    term = (term_lookup or {}).get(term_id.lower()) if term_id else None
+    resolution_state = normalize_str(row.get("resolution_state")).lower() or "linked"
+    return {
+        "linkId": normalize_str(row.get("link_id")),
+        "termId": term_id,
+        "term": normalize_str(term.get("name")) if term else "",
+        "definition": normalize_str(term.get("definition")) if term else "",
+        "domain": normalize_str(term.get("domain")) if term else "",
+        "ownerEmail": normalize_str(term.get("ownerEmail")) if term else "",
+        "status": normalize_str(term.get("status")) if term else "",
+        "subjectType": normalize_str(row.get("subject_type")).lower(),
+        "subjectFqn": normalize_str(row.get("subject_fqn")),
+        "columnName": normalize_str(row.get("column_name")),
+        "isPrimary": bool(row.get("is_primary")),
+        "source": normalize_str(row.get("source")).lower() or "manual",
+        "sourceValue": normalize_str(row.get("source_value")),
+        "resolutionState": resolution_state,
+        "createdAt": normalize_str(row.get("created_at")),
+        "createdBy": normalize_str(row.get("created_by")),
+        "updatedAt": normalize_str(row.get("updated_at")),
+        "updatedBy": normalize_str(row.get("updated_by")),
+        "removedAt": normalize_str(row.get("removed_at")),
+        "removedBy": normalize_str(row.get("removed_by")),
+    }
+
+
+def glossary_link_lookup(
+    links_df: pd.DataFrame | None,
+    term_lookup: Dict[str, Dict[str, Any]] | None = None,
+) -> Dict[str, List[Dict[str, Any]]]:
+    if links_df is None or links_df.empty:
+        return {}
+    lookup: Dict[str, List[Dict[str, Any]]] = {}
+    for _, row in links_df.iterrows():
+        if normalize_str(row.get("removed_at")):
+            continue
+        resolution_state = normalize_str(row.get("resolution_state")).lower()
+        if resolution_state and resolution_state not in {"linked", "unresolved"}:
+            continue
+        subject_type = normalize_str(row.get("subject_type")).lower()
+        subject_fqn = normalize_str(row.get("subject_fqn"))
+        if not subject_type or not subject_fqn:
+            continue
+        column_name = normalize_str(row.get("column_name"))
+        key = f"{subject_type}:{subject_fqn}:{column_name}"
+        lookup.setdefault(key, []).append(glossary_link_record(row, term_lookup))
+    for links in lookup.values():
+        links.sort(
+            key=lambda item: (
+                0 if item.get("isPrimary") else 1,
+                normalize_str(item.get("term")).lower(),
+                normalize_str(item.get("termId")).lower(),
+                normalize_str(item.get("createdAt")),
+            )
+        )
+    return lookup
+
+
+def _glossary_terms_for_subject(
+    subject_type: str,
+    subject_fqn: str,
+    link_lookup: Dict[str, List[Dict[str, Any]]],
+    *,
+    column_name: str | None = None,
+) -> List[Dict[str, Any]]:
+    key = f"{normalize_str(subject_type).lower()}:{normalize_str(subject_fqn)}:{normalize_str(column_name)}"
+    return list(link_lookup.get(key, []))
+
+
 def column_records(
     columns_df: pd.DataFrame,
     column_tags_df: Optional[pd.DataFrame] = None,
+    column_links_df: Optional[pd.DataFrame] = None,
+    term_lookup: Optional[Dict[str, Dict[str, Any]]] = None,
+    subject_fqn: str = "",
 ) -> List[Dict[str, Any]]:
     if columns_df is None or columns_df.empty:
         return []
     tag_lookup = column_tag_lookup(column_tags_df)
+    link_lookup = glossary_link_lookup(column_links_df, term_lookup)
     rows: List[Dict[str, Any]] = []
     for _, row in columns_df.head(50).iterrows():
         column_name = normalize_str(row.get("column_name"))
         tags = tag_lookup.get(column_name, [])
-        glossary_term = next(
-            (
-                normalize_str(item.get("value"))
-                for item in tags
-                if normalize_str(item.get("name")).lower() == "glossary_term"
-            ),
-            "",
+        glossary_links = _glossary_terms_for_subject(
+            "column",
+            subject_fqn,
+            link_lookup,
+            column_name=column_name,
+        )
+        glossary_terms = [
+            normalize_str(item.get("term"))
+            for item in glossary_links
+            if normalize_str(item.get("term"))
+        ]
+        glossary_term = (
+            glossary_terms[0]
+            if glossary_terms
+            else next(
+                (
+                    normalize_str(item.get("value"))
+                    for item in tags
+                    if normalize_str(item.get("name")).lower() == "glossary_term"
+                ),
+                "",
+            )
         )
         rows.append(
             {
@@ -1312,6 +1471,8 @@ def column_records(
                     for item in tags
                     if normalize_str(item.get("name"))
                 ],
+                "glossaryLinks": glossary_links,
+                "glossaryTerms": glossary_terms,
                 "glossaryTerm": glossary_term,
             }
         )
@@ -1345,7 +1506,59 @@ def owner_assignment_records(store: Any, asset_fqn: str) -> List[Dict[str, str]]
 
 
 def activity_records(store: Any, asset_fqn: str, limit: int = 20) -> List[Dict[str, str]]:
-    if store is None or not hasattr(store, "list_change_requests"):
+    if store is None:
+        return []
+    if hasattr(store, "list_activity_events"):
+        try:
+            events_df = store.list_activity_events(entity_fqn=asset_fqn, limit=limit)
+        except Exception:
+            events_df = pd.DataFrame()
+        if events_df is not None and not events_df.empty:
+            rows: List[Dict[str, str]] = []
+            for _, row in events_df.iterrows():
+                payload = {}
+                raw_payload = row.get("payload_json")
+                if normalize_str(raw_payload):
+                    try:
+                        parsed = json.loads(str(raw_payload))
+                        if isinstance(parsed, dict):
+                            payload = parsed
+                    except Exception:
+                        payload = {}
+                event_type = normalize_str(row.get("event_type")).lower()
+                resolution_code = normalize_str(payload.get("resolutionCode")).lower()
+                task_status = normalize_str(payload.get("status")).lower()
+                status = "Pending"
+                if resolution_code == "approved" or task_status in {"resolved", "closed"}:
+                    status = "Approved"
+                elif resolution_code == "rejected" or task_status == "rejected":
+                    status = "Rejected"
+                title = {
+                    "comment_created": "Comment added",
+                    "task_created": "Task created",
+                    "task_state_changed": "Task updated",
+                }.get(event_type, "Governance activity")
+                detail = (
+                    normalize_str(payload.get("body"))
+                    or normalize_str(payload.get("title"))
+                    or normalize_str(payload.get("reviewNote"))
+                    or normalize_str(payload.get("status"))
+                    or title
+                )
+                rows.append(
+                    {
+                        "id": normalize_str(row.get("event_id")),
+                        "title": title,
+                        "detail": detail,
+                        "status": status,
+                        "createdAt": normalize_str(row.get("created_at")),
+                        "createdBy": normalize_str(row.get("actor_email"))
+                        or normalize_str(row.get("actor_display_name")),
+                        "reviewNote": normalize_str(payload.get("reviewNote")),
+                    }
+                )
+            return rows
+    if not hasattr(store, "list_change_requests"):
         return []
     try:
         requests_df = store.list_change_requests(limit=200)
@@ -1371,6 +1584,44 @@ def activity_records(store: Any, asset_fqn: str, limit: int = 20) -> List[Dict[s
                 "reviewNote": note,
                 "reviewedAt": normalize_str(row.get("reviewed_at")),
                 "reviewedBy": normalize_str(row.get("reviewed_by")),
+            }
+        )
+    return rows
+
+
+def metadata_audit_records(store: Any, asset_fqn: str, limit: int = 20) -> List[Dict[str, str]]:
+    if store is None:
+        return []
+    try:
+        if hasattr(store, "list_metadata_audit_log"):
+            audit_df = store.list_metadata_audit_log(entity_fqn=asset_fqn, limit=limit)
+        elif hasattr(store, "list_metadata_audit"):
+            audit_df = store.list_metadata_audit(entity_fqn=asset_fqn, limit=limit)
+        else:
+            return []
+    except Exception:
+        return []
+    if audit_df is None or audit_df.empty:
+        return []
+    rows: List[Dict[str, str]] = []
+    for _, row in audit_df.iterrows():
+        rows.append(
+            {
+                "id": normalize_str(row.get("audit_id")),
+                "action": normalize_str(row.get("action")) or "metadata change",
+                "entityType": normalize_str(row.get("entity_type")),
+                "entityId": normalize_str(row.get("entity_id")),
+                "columnName": normalize_str(row.get("column_name")),
+                "status": normalize_str(row.get("status")).title() or "Success",
+                "detail": normalize_str(row.get("detail")),
+                "actorEmail": normalize_str(row.get("actor_email")),
+                "actorRole": normalize_str(row.get("actor_role")),
+                "createdAt": normalize_str(row.get("created_at")),
+                "createdBy": normalize_str(row.get("created_by")),
+                "beforeJson": normalize_str(row.get("before_json")),
+                "afterJson": normalize_str(row.get("after_json")),
+                "requestId": normalize_str(row.get("request_id")),
+                "source": normalize_str(row.get("source")) or "store",
             }
         )
     return rows
@@ -1512,7 +1763,12 @@ def profiler_payload(
         1 for column in columns if normalize_str(column.get("description")) not in {"", "No description"}
     )
     classified_count = sum(1 for column in columns if column.get("tags"))
-    glossary_count = sum(1 for column in columns if normalize_str(column.get("glossaryTerm")))
+    glossary_count = sum(
+        1
+        for column in columns
+        if normalize_str(column.get("glossaryTerm"))
+        or any(normalize_str(term) for term in column.get("glossaryTerms", []))
+    )
     producer_count = len(operational_context.get("producers", []))
     consumer_count = len(operational_context.get("consumers", []))
 
@@ -1638,6 +1894,8 @@ def asset_detail_payload(
         properties_df = pd.DataFrame()
         constraints_df = pd.DataFrame()
         column_tags_df = pd.DataFrame()
+        glossary_terms_df = pd.DataFrame()
+        glossary_links_df = pd.DataFrame()
         operational_upstream_df = pd.DataFrame()
         operational_downstream_df = pd.DataFrame()
         loaded_sections = set(requested_sections)
@@ -1645,6 +1903,7 @@ def asset_detail_payload(
         base["columnCount"] = 0
         base["ownerAssignments"] = []
         base["activity"] = []
+        base["metadataAudit"] = []
         base["tableProperties"] = []
         base["constraints"] = []
         base["customProperties"] = []
@@ -1652,6 +1911,62 @@ def asset_detail_payload(
         base["queries"] = []
         base["usage"] = {"queryCount": 0, "producerCount": 0, "consumerCount": 0}
         base["profiler"] = {"cards": [], "summary": {}}
+
+        try:
+            glossary_terms_df = store.list_glossary_terms(limit=500) if store is not None else pd.DataFrame()
+        except Exception:
+            glossary_terms_df = pd.DataFrame()
+        try:
+            glossary_links_df = (
+                store.list_glossary_term_links() if store is not None and hasattr(store, "list_glossary_term_links") else pd.DataFrame()
+            )
+        except Exception:
+            glossary_links_df = pd.DataFrame()
+        glossary_term_index = glossary_term_lookup(glossary_terms_df)
+        glossary_link_index = glossary_link_lookup(glossary_links_df, glossary_term_index)
+        asset_glossary_links = _glossary_terms_for_subject("asset", base["fqn"], glossary_link_index)
+        fallback_glossary_term = normalize_str(base.get("glossaryTerm"))
+        if not asset_glossary_links and fallback_glossary_term:
+            fallback_term = next(
+                (
+                    term
+                    for term in glossary_term_index.values()
+                    if normalize_str(term.get("name")).lower() == fallback_glossary_term.lower()
+                ),
+                None,
+            )
+            asset_glossary_links = [
+                {
+                    "linkId": "",
+                    "termId": normalize_str(fallback_term.get("termId")) if fallback_term else "",
+                    "term": normalize_str(fallback_term.get("name")) if fallback_term else fallback_glossary_term,
+                    "definition": normalize_str(fallback_term.get("definition")) if fallback_term else "",
+                    "domain": normalize_str(fallback_term.get("domain")) if fallback_term else "",
+                    "ownerEmail": normalize_str(fallback_term.get("ownerEmail")) if fallback_term else "",
+                    "status": normalize_str(fallback_term.get("status")) if fallback_term else "",
+                    "subjectType": "asset",
+                    "subjectFqn": base["fqn"],
+                    "columnName": "",
+                    "isPrimary": True,
+                    "source": "uc_tag",
+                    "sourceValue": fallback_glossary_term,
+                    "resolutionState": "linked",
+                    "createdAt": "",
+                    "createdBy": "",
+                    "updatedAt": "",
+                    "updatedBy": "",
+                    "removedAt": "",
+                    "removedBy": "",
+                }
+            ]
+        base["glossaryLinks"] = asset_glossary_links
+        base["glossaryTerms"] = [
+            normalize_str(link.get("term"))
+            for link in asset_glossary_links
+            if normalize_str(link.get("term"))
+        ]
+        if base["glossaryTerms"]:
+            base["glossaryTerm"] = base["glossaryTerms"][0]
 
         if "header" in loaded_sections:
             try:
@@ -1731,7 +2046,6 @@ def asset_detail_payload(
                     {"key": "certification", "label": "Certification", "type": "text"},
                     {"key": "sensitivity", "label": "Sensitivity", "type": "text"},
                     {"key": "criticality", "label": "Criticality", "type": "text"},
-                    {"key": "glossaryTerm", "label": "Glossary Term", "type": "text"},
                     {"key": "dataProduct", "label": "Data Product", "type": "text"},
                     {
                         "key": "freeformTags",
@@ -1746,6 +2060,7 @@ def asset_detail_payload(
         if "activity" in loaded_sections:
             base["ownerAssignments"] = owner_assignment_records(store, base["fqn"])
             base["activity"] = activity_records(store, base["fqn"])
+            base["metadataAudit"] = metadata_audit_records(store, base["fqn"])
 
         if "schema" in loaded_sections:
             try:
@@ -1761,7 +2076,19 @@ def asset_detail_payload(
                 column_tags_df = uc.get_table_column_tags(catalog, schema, table)
             except Exception:
                 column_tags_df = pd.DataFrame()
-            base["columns"] = column_records(columns_df, column_tags_df)
+            column_links_df = pd.DataFrame()
+            if not glossary_links_df.empty:
+                column_links_df = glossary_links_df[
+                    glossary_links_df["subject_type"].fillna("").astype(str).str.lower().eq("column")
+                    & glossary_links_df["subject_fqn"].fillna("").astype(str).eq(base["fqn"])
+                ].copy()
+            base["columns"] = column_records(
+                columns_df,
+                column_tags_df,
+                column_links_df=column_links_df,
+                term_lookup=glossary_term_index,
+                subject_fqn=base["fqn"],
+            )
             base["columnCount"] = len(base["columns"])
 
         if "preview" in loaded_sections:

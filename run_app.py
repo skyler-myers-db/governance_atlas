@@ -1,48 +1,19 @@
 #!/usr/bin/env python3
-"""Governance Hub launcher.
-
-The modern ASGI runtime is the default. A legacy Streamlit mode remains available
-only for archival/troubleshooting workflows through `GOVHUB_APP_MODE=legacy`.
-"""
+"""Governance Hub launcher."""
 
 from __future__ import annotations
 
 import importlib.util
 import os
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 from typing import Final
 
 
-LEGACY_MODE: Final[str] = "legacy"
-MODERN_MODE: Final[str] = "modern"
-MODERN_ENTRYPOINT: Final[str] = "modern_app:app"
-MODERN_MODULE: Final[str] = "modern_app"
+APP_ENTRYPOINT: Final[str] = "runtime_app:app"
+APP_MODULE: Final[str] = "runtime_app"
 ROOT: Final[Path] = Path(__file__).resolve().parent
-FRONTEND_DIR: Final[Path] = ROOT / "frontend"
-FRONTEND_DIST: Final[Path] = FRONTEND_DIR / "dist" / "index.html"
-
-
-def _normalized_mode() -> str:
-    raw = os.getenv("GOVHUB_APP_MODE", MODERN_MODE).strip().lower()
-    aliases = {
-        "streamlit": LEGACY_MODE,
-        "legacy": LEGACY_MODE,
-        "classic": LEGACY_MODE,
-        "modern": MODERN_MODE,
-        "node": MODERN_MODE,
-        "js": MODERN_MODE,
-        "asgi": MODERN_MODE,
-        "react": MODERN_MODE,
-    }
-    if raw in aliases:
-        return aliases[raw]
-    raise SystemExit(
-        "Unsupported GOVHUB_APP_MODE value "
-        f"{raw!r}. Use {LEGACY_MODE!r} or {MODERN_MODE!r}."
-    )
+FRONTEND_DIST: Final[Path] = ROOT / "frontend" / "dist" / "index.html"
 
 
 def _port() -> str:
@@ -58,48 +29,24 @@ def _exec(cmd: list[str]) -> None:
     os.execvp(cmd[0], cmd)
 
 
-def _run_legacy() -> None:
-    _exec(
-        [
-            "streamlit",
-            "run",
-            "app.py",
-            "--server.address",
-            "0.0.0.0",
-            "--server.port",
-            _port(),
-            "--server.headless",
-            "true",
-            "--browser.gatherUsageStats",
-            "false",
-        ]
-    )
-
-
-def _run_modern() -> None:
-    if importlib.util.find_spec(MODERN_MODULE) is None:
+def _run_runtime() -> None:
+    if importlib.util.find_spec(APP_MODULE) is None:
         raise SystemExit(
-            "GOVHUB_APP_MODE=modern is set, but modern_app.py is not present yet."
+            "Governance Hub runtime is unavailable: backend module runtime_app.py is missing."
         )
     if importlib.util.find_spec("uvicorn") is None:
-        raise SystemExit(
-            "GOVHUB_APP_MODE=modern requires uvicorn to be installed."
-        )
+        raise SystemExit("Governance Hub requires uvicorn to be installed.")
     if not FRONTEND_DIST.exists():
-        npm = shutil.which("npm")
-        if npm and (FRONTEND_DIR / "node_modules").exists():
-            subprocess.run([npm, "run", "build"], cwd=str(FRONTEND_DIR), check=True)
-        if not FRONTEND_DIST.exists():
-            raise SystemExit(
-                "GOVHUB_APP_MODE=modern requires a built React frontend. "
-                "Build frontend/dist before launching modern mode."
-            )
+        raise SystemExit(
+            "Governance Hub requires a packaged React frontend bundle at "
+            "frontend/dist/index.html. Build and package the frontend before launch."
+        )
     _exec(
         [
             sys.executable,
             "-m",
             "uvicorn",
-            MODERN_ENTRYPOINT,
+            APP_ENTRYPOINT,
             "--host",
             "0.0.0.0",
             "--port",
@@ -109,11 +56,7 @@ def _run_modern() -> None:
 
 
 def main() -> None:
-    mode = _normalized_mode()
-    if mode == MODERN_MODE:
-        _run_modern()
-    else:
-        _run_legacy()
+    _run_runtime()
 
 
 if __name__ == "__main__":
