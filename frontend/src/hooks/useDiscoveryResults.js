@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchDiscoverySearch } from "../lib/api";
 
 function requestKey(filters = {}) {
@@ -29,120 +30,69 @@ function canSeedFromBootstrap(filters = {}) {
 }
 
 export function useDiscoveryResults(filters, seededAssets = []) {
-  const initialKey = requestKey(filters);
+  const normalizedFilters = useMemo(
+    () => ({
+      query: String(filters?.query || "").trim(),
+      views: [...(filters?.views || [])].sort(),
+      types: [...(filters?.types || [])].sort(),
+      catalogs: [...(filters?.catalogs || [])].sort(),
+      domains: [...(filters?.domains || [])].sort(),
+      tiers: [...(filters?.tiers || [])].sort(),
+      certifications: [...(filters?.certifications || [])].sort(),
+      sensitivities: [...(filters?.sensitivities || [])].sort(),
+      sortBy: String(filters?.sortBy || ""),
+    }),
+    [
+      filters?.catalogs,
+      filters?.certifications,
+      filters?.domains,
+      filters?.query,
+      filters?.sensitivities,
+      filters?.sortBy,
+      filters?.tiers,
+      filters?.types,
+      filters?.views,
+    ],
+  );
+  const currentRequestKey = requestKey(normalizedFilters);
   const seededSignature = (seededAssets || [])
     .map((asset) => asset?.fqn || "")
     .filter(Boolean)
     .join("|");
-  const [state, setState] = useState({
-    loading: false,
-    error: "",
-    assets: canSeedFromBootstrap(filters) ? seededAssets : [],
-    count: canSeedFromBootstrap(filters) ? seededAssets.length : 0,
-    facets: null,
-    requestKey: initialKey,
-    seededSignature,
-    settled: false,
-    authoritative: false,
+  const seededFallback = useMemo(() => {
+    const useSeeded = canSeedFromBootstrap(normalizedFilters);
+    const assets = useSeeded ? seededAssets : [];
+    return {
+      assets,
+      count: assets.length,
+      facets: null,
+    };
+  }, [normalizedFilters, seededAssets]);
+  const query = useQuery({
+    queryKey: ["discoveryResults", currentRequestKey, seededSignature],
+    queryFn: ({ signal }) =>
+      fetchDiscoverySearch(
+        {
+          ...normalizedFilters,
+          limit: 80,
+        },
+        { signal },
+    ),
+    placeholderData: seededFallback,
   });
+  const usingPlaceholder = query.isPlaceholderData === true;
+  const assets = query.data?.assets || seededFallback.assets;
+  const count = typeof query.data?.count === "number" ? query.data.count : seededFallback.count;
 
-  useEffect(() => {
-    const nextRequestKey = requestKey(filters);
-    const useSeeded = canSeedFromBootstrap(filters);
-    let canceled = false;
-    let timeoutId = 0;
-    let idleId = 0;
-    const fetchResults = () => {
-      if (canceled) return;
-      setState((current) => {
-        const seededFallbackAssets = useSeeded ? seededAssets : [];
-        const sameRequest = current.requestKey === nextRequestKey;
-        return {
-          loading: true,
-          error: "",
-          assets: sameRequest ? current.assets : seededFallbackAssets,
-          count: sameRequest ? current.count : seededFallbackAssets.length,
-          facets: sameRequest ? current.facets : null,
-          requestKey: nextRequestKey,
-          seededSignature,
-          settled: sameRequest ? current.settled : false,
-          authoritative: sameRequest ? current.authoritative : false,
-        };
-      });
-      fetchDiscoverySearch({
-        query: filters.query,
-        views: filters.views,
-        types: filters.types,
-        catalogs: filters.catalogs,
-        domains: filters.domains,
-        tiers: filters.tiers,
-        certifications: filters.certifications,
-        sensitivities: filters.sensitivities,
-        sortBy: filters.sortBy,
-        limit: 80,
-      })
-        .then((payload) => {
-          if (canceled) return;
-          setState({
-            loading: false,
-            error: "",
-            assets: payload.assets || [],
-            count: payload.count || 0,
-            facets: payload.facets || null,
-            requestKey: nextRequestKey,
-            seededSignature,
-            settled: true,
-            authoritative: true,
-          });
-        })
-        .catch((error) => {
-          if (canceled) return;
-          setState((current) => {
-            const fallbackAssets = current.assets?.length
-              ? current.assets
-              : useSeeded
-                ? seededAssets
-                : [];
-            return {
-              loading: false,
-              error: error?.message || "Failed to search metadata assets.",
-              assets: fallbackAssets,
-              count: fallbackAssets.length ? current.count || fallbackAssets.length : 0,
-              facets: current.facets || null,
-              requestKey: nextRequestKey,
-              seededSignature,
-              settled: true,
-              authoritative: false,
-            };
-          });
-        });
-    };
-
-    if (useSeeded && typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
-      idleId = window.requestIdleCallback(fetchResults, { timeout: 2600 });
-    } else {
-      timeoutId = setTimeout(fetchResults, useSeeded ? 540 : 120);
-    }
-
-    return () => {
-      canceled = true;
-      if (typeof window !== "undefined" && idleId && typeof window.cancelIdleCallback === "function") {
-        window.cancelIdleCallback(idleId);
-      }
-      clearTimeout(timeoutId);
-    };
-  }, [
-    filters.catalogs,
-    filters.certifications,
-    filters.domains,
-    filters.query,
+  return {
+    loading: query.isPending || (query.isFetching && usingPlaceholder),
+    error: query.isError ? query.error?.message || "Failed to search metadata assets." : "",
+    assets,
+    count,
+    facets: query.data?.facets || seededFallback.facets,
+    requestKey: currentRequestKey,
     seededSignature,
-    filters.sensitivities,
-    filters.sortBy,
-    filters.tiers,
-    filters.types,
-    filters.views,
-  ]);
-
-  return state;
+    settled: query.isError || (query.isSuccess && !usingPlaceholder),
+    authoritative: query.isSuccess && !usingPlaceholder,
+  };
 }

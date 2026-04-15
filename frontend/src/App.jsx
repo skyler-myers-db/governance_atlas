@@ -3,9 +3,12 @@ import AppFrame from "./components/AppFrame";
 import DiscoveryWorkspace from "./components/DiscoveryWorkspace";
 import EntityWorkspace from "./components/EntityWorkspace";
 import LineageWorkspace from "./components/LineageWorkspace";
+import WorkspaceDiagnosticsSurface from "./components/WorkspaceDiagnosticsSurface";
 import { useAppRouteState } from "./hooks/useAppRouteState";
 import { useBootstrap } from "./hooks/useBootstrap";
-import { normalizeGovernancePayload } from "./lib/api";
+import { useRuntimeStatus } from "./hooks/useRuntimeStatus";
+import { normalizeGovernancePayload, updateGovernanceNotification } from "./lib/api";
+import { diagnosticsRecoveryAvailable, diagnosticsSurfaceAvailable } from "./lib/capabilities";
 
 const GovernanceWorkspace = lazy(() => import("./components/GovernanceWorkspace"));
 
@@ -26,6 +29,49 @@ function mergeAssetGroups(...groups) {
     merged.push(asset);
   });
   return merged;
+}
+
+function normalizeInboxState(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function isUnreadInboxState(value) {
+  const normalized = normalizeInboxState(value);
+  return normalized === "new" || normalized === "seen" || normalized === "unread";
+}
+
+function updateGovernanceInbox(governance, notificationId, action) {
+  const normalizedGovernance = normalizeGovernancePayload(governance || {});
+  const inbox = normalizedGovernance?.inbox;
+  if (!inbox?.items?.length || !notificationId) return normalizedGovernance;
+
+  const nextInboxState = action === "dismiss" ? "dismissed" : "read";
+  let changed = false;
+  const items = inbox.items.map((item) => {
+    if (String(item.notificationId || "") !== String(notificationId || "")) return item;
+    if (normalizeInboxState(item.inboxState) === nextInboxState) return item;
+    changed = true;
+    return {
+      ...item,
+      inboxState: nextInboxState,
+    };
+  });
+
+  if (!changed) return normalizedGovernance;
+
+  const unreadCount = items.reduce(
+    (count, item) => count + (isUnreadInboxState(item.inboxState) ? 1 : 0),
+    0,
+  );
+
+  return normalizeGovernancePayload({
+    ...normalizedGovernance,
+    inbox: {
+      ...inbox,
+      items,
+      unreadCount,
+    },
+  });
 }
 
 function bootShell(kicker, title, body) {
@@ -96,7 +142,7 @@ function bootShell(kicker, title, body) {
   );
 }
 
-function unavailableWorkspace(message) {
+function unavailableWorkspace(message, diagnostics = null) {
   return (
     <section className="gh-workspace gh-unavailable-workspace">
       <div className="gh-panel gh-unavailable-panel">
@@ -107,6 +153,7 @@ function unavailableWorkspace(message) {
             "Verify warehouse access, Unity Catalog permissions, and governance configuration, then retry."}
         </p>
       </div>
+      {diagnostics}
     </section>
   );
 }
@@ -123,8 +170,28 @@ function workspaceLoading(title, body) {
   );
 }
 
+function renderWorkspaceDiagnostics(onClose, diagnostics) {
+  return (
+    <section className="gh-workspace gh-diagnostics-workspace">
+      <div className="gh-panel gh-record-card">
+        <div className="gh-record-card-head">
+          <div>
+            <div className="gh-panel-title">Workspace diagnostics</div>
+            <div className="gh-support-copy">
+              Operator-only shell diagnostics. Read-only runtime truth, kept outside the governance workspace.
+            </div>
+          </div>
+          <button className="gh-tertiary-button gh-inline-link-button" onClick={onClose} type="button">
+            Close diagnostics
+          </button>
+        </div>
+        {diagnostics}
+      </div>
+    </section>
+  );
+}
+
 export default function App() {
-  const { loading, error, refreshError, data } = useBootstrap();
   const [navigationState, setNavigationState] = useState({
     pending: false,
     label: "",
@@ -140,9 +207,9 @@ export default function App() {
     authoritative: false,
   });
   const [liveGovernanceState, setLiveGovernanceState] = useState(null);
+  const [shellInboxOpen, setShellInboxOpen] = useState(false);
   const {
     surface,
-    setSurface,
     routeAssetFqn,
     discoveryRouteState,
     setDiscoveryRouteQuery,
@@ -152,6 +219,42 @@ export default function App() {
     openGovernanceWorkspace,
     onModuleChange,
   } = useAppRouteState();
+  const [shellDiagnosticsOpen, setShellDiagnosticsOpen] = useState(false);
+  const {
+    loading,
+    error,
+    refreshError,
+    data,
+    refresh: refreshBootstrap,
+  } = useBootstrap({
+    surface,
+    asset: routeAssetFqn,
+  });
+  const runtimeStatus = useRuntimeStatus({ enabled: !loading });
+  const runtimeStatusRefresh = runtimeStatus.refresh;
+  const diagnosticsSource =
+    runtimeStatus.data?.diagnostics
+      ? {
+          ...(data || {}),
+          shell: data?.shell || {},
+          diagnostics: runtimeStatus.data.diagnostics,
+          identity: runtimeStatus.data.identity || data?.identity || {},
+        }
+      : data;
+  const runtimeRolloutFlags = diagnosticsSource?.diagnostics?.featureFlags || [];
+  const workspaceAccess = diagnosticsSource?.diagnostics?.workspaceAccess || null;
+  const diagnosticsAvailable = diagnosticsSurfaceAvailable(diagnosticsSource);
+  const diagnosticsRecovery = diagnosticsRecoveryAvailable(runtimeStatus.data || diagnosticsSource);
+  const setupReadiness =
+    diagnosticsSource?.diagnostics?.setupReadiness ||
+    diagnosticsSource?.diagnostics?.readiness ||
+    null;
+  const handleDiagnosticsRefresh = useCallback(async () => {
+    await Promise.allSettled([
+      refreshBootstrap?.(),
+      runtimeStatusRefresh?.(),
+    ]);
+  }, [refreshBootstrap, runtimeStatusRefresh]);
   const handleLiveCatalogStateChange = useCallback((nextState) => {
     setLiveDiscoveryState((current) => {
       const nextAuthoritative = nextState.authoritative === true;
@@ -189,8 +292,13 @@ export default function App() {
   }, []);
   const handleGovernanceChange = useCallback((nextGovernance) => {
     if (!nextGovernance) return;
-    setLiveGovernanceState(normalizeGovernancePayload(nextGovernance));
-  }, []);
+    setLiveGovernanceState((current) =>
+      normalizeGovernancePayload({
+        ...nextGovernance,
+        inbox: nextGovernance.inbox || current?.inbox || data?.governance?.inbox || null,
+      }),
+    );
+  }, [data?.governance]);
   const handleNavigationStateChange = useCallback((pending, label = "") => {
     setNavigationState({
       pending: Boolean(pending),
@@ -203,6 +311,8 @@ export default function App() {
     );
   }, []);
   const handleModuleSurfaceChange = useCallback((nextModule) => {
+    setShellDiagnosticsOpen(false);
+    setShellInboxOpen(false);
     const labels = {
       discovery: "Opening discovery…",
       lineage: "Opening lineage…",
@@ -212,13 +322,20 @@ export default function App() {
     onModuleChange(nextModule);
   }, [handleNavigationStateChange, onModuleChange]);
   const handleBrowseCatalog = useCallback((query) => {
+    setShellDiagnosticsOpen(false);
+    setShellInboxOpen(false);
     handleNavigationStateChange(true, query ? "Opening discovery results…" : "Opening discovery…");
     openDiscoveryWorkspace(query, { fresh: true });
   }, [handleNavigationStateChange, openDiscoveryWorkspace]);
 
   useEffect(() => {
     if (data?.governance) {
-      setLiveGovernanceState(normalizeGovernancePayload(data.governance));
+      setLiveGovernanceState((current) =>
+        normalizeGovernancePayload({
+          ...data.governance,
+          inbox: data.governance.inbox || current?.inbox || null,
+        }),
+      );
     }
   }, [data]);
 
@@ -245,6 +362,50 @@ export default function App() {
     };
   }, [navigationState.pending]);
 
+  const shell = data?.shell || {};
+  const governance =
+    liveGovernanceState || data?.governance || { metrics: [], backlog: [], glossary: [], inbox: null };
+  const governanceInbox = governance?.inbox || null;
+
+  useEffect(() => {
+    if (!diagnosticsAvailable) {
+      setShellDiagnosticsOpen(false);
+    }
+  }, [diagnosticsAvailable]);
+
+  useEffect(() => {
+    if (!governanceInbox) {
+      setShellInboxOpen(false);
+    }
+  }, [governanceInbox]);
+
+  const handleToggleInbox = useCallback(() => {
+    if (!governanceInbox || governanceInbox.state === "unavailable") return;
+    setShellDiagnosticsOpen(false);
+    setShellInboxOpen((current) => !current);
+  }, [governanceInbox]);
+
+  const handleToggleDiagnostics = useCallback(() => {
+    setShellInboxOpen(false);
+    setShellDiagnosticsOpen((current) => !current);
+  }, []);
+
+  const handleInboxItemAction = useCallback(async (notificationId, action) => {
+    const previousGovernance = liveGovernanceState || data?.governance || null;
+    if (!previousGovernance) return null;
+    const optimisticGovernance = updateGovernanceInbox(previousGovernance, notificationId, action);
+    setLiveGovernanceState(optimisticGovernance);
+    try {
+      const next = await updateGovernanceNotification(notificationId, { action });
+      const nextGovernance = normalizeGovernancePayload(next?.governance || next);
+      setLiveGovernanceState(nextGovernance);
+      return nextGovernance;
+    } catch (error) {
+      setLiveGovernanceState(normalizeGovernancePayload(previousGovernance));
+      throw error;
+    }
+  }, [data?.governance, liveGovernanceState]);
+
   if (loading) {
     return bootShell(
       "Loading",
@@ -254,10 +415,19 @@ export default function App() {
   }
 
   if (error || !data) {
-    return bootShell(
-      "Workspace Unavailable",
-      "The workspace could not load.",
+    return unavailableWorkspace(
       error || "Bootstrap payload was unavailable.",
+      diagnosticsRecovery ? (
+        <WorkspaceDiagnosticsSurface
+          error={runtimeStatus.error}
+          loading={runtimeStatus.loading}
+          refreshError={runtimeStatus.refreshError}
+          refreshing={runtimeStatus.refreshing}
+          onRefresh={handleDiagnosticsRefresh}
+          status={runtimeStatus.data}
+          title="Setup Diagnostics"
+        />
+      ) : null,
     );
   }
 
@@ -277,7 +447,6 @@ export default function App() {
     Array.isArray(liveDiscoveryState.baselineAssets);
   const currentDiscoveryAssets = hasCurrentDiscoveryTruth ? liveDiscoveryState.assets : [];
   const baselineDiscoveryAssets = hasBaselineDiscoveryTruth ? liveDiscoveryState.baselineAssets : [];
-  const bootstrapHasVisibleAssets = Number(bootstrapVisibleCount || 0) > 0;
   const searchSeedAssets = baselineDiscoveryAssets.length
     ? baselineDiscoveryAssets
     : currentDiscoveryAssets.length
@@ -290,8 +459,6 @@ export default function App() {
   );
   const visibleAssetSet = visibleAssetSetFromGroups(contextSeedAssets);
 
-  const shell = data.shell || {};
-  const governance = liveGovernanceState || data.governance || { metrics: [], backlog: [], glossary: [] };
   const bootState = data.bootState || "live";
   const bootMessage = data.bootMessage || "";
   const effectiveVisibleCount =
@@ -311,10 +478,40 @@ export default function App() {
         : "live";
   const effectiveBootMessage =
     effectiveBootState === "live" && hasRenderableCatalogSeed ? "" : refreshError || bootMessage;
-  let content = unavailableWorkspace(effectiveBootMessage);
+
+  const diagnosticsPanel = shellDiagnosticsOpen
+    ? renderWorkspaceDiagnostics(
+        () => setShellDiagnosticsOpen(false),
+        <WorkspaceDiagnosticsSurface
+          error={runtimeStatus.error}
+          loading={runtimeStatus.loading}
+          refreshError={runtimeStatus.refreshError}
+          refreshing={runtimeStatus.refreshing}
+          onRefresh={handleDiagnosticsRefresh}
+          status={runtimeStatus.data}
+          title="Workspace Setup & Diagnostics"
+        />,
+      )
+    : null;
+  let content = unavailableWorkspace(
+    effectiveBootMessage,
+    (effectiveBootState === "unavailable" || effectiveBootState === "error") && diagnosticsRecovery ? (
+      <WorkspaceDiagnosticsSurface
+        error={runtimeStatus.error}
+        loading={runtimeStatus.loading}
+        refreshError={runtimeStatus.refreshError}
+        refreshing={runtimeStatus.refreshing}
+        onRefresh={handleDiagnosticsRefresh}
+        status={runtimeStatus.data}
+        title="Setup Diagnostics"
+      />
+    ) : null,
+  );
 
   if (effectiveBootState !== "unavailable" && effectiveBootState !== "error") {
-    if (surface === "discovery") {
+    if (shellDiagnosticsOpen && diagnosticsPanel) {
+      content = diagnosticsPanel;
+    } else if (surface === "discovery") {
       content = (
         <Suspense
           fallback={workspaceLoading(
@@ -339,6 +536,8 @@ export default function App() {
             querySeedKey={discoveryRouteState.requestKey}
             onLiveCatalogStateChange={handleLiveCatalogStateChange}
             sharedVisibleAssetSet={visibleAssetSet}
+            runtimeFeatureFlags={runtimeRolloutFlags}
+            workspaceAccess={workspaceAccess}
           />
         </Suspense>
       );
@@ -366,6 +565,8 @@ export default function App() {
               openLineageWorkspace(assetFqn || routeAssetFqn, nextContext)
             }
             onSelectAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
+            runtimeFeatureFlags={runtimeRolloutFlags}
+            workspaceAccess={workspaceAccess}
           />
         </Suspense>
       );
@@ -389,6 +590,8 @@ export default function App() {
             }
             onOpenGovernance={openGovernanceWorkspace}
             onOpenAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
+            runtimeFeatureFlags={runtimeRolloutFlags}
+            workspaceAccess={workspaceAccess}
           />
         </Suspense>
       );
@@ -411,6 +614,7 @@ export default function App() {
             onRouteAssetChange={(assetFqn) => openGovernanceWorkspace(assetFqn || "")}
             onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
             onOpenLineage={openLineageWorkspace}
+            runtimeFeatureFlags={runtimeRolloutFlags}
           />
         </Suspense>
       );
@@ -428,12 +632,24 @@ export default function App() {
       }
       bootMessage={effectiveBootMessage}
       bootState={effectiveBootState}
+      governanceInbox={governanceInbox}
+      inboxOpen={shellInboxOpen}
       liveCatalogVisibleCount={effectiveVisibleCount}
       navigationState={navigationState}
       onBrowseCatalog={handleBrowseCatalog}
       onModuleChange={handleModuleSurfaceChange}
       onNavigationStateChange={handleNavigationStateChange}
-      onSearchResultSelect={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
+      onSearchResultSelect={(assetFqn) => {
+        setShellDiagnosticsOpen(false);
+        setShellInboxOpen(false);
+        openEntityWorkspace(assetFqn, "Overview");
+      }}
+      diagnosticsAvailable={diagnosticsAvailable}
+      diagnosticsStatus={setupReadiness}
+      diagnosticsOpen={shellDiagnosticsOpen}
+      onToggleDiagnostics={handleToggleDiagnostics}
+      onToggleInbox={handleToggleInbox}
+      onInboxItemAction={handleInboxItemAction}
       searchSeedAssets={searchSeedAssets}
       shell={shell}
       visibleAssetSet={visibleAssetSet}

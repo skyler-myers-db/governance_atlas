@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import time
 import uuid
 import json
@@ -15,6 +16,7 @@ from govhub.services import assets as asset_service
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
 _OWNER_TYPES = {"business", "technical", "steward"}
 _ASSET_CLASSIFICATION_TAG_KEYS = {"domain", "tier", "certification", "sensitivity"}
+_GLOSSARY_TERM_STATUSES = {"draft", "in_review", "approved", "rejected", "deprecated"}
 
 
 def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
@@ -87,10 +89,195 @@ def _request_records(requests_df: pd.DataFrame) -> List[Dict[str, Any]]:
     return records
 
 
+def _activity_records(events_df: pd.DataFrame) -> List[Dict[str, Any]]:
+    if events_df is None or events_df.empty:
+        return []
+    title_map = {
+        "comment_created": "Comment added",
+        "task_created": "Task created",
+        "task_state_changed": "Task updated",
+    }
+    records: List[Dict[str, Any]] = []
+    for _, row in events_df.iterrows():
+        event_type = asset_service.normalize_str(row.get("event_type")).lower()
+        payload = {}
+        raw_payload = row.get("payload_json")
+        if asset_service.normalize_str(raw_payload):
+            try:
+                parsed = json.loads(str(raw_payload))
+                if isinstance(parsed, dict):
+                    payload = parsed
+            except Exception:
+                payload = {}
+        resolution_code = asset_service.normalize_str(payload.get("resolutionCode")).lower()
+        task_status = asset_service.normalize_str(payload.get("status")).lower()
+        status = "Pending"
+        if resolution_code == "approved" or task_status in {"resolved", "closed"}:
+            status = "Approved"
+        elif resolution_code == "rejected" or task_status == "rejected":
+            status = "Rejected"
+        detail = (
+            asset_service.normalize_str(payload.get("body"))
+            or asset_service.normalize_str(payload.get("title"))
+            or asset_service.normalize_str(payload.get("reviewNote"))
+            or asset_service.normalize_str(payload.get("status"))
+            or title_map.get(event_type)
+            or "Governance activity"
+        )
+        records.append(
+            {
+                "eventId": asset_service.normalize_str(row.get("event_id")),
+                "eventType": event_type,
+                "assetFqn": asset_service.normalize_str(row.get("entity_fqn_snapshot")),
+                "status": status,
+                "title": title_map.get(event_type, "Governance activity"),
+                "detail": detail,
+                "createdAt": asset_service.normalize_str(row.get("created_at")),
+                "createdBy": asset_service.normalize_str(row.get("actor_email"))
+                or asset_service.normalize_str(row.get("actor_display_name")),
+            }
+        )
+    records.sort(
+        key=lambda item: (
+            asset_service.normalize_str(item.get("createdAt")),
+            asset_service.normalize_str(item.get("eventId")),
+        ),
+        reverse=True,
+    )
+    return records
+
+
+def _inbox_records(notifications_df: pd.DataFrame) -> List[Dict[str, Any]]:
+    if notifications_df is None or notifications_df.empty:
+        return []
+    records: List[Dict[str, Any]] = []
+    for _, row in notifications_df.iterrows():
+        payload = {}
+        raw_payload = row.get("payload_json")
+        if asset_service.normalize_str(raw_payload):
+            try:
+                parsed = json.loads(str(raw_payload))
+                if isinstance(parsed, dict):
+                    payload = parsed
+            except Exception:
+                payload = {}
+        records.append(
+            {
+                "notificationId": asset_service.normalize_str(row.get("notification_id")),
+                "eventId": asset_service.normalize_str(row.get("event_id")),
+                "eventType": asset_service.normalize_str(payload.get("eventType")),
+                "title": asset_service.normalize_str(payload.get("title")) or "Governance notification",
+                "detail": asset_service.normalize_str(payload.get("detail")),
+                "status": asset_service.normalize_str(payload.get("status")),
+                "assetFqn": asset_service.normalize_str(payload.get("assetFqn")),
+                "assetLabel": asset_service.normalize_str(payload.get("assetLabel"))
+                or asset_service.normalize_str(payload.get("assetFqn")),
+                "taskId": asset_service.normalize_str(payload.get("taskId")),
+                "threadId": asset_service.normalize_str(payload.get("threadId")),
+                "createdAt": asset_service.normalize_str(row.get("created_at"))
+                or asset_service.normalize_str(payload.get("createdAt")),
+                "createdBy": asset_service.normalize_str(payload.get("createdBy")),
+                "inboxState": asset_service.normalize_str(row.get("inbox_state")).lower() or "new",
+            }
+        )
+    records.sort(
+        key=lambda item: (
+            asset_service.normalize_str(item.get("createdAt")),
+            asset_service.normalize_str(item.get("notificationId")),
+        ),
+        reverse=True,
+    )
+    return records
+
+
 def _sorted_recent_requests(requests: List[Dict[str, Any]], limit: int = 3) -> List[Dict[str, Any]]:
     if not requests:
         return []
     return requests[:limit]
+
+
+def _request_lane(request_record: Dict[str, Any]) -> str:
+    text = " ".join(
+        [
+            asset_service.normalize_str(request_record.get("title")),
+            asset_service.normalize_str(request_record.get("detail")),
+            asset_service.normalize_str(request_record.get("assetFqn")),
+            asset_service.normalize_str(request_record.get("status")),
+        ]
+    ).lower()
+    if "owner" in text:
+        return "ownership"
+    if any(token in text for token in ("cert", "classif", "sensit", "privacy")):
+        return "classification"
+    if any(token in text for token in ("domain", "tier", "trust")):
+        return "trust"
+    return "open-work"
+
+
+def _queue_summary_from_live_requests(request_records: List[Dict[str, Any]]) -> Dict[str, Any]:
+    lane_counts = {
+        "open-work": 0,
+        "ownership": 0,
+        "classification": 0,
+        "trust": 0,
+    }
+    for request_record in request_records:
+        lane_counts[_request_lane(request_record)] += 1
+    return {
+        "scopeKey": "workspace:default",
+        "source": "live",
+        "laneCounts": lane_counts,
+        "openTaskCount": len(request_records),
+        "observedAt": "",
+        "staleAfter": "",
+    }
+
+
+def _parse_utc_timestamp(value: Any) -> datetime | None:
+    text = asset_service.normalize_str(value)
+    if not text:
+        return None
+    for candidate in (text.replace("Z", "+00:00"), text):
+        try:
+            parsed = datetime.fromisoformat(candidate)
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+        except Exception:
+            continue
+    try:
+        return datetime.strptime(text, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
+def _projection_is_fresh(summary: Dict[str, Any]) -> bool:
+    stale_after = _parse_utc_timestamp(summary.get("staleAfter"))
+    if stale_after is None:
+        return True
+    return stale_after >= datetime.now(timezone.utc)
+
+
+def _glossary_summary_projection_map(projections_df: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
+    if projections_df is None or projections_df.empty:
+        return {}
+    projection_map: Dict[str, Dict[str, Any]] = {}
+    for _, row in projections_df.iterrows():
+        term_id = asset_service.normalize_str(row.get("term_id")) or asset_service.normalize_str(
+            row.get("termId")
+        )
+        if not term_id:
+            continue
+        projection_map[_lookup_key(term_id)] = {
+            "termId": term_id,
+            "assetCount": int(row.get("asset_count") or row.get("assetCount") or 0),
+            "childCount": int(row.get("child_count") or row.get("childCount") or 0),
+            "reviewerCount": int(row.get("reviewer_count") or row.get("reviewerCount") or 0),
+            "observedAt": asset_service.normalize_str(row.get("observed_at"))
+            or asset_service.normalize_str(row.get("observedAt")),
+            "staleAfter": asset_service.normalize_str(row.get("stale_after"))
+            or asset_service.normalize_str(row.get("staleAfter")),
+            "source": "projection",
+        }
+    return projection_map
 
 
 def _reviewer_records(reviewers_df: pd.DataFrame) -> List[Dict[str, Any]]:
@@ -241,10 +428,393 @@ def _relation_table_type(
     return asset_service.normalize_str(identity_df.iloc[0].get("table_type"))
 
 
+def normalize_glossary_term_status(value: Any) -> str:
+    normalized = asset_service.normalize_str(value).lower() or "draft"
+    if normalized not in _GLOSSARY_TERM_STATUSES:
+        allowed = ", ".join(sorted(_GLOSSARY_TERM_STATUSES))
+        raise ValueError(f"Glossary status must be one of: {allowed}.")
+    return normalized
+
+
+def _glossary_rows_from_frames(
+    store: Any,
+    *,
+    inventory: pd.DataFrame,
+    glossary_df: pd.DataFrame,
+    reviewers_df: pd.DataFrame,
+    versions_df: pd.DataFrame,
+    requests_df: pd.DataFrame,
+    glossary_summary_df: pd.DataFrame | None = None,
+) -> List[Dict[str, Any]]:
+    if glossary_df is None or glossary_df.empty:
+        return []
+
+    request_records = _request_records(requests_df)
+    requests_by_asset: Dict[str, List[Dict[str, Any]]] = {}
+    for request_record in request_records:
+        asset_fqn = _lookup_key(request_record.get("assetFqn"))
+        if not asset_fqn:
+            continue
+        requests_by_asset.setdefault(asset_fqn, []).append(request_record)
+
+    glossary_asset_map: Dict[str, List[str]] = {}
+    glossary_asset_preview_map: Dict[str, List[Dict[str, Any]]] = {}
+    glossary_link_source_by_term: Dict[str, str] = {}
+    reviewer_roster_by_term: Dict[str, List[Dict[str, Any]]] = {}
+    version_history_by_term: Dict[str, List[Dict[str, Any]]] = {}
+    child_count_by_term: Dict[str, int] = {}
+    glossary_summary_by_term = _glossary_summary_projection_map(
+        glossary_summary_df if glossary_summary_df is not None else pd.DataFrame()
+    )
+
+    if "parent_term_id" in glossary_df.columns:
+        for parent_term_id, child_rows in glossary_df.groupby("parent_term_id", dropna=False):
+            parent_key = _lookup_key(parent_term_id)
+            if parent_key:
+                child_count_by_term[parent_key] = int(len(child_rows.index))
+
+    for reviewer_record in _reviewer_records(reviewers_df):
+        reviewer_roster_by_term.setdefault(_lookup_key(reviewer_record.get("termId")), []).append(
+            reviewer_record
+        )
+    for version_record in _version_records(versions_df):
+        version_history_by_term.setdefault(_lookup_key(version_record.get("termId")), []).append(
+            version_record
+        )
+
+    glossary_links_df = pd.DataFrame()
+    try:
+        glossary_links_df = (
+            store.list_glossary_term_links()
+            if hasattr(store, "list_glossary_term_links")
+            else pd.DataFrame()
+        )
+    except Exception:
+        glossary_links_df = pd.DataFrame()
+    if glossary_links_df is not None and not glossary_links_df.empty:
+        active_links = glossary_links_df.copy()
+        if "removed_at" in active_links.columns:
+            active_links = active_links[active_links["removed_at"].isna()].copy()
+        if "resolution_state" in active_links.columns:
+            active_links = active_links[
+                active_links["resolution_state"]
+                .fillna("")
+                .astype(str)
+                .str.lower()
+                .isin({"", "linked", "unresolved"})
+            ].copy()
+        if not active_links.empty:
+            active_links["term_key"] = active_links["term_id"].map(_lookup_key)
+            asset_term_links = active_links[
+                active_links["subject_type"].fillna("").astype(str).str.lower().eq("asset")
+            ].copy()
+            if not asset_term_links.empty:
+                glossary_link_source_by_term.update(
+                    {
+                        str(term_key): "links"
+                        for term_key in asset_term_links["term_key"].dropna().astype(str).tolist()
+                    }
+                )
+                glossary_asset_map = (
+                    asset_term_links.groupby("term_key")["subject_fqn"]
+                    .apply(
+                        lambda series: [
+                            str(item)
+                            for item in series.tolist()
+                            if str(item)
+                        ]
+                    )
+                    .to_dict()
+                )
+                glossary_asset_preview_map = {
+                    str(term_key): [
+                        _asset_preview_record(row)
+                        for _, row in inventory[inventory["fqn"].isin(group)].head(6).iterrows()
+                    ]
+                    for term_key, group in glossary_asset_map.items()
+                    if inventory is not None and not inventory.empty
+                }
+
+    if inventory is not None and not inventory.empty and "glossary_term" in inventory.columns:
+        glossary_inventory = inventory[
+            inventory["glossary_term"].fillna("").astype(str).ne("")
+        ].copy()
+        if not glossary_inventory.empty:
+            glossary_inventory = glossary_inventory.assign(
+                _glossary_term_key=glossary_inventory["glossary_term"].map(_lookup_key)
+            )
+            for term_key, series in glossary_inventory.groupby("_glossary_term_key")["fqn"]:
+                term_key_str = str(term_key)
+                if term_key_str in glossary_asset_map:
+                    continue
+                glossary_link_source_by_term[term_key_str] = "tags"
+                glossary_asset_map[term_key_str] = [
+                    str(item)
+                    for item in series.tolist()
+                    if str(item)
+                ]
+                glossary_asset_preview_map[term_key_str] = [
+                    _asset_preview_record(row)
+                    for _, row in glossary_inventory[
+                        glossary_inventory["_glossary_term_key"] == term_key
+                    ].head(6).iterrows()
+                ]
+
+    glossary_rows: List[Dict[str, Any]] = []
+    for _, row in glossary_df.iterrows():
+        term_name = asset_service.normalize_str(row.get("name"))
+        term_key = _lookup_key(term_name)
+        term_id = asset_service.normalize_str(row.get("term_id"))
+        term_id_key = _lookup_key(term_id)
+        related_assets = glossary_asset_map.get(_lookup_key(term_id), []) or glossary_asset_map.get(
+            term_key, []
+        )
+        related_requests: List[Dict[str, Any]] = []
+        seen_requests: set[str] = set()
+        for asset_fqn in related_assets:
+            for request_record in requests_by_asset.get(_lookup_key(asset_fqn), []):
+                request_id = asset_service.normalize_str(request_record.get("requestId"))
+                if request_id and request_id in seen_requests:
+                    continue
+                if request_id:
+                    seen_requests.add(request_id)
+                related_requests.append(request_record)
+        related_requests.sort(
+            key=lambda item: (
+                asset_service.normalize_str(item.get("createdAt")),
+                asset_service.normalize_str(item.get("requestId")),
+            ),
+            reverse=True,
+        )
+        reviewer_roster = reviewer_roster_by_term.get(_lookup_key(term_id), [])
+        version_history = version_history_by_term.get(_lookup_key(term_id), [])
+        association_source = glossary_link_source_by_term.get(term_id_key, "tags")
+        glossary_projection = glossary_summary_by_term.get(term_id_key, {})
+        projection_fresh = bool(glossary_projection) and _projection_is_fresh(glossary_projection)
+        asset_count = len(related_assets)
+        if projection_fresh and association_source == "links":
+            asset_count = int(glossary_projection.get("assetCount") or 0)
+        reviewer_count = (
+            int(glossary_projection.get("reviewerCount") or 0)
+            if projection_fresh
+            else len(reviewer_roster)
+        )
+        child_count = (
+            int(glossary_projection.get("childCount") or 0)
+            if projection_fresh
+            else int(child_count_by_term.get(term_id_key, 0))
+        )
+        glossary_rows.append(
+            {
+                "termId": term_id,
+                "term": term_name,
+                "definition": asset_service.normalize_str(row.get("definition")) or "No definition",
+                "domain": asset_service.normalize_str(row.get("domain")) or "Unassigned",
+                "ownerEmail": asset_service.normalize_str(row.get("owner_email")) or "Unassigned",
+                "status": asset_service.normalize_str(row.get("status")).title() or "Draft",
+                "assetCount": asset_count,
+                "childCount": child_count,
+                "reviewerCount": reviewer_count,
+                "assets": related_assets,
+                "assetPreview": glossary_asset_preview_map.get(_lookup_key(term_id), [])
+                or glossary_asset_preview_map.get(term_key, []),
+                "associationSource": association_source,
+                "summarySource": glossary_projection.get("source") if projection_fresh else "live",
+                "summaryObservedAt": asset_service.normalize_str(glossary_projection.get("observedAt")),
+                "summaryStaleAfter": asset_service.normalize_str(glossary_projection.get("staleAfter")),
+                "createdAt": asset_service.normalize_str(row.get("created_at")),
+                "createdBy": asset_service.normalize_str(row.get("created_by")),
+                "updatedAt": asset_service.normalize_str(row.get("updated_at")),
+                "updatedBy": asset_service.normalize_str(row.get("updated_by")),
+                "reviewerRoster": reviewer_roster,
+                "reviewers": [
+                    entry.get("reviewerEmail")
+                    for entry in reviewer_roster
+                    if entry.get("reviewerEmail")
+                ],
+                "reviewState": asset_service.normalize_str(row.get("status")).title() or "Draft",
+                "currentVersion": (
+                    f"v{version_history[0].get('versionNumber')}"
+                    if version_history and version_history[0].get("versionNumber")
+                    else ""
+                ),
+                "termHistory": version_history,
+                "versionHistory": version_history,
+                "versions": version_history,
+                "versionCount": len(version_history),
+                "latestVersion": version_history[0] if version_history else None,
+                "requestCount": len(related_requests),
+                "pendingRequestCount": sum(
+                    1
+                    for request_record in related_requests
+                    if asset_service.normalize_str(request_record.get("status")).lower()
+                    == "pending"
+                ),
+                "approvedRequestCount": sum(
+                    1
+                    for request_record in related_requests
+                    if asset_service.normalize_str(request_record.get("status")).lower()
+                    == "approved"
+                ),
+                "rejectedRequestCount": sum(
+                    1
+                    for request_record in related_requests
+                    if asset_service.normalize_str(request_record.get("status")).lower()
+                    == "rejected"
+                ),
+                "recentRequests": _sorted_recent_requests(related_requests, 4),
+            }
+        )
+    return glossary_rows
+
+
+def glossary_terms(
+    uc: UCSQLClient,
+    store: Any,
+    *,
+    actor_email: str | None = None,
+    hidden_catalogs: set[str] = asset_service.HIDDEN_CATALOGS,
+    limit: int = 200,
+) -> List[Dict[str, Any]]:
+    def _loader() -> List[Dict[str, Any]]:
+        inventory = asset_service.visible_assets(
+            uc,
+            store,
+            hidden_catalogs=hidden_catalogs,
+        )
+        try:
+            glossary_df = store.list_glossary_terms(limit=limit)
+        except Exception:
+            glossary_df = pd.DataFrame()
+        try:
+            reviewers_df = store.list_glossary_reviewers()
+        except Exception:
+            reviewers_df = pd.DataFrame()
+        try:
+            versions_df = store.list_glossary_versions()
+        except Exception:
+            versions_df = pd.DataFrame()
+        try:
+            requests_df = store.list_change_requests(limit=5000)
+        except Exception:
+            requests_df = pd.DataFrame()
+        try:
+            glossary_summary_df = (
+                store.list_glossary_summary_projections()
+                if hasattr(store, "list_glossary_summary_projections")
+                else pd.DataFrame()
+            )
+        except Exception:
+            glossary_summary_df = pd.DataFrame()
+        return _glossary_rows_from_frames(
+            store,
+            inventory=inventory,
+            glossary_df=glossary_df,
+            reviewers_df=reviewers_df,
+            versions_df=versions_df,
+            requests_df=requests_df,
+            glossary_summary_df=glossary_summary_df,
+        )
+
+    actor_key = _lookup_key(actor_email) or "anonymous"
+    return _ttl_value(f"governance-glossary:{_warehouse_key(uc)}:{actor_key}", 300, _loader)
+
+
+def glossary_term_detail(
+    uc: UCSQLClient,
+    store: Any,
+    *,
+    term_id: str,
+    actor_email: str | None = None,
+    hidden_catalogs: set[str] = asset_service.HIDDEN_CATALOGS,
+) -> Dict[str, Any] | None:
+    normalized_term_id = asset_service.normalize_str(term_id)
+    if not normalized_term_id:
+        return None
+
+    def _loader() -> Dict[str, Any] | None:
+        term_row: pd.Series | None = None
+        if hasattr(store, "get_glossary_term"):
+            try:
+                term_row = store.get_glossary_term(normalized_term_id)
+            except Exception:
+                term_row = None
+        if (term_row is None or term_row.empty) and hasattr(store, "list_glossary_terms"):
+            try:
+                glossary_candidates = store.list_glossary_terms(limit=5000)
+            except Exception:
+                glossary_candidates = pd.DataFrame()
+            if (
+                glossary_candidates is not None
+                and not glossary_candidates.empty
+                and "term_id" in glossary_candidates.columns
+            ):
+                matches = glossary_candidates[
+                    glossary_candidates["term_id"].fillna("").astype(str).eq(normalized_term_id)
+                ]
+                if not matches.empty:
+                    term_row = matches.iloc[0]
+        if term_row is None or term_row.empty:
+            return None
+        glossary_df = pd.DataFrame([term_row.to_dict()])
+        inventory = asset_service.visible_assets(
+            uc,
+            store,
+            hidden_catalogs=hidden_catalogs,
+        )
+        try:
+            reviewers_df = (
+                store.list_glossary_reviewers(term_id=normalized_term_id)
+                if hasattr(store, "list_glossary_reviewers")
+                else pd.DataFrame()
+            )
+        except Exception:
+            reviewers_df = pd.DataFrame()
+        try:
+            versions_df = (
+                store.list_glossary_versions(term_id=normalized_term_id)
+                if hasattr(store, "list_glossary_versions")
+                else pd.DataFrame()
+            )
+        except Exception:
+            versions_df = pd.DataFrame()
+        try:
+            requests_df = store.list_change_requests(limit=5000)
+        except Exception:
+            requests_df = pd.DataFrame()
+        try:
+            glossary_summary = (
+                store.get_glossary_summary_projection(normalized_term_id)
+                if hasattr(store, "get_glossary_summary_projection")
+                else None
+            )
+            glossary_summary_df = pd.DataFrame([glossary_summary]) if glossary_summary else pd.DataFrame()
+        except Exception:
+            glossary_summary_df = pd.DataFrame()
+        rows = _glossary_rows_from_frames(
+            store,
+            inventory=inventory,
+            glossary_df=glossary_df,
+            reviewers_df=reviewers_df,
+            versions_df=versions_df,
+            requests_df=requests_df,
+            glossary_summary_df=glossary_summary_df,
+        )
+        return rows[0] if rows else None
+
+    actor_key = _lookup_key(actor_email) or "anonymous"
+    return _ttl_value(
+        f"governance-glossary-term:{_warehouse_key(uc)}:{actor_key}:{normalized_term_id}",
+        300,
+        _loader,
+    )
+
+
 def governance_summary(
     uc: UCSQLClient,
     store: Any,
     *,
+    actor_email: str | None = None,
     hidden_catalogs: set[str] = asset_service.HIDDEN_CATALOGS,
 ) -> Dict[str, Any]:
     def _loader() -> Dict[str, Any]:
@@ -254,33 +824,67 @@ def governance_summary(
             hidden_catalogs=hidden_catalogs,
         )
         try:
-            pending = store.list_change_requests(status="pending", limit=200)
+            pending = store.list_change_requests(status="pending", limit=5000)
         except Exception:
             pending = pd.DataFrame()
+        pending_request_records = _request_records(pending)
         try:
-            glossary = store.list_glossary_terms(limit=200)
-        except Exception:
-            glossary = pd.DataFrame()
-        try:
-            reviewers = store.list_glossary_reviewers()
-        except Exception:
-            reviewers = pd.DataFrame()
-        try:
-            versions = store.list_glossary_versions()
-        except Exception:
-            versions = pd.DataFrame()
-        try:
-            requests = store.list_change_requests(limit=500)
+            requests = store.list_change_requests(limit=5000)
         except Exception:
             requests = pd.DataFrame()
+        try:
+            activity_events = store.list_activity_events(limit=200)
+        except Exception:
+            activity_events = pd.DataFrame()
+        inbox = {
+            "state": "unavailable",
+            "message": "A forwarded Databricks user identity is required for a personal governance inbox.",
+            "unreadCount": 0,
+            "items": [],
+        }
+        normalized_actor = asset_service.normalize_str(actor_email).lower()
+        if normalized_actor and normalized_actor != "unknown":
+            if hasattr(store, "list_notifications") and hasattr(store, "count_unread_notifications"):
+                try:
+                    inbox = {
+                        "state": "live",
+                        "message": "",
+                        "unreadCount": int(
+                            store.count_unread_notifications(recipient_email=normalized_actor)
+                        ),
+                        "items": _inbox_records(
+                            store.list_notifications(recipient_email=normalized_actor, limit=12)
+                        ),
+                    }
+                except Exception:
+                    inbox = {
+                        "state": "degraded",
+                        "message": "Governance inbox is temporarily unavailable.",
+                        "unreadCount": 0,
+                        "items": [],
+                    }
 
-        request_records = _request_records(requests)
-        requests_by_asset: Dict[str, List[Dict[str, Any]]] = {}
-        for request_record in request_records:
-            asset_fqn = _lookup_key(request_record.get("assetFqn"))
-            if not asset_fqn:
-                continue
-            requests_by_asset.setdefault(asset_fqn, []).append(request_record)
+        activity_records = _activity_records(activity_events)
+        queue_summary = _queue_summary_from_live_requests(pending_request_records)
+        if hasattr(store, "get_governance_queue_projection"):
+            try:
+                queue_projection = store.get_governance_queue_projection("workspace:default")
+            except Exception:
+                queue_projection = None
+            if queue_projection and _projection_is_fresh(queue_projection):
+                queue_summary = {
+                    "scopeKey": asset_service.normalize_str(queue_projection.get("scopeKey"))
+                    or "workspace:default",
+                    "source": "projection",
+                    "laneCounts": queue_projection.get("laneCounts") or queue_summary.get("laneCounts") or {},
+                    "openTaskCount": int(
+                        queue_projection.get("openTaskCount")
+                        if queue_projection.get("openTaskCount") is not None
+                        else queue_summary.get("openTaskCount") or 0
+                    ),
+                    "observedAt": asset_service.normalize_str(queue_projection.get("observedAt")),
+                    "staleAfter": asset_service.normalize_str(queue_projection.get("staleAfter")),
+                }
 
         metrics = [
             {"label": "Assets", "value": int(len(inventory.index))},
@@ -316,152 +920,50 @@ def governance_summary(
             },
             {
                 "label": "Open requests",
-                "value": int(inventory["pending_requests"].fillna(0).astype(int).sum()),
+                "value": int(queue_summary.get("openTaskCount") or 0),
             },
         ]
 
         backlog: List[Dict[str, str]] = []
-        if pending is not None and not pending.empty:
-            for _, req in pending.head(8).iterrows():
-                backlog.append(
-                    {
-                        "requestId": asset_service.normalize_str(req.get("request_id")),
-                        "title": asset_service.normalize_str(req.get("new_comment"))
-                        or "Open governance request",
-                        "asset": asset_service.normalize_str(req.get("uc_full_name")),
-                        "assetFqn": asset_service.normalize_str(req.get("uc_full_name")),
-                        "status": asset_service.normalize_str(req.get("status")).title()
-                        or "Pending",
-                        "note": asset_service.normalize_str(req.get("review_note"))
-                        or "Awaiting governance review.",
-                    }
-                )
-        if not backlog and inventory is not None and not inventory.empty:
-            needs_owner = inventory[
-                inventory["owner_count"].fillna(0).astype(int).eq(0)
-            ].head(4)
-            for _, row in needs_owner.iterrows():
-                backlog.append(
-                    {
-                        "requestId": "",
-                        "title": f"Assign owner to {asset_service.normalize_str(row.get('table_name'))}",
-                        "asset": asset_service.normalize_str(row.get("fqn")),
-                        "assetFqn": asset_service.normalize_str(row.get("fqn")),
-                        "status": "Needs Owner",
-                        "note": "High-value asset is missing a business, technical, or steward owner.",
-                    }
-                )
-
-        glossary_asset_map: Dict[str, List[str]] = {}
-        glossary_asset_preview_map: Dict[str, List[Dict[str, Any]]] = {}
-        reviewer_roster_by_term: Dict[str, List[Dict[str, Any]]] = {}
-        version_history_by_term: Dict[str, List[Dict[str, Any]]] = {}
-        for reviewer_record in _reviewer_records(reviewers):
-            reviewer_roster_by_term.setdefault(_lookup_key(reviewer_record.get("termId")), []).append(reviewer_record)
-        for version_record in _version_records(versions):
-            version_history_by_term.setdefault(_lookup_key(version_record.get("termId")), []).append(version_record)
-        if inventory is not None and not inventory.empty and "glossary_term" in inventory.columns:
-            glossary_inventory = inventory[
-                inventory["glossary_term"].fillna("").astype(str).ne("")
-            ].copy()
-            if not glossary_inventory.empty:
-                glossary_inventory = glossary_inventory.assign(
-                    _glossary_term_key=glossary_inventory["glossary_term"].map(_lookup_key)
-                )
-                glossary_asset_map = (
-                    glossary_inventory.groupby("_glossary_term_key")["fqn"]
-                    .apply(
-                        lambda series: [
-                            str(item)
-                            for item in series.head(8).tolist()
-                            if str(item)
-                        ]
-                    )
-                    .to_dict()
-                )
-                glossary_asset_preview_map = {
-                    str(term_key): [
-                        _asset_preview_record(row)
-                        for _, row in group.head(6).iterrows()
-                    ]
-                    for term_key, group in glossary_inventory.groupby("_glossary_term_key")
+        for request_record in pending_request_records[:8]:
+            backlog.append(
+                {
+                    "requestId": asset_service.normalize_str(request_record.get("requestId")),
+                    "title": asset_service.normalize_str(request_record.get("detail"))
+                    or "Open governance request",
+                    "asset": asset_service.normalize_str(request_record.get("assetFqn")),
+                    "assetFqn": asset_service.normalize_str(request_record.get("assetFqn")),
+                    "status": asset_service.normalize_str(request_record.get("status")).title()
+                    or "Pending",
+                    "note": asset_service.normalize_str(request_record.get("reviewNote"))
+                    or "Awaiting governance review.",
+                    "createdAt": asset_service.normalize_str(request_record.get("createdAt")),
+                    "createdBy": asset_service.normalize_str(request_record.get("createdBy")),
+                    "reviewedAt": asset_service.normalize_str(request_record.get("reviewedAt")),
+                    "reviewedBy": asset_service.normalize_str(request_record.get("reviewedBy")),
+                    "reviewNote": asset_service.normalize_str(request_record.get("reviewNote")),
                 }
+            )
 
-        glossary_rows: List[Dict[str, Any]] = []
-        if glossary is not None and not glossary.empty:
-            for _, row in glossary.head(50).iterrows():
-                term_name = asset_service.normalize_str(row.get("name"))
-                term_key = _lookup_key(term_name)
-                related_assets = glossary_asset_map.get(term_key, [])
-                related_requests: List[Dict[str, Any]] = []
-                seen_requests: set[str] = set()
-                for asset_fqn in related_assets:
-                    for request_record in requests_by_asset.get(_lookup_key(asset_fqn), []):
-                        request_id = asset_service.normalize_str(request_record.get("requestId"))
-                        if request_id and request_id in seen_requests:
-                            continue
-                        if request_id:
-                            seen_requests.add(request_id)
-                        related_requests.append(request_record)
-                related_requests.sort(
-                    key=lambda item: (
-                        asset_service.normalize_str(item.get("createdAt")),
-                        asset_service.normalize_str(item.get("requestId")),
-                    ),
-                    reverse=True,
-                )
-                term_id = asset_service.normalize_str(row.get("term_id"))
-                reviewer_roster = reviewer_roster_by_term.get(_lookup_key(term_id), [])
-                version_history = version_history_by_term.get(_lookup_key(term_id), [])
-                glossary_rows.append(
-                    {
-                        "termId": term_id,
-                        "term": term_name,
-                        "definition": asset_service.normalize_str(row.get("definition"))
-                        or "No definition",
-                        "domain": asset_service.normalize_str(row.get("domain"))
-                        or "Unassigned",
-                        "ownerEmail": asset_service.normalize_str(row.get("owner_email"))
-                        or "Unassigned",
-                        "status": asset_service.normalize_str(row.get("status")).title()
-                        or "Draft",
-                        "assetCount": len(related_assets),
-                        "assets": related_assets,
-                        "assetPreview": glossary_asset_preview_map.get(term_key, []),
-                        "createdAt": asset_service.normalize_str(row.get("created_at")),
-                        "createdBy": asset_service.normalize_str(row.get("created_by")),
-                        "updatedAt": asset_service.normalize_str(row.get("updated_at")),
-                        "updatedBy": asset_service.normalize_str(row.get("updated_by")),
-                        "reviewerRoster": reviewer_roster,
-                        "reviewers": [entry.get("reviewerEmail") for entry in reviewer_roster if entry.get("reviewerEmail")],
-                        "reviewState": asset_service.normalize_str(row.get("status")).title() or "Draft",
-                        "currentVersion": (
-                            f"v{version_history[0].get('versionNumber')}"
-                            if version_history and version_history[0].get("versionNumber")
-                            else ""
-                        ),
-                        "termHistory": version_history,
-                        "versionHistory": version_history,
-                        "versions": version_history,
-                        "versionCount": len(version_history),
-                        "latestVersion": version_history[0] if version_history else None,
-                        "requestCount": len(related_requests),
-                        "pendingRequestCount": sum(
-                            1 for request_record in related_requests if asset_service.normalize_str(request_record.get("status")).lower() == "pending"
-                        ),
-                        "approvedRequestCount": sum(
-                            1 for request_record in related_requests if asset_service.normalize_str(request_record.get("status")).lower() == "approved"
-                        ),
-                        "rejectedRequestCount": sum(
-                            1 for request_record in related_requests if asset_service.normalize_str(request_record.get("status")).lower() == "rejected"
-                        ),
-                        "recentRequests": _sorted_recent_requests(related_requests, 4),
-                    }
-                )
+        glossary_rows = glossary_terms(
+            uc,
+            store,
+            actor_email=actor_email,
+            hidden_catalogs=hidden_catalogs,
+            limit=50,
+        )
 
-        return {"metrics": metrics, "backlog": backlog, "glossary": glossary_rows}
+        return {
+            "metrics": metrics,
+            "backlog": backlog,
+            "queue": queue_summary,
+            "glossary": glossary_rows,
+            "activity": activity_records[:12],
+            "inbox": inbox,
+        }
 
-    return _ttl_value(f"governance:{_warehouse_key(uc)}", 300, _loader)
+    actor_key = _lookup_key(actor_email) or "anonymous"
+    return _ttl_value(f"governance:{_warehouse_key(uc)}:{actor_key}", 300, _loader)
 
 
 def create_change_request(
@@ -471,11 +973,13 @@ def create_change_request(
     asset_fqn: str,
     title: str,
     note: str,
+    actor_role: str = "reader",
 ) -> str:
     request_id = store.create_change_request(
         created_by=created_by,
         uc_full_name=asset_fqn,
         new_comment=f"{title}: {note}".strip(": "),
+        actor_role=actor_role,
     )
     _invalidate_asset_dependent_caches(asset_fqn)
     return request_id
@@ -522,6 +1026,7 @@ def patch_asset_owners(
     owner_assignments: Sequence[Dict[str, Any]],
     updated_by: str,
     replace: bool = True,
+    actor_role: str = "reader",
 ) -> List[Dict[str, str]]:
     normalized = _normalize_owner_assignments(owner_assignments)
     if replace:
@@ -531,13 +1036,19 @@ def patch_asset_owners(
             for owner_email in existing_df["owner_email"].dropna().astype(str).tolist():
                 email_n = asset_service.normalize_str(owner_email).lower()
                 if email_n and email_n not in desired_emails:
-                    store.remove_owner(asset_fqn, owner_email)
+                    store.remove_owner(
+                        asset_fqn,
+                        owner_email,
+                        actor_email=updated_by,
+                        actor_role=actor_role,
+                    )
     for entry in normalized:
         store.upsert_owner(
             asset_fqn,
             entry["ownerEmail"],
             entry["ownerType"],
             updated_by,
+            actor_role=actor_role,
         )
     _invalidate_asset_dependent_caches(asset_fqn)
     return normalized
@@ -550,6 +1061,7 @@ def add_owner(
     owner_email: str,
     owner_type: str,
     updated_by: str,
+    actor_role: str = "reader",
 ) -> List[Dict[str, str]]:
     return patch_asset_owners(
         store,
@@ -562,6 +1074,7 @@ def add_owner(
         ],
         updated_by=updated_by,
         replace=False,
+        actor_role=actor_role,
     )
 
 
@@ -658,6 +1171,7 @@ def upsert_glossary_term(
     updated_by: str,
     reviewers: Sequence[Dict[str, Any]] | None = None,
     change_note: str | None = None,
+    actor_role: str = "reader",
 ) -> Dict[str, Any]:
     version = store.upsert_glossary_term(
         term_id=term_id or uuid.uuid4().hex[:12],
@@ -669,6 +1183,7 @@ def upsert_glossary_term(
         updated_by=updated_by,
         reviewers=list(reviewers) if reviewers is not None else None,
         change_note=change_note,
+        actor_role=actor_role,
     )
     invalidate_governance_caches()
     return version

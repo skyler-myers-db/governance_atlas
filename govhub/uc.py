@@ -167,7 +167,7 @@ class UCSQLClient:
                     client_secret=client_secret,
                     auth_type=auth_type,
                     product="governance-hub",
-                    product_version="modern-runtime",
+                    product_version="governance-hub-runtime",
                 )
                 self._client_context["authMode"] = "oauth-m2m-env"
                 self._client_context["authType"] = auth_type
@@ -179,7 +179,7 @@ class UCSQLClient:
         try:
             client = WorkspaceClient(
                 product="governance-hub",
-                product_version="modern-runtime",
+                product_version="governance-hub-runtime",
             )
             if self._client_context["authMode"] == "default":
                 self._client_context["authMode"] = "default"
@@ -296,12 +296,21 @@ class UCSQLClient:
             resp = self.w.statement_execution.get_statement(statement_id)
             state = _state_str(_get(resp, "status", "state"))
 
+        if state in {"PENDING", "RUNNING"}:
+            raise TimeoutError(
+                f"Statement timed out after {timeout_s}s"
+                + (f" (statement_id={statement_id})" if statement_id else "")
+            )
         if state == "FAILED":
             raise RuntimeError(
-                _get(resp, "status", "error", "message") or "Statement failed"
+                (_get(resp, "status", "error", "message") or "Statement failed")
+                + (f" (statement_id={statement_id})" if statement_id else "")
             )
         if state in {"CANCELED", "CLOSED"}:
-            raise RuntimeError(f"Statement was {state.lower()}")
+            raise RuntimeError(
+                f"Statement was {state.lower()}"
+                + (f" (statement_id={statement_id})" if statement_id else "")
+            )
 
         # Extract column metadata + row data from the typed SDK response.
         manifest = _get(resp, "manifest")
