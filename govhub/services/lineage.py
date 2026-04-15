@@ -38,6 +38,10 @@ def _warehouse_key(uc: UCSQLClient) -> str:
     return asset_service.normalize_str(getattr(uc, "warehouse_id", "")) or "default"
 
 
+def _cache_scope_key(cache_scope: str = "") -> str:
+    return asset_service.normalize_str(cache_scope) or "shared"
+
+
 def invalidate_lineage_caches(asset_fqn: str | None = None) -> None:
     if asset_fqn is None:
         _TTL_CACHE.clear()
@@ -713,9 +717,18 @@ def build_operational_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict
     }
 
 
-def lineage_payload(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, Any]:
+def lineage_payload(
+    uc: UCSQLClient,
+    store: Any,
+    asset_fqn: str,
+    *,
+    cache_scope: str = "",
+) -> Dict[str, Any]:
     return _ttl_value(
-        f"lineage:{_warehouse_key(uc)}:{asset_service.normalize_str(asset_fqn)}",
+        (
+            f"lineage:{_warehouse_key(uc)}:{_cache_scope_key(cache_scope)}:"
+            f"{asset_service.normalize_str(asset_fqn)}"
+        ),
         300,
         lambda: _build_lineage_payload(uc, store, asset_fqn),
     )

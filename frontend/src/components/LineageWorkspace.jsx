@@ -1,12 +1,22 @@
 import LineageStage from "./LineageStage";
 import { useEffect, useState } from "react";
 import {
+  canOpenLinkedAssetRecord,
   useAssetDetail,
 } from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
 import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import { assetPathLabel } from "../lib/assetPresentation";
+import {
+  runtimeFeatureFlagAvailable,
+  runtimeFeatureFlagReason,
+  tableLineageAvailable,
+  tableLineageReason,
+  workspaceAccessAvailable,
+  workspaceAccessReason,
+} from "../lib/capabilities";
+import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
 
 const LINEAGE_CONTEXT_SESSION_KEY = "gh.lineage.context.v1";
@@ -31,12 +41,13 @@ export default function LineageWorkspace({
   contextSeedAssets = [],
   onNavigationStateChange,
   onSurfaceReady,
-  sharedVisibleAssetSet,
   onRouteAssetChange,
   onOpenGovernance,
   onOpenAsset,
+  runtimeFeatureFlags = [],
+  workspaceAccess = null,
 }) {
-  const [focusAssetFqn, setFocusAssetFqn] = useState(initialAssetFqn || "");
+  const focusAssetFqn = initialAssetFqn || "";
   const [localContext, setLocalContext] = useState(() =>
     readLineageContext(
       initialAssetFqn || "",
@@ -45,17 +56,40 @@ export default function LineageWorkspace({
   );
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
   const [linkFeedback, setLinkFeedback] = useState("");
+  const lineageAvailable = tableLineageAvailable(bootstrap);
+  const lineageUnavailableReason = tableLineageReason(bootstrap);
+  const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", true);
+  const lineageRolloutAvailable = runtimeFeatureFlagAvailable(
+    runtimeFeatureFlags,
+    "table_lineage_surface",
+  );
+  const lineageSurfaceAvailable = lineageAvailable && lineageRolloutAvailable && workspaceLineageAvailable;
+  const lineageRolloutUnavailableReason =
+    "Table lineage rollout is not available in this workspace right now.";
+  const lineageSurfaceUnavailableReason = !workspaceLineageAvailable
+    ? workspaceAccessReason(workspaceAccess, "lineage_access", lineageUnavailableReason)
+    : lineageAvailable
+    ? lineageRolloutAvailable
+      ? lineageUnavailableReason
+      : runtimeFeatureFlagReason(
+          runtimeFeatureFlags,
+          "table_lineage_surface",
+          lineageRolloutUnavailableReason,
+        )
+    : lineageUnavailableReason;
   const seedAssets = contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [];
   const seeded = useSeededAssetContext(focusAssetFqn, bootstrap, seedAssets, {
     allowFallback: false,
   });
-  const visibleAssetSet =
-    sharedVisibleAssetSet?.size
-      ? new Set(sharedVisibleAssetSet)
-      : new Set(seedAssets.map((asset) => asset?.fqn).filter(Boolean));
   const assetDetail = useAssetDetail(focusAssetFqn || "", { sections: ["header"] });
-  const lineage = useLineage(focusAssetFqn || "", seeded.seededGraph);
-  const asset = assetDetail.detail || seeded.summary;
+  const lineage = useLineage(
+    focusAssetFqn || "",
+    lineageSurfaceAvailable ? seeded.seededGraph : null,
+    lineageSurfaceAvailable,
+  );
+  const asset =
+    assetDetail.detail ||
+    (focusAssetFqn && assetDetail.loading ? seeded.summary : null);
   const assetSearch = useAssetSearch(
     assetSearchQuery,
     assetSearchQuery.trim().length >= 2,
@@ -63,7 +97,11 @@ export default function LineageWorkspace({
   );
   const searchReady =
     !assetSearch.loading && assetSearch.resolvedQuery === assetSearchQuery.trim();
-  const hasGraph = Boolean(lineage.graph?.nodes?.length);
+  const activeGraph =
+    localContext === "Operational Context"
+      ? lineage.graph?.operational
+      : lineage.graph?.data;
+  const hasGraph = Boolean(activeGraph?.nodes?.length);
 
   useEffect(() => {
     setAssetSearchQuery("");
@@ -72,11 +110,6 @@ export default function LineageWorkspace({
   useEffect(() => {
     setLinkFeedback("");
   }, [focusAssetFqn, localContext]);
-
-  useEffect(() => {
-    const nextAssetFqn = initialAssetFqn || "";
-    setFocusAssetFqn(nextAssetFqn);
-  }, [initialAssetFqn]);
 
   useEffect(() => {
     const restoredContext = readLineageContext(
@@ -116,7 +149,8 @@ export default function LineageWorkspace({
       <div className="gh-panel-title">{localContext}</div>
       <div className="gh-support-copy">
         {focusAssetFqn
-          ? assetDetail.error || "The selected asset cannot be inspected with the current permissions."
+          ? assetDetail.error ||
+            "No live lineage graph is available for this asset right now. Search for another asset to continue."
           : "Search for an asset and open the graph directly from there."}
       </div>
       <div className="gh-lineage-launch-search">
@@ -127,7 +161,6 @@ export default function LineageWorkspace({
             if (event.key === "Enter" && searchReady && assetSearch.assets[0]) {
               event.preventDefault();
               onNavigationStateChange?.(true, "Loading lineage asset…");
-              setFocusAssetFqn(assetSearch.assets[0].fqn);
               onRouteAssetChange?.(assetSearch.assets[0].fqn, localContext);
             }
           }}
@@ -144,7 +177,6 @@ export default function LineageWorkspace({
                 key={candidate.fqn}
                 onClick={() => {
                   onNavigationStateChange?.(true, "Loading lineage asset…");
-                  setFocusAssetFqn(candidate.fqn);
                   onRouteAssetChange?.(candidate.fqn, localContext);
                 }}
                 type="button"
@@ -169,7 +201,6 @@ export default function LineageWorkspace({
           <button
             className="gh-secondary-button"
             onClick={() => {
-              setFocusAssetFqn("");
               setAssetSearchQuery("");
               onRouteAssetChange?.("", localContext);
             }}
@@ -184,11 +215,63 @@ export default function LineageWorkspace({
 
   const openLineageAsset = (assetFqn, nextTab = "Overview") => {
     if (!assetFqn) return;
-    onNavigationStateChange?.(true, "Opening metadata record…");
     setLinkFeedback("");
-    setWorkspaceIntent("lineageContext", assetFqn, localContext);
-    onOpenAsset?.(assetFqn, nextTab);
+    void openAssetRecordSafely(assetFqn, {
+      loadingLabel: "Opening metadata record…",
+      canOpen: canOpenLinkedAssetRecord,
+      onNavigationStateChange,
+      beforeOpen: () => {
+        setWorkspaceIntent("lineageContext", assetFqn, localContext);
+      },
+      onOpen: () => {
+        onOpenAsset?.(assetFqn, nextTab);
+      },
+      onUnavailable: () => {
+        setLinkFeedback(
+          "That lineage-linked asset is visible in the graph, but its metadata record is not openable with the current permissions.",
+        );
+      },
+    });
   };
+
+  if (!lineageSurfaceAvailable) {
+    return (
+      <section className="gh-workspace gh-lineage-shell">
+        <div className="gh-panel gh-unavailable-panel">
+          <div className="gh-panel-title">Lineage Unavailable</div>
+          <h2>Live table lineage is not available in this workspace.</h2>
+          <p>{lineageSurfaceUnavailableReason}</p>
+          {asset || focusAssetFqn ? (
+            <div className="gh-support-copy">{asset ? assetPathLabel(asset) : focusAssetFqn}</div>
+          ) : null}
+          {focusAssetFqn ? (
+            <div className="gh-empty-state-actions">
+              <button
+                className="gh-secondary-button"
+                onClick={() => {
+                  onNavigationStateChange?.(true, "Opening metadata record…");
+                  onOpenAsset?.(focusAssetFqn, "Overview");
+                }}
+                type="button"
+              >
+                Open metadata record
+              </button>
+              <button
+                className="gh-secondary-button"
+                onClick={() => {
+                  onNavigationStateChange?.(true, "Opening governance…");
+                  onOpenGovernance?.(focusAssetFqn);
+                }}
+                type="button"
+              >
+                Open governance
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="gh-lineage-shell">
@@ -205,7 +288,9 @@ export default function LineageWorkspace({
         lineagePayload={lineage.payload}
         loading={lineage.loading}
         notice={linkFeedback}
-        overlay={!focusAssetFqn && !hasGraph ? searchOverlay : null}
+        authoritative={lineage.authoritative}
+        provisional={lineage.provisional}
+        overlay={!hasGraph ? searchOverlay : null}
         onAssetSearchQueryChange={setAssetSearchQuery}
         onContextChange={(nextContext) => {
           setLocalContext(nextContext);
@@ -215,7 +300,6 @@ export default function LineageWorkspace({
         onSelectAsset={(assetFqn) => {
           onNavigationStateChange?.(true, "Refocusing lineage…");
           setLinkFeedback("");
-          setFocusAssetFqn(assetFqn);
           onRouteAssetChange?.(assetFqn, localContext);
         }}
       />

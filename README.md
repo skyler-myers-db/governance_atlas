@@ -1,203 +1,127 @@
-# 🏛️ Governance Hub
+# Governance Hub
 
-> A **self-service data governance portal** that extends **Unity Catalog** —
-> deployed as a native **Databricks App** via **Databricks Asset Bundles**.
+Governance Hub is a Databricks-native metadata workspace built on Unity Catalog.
+The product goal is Governance Hub branding with OpenMetadata-class workflow depth
+across discovery, entity detail, lineage, governance, tasks, and quality.
 
-Governance Hub is a **workspace-portable accelerator**: clone this repo, set
-three secrets, and `databricks bundle deploy` to any Databricks workspace.
+The authoritative reconstruction spec lives in
+[docs/RECONSTRUCTION_PLAN.md](/Users/entrada-mac/Documents/GitHub/governance_hub/docs/RECONSTRUCTION_PLAN.md).
 
----
+## Supported Runtime
 
-## Features
+The only supported app runtime path is:
 
-| Feature | Description |
-|---|---|
-| **UC Browser** | Browse catalogs → schemas → tables. Edit table & column comments, UC tags, and data owners. |
-| **Column-level comments & tags** | Set descriptions on individual columns via `ALTER TABLE … ALTER COLUMN … COMMENT`. |
-| **Table & column lineage** | Queries `system.access.table_lineage` and `column_lineage` — no external infra needed. |
-| **Business glossary** | Create, search, and manage glossary terms stored in a Delta table inside your governance schema. |
-| **Glossary ↔ table/column linking** | Tag any UC table or column with `glossary_term = <term_id>` to bind terms to assets. |
-| **Change-request workflow** | Readers propose metadata changes; writers/admins review & approve (auto-applies to UC). |
-| **OpenMetadata connector** *(optional)* | Bridge to a self-hosted [OpenMetadata](https://open-metadata.org/) instance for cross-platform governance. |
-| **Role-based access** | Reader / Writer / Admin roles stored in a Delta table, bootstrapped via env var. |
+```text
+app.yaml -> run_app.py -> runtime_app.py -> frontend/src
+```
 
----
+`runtime_app.py` is the single backend runtime module behind the Governance Hub
+launcher.
+
+There is no legacy Streamlit mode and no OpenMetadata bridge in the supported product.
+
+## Product Direction
+
+- Prioritize `Discovery`, `Lineage`, and `Governance`
+- Stay asset-centric and search-first
+- Match OpenMetadata-class workflow completeness and enterprise polish without cloning its branding
+- Prefer truthful live metadata and audited control-plane state over synthetic UI affordances
+- Preserve portability and low-friction deployment across Databricks workspaces
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────┐
-│      Databricks App  (switchable launcher)          │
-│  run_app.py → app.py / modern_app.py                │
-│     │           ├─ auth.py          (SSO identity)   │
-│     │           ├─ config.py        (env vars)       │
-│     │           ├─ uc.py            (SQL Warehouse)  │
-│     │           ├─ store.py         (gov Delta tbls) │
-│     │           ├─ openmetadata.py  (optional)       │
-│     │           └─ util.py                           │
-└────┬───────────────────┬────────────────────────────┘
-     │                   │
-     ▼                   ▼ (optional)
- Unity Catalog      OpenMetadata OSS
+```text
+Databricks App
+  -> run_app.py
+  -> backend runtime in runtime_app.py
+  -> govhub/uc.py
+  -> govhub/store.py
+  -> govhub/services/*
+  -> React frontend in frontend/src
 ```
 
-**No Kafka, no Elasticsearch, no Docker** — just a SQL Warehouse and this
-app.
+Governance Hub reads live Unity Catalog and Databricks system metadata directly and
+stores governance workflow state in Delta tables inside the configured governance schema.
 
----
+## Local Development
 
-## Quick Start (any workspace)
+### Backend prerequisites
 
-### Prerequisites
+- Python 3.11+
+- dependencies from `requirements.txt`
 
-| Component | Minimum |
-|---|---|
-| Databricks workspace | Any cloud (AWS / Azure / GCP) |
-| Databricks CLI | `>= 0.230` (`databricks bundle` support) |
-| SQL Warehouse | Serverless or Pro — the app runs all queries through it |
-| Unity Catalog | Enabled on the workspace |
-| System tables | `system.access.table_lineage` & `column_lineage` enabled (for lineage) |
+### Frontend prerequisites
 
-### 1. Clone the repo
+- Node 20+
+- npm
+
+### Run locally
 
 ```bash
-git clone https://github.com/<org>/governance_hub.git
-cd governance_hub
+pip install -r requirements.txt
+cd frontend
+npm install
+npm run build
+cd ..
+python run_app.py
 ```
 
-### 2. Configure your target
+The launcher requires a built frontend bundle at `frontend/dist/index.html`.
 
-Edit `databricks.yml` — the `targets:` section defines environments:
+## Deployment
 
-```yaml
-targets:
-  dev:
-    mode: development
-    default: true
-    variables:
-      gov_catalog: dev            # where governance tables live
-    workspace:
-      host: https://adb-xxx.azuredatabricks.net
-  prod:
-    variables:
-      gov_catalog: prod
-    workspace:
-      host: https://adb-xxx.azuredatabricks.net
-```
-
-Edit `app.yaml` — set `GOVHUB_ADMIN_EMAILS` to the bootstrap admin(s) for the
-workspace. The app defaults to `GOVHUB_APP_MODE=legacy`, which preserves the
-current Streamlit implementation. Switch to `modern` after the new frontend lands.
-
-```yaml
-env:
-  - name: GOVHUB_ADMIN_EMAILS
-    value: "admin1@company.com,admin2@company.com"
-  - name: GOVHUB_APP_MODE
-    value: legacy
-```
-
-### 3. Deploy with DAB
+The repo is deployed as a Databricks App through Databricks Asset Bundles.
 
 ```bash
-# Authenticate
-databricks auth login --host https://adb-xxx.azuredatabricks.net
-
-# Deploy to dev
-databricks bundle deploy -t dev --var="warehouse_id=<your-warehouse-id>"
-
-# Deploy to prod
-databricks bundle deploy -t prod --var="warehouse_id=<your-warehouse-id>"
+databricks auth login --host https://<workspace>.cloud.databricks.com
+databricks bundle deploy -t dev --var="warehouse_id=<warehouse-id>"
 ```
 
-### 4. Grant lineage access (one-time per workspace)
+### Packaging contract
 
-The app's service principal needs `SELECT` on the system lineage tables:
+- `frontend/dist` is built in CI or a predeploy packaging step
+- `frontend/dist` is not source-controlled
+- the Databricks bundle is deployed from a clean packaged directory that includes the built frontend output
+- the runtime does not build frontend assets on startup
 
-```sql
-GRANT SELECT ON TABLE system.access.table_lineage  TO `<app-service-principal-id>`;
-GRANT SELECT ON TABLE system.access.column_lineage TO `<app-service-principal-id>`;
-```
+## Configuration
 
-You can find the service principal application ID in the Databricks Apps UI
-under the app's settings.
+### Required
 
----
+- `DATABRICKS_WAREHOUSE_ID`
 
-## CI/CD with GitHub Actions
+### Runtime configuration
 
-The repo ships with `.github/workflows/deploy.yml`:
+- `GOVHUB_CATALOG`
+- `GOVHUB_SCHEMA`
+- `GOVHUB_ADMIN_EMAILS`
 
-| Trigger | Behaviour |
-|---|---|
-| **Push to `main`** | Validates bundle → deploys to `dev` |
-| **Pull request** | Validates bundle only (no deploy) |
-| **Manual dispatch** | Pick `dev` / `staging` / `prod` from the UI |
+These should be injected explicitly per deployment target. Source defaults should
+remain neutral and must not encode personal emails or production-only settings.
 
-### Required GitHub Secrets
+## Governance Tables
 
-| Secret | Description |
-|---|---|
-| `DATABRICKS_HOST` | Workspace URL |
-| `DATABRICKS_TOKEN` | PAT or OAuth token for the CLI |
-| `DATABRICKS_WAREHOUSE_ID` | SQL Warehouse ID |
+Governance Hub currently persists governance state in Delta tables under
+`<GOVHUB_CATALOG>.<GOVHUB_SCHEMA>`.
 
----
+- `user_roles`
+- `glossary_terms`
+- `glossary_term_reviewers`
+- `glossary_term_versions`
+- `data_owners`
+- `change_requests`
 
-## Configuration Reference
+Additional workflow, migration, lineage-override, and quality tables will be introduced
+through versioned migrations rather than ad hoc schema drift.
 
-### `app.yaml` environment variables
+## CI / CD Expectations
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `DATABRICKS_WAREHOUSE_ID` | ✅ | — | SQL Warehouse for all UC queries |
-| `GOVHUB_CATALOG` | — | `main` | Catalog where governance tables are stored |
-| `GOVHUB_SCHEMA` | — | `governance_hub` | Schema within the catalog |
-| `GOVHUB_ADMIN_EMAILS` | — | `""` | Comma-separated admin emails (bootstrap) |
-| `GOVHUB_APP_MODE` | — | `legacy` | `legacy` runs Streamlit, `modern` runs `modern_app:app` via `uvicorn` |
-| `OPENMETADATA_SERVER_URL` | — | `""` | OM server URL (leave blank for UC-only) |
-| `OPENMETADATA_JWT_TOKEN` | — | `""` | OM JWT token |
+The deployment workflow is expected to:
 
-### Governance tables (auto-created)
-
-The app creates these Delta tables on first launch inside
-`<GOVHUB_CATALOG>.<GOVHUB_SCHEMA>`:
-
-- `user_roles` — email ↔ role mapping
-- `glossary_terms` — business glossary terms
-- `data_owners` — table ↔ owner associations
-- `asset_links` — UC ↔ OpenMetadata table links
-- `change_requests` — metadata change-request queue
-
----
-
-## Installing on a New Client Workspace
-
-1. Fork or clone this repo into the client's GitHub org.
-2. Set `GOVHUB_ADMIN_EMAILS` in `app.yaml` to the client's admin(s).
-3. Update `databricks.yml` targets with the client's workspace URL(s).
-4. Add GitHub Secrets (`DATABRICKS_HOST`, `DATABRICKS_TOKEN`,
-   `DATABRICKS_WAREHOUSE_ID`).
-5. Push to `main` — GitHub Actions deploys the app automatically.
-6. Grant lineage system-table access to the app's service principal.
-7. (Optional) Set up a Databricks secret scope for OpenMetadata credentials.
-
-The app auto-provisions all governance tables on first launch — no manual SQL
-required.
-
----
-
-## Requirements
-
-- Python 3.11+ (Databricks Apps runtime)
-- `streamlit >= 1.38`
-- `pandas >= 2.0`
-- `requests >= 2.31`
-- `databricks-sdk >= 0.95.0`
-- `fastapi >= 0.115`
-- `uvicorn >= 0.30`
-
----
+- build and lint the frontend in a clean checkout
+- run backend and migration checks
+- assemble a clean bundle directory
+- validate and deploy the bundle from that packaged directory
 
 ## License
 

@@ -12,7 +12,6 @@ const EDITABLE_FIELD_KEYS = [
   "certification",
   "sensitivity",
   "criticality",
-  "glossaryTerm",
   "dataProduct",
   "freeformTags",
 ];
