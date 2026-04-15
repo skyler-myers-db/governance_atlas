@@ -1,16 +1,23 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactFlowProvider } from "@xyflow/react";
+import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import AppErrorBoundary from "./components/AppErrorBoundary";
+import { govhubQueryClient } from "./lib/queryClient";
 import "./styles/app.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <ReactFlowProvider>
-      <AppErrorBoundary>
-        <App />
-      </AppErrorBoundary>
-    </ReactFlowProvider>
+    <BrowserRouter>
+      <QueryClientProvider client={govhubQueryClient}>
+        <ReactFlowProvider>
+          <AppErrorBoundary>
+            <App />
+          </AppErrorBoundary>
+        </ReactFlowProvider>
+      </QueryClientProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );

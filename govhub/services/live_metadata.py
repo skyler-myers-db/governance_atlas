@@ -153,6 +153,10 @@ def lineage_asset_stub(inventory: pd.DataFrame, asset_fqn: str) -> pd.Series:
             "certification": "",
             "sensitivity": "",
             "criticality": "",
+            "glossary_term_tag": "",
+            "glossary_term": "",
+            "glossaryLinks": [],
+            "glossaryTerms": [],
             "steward": "",
         }
     )
@@ -171,6 +175,59 @@ def tag_value(tags: Dict[str, str], key: str) -> str:
     return ""
 
 
+def glossary_term_lookup(terms_df: pd.DataFrame | None) -> Dict[str, Dict[str, Any]]:
+    if terms_df is None or terms_df.empty:
+        return {}
+    lookup: Dict[str, Dict[str, Any]] = {}
+    for _, row in terms_df.iterrows():
+        term_id = normalize_str(row.get("term_id"))
+        if not term_id:
+            continue
+        lookup[term_id.lower()] = {
+            "termId": term_id,
+            "name": normalize_str(row.get("name")),
+            "definition": normalize_str(row.get("definition")),
+        }
+    return lookup
+
+
+def glossary_link_lookup(
+    links_df: pd.DataFrame | None,
+    term_lookup: Dict[str, Dict[str, Any]] | None = None,
+) -> Dict[str, List[Dict[str, Any]]]:
+    if links_df is None or links_df.empty:
+        return {}
+    lookup: Dict[str, List[Dict[str, Any]]] = {}
+    for _, row in links_df.iterrows():
+        if normalize_str(row.get("removed_at")):
+            continue
+        subject_type = normalize_str(row.get("subject_type")).lower()
+        subject_fqn = normalize_str(row.get("subject_fqn"))
+        if not subject_type or not subject_fqn:
+            continue
+        column_name = normalize_str(row.get("column_name"))
+        key = f"{subject_type}:{subject_fqn}:{column_name}"
+        term_id = normalize_str(row.get("term_id"))
+        term = (term_lookup or {}).get(term_id.lower()) if term_id else None
+        lookup.setdefault(key, []).append(
+            {
+                "termId": term_id,
+                "term": normalize_str(term.get("name")) if term else "",
+                "source": normalize_str(row.get("source")).lower() or "manual",
+                "resolutionState": normalize_str(row.get("resolution_state")).lower() or "linked",
+            }
+        )
+    return lookup
+
+
+def glossary_terms_for_subject(
+    subject_type: str,
+    subject_fqn: str,
+    link_lookup: Dict[str, List[Dict[str, Any]]],
+) -> List[Dict[str, Any]]:
+    return list(link_lookup.get(f"{normalize_str(subject_type).lower()}:{normalize_str(subject_fqn)}:", []))
+
+
 def empty_inventory() -> pd.DataFrame:
     return pd.DataFrame(
         columns=[
@@ -187,6 +244,8 @@ def empty_inventory() -> pd.DataFrame:
             "sensitivity",
             "criticality",
             "glossary_term",
+            "glossaryLinks",
+            "glossaryTerms",
             "data_product",
             "owner_count",
             "owners_summary",
@@ -197,7 +256,6 @@ def empty_inventory() -> pd.DataFrame:
             "approved_requests",
             "rejected_requests",
             "total_requests",
-            "om_table_fqn",
             "governance_score",
             "governance_status",
             "search_text",
@@ -434,11 +492,43 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
     inventory["criticality"] = inventory["tags"].map(
         lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "criticality")
     )
-    inventory["glossary_term"] = inventory["tags"].map(
+    inventory["glossary_term_tag"] = inventory["tags"].map(
         lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "glossary_term")
     )
     inventory["data_product"] = inventory["tags"].map(
         lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "data_product")
+    )
+
+    glossary_terms_df = pd.DataFrame()
+    glossary_links_df = pd.DataFrame()
+    if store is not None and hasattr(store, "list_glossary_terms"):
+        try:
+            glossary_terms_df = store.list_glossary_terms(limit=500)
+        except Exception:
+            glossary_terms_df = pd.DataFrame()
+    if store is not None and hasattr(store, "list_glossary_term_links"):
+        try:
+            glossary_links_df = store.list_glossary_term_links()
+        except Exception:
+            glossary_links_df = pd.DataFrame()
+    glossary_term_index = glossary_term_lookup(glossary_terms_df)
+    glossary_link_index = glossary_link_lookup(glossary_links_df, glossary_term_index)
+    inventory["glossaryLinks"] = inventory["fqn"].map(
+        lambda fqn: glossary_terms_for_subject("asset", str(fqn), glossary_link_index) if pd.notna(fqn) else []
+    )
+    inventory["glossaryTerms"] = inventory["glossaryLinks"].map(
+        lambda links: [
+            normalize_str(link.get("term"))
+            for link in links
+            if normalize_str(link.get("term"))
+        ]
+    )
+    inventory["glossary_term"] = inventory["glossaryTerms"].map(
+        lambda terms: terms[0] if terms else ""
+    )
+    inventory["glossary_term"] = inventory.apply(
+        lambda row: normalize_str(row.get("glossary_term")) or normalize_str(row.get("glossary_term_tag")),
+        axis=1,
     )
 
     owners_df = store.list_owner_assignments()
@@ -501,13 +591,6 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
         inventory["technical_owner"] = ""
         inventory["steward"] = ""
 
-    links_df = store.list_asset_links()
-    if not links_df.empty:
-        links_df = links_df.rename(columns={"uc_full_name": "fqn", "om_table_fqn": "om_table_fqn"})
-        inventory = inventory.merge(links_df[["fqn", "om_table_fqn"]], on="fqn", how="left")
-    else:
-        inventory["om_table_fqn"] = ""
-
     requests_df = store.list_change_requests(limit=500)
     if not requests_df.empty:
         request_rollup = (
@@ -545,7 +628,6 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
         "business_owner",
         "technical_owner",
         "steward",
-        "om_table_fqn",
     ]:
         if col not in inventory.columns:
             inventory[col] = ""
@@ -570,10 +652,13 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
         "domain",
         "tier",
         "certification",
-        "sensitivity",
-        "criticality",
-        "glossary_term",
-        "data_product",
+            "sensitivity",
+            "criticality",
+            "glossary_term_tag",
+            "glossary_term",
+            "glossaryLinks",
+            "glossaryTerms",
+            "data_product",
         "owners_summary",
         "business_owner",
         "technical_owner",

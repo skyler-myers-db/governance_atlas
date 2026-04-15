@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "types": ["node", "react", "react-dom"]
+  },
+  "include": [
+    "src/lib/api.js",
+    "src/lib/assetRecordNavigation.js",
+    "src/lib/queryClient.js",
+    "src/hooks/useAppRouteState.js",
+    "src/hooks/useAssetDetail.js",
+    "src/hooks/useAssetSearch.js",
+    "src/hooks/useBootstrap.js",
+    "src/hooks/useDiscoveryResults.js",
+    "src/hooks/useLineage.js",
+    "src/types/**/*.d.ts",
+    "vite.config.js"
+  ]
+}

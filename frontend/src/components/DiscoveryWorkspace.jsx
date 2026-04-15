@@ -7,10 +7,20 @@ import {
 import { useLineage } from "../hooks/useLineage";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
+import {
+  runtimeFeatureFlagAvailable,
+  runtimeFeatureFlagReason,
+  tableLineageAvailable,
+  tableLineageReason,
+  workspaceAccessAvailable,
+  workspaceAccessReason,
+} from "../lib/capabilities";
+import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 
 const DISCOVERY_RESULT_PAGE_SIZE = 60;
 
 function statusTone(asset) {
+  if (!asset?.governanceStatus) return "neutral";
   if (asset?.governanceStatus === "Enterprise Ready") return "good";
   if (asset?.governanceStatus === "Operational") return "warn";
   return "bad";
@@ -89,9 +99,9 @@ function activeFilters(filters) {
 
 function resultMetaItems(asset) {
   return [
-    `Coverage ${asset.coverageScore ?? 0}`,
+    `Coverage ${asset.coverageScore == null ? "—" : asset.coverageScore}`,
     `${asset.owners?.length || 0} owners`,
-    `${asset.openRequests || 0} requests`,
+    asset.openRequests == null ? "Requests —" : `${asset.openRequests} requests`,
     asset.domain || "Unassigned domain",
     asset.tier || "Unassigned tier",
     asset.certification || "Unassigned certification",
@@ -125,7 +135,8 @@ function previewSignalItems(
   relatedCount,
   detailLoading,
   lineageLoading,
-  lineageEnabled = true,
+  lineageProvisional = false,
+  lineageAvailable = true,
 ) {
   return [
     {
@@ -142,8 +153,10 @@ function previewSignalItems(
     },
     {
       label: "Lineage",
-      value: !lineageEnabled
-        ? "Load lineage on demand"
+      value: !lineageAvailable
+        ? "Lineage unavailable"
+        : lineageProvisional
+          ? "Refreshing live lineage..."
         : lineageLoading && !relatedCount
           ? "Loading lineage neighbors..."
           : relatedCount
@@ -312,6 +325,8 @@ function DiscoveryResultCard({
   onOpenGovernance,
   onOpenLineage,
   onSelect,
+  lineageAvailable = true,
+  lineageUnavailableReason = "",
 }) {
   const owners = (asset.owners || []).map((owner) => ownerLabel(owner)).filter(Boolean).slice(0, 2);
   const metaItems = resultMetaItems(asset);
@@ -338,9 +353,11 @@ function DiscoveryResultCard({
             </div>
             <div className="gh-discovery-result-fqn">{assetPathLabel(asset)}</div>
           </div>
-          <span className={`gh-status-chip tone-${statusTone(asset)}`}>
-            {asset.governanceStatus || "Needs Work"}
-          </span>
+          {asset.governanceStatus ? (
+            <span className={`gh-status-chip tone-${statusTone(asset)}`}>
+              {asset.governanceStatus}
+            </span>
+          ) : null}
         </div>
 
         <p className="gh-discovery-result-description">
@@ -370,10 +387,12 @@ function DiscoveryResultCard({
         </button>
         <button
           className="gh-secondary-button gh-secondary-button-compact"
+          disabled={!lineageAvailable}
           onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
+          title={!lineageAvailable ? lineageUnavailableReason : undefined}
           type="button"
         >
-          Open Lineage
+          {lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
         </button>
         <button
           className="gh-secondary-button gh-secondary-button-compact"
@@ -419,30 +438,33 @@ function SelectionPreview({
   onOpenLineage,
   visibleAssetSet,
   seededLineageGraph,
+  lineageAvailable = true,
+  lineageUnavailableReason = "",
 }) {
   const [lineageWarm, setLineageWarm] = useState(false);
   const lineage = useLineage(
     asset?.fqn || "",
-    seededLineageGraph || null,
-    Boolean(asset?.fqn) && lineageWarm,
+    lineageAvailable ? seededLineageGraph || null : null,
+    Boolean(asset?.fqn) && lineageWarm && lineageAvailable,
   );
-  const relatedAssetSeedKey = (asset?.relatedAssets || []).join("|");
+  const lineageAuthoritative = lineage.authoritative;
+  const lineageProvisional = lineage.provisional;
   const previewRelatedAssets = useMemo(() => {
-    if (!asset) return [];
+    if (!asset || !lineageAvailable) return [];
     return [
       ...new Set([
         ...(asset.relatedAssets || []),
-        ...previewRelatedAssetsFromGraph(lineage.graph, asset.fqn),
+        ...(lineageAuthoritative ? previewRelatedAssetsFromGraph(lineage.graph, asset.fqn) : []),
       ]),
     ].slice(0, 4);
-  }, [asset?.fqn, lineage.graph, relatedAssetSeedKey]);
+  }, [asset, lineage.graph, lineageAuthoritative, lineageAvailable]);
   const relatedAssetAvailability = useAssetAvailability(previewRelatedAssets, visibleAssetSet, {
     strict: true,
     requireRenderableDetail: false,
   });
 
   useEffect(() => {
-    if (!asset?.fqn) {
+    if (!asset?.fqn || !lineageAvailable) {
       setLineageWarm(false);
       return undefined;
     }
@@ -467,7 +489,7 @@ function SelectionPreview({
         window.clearTimeout(timeoutId);
       }
     };
-  }, [asset?.fqn]);
+  }, [asset?.fqn, lineageAvailable]);
 
   if (!asset) {
     return (
@@ -485,7 +507,8 @@ function SelectionPreview({
     previewRelatedAssets.length,
     detailLoading,
     lineage.loading,
-    true,
+    lineageProvisional,
+    lineageAvailable,
   );
 
   return (
@@ -495,9 +518,11 @@ function SelectionPreview({
           <div className="gh-eyebrow">Selected Asset</div>
           <div className="gh-selection-preview-title-row">
             <h3>{asset.name}</h3>
-            <span className={`gh-status-chip tone-${statusTone(asset)}`}>
-              {asset.governanceStatus || "Needs Work"}
-            </span>
+            {asset.governanceStatus ? (
+              <span className={`gh-status-chip tone-${statusTone(asset)}`}>
+                {asset.governanceStatus}
+              </span>
+            ) : null}
           </div>
           <div className="gh-support-copy">{assetPathLabel(asset, true)}</div>
         </div>
@@ -509,10 +534,12 @@ function SelectionPreview({
         </button>
         <button
           className="gh-secondary-button"
+          disabled={!lineageAvailable}
           onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
+          title={!lineageAvailable ? lineageUnavailableReason : undefined}
           type="button"
         >
-          Open Lineage
+          {lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
         </button>
         <button
           className="gh-secondary-button"
@@ -562,9 +589,11 @@ function SelectionPreview({
       <PreviewSection
         title="Connected Assets"
         empty={
-          lineage.loading
-            ? "Loading connected lineage edges..."
-            : "No connected lineage edges are surfaced for this asset yet."
+          !lineageAvailable
+            ? lineageUnavailableReason
+            : lineage.loading || lineageProvisional
+              ? "Refreshing live lineage context..."
+              : "No connected lineage edges are surfaced for this asset yet."
         }
       >
         {previewRelatedAssets.length ? (
@@ -611,6 +640,8 @@ export default function DiscoveryWorkspace({
   onOpenGovernance,
   onOpenLineage,
   sharedVisibleAssetSet,
+  runtimeFeatureFlags = [],
+  workspaceAccess = null,
 }) {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedAssetFqn, setSelectedAssetFqn] = useState("");
@@ -664,6 +695,27 @@ export default function DiscoveryWorkspace({
     }
     return next;
   }, [sharedVisibleAssetSet]);
+  const lineageAvailable = tableLineageAvailable(bootstrap);
+  const lineageUnavailableReason = tableLineageReason(bootstrap);
+  const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", true);
+  const lineageRolloutAvailable = runtimeFeatureFlagAvailable(
+    runtimeFeatureFlags,
+    "table_lineage_surface",
+  );
+  const lineageSurfaceAvailable = lineageAvailable && lineageRolloutAvailable && workspaceLineageAvailable;
+  const lineageRolloutUnavailableReason =
+    "Table lineage rollout is not available in this workspace right now.";
+  const lineageSurfaceUnavailableReason = !workspaceLineageAvailable
+    ? workspaceAccessReason(workspaceAccess, "lineage_access", lineageUnavailableReason)
+    : lineageAvailable
+    ? lineageRolloutAvailable
+      ? lineageUnavailableReason
+      : runtimeFeatureFlagReason(
+          runtimeFeatureFlags,
+          "table_lineage_surface",
+          lineageRolloutUnavailableReason,
+        )
+    : lineageUnavailableReason;
 
   useEffect(() => {
     if (!showAdvancedFilters) return undefined;
@@ -784,17 +836,40 @@ export default function DiscoveryWorkspace({
   const openAssetRecord = (assetFqn) => {
     if (!assetFqn) return;
     setNavigationNotice("");
-    onNavigationStateChange?.(true, "Opening metadata record…");
-    onOpenAsset(assetFqn);
+    void openAssetRecordSafely(assetFqn, {
+      onNavigationStateChange,
+      onOpen: () => {
+        onOpenAsset(assetFqn);
+      },
+      onUnavailable: () => {
+        setNavigationNotice(
+          "That asset is visible in discovery, but its metadata record is not openable with the current permissions.",
+        );
+      },
+    });
   };
   const openLinkedAsset = (assetFqn) => {
     if (!assetFqn) return;
     setNavigationNotice("");
-    onNavigationStateChange?.(true, "Opening linked metadata record…");
-    onOpenAsset(assetFqn);
+    void openAssetRecordSafely(assetFqn, {
+      loadingLabel: "Opening linked metadata record…",
+      onNavigationStateChange,
+      onOpen: () => {
+        onOpenAsset(assetFqn);
+      },
+      onUnavailable: () => {
+        setNavigationNotice(
+          "That linked asset is surfaced by live lineage, but its metadata record is not openable with the current permissions.",
+        );
+      },
+    });
   };
   const openLineageWorkspace = (nextAssetFqn, context = "Data Lineage") => {
     if (!nextAssetFqn) return;
+    if (!lineageSurfaceAvailable) {
+      setNavigationNotice(lineageSurfaceUnavailableReason);
+      return;
+    }
     setNavigationNotice("");
     onNavigationStateChange?.(true, context === "Operational Context" ? "Opening operational context…" : "Opening lineage…");
     onOpenLineage(nextAssetFqn, context);
@@ -1064,6 +1139,8 @@ export default function DiscoveryWorkspace({
                 <DiscoveryResultCard
                   asset={asset}
                   key={asset.fqn}
+                  lineageAvailable={lineageSurfaceAvailable}
+                  lineageUnavailableReason={lineageSurfaceUnavailableReason}
                   onOpenAsset={openAssetRecord}
                   onOpenGovernance={openGovernanceWorkbench}
                   onOpenLineage={openLineageWorkspace}
@@ -1166,6 +1243,8 @@ export default function DiscoveryWorkspace({
             asset={previewAsset}
             detailError={previewSchemaDetail.error || previewDetail.error}
             detailLoading={previewDetail.loading || (previewSchemaDetail.loading && !previewSchemaDetail.detail?.columns?.length)}
+            lineageAvailable={lineageSurfaceAvailable}
+            lineageUnavailableReason={lineageSurfaceUnavailableReason}
             onOpenAsset={openAssetRecord}
             onOpenGovernance={openGovernanceWorkbench}
             onOpenLinkedAsset={openLinkedAsset}
