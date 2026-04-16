@@ -146,6 +146,257 @@ describe("GovernanceWorkspace", () => {
     expect(screen.queryByRole("button", { name: "Diagnostics" })).toBeNull();
   });
 
+  it("uses the shared shell header and switches titles across governance modes", async () => {
+    render(
+      <GovernanceWorkspace
+        bootstrap={{
+          assets: [],
+          shell: {
+            role: "Steward",
+            diagnosticsEnabled: true,
+          },
+        }}
+        contextSeedAssets={[]}
+        governance={governancePayload}
+        initialAssetFqn=""
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenLineage={() => {}}
+        onRouteAssetChange={() => {}}
+        onSurfaceReady={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Stewardship workbench")).not.toBeNull();
+    expect(screen.getByText("Open work view")).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Glossary" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Glossary workbench")).not.toBeNull();
+    });
+  });
+
+  it("uses the shared workbench wrapper across stewardship and glossary layouts", async () => {
+    const { container } = render(
+      <GovernanceWorkspace
+        bootstrap={{
+          assets: [],
+          shell: {
+            role: "Steward",
+            diagnosticsEnabled: true,
+          },
+        }}
+        contextSeedAssets={[]}
+        governance={{
+          ...governancePayload,
+          glossary: [
+            {
+              termId: "term-1",
+              term: "Customer Identifier",
+              definition: "Customer key used across reporting.",
+              domain: "Sales",
+              ownerEmail: "owner@example.com",
+              status: "Approved",
+              reviewers: [],
+              reviewerRoster: [],
+              termHistory: [],
+              assetCount: 1,
+              assets: ["main.sales.orders"],
+            },
+          ],
+        }}
+        initialAssetFqn=""
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenLineage={() => {}}
+        onRouteAssetChange={() => {}}
+        onSurfaceReady={() => {}}
+      />,
+    );
+
+    expect(container.querySelector(".gh-surface-workbench")).not.toBeNull();
+    expect(container.querySelector(".gh-surface-workbench-main")).not.toBeNull();
+    expect(container.querySelector(".gh-surface-workbench-side")).not.toBeNull();
+    expect(container.querySelector(".gh-governance-flow-grid")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Glossary" }));
+
+    await waitFor(() => {
+      expect(container.querySelector(".gh-surface-workbench-glossary")).not.toBeNull();
+    });
+  });
+
+  it("shows the normalized degraded governance banner when the control plane is limited", () => {
+    render(
+      <GovernanceWorkspace
+        bootstrap={{
+          assets: [],
+          shell: {
+            role: "Steward",
+            diagnosticsEnabled: true,
+          },
+        }}
+        contextSeedAssets={[]}
+        governance={{
+          ...governancePayload,
+          authoritative: false,
+          provenance: {
+            warnings: ["Governance control plane is temporarily unavailable."],
+          },
+        }}
+        initialAssetFqn=""
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenLineage={() => {}}
+        onRouteAssetChange={() => {}}
+        onSurfaceReady={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Governance plane degraded")).not.toBeNull();
+    expect(screen.getByText("Governance control plane is temporarily unavailable.")).not.toBeNull();
+  });
+
+  it("renders the focused stewardship rail on the shared governance workbench shell", async () => {
+    useAssetDetailMock.mockReturnValue({
+      detail: {
+        fqn: "main.sales.orders",
+        name: "orders",
+        catalog: "main",
+        schema: "sales",
+        domain: "Sales",
+        tier: "Gold",
+        certification: "Certified",
+        sensitivity: "Internal",
+        coverageScore: 92,
+        openRequests: 2,
+      },
+      loading: false,
+      error: "",
+    });
+
+    render(
+      <GovernanceWorkspace
+        bootstrap={{
+          assets: [],
+          shell: {
+            role: "Steward",
+            diagnosticsEnabled: true,
+          },
+        }}
+        contextSeedAssets={[]}
+        governance={{
+          ...governancePayload,
+          backlog: [
+            {
+              requestId: "req-1",
+              title: "Review ownership",
+              asset: "orders",
+              assetFqn: "main.sales.orders",
+              status: "open",
+              note: "Owner metadata is missing.",
+            },
+          ],
+          glossary: [
+            {
+              termId: "term-1",
+              term: "Customer Identifier",
+              definition: "Customer key used across reporting.",
+              domain: "Sales",
+              ownerEmail: "owner@example.com",
+              status: "Approved",
+              reviewers: [],
+              reviewerRoster: [],
+              termHistory: [],
+              assetCount: 1,
+              assets: ["main.sales.orders"],
+            },
+          ],
+        }}
+        initialAssetFqn="main.sales.orders"
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenLineage={() => {}}
+        onRouteAssetChange={() => {}}
+        onSurfaceReady={() => {}}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Focused stewardship")).not.toBeNull();
+    });
+
+    expect(screen.getByText("Stewardship posture")).not.toBeNull();
+    expect(screen.getByText("Linked glossary")).not.toBeNull();
+  });
+
+  it("preserves the selected work item across governance mode switches", async () => {
+    render(
+      <GovernanceWorkspace
+        bootstrap={{
+          assets: [],
+          shell: {
+            role: "Steward",
+            diagnosticsEnabled: true,
+          },
+        }}
+        contextSeedAssets={[]}
+        governance={{
+          ...governancePayload,
+          backlog: [
+            {
+              requestId: "req-1",
+              title: "Review ownership",
+              asset: "orders",
+              assetFqn: "main.sales.orders",
+              status: "open",
+              note: "Owner metadata is missing.",
+            },
+          ],
+          glossary: [
+            {
+              termId: "term-1",
+              term: "Customer Identifier",
+              definition: "Customer key used across reporting.",
+              domain: "Sales",
+              ownerEmail: "owner@example.com",
+              status: "Approved",
+              reviewers: [],
+              reviewerRoster: [],
+              termHistory: [],
+              assetCount: 1,
+              assets: ["main.sales.orders"],
+            },
+          ],
+        }}
+        initialAssetFqn=""
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenLineage={() => {}}
+        onRouteAssetChange={() => {}}
+        onSurfaceReady={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Review ownership/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Selected work")).not.toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Glossary" }));
+    fireEvent.click(screen.getByRole("button", { name: "Stewardship" }));
+
+    expect(screen.getByText("Selected work")).not.toBeNull();
+    expect(screen.getAllByText("Review ownership").length).toBeGreaterThan(0);
+  });
+
   it("hydrates selected glossary terms through the dedicated term detail hook", async () => {
     const curatedTerm = {
       termId: "term-1",
@@ -224,5 +475,118 @@ describe("GovernanceWorkspace", () => {
 
     expect(screen.getAllByText("Curated glossary detail").length).toBeGreaterThan(0);
     expect(screen.getAllByText("reviewer@example.com").length).toBeGreaterThan(0);
+  });
+
+  it("renders the glossary detail rail after switching modes and selecting a term", async () => {
+    render(
+      <GovernanceWorkspace
+        bootstrap={{
+          assets: [],
+          shell: {
+            role: "Steward",
+            diagnosticsEnabled: true,
+          },
+        }}
+        contextSeedAssets={[]}
+        governance={{
+          ...governancePayload,
+          glossary: [
+            {
+              termId: "term-1",
+              term: "Customer Identifier",
+              definition: "Customer key used across reporting.",
+              domain: "Sales",
+              ownerEmail: "owner@example.com",
+              status: "Approved",
+              reviewers: [],
+              reviewerRoster: [],
+              termHistory: [],
+              assetCount: 2,
+              assets: ["main.sales.orders"],
+            },
+          ],
+        }}
+        initialAssetFqn=""
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenLineage={() => {}}
+        onRouteAssetChange={() => {}}
+        onSurfaceReady={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Glossary" }));
+    fireEvent.click(screen.getByRole("button", { name: /Customer Identifier/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Term detail")).not.toBeNull();
+    });
+
+    expect(screen.getByText("Selected term")).not.toBeNull();
+    expect(screen.getByText("Linked assets")).not.toBeNull();
+  });
+
+  it("preserves the selected glossary term across mode switches", async () => {
+    render(
+      <GovernanceWorkspace
+        bootstrap={{
+          assets: [],
+          shell: {
+            role: "Steward",
+            diagnosticsEnabled: true,
+          },
+        }}
+        contextSeedAssets={[]}
+        governance={{
+          ...governancePayload,
+          backlog: [
+            {
+              requestId: "req-1",
+              title: "Review ownership",
+              asset: "orders",
+              assetFqn: "main.sales.orders",
+              status: "open",
+              note: "Owner metadata is missing.",
+            },
+          ],
+          glossary: [
+            {
+              termId: "term-1",
+              term: "Customer Identifier",
+              definition: "Customer key used across reporting.",
+              domain: "Sales",
+              ownerEmail: "owner@example.com",
+              status: "Approved",
+              reviewers: [],
+              reviewerRoster: [],
+              termHistory: [],
+              assetCount: 2,
+              assets: ["main.sales.orders"],
+            },
+          ],
+        }}
+        initialAssetFqn=""
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenLineage={() => {}}
+        onRouteAssetChange={() => {}}
+        onSurfaceReady={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Glossary" }));
+    fireEvent.click(screen.getByRole("button", { name: /Customer Identifier/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Term detail")).not.toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Stewardship" }));
+    fireEvent.click(screen.getByRole("button", { name: "Glossary" }));
+
+    expect(screen.getByText("Term detail")).not.toBeNull();
+    expect(screen.getByText("Selected term")).not.toBeNull();
   });
 });

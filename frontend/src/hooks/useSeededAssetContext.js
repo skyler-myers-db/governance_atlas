@@ -52,7 +52,6 @@ function summaryForAsset(
 export function useSeededAssetContext(assetFqn, bootstrap, discoveryAssets = [], options = {}) {
   const bootstrapAssets = bootstrap?.assets || [];
   const bootstrapIndex = bootstrap?.assetIndex || {};
-  const bootstrapGraphs = bootstrap?.graphs || {};
   const allowFallback = options?.allowFallback !== false;
 
   const summary = useMemo(
@@ -63,13 +62,7 @@ export function useSeededAssetContext(assetFqn, bootstrap, discoveryAssets = [],
     [allowFallback, assetFqn, bootstrapAssets, bootstrapIndex, discoveryAssets]
   );
 
-  const seededGraph = useMemo(
-    () => (assetFqn && bootstrapGraphs[assetFqn]) || null,
-    [assetFqn, bootstrapGraphs]
-  );
-
   return {
     summary,
-    seededGraph,
   };
 }
