@@ -209,4 +209,5 @@ __marimo__/
 AGENT*
 .databricks/
 .DS_Store
+frontend/dist/
 frontend/node_modules/

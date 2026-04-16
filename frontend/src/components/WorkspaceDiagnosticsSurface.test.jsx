@@ -15,9 +15,67 @@ vi.mock("../lib/api", () => ({
 }));
 
 describe("WorkspaceDiagnosticsSurface", () => {
+  it("renders a shared loading card when no status payload is available yet", () => {
+    const { container } = render(<WorkspaceDiagnosticsSurface loading />);
+
+    expect(screen.getByText("Workspace diagnostics")).not.toBeNull();
+    expect(screen.getByText("Loading workspace setup diagnostics...")).not.toBeNull();
+    expect(container.querySelector(".gh-surface-workbench")).not.toBeNull();
+    expect(container.querySelector(".gh-surface-workbench-main")).not.toBeNull();
+  });
+
+  it("renders a shared error card when diagnostics fail before any status payload is available", () => {
+    const { container } = render(<WorkspaceDiagnosticsSurface error="Diagnostics request failed." />);
+
+    expect(screen.getByText("Workspace diagnostics")).not.toBeNull();
+    expect(screen.getByText("Workspace setup diagnostics could not be loaded.")).not.toBeNull();
+    expect(screen.getByText("Diagnostics request failed.")).not.toBeNull();
+    expect(container.querySelector(".gh-surface-workbench")).not.toBeNull();
+    expect(container.querySelector(".gh-surface-workbench-main")).not.toBeNull();
+  });
+
+  it("preserves stale diagnostics content while refresh is in progress", () => {
+    const onRefresh = vi.fn();
+    const { container } = render(
+      <WorkspaceDiagnosticsSurface
+        loading
+        onRefresh={onRefresh}
+        refreshing
+        status={{
+          runtime: {
+            state: "live",
+            message: "",
+          },
+          store: {
+            state: "live",
+            message: "",
+          },
+          diagnostics: {
+            observedAt: "2026-04-14T22:00:00Z",
+            setupSummary: {
+              availableCount: 1,
+              degradedCount: 0,
+              unavailableCount: 0,
+              unknownCount: 0,
+            },
+            setupChecks: [],
+            featureFlags: [],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Refreshing")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Refreshing readiness..." }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText("Workspace access")).not.toBeNull();
+    expect(container.querySelector(".gh-surface-workbench")).not.toBeNull();
+    expect(container.querySelector(".gh-surface-workbench-main")).not.toBeNull();
+    expect(container.querySelector(".gh-surface-workbench-side")).not.toBeNull();
+  });
+
   it("renders readiness sequence, evidence, and rollout metadata", () => {
     const onRefresh = vi.fn();
-    render(
+    const { container } = render(
       <WorkspaceDiagnosticsSurface
         onRefresh={onRefresh}
         refreshing={false}
@@ -171,6 +229,7 @@ describe("WorkspaceDiagnosticsSurface", () => {
     fireEvent.click(screen.getByRole("button", { name: "Refresh readiness" }));
 
     expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(container.querySelector(".gh-surface-workbench")).not.toBeNull();
     expect(screen.getByText("Workspace access")).not.toBeNull();
     expect(screen.getByText("Feature inventory")).not.toBeNull();
     expect(screen.getAllByText("Governance writes").length).toBeGreaterThan(0);
@@ -230,5 +289,48 @@ describe("WorkspaceDiagnosticsSurface", () => {
     expect(screen.getByText("No workspace setup diagnostics rollout flag was returned.")).not.toBeNull();
     expect(screen.getByText("Feature inventory")).not.toBeNull();
     expect(screen.getAllByText("Unknown").length).toBeGreaterThan(0);
+  });
+
+  it("uses shared empty-state copy for missing workspace access and capability sections", () => {
+    render(
+      <WorkspaceDiagnosticsSurface
+        status={{
+          runtime: {
+            state: "live",
+            message: "",
+          },
+          store: {
+            state: "live",
+            message: "",
+          },
+          diagnostics: {
+            observedAt: "2026-04-14T22:05:00Z",
+            diagnosticsEnabled: true,
+            setupReadiness: {
+              state: "ready",
+              claimNarrowing: [],
+            },
+            setupSummary: {
+              availableCount: 1,
+              degradedCount: 0,
+              unavailableCount: 0,
+              unknownCount: 0,
+            },
+            setupChecks: [],
+            featureFlags: [],
+            workspaceAccess: {
+              mode: "forwarded-user-header",
+              blockedSurfaces: [],
+              gates: [],
+            },
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Workspace access summary pending")).not.toBeNull();
+    expect(screen.getByText("Claims at full breadth")).not.toBeNull();
+    expect(screen.getByText("Capability inventory pending")).not.toBeNull();
+    expect(screen.getByText("Feature inventory pending")).not.toBeNull();
   });
 });

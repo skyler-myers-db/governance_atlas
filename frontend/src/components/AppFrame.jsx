@@ -99,7 +99,7 @@ function SearchDropdown({
     <div className="gh-search-dropdown">
       <div className="gh-search-dropdown-head">
         <div>
-          <div className="gh-eyebrow">Global Search</div>
+          <div className="gh-eyebrow">Search results</div>
           <div className="gh-search-dropdown-status">{searchStatus}</div>
         </div>
         {searchCount ? <div className="gh-search-dropdown-status">{searchCount}</div> : null}
@@ -184,10 +184,14 @@ export default function AppFrame({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
   const [searchNotice, setSearchNotice] = useState("");
+  const [shellHeaderHeight, setShellHeaderHeight] = useState(0);
+  const shellHeaderRef = useRef(null);
   const searchRootRef = useRef(null);
   const hasRenderableLiveCatalog =
     (typeof liveCatalogVisibleCount === "number" && liveCatalogVisibleCount > 0) ||
     visibleAssetSet?.size > 0;
+  const visibleCatalogCount =
+    typeof liveCatalogVisibleCount === "number" ? liveCatalogVisibleCount : visibleAssetSet?.size || 0;
   const shellDisabled = (bootState === "unavailable" || bootState === "error") && !hasRenderableLiveCatalog;
   const showRuntimeStatus =
     (bootState === "unavailable" || bootState === "error") && !hasRenderableLiveCatalog;
@@ -213,6 +217,12 @@ export default function AppFrame({
   const inboxMessage =
     String(governanceInbox?.message || "").trim() ||
     "Unread workflow notifications from governance activity.";
+  const searchScopeLabel = hasRenderableLiveCatalog
+    ? `${visibleCatalogCount} visible asset${visibleCatalogCount === 1 ? "" : "s"} indexed`
+    : "Visible catalog unavailable";
+  const searchScopeHint = hasRenderableLiveCatalog
+    ? "Search stays scoped to visible assets; Discovery opens the broader workspace view."
+    : "Search is paused until the live catalog becomes available.";
   const searchEnabled = !shellDisabled && searchPanelOpen && searchQuery.trim().length >= 2;
   const shellSearch = useAssetSearch(searchQuery, searchEnabled, searchSeedAssets);
 
@@ -234,6 +244,9 @@ export default function AppFrame({
         );
       },
     });
+  };
+  const openDiscoveryModule = () => {
+    onModuleChange?.("discovery");
   };
 
   useEffect(() => {
@@ -267,6 +280,69 @@ export default function AppFrame({
     };
   }, [searchPanelOpen]);
 
+  useEffect(() => {
+    const header = shellHeaderRef.current;
+    if (!header) return undefined;
+
+    let animationFrame = 0;
+    const updateShellHeaderHeight = () => {
+      const nextHeight = Math.max(
+        0,
+        Math.ceil(header.getBoundingClientRect?.().height || header.offsetHeight || 0),
+      );
+      setShellHeaderHeight((current) => (current === nextHeight ? current : nextHeight));
+    };
+    const scheduleShellHeaderMeasure = () => {
+      if (typeof window === "undefined") {
+        updateShellHeaderHeight();
+        return;
+      }
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(updateShellHeaderHeight);
+    };
+
+    scheduleShellHeaderMeasure();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(() => {
+        scheduleShellHeaderMeasure();
+      });
+      observer.observe(header);
+      return () => {
+        if (typeof window !== "undefined") {
+          window.cancelAnimationFrame(animationFrame);
+        }
+        observer.disconnect();
+      };
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", scheduleShellHeaderMeasure);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.cancelAnimationFrame(animationFrame);
+        window.removeEventListener("resize", scheduleShellHeaderMeasure);
+      }
+    };
+  }, [
+    bootMessage,
+    bootState,
+    diagnosticsAvailable,
+    diagnosticsOpen,
+    inboxOpen,
+    navigationState?.label,
+    navigationState?.pending,
+    searchPanelOpen,
+    setupStatusNextStep,
+    setupStatusState,
+    shell?.role,
+    shell?.userEmail,
+    showInbox,
+    showRuntimeStatus,
+    showSetupStatus,
+  ]);
+
   const submitSearch = () => {
     if (shellDisabled) return;
     const query = searchQuery.trim();
@@ -281,15 +357,19 @@ export default function AppFrame({
   };
 
   return (
-    <div className="gh-app">
-      <header className="gh-shell-header">
+    <div
+      className="gh-app"
+      data-shell-sticky-ready={shellHeaderHeight > 0 ? "true" : "false"}
+      style={{ "--gh-shell-header-height": `${shellHeaderHeight}px` }}
+    >
+      <header className="gh-shell-header" ref={shellHeaderRef}>
         <div className="gh-shell-topbar">
           <div className="gh-shell-spine">
             <div className="gh-shell-brand-band">
               <button
                 className="gh-shell-brand"
                 disabled={shellDisabled}
-                onClick={() => onModuleChange("discovery")}
+                onClick={openDiscoveryModule}
                 type="button"
               >
                 <div className="gh-shell-brand-mark" aria-hidden="true">
@@ -306,54 +386,58 @@ export default function AppFrame({
               <div className="gh-shell-nav-band-head">
                 <div className="gh-shell-module-label">Modules</div>
                 <div className="gh-shell-identity-inline">
-                  {showRuntimeStatus ? (
-                    <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
-                      {statusLabel(bootState)}
-                    </span>
-                  ) : null}
                   <div className="gh-shell-identity-block">
                     <div className="gh-shell-identity">{shell?.role || "workspace user"}</div>
                     <div className="gh-shell-user">{shell?.userEmail || "unknown"}</div>
-                    {showRuntimeStatus && bootMessage ? (
-                      <div className={`gh-shell-status-note tone-${statusTone(bootState)}`}>{bootMessage}</div>
-                    ) : null}
                   </div>
-                  {showSetupStatus ? (
-                    <div className="gh-shell-setup-status">
-                      <span className={`gh-chip gh-chip-status tone-${setupStatusToneValue}`}>
-                        {setupStatusLabel(setupStatusState)}
-                      </span>
-                      <div className={`gh-shell-status-note tone-${setupStatusToneValue}`}>
-                        {setupStatusNextStep}
-                      </div>
-                    </div>
-                  ) : null}
-                  <div className="gh-shell-status-actions">
-                    {diagnosticsAvailable ? (
-                      <button
-                        aria-pressed={diagnosticsOpen}
-                        className="gh-tertiary-button gh-inline-link-button"
-                        onClick={onToggleDiagnostics}
-                        type="button"
-                      >
-                        {diagnosticsOpen ? "Hide workspace setup" : "Workspace setup"}
-                      </button>
-                    ) : null}
-                    {showInbox ? (
-                      <button
-                        aria-pressed={inboxOpen}
-                        className="gh-tertiary-button gh-inline-link-button gh-shell-inbox-trigger"
-                        onClick={onToggleInbox}
-                        type="button"
-                      >
-                        <span>Inbox</span>
-                        {inboxUnreadCount > 0 ? (
-                          <span aria-hidden="true" className="gh-shell-inbox-badge">
-                            {inboxUnreadCount}
-                          </span>
+                  <div className="gh-shell-context-stack">
+                    {showRuntimeStatus ? (
+                      <div className="gh-shell-context-state">
+                        <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
+                          {statusLabel(bootState)}
+                        </span>
+                        {bootMessage ? (
+                          <div className={`gh-shell-status-note tone-${statusTone(bootState)}`}>{bootMessage}</div>
                         ) : null}
-                      </button>
+                      </div>
                     ) : null}
+                    {showSetupStatus ? (
+                      <div className="gh-shell-setup-status">
+                        <span className={`gh-chip gh-chip-status tone-${setupStatusToneValue}`}>
+                          {setupStatusLabel(setupStatusState)}
+                        </span>
+                        <div className={`gh-shell-status-note tone-${setupStatusToneValue}`}>
+                          {setupStatusNextStep}
+                        </div>
+                      </div>
+                    ) : null}
+                    <div className="gh-shell-status-actions">
+                      {diagnosticsAvailable ? (
+                        <button
+                          aria-pressed={diagnosticsOpen}
+                          className="gh-tertiary-button gh-inline-link-button"
+                          onClick={onToggleDiagnostics}
+                          type="button"
+                        >
+                          {diagnosticsOpen ? "Hide workspace setup" : "Workspace setup"}
+                        </button>
+                      ) : null}
+                      {showInbox ? (
+                        <button
+                          aria-pressed={inboxOpen}
+                          className="gh-tertiary-button gh-inline-link-button gh-shell-inbox-trigger"
+                          onClick={onToggleInbox}
+                          type="button"
+                        >
+                          <span>Inbox</span>
+                          {inboxUnreadCount > 0 ? (
+                            <span aria-hidden="true" className="gh-shell-inbox-badge">
+                              {inboxUnreadCount}
+                            </span>
+                          ) : null}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -363,7 +447,7 @@ export default function AppFrame({
                     className={`gh-product-tab ${activeModule === module.key ? "is-active" : ""}`}
                     disabled={shellDisabled}
                     key={module.key}
-                    onClick={() => onModuleChange(module.key)}
+                    onClick={module.key === "discovery" ? openDiscoveryModule : () => onModuleChange(module.key)}
                     type="button"
                   >
                     <span>{module.label}</span>
@@ -375,6 +459,12 @@ export default function AppFrame({
         </div>
 
         <div className="gh-shell-commandbar">
+          <div className="gh-shell-commandbar-copy">
+            <div className="gh-shell-module-label">Command bar</div>
+            <div className="gh-shell-commandbar-title">Search visible assets, then open the broader discovery surface.</div>
+            <div className="gh-shell-commandbar-subtitle">{searchScopeHint}</div>
+            <div className="gh-shell-commandbar-scope">{searchScopeLabel}</div>
+          </div>
           {navigationState?.pending ? (
             <div className="gh-shell-progress" role="status" aria-live="polite">
               <span className="gh-shell-progress-bar" aria-hidden="true" />
@@ -394,8 +484,9 @@ export default function AppFrame({
               <div className="gh-global-search-frame">
                 <div className="gh-global-search-copy">
                   <label className="gh-global-search-label" htmlFor="gh-global-search-input">
-                    Global Search
+                    Search
                   </label>
+                  <div className="gh-global-search-subtitle">{searchScopeHint}</div>
                 </div>
                 <div className="gh-global-search-input-wrap">
                   <input

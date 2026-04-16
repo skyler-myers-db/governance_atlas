@@ -51,6 +51,9 @@ def _load_runtime_app():
         def mount(self, *args, **kwargs):
             return None
 
+        def include_router(self, *args, **kwargs):
+            return None
+
         def __getattr__(self, name):
             if name in {"get", "post", "put", "patch", "delete", "options", "head"}:
                 return self.get
@@ -62,6 +65,19 @@ def _load_runtime_app():
             self.status_code = status_code
             self.detail = detail
 
+    class _APIRouter:
+        def __init__(self, *args, **kwargs):
+            self.args = args
+            self.kwargs = kwargs
+
+        def add_api_route(self, *args, **kwargs):
+            return None
+
+        def __getattr__(self, name):
+            if name in {"get", "post", "put", "patch", "delete", "options", "head"}:
+                return lambda *args, **kwargs: (lambda func: func)
+            raise AttributeError(name)
+
     def _query(*args, **kwargs):
         if args:
             return args[0]
@@ -71,6 +87,7 @@ def _load_runtime_app():
         headers = {}
 
     fastapi.FastAPI = _FastAPI
+    fastapi.APIRouter = _APIRouter
     fastapi.HTTPException = _HTTPException
     fastapi.Query = _query
     fastapi.Request = _Request
@@ -196,6 +213,7 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
         self.assertIn("unavailableReason", flag_map["workspace_setup_diagnostics"])
         self.assertIn("reason", flag_map["query_history_surface"])
         self.assertIn("disabledReason", flag_map["query_history_surface"])
+        self.assertEqual(flag_map["query_history_surface"]["safeSharingPath"]["state"], "unavailable")
         self.assertEqual(payload["auth"]["mode"], "read-only-no-identity")
         self.assertIn("serverTiming", payload["headers"])
         self.assertIn("setupSummary", payload)
@@ -207,6 +225,7 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
         self.assertTrue(payload["setupSequence"])
         self.assertEqual(payload["workspaceAccess"]["mode"], "read-only-no-identity")
         self.assertFalse(payload["workspaceAccess"]["canUseQueryHistory"])
+        self.assertEqual(payload["workspaceAccess"]["queryHistorySharingPath"]["state"], "unavailable")
         self.assertIn("Queries, usage, and workloads", payload["workspaceAccess"]["blockedSurfaces"])
         self.assertEqual(payload["workspaceAccess"]["transactionMode"]["state"], "degraded")
 
@@ -223,6 +242,7 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
         self.assertEqual(checks["app_service_principal"]["state"], "available")
         self.assertEqual(checks["table_lineage"]["state"], "unknown")
         self.assertEqual(checks["workload_visibility"]["state"], "unavailable")
+        self.assertEqual(checks["workload_visibility"]["safeSharingPath"]["state"], "unavailable")
         self.assertTrue(checks["classification_recommendations"]["remediation"])
         claim_surfaces = {item["surface"] for item in payload["setupReadiness"]["claimNarrowing"]}
         self.assertIn("Queries, usage, and workloads", claim_surfaces)
@@ -351,7 +371,7 @@ class RuntimeDiagnosticsWiringTests(unittest.TestCase):
         for function_name in [
             "_compose_bootstrap_payload",
             "_bootstrap_unavailable_payload",
-            "api_runtime_status",
+            "_api_runtime_status_response",
         ]:
             node = next(
                 item

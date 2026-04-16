@@ -3,6 +3,68 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { setWorkspaceIntent } from "../lib/workspaceIntent";
 
 const KNOWN_SURFACES = ["discovery", "entity", "lineage", "governance"];
+const DISCOVERY_GROUPED_FILTER_KEYS = [
+  "types",
+  "catalogs",
+  "domains",
+  "tiers",
+  "certifications",
+  "sensitivities",
+];
+const DEFERRED_DISCOVERY_PARAM_KEYS = [
+  "type",
+  "types",
+  "catalog",
+  "catalogs",
+  "domain",
+  "domains",
+  "tier",
+  "tiers",
+  "certification",
+  "certifications",
+  "sensitivity",
+  "sensitivities",
+];
+
+function normalizeRouteList(values = []) {
+  return [...new Set(
+    (Array.isArray(values) ? values : [values])
+      .map((value) => (typeof value === "string" ? value.trim() : ""))
+      .filter(Boolean),
+  )];
+}
+
+function normalizeDiscoveryFilterGroups(groups = {}) {
+  const source = groups && typeof groups === "object" ? groups : {};
+  return DISCOVERY_GROUPED_FILTER_KEYS.reduce((next, key) => {
+    next[key] = normalizeRouteList(source[key]);
+    return next;
+  }, {});
+}
+
+function parseDiscoveryFilterGroups(search = "") {
+  if (!search) return normalizeDiscoveryFilterGroups();
+  try {
+    const parsed = JSON.parse(search);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return normalizeDiscoveryFilterGroups();
+    }
+    return normalizeDiscoveryFilterGroups(parsed);
+  } catch {
+    return normalizeDiscoveryFilterGroups();
+  }
+}
+
+function serializeDiscoveryFilterGroups(groups = {}) {
+  const normalized = normalizeDiscoveryFilterGroups(groups);
+  const compact = DISCOVERY_GROUPED_FILTER_KEYS.reduce((next, key) => {
+    if (normalized[key].length) {
+      next[key] = normalized[key];
+    }
+    return next;
+  }, {});
+  return Object.keys(compact).length ? JSON.stringify(compact) : "";
+}
 
 function safeDecode(segment = "") {
   try {
@@ -58,6 +120,10 @@ function parseRouteState(pathname = "/", search = "") {
   const module = params.get("module");
   const normalizedModule =
     module && KNOWN_SURFACES.includes(module) ? module : "";
+  const discoveryViews = normalizeRouteList([
+    ...params.getAll("views"),
+    ...(params.get("view") ? [params.get("view")] : []),
+  ]);
   const initialSurface =
     pathRoute?.surface ||
     (surface && KNOWN_SURFACES.includes(surface)
@@ -72,6 +138,10 @@ function parseRouteState(pathname = "/", search = "") {
     surface: initialSurface,
     asset: initialSurface === "discovery" ? "" : initialAsset,
     discoveryQuery: params.get("q") || "",
+    discoverySort: params.get("sort") || "",
+    discoveryPreview: params.get("preview") || "",
+    discoveryViews,
+    discoveryFilterGroups: parseDiscoveryFilterGroups(params.get("filters") || ""),
   };
 }
 
@@ -86,17 +156,42 @@ function canonicalPath(surface, routeAssetFqn) {
   return "/discovery";
 }
 
-function buildCanonicalUrl(surface, routeAssetFqn, discoveryQuery = "", search = "") {
+function buildCanonicalUrl(
+  surface,
+  routeAssetFqn,
+  discoveryQuery = "",
+  search = "",
+  discoverySort = "",
+  discoveryPreview = "",
+  discoveryViews = [],
+  discoveryFilterGroups = {},
+) {
   const params = new URLSearchParams(search || "");
   params.delete("module");
   params.delete("surface");
-  params.delete("preview");
+  params.delete("view");
+  params.delete("views");
+  DEFERRED_DISCOVERY_PARAM_KEYS.forEach((key) => params.delete(key));
 
   if (surface === "governance" && routeAssetFqn) params.set("asset", routeAssetFqn);
   else params.delete("asset");
 
-  if (surface === "discovery" && discoveryQuery.trim()) params.set("q", discoveryQuery.trim());
+  if (discoveryQuery.trim()) params.set("q", discoveryQuery.trim());
   else params.delete("q");
+
+  if (discoverySort.trim()) params.set("sort", discoverySort.trim());
+  else params.delete("sort");
+
+  if (discoveryPreview.trim()) params.set("preview", discoveryPreview.trim());
+  else params.delete("preview");
+
+  normalizeRouteList(discoveryViews).forEach((view) => {
+    params.append("views", view);
+  });
+
+  const serializedFilterGroups = serializeDiscoveryFilterGroups(discoveryFilterGroups);
+  if (serializedFilterGroups) params.set("filters", serializedFilterGroups);
+  else params.delete("filters");
 
   const nextPath = canonicalPath(surface, routeAssetFqn);
   const nextSearch = params.toString();
@@ -116,26 +211,50 @@ export function useAppRouteState() {
   const discoveryRouteState = useMemo(
     () => ({
       query: route.discoveryQuery || "",
+      sortBy: route.discoverySort || "",
+      previewAssetFqn: route.discoveryPreview || "",
+      views: route.discoveryViews || [],
+      filterGroups: route.discoveryFilterGroups || normalizeDiscoveryFilterGroups(),
       requestKey: location.key || `${location.pathname}${location.search}`,
       fresh: Boolean(location.state && location.state.fresh === true),
     }),
-    [location.key, location.pathname, location.search, location.state, route.discoveryQuery],
+    [location.key, location.pathname, location.search, location.state, route.discoveryFilterGroups, route.discoveryPreview, route.discoveryQuery, route.discoverySort, route.discoveryViews],
   );
 
   useEffect(() => {
     if (preserveGlossaryPath && surface === "governance") return;
-    const nextUrl = buildCanonicalUrl(surface, routeAssetFqn, discoveryRouteState.query, location.search);
+    const nextUrl = buildCanonicalUrl(
+      surface,
+      routeAssetFqn,
+      discoveryRouteState.query,
+      location.search,
+      discoveryRouteState.sortBy,
+      discoveryRouteState.previewAssetFqn,
+      discoveryRouteState.views,
+      discoveryRouteState.filterGroups,
+    );
     const currentUrl = `${location.pathname}${location.search}`;
     if (nextUrl !== currentUrl) {
       navigate(nextUrl, { replace: true, state: { fresh: false } });
     }
-  }, [discoveryRouteState.query, location.pathname, location.search, navigate, preserveGlossaryPath, routeAssetFqn, surface]);
+  }, [discoveryRouteState.filterGroups, discoveryRouteState.previewAssetFqn, discoveryRouteState.query, discoveryRouteState.sortBy, discoveryRouteState.views, location.pathname, location.search, navigate, preserveGlossaryPath, routeAssetFqn, surface]);
 
   const openEntityWorkspace = useCallback((assetFqn, nextTab = "Overview") => {
     if (!assetFqn) return;
     setWorkspaceIntent("entityTab", assetFqn, nextTab);
-    navigate(canonicalPath("entity", assetFqn), { state: { fresh: false } });
-  }, [navigate]);
+    navigate(buildCanonicalUrl(
+      "entity",
+      assetFqn,
+      discoveryRouteState.query,
+      location.search,
+      discoveryRouteState.sortBy,
+      discoveryRouteState.previewAssetFqn,
+      discoveryRouteState.views,
+      discoveryRouteState.filterGroups,
+    ), {
+      state: { fresh: false },
+    });
+  }, [discoveryRouteState.filterGroups, discoveryRouteState.previewAssetFqn, discoveryRouteState.query, discoveryRouteState.sortBy, discoveryRouteState.views, location.search, navigate]);
 
   const openLineageWorkspace = useCallback((assetFqn, nextContext = "Data Lineage") => {
     const hasExplicitAsset = assetFqn !== undefined;
@@ -143,38 +262,173 @@ export function useAppRouteState() {
     if (hasExplicitAsset) {
       setWorkspaceIntent("lineageContext", nextAssetFqn, nextContext);
     }
-    navigate(canonicalPath("lineage", nextAssetFqn), {
+    navigate(buildCanonicalUrl(
+      "lineage",
+      nextAssetFqn,
+      discoveryRouteState.query,
+      location.search,
+      discoveryRouteState.sortBy,
+      discoveryRouteState.previewAssetFqn,
+      discoveryRouteState.views,
+      discoveryRouteState.filterGroups,
+    ), {
       state: { fresh: false },
     });
-  }, [navigate, routeAssetFqn]);
+  }, [discoveryRouteState.filterGroups, discoveryRouteState.previewAssetFqn, discoveryRouteState.query, discoveryRouteState.sortBy, discoveryRouteState.views, location.search, navigate, routeAssetFqn]);
 
   const openGovernanceWorkspace = useCallback((assetFqn) => {
-    navigate(buildCanonicalUrl("governance", assetFqn || "", discoveryRouteState.query, location.search), {
+    navigate(buildCanonicalUrl(
+      "governance",
+      assetFqn || "",
+      discoveryRouteState.query,
+      location.search,
+      discoveryRouteState.sortBy,
+      discoveryRouteState.previewAssetFqn,
+      discoveryRouteState.views,
+      discoveryRouteState.filterGroups,
+    ), {
       state: { fresh: false },
     });
-  }, [discoveryRouteState.query, location.search, navigate]);
+  }, [discoveryRouteState.filterGroups, discoveryRouteState.previewAssetFqn, discoveryRouteState.query, discoveryRouteState.sortBy, discoveryRouteState.views, location.search, navigate]);
 
   const setDiscoveryRouteQuery = useCallback((query = "", options = {}) => {
-    const nextUrl = buildCanonicalUrl("discovery", "", query, location.search);
+    const nextUrl = buildCanonicalUrl(
+      "discovery",
+      "",
+      query,
+      location.search,
+      discoveryRouteState.sortBy,
+      discoveryRouteState.previewAssetFqn,
+      discoveryRouteState.views,
+      discoveryRouteState.filterGroups,
+    );
     const currentUrl = `${location.pathname}${location.search}`;
     if (nextUrl === currentUrl && !options.fresh) return;
+    // Debounced live discovery edits keep one stable browser-history boundary.
+    // Callers can still opt into push semantics for explicit fresh discovery opens.
+    const shouldReplace = options.replace ?? true;
     navigate(nextUrl, {
-      replace: options.replace !== false,
+      replace: shouldReplace,
       state: { fresh: Boolean(options.fresh) },
     });
-  }, [location.pathname, location.search, navigate]);
+  }, [discoveryRouteState.filterGroups, discoveryRouteState.previewAssetFqn, discoveryRouteState.sortBy, discoveryRouteState.views, location.pathname, location.search, navigate]);
+
+  const setDiscoveryRouteSort = useCallback((sortBy = "", options = {}) => {
+    const nextUrl = buildCanonicalUrl(
+      "discovery",
+      "",
+      discoveryRouteState.query,
+      location.search,
+      sortBy,
+      discoveryRouteState.previewAssetFqn,
+      discoveryRouteState.views,
+      discoveryRouteState.filterGroups,
+    );
+    const currentUrl = `${location.pathname}${location.search}`;
+    if (nextUrl === currentUrl && !options.fresh) return;
+    // Sort changes are live refinements, so they replace by default unless a
+    // caller explicitly requests a fresh discovery navigation.
+    const shouldReplace = options.replace ?? true;
+    navigate(nextUrl, {
+      replace: shouldReplace,
+      state: { fresh: Boolean(options.fresh) },
+    });
+  }, [discoveryRouteState.filterGroups, discoveryRouteState.previewAssetFqn, discoveryRouteState.query, discoveryRouteState.views, location.pathname, location.search, navigate]);
+
+  const setDiscoveryRoutePreview = useCallback((previewAssetFqn = "", options = {}) => {
+    const nextUrl = buildCanonicalUrl(
+      "discovery",
+      "",
+      discoveryRouteState.query,
+      location.search,
+      discoveryRouteState.sortBy,
+      previewAssetFqn,
+      discoveryRouteState.views,
+      discoveryRouteState.filterGroups,
+    );
+    const currentUrl = `${location.pathname}${location.search}`;
+    if (nextUrl === currentUrl && !options.fresh) return;
+    // Preview selection is a live discovery refinement, so it replaces by
+    // default unless a caller explicitly requests a fresh navigation boundary.
+    const shouldReplace = options.replace ?? true;
+    navigate(nextUrl, {
+      replace: shouldReplace,
+      state: { fresh: Boolean(options.fresh) },
+    });
+  }, [discoveryRouteState.filterGroups, discoveryRouteState.query, discoveryRouteState.sortBy, discoveryRouteState.views, location.pathname, location.search, navigate]);
+
+  const setDiscoveryRouteViews = useCallback((views = [], options = {}) => {
+    const nextUrl = buildCanonicalUrl(
+      "discovery",
+      "",
+      discoveryRouteState.query,
+      location.search,
+      discoveryRouteState.sortBy,
+      discoveryRouteState.previewAssetFqn,
+      views,
+      discoveryRouteState.filterGroups,
+    );
+    const currentUrl = `${location.pathname}${location.search}`;
+    if (nextUrl === currentUrl && !options.fresh) return;
+    // Saved view changes are live discovery refinements, so they replace by
+    // default unless a caller explicitly requests a fresh navigation boundary.
+    const shouldReplace = options.replace ?? true;
+    navigate(nextUrl, {
+      replace: shouldReplace,
+      state: { fresh: Boolean(options.fresh) },
+    });
+  }, [discoveryRouteState.filterGroups, discoveryRouteState.previewAssetFqn, discoveryRouteState.query, discoveryRouteState.sortBy, location.pathname, location.search, navigate]);
+
+  const setDiscoveryRouteFilterGroups = useCallback((filterGroups = {}, options = {}) => {
+    const nextUrl = buildCanonicalUrl(
+      "discovery",
+      "",
+      discoveryRouteState.query,
+      location.search,
+      discoveryRouteState.sortBy,
+      discoveryRouteState.previewAssetFqn,
+      discoveryRouteState.views,
+      filterGroups,
+    );
+    const currentUrl = `${location.pathname}${location.search}`;
+    if (nextUrl === currentUrl && !options.fresh) return;
+    // Grouped filter changes are live discovery refinements, so they replace by
+    // default unless a caller explicitly requests a fresh navigation boundary.
+    const shouldReplace = options.replace ?? true;
+    navigate(nextUrl, {
+      replace: shouldReplace,
+      state: { fresh: Boolean(options.fresh) },
+    });
+  }, [discoveryRouteState.previewAssetFqn, discoveryRouteState.query, discoveryRouteState.sortBy, discoveryRouteState.views, location.pathname, location.search, navigate]);
 
   const openDiscoveryWorkspace = useCallback((query = "", options = {}) => {
-    const nextUrl = buildCanonicalUrl("discovery", "", query, location.search);
+    const nextSort = options.sortBy ?? discoveryRouteState.sortBy;
+    const freshOpen = Boolean(options.fresh);
+    const nextPreview =
+      options.previewAssetFqn ?? (freshOpen ? "" : discoveryRouteState.previewAssetFqn);
+    const nextViews =
+      options.views ?? (freshOpen ? [] : discoveryRouteState.views);
+    const nextFilterGroups =
+      options.filterGroups ?? (freshOpen ? normalizeDiscoveryFilterGroups() : discoveryRouteState.filterGroups);
+    const nextUrl = buildCanonicalUrl(
+      "discovery",
+      "",
+      query,
+      location.search,
+      nextSort,
+      nextPreview,
+      nextViews,
+      nextFilterGroups,
+    );
     navigate(nextUrl, {
       replace: Boolean(options.replace),
-      state: { fresh: Boolean(options.fresh) },
+      state: { fresh: freshOpen },
     });
-  }, [location.search, navigate]);
+  }, [discoveryRouteState.filterGroups, discoveryRouteState.previewAssetFqn, discoveryRouteState.sortBy, discoveryRouteState.views, location.search, navigate]);
 
   const onModuleChange = useCallback((nextModule) => {
     if (nextModule === "discovery") {
-      openDiscoveryWorkspace(discoveryRouteState.query, { fresh: false });
+      openDiscoveryWorkspace(discoveryRouteState.query, { fresh: true });
     } else if (nextModule === "lineage") {
       openLineageWorkspace(routeAssetFqn || "");
     } else {
@@ -205,7 +459,11 @@ export function useAppRouteState() {
     openLineageWorkspace,
     openGovernanceWorkspace,
     openDiscoveryWorkspace,
+    setDiscoveryRouteFilterGroups,
     setDiscoveryRouteQuery,
+    setDiscoveryRoutePreview,
+    setDiscoveryRouteSort,
+    setDiscoveryRouteViews,
     onModuleChange,
   };
 }

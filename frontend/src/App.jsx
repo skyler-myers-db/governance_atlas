@@ -1,16 +1,20 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import AppFrame from "./components/AppFrame";
-import DiscoveryWorkspace from "./components/DiscoveryWorkspace";
-import EntityWorkspace from "./components/EntityWorkspace";
-import LineageWorkspace from "./components/LineageWorkspace";
+import { SurfaceHeader } from "./components/ShellLayoutPrimitives";
+import { WorkspaceStateCard } from "./components/ShellStatePrimitives";
 import WorkspaceDiagnosticsSurface from "./components/WorkspaceDiagnosticsSurface";
+import WorkspaceSetupWizard from "./components/WorkspaceSetupWizard";
 import { useAppRouteState } from "./hooks/useAppRouteState";
 import { useBootstrap } from "./hooks/useBootstrap";
+import { useGovernanceSummary } from "./hooks/useGovernanceSummary";
 import { useRuntimeStatus } from "./hooks/useRuntimeStatus";
 import { normalizeGovernancePayload, updateGovernanceNotification } from "./lib/api";
 import { diagnosticsRecoveryAvailable, diagnosticsSurfaceAvailable } from "./lib/capabilities";
 
 const GovernanceWorkspace = lazy(() => import("./components/GovernanceWorkspace"));
+const DiscoveryWorkspace = lazy(() => import("./components/DiscoveryWorkspace"));
+const EntityWorkspace = lazy(() => import("./components/EntityWorkspace"));
+const LineageWorkspace = lazy(() => import("./components/LineageWorkspace"));
 
 function visibleAssetSetFromGroups(...groups) {
   const visible = new Set();
@@ -145,14 +149,15 @@ function bootShell(kicker, title, body) {
 function unavailableWorkspace(message, diagnostics = null) {
   return (
     <section className="gh-workspace gh-unavailable-workspace">
-      <div className="gh-panel gh-unavailable-panel">
-        <div className="gh-panel-title">Workspace Unavailable</div>
-        <h2>The live metadata workspace could not initialize.</h2>
-        <p>
-          {message ||
-            "Verify warehouse access, Unity Catalog permissions, and governance configuration, then retry."}
-        </p>
-      </div>
+      <WorkspaceStateCard
+        eyebrow="Workspace Unavailable"
+        message={
+          message ||
+          "Verify warehouse access, Unity Catalog permissions, and governance configuration, then retry."
+        }
+        title="The live metadata workspace could not initialize."
+        tone="bad"
+      />
       {diagnostics}
     </section>
   );
@@ -161,11 +166,12 @@ function unavailableWorkspace(message, diagnostics = null) {
 function workspaceLoading(title, body) {
   return (
     <section className="gh-workspace gh-unavailable-workspace">
-      <div className="gh-panel gh-unavailable-panel">
-        <div className="gh-panel-title">{title}</div>
-        <h2>Preparing the workspace surface.</h2>
-        <p>{body}</p>
-      </div>
+      <WorkspaceStateCard
+        eyebrow={title}
+        loading
+        message={body}
+        title="Preparing the workspace surface."
+      />
     </section>
   );
 }
@@ -173,22 +179,51 @@ function workspaceLoading(title, body) {
 function renderWorkspaceDiagnostics(onClose, diagnostics) {
   return (
     <section className="gh-workspace gh-diagnostics-workspace">
-      <div className="gh-panel gh-record-card">
-        <div className="gh-record-card-head">
-          <div>
-            <div className="gh-panel-title">Workspace diagnostics</div>
-            <div className="gh-support-copy">
-              Operator-only shell diagnostics. Read-only runtime truth, kept outside the governance workspace.
-            </div>
-          </div>
+      <SurfaceHeader
+        actions={(
           <button className="gh-tertiary-button gh-inline-link-button" onClick={onClose} type="button">
-            Close diagnostics
+            Close workspace setup
           </button>
+        )}
+        className="gh-diagnostics-surface-header"
+        eyebrow="Workspace setup"
+        title="Workspace readiness guide"
+      >
+        <div className="gh-support-copy">
+          Operator-only setup truth. Read-only runtime guidance kept in the shell instead of a second
+          readiness store.
         </div>
-        {diagnostics}
-      </div>
+      </SurfaceHeader>
+      {diagnostics}
     </section>
   );
+}
+
+function emptyGovernanceState() {
+  return {
+    metrics: [],
+    backlog: [],
+    glossary: [],
+    inbox: null,
+  };
+}
+
+function degradedGovernanceState(message) {
+  return normalizeGovernancePayload({
+    authoritative: false,
+    provenance: {
+      warnings: message ? [message] : [],
+    },
+    metrics: [],
+    backlog: [],
+    glossary: [],
+    inbox: {
+      state: "unavailable",
+      message: message || "Governance summary is unavailable right now.",
+      unreadCount: 0,
+      items: [],
+    },
+  });
 }
 
 export default function App() {
@@ -212,7 +247,11 @@ export default function App() {
     surface,
     routeAssetFqn,
     discoveryRouteState,
+    setDiscoveryRouteFilterGroups,
+    setDiscoveryRoutePreview,
     setDiscoveryRouteQuery,
+    setDiscoveryRouteSort,
+    setDiscoveryRouteViews,
     openDiscoveryWorkspace,
     openEntityWorkspace,
     openLineageWorkspace,
@@ -241,6 +280,9 @@ export default function App() {
           identity: runtimeStatus.data.identity || data?.identity || {},
         }
       : data;
+  const governanceSummary = useGovernanceSummary({
+    enabled: !loading && !error && Boolean(data),
+  });
   const runtimeRolloutFlags = diagnosticsSource?.diagnostics?.featureFlags || [];
   const workspaceAccess = diagnosticsSource?.diagnostics?.workspaceAccess || null;
   const diagnosticsAvailable = diagnosticsSurfaceAvailable(diagnosticsSource);
@@ -295,10 +337,10 @@ export default function App() {
     setLiveGovernanceState((current) =>
       normalizeGovernancePayload({
         ...nextGovernance,
-        inbox: nextGovernance.inbox || current?.inbox || data?.governance?.inbox || null,
+        inbox: nextGovernance.inbox || current?.inbox || governanceSummary.data?.inbox || null,
       }),
     );
-  }, [data?.governance]);
+  }, [governanceSummary.data?.inbox]);
   const handleNavigationStateChange = useCallback((pending, label = "") => {
     setNavigationState({
       pending: Boolean(pending),
@@ -329,15 +371,14 @@ export default function App() {
   }, [handleNavigationStateChange, openDiscoveryWorkspace]);
 
   useEffect(() => {
-    if (data?.governance) {
-      setLiveGovernanceState((current) =>
-        normalizeGovernancePayload({
-          ...data.governance,
-          inbox: data.governance.inbox || current?.inbox || null,
-        }),
-      );
-    }
-  }, [data]);
+    if (!governanceSummary.data) return;
+    setLiveGovernanceState((current) =>
+      normalizeGovernancePayload({
+        ...governanceSummary.data,
+        inbox: governanceSummary.data.inbox || current?.inbox || null,
+      }),
+    );
+  }, [governanceSummary.data]);
 
   useEffect(() => {
     if (!navigationState.pending) return undefined;
@@ -363,9 +404,12 @@ export default function App() {
   }, [navigationState.pending]);
 
   const shell = data?.shell || {};
-  const governance =
-    liveGovernanceState || data?.governance || { metrics: [], backlog: [], glossary: [], inbox: null };
+  const governance = liveGovernanceState || governanceSummary.data || null;
   const governanceInbox = governance?.inbox || null;
+  const governanceSummaryLoading = governanceSummary.loading && !liveGovernanceState && !governanceSummary.data;
+  const governanceRouteFallback =
+    governance || degradedGovernanceState(governanceSummary.error || governanceSummary.refreshError);
+  const shellGovernance = governance || emptyGovernanceState();
 
   useEffect(() => {
     if (!diagnosticsAvailable) {
@@ -379,6 +423,41 @@ export default function App() {
     }
   }, [governanceInbox]);
 
+  const bootstrapAssets = useMemo(() => data?.assets || [], [data?.assets]);
+  const bootstrapRefreshFailed = Boolean(refreshError);
+  const hasCurrentDiscoveryTruth =
+    liveDiscoveryState.authoritative &&
+    liveDiscoveryState.settled &&
+    !liveDiscoveryState.error &&
+    Array.isArray(liveDiscoveryState.assets);
+  const hasBaselineDiscoveryTruth =
+    liveDiscoveryState.authoritative &&
+    liveDiscoveryState.settled &&
+    liveDiscoveryState.baselineScope &&
+    !liveDiscoveryState.error &&
+    Array.isArray(liveDiscoveryState.baselineAssets);
+  const currentDiscoveryAssets = useMemo(
+    () => (hasCurrentDiscoveryTruth ? liveDiscoveryState.assets : []),
+    [hasCurrentDiscoveryTruth, liveDiscoveryState.assets],
+  );
+  const baselineDiscoveryAssets = useMemo(
+    () => (hasBaselineDiscoveryTruth ? liveDiscoveryState.baselineAssets : []),
+    [hasBaselineDiscoveryTruth, liveDiscoveryState.baselineAssets],
+  );
+  const searchSeedAssets = useMemo(() => {
+    if (baselineDiscoveryAssets.length) return baselineDiscoveryAssets;
+    if (currentDiscoveryAssets.length) return currentDiscoveryAssets;
+    return bootstrapAssets;
+  }, [baselineDiscoveryAssets, bootstrapAssets, currentDiscoveryAssets]);
+  const contextSeedAssets = useMemo(
+    () => mergeAssetGroups(currentDiscoveryAssets, baselineDiscoveryAssets, bootstrapAssets),
+    [baselineDiscoveryAssets, bootstrapAssets, currentDiscoveryAssets],
+  );
+  const visibleAssetSet = useMemo(
+    () => visibleAssetSetFromGroups(contextSeedAssets),
+    [contextSeedAssets],
+  );
+
   const handleToggleInbox = useCallback(() => {
     if (!governanceInbox || governanceInbox.state === "unavailable") return;
     setShellDiagnosticsOpen(false);
@@ -391,7 +470,7 @@ export default function App() {
   }, []);
 
   const handleInboxItemAction = useCallback(async (notificationId, action) => {
-    const previousGovernance = liveGovernanceState || data?.governance || null;
+    const previousGovernance = liveGovernanceState || governanceSummary.data || null;
     if (!previousGovernance) return null;
     const optimisticGovernance = updateGovernanceInbox(previousGovernance, notificationId, action);
     setLiveGovernanceState(optimisticGovernance);
@@ -404,7 +483,7 @@ export default function App() {
       setLiveGovernanceState(normalizeGovernancePayload(previousGovernance));
       throw error;
     }
-  }, [data?.governance, liveGovernanceState]);
+  }, [governanceSummary.data, liveGovernanceState]);
 
   if (loading) {
     return bootShell(
@@ -431,40 +510,12 @@ export default function App() {
     );
   }
 
-  const bootstrapAssets = data.assets || [];
-  const bootstrapVisibleCount = data.discovery?.summary?.visibleAssets ?? bootstrapAssets.length ?? 0;
-  const bootstrapRefreshFailed = Boolean(refreshError);
-  const hasCurrentDiscoveryTruth =
-    liveDiscoveryState.authoritative &&
-    liveDiscoveryState.settled &&
-    !liveDiscoveryState.error &&
-    Array.isArray(liveDiscoveryState.assets);
-  const hasBaselineDiscoveryTruth =
-    liveDiscoveryState.authoritative &&
-    liveDiscoveryState.settled &&
-    liveDiscoveryState.baselineScope &&
-    !liveDiscoveryState.error &&
-    Array.isArray(liveDiscoveryState.baselineAssets);
-  const currentDiscoveryAssets = hasCurrentDiscoveryTruth ? liveDiscoveryState.assets : [];
-  const baselineDiscoveryAssets = hasBaselineDiscoveryTruth ? liveDiscoveryState.baselineAssets : [];
-  const searchSeedAssets = baselineDiscoveryAssets.length
-    ? baselineDiscoveryAssets
-    : currentDiscoveryAssets.length
-      ? currentDiscoveryAssets
-      : bootstrapAssets;
-  const contextSeedAssets = mergeAssetGroups(
-    currentDiscoveryAssets,
-    baselineDiscoveryAssets,
-    bootstrapAssets,
-  );
-  const visibleAssetSet = visibleAssetSetFromGroups(contextSeedAssets);
-
   const bootState = data.bootState || "live";
   const bootMessage = data.bootMessage || "";
-  const effectiveVisibleCount =
+  const liveCatalogVisibleCount =
     hasCurrentDiscoveryTruth && typeof liveDiscoveryState.count === "number"
       ? liveDiscoveryState.count
-      : bootstrapVisibleCount;
+      : null;
   const hasRenderableCatalogSeed =
     currentDiscoveryAssets.length > 0 ||
     baselineDiscoveryAssets.length > 0 ||
@@ -482,14 +533,14 @@ export default function App() {
   const diagnosticsPanel = shellDiagnosticsOpen
     ? renderWorkspaceDiagnostics(
         () => setShellDiagnosticsOpen(false),
-        <WorkspaceDiagnosticsSurface
+        <WorkspaceSetupWizard
           error={runtimeStatus.error}
           loading={runtimeStatus.loading}
           refreshError={runtimeStatus.refreshError}
           refreshing={runtimeStatus.refreshing}
           onRefresh={handleDiagnosticsRefresh}
           status={runtimeStatus.data}
-          title="Workspace Setup & Diagnostics"
+          title="Workspace setup"
         />,
       )
     : null;
@@ -523,15 +574,22 @@ export default function App() {
             bootstrap={data}
             effectiveBootMessage={effectiveBootMessage}
             effectiveBootState={effectiveBootState}
-            effectiveVisibleCount={effectiveVisibleCount}
+            effectiveVisibleCount={liveCatalogVisibleCount}
+            initialFilterGroups={discoveryRouteState.filterGroups}
             initialQuery={discoveryRouteState.query}
+            initialSelectedAssetFqn={discoveryRouteState.previewAssetFqn}
+            initialSort={discoveryRouteState.sortBy}
+            initialViews={discoveryRouteState.views}
             onNavigationStateChange={handleNavigationStateChange}
+            onRouteFilterGroupsChange={setDiscoveryRouteFilterGroups}
+            onRoutePreviewChange={setDiscoveryRoutePreview}
             onSurfaceReady={handleSurfaceReady}
             onRouteQueryChange={setDiscoveryRouteQuery}
+            onRouteSortChange={setDiscoveryRouteSort}
+            onRouteViewsChange={setDiscoveryRouteViews}
             onOpenAsset={openEntityWorkspace}
             onOpenGovernance={openGovernanceWorkspace}
             onOpenLineage={openLineageWorkspace}
-            allowSeededDiscovery={bootstrapAssets.length > 0}
             querySeedFresh={discoveryRouteState.fresh}
             querySeedKey={discoveryRouteState.requestKey}
             onLiveCatalogStateChange={handleLiveCatalogStateChange}
@@ -596,7 +654,12 @@ export default function App() {
         </Suspense>
       );
     } else {
-      content = (
+      content = governanceSummaryLoading ? (
+        workspaceLoading(
+          "Loading governance",
+          "Preparing live stewardship lanes, glossary context, and inbox state.",
+        )
+      ) : (
         <Suspense
           fallback={workspaceLoading(
             "Loading governance",
@@ -607,7 +670,7 @@ export default function App() {
             bootstrap={data}
             contextSeedAssets={contextSeedAssets}
             initialAssetFqn={surface === "governance" ? routeAssetFqn : ""}
-            governance={governance}
+            governance={governanceRouteFallback}
             onNavigationStateChange={handleNavigationStateChange}
             onSurfaceReady={handleSurfaceReady}
             onGovernanceChange={handleGovernanceChange}
@@ -632,9 +695,9 @@ export default function App() {
       }
       bootMessage={effectiveBootMessage}
       bootState={effectiveBootState}
-      governanceInbox={governanceInbox}
+      governanceInbox={shellGovernance.inbox}
       inboxOpen={shellInboxOpen}
-      liveCatalogVisibleCount={effectiveVisibleCount}
+      liveCatalogVisibleCount={liveCatalogVisibleCount}
       navigationState={navigationState}
       onBrowseCatalog={handleBrowseCatalog}
       onModuleChange={handleModuleSurfaceChange}

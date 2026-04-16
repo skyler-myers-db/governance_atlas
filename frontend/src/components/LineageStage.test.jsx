@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import LineageStage from "./LineageStage";
 
@@ -54,5 +54,47 @@ describe("LineageStage", () => {
       ),
     ).not.toBeNull();
     expect(screen.getByTestId("lineage-graph")).not.toBeNull();
+  });
+
+  it("keeps the shared context tabs interactive without touching graph behavior", () => {
+    const onContextChange = vi.fn();
+
+    render(
+      <LineageStage
+        asset={{
+          fqn: "main.sales.orders",
+          name: "orders",
+          catalog: "main",
+          schema: "sales",
+        }}
+        context="Data Lineage"
+        error=""
+        graphBundle={{
+          data: {
+            nodes: [{ id: "focus", assetFqn: "main.sales.orders", role: "focus" }],
+            edges: [],
+          },
+          operational: {
+            nodes: [],
+            edges: [],
+          },
+        }}
+        lineagePayload={{
+          stats: {},
+        }}
+        loading={false}
+        onAssetSearchQueryChange={() => {}}
+        onContextChange={onContextChange}
+        onOpenAsset={() => {}}
+        onOpenFullGraph={() => {}}
+        onOpenGovernance={() => {}}
+        onSelectAsset={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Operational Context" }));
+
+    expect(screen.getByText("orders")).not.toBeNull();
+    expect(onContextChange).toHaveBeenCalledWith("Operational Context");
   });
 });

@@ -84,7 +84,7 @@ class RuntimeCapabilityWiringTests(unittest.TestCase):
         for function_name in [
             "_compose_bootstrap_payload",
             "_bootstrap_unavailable_payload",
-            "api_runtime_status",
+            "_api_runtime_status_response",
         ]:
             node = next(
                 item

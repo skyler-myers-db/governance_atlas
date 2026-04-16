@@ -1,8 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDiscoverySearch } from "../lib/api";
 
-function requestKey(filters = {}) {
+const DISCOVERY_DEFAULT_FETCH_LIMIT = 80;
+const DISCOVERY_MAX_FETCH_LIMIT = 200;
+
+function scopeKey(filters = {}) {
   return JSON.stringify({
     query: String(filters.query || "").trim(),
     views: [...(filters.views || [])].sort(),
@@ -16,20 +19,7 @@ function requestKey(filters = {}) {
   });
 }
 
-function canSeedFromBootstrap(filters = {}) {
-  const query = String(filters.query || "").trim();
-  if (query) return false;
-  if ((filters.views || []).length) return false;
-  if ((filters.types || []).length) return false;
-  if ((filters.catalogs || []).length) return false;
-  if ((filters.domains || []).length) return false;
-  if ((filters.tiers || []).length) return false;
-  if ((filters.certifications || []).length) return false;
-  if ((filters.sensitivities || []).length) return false;
-  return !filters.sortBy || filters.sortBy === "Best match";
-}
-
-export function useDiscoveryResults(filters, seededAssets = []) {
+export function useDiscoveryResults(filters, options = {}) {
   const normalizedFilters = useMemo(
     () => ({
       query: String(filters?.query || "").trim(),
@@ -54,44 +44,85 @@ export function useDiscoveryResults(filters, seededAssets = []) {
       filters?.views,
     ],
   );
-  const currentRequestKey = requestKey(normalizedFilters);
-  const seededSignature = (seededAssets || [])
-    .map((asset) => asset?.fqn || "")
-    .filter(Boolean)
-    .join("|");
-  const seededFallback = useMemo(() => {
-    const useSeeded = canSeedFromBootstrap(normalizedFilters);
-    const assets = useSeeded ? seededAssets : [];
-    return {
-      assets,
-      count: assets.length,
+  const currentScopeKey = scopeKey(normalizedFilters);
+  const safeLimit = Math.max(
+    1,
+    Math.min(
+      Number.isFinite(Number(options?.limit))
+        ? Math.trunc(Number(options.limit))
+        : DISCOVERY_DEFAULT_FETCH_LIMIT,
+      DISCOVERY_MAX_FETCH_LIMIT,
+    ),
+  );
+  const safeOffset = Math.max(
+    0,
+    Number.isFinite(Number(options?.offset)) ? Math.trunc(Number(options.offset)) : 0,
+  );
+  const seededFallback = useMemo(
+    () => ({
+      assets: [],
+      count: 0,
       facets: null,
-    };
-  }, [normalizedFilters, seededAssets]);
+    }),
+    [],
+  );
+  const lastAuthoritativeResultRef = useRef({
+    scopeKey: "",
+    data: seededFallback,
+  });
+  const placeholderData =
+    lastAuthoritativeResultRef.current.scopeKey === currentScopeKey
+      ? lastAuthoritativeResultRef.current.data
+      : seededFallback;
   const query = useQuery({
-    queryKey: ["discoveryResults", currentRequestKey, seededSignature],
+    queryKey: ["discoveryResults", currentScopeKey, safeLimit, safeOffset],
     queryFn: ({ signal }) =>
       fetchDiscoverySearch(
         {
           ...normalizedFilters,
-          limit: 80,
+          queryMode: "structured",
+          limit: safeLimit,
+          offset: safeOffset,
         },
         { signal },
-    ),
-    placeholderData: seededFallback,
+      ),
+    placeholderData,
   });
   const usingPlaceholder = query.isPlaceholderData === true;
   const assets = query.data?.assets || seededFallback.assets;
   const count = typeof query.data?.count === "number" ? query.data.count : seededFallback.count;
+  /** @type {{ status?: number, payload?: { invalidQuery?: { state?: string, message?: string, syntaxHint?: string, supportedFields?: string[] } } } | null} */
+  const discoveryError =
+    query.error && typeof query.error === "object"
+      ? /** @type {{ status?: number, payload?: { invalidQuery?: { state?: string, message?: string, syntaxHint?: string, supportedFields?: string[] } } }} */ (query.error)
+      : null;
+  const invalidQuery =
+    query.isError && discoveryError?.status === 400 && discoveryError?.payload?.invalidQuery
+      ? discoveryError.payload.invalidQuery
+      : null;
+
+  useEffect(() => {
+    if (query.isSuccess && !usingPlaceholder) {
+      lastAuthoritativeResultRef.current = {
+        scopeKey: currentScopeKey,
+        data: query.data || seededFallback,
+      };
+    }
+  }, [currentScopeKey, query.data, query.isSuccess, seededFallback, usingPlaceholder]);
 
   return {
     loading: query.isPending || (query.isFetching && usingPlaceholder),
-    error: query.isError ? query.error?.message || "Failed to search metadata assets." : "",
+    error:
+      query.isError && !invalidQuery
+        ? query.error?.message || "Failed to search metadata assets."
+        : "",
     assets,
     count,
     facets: query.data?.facets || seededFallback.facets,
-    requestKey: currentRequestKey,
-    seededSignature,
+    queryState: invalidQuery || query.data?.queryState || null,
+    requestKey: currentScopeKey,
+    fetching: query.isFetching,
+    fetchLimit: safeLimit,
     settled: query.isError || (query.isSuccess && !usingPlaceholder),
     authoritative: query.isSuccess && !usingPlaceholder,
   };
