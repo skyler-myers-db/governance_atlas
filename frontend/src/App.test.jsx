@@ -4,12 +4,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const appFrameMock = vi.fn();
 const useAppRouteStateMock = vi.fn();
 const useBootstrapMock = vi.fn();
+const useGovernanceSummaryMock = vi.fn();
 const useRuntimeStatusMock = vi.fn();
 const updateGovernanceNotificationMock = vi.fn();
 const discoveryWorkspaceMock = vi.fn(() => <div data-testid="discovery-workspace" />);
 const entityWorkspaceMock = vi.fn(() => <div data-testid="entity-workspace" />);
 const lineageWorkspaceMock = vi.fn(() => <div data-testid="lineage-workspace" />);
 const governanceWorkspaceMock = vi.fn(() => <div data-testid="governance-workspace" />);
+const workspaceSetupWizardMock = vi.fn(() => <div data-testid="workspace-setup-wizard" />);
 
 vi.mock("./hooks/useAppRouteState", () => ({
   useAppRouteState: (...args) => useAppRouteStateMock(...args),
@@ -17,6 +19,10 @@ vi.mock("./hooks/useAppRouteState", () => ({
 
 vi.mock("./hooks/useBootstrap", () => ({
   useBootstrap: (...args) => useBootstrapMock(...args),
+}));
+
+vi.mock("./hooks/useGovernanceSummary", () => ({
+  useGovernanceSummary: (...args) => useGovernanceSummaryMock(...args),
 }));
 
 vi.mock("./hooks/useRuntimeStatus", () => ({
@@ -72,6 +78,10 @@ vi.mock("./components/GovernanceWorkspace", () => ({
   default: (...args) => governanceWorkspaceMock(...args),
 }));
 
+vi.mock("./components/WorkspaceSetupWizard", () => ({
+  default: (...args) => workspaceSetupWizardMock(...args),
+}));
+
 vi.mock("./lib/api", () => ({
   normalizeGovernancePayload: (payload) => payload,
   updateGovernanceNotification: (...args) => updateGovernanceNotificationMock(...args),
@@ -92,6 +102,7 @@ describe("App", () => {
   beforeEach(() => {
     useAppRouteStateMock.mockReset();
     useBootstrapMock.mockReset();
+    useGovernanceSummaryMock.mockReset();
     useRuntimeStatusMock.mockReset();
     updateGovernanceNotificationMock.mockReset();
     appFrameMock.mockReset();
@@ -99,17 +110,33 @@ describe("App", () => {
     entityWorkspaceMock.mockClear();
     lineageWorkspaceMock.mockClear();
     governanceWorkspaceMock.mockClear();
+    workspaceSetupWizardMock.mockClear();
 
     useAppRouteStateMock.mockReturnValue({
       surface: "discovery",
       setSurface: vi.fn(),
       routeAssetFqn: "",
       discoveryRouteState: {
+        filterGroups: {
+          types: [],
+          catalogs: [],
+          domains: [],
+          tiers: [],
+          certifications: [],
+          sensitivities: [],
+        },
         query: "",
+        previewAssetFqn: "",
+        sortBy: "",
+        views: [],
         fresh: false,
         requestKey: "seed",
       },
+      setDiscoveryRouteFilterGroups: vi.fn(),
+      setDiscoveryRoutePreview: vi.fn(),
       setDiscoveryRouteQuery: vi.fn(),
+      setDiscoveryRouteSort: vi.fn(),
+      setDiscoveryRouteViews: vi.fn(),
       openDiscoveryWorkspace: vi.fn(),
       openEntityWorkspace: vi.fn(),
       openLineageWorkspace: vi.fn(),
@@ -124,6 +151,45 @@ describe("App", () => {
         },
       },
     });
+    useGovernanceSummaryMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: {
+        metrics: [],
+        backlog: [],
+        glossary: [],
+        inbox: null,
+      },
+      refresh: vi.fn(),
+    });
+  });
+
+  it("shows the shell launch screen during bootstrap loading without mounting workspaces", () => {
+    useBootstrapMock.mockReturnValue({
+      loading: true,
+      error: "",
+      refreshError: "",
+      data: null,
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+      refresh: vi.fn(),
+    });
+
+    render(<App />);
+
+    expect(screen.getByText("Preparing the metadata workspace.")).not.toBeNull();
+    expect(screen.getByText("Connecting the discovery plane, lineage graph, and governance workbench.")).not.toBeNull();
+    expect(discoveryWorkspaceMock).not.toHaveBeenCalled();
+    expect(entityWorkspaceMock).not.toHaveBeenCalled();
+    expect(lineageWorkspaceMock).not.toHaveBeenCalled();
+    expect(governanceWorkspaceMock).not.toHaveBeenCalled();
   });
 
   it("shows setup diagnostics on bootstrap failure for operator roles without mounting heavy workspaces", () => {
@@ -397,7 +463,7 @@ describe("App", () => {
     expect(appFrameProps?.diagnosticsAvailable).toBe(true);
   });
 
-  it("passes setup readiness into AppFrame and runtime feature flags into DiscoveryWorkspace", () => {
+  it("passes setup readiness into AppFrame and runtime feature flags into DiscoveryWorkspace", async () => {
     const runtimeFeatureFlags = [
       {
         key: "workspace_setup_diagnostics",
@@ -497,18 +563,275 @@ describe("App", () => {
     render(<App />);
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
-    const discoveryProps = discoveryWorkspaceMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.diagnosticsStatus).toEqual({
       state: "attention_required",
       nextStep: "per_user_authorization",
     });
-    expect(discoveryProps?.runtimeFeatureFlags).toEqual(runtimeFeatureFlags);
-    expect(discoveryProps?.workspaceAccess).toEqual(
-      expect.objectContaining({
-        canUseLineage: true,
-        canUseQueryHistory: false,
-      }),
-    );
+    await waitFor(() => {
+      const discoveryProps = discoveryWorkspaceMock.mock.calls.at(-1)?.[0];
+      expect(discoveryProps?.runtimeFeatureFlags).toEqual(runtimeFeatureFlags);
+      expect(discoveryProps?.workspaceAccess).toEqual(
+        expect.objectContaining({
+          canUseLineage: true,
+          canUseQueryHistory: false,
+        }),
+      );
+    });
+  });
+
+  it("passes discovery route query, sort, and saved view seeds into DiscoveryWorkspace", async () => {
+    const setDiscoveryRouteFilterGroups = vi.fn();
+    const setDiscoveryRoutePreview = vi.fn();
+    const setDiscoveryRouteQuery = vi.fn();
+    const setDiscoveryRouteSort = vi.fn();
+    const setDiscoveryRouteViews = vi.fn();
+    useAppRouteStateMock.mockReturnValue({
+      surface: "discovery",
+      setSurface: vi.fn(),
+      routeAssetFqn: "",
+      discoveryRouteState: {
+        filterGroups: {
+          types: ["Table"],
+          catalogs: ["main"],
+          domains: ["Finance"],
+          tiers: [],
+          certifications: [],
+          sensitivities: [],
+        },
+        query: "finance",
+        previewAssetFqn: "main.sales.returns",
+        sortBy: "Recently updated",
+        views: ["Needs review"],
+        fresh: true,
+        requestKey: "seed-sort",
+      },
+      setDiscoveryRouteFilterGroups,
+      setDiscoveryRoutePreview,
+      setDiscoveryRouteQuery,
+      setDiscoveryRouteSort,
+      setDiscoveryRouteViews,
+      openDiscoveryWorkspace: vi.fn(),
+      openEntityWorkspace: vi.fn(),
+      openLineageWorkspace: vi.fn(),
+      openGovernanceWorkspace: vi.fn(),
+      onModuleChange: vi.fn(),
+    });
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "live",
+        shell: {
+          role: "Admin",
+          userEmail: "admin@example.com",
+          diagnosticsEnabled: true,
+        },
+        discovery: {
+          sortOptions: ["Best match", "Recently updated"],
+        },
+        governance: {
+          metrics: [],
+          backlog: [],
+          glossary: [],
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      const discoveryProps = discoveryWorkspaceMock.mock.calls.at(-1)?.[0];
+      expect(discoveryProps?.initialFilterGroups).toEqual({
+        types: ["Table"],
+        catalogs: ["main"],
+        domains: ["Finance"],
+        tiers: [],
+        certifications: [],
+        sensitivities: [],
+      });
+      expect(discoveryProps?.initialQuery).toBe("finance");
+      expect(discoveryProps?.initialSelectedAssetFqn).toBe("main.sales.returns");
+      expect(discoveryProps?.initialSort).toBe("Recently updated");
+      expect(discoveryProps?.initialViews).toEqual(["Needs review"]);
+      expect(discoveryProps?.querySeedFresh).toBe(true);
+      expect(discoveryProps?.querySeedKey).toBe("seed-sort");
+      expect(discoveryProps?.onRouteFilterGroupsChange).toBe(setDiscoveryRouteFilterGroups);
+      expect(discoveryProps?.onRoutePreviewChange).toBe(setDiscoveryRoutePreview);
+      expect(discoveryProps?.onRouteQueryChange).toBe(setDiscoveryRouteQuery);
+      expect(discoveryProps?.onRouteSortChange).toBe(setDiscoveryRouteSort);
+      expect(discoveryProps?.onRouteViewsChange).toBe(setDiscoveryRouteViews);
+    });
+  });
+
+  it("passes a blank route sort into DiscoveryWorkspace without synthesizing a seeded sort", async () => {
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "live",
+        shell: {
+          role: "Admin",
+          userEmail: "admin@example.com",
+          diagnosticsEnabled: true,
+        },
+        discovery: {
+          sortOptions: ["Best match", "Recently updated"],
+        },
+        governance: {
+          metrics: [],
+          backlog: [],
+          glossary: [],
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      const discoveryProps = discoveryWorkspaceMock.mock.calls.at(-1)?.[0];
+      expect(discoveryProps?.initialFilterGroups).toEqual({
+        types: [],
+        catalogs: [],
+        domains: [],
+        tiers: [],
+        certifications: [],
+        sensitivities: [],
+      });
+      expect(discoveryProps?.initialSort).toBe("");
+      expect(discoveryProps?.initialViews).toEqual([]);
+      expect(discoveryProps?.querySeedKey).toBe("seed");
+      expect(discoveryProps?.querySeedFresh).toBe(false);
+    });
+  });
+
+  it("uses a fresh discovery open when the shell browse action is triggered", async () => {
+    const openDiscoveryWorkspace = vi.fn();
+    useAppRouteStateMock.mockReturnValue({
+      surface: "entity",
+      setSurface: vi.fn(),
+      routeAssetFqn: "main.sales.orders",
+      discoveryRouteState: {
+        filterGroups: {
+          types: [],
+          catalogs: [],
+          domains: [],
+          tiers: [],
+          certifications: [],
+          sensitivities: [],
+        },
+        query: "finance",
+        previewAssetFqn: "main.sales.returns",
+        sortBy: "Recently updated",
+        views: ["Needs review"],
+        fresh: false,
+        requestKey: "seed-browse",
+      },
+      setDiscoveryRouteFilterGroups: vi.fn(),
+      setDiscoveryRoutePreview: vi.fn(),
+      setDiscoveryRouteQuery: vi.fn(),
+      setDiscoveryRouteSort: vi.fn(),
+      setDiscoveryRouteViews: vi.fn(),
+      openDiscoveryWorkspace,
+      openEntityWorkspace: vi.fn(),
+      openLineageWorkspace: vi.fn(),
+      openGovernanceWorkspace: vi.fn(),
+      onModuleChange: vi.fn(),
+    });
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "live",
+        shell: {
+          role: "Admin",
+          userEmail: "admin@example.com",
+          diagnosticsEnabled: true,
+        },
+        discovery: {
+          sortOptions: ["Best match", "Recently updated"],
+        },
+        governance: {
+          metrics: [],
+          backlog: [],
+          glossary: [],
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+    });
+
+    render(<App />);
+
+    const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
+    appFrameProps?.onBrowseCatalog?.("customers");
+
+    expect(openDiscoveryWorkspace).toHaveBeenCalledWith("customers", { fresh: true });
+  });
+
+  it("keeps bootstrap discovery visible totals out of the shell until live discovery truth arrives", () => {
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "live",
+        shell: {
+          role: "Admin",
+          userEmail: "admin@example.com",
+          diagnosticsEnabled: true,
+        },
+        discovery: {
+          summary: {
+            visibleAssets: 17,
+          },
+        },
+        governance: {
+          metrics: [],
+          backlog: [],
+          glossary: [],
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+    });
+
+    render(<App />);
+
+    const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
+    const discoveryProps = discoveryWorkspaceMock.mock.calls.at(-1)?.[0];
+    expect(appFrameProps?.liveCatalogVisibleCount).toBeNull();
+    expect(discoveryProps?.effectiveVisibleCount).toBeNull();
   });
 
   it("passes the additive governance inbox through AppFrame and updates unread state on shell actions", async () => {
@@ -543,6 +866,45 @@ describe("App", () => {
         },
       },
     });
+    useGovernanceSummaryMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: {
+        metrics: [],
+        backlog: [],
+        glossary: [],
+        inbox: {
+          state: "ready",
+          message: "Notifications from workflow activity.",
+          unreadCount: 2,
+          items: [
+            {
+              notificationId: "notification-1",
+              title: "Review requested",
+              detail: "Ownership change needs approval.",
+              assetFqn: "main.sales.orders",
+              createdAt: "2026-04-14T22:00:00Z",
+              createdBy: "admin@example.com",
+              status: "open",
+              inboxState: "new",
+            },
+            {
+              notificationId: "notification-2",
+              title: "Task acknowledged",
+              detail: "A steward acknowledged the request.",
+              assetFqn: "main.sales.customers",
+              createdAt: "2026-04-14T22:05:00Z",
+              createdBy: "writer@example.com",
+              status: "open",
+              inboxState: "new",
+            },
+          ],
+        },
+      },
+      refresh: vi.fn(),
+    });
     useBootstrapMock.mockReturnValue({
       loading: false,
       error: "",
@@ -557,38 +919,6 @@ describe("App", () => {
         discovery: {
           summary: {
             visibleAssets: 1,
-          },
-        },
-        governance: {
-          metrics: [],
-          backlog: [],
-          glossary: [],
-          inbox: {
-            state: "ready",
-            message: "Notifications from workflow activity.",
-            unreadCount: 2,
-            items: [
-              {
-                notificationId: "notification-1",
-                title: "Review requested",
-                detail: "Ownership change needs approval.",
-                assetFqn: "main.sales.orders",
-                createdAt: "2026-04-14T22:00:00Z",
-                createdBy: "admin@example.com",
-                status: "open",
-                inboxState: "new",
-              },
-              {
-                notificationId: "notification-2",
-                title: "Task acknowledged",
-                detail: "A steward acknowledged the request.",
-                assetFqn: "main.sales.customers",
-                createdAt: "2026-04-14T22:05:00Z",
-                createdBy: "writer@example.com",
-                status: "open",
-                inboxState: "new",
-              },
-            ],
           },
         },
         assets: [{ fqn: "main.sales.orders", name: "orders" }],
@@ -619,7 +949,82 @@ describe("App", () => {
     expect(appFrameProps?.governanceInbox?.items?.[0]?.inboxState).toBe("read");
   });
 
-  it("passes runtime feature flags into EntityWorkspace on the entity route", () => {
+  it("hydrates governance workspace state from the live governance summary instead of bootstrap", async () => {
+    useAppRouteStateMock.mockReturnValue({
+      surface: "governance",
+      routeAssetFqn: "main.sales.orders",
+      discoveryRouteState: {
+        query: "",
+        previewAssetFqn: "",
+        sortBy: "",
+        fresh: false,
+        requestKey: "seed",
+      },
+      setDiscoveryRoutePreview: vi.fn(),
+      setDiscoveryRouteQuery: vi.fn(),
+      setDiscoveryRouteSort: vi.fn(),
+      openDiscoveryWorkspace: vi.fn(),
+      openEntityWorkspace: vi.fn(),
+      openLineageWorkspace: vi.fn(),
+      openGovernanceWorkspace: vi.fn(),
+      onModuleChange: vi.fn(),
+    });
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "live",
+        shell: {
+          role: "Admin",
+          userEmail: "admin@example.com",
+          diagnosticsEnabled: true,
+        },
+        discovery: {
+          summary: {
+            visibleAssets: 1,
+          },
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useGovernanceSummaryMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: {
+        metrics: [{ label: "Open requests", value: "3" }],
+        backlog: [{ requestId: "req-1", title: "Review ownership", assetFqn: "main.sales.orders", asset: "orders", status: "open" }],
+        glossary: [],
+        inbox: {
+          state: "ready",
+          message: "Notifications from workflow activity.",
+          unreadCount: 1,
+          items: [],
+        },
+      },
+      refresh: vi.fn(),
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      const governanceProps = governanceWorkspaceMock.mock.calls.at(-1)?.[0];
+      expect(governanceProps?.governance?.backlog?.[0]?.requestId).toBe("req-1");
+    });
+    const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
+    expect(appFrameProps?.governanceInbox?.unreadCount).toBe(1);
+  });
+
+  it("passes runtime feature flags into EntityWorkspace on the entity route", async () => {
     const runtimeFeatureFlags = [
       {
         key: "workspace_setup_diagnostics",
@@ -637,10 +1042,14 @@ describe("App", () => {
       routeAssetFqn: "main.sales.orders",
       discoveryRouteState: {
         query: "",
+        previewAssetFqn: "",
+        sortBy: "",
         fresh: false,
         requestKey: "seed",
       },
+      setDiscoveryRoutePreview: vi.fn(),
       setDiscoveryRouteQuery: vi.fn(),
+      setDiscoveryRouteSort: vi.fn(),
       openDiscoveryWorkspace: vi.fn(),
       openEntityWorkspace: vi.fn(),
       openLineageWorkspace: vi.fn(),
@@ -722,17 +1131,19 @@ describe("App", () => {
 
     render(<App />);
 
-    const entityProps = entityWorkspaceMock.mock.calls.at(-1)?.[0];
-    expect(entityProps?.runtimeFeatureFlags).toEqual(runtimeFeatureFlags);
-    expect(entityProps?.workspaceAccess).toEqual(
-      expect.objectContaining({
-        canUseLineage: true,
-        canUseQueryHistory: false,
-      }),
-    );
+    await waitFor(() => {
+      const entityProps = entityWorkspaceMock.mock.calls.at(-1)?.[0];
+      expect(entityProps?.runtimeFeatureFlags).toEqual(runtimeFeatureFlags);
+      expect(entityProps?.workspaceAccess).toEqual(
+        expect.objectContaining({
+          canUseLineage: true,
+          canUseQueryHistory: false,
+        }),
+      );
+    });
   });
 
-  it("passes runtime feature flags into LineageWorkspace on the lineage route", () => {
+  it("passes runtime feature flags into LineageWorkspace on the lineage route", async () => {
     const runtimeFeatureFlags = [
       {
         key: "workspace_setup_diagnostics",
@@ -750,10 +1161,14 @@ describe("App", () => {
       routeAssetFqn: "main.sales.orders",
       discoveryRouteState: {
         query: "",
+        previewAssetFqn: "",
+        sortBy: "",
         fresh: false,
         requestKey: "seed",
       },
+      setDiscoveryRoutePreview: vi.fn(),
       setDiscoveryRouteQuery: vi.fn(),
+      setDiscoveryRouteSort: vi.fn(),
       openDiscoveryWorkspace: vi.fn(),
       openEntityWorkspace: vi.fn(),
       openLineageWorkspace: vi.fn(),
@@ -835,14 +1250,16 @@ describe("App", () => {
 
     render(<App />);
 
-    const lineageProps = lineageWorkspaceMock.mock.calls.at(-1)?.[0];
-    expect(lineageProps?.runtimeFeatureFlags).toEqual(runtimeFeatureFlags);
-    expect(lineageProps?.workspaceAccess).toEqual(
-      expect.objectContaining({
-        canUseLineage: true,
-        canUseQueryHistory: false,
-      }),
-    );
+    await waitFor(() => {
+      const lineageProps = lineageWorkspaceMock.mock.calls.at(-1)?.[0];
+      expect(lineageProps?.runtimeFeatureFlags).toEqual(runtimeFeatureFlags);
+      expect(lineageProps?.workspaceAccess).toEqual(
+        expect.objectContaining({
+          canUseLineage: true,
+          canUseQueryHistory: false,
+        }),
+      );
+    });
   });
 
   it("passes runtime feature flags into GovernanceWorkspace on the governance route", async () => {
@@ -863,10 +1280,14 @@ describe("App", () => {
       routeAssetFqn: "main.sales.orders",
       discoveryRouteState: {
         query: "",
+        previewAssetFqn: "",
+        sortBy: "",
         fresh: false,
         requestKey: "seed",
       },
+      setDiscoveryRoutePreview: vi.fn(),
       setDiscoveryRouteQuery: vi.fn(),
+      setDiscoveryRouteSort: vi.fn(),
       openDiscoveryWorkspace: vi.fn(),
       openEntityWorkspace: vi.fn(),
       openLineageWorkspace: vi.fn(),
@@ -996,7 +1417,7 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "Toggle workspace setup" })).toBeNull();
   });
 
-  it("shows shell-owned diagnostics without mounting GovernanceWorkspace", async () => {
+  it("shows shell-owned workspace setup without mounting GovernanceWorkspace", async () => {
     useBootstrapMock.mockReturnValue({
       loading: false,
       error: "",
@@ -1074,13 +1495,17 @@ describe("App", () => {
       },
     });
 
-    render(<App />);
+    const { container } = render(<App />);
 
     fireEvent.click(screen.getByRole("button", { name: "Toggle workspace setup" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Workspace diagnostics")).not.toBeNull();
+      expect(screen.getByTestId("workspace-setup-wizard")).not.toBeNull();
     });
+    expect(container.querySelector(".gh-diagnostics-surface-header")).not.toBeNull();
+    expect(screen.getByText("Workspace readiness guide")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Close workspace setup" })).not.toBeNull();
+    expect(workspaceSetupWizardMock).toHaveBeenCalled();
     expect(governanceWorkspaceMock).not.toHaveBeenCalled();
   });
 

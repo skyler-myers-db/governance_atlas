@@ -30,10 +30,13 @@ describe("useBootstrap", () => {
       shell: {
         userEmail: "qa@example.com",
       },
-      discovery: {
-        summary: {
-          visibleAssets: 1,
-        },
+      bootstrapContract: {
+        class: "shell-capability",
+        warnings: ["Bootstrap remains on temporary seed adapters."],
+        seedAdapters: {},
+      },
+      apiContract: {
+        bootstrap: "/api/bootstrap",
       },
       assets: [{ fqn: "main.sales.seeded" }],
     };
@@ -45,10 +48,13 @@ describe("useBootstrap", () => {
       shell: {
         userEmail: "qa@example.com",
       },
-      discovery: {
-        summary: {
-          visibleAssets: 2,
-        },
+      bootstrapContract: {
+        class: "shell-capability",
+        warnings: ["Bootstrap remains on temporary seed adapters."],
+        seedAdapters: {},
+      },
+      apiContract: {
+        bootstrap: "/api/bootstrap",
       },
       assets: [{ fqn: "main.sales.authoritative" }, { fqn: "main.sales.other" }],
     });
@@ -65,12 +71,16 @@ describe("useBootstrap", () => {
     );
 
     expect(result.current.data?.assets?.[0]?.fqn).toBe("main.sales.seeded");
+    expect(result.current.data?.bootstrapContract?.seedAdapters?.governanceSummary).toBeUndefined();
+    expect(result.current.data?.apiContract?.governanceSummary).toBeUndefined();
     expect(result.current.refreshing).toBe(true);
 
     await waitFor(() => {
       expect(fetchBootstrapMock).toHaveBeenCalledTimes(1);
       expect(result.current.refreshing).toBe(false);
       expect(result.current.data?.assets?.[0]?.fqn).toBe("main.sales.authoritative");
+      expect(result.current.data?.bootstrapContract?.seedAdapters?.lineageGraphs).toBeUndefined();
+      expect(result.current.data?.apiContract?.governanceSummary).toBeUndefined();
     });
 
     expect(fetchBootstrapMock.mock.calls[0][0]).toEqual({
@@ -93,10 +103,13 @@ describe("useBootstrap", () => {
       shell: {
         userEmail: "qa@example.com",
       },
-      discovery: {
-        summary: {
-          visibleAssets: 2,
-        },
+      bootstrapContract: {
+        class: "shell-capability",
+        warnings: [],
+        seedAdapters: {},
+      },
+      apiContract: {
+        bootstrap: "/api/bootstrap",
       },
       assets: [{ fqn: "main.sales.authoritative" }],
     });
@@ -131,15 +144,18 @@ describe("useBootstrap", () => {
       shell: {
         userEmail: "qa@example.com",
       },
+      bootstrapContract: {
+        class: "shell-capability",
+        warnings: ["Bootstrap remains on temporary seed adapters."],
+        seedAdapters: {},
+      },
+      apiContract: {
+        bootstrap: "/api/bootstrap",
+      },
       capabilities: {
         systemInventoryRead: {
           available: true,
           state: "degraded",
-        },
-      },
-      discovery: {
-        summary: {
-          visibleAssets: 1,
         },
       },
       assets: [{ fqn: "main.sales.seeded" }],
@@ -150,15 +166,18 @@ describe("useBootstrap", () => {
       shell: {
         userEmail: "qa@example.com",
       },
+      bootstrapContract: {
+        class: "shell-capability",
+        warnings: ["Bootstrap remains on temporary seed adapters."],
+        seedAdapters: {},
+      },
+      apiContract: {
+        bootstrap: "/api/bootstrap",
+      },
       capabilities: {
         tableLineage: {
           available: true,
           state: "available",
-        },
-      },
-      discovery: {
-        summary: {
-          visibleAssets: 2,
         },
       },
       assets: [{ fqn: "main.sales.authoritative" }],
@@ -176,9 +195,11 @@ describe("useBootstrap", () => {
     );
 
     expect(result.current.data?.capabilities?.systemInventoryRead?.state).toBe("degraded");
+    expect(result.current.data?.bootstrapContract?.seedAdapters?.discoverySummary).toBeUndefined();
 
     await waitFor(() => {
       expect(result.current.data?.capabilities?.tableLineage?.state).toBe("available");
+      expect(result.current.data?.bootstrapContract?.seedAdapters?.governanceSummary).toBeUndefined();
     });
   });
 });

@@ -3,6 +3,12 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, Mapping
 
+SAFE_OPERATIONAL_SHARING_PATHS = [
+    "actor-scoped OBO",
+    "validated dynamic-view plane",
+    "warehouse CAN VIEW plus downstream visibility rules",
+]
+
 
 def _utc_iso(value: datetime) -> str:
     return value.replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -123,6 +129,16 @@ def _flag_reason(flag: Mapping[str, Any] | None, fallback: str) -> str:
         return fallback
     reason = str(flag.get("reason") or "").strip()
     return reason or fallback
+
+
+def _safe_operational_sharing_path(validated_path: str = "") -> Dict[str, Any]:
+    normalized = str(validated_path or "").strip()
+    return {
+        "required": True,
+        "state": "available" if normalized else "unavailable",
+        "validatedPath": normalized,
+        "acceptedPaths": list(SAFE_OPERATIONAL_SHARING_PATHS),
+    }
 
 
 def _capability_check(
@@ -321,30 +337,33 @@ def feature_flag_inventory(
             disabled_reason="Actor-scoped protected reads stay disabled until Databricks user authorization / OBO is real.",
             unavailable_reason="Databricks user authorization / OBO is not implemented in the live runtime yet.",
         ),
-        _feature_flag(
+        {
+            **_feature_flag(
             key="query_history_surface",
             label="Query history surface",
             enabled=workload_state == "available",
             state=workload_state,
             summary="Query and workload visibility is workspace-scoped.",
-            rationale="Do not expose query and workload tabs unless the workspace provides a safe, actor-scoped operational plane.",
+            rationale="Do not expose query and workload tabs unless the workspace proves a safe sharing path for non-admin actors.",
             truth_source="Databricks query history",
             rollout="workspace-scoped",
-            rollout_policy="Only enable when the capability probe returns available for the current actor.",
+            rollout_policy="Only enable when the capability probe proves OBO, a validated dynamic-view plane, or warehouse CAN VIEW plus downstream visibility rules for the current actor.",
             scope="queries, workloads, usage, and preview evidence",
             default_state="disabled",
             expires_after="Revisit after the query/workload plane is production-safe for parity-core surfaces.",
             removal_ticket="phase-10-query-usage-surface",
             rollback="Keep query-history-driven surfaces hidden or explicitly unavailable when the workspace does not expose a safe plane.",
-            description="Controls whether query and workload visibility may be rendered as an actual surface.",
+            description="Controls whether query and workload visibility may be rendered as an actual surface once a safe non-admin sharing path is validated.",
             owner="workspace-capabilities",
             source="capability-probe",
-            disabled_reason="Query and workload surfaces remain disabled until the capability probe proves a safe actor-scoped plane.",
+            disabled_reason="Query and workload surfaces remain disabled until the capability probe proves OBO, a validated dynamic-view plane, or warehouse CAN VIEW plus downstream visibility rules.",
             unavailable_reason=_flag_reason(
                 capabilities.get("workloadVisibility"),
                 "Query history is not available in this workspace.",
             ),
-        ),
+            ),
+            "safeSharingPath": _safe_operational_sharing_path(),
+        },
         _feature_flag(
             key="export_delivery",
             label="Export delivery",
@@ -604,15 +623,18 @@ def setup_payload(
             stale_after=stale_after,
             remediation="Verify Unity Catalog lineage permissions and label missing or masked lineage explicitly in the UI.",
         ),
-        _capability_check(
-            "workload_visibility",
-            "Query and workload visibility",
-            capabilities.get("workloadVisibility"),
-            "Operational query and workload visibility is available for the current actor.",
-            observed_at=observed_at,
-            stale_after=stale_after,
-            remediation="Treat workload and query surfaces as unavailable until the workspace exposes a safe, actor-scoped query-history plane.",
-        ),
+        {
+            **_capability_check(
+                "workload_visibility",
+                "Query and workload visibility",
+                capabilities.get("workloadVisibility"),
+                "Operational query and workload visibility is available for the current actor.",
+                observed_at=observed_at,
+                stale_after=stale_after,
+                remediation="Treat workload and query surfaces as unavailable until install/setup proves OBO, a validated dynamic-view plane, or warehouse CAN VIEW plus downstream visibility rules.",
+            ),
+            "safeSharingPath": _safe_operational_sharing_path(),
+        },
         _capability_check(
             "export_delivery",
             "Export delivery prerequisites",
@@ -858,7 +880,7 @@ def setup_payload(
         (
             "workload_visibility",
             "Queries, usage, and workloads",
-            "Operational query and workload tabs stay hidden or explicitly unavailable instead of showing empty history.",
+            "Operational query and workload tabs stay hidden or explicitly unavailable until a validated non-admin sharing path exists, instead of showing empty history.",
         ),
         (
             "export_delivery",
@@ -929,10 +951,13 @@ def setup_payload(
             check_map["table_lineage"],
             blocked_surfaces=[] if can_use_lineage else ["Lineage graph, preview, and drawer"],
         ),
-        _workspace_access_gate(
-            check_map["workload_visibility"],
-            blocked_surfaces=[] if can_use_query_history else ["Queries, usage, and workloads"],
-        ),
+        {
+            **_workspace_access_gate(
+                check_map["workload_visibility"],
+                blocked_surfaces=[] if can_use_query_history else ["Queries, usage, and workloads"],
+            ),
+            "safeSharingPath": _safe_operational_sharing_path(),
+        },
         _workspace_access_gate(
             check_map["export_delivery"],
             blocked_surfaces=[] if can_export else ["Discovery and detail export"],
@@ -996,6 +1021,7 @@ def setup_payload(
             "canWriteGovernance": can_write_governance,
             "canUseLineage": can_use_lineage,
             "canUseQueryHistory": can_use_query_history,
+            "queryHistorySharingPath": _safe_operational_sharing_path(),
             "canExport": can_export,
             "canRunBackgroundWork": can_run_background_work,
             "canUseClassificationRecommendations": can_use_classification_recommendations,

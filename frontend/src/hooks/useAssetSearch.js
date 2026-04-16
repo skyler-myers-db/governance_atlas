@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useDeferredValue, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDiscoverySearch } from "../lib/api";
 import { govhubQueryClient } from "../lib/queryClient";
@@ -18,49 +18,57 @@ function normalizeSearchText(...values) {
     .trim();
 }
 
-function localSearchScore(asset, trimmedQuery) {
+function buildSearchIndex(seedAssets = []) {
+  return (seedAssets || [])
+    .filter(Boolean)
+    .map((asset) => ({
+      asset,
+      haystack: normalizeSearchText(
+        asset?.fqn,
+        asset?.name,
+        asset?.catalog,
+        asset?.schema,
+        asset?.description,
+        asset?.domain,
+        asset?.tier,
+        asset?.certification,
+        asset?.sensitivity,
+        asset?.objectType,
+        ...(Array.isArray(asset?.glossaryTerms)
+          ? asset.glossaryTerms.flatMap((term) => {
+              if (typeof term === "string") return [term];
+              const value = String(term?.term || term?.name || "").trim();
+              return value ? [value] : [];
+            })
+          : []),
+        ...(asset?.tags || []),
+        ...((asset?.owners || []).flatMap((owner) => [owner?.name, owner?.email, owner?.title])),
+      ),
+      name: normalizeSearchText(asset?.name),
+      fqn: normalizeSearchText(asset?.fqn),
+    }));
+}
+
+function localSearchScore(indexEntry, trimmedQuery) {
   const queryText = normalizeSearchText(trimmedQuery);
   if (!queryText) return 0;
   const terms = queryText.split(" ").filter(Boolean);
-  const haystack = normalizeSearchText(
-    asset?.fqn,
-    asset?.name,
-    asset?.catalog,
-    asset?.schema,
-    asset?.description,
-    asset?.domain,
-    asset?.tier,
-    asset?.certification,
-    asset?.sensitivity,
-    asset?.objectType,
-    ...(Array.isArray(asset?.glossaryTerms)
-      ? asset.glossaryTerms.flatMap((term) => {
-          if (typeof term === "string") return [term];
-          const value = String(term?.term || term?.name || "").trim();
-          return value ? [value] : [];
-        })
-      : []),
-    ...(asset?.tags || []),
-    ...((asset?.owners || []).flatMap((owner) => [owner?.name, owner?.email, owner?.title])),
-  );
-  if (!terms.every((term) => haystack.includes(term))) return 0;
+  if (!terms.every((term) => indexEntry.haystack.includes(term))) return 0;
 
-  const name = normalizeSearchText(asset?.name);
-  const fqn = normalizeSearchText(asset?.fqn);
   let score = 0;
-  if (name.includes(queryText)) score += 8;
-  else if (terms.every((term) => name.includes(term))) score += 5;
-  if (fqn.includes(queryText)) score += 5;
-  else if (terms.every((term) => fqn.includes(term))) score += 3;
+  if (indexEntry.name.includes(queryText)) score += 8;
+  else if (terms.every((term) => indexEntry.name.includes(term))) score += 5;
+  if (indexEntry.fqn.includes(queryText)) score += 5;
+  else if (terms.every((term) => indexEntry.fqn.includes(term))) score += 3;
   score += terms.length;
   return score;
 }
 
-function localMatches(seedAssets, trimmedQuery, limit = 8) {
+function localMatches(searchIndex, trimmedQuery, limit = 8) {
   if (!trimmedQuery) return [];
-  return [...(seedAssets || [])]
+  return [...(searchIndex || [])]
     .map((asset) => ({
-      asset,
+      asset: asset.asset,
       score: localSearchScore(asset, trimmedQuery),
     }))
     .filter((entry) => entry.score > 0)
@@ -90,42 +98,56 @@ function cacheKeyForQuery(query) {
 
 export function useAssetSearch(query, enabled = true, seedAssets = []) {
   const trimmedQuery = query.trim();
-  const seededSignature = (seedAssets || [])
-    .map((asset) => asset?.fqn || "")
-    .filter(Boolean)
-    .join("|");
-  const seededMatches = useMemo(
-    () => localMatches(seedAssets, trimmedQuery, 8),
-    [seedAssets, trimmedQuery],
+  const deferredQuery = useDeferredValue(trimmedQuery);
+  const searchIndex = useMemo(() => buildSearchIndex(seedAssets), [seedAssets]);
+  const seededSignature = useMemo(
+    () =>
+      searchIndex
+        .map((entry) => entry?.asset?.fqn || "")
+        .filter(Boolean)
+        .join("|"),
+    [searchIndex],
   );
+  const seededMatches = useMemo(
+    () => localMatches(searchIndex, deferredQuery, 8),
+    [deferredQuery, searchIndex],
+  );
+  const activeQuery = enabled ? deferredQuery : "";
+  const matchesAreCurrent = deferredQuery === trimmedQuery;
   const queryState = useQuery({
-    queryKey: ["assetSearch", cacheKeyForQuery(trimmedQuery), seededSignature],
-    enabled: enabled && Boolean(trimmedQuery),
+    queryKey: ["assetSearch", cacheKeyForQuery(activeQuery), seededSignature],
+    enabled: Boolean(activeQuery),
     queryFn: ({ signal }) =>
       fetchDiscoverySearch(
         {
-          query: trimmedQuery,
+          query: activeQuery,
           sortBy: "Best match",
           limit: 8,
         },
         { signal },
       ),
-    placeholderData: {
-      assets: seededMatches,
-      count: seededMatches.length,
-    },
+    placeholderData:
+      matchesAreCurrent && seededMatches.length
+        ? {
+            assets: seededMatches,
+            count: seededMatches.length,
+          }
+        : undefined,
   });
-  const assets = trimmedQuery
-    ? mergeAssets(queryState.data?.assets || [], seededMatches, 8)
+  const assets = trimmedQuery && matchesAreCurrent
+    ? mergeAssets(queryState.data?.assets || [], matchesAreCurrent ? seededMatches : [], 8)
     : [];
 
   return {
-    loading: enabled && Boolean(trimmedQuery) ? queryState.isPending || (queryState.isFetching && !assets.length) : false,
+    loading:
+      enabled && Boolean(trimmedQuery)
+        ? !matchesAreCurrent || queryState.isPending || (queryState.isFetching && !assets.length)
+        : false,
     error:
       queryState.isError && !assets.length
         ? queryState.error?.message || "Failed to search assets."
         : "",
     assets,
-    resolvedQuery: enabled && Boolean(trimmedQuery) ? trimmedQuery : "",
+    resolvedQuery: enabled && Boolean(trimmedQuery) ? activeQuery : "",
   };
 }

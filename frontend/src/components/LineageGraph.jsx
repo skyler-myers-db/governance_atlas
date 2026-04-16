@@ -13,6 +13,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { assetPathLabel } from "../lib/assetPresentation";
+import { SurfaceDrawer, SurfaceDrawerSection } from "./ShellLayoutPrimitives";
 
 function nodeColor(kind) {
   if (kind === "View") return "#5b6af7";
@@ -558,6 +559,7 @@ function LineageRecordCard({
   node,
   tone = "neutral",
   focusActionLabel = "Set as Focus",
+  availabilityOverride = null,
   onOpenAsset,
   onOpenGovernance,
   onRefocus,
@@ -569,7 +571,8 @@ function LineageRecordCard({
   includeTraceActions = true,
 }) {
   const detail = nodeDetailRecord(node);
-  const isOpenable = detail?.isOpenable !== false;
+  const forcedUnavailable = availabilityOverride === false;
+  const isOpenable = !forcedUnavailable && detail?.isOpenable !== false;
   const tags = [
     node?.kind,
     node?.role === "focus" ? "Focus" : node?.role === "source" ? "Upstream" : node?.role === "target" ? "Downstream" : "",
@@ -578,7 +581,7 @@ function LineageRecordCard({
     detail?.tier,
     detail?.certification,
     detail?.sensitivity,
-    !isOpenable ? "Lineage only" : "",
+    !forcedUnavailable && !isOpenable ? "Lineage only" : "",
   ]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
@@ -625,7 +628,9 @@ function LineageRecordCard({
         {!isOpenable ? (
           <div className="gh-attribute-row">
             <span className="gh-attribute-label">Availability</span>
-            <span className="gh-attribute-value">Lineage-only reference</span>
+            <span className="gh-attribute-value">
+              {forcedUnavailable ? "Metadata record unavailable" : "Lineage-only reference"}
+            </span>
           </div>
         ) : null}
       </div>
@@ -638,7 +643,7 @@ function LineageRecordCard({
             onClick={() => onOpenAsset(node.assetFqn)}
             type="button"
           >
-            Open Record
+            {forcedUnavailable ? "Metadata record unavailable" : "Open Record"}
           </button>
         ) : null}
         {includeOpenGovernanceAction && node?.assetFqn && onOpenGovernance ? (
@@ -687,6 +692,7 @@ export default function LineageGraph({
   graph,
   lineagePayload = null,
   hasEdges,
+  linkedRecordUnavailableOverrides = {},
   overlay = null,
   onAssetSearchQueryChange,
   onContextChange,
@@ -1165,14 +1171,16 @@ export default function LineageGraph({
         </div>
       </div>
 
-      <aside className={`gh-lineage-drawer ${drawerOpen ? "is-open" : ""}`}>
-        <div className="gh-lineage-drawer-head">
-          <div className="gh-panel-title">{drawerTitle}</div>
+      <SurfaceDrawer
+        actions={
           <button className="gh-secondary-button" onClick={() => closeDrawer()} type="button">
             Close drawer
           </button>
-        </div>
-
+        }
+        className="gh-lineage-drawer"
+        isOpen={drawerOpen}
+        title={drawerTitle}
+      >
         {selectedEdge ? (
           <>
             <div className="gh-lineage-edge-summary">
@@ -1203,12 +1211,13 @@ export default function LineageGraph({
                 title="Source record"
                 node={selectedSource}
                 tone="source"
-              onOpenAsset={onOpenAsset}
-              onOpenGovernance={onOpenGovernance}
-              onRefocus={(assetFqn) => onSelectAsset(assetFqn)}
-              focusActionLabel="Set as focus"
-              onTraceUpstream={
-                selectedSource?.id
+                availabilityOverride={linkedRecordUnavailableOverrides?.[selectedSource?.assetFqn] === true ? false : null}
+                onOpenAsset={onOpenAsset}
+                onOpenGovernance={onOpenGovernance}
+                onRefocus={(assetFqn) => onSelectAsset(assetFqn)}
+                focusActionLabel="Set as focus"
+                onTraceUpstream={
+                  selectedSource?.id
                     ? () => {
                         setAllowDefaultSelection(false);
                         setSelectedEdgeId("");
@@ -1224,12 +1233,13 @@ export default function LineageGraph({
                 title="Target record"
                 node={selectedTarget}
                 tone="target"
-              onOpenAsset={onOpenAsset}
-              onOpenGovernance={onOpenGovernance}
-              onRefocus={(assetFqn) => onSelectAsset(assetFqn)}
-              focusActionLabel="Set as focus"
-              onShowImpact={
-                selectedTarget?.id
+                availabilityOverride={linkedRecordUnavailableOverrides?.[selectedTarget?.assetFqn] === true ? false : null}
+                onOpenAsset={onOpenAsset}
+                onOpenGovernance={onOpenGovernance}
+                onRefocus={(assetFqn) => onSelectAsset(assetFqn)}
+                focusActionLabel="Set as focus"
+                onShowImpact={
+                  selectedTarget?.id
                     ? () => {
                         setAllowDefaultSelection(false);
                         setSelectedEdgeId("");
@@ -1244,8 +1254,7 @@ export default function LineageGraph({
             </div>
 
             {edgeDetails?.kind === "operational" && edgeDetails.entities?.length ? (
-              <div className="gh-detail-section">
-                <div className="gh-panel-title">Operational Context</div>
+              <SurfaceDrawerSection title="Operational Context">
                 <div className="gh-lineage-linked-list">
                   {edgeDetails.entities.map((entity) => (
                     <div className="gh-lineage-linked-row is-readonly" key={entity.key}>
@@ -1254,12 +1263,11 @@ export default function LineageGraph({
                     </div>
                   ))}
                 </div>
-              </div>
+              </SurfaceDrawerSection>
             ) : null}
 
             {edgeDetails?.columnMappings?.length ? (
-              <div className="gh-detail-section">
-                <div className="gh-panel-title">Column Mappings</div>
+              <SurfaceDrawerSection title="Column Mappings">
                 <div className="gh-lineage-linked-list">
                   {edgeDetails.columnMappings.map((mapping, index) => (
                     <div className="gh-lineage-linked-row is-readonly" key={`${selectedEdge.id}-mapping-${index}`}>
@@ -1268,27 +1276,28 @@ export default function LineageGraph({
                     </div>
                   ))}
                 </div>
-              </div>
+              </SurfaceDrawerSection>
             ) : null}
 
-            <div className="gh-attribute-list gh-lineage-edge-attributes">
-              <div className="gh-attribute-row">
-                <span className="gh-attribute-label">Source</span>
-                <span className="gh-attribute-value">{selectedSource?.subtitle || selectedEdge.source}</span>
+            <SurfaceDrawerSection title="Edge Details">
+              <div className="gh-attribute-list gh-lineage-edge-attributes">
+                <div className="gh-attribute-row">
+                  <span className="gh-attribute-label">Source</span>
+                  <span className="gh-attribute-value">{selectedSource?.subtitle || selectedEdge.source}</span>
+                </div>
+                <div className="gh-attribute-row">
+                  <span className="gh-attribute-label">Target</span>
+                  <span className="gh-attribute-value">{selectedTarget?.subtitle || selectedEdge.target}</span>
+                </div>
+                <div className="gh-attribute-row">
+                  <span className="gh-attribute-label">Relationship</span>
+                  <span className="gh-attribute-value">{selectedEdge.data?.kind || "Lineage"}</span>
+                </div>
               </div>
-              <div className="gh-attribute-row">
-                <span className="gh-attribute-label">Target</span>
-                <span className="gh-attribute-value">{selectedTarget?.subtitle || selectedEdge.target}</span>
-              </div>
-              <div className="gh-attribute-row">
-                <span className="gh-attribute-label">Relationship</span>
-                <span className="gh-attribute-value">{selectedEdge.data?.kind || "Lineage"}</span>
-              </div>
-            </div>
+            </SurfaceDrawerSection>
 
             {activePathNodes.length ? (
-              <div className="gh-detail-section">
-                <div className="gh-panel-title">Path Nodes</div>
+              <SurfaceDrawerSection title="Path Nodes">
                 <div className="gh-lineage-linked-list">
                   {activePathNodes.map((node) => (
                     <button
@@ -1308,7 +1317,7 @@ export default function LineageGraph({
                     </button>
                   ))}
                 </div>
-              </div>
+              </SurfaceDrawerSection>
             ) : null}
 
           </>
@@ -1318,12 +1327,13 @@ export default function LineageGraph({
               title="Selected Node"
               node={selectedNode}
               tone={selectedNode.role === "focus" ? "focus" : selectedNode.role || "neutral"}
+              availabilityOverride={linkedRecordUnavailableOverrides?.[selectedNode?.assetFqn] === true ? false : null}
               onOpenAsset={onOpenAsset}
               onOpenGovernance={onOpenGovernance}
               includeFocusAction={false}
               includeTraceActions={false}
             />
-            <div className="gh-detail-section">
+            <SurfaceDrawerSection>
               <div className="gh-support-copy">
                 {selectedNode.role === "focus"
                   ? "This asset anchors the current lineage view."
@@ -1331,10 +1341,9 @@ export default function LineageGraph({
                     ? "This node flows into the current focus."
                     : "This node depends on the current focus."}
               </div>
-            </div>
+            </SurfaceDrawerSection>
             {neighborBuckets.upstream.length || neighborBuckets.downstream.length ? (
-              <div className="gh-detail-section">
-                <div className="gh-panel-title">Connected Nodes</div>
+              <SurfaceDrawerSection title="Connected Nodes">
                 <div className="gh-lineage-linked-list">
                   {neighborBuckets.upstream.slice(0, 3).map((node) => (
                     <button
@@ -1371,11 +1380,10 @@ export default function LineageGraph({
                     </button>
                   ))}
                 </div>
-              </div>
+              </SurfaceDrawerSection>
             ) : null}
             {Array.isArray(selectedNode.details) && selectedNode.details.length ? (
-              <div className="gh-detail-section">
-                <div className="gh-panel-title">Entity Details</div>
+              <SurfaceDrawerSection title="Entity Details">
                 <div className="gh-lineage-linked-list">
                   {selectedNode.details.map((item) => (
                     <div className="gh-lineage-linked-row is-readonly" key={item.key}>
@@ -1384,11 +1392,10 @@ export default function LineageGraph({
                     </div>
                   ))}
                 </div>
-              </div>
+              </SurfaceDrawerSection>
             ) : null}
             {selectedNode.assetFqn ? (
-              <div className="gh-detail-section">
-                <div className="gh-panel-title">Graph Actions</div>
+              <SurfaceDrawerSection title="Graph Actions">
                 <div className="gh-action-grid gh-lineage-drawer-actions">
                   {selectedNode.role !== "focus" ? (
                     <button
@@ -1436,13 +1443,13 @@ export default function LineageGraph({
                     Center in Graph
                   </button>
                 </div>
-              </div>
+              </SurfaceDrawerSection>
             ) : null}
           </>
         ) : (
           <div className="gh-empty-state">Select a node or edge to inspect the graph.</div>
         )}
-      </aside>
+      </SurfaceDrawer>
     </div>
   );
 }

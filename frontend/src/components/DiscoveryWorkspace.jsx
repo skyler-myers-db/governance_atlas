@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  canOpenAssetRecord,
+  canOpenLinkedAssetRecord,
   isUsableAssetDetail,
   useAssetAvailability,
   useAssetDetail,
@@ -16,8 +18,82 @@ import {
   workspaceAccessReason,
 } from "../lib/capabilities";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
+import { SurfaceHeader, SurfaceRail, SurfaceRailSection } from "./ShellLayoutPrimitives";
+import { EmptyStateBlock, InlineStatusBanner, WorkspaceStateCard } from "./ShellStatePrimitives";
 
 const DISCOVERY_RESULT_PAGE_SIZE = 60;
+const DISCOVERY_MAX_FETCH_LIMIT = 200;
+const DISCOVERY_QUERY_FIELD_OPTIONS = [
+  { value: "name", label: "Name" },
+  { value: "fqn", label: "Fully qualified name" },
+  { value: "description", label: "Description" },
+  { value: "catalog", label: "Catalog" },
+  { value: "schema", label: "Schema" },
+  { value: "domain", label: "Domain" },
+  { value: "tier", label: "Tier" },
+  { value: "certification", label: "Certification" },
+  { value: "sensitivity", label: "Sensitivity" },
+  { value: "criticality", label: "Criticality" },
+  { value: "glossary", label: "Glossary term" },
+  { value: "tag", label: "Tag" },
+  { value: "owner", label: "Owner" },
+  { value: "type", label: "Asset type" },
+  { value: "data_product", label: "Data product" },
+];
+const DISCOVERY_QUERY_MATCH_OPTIONS = [
+  { value: "single", label: "Single value" },
+  { value: "any", label: "Any of these" },
+  { value: "all", label: "All of these" },
+];
+const DISCOVERY_RECORD_UNAVAILABLE_REASON =
+  "Visible in discovery, but the record cannot be opened with current permissions.";
+
+function discoveryQueryFields(supportedFields = []) {
+  const allowed = new Set(
+    (supportedFields || [])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean),
+  );
+  return DISCOVERY_QUERY_FIELD_OPTIONS.filter(
+    (option) => !allowed.size || allowed.has(option.value),
+  );
+}
+
+function serializeDiscoveryQueryValue(rawValue = "") {
+  const normalized = String(rawValue || "").trim();
+  if (!normalized) return "";
+  const escaped = normalized.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return /^[a-z0-9_.-]+$/i.test(normalized) ? normalized : `"${escaped}"`;
+}
+
+function buildDiscoveryQueryClause({ field = "", value = "", matchMode = "single" }) {
+  const normalizedField = String(field || "").trim();
+  if (!normalizedField) return "";
+  if (matchMode === "any" || matchMode === "all") {
+    const values = String(value || "")
+      .split(",")
+      .map((item) => serializeDiscoveryQueryValue(item))
+      .filter(Boolean);
+    if (!values.length) return "";
+    if (values.length === 1) return `${normalizedField}:${values[0]}`;
+    const joiner = matchMode === "all" ? " AND " : " OR ";
+    return `${normalizedField}:(${values.join(joiner)})`;
+  }
+  const normalizedValue = serializeDiscoveryQueryValue(value);
+  if (!normalizedValue) return "";
+  return `${normalizedField}:${normalizedValue}`;
+}
+
+function appendDiscoveryQueryClause(baseQuery = "", nextClause = "", joiner = "AND") {
+  const normalizedBase = String(baseQuery || "").trim();
+  const normalizedClause = String(nextClause || "").trim();
+  const normalizedJoiner = String(joiner || "AND").trim().toUpperCase() === "OR" ? "OR" : "AND";
+  if (!normalizedClause) return normalizedBase;
+  if (!normalizedBase) return normalizedClause;
+  // Preserve the meaning of any existing structured query before appending a
+  // new clause from the helper UI.
+  return `(${normalizedBase}) ${normalizedJoiner} ${normalizedClause}`;
+}
 
 function statusTone(asset) {
   if (!asset?.governanceStatus) return "neutral";
@@ -53,6 +129,13 @@ function clearFilter(filters, chip, onDiscoveryStateChange) {
     onDiscoveryStateChange((current) => ({ ...current, query: "" }));
     return;
   }
+  if (chip.key === "queryClause") {
+    onDiscoveryStateChange((current) => ({
+      ...current,
+      query: String(chip.nextQuery || "").trim(),
+    }));
+    return;
+  }
   if (chip.key === "views") {
     onDiscoveryStateChange((current) => ({
       ...current,
@@ -82,13 +165,38 @@ function clearFilter(filters, chip, onDiscoveryStateChange) {
   }));
 }
 
-function filterVisibilityCount(filters) {
-  return activeFilters(filters).filter((chip) => chip.key !== "query").length;
+function filterVisibilityCount(filters, queryState = null) {
+  return activeFilters(filters, queryState).filter(
+    (chip) => chip.key !== "query",
+  ).length;
 }
 
-function activeFilters(filters) {
+function activeFilters(filters, queryState = null) {
   const chips = [];
-  if (filters.query) chips.push({ label: `Search: ${filters.query}`, key: "query" });
+  const clauseChips = Array.isArray(queryState?.clauseChips)
+    ? queryState.clauseChips
+        .map((chip, index) => {
+          const label = String(chip?.label || chip?.expression || "").trim();
+          if (!label) return null;
+          return {
+            label,
+            key: "queryClause",
+            nextQuery: String(chip?.nextQuery || "").trim(),
+            id: `query-clause-${index}`,
+          };
+        })
+        .filter(Boolean)
+    : [];
+  if (filters.query) {
+    if (
+      String(queryState?.state || "").trim().toLowerCase() === "valid" &&
+      clauseChips.length
+    ) {
+      chips.push(...clauseChips);
+    } else {
+      chips.push({ label: `Search: ${filters.query}`, key: "query" });
+    }
+  }
   (filters.views || []).forEach((value) => chips.push({ label: value, key: "views" }));
   (filters.types || []).forEach((value) => chips.push({ label: value, key: "types" }));
   ["catalogs", "domains", "tiers", "certifications", "sensitivities"].forEach((key) => {
@@ -111,13 +219,6 @@ function resultMetaItems(asset) {
 function facetCount(facets, key, value) {
   const entries = facets?.[key] || [];
   return entries.find((entry) => entry.value === value)?.count || 0;
-}
-
-function summaryFacetCount(summary, key, value, allLabel, fallbackCount = 0) {
-  const counts = summary?.[key];
-  if (value === allLabel) return fallbackCount;
-  if (!counts || typeof counts !== "object") return 0;
-  return Number(counts[value] || 0);
 }
 
 function previewRelatedAssetsFromGraph(graphBundle, focusFqn) {
@@ -171,8 +272,9 @@ function ownerLabel(owner) {
   return owner.name || owner.email || owner.title || "";
 }
 
-function FilterSection({ label, options, selected, allLabel, onToggle }) {
+function FilterSection({ label, options, selected, allLabel, emptyMessage = "", onToggle }) {
   const hasSelection = selected.length > 0;
+  const resolvedOptions = options.filter((option) => option !== allLabel);
   return (
     <section className="gh-filter-section">
       <div className="gh-filter-section-head">
@@ -186,9 +288,8 @@ function FilterSection({ label, options, selected, allLabel, onToggle }) {
         </button>
       </div>
       <div className="gh-filter-checklist">
-        {options
-          .filter((option) => option !== allLabel)
-          .map((option) => {
+        {resolvedOptions.length
+          ? resolvedOptions.map((option) => {
             const checked = selected.includes(option);
             return (
               <label className={`gh-filter-check ${checked ? "is-active" : ""}`} key={option}>
@@ -196,45 +297,220 @@ function FilterSection({ label, options, selected, allLabel, onToggle }) {
                 <span>{option}</span>
               </label>
             );
-          })}
+          })
+          : emptyMessage
+            ? <div className="gh-support-copy">{emptyMessage}</div>
+            : null}
       </div>
     </section>
   );
 }
 
-function ToggleChipSection({ label, options, selected, allLabel, onToggle }) {
+function ToggleChipSection({ label, options, selected, allLabel, emptyMessage = "", onToggle }) {
   return (
     <section className="gh-filter-section">
       <div className="gh-filter-title">{label}</div>
       <div className="gh-filter-choice-row">
-        {options.map((option) => (
-          <button
-            className={`gh-filter-chip ${
-              option === allLabel ? (!selected.length ? "is-active" : "") : selected.includes(option) ? "is-active" : ""
-            }`}
-            key={option}
-            onClick={() => onToggle(option, allLabel)}
-            type="button"
-          >
-            {option}
-          </button>
-        ))}
+        {options.length
+          ? options.map((option) => (
+            <button
+              className={`gh-filter-chip ${
+                option === allLabel ? (!selected.length ? "is-active" : "") : selected.includes(option) ? "is-active" : ""
+              }`}
+              key={option}
+              onClick={() => onToggle(option, allLabel)}
+              type="button"
+            >
+              {option}
+            </button>
+          ))
+          : emptyMessage
+            ? <div className="gh-support-copy">{emptyMessage}</div>
+            : null}
       </div>
     </section>
   );
 }
 
-function SidebarSection({ title, children }) {
+function SidebarSection({ title, children, empty = "" }) {
   return (
-    <section className="gh-discovery-sidebar-section">
-      <div className="gh-panel-title">{title}</div>
+    <SurfaceRailSection className="gh-discovery-sidebar-section" empty={empty} title={title}>
       {children}
+    </SurfaceRailSection>
+  );
+}
+
+function PreviewSection({ title = "", children, empty = "" }) {
+  return (
+    <SurfaceRailSection className="gh-preview-section" empty={empty} title={title}>
+      {children}
+    </SurfaceRailSection>
+  );
+}
+
+function DiscoveryQueryBuilder({
+  activeQuery = "",
+  queryState = null,
+  syntaxHint = "",
+  supportedFields = [],
+  onDiscoveryStateChange,
+}) {
+  const fieldOptions = useMemo(
+    () => discoveryQueryFields(supportedFields),
+    [supportedFields],
+  );
+  const [builderField, setBuilderField] = useState(fieldOptions[0]?.value || "name");
+  const [builderJoin, setBuilderJoin] = useState("AND");
+  const [builderMatchMode, setBuilderMatchMode] = useState("single");
+  const [builderValue, setBuilderValue] = useState("");
+
+  useEffect(() => {
+    if (!fieldOptions.some((option) => option.value === builderField)) {
+      setBuilderField(fieldOptions[0]?.value || "name");
+    }
+  }, [builderField, fieldOptions]);
+
+  const normalizedActiveQuery = String(activeQuery || "").trim();
+  const queryIsInvalid =
+    String(queryState?.state || "").trim().toLowerCase() === "invalid";
+  const canApplyClause =
+    !queryIsInvalid &&
+    Boolean(buildDiscoveryQueryClause({
+      field: builderField,
+      value: builderValue,
+      matchMode: builderMatchMode,
+    }));
+
+  const applyQueryClause = () => {
+    const nextClause = buildDiscoveryQueryClause({
+      field: builderField,
+      value: builderValue,
+      matchMode: builderMatchMode,
+    });
+    if (!nextClause) return;
+    onDiscoveryStateChange((current) => {
+      const baseQuery = String(current.query || "").trim();
+      return {
+        ...current,
+        query: appendDiscoveryQueryClause(baseQuery, nextClause, builderJoin),
+      };
+    });
+    setBuilderValue("");
+  };
+
+  return (
+    <section className="gh-query-builder">
+      <div className="gh-filter-section-head">
+        <div className="gh-filter-title">Structured Search Helper</div>
+        <div className="gh-query-builder-context">
+          {normalizedActiveQuery
+            ? "Adds a clause to the current search box."
+            : "Adds the first structured clause to the current search box."}
+        </div>
+      </div>
+      <div className="gh-query-builder-grid">
+        <label className="gh-query-builder-field">
+          <span className="gh-field-label">Field</span>
+          <select
+            aria-label="Query builder field"
+            className="gh-select"
+            onChange={(event) => setBuilderField(event.target.value)}
+            value={builderField}
+          >
+            {fieldOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="gh-query-builder-field">
+          <span className="gh-field-label">Match</span>
+          <select
+            aria-label="Query builder match mode"
+            className="gh-select"
+            onChange={(event) => setBuilderMatchMode(event.target.value)}
+            value={builderMatchMode}
+          >
+            {DISCOVERY_QUERY_MATCH_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="gh-query-builder-field">
+          <span className="gh-field-label">Join with</span>
+          <select
+            aria-label="Query builder boolean operator"
+            className="gh-select"
+            disabled={!normalizedActiveQuery || queryIsInvalid}
+            onChange={(event) => setBuilderJoin(event.target.value)}
+            value={builderJoin}
+          >
+            <option value="AND">AND</option>
+            <option value="OR">OR</option>
+          </select>
+        </label>
+      </div>
+      <label className="gh-query-builder-field">
+        <span className="gh-field-label">Value</span>
+        <input
+          aria-label="Query builder value"
+          className="gh-input"
+          onChange={(event) => setBuilderValue(event.target.value)}
+          placeholder={
+            builderMatchMode === "single"
+              ? 'finance or "Customer Orders"'
+              : "finance, support"
+          }
+          value={builderValue}
+        />
+      </label>
+      <div className="gh-query-builder-note">
+        {builderMatchMode === "single"
+          ? "Single values become one field:value clause. Phrases are quoted automatically."
+          : "Separate multiple values with commas to create a grouped clause joined by AND or OR."}
+      </div>
+      <div className="gh-query-builder-note">
+        {syntaxHint || "Structured discovery supports field:value, AND/OR, parentheses, and quoted phrases."}
+      </div>
+      {queryIsInvalid ? (
+        <div className="gh-query-builder-note">
+          Clear or correct the invalid search in the main query box before inserting another helper clause.
+        </div>
+      ) : null}
+      <div className="gh-query-builder-actions">
+        <button
+          className="gh-secondary-button"
+          disabled={!canApplyClause}
+          onClick={applyQueryClause}
+          type="button"
+        >
+          Insert into search
+        </button>
+        <button
+          className="gh-tertiary-button gh-inline-link-button"
+          onClick={() => setBuilderValue("")}
+          type="button"
+        >
+          Clear clause
+        </button>
+      </div>
     </section>
   );
 }
 
-function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, onClose }) {
-  const fallbackOptions = (values = []) => values.filter(Boolean);
+function FiltersPopover({
+  bootstrap,
+  facets,
+  filters,
+  queryState = null,
+  onDiscoveryStateChange,
+  onClose,
+  querySyntaxHint = "",
+  supportedQueryFields = [],
+}) {
   return (
     <div className="gh-filters-popover">
       <div className="gh-filters-popover-head">
@@ -244,11 +520,19 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
         </button>
       </div>
       <div className="gh-filters-popover-grid">
+        <DiscoveryQueryBuilder
+          activeQuery={filters.query}
+          onDiscoveryStateChange={onDiscoveryStateChange}
+          queryState={queryState}
+          supportedFields={supportedQueryFields}
+          syntaxHint={querySyntaxHint}
+        />
         <ToggleChipSection
           allLabel="All types"
+          emptyMessage="Asset types populate from live discovery facets."
           label="Asset type"
           onToggle={(value, allLabel) => toggleMulti(filters, "types", value, allLabel, onDiscoveryStateChange)}
-          options={facetValues(facets, "assetTypes", fallbackOptions(bootstrap.discovery.assetTypes), filters.types)}
+          options={facetValues(facets, "assetTypes", [], filters.types)}
           selected={filters.types}
         />
         <ToggleChipSection
@@ -260,57 +544,52 @@ function FiltersPopover({ bootstrap, facets, filters, onDiscoveryStateChange, on
         />
         <FilterSection
           allLabel="All catalogs"
+          emptyMessage="Catalog filters populate from live discovery facets."
           label="Catalogs"
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "catalogs", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(facets, "catalogs", fallbackOptions(bootstrap.discovery.catalogs), filters.catalogs)}
+          options={facetValues(facets, "catalogs", [], filters.catalogs)}
           selected={filters.catalogs}
         />
         <FilterSection
           allLabel="All domains"
+          emptyMessage="Domain filters populate from live discovery facets."
           label="Domains"
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "domains", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(facets, "domains", fallbackOptions(bootstrap.discovery.domains), filters.domains)}
+          options={facetValues(facets, "domains", [], filters.domains)}
           selected={filters.domains}
         />
         <FilterSection
           allLabel="All tiers"
+          emptyMessage="Tier filters populate from live discovery facets."
           label="Tiers"
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "tiers", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(facets, "tiers", fallbackOptions(bootstrap.discovery.tiers), filters.tiers)}
+          options={facetValues(facets, "tiers", [], filters.tiers)}
           selected={filters.tiers}
         />
         <FilterSection
           allLabel="All certifications"
+          emptyMessage="Certification filters populate from live discovery facets."
           label="Certifications"
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "certifications", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(
-            facets,
-            "certifications",
-            fallbackOptions(bootstrap.discovery.certifications),
-            filters.certifications,
-          )}
+          options={facetValues(facets, "certifications", [], filters.certifications)}
           selected={filters.certifications}
         />
         <FilterSection
           allLabel="All sensitivities"
+          emptyMessage="Sensitivity filters populate from live discovery facets."
           label="Sensitivities"
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "sensitivities", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(
-            facets,
-            "sensitivities",
-            fallbackOptions(bootstrap.discovery.sensitivities),
-            filters.sensitivities,
-          )}
+          options={facetValues(facets, "sensitivities", [], filters.sensitivities)}
           selected={filters.sensitivities}
         />
       </div>
@@ -327,10 +606,13 @@ function DiscoveryResultCard({
   onSelect,
   lineageAvailable = true,
   lineageUnavailableReason = "",
+  recordOpenable = null,
+  recordUnavailableReason = "",
 }) {
   const owners = (asset.owners || []).map((owner) => ownerLabel(owner)).filter(Boolean).slice(0, 2);
   const metaItems = resultMetaItems(asset);
   const objectType = displayObjectType(asset);
+  const recordUnavailable = recordOpenable === false;
 
   return (
     <article
@@ -382,8 +664,14 @@ function DiscoveryResultCard({
       </button>
 
       <div className="gh-action-grid gh-discovery-action-grid">
-        <button className="gh-secondary-button gh-secondary-button-compact" onClick={() => onOpenAsset(asset.fqn)} type="button">
-          Open Record
+        <button
+          className="gh-secondary-button gh-secondary-button-compact"
+          disabled={recordUnavailable}
+          onClick={() => onOpenAsset(asset.fqn)}
+          title={recordUnavailable ? recordUnavailableReason : undefined}
+          type="button"
+        >
+          {recordUnavailable ? "Metadata record unavailable" : "Open Record"}
         </button>
         <button
           className="gh-secondary-button gh-secondary-button-compact"
@@ -396,22 +684,20 @@ function DiscoveryResultCard({
         </button>
         <button
           className="gh-secondary-button gh-secondary-button-compact"
+          disabled={recordUnavailable}
           onClick={() => onOpenGovernance(asset.fqn)}
+          title={recordUnavailable ? recordUnavailableReason : undefined}
           type="button"
         >
           Open Governance
         </button>
       </div>
+      {recordUnavailable ? (
+        <div className="gh-support-copy gh-discovery-record-state">
+          {recordUnavailableReason}
+        </div>
+      ) : null}
     </article>
-  );
-}
-
-function PreviewSection({ title, children, empty }) {
-  return (
-    <section className="gh-preview-section">
-      {title ? <div className="gh-panel-title">{title}</div> : null}
-      {children ? children : empty ? <div className="gh-support-copy">{empty}</div> : null}
-    </section>
   );
 }
 
@@ -432,19 +718,20 @@ function SelectionPreview({
   asset,
   detailLoading,
   detailError,
+  linkedRecordUnavailableOverrides = {},
   onOpenAsset,
   onOpenGovernance,
   onOpenLinkedAsset,
   onOpenLineage,
   visibleAssetSet,
-  seededLineageGraph,
   lineageAvailable = true,
   lineageUnavailableReason = "",
+  recordOpenable = null,
+  recordUnavailableReason = "",
 }) {
   const [lineageWarm, setLineageWarm] = useState(false);
   const lineage = useLineage(
     asset?.fqn || "",
-    lineageAvailable ? seededLineageGraph || null : null,
     Boolean(asset?.fqn) && lineageWarm && lineageAvailable,
   );
   const lineageAuthoritative = lineage.authoritative;
@@ -493,10 +780,12 @@ function SelectionPreview({
 
   if (!asset) {
     return (
-      <aside className="gh-panel gh-selection-preview">
-        <div className="gh-panel-title">Preview</div>
-        <div className="gh-empty-state">Select a result to review metadata, schema, and stewardship posture.</div>
-      </aside>
+      <SurfaceRail className="gh-selection-preview" title="Preview">
+        <EmptyStateBlock
+          message="Select a result to review metadata, schema, and stewardship posture."
+          title="Nothing selected"
+        />
+      </SurfaceRail>
     );
   }
 
@@ -510,48 +799,61 @@ function SelectionPreview({
     lineageProvisional,
     lineageAvailable,
   );
+  const recordUnavailable = recordOpenable === false;
 
   return (
-    <aside className="gh-panel gh-selection-preview" data-asset-fqn={asset.fqn}>
-      <div className="gh-selection-preview-head">
-        <div className="gh-selection-preview-title-block">
-          <div className="gh-eyebrow">Selected Asset</div>
-          <div className="gh-selection-preview-title-row">
-            <h3>{asset.name}</h3>
-            {asset.governanceStatus ? (
-              <span className={`gh-status-chip tone-${statusTone(asset)}`}>
-                {asset.governanceStatus}
-              </span>
-            ) : null}
-          </div>
-          <div className="gh-support-copy">{assetPathLabel(asset, true)}</div>
-        </div>
-      </div>
-
-      <div className="gh-action-grid gh-selection-preview-actions">
-        <button className="gh-secondary-button" onClick={() => onOpenAsset(asset.fqn)} type="button">
-          Open Record
-        </button>
-        <button
-          className="gh-secondary-button"
-          disabled={!lineageAvailable}
-          onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
-          title={!lineageAvailable ? lineageUnavailableReason : undefined}
-          type="button"
-        >
-          {lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
-        </button>
-        <button
-          className="gh-secondary-button"
-          onClick={() => onOpenGovernance(asset.fqn)}
-          type="button"
-        >
-          Open Governance
-        </button>
-      </div>
-
-      {detailError ? <div className="gh-inline-alert tone-warn">{detailError}</div> : null}
+    <SurfaceRail
+      className="gh-selection-preview"
+      data-asset-fqn={asset.fqn}
+      eyebrow="Selected Asset"
+      identity={assetPathLabel(asset, true)}
+      title={asset.name}
+      titleMeta={
+        asset.governanceStatus ? (
+          <span className={`gh-status-chip tone-${statusTone(asset)}`}>
+            {asset.governanceStatus}
+          </span>
+        ) : null
+      }
+      actions={
+        <>
+          <button
+            className="gh-secondary-button"
+            disabled={recordUnavailable}
+            onClick={() => onOpenAsset(asset.fqn)}
+            title={recordUnavailable ? recordUnavailableReason : undefined}
+            type="button"
+          >
+            {recordUnavailable ? "Metadata record unavailable" : "Open Record"}
+          </button>
+          <button
+            className="gh-secondary-button"
+            disabled={!lineageAvailable}
+            onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
+            title={!lineageAvailable ? lineageUnavailableReason : undefined}
+            type="button"
+          >
+            {lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
+          </button>
+          <button
+            className="gh-secondary-button"
+            disabled={recordUnavailable}
+            onClick={() => onOpenGovernance(asset.fqn)}
+            title={recordUnavailable ? recordUnavailableReason : undefined}
+            type="button"
+          >
+            Open Governance
+          </button>
+        </>
+      }
+    >
+      {detailError ? <InlineStatusBanner message={detailError} title="Preview degraded" /> : null}
       {detailLoading ? <div className="gh-support-copy">Refreshing live header and schema metadata...</div> : null}
+      {recordUnavailable ? (
+        <div className="gh-support-copy gh-selection-preview-record-state">
+          {recordUnavailableReason}
+        </div>
+      ) : null}
 
       <PreviewSection title="Definition">
         <div className="gh-support-copy">
@@ -598,11 +900,13 @@ function SelectionPreview({
       >
         {previewRelatedAssets.length ? (
           <div className="gh-lineage-linked-list">
-            {previewRelatedAssets.map((item) =>
-              relatedAssetAvailability[item] === false ? (
+            {previewRelatedAssets.map((item) => {
+              const linkedRecordAvailability =
+                linkedRecordUnavailableOverrides[item] === true ? false : relatedAssetAvailability[item];
+              return linkedRecordAvailability === false ? (
                 <div className="gh-lineage-linked-row is-readonly" key={item}>
                   <span>{item}</span>
-                  <span>Lineage-only asset</span>
+                  <span>Metadata record unavailable</span>
                 </div>
               ) : (
                 <button
@@ -612,14 +916,14 @@ function SelectionPreview({
                   type="button"
                 >
                   <span>{item}</span>
-                  <span>{relatedAssetAvailability[item] === null ? "Loading record" : "Open Record"}</span>
+                  <span>{linkedRecordAvailability === true ? "Open Record" : "Checking access..."}</span>
                 </button>
-              ),
-            )}
+              );
+            })}
           </div>
         ) : null}
       </PreviewSection>
-    </aside>
+    </SurfaceRail>
   );
 }
 
@@ -627,15 +931,22 @@ export default function DiscoveryWorkspace({
   bootstrap,
   effectiveBootMessage = "",
   effectiveBootState = "live",
-  effectiveVisibleCount = 0,
-  allowSeededDiscovery = true,
+  effectiveVisibleCount = null,
+  initialFilterGroups = {},
   initialQuery,
+  initialSelectedAssetFqn = "",
+  initialSort,
+  initialViews = [],
   onNavigationStateChange,
   onSurfaceReady,
+  onRouteFilterGroupsChange,
   querySeedKey,
   querySeedFresh,
   onLiveCatalogStateChange,
+  onRoutePreviewChange,
   onRouteQueryChange,
+  onRouteSortChange,
+  onRouteViewsChange,
   onOpenAsset,
   onOpenGovernance,
   onOpenLineage,
@@ -648,12 +959,29 @@ export default function DiscoveryWorkspace({
   const [visibleResultCount, setVisibleResultCount] = useState(DISCOVERY_RESULT_PAGE_SIZE);
   const [navigationNotice, setNavigationNotice] = useState("");
   const [previewSchemaWarm, setPreviewSchemaWarm] = useState(false);
+  const [recordUnavailableOverrides, setRecordUnavailableOverrides] = useState({});
+  const [linkedRecordUnavailableOverrides, setLinkedRecordUnavailableOverrides] = useState({});
+  const [recordAvailabilityTargets, setRecordAvailabilityTargets] = useState([]);
   const filterCommandRef = useRef(null);
+  const routePreviewAssetFqn = String(initialSelectedAssetFqn || "");
+  const requestedResultLimit = Math.min(
+    Math.max(
+      routePreviewAssetFqn ? DISCOVERY_MAX_FETCH_LIMIT : visibleResultCount,
+      80,
+    ),
+    DISCOVERY_MAX_FETCH_LIMIT,
+  );
   const { filters, setFilters, results: discoveryResults } = useDiscoveryWorkspace({
     bootstrap,
-    allowSeededDiscovery,
+    initialFilterGroups,
     initialQuery,
+    initialSort,
+    initialViews,
+    requestedResultLimit,
+    onRouteFilterGroupsChange,
     onRouteQueryChange,
+    onRouteSortChange,
+    onRouteViewsChange,
     querySeedKey,
     querySeedFresh,
   });
@@ -663,14 +991,40 @@ export default function DiscoveryWorkspace({
     !discoveryResults.authoritative &&
     !(discoveryResults.assets || []).length;
   const renderableDiscoveryAssets = suppressCatalogRows ? [] : discoveryResults.assets;
-  const renderedDiscoveryAssets = useMemo(
-    () => renderableDiscoveryAssets.slice(0, visibleResultCount),
-    [renderableDiscoveryAssets, visibleResultCount],
+  const explicitRoutePreviewIndex = useMemo(
+    () =>
+      routePreviewAssetFqn
+        ? renderableDiscoveryAssets.findIndex((asset) => asset.fqn === routePreviewAssetFqn)
+        : -1,
+    [renderableDiscoveryAssets, routePreviewAssetFqn],
   );
+  // Route-owned preview identity should never point at a card that the visible
+  // discovery slice hides. This raises the local window only enough to keep the
+  // explicitly selected card in view without inventing route-owned paging.
+  const effectiveVisibleResultCount =
+    explicitRoutePreviewIndex >= 0
+      ? Math.max(visibleResultCount, explicitRoutePreviewIndex + 1)
+      : visibleResultCount;
+  const renderedDiscoveryAssets = useMemo(
+    () => renderableDiscoveryAssets.slice(0, effectiveVisibleResultCount),
+    [effectiveVisibleResultCount, renderableDiscoveryAssets],
+  );
+  const renderedDiscoveryAssetFqns = useMemo(
+    () => renderedDiscoveryAssets.map((asset) => asset.fqn).filter(Boolean),
+    [renderedDiscoveryAssets],
+  );
+  const renderedDiscoveryAssetKey = useMemo(
+    () => renderedDiscoveryAssetFqns.join("|"),
+    [renderedDiscoveryAssetFqns],
+  );
+  const invalidQuery =
+    discoveryResults.queryState?.state === "invalid" ? discoveryResults.queryState : null;
   const selectedSeedAsset =
-    renderableDiscoveryAssets.find((asset) => asset.fqn === selectedAssetFqn) ||
-    renderableDiscoveryAssets[0] ||
-    null;
+    invalidQuery
+      ? null
+      : renderableDiscoveryAssets.find((asset) => asset.fqn === selectedAssetFqn) ||
+        renderableDiscoveryAssets[0] ||
+        null;
   const previewDetail = useAssetDetail(selectedSeedAsset?.fqn || "", {
     sections: ["header"],
   });
@@ -683,9 +1037,6 @@ export default function DiscoveryWorkspace({
     : isUsableAssetDetail(previewDetail.detail)
       ? previewDetail.detail
       : selectedSeedAsset;
-  const previewLineageSeedGraph = selectedSeedAsset?.fqn
-    ? bootstrap?.graphs?.[selectedSeedAsset.fqn] || null
-    : null;
   const visibleAssetSet = useMemo(() => {
     const next = new Set();
     if (sharedVisibleAssetSet?.forEach) {
@@ -695,6 +1046,14 @@ export default function DiscoveryWorkspace({
     }
     return next;
   }, [sharedVisibleAssetSet]);
+  const renderedRecordAvailability = useAssetAvailability(
+    recordAvailabilityTargets,
+    visibleAssetSet,
+    {
+      strict: true,
+      requireRenderableDetail: true,
+    },
+  );
   const lineageAvailable = tableLineageAvailable(bootstrap);
   const lineageUnavailableReason = tableLineageReason(bootstrap);
   const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", true);
@@ -716,7 +1075,11 @@ export default function DiscoveryWorkspace({
           lineageRolloutUnavailableReason,
         )
     : lineageUnavailableReason;
-
+  const resultsCount = discoveryResults.count;
+  const resultsLoading = discoveryResults.loading;
+  const resultsError = discoveryResults.error;
+  const resultsSettled = discoveryResults.settled;
+  const resultsFacets = discoveryResults.facets;
   useEffect(() => {
     if (!showAdvancedFilters) return undefined;
     const onPointerDown = (event) => {
@@ -738,18 +1101,31 @@ export default function DiscoveryWorkspace({
   }, [showAdvancedFilters]);
 
   useEffect(() => {
+    setSelectedAssetFqn(routePreviewAssetFqn);
+  }, [querySeedKey, routePreviewAssetFqn]);
+
+  useEffect(() => {
     if (!renderableDiscoveryAssets.length) {
       setSelectedAssetFqn("");
       return;
     }
 
     setSelectedAssetFqn((current) => {
+      // Blank discovery routes keep the first visible preview local. Only an
+      // explicit route preview or an explicit user selection should write
+      // preview identity back into the router.
+      if (
+        routePreviewAssetFqn &&
+        renderableDiscoveryAssets.some((asset) => asset.fqn === routePreviewAssetFqn)
+      ) {
+        return routePreviewAssetFqn;
+      }
       if (current && renderableDiscoveryAssets.some((asset) => asset.fqn === current)) {
         return current;
       }
       return renderableDiscoveryAssets[0].fqn;
     });
-  }, [renderableDiscoveryAssets]);
+  }, [renderableDiscoveryAssets, routePreviewAssetFqn]);
 
   useEffect(() => {
     if (!selectedSeedAsset?.fqn) {
@@ -780,47 +1156,86 @@ export default function DiscoveryWorkspace({
   }, [selectedSeedAsset?.fqn]);
 
   useEffect(() => {
+    setLinkedRecordUnavailableOverrides({});
+  }, [selectedSeedAsset?.fqn]);
+
+  useEffect(() => {
+    setRecordUnavailableOverrides({});
+  }, [discoveryResults.requestKey, querySeedFresh]);
+
+  useEffect(() => {
+    setNavigationNotice("");
+  }, [discoveryResults.requestKey, selectedSeedAsset?.fqn]);
+
+  useEffect(() => {
+    if (!renderedDiscoveryAssetFqns.length || invalidQuery || resultsLoading) {
+      setRecordAvailabilityTargets([]);
+      return undefined;
+    }
+    let timeoutId = 0;
+    let idleId = 0;
+    const warmAvailability = () => {
+      setRecordAvailabilityTargets((current) => {
+        const currentKey = current.join("|");
+        return currentKey === renderedDiscoveryAssetKey ? current : renderedDiscoveryAssetFqns;
+      });
+    };
+    if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(warmAvailability, { timeout: 1800 });
+    } else if (typeof window !== "undefined") {
+      timeoutId = window.setTimeout(warmAvailability, 320);
+    } else {
+      warmAvailability();
+    }
+    return () => {
+      if (typeof window !== "undefined" && idleId && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
+      if (typeof window !== "undefined" && timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [invalidQuery, renderedDiscoveryAssetFqns, renderedDiscoveryAssetFqns.length, renderedDiscoveryAssetKey, resultsLoading]);
+
+  useEffect(() => {
+    // Result depth is local UI state, but it should reset whenever discovery
+    // scope changes or a fresh discovery open reseeds the same scope.
     setVisibleResultCount(DISCOVERY_RESULT_PAGE_SIZE);
   }, [
-    discoveryResults.authoritative,
-    discoveryResults.resolvedQuery,
-    filters.query,
-    filters.sortBy,
-    filters.views.join("|"),
-    filters.types.join("|"),
-    filters.catalogs.join("|"),
-    filters.domains.join("|"),
-    filters.tiers.join("|"),
-    filters.certifications.join("|"),
-    filters.sensitivities.join("|"),
+    discoveryResults.requestKey,
+    querySeedFresh,
   ]);
-
-  const resultsCount = discoveryResults.count;
-  const resultsLoading = discoveryResults.loading;
-  const resultsError = discoveryResults.error;
-  const resultsSettled = discoveryResults.settled;
-  const resultsFacets = discoveryResults.facets;
-  const filtersApplied = activeFilters(filters);
-  const directFilterCount = filterVisibilityCount(filters);
-  const discoverySummary = bootstrap.discovery?.summary || {};
-  const visibleAssetsSummary = effectiveVisibleCount || discoverySummary.visibleAssets || resultsCount || 0;
-  const useBootstrapFacetFallback = !resultsSettled;
+  const queryBuilderFields = useMemo(
+    () => discoveryQueryFields(discoveryResults.queryState?.supportedFields || []),
+    [discoveryResults.queryState?.supportedFields],
+  );
+  const queryBuilderSyntaxHint =
+    discoveryResults.queryState?.syntaxHint ||
+    "Use field:value clauses with AND/OR, parentheses, and quoted phrases.";
+  const filtersApplied = activeFilters(filters, discoveryResults.queryState);
+  const directFilterCount = filterVisibilityCount(filters, discoveryResults.queryState);
+  const visibleAssetsSummary = effectiveVisibleCount ?? resultsCount ?? 0;
+  const showLiveFacetCounts = resultsSettled && !resultsError;
   const assetTypeOptions = facetValues(
     resultsFacets,
     "assetTypes",
-    useBootstrapFacetFallback ? bootstrap.discovery.assetTypes : [],
+    [],
     filters.types,
   ).filter(Boolean);
   const catalogOptions = facetValues(
     resultsFacets,
     "catalogs",
-    useBootstrapFacetFallback ? bootstrap.discovery.catalogs : [],
+    [],
     filters.catalogs,
   ).filter((value) => value && value !== "All catalogs");
-  const assetTypeSummaryCounts = discoverySummary.assetTypeCounts || {};
-  const catalogSummaryCounts = discoverySummary.catalogCounts || {};
   const onDiscoveryStateChange = (nextState) => setFilters(nextState);
-  const resetBrowse = () =>
+  const resetBrowse = () => {
+    // Resetting browse returns the workspace to a clean discovery scope rather
+    // than preserving an earlier explicit preview selection.
+    setSelectedAssetFqn("");
+    if (routePreviewAssetFqn) {
+      onRoutePreviewChange?.("");
+    }
     onDiscoveryStateChange({
       query: "",
       sortBy: bootstrap.discovery.sortOptions[0],
@@ -832,6 +1247,7 @@ export default function DiscoveryWorkspace({
       certifications: [],
       sensitivities: [],
     });
+  };
 
   const openAssetRecord = (assetFqn) => {
     if (!assetFqn) return;
@@ -839,9 +1255,27 @@ export default function DiscoveryWorkspace({
     void openAssetRecordSafely(assetFqn, {
       onNavigationStateChange,
       onOpen: () => {
+        setRecordUnavailableOverrides((current) => {
+          if (!current[assetFqn]) return current;
+          const next = { ...current };
+          delete next[assetFqn];
+          return next;
+        });
         onOpenAsset(assetFqn);
       },
-      onUnavailable: () => {
+      onUnavailable: ({ availability = null, detail = null, error = null } = {}) => {
+        const explicitUnavailable =
+          !error &&
+          (
+            availability?.openable === false ||
+            availability?.visible === false ||
+            availability?.exists === false ||
+            Boolean(detail?.fqn)
+          );
+        if (explicitUnavailable) {
+          setRecordUnavailableOverrides((current) =>
+            current[assetFqn] ? current : { ...current, [assetFqn]: true });
+        }
         setNavigationNotice(
           "That asset is visible in discovery, but its metadata record is not openable with the current permissions.",
         );
@@ -852,12 +1286,31 @@ export default function DiscoveryWorkspace({
     if (!assetFqn) return;
     setNavigationNotice("");
     void openAssetRecordSafely(assetFqn, {
+      canOpen: canOpenLinkedAssetRecord,
       loadingLabel: "Opening linked metadata record…",
       onNavigationStateChange,
       onOpen: () => {
+        setLinkedRecordUnavailableOverrides((current) => {
+          if (!current[assetFqn]) return current;
+          const next = { ...current };
+          delete next[assetFqn];
+          return next;
+        });
         onOpenAsset(assetFqn);
       },
-      onUnavailable: () => {
+      onUnavailable: ({ availability = null, detail = null, error = null } = {}) => {
+        const explicitUnavailable =
+          !error &&
+          (
+            availability?.openable === false ||
+            availability?.visible === false ||
+            availability?.exists === false ||
+            Boolean(detail?.fqn)
+          );
+        if (explicitUnavailable) {
+          setLinkedRecordUnavailableOverrides((current) =>
+            current[assetFqn] ? current : { ...current, [assetFqn]: true });
+        }
         setNavigationNotice(
           "That linked asset is surfaced by live lineage, but its metadata record is not openable with the current permissions.",
         );
@@ -881,6 +1334,23 @@ export default function DiscoveryWorkspace({
     onOpenGovernance(nextAssetFqn);
   };
   const hasRenderableResults = renderableDiscoveryAssets.length > 0;
+  const handleSelectAsset = (assetFqn) => {
+    const nextAssetFqn = assetFqn || "";
+    setSelectedAssetFqn(nextAssetFqn);
+    if (nextAssetFqn !== routePreviewAssetFqn) {
+      onRoutePreviewChange?.(nextAssetFqn);
+    }
+  };
+
+  useEffect(() => {
+    if (!routePreviewAssetFqn || !resultsSettled) return;
+    const routePreviewStillVisible = renderableDiscoveryAssets.some(
+      (asset) => asset.fqn === routePreviewAssetFqn,
+    );
+    if (!routePreviewStillVisible) {
+      onRoutePreviewChange?.("");
+    }
+  }, [onRoutePreviewChange, renderableDiscoveryAssets, resultsSettled, routePreviewAssetFqn]);
   const showInventoryEmptyState = resultsSettled && suppressCatalogRows && !hasRenderableResults;
   const emptyHeading = showInventoryEmptyState
     ? "No visible assets are being returned."
@@ -889,6 +1359,31 @@ export default function DiscoveryWorkspace({
     ? effectiveBootMessage ||
       "The workspace can load, but the current principal is not surfacing any visible catalog assets yet."
     : "Relax the current search, saved view, or filters to widen the catalog scope.";
+  const showingCount = renderedDiscoveryAssets.length;
+  const canLoadMoreResults = resultsCount > showingCount;
+  const loadingMoreResults =
+    hasRenderableResults &&
+    canLoadMoreResults &&
+    resultsLoading &&
+    renderableDiscoveryAssets.length < visibleResultCount;
+  const selectedPreviewRecordDetail = previewSchemaDetail.detail?.fqn
+    ? previewSchemaDetail.detail
+    : previewDetail.detail?.fqn
+      ? previewDetail.detail
+      : null;
+  const selectedPreviewRecordAvailability = selectedSeedAsset?.fqn
+    ? renderedRecordAvailability[selectedSeedAsset.fqn] ?? null
+    : null;
+  const selectedPreviewRecordOpenable =
+    !selectedSeedAsset?.fqn
+      ? null
+      : recordUnavailableOverrides[selectedSeedAsset.fqn] === true
+        ? false
+      : selectedPreviewRecordAvailability === false
+        ? false
+        : selectedPreviewRecordDetail?.fqn
+        ? canOpenAssetRecord(selectedPreviewRecordDetail)
+        : selectedPreviewRecordAvailability;
 
   useEffect(() => {
     onLiveCatalogStateChange?.({
@@ -931,39 +1426,35 @@ export default function DiscoveryWorkspace({
   return (
     <section className="gh-workspace gh-discovery-shell">
       <section className="gh-discovery-main gh-discovery-main-grid">
-        <aside className="gh-panel gh-discovery-sidebar">
-          <div className="gh-discovery-sidebar-head">
-            <div className="gh-eyebrow">Discovery Scope</div>
-            <h3>Browse Asset Types and Filters</h3>
-            <p>Layer asset type, saved view, catalog, and stacked filters without leaving the catalog.</p>
-          </div>
-
+        <SurfaceRail
+          className="gh-discovery-sidebar"
+          eyebrow="Discovery Scope"
+          identity="Layer asset type, saved view, catalog, and stacked filters without leaving the catalog."
+          title="Browse Asset Types and Filters"
+          titleMeta={<span className="gh-chip gh-chip-soft">{visibleAssetsSummary} visible</span>}
+        >
           <SidebarSection title="Asset Types">
-            <div className="gh-category-list">
-              {assetTypeOptions.map((option) => (
-                <button
-                  className={`gh-category-row ${
-                    option === "All types" ? (!filters.types.length ? "is-active" : "") : filters.types.includes(option) ? "is-active" : ""
-                  }`}
-                  key={option}
-                  onClick={() => toggleMulti(filters, "types", option, "All types", onDiscoveryStateChange)}
-                  type="button"
-                >
-                  <span>{option}</span>
-                  <span className="gh-category-count">
-                    {resultsSettled
-                      ? facetCount(resultsFacets, "assetTypes", option)
-                      : summaryFacetCount(
-                          discoverySummary,
-                          "assetTypeCounts",
-                          option,
-                          "All types",
-                          visibleAssetsSummary,
-                        )}
-                  </span>
-                </button>
-              ))}
-            </div>
+            {assetTypeOptions.length ? (
+              <div className="gh-category-list">
+                {assetTypeOptions.map((option) => (
+                  <button
+                    className={`gh-category-row ${
+                      option === "All types" ? (!filters.types.length ? "is-active" : "") : filters.types.includes(option) ? "is-active" : ""
+                    }`}
+                    key={option}
+                    onClick={() => toggleMulti(filters, "types", option, "All types", onDiscoveryStateChange)}
+                    type="button"
+                  >
+                    <span>{option}</span>
+                    {showLiveFacetCounts ? (
+                      <span className="gh-category-count">{facetCount(resultsFacets, "assetTypes", option)}</span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="gh-support-copy">Asset types populate from live discovery facets.</div>
+            )}
           </SidebarSection>
 
           <SidebarSection title="Saved Views">
@@ -998,11 +1489,9 @@ export default function DiscoveryWorkspace({
                     title={`Filter to ${catalog}`}
                   >
                     {catalog}
-                    <span className="gh-chip-count-inline">
-                      {resultsSettled
-                        ? facetCount(resultsFacets, "catalogs", catalog)
-                        : summaryFacetCount(discoverySummary, "catalogCounts", catalog, "All catalogs")}
-                    </span>
+                    {showLiveFacetCounts ? (
+                      <span className="gh-chip-count-inline">{facetCount(resultsFacets, "catalogs", catalog)}</span>
+                    ) : null}
                   </button>
                 ))}
               </div>
@@ -1010,22 +1499,26 @@ export default function DiscoveryWorkspace({
               <div className="gh-support-copy">Catalog scope will populate from visible inventory.</div>
             )}
           </SidebarSection>
-        </aside>
+        </SurfaceRail>
 
         <section className="gh-results-column">
           <div className="gh-panel gh-discovery-command-panel" ref={filterCommandRef}>
-            <div className="gh-discovery-command-topline">
-              <div>
-                <h2 className="gh-workspace-title">Metadata Catalog</h2>
-                <div className="gh-discovery-results-copy">
-                  Filter visible assets with stacked search, saved views, and facet filters.
-                </div>
+            <SurfaceHeader
+              actions={(
+                <span className="gh-results-inline-state gh-results-inline-state-bar">
+                  {resultsCount} {resultsCount === 1 ? "result" : "results"}
+                  {resultsLoading ? <span className="gh-inline-updating">Updating…</span> : null}
+                </span>
+              )}
+              className="gh-discovery-command-head"
+              eyebrow="Discovery"
+              variant="featured"
+              title="Metadata Catalog"
+            >
+              <div className="gh-discovery-results-copy">
+                Filter visible assets with stacked search, saved views, and facet filters.
               </div>
-              <span className="gh-results-inline-state gh-results-inline-state-bar">
-                {resultsCount} {resultsCount === 1 ? "result" : "results"}
-                {resultsLoading ? <span className="gh-inline-updating">Updating…</span> : null}
-              </span>
-            </div>
+            </SurfaceHeader>
 
             <div className="gh-discovery-toolbar-shell">
               <div className="gh-discovery-toolbar">
@@ -1079,6 +1572,9 @@ export default function DiscoveryWorkspace({
                     filters={filters}
                     onClose={() => setShowAdvancedFilters(false)}
                     onDiscoveryStateChange={onDiscoveryStateChange}
+                    queryState={discoveryResults.queryState}
+                    querySyntaxHint={queryBuilderSyntaxHint}
+                    supportedQueryFields={queryBuilderFields.map((field) => field.value)}
                   />
                 </div>
               ) : null}
@@ -1089,7 +1585,7 @@ export default function DiscoveryWorkspace({
                 {filtersApplied.map((chip) => (
                   <button
                     className="gh-chip gh-chip-soft"
-                    key={`${chip.key}-${chip.label}`}
+                    key={chip.id || `${chip.key}-${chip.label}`}
                     onClick={() => clearFilter(filters, chip, onDiscoveryStateChange)}
                     type="button"
                   >
@@ -1120,20 +1616,41 @@ export default function DiscoveryWorkspace({
           </div>
 
           {navigationNotice ? (
-            <div className="gh-inline-alert tone-warn">
-              <div className="gh-inline-alert-title">Navigation limited</div>
-              <div>{navigationNotice}</div>
-            </div>
+            <InlineStatusBanner message={navigationNotice} title="Navigation limited" />
           ) : null}
 
           {resultsError && !hasRenderableResults ? (
-            <div className="gh-inline-alert tone-warn">
-              <div className="gh-inline-alert-title">Discovery search degraded</div>
-              <div>{resultsError}</div>
-            </div>
+            <InlineStatusBanner message={resultsError} title="Discovery search degraded" />
           ) : null}
 
-          {hasRenderableResults ? (
+          {invalidQuery ? (
+            <WorkspaceStateCard
+              actions={(
+                <>
+                  {filters.query ? (
+                    <button
+                      className="gh-secondary-button"
+                      onClick={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
+                      type="button"
+                    >
+                      Clear search
+                    </button>
+                  ) : null}
+                  <button className="gh-secondary-button" onClick={resetBrowse} type="button">
+                    Reset browse
+                  </button>
+                </>
+              )}
+              className="gh-discovery-empty-state"
+              eyebrow="Invalid Search"
+              message={
+                invalidQuery.syntaxHint ||
+                "Use AND, OR, parentheses, quoted phrases, and supported field selectors."
+              }
+              title={invalidQuery.message || "Invalid discovery query."}
+              tone="bad"
+            />
+          ) : hasRenderableResults ? (
             <div className="gh-result-list gh-discovery-card-list">
               {renderedDiscoveryAssets.map((asset) => (
                 <DiscoveryResultCard
@@ -1144,115 +1661,116 @@ export default function DiscoveryWorkspace({
                   onOpenAsset={openAssetRecord}
                   onOpenGovernance={openGovernanceWorkbench}
                   onOpenLineage={openLineageWorkspace}
-                  onSelect={setSelectedAssetFqn}
+                  onSelect={handleSelectAsset}
+                  recordOpenable={
+                    recordUnavailableOverrides[asset.fqn] === true
+                      ? false
+                      : renderedRecordAvailability[asset.fqn] ?? null
+                  }
+                  recordUnavailableReason={DISCOVERY_RECORD_UNAVAILABLE_REASON}
                   selected={asset.fqn === selectedAssetFqn}
                 />
               ))}
-              {renderableDiscoveryAssets.length > renderedDiscoveryAssets.length ? (
+              {canLoadMoreResults ? (
                 <div className="gh-panel gh-discovery-results-more">
                   <div className="gh-support-copy">
-                    Showing {renderedDiscoveryAssets.length} of {renderableDiscoveryAssets.length} results to keep the catalog responsive.
+                    Showing {showingCount} of {resultsCount} results to keep the catalog responsive.
                   </div>
                   <button
                     className="gh-secondary-button"
+                    disabled={loadingMoreResults}
                     onClick={() =>
                       setVisibleResultCount((current) =>
-                        Math.min(current + DISCOVERY_RESULT_PAGE_SIZE, renderableDiscoveryAssets.length),
+                        Math.min(
+                          current + DISCOVERY_RESULT_PAGE_SIZE,
+                          resultsCount || current + DISCOVERY_RESULT_PAGE_SIZE,
+                        ),
                       )
                     }
                     type="button"
                   >
-                    Load more results
+                    {loadingMoreResults ? "Loading more results…" : "Load more results"}
                   </button>
                 </div>
               ) : null}
             </div>
           ) : resultsLoading ? (
-            <div className="gh-panel gh-empty-state gh-discovery-empty-state">
-              <div className="gh-panel-title">Refreshing Catalog</div>
-              <div>Loading the latest visible assets for this scope.</div>
-              <div className="gh-support-copy">
-                Search, filters, and result counts are being refreshed against the live metadata plane.
-              </div>
-            </div>
+            <WorkspaceStateCard
+              className="gh-discovery-empty-state"
+              eyebrow="Refreshing Catalog"
+              loading
+              message="Search, filters, and result counts are being refreshed against the live metadata plane."
+              title="Loading the latest visible assets for this scope."
+            />
           ) : resultsError ? (
-            <div className="gh-panel gh-empty-state gh-discovery-empty-state">
-              <div className="gh-panel-title">Discovery Unavailable</div>
-              <div>{resultsError}</div>
-              <div className="gh-support-copy">
-                {bootstrap.bootMessage ||
-                  "The search surface is reachable, but live discovery could not return results."}
-              </div>
-              <div className="gh-empty-state-actions">
-                {filters.query ? (
-                  <button
-                    className="gh-secondary-button"
-                    onClick={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
-                    type="button"
-                  >
-                    Clear search
+            <WorkspaceStateCard
+              actions={(
+                <>
+                  {filters.query ? (
+                    <button
+                      className="gh-secondary-button"
+                      onClick={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
+                      type="button"
+                    >
+                      Clear search
+                    </button>
+                  ) : null}
+                  <button className="gh-secondary-button" onClick={resetBrowse} type="button">
+                    Reset browse
                   </button>
-                ) : null}
-                <button className="gh-secondary-button" onClick={resetBrowse} type="button">
-                  Reset browse
-                </button>
-              </div>
-            </div>
+                </>
+              )}
+              className="gh-discovery-empty-state"
+              eyebrow="Discovery Unavailable"
+              message={
+                bootstrap.bootMessage ||
+                "The search surface is reachable, but live discovery could not return results."
+              }
+              title={resultsError}
+              tone="bad"
+            />
           ) : (
-            <div className="gh-panel gh-empty-state gh-discovery-empty-state">
-              <div className="gh-panel-title">{showInventoryEmptyState ? "Inventory empty" : "No matching assets"}</div>
-              <div>{emptyHeading}</div>
-              <div className="gh-support-copy">{emptyCopy}</div>
-              <div className="gh-discovery-summary-grid gh-discovery-summary-grid-inline">
-                <div className="gh-discovery-summary-card">
-                  <span>Visible assets</span>
-                  <strong>{visibleAssetsSummary}</strong>
-                </div>
-                <div className="gh-discovery-summary-card">
-                  <span>Catalogs</span>
-                  <strong>{discoverySummary.catalogCount || 0}</strong>
-                </div>
-                <div className="gh-discovery-summary-card">
-                  <span>Observed catalogs</span>
-                  <strong>{discoverySummary.observedCatalogCount || 0}</strong>
-                </div>
-                <div className="gh-discovery-summary-card">
-                  <span>Owned assets</span>
-                  <strong>{discoverySummary.ownedAssets || 0}</strong>
-                </div>
-              </div>
-              <div className="gh-empty-state-actions">
-                {filters.query ? (
-                  <button
-                    className="gh-secondary-button"
-                    onClick={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
-                    type="button"
-                  >
-                    Clear search
+            <WorkspaceStateCard
+              actions={(
+                <>
+                  {filters.query ? (
+                    <button
+                      className="gh-secondary-button"
+                      onClick={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
+                      type="button"
+                    >
+                      Clear search
+                    </button>
+                  ) : null}
+                  <button className="gh-secondary-button" onClick={resetBrowse} type="button">
+                    Reset browse
                   </button>
-                ) : null}
-                <button className="gh-secondary-button" onClick={resetBrowse} type="button">
-                  Reset browse
-                </button>
-              </div>
-            </div>
+                </>
+              )}
+              className="gh-discovery-empty-state"
+              eyebrow={showInventoryEmptyState ? "Inventory empty" : "No matching assets"}
+              message={emptyCopy}
+              title={emptyHeading}
+            />
           )}
         </section>
 
         <SelectionPreview
-            asset={previewAsset}
-            detailError={previewSchemaDetail.error || previewDetail.error}
-            detailLoading={previewDetail.loading || (previewSchemaDetail.loading && !previewSchemaDetail.detail?.columns?.length)}
-            lineageAvailable={lineageSurfaceAvailable}
-            lineageUnavailableReason={lineageSurfaceUnavailableReason}
-            onOpenAsset={openAssetRecord}
-            onOpenGovernance={openGovernanceWorkbench}
-            onOpenLinkedAsset={openLinkedAsset}
-            onOpenLineage={openLineageWorkspace}
-            seededLineageGraph={previewLineageSeedGraph}
-            visibleAssetSet={visibleAssetSet}
-          />
-        </section>
+          asset={previewAsset}
+          detailError={previewSchemaDetail.error || previewDetail.error}
+          detailLoading={previewDetail.loading || (previewSchemaDetail.loading && !previewSchemaDetail.detail?.columns?.length)}
+          linkedRecordUnavailableOverrides={linkedRecordUnavailableOverrides}
+          lineageAvailable={lineageSurfaceAvailable}
+          lineageUnavailableReason={lineageSurfaceUnavailableReason}
+          onOpenAsset={openAssetRecord}
+          onOpenGovernance={openGovernanceWorkbench}
+          onOpenLinkedAsset={openLinkedAsset}
+          onOpenLineage={openLineageWorkspace}
+          recordOpenable={selectedPreviewRecordOpenable}
+          recordUnavailableReason={DISCOVERY_RECORD_UNAVAILABLE_REASON}
+          visibleAssetSet={visibleAssetSet}
+        />
+      </section>
     </section>
   );
 }

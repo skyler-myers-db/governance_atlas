@@ -18,6 +18,7 @@ import {
 } from "../lib/capabilities";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
+import { WorkspaceStateCard } from "./ShellStatePrimitives";
 
 const LINEAGE_CONTEXT_SESSION_KEY = "gh.lineage.context.v1";
 
@@ -48,6 +49,7 @@ export default function LineageWorkspace({
   workspaceAccess = null,
 }) {
   const focusAssetFqn = initialAssetFqn || "";
+  const [linkedRecordUnavailableOverrides, setLinkedRecordUnavailableOverrides] = useState({});
   const [localContext, setLocalContext] = useState(() =>
     readLineageContext(
       initialAssetFqn || "",
@@ -82,11 +84,7 @@ export default function LineageWorkspace({
     allowFallback: false,
   });
   const assetDetail = useAssetDetail(focusAssetFqn || "", { sections: ["header"] });
-  const lineage = useLineage(
-    focusAssetFqn || "",
-    lineageSurfaceAvailable ? seeded.seededGraph : null,
-    lineageSurfaceAvailable,
-  );
+  const lineage = useLineage(focusAssetFqn || "", lineageSurfaceAvailable);
   const asset =
     assetDetail.detail ||
     (focusAssetFqn && assetDetail.loading ? seeded.summary : null);
@@ -109,6 +107,7 @@ export default function LineageWorkspace({
 
   useEffect(() => {
     setLinkFeedback("");
+    setLinkedRecordUnavailableOverrides({});
   }, [focusAssetFqn, localContext]);
 
   useEffect(() => {
@@ -224,9 +223,27 @@ export default function LineageWorkspace({
         setWorkspaceIntent("lineageContext", assetFqn, localContext);
       },
       onOpen: () => {
+        setLinkedRecordUnavailableOverrides((current) => {
+          if (!current[assetFqn]) return current;
+          const next = { ...current };
+          delete next[assetFqn];
+          return next;
+        });
         onOpenAsset?.(assetFqn, nextTab);
       },
-      onUnavailable: () => {
+      onUnavailable: ({ availability = null, detail = null, error = null } = {}) => {
+        const explicitUnavailable =
+          !error &&
+          (
+            availability?.openable === false ||
+            availability?.visible === false ||
+            availability?.exists === false ||
+            Boolean(detail?.fqn)
+          );
+        if (explicitUnavailable) {
+          setLinkedRecordUnavailableOverrides((current) =>
+            current[assetFqn] ? current : { ...current, [assetFqn]: true });
+        }
         setLinkFeedback(
           "That lineage-linked asset is visible in the graph, but its metadata record is not openable with the current permissions.",
         );
@@ -237,10 +254,12 @@ export default function LineageWorkspace({
   if (!lineageSurfaceAvailable) {
     return (
       <section className="gh-workspace gh-lineage-shell">
-        <div className="gh-panel gh-unavailable-panel">
-          <div className="gh-panel-title">Lineage Unavailable</div>
-          <h2>Live table lineage is not available in this workspace.</h2>
-          <p>{lineageSurfaceUnavailableReason}</p>
+        <WorkspaceStateCard
+          eyebrow="Lineage Unavailable"
+          message={lineageSurfaceUnavailableReason}
+          title="Live table lineage is not available in this workspace."
+          tone="bad"
+        >
           {asset || focusAssetFqn ? (
             <div className="gh-support-copy">{asset ? assetPathLabel(asset) : focusAssetFqn}</div>
           ) : null}
@@ -268,7 +287,7 @@ export default function LineageWorkspace({
               </button>
             </div>
           ) : null}
-        </div>
+        </WorkspaceStateCard>
       </section>
     );
   }
@@ -287,6 +306,7 @@ export default function LineageWorkspace({
         graphBundle={lineage.graph}
         lineagePayload={lineage.payload}
         loading={lineage.loading}
+        linkedRecordUnavailableOverrides={linkedRecordUnavailableOverrides}
         notice={linkFeedback}
         authoritative={lineage.authoritative}
         provisional={lineage.provisional}

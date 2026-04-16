@@ -80,7 +80,17 @@ jobs:
 
       - name: Validate packaged bundle
         working-directory: ${{ runner.temp }}/governance_hub_bundle
-        run: databricks bundle validate -t dev
+        run: |
+          databricks bundle validate \
+            -t dev \
+            --var="warehouse_id=${{ secrets.DATABRICKS_WAREHOUSE_ID }}"
+
+      - name: Summarize packaged bundle
+        working-directory: ${{ runner.temp }}/governance_hub_bundle
+        run: |
+          databricks bundle summary \
+            -t dev \
+            --var="warehouse_id=${{ secrets.DATABRICKS_WAREHOUSE_ID }}"
 
   deploy:
     name: Deploy (${{ github.event.inputs.target || 'dev' }})

@@ -55,6 +55,15 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertTrue(workspace_access["canWriteGovernance"])
         self.assertTrue(workspace_access["canUseLineage"])
         self.assertFalse(workspace_access["canUseQueryHistory"])
+        self.assertEqual(workspace_access["queryHistorySharingPath"]["state"], "unavailable")
+        self.assertEqual(
+            workspace_access["queryHistorySharingPath"]["acceptedPaths"],
+            [
+                "actor-scoped OBO",
+                "validated dynamic-view plane",
+                "warehouse CAN VIEW plus downstream visibility rules",
+            ],
+        )
         self.assertFalse(workspace_access["canExport"])
         self.assertFalse(workspace_access["canRunBackgroundWork"])
         self.assertFalse(workspace_access["canUseClassificationRecommendations"])
@@ -88,6 +97,15 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertEqual(checks["system_inventory"]["state"], "available")
         self.assertEqual(checks["table_lineage"]["state"], "available")
         self.assertEqual(checks["workload_visibility"]["state"], "unknown")
+        self.assertEqual(checks["workload_visibility"]["safeSharingPath"]["state"], "unavailable")
+        self.assertEqual(
+            checks["workload_visibility"]["safeSharingPath"]["acceptedPaths"],
+            [
+                "actor-scoped OBO",
+                "validated dynamic-view plane",
+                "warehouse CAN VIEW plus downstream visibility rules",
+            ],
+        )
         self.assertEqual(checks["export_delivery"]["state"], "unavailable")
         self.assertEqual(checks["background_work_plane"]["state"], "unavailable")
         self.assertEqual(checks["transaction_mode"]["state"], "degraded")
@@ -135,6 +153,7 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertEqual(flags["query_history_surface"]["state"], "unknown")
         self.assertIn("summary", flags["query_history_surface"])
         self.assertIn("reason", flags["query_history_surface"])
+        self.assertEqual(flags["query_history_surface"]["safeSharingPath"]["state"], "unavailable")
         self.assertEqual(flags["background_work_plane"]["state"], "unavailable")
         self.assertIn("unavailableReason", flags["background_work_plane"])
         self.assertEqual(flags["transaction_fallback_mode"]["state"], "degraded")
@@ -176,6 +195,7 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertFalse(workspace_access["canWriteGovernance"])
         self.assertFalse(workspace_access["canUseLineage"])
         self.assertFalse(workspace_access["canUseQueryHistory"])
+        self.assertEqual(workspace_access["queryHistorySharingPath"]["state"], "unavailable")
         self.assertFalse(workspace_access["canExport"])
         self.assertFalse(workspace_access["canRunBackgroundWork"])
         self.assertFalse(workspace_access["canUseClassificationRecommendations"])

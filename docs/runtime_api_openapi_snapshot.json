@@ -1,0 +1,29 @@
+{
+  "info": {
+    "title": "Governance Hub Runtime",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/bootstrap": {
+      "get": {
+        "operationId": "get_api_bootstrap",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/api/runtime/status": {
+      "get": {
+        "operationId": "get_api_runtime_status",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    }
+  }
+}

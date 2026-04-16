@@ -1,4 +1,6 @@
 import { getRuntimeDiagnostics } from "../lib/api";
+import { SurfaceWorkbench, SurfaceWorkbenchMain } from "./ShellLayoutPrimitives";
+import { EmptyStateBlock, InlineStatusBanner, WorkspaceStateCard } from "./ShellStatePrimitives";
 
 function toneForState(state = "") {
   const normalized = String(state || "").trim().toLowerCase();
@@ -276,23 +278,37 @@ export default function WorkspaceDiagnosticsSurface({
 
   if (loading && !status) {
     return (
-      <section className="gh-panel gh-record-card">
-        <div className="gh-empty-state">Loading workspace setup diagnostics...</div>
-      </section>
+      <SurfaceWorkbench className="gh-governance-workbench gh-governance-workbench-single">
+        <SurfaceWorkbenchMain className="gh-governance-main-pane" dense>
+          <WorkspaceStateCard
+            eyebrow="Workspace diagnostics"
+            loading
+            message="Rerunning setup checks, capability probes, and shell readiness for the current workspace."
+            title="Loading workspace setup diagnostics..."
+          />
+        </SurfaceWorkbenchMain>
+      </SurfaceWorkbench>
     );
   }
 
   if (error && !status) {
     return (
-      <section className="gh-panel gh-record-card">
-        <div className="gh-empty-state">{error}</div>
-      </section>
+      <SurfaceWorkbench className="gh-governance-workbench gh-governance-workbench-single">
+        <SurfaceWorkbenchMain className="gh-governance-main-pane" dense>
+          <WorkspaceStateCard
+            eyebrow="Workspace diagnostics"
+            message={error}
+            title="Workspace setup diagnostics could not be loaded."
+            tone="bad"
+          />
+        </SurfaceWorkbenchMain>
+      </SurfaceWorkbench>
     );
   }
 
   return (
-    <section className="gh-governance-workbench gh-governance-workbench-single">
-      <section className="gh-panel gh-governance-main-pane gh-governance-main-pane-dense">
+    <SurfaceWorkbench className="gh-governance-workbench gh-governance-workbench-single">
+      <SurfaceWorkbenchMain className="gh-governance-main-pane" dense>
         <section className="gh-detail-section">
           <div className="gh-governance-section-head">
             <div>
@@ -317,26 +333,22 @@ export default function WorkspaceDiagnosticsSurface({
               ) : null}
             </div>
           </div>
-          {refreshError ? (
-            <div className="gh-inline-alert tone-warn">
-              <div>{refreshError}</div>
-            </div>
-          ) : null}
+          {refreshError ? <InlineStatusBanner message={refreshError} title="Refresh incomplete" /> : null}
           {refreshing ? (
-            <div className="gh-inline-alert tone-warn">
-              <div className="gh-inline-alert-title">Refreshing</div>
-              <div>Rerunning the runtime status probe against the current workspace.</div>
-            </div>
+            <InlineStatusBanner
+              message="Rerunning the runtime status probe against the current workspace."
+              title="Refreshing"
+            />
           ) : null}
           {setupReadiness.state && setupReadiness.state !== "ready" ? (
-            <div className="gh-inline-alert tone-warn">
-              <div className="gh-inline-alert-title">Claims narrowed</div>
-              <div>
-                {setupReadiness.nextStep
+            <InlineStatusBanner
+              message={
+                setupReadiness.nextStep
                   ? `Next step: ${labelForState(setupReadiness.nextStep)}.`
-                  : "The workspace still has unresolved readiness constraints."}
-              </div>
-            </div>
+                  : "The workspace still has unresolved readiness constraints."
+              }
+              title="Claims narrowed"
+            />
           ) : null}
           <div className="gh-diagnostics-sequence">
             <div className="gh-governance-section-head">
@@ -437,7 +449,10 @@ export default function WorkspaceDiagnosticsSurface({
           {workspaceAccessGates.length ? (
             <DiagnosticsList items={workspaceAccessGates} />
           ) : (
-            <div className="gh-empty-state">No workspace access summary was returned by the runtime yet.</div>
+            <EmptyStateBlock
+              message="No workspace access summary was returned by the runtime yet."
+              title="Workspace access summary pending"
+            />
           )}
         </section>
 
@@ -454,7 +469,10 @@ export default function WorkspaceDiagnosticsSurface({
           {claimNarrowingItems.length ? (
             <DiagnosticsList items={claimNarrowingItems} />
           ) : (
-            <div className="gh-empty-state">No active claim narrowing is required for the current runtime payload.</div>
+            <EmptyStateBlock
+              message="No active claim narrowing is required for the current runtime payload."
+              title="Claims at full breadth"
+            />
           )}
         </section>
 
@@ -471,7 +489,10 @@ export default function WorkspaceDiagnosticsSurface({
           {setupChecks.length ? (
             <DiagnosticsList items={setupChecks} />
           ) : (
-            <div className="gh-empty-state">No setup checks were returned by the runtime yet.</div>
+            <EmptyStateBlock
+              message="No setup checks were returned by the runtime yet."
+              title="Setup checks pending"
+            />
           )}
         </section>
 
@@ -488,12 +509,15 @@ export default function WorkspaceDiagnosticsSurface({
           {capabilities.length ? (
             <DiagnosticsList items={capabilities} />
           ) : (
-            <div className="gh-empty-state">No runtime capabilities were returned.</div>
+            <EmptyStateBlock
+              message="No runtime capabilities were returned."
+              title="Capability inventory pending"
+            />
           )}
         </section>
-      </section>
+      </SurfaceWorkbenchMain>
 
-      <aside className="gh-panel gh-governance-side-pane gh-governance-side-pane-dense">
+      <aside className="gh-panel gh-surface-workbench-side gh-governance-side-pane gh-governance-side-pane-dense">
         <section className="gh-detail-section">
           <div className="gh-governance-section-head">
             <div>
@@ -525,7 +549,10 @@ export default function WorkspaceDiagnosticsSurface({
           {featureFlags.length ? (
             <DiagnosticsList items={featureFlags} />
           ) : (
-            <div className="gh-empty-state">No feature-flag inventory is exposed yet.</div>
+            <EmptyStateBlock
+              message="No feature-flag inventory is exposed yet."
+              title="Feature inventory pending"
+            />
           )}
         </section>
 
@@ -560,6 +587,6 @@ export default function WorkspaceDiagnosticsSurface({
           />
         </section>
       </aside>
-    </section>
+    </SurfaceWorkbench>
   );
 }

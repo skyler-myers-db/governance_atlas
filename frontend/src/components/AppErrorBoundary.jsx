@@ -1,4 +1,5 @@
 import { Component } from "react";
+import { WorkspaceStateCard } from "./ShellStatePrimitives";
 
 function formatErrorMessage(error) {
   if (!error) return "Unknown frontend error.";
@@ -48,14 +49,16 @@ export default class AppErrorBoundary extends Component {
     if (!activeError) return this.props.children;
     return (
       <section className="gh-workspace gh-unavailable-workspace">
-        <div className="gh-panel gh-unavailable-panel">
-          <div className="gh-panel-title">Frontend Error</div>
-          <h2>The workspace hit an unexpected rendering failure.</h2>
-          <p>{formatErrorMessage(activeError)}</p>
+        <WorkspaceStateCard
+          eyebrow="Frontend Error"
+          message={formatErrorMessage(activeError)}
+          title="The workspace hit an unexpected rendering failure."
+          tone="bad"
+        >
           <div className="gh-support-copy">
             The page stayed reachable, but a client-side error interrupted rendering. Reload after the fix deploys.
           </div>
-        </div>
+        </WorkspaceStateCard>
       </section>
     );
   }

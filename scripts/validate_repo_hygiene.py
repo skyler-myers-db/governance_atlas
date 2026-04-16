@@ -51,16 +51,22 @@ BANNED_RUNTIME_TOKENS = (
 )
 
 REQUIRED_BRANCH_STATE_PATHS = (
+    ".gitignore",
+    ".github/workflows/deploy.yml",
+    "app.yaml",
+    "run_app.py",
     "runtime_app.py",
     "frontend/package.json",
     "frontend/eslint.config.js",
     "frontend/src/components/EntityWorkspace.jsx",
+    "scripts/prepare_bundle.py",
 )
 
 REQUIRED_FRONTEND_SCRIPTS = {
     "lint": "eslint",
     "test": "vitest",
     "typecheck": "tsc",
+    "build": "vite build",
 }
 
 REQUIRED_FRONTEND_DEPENDENCIES = (
@@ -69,6 +75,9 @@ REQUIRED_FRONTEND_DEPENDENCIES = (
 )
 
 REQUIRED_FRONTEND_DEV_DEPENDENCIES = (
+    "typescript",
+    "vite",
+    "vitest",
     "eslint-plugin-react-hooks",
     "eslint-plugin-unused-imports",
 )
@@ -83,6 +92,35 @@ REQUIRED_ESLINT_TOKENS = (
 REQUIRED_ENTITY_WORKSPACE_TOKENS = (
     "prefetchAssetAvailability",
     "canOpenLinkedAssetRecord",
+)
+
+REQUIRED_GITIGNORE_TOKENS = (
+    "frontend/dist/",
+    "frontend/node_modules/",
+)
+
+REQUIRED_APP_YAML_TOKENS = (
+    "run_app.py",
+)
+
+REQUIRED_RUN_APP_TOKENS = (
+    'APP_ENTRYPOINT: Final[str] = "runtime_app:app"',
+    'APP_MODULE: Final[str] = "runtime_app"',
+    "FRONTEND_DIST",
+)
+
+REQUIRED_PREPARE_BUNDLE_TOKENS = (
+    "REQUIRED_FRONTEND_FILES",
+    ".git",
+    ".github",
+    "node_modules",
+)
+
+REQUIRED_DEPLOY_WORKFLOW_TOKENS = (
+    "databricks bundle validate",
+    "databricks bundle summary",
+    "python3 scripts/prepare_bundle.py",
+    "npm run build",
 )
 
 
@@ -168,6 +206,51 @@ def _validate_required_branch_state(root: Path, failures: list[str]) -> None:
                 failures.append(
                     "EntityWorkspace branch-state hotfix proof is missing "
                     f"`{token}`."
+                )
+
+    gitignore_path = root / ".gitignore"
+    if gitignore_path.exists():
+        content = gitignore_path.read_text(encoding="utf-8")
+        for token in REQUIRED_GITIGNORE_TOKENS:
+            if token not in content:
+                failures.append(f".gitignore is missing required ignore entry `{token}`.")
+
+    app_yaml_path = root / "app.yaml"
+    if app_yaml_path.exists():
+        content = app_yaml_path.read_text(encoding="utf-8")
+        for token in REQUIRED_APP_YAML_TOKENS:
+            if token not in content:
+                failures.append(
+                    f"app.yaml is missing the required launcher token `{token}`."
+                )
+
+    run_app_path = root / "run_app.py"
+    if run_app_path.exists():
+        content = run_app_path.read_text(encoding="utf-8")
+        for token in REQUIRED_RUN_APP_TOKENS:
+            if token not in content:
+                failures.append(
+                    f"run_app.py is missing required runtime-chain token `{token}`."
+                )
+
+    prepare_bundle_path = root / "scripts/prepare_bundle.py"
+    if prepare_bundle_path.exists():
+        content = prepare_bundle_path.read_text(encoding="utf-8")
+        for token in REQUIRED_PREPARE_BUNDLE_TOKENS:
+            if token not in content:
+                failures.append(
+                    "scripts/prepare_bundle.py is missing required packaged-artifact "
+                    f"inventory token `{token}`."
+                )
+
+    deploy_workflow_path = root / ".github/workflows/deploy.yml"
+    if deploy_workflow_path.exists():
+        content = deploy_workflow_path.read_text(encoding="utf-8")
+        for token in REQUIRED_DEPLOY_WORKFLOW_TOKENS:
+            if token not in content:
+                failures.append(
+                    ".github/workflows/deploy.yml is missing required deploy-proof "
+                    f"token `{token}`."
                 )
 
 

@@ -23,6 +23,69 @@ ASSET_DETAIL_SECTIONS = (
     "operational",
     "profiler",
 )
+DISCOVERY_QUERY_SYNTAX_HINT = (
+    "Use AND, OR, parentheses, quoted phrases, and field:value selectors such as "
+    'name:orders or domain:"Finance".'
+)
+DISCOVERY_QUERY_SUPPORTED_FIELDS = (
+    "name",
+    "fqn",
+    "description",
+    "catalog",
+    "schema",
+    "domain",
+    "tier",
+    "certification",
+    "sensitivity",
+    "criticality",
+    "glossary",
+    "tag",
+    "owner",
+    "type",
+    "data_product",
+)
+DISCOVERY_QUERY_FIELD_ALIASES = {
+    "name": "name",
+    "fqn": "fqn",
+    "description": "description",
+    "catalog": "catalog",
+    "schema": "schema",
+    "schema_name": "schema",
+    "domain": "domain",
+    "tier": "tier",
+    "certification": "certification",
+    "sensitivity": "sensitivity",
+    "criticality": "criticality",
+    "glossary": "glossary",
+    "glossary_term": "glossary",
+    "glossaryterm": "glossary",
+    "tag": "tag",
+    "tags": "tag",
+    "owner": "owner",
+    "owners": "owner",
+    "type": "type",
+    "asset_type": "type",
+    "assettype": "type",
+    "data_product": "data_product",
+    "dataproduct": "data_product",
+}
+DISCOVERY_QUERY_FIELD_WEIGHTS = {
+    "name": 7,
+    "fqn": 4,
+    "description": 2,
+    "catalog": 2,
+    "schema": 2,
+    "domain": 2,
+    "tier": 2,
+    "certification": 2,
+    "sensitivity": 2,
+    "criticality": 2,
+    "glossary": 2,
+    "tag": 2,
+    "owner": 2,
+    "type": 2,
+    "data_product": 2,
+}
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
 
@@ -45,6 +108,12 @@ catalog_filter_options = metadata_service.catalog_filter_options
 tag_value = metadata_service.tag_value
 lineage_asset_stub = metadata_service.lineage_asset_stub
 empty_inventory = metadata_service.empty_inventory
+
+
+class DiscoveryQuerySyntaxError(ValueError):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message = message
 
 
 def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
@@ -858,7 +927,20 @@ def merge_identity_row(base_row: pd.Series, exact_row: Optional[pd.Series]) -> p
     return merged
 
 
-def discovery_result_haystack(asset: Dict[str, Any]) -> str:
+def _discovery_query_supported_fields() -> List[str]:
+    return list(DISCOVERY_QUERY_SUPPORTED_FIELDS)
+
+
+def discovery_invalid_query_payload(message: str) -> Dict[str, Any]:
+    return {
+        "state": "invalid",
+        "message": normalize_str(message) or "Invalid discovery query.",
+        "syntaxHint": DISCOVERY_QUERY_SYNTAX_HINT,
+        "supportedFields": _discovery_query_supported_fields(),
+    }
+
+
+def _discovery_tag_terms(asset: Dict[str, Any]) -> List[str]:
     raw_tags = asset.get("tags")
     if isinstance(raw_tags, dict):
         tag_terms = []
@@ -869,9 +951,53 @@ def discovery_result_haystack(asset: Dict[str, Any]) -> str:
                 tag_terms.append(normalized_key)
             if normalized_value:
                 tag_terms.extend([normalized_value, f"{normalized_key} {normalized_value}".strip()])
-    else:
-        tag_terms = [normalize_str(tag) for tag in asset.get("tags", []) if normalize_str(tag)]
-    return normalized_search_text(
+        return tag_terms
+    return [normalize_str(tag) for tag in asset.get("tags", []) if normalize_str(tag)]
+
+
+def normalized_search_text(*values: Any) -> str:
+    raw = " ".join(normalize_str(value) for value in values if normalize_str(value))
+    if not raw:
+        return ""
+    normalized = re.sub(r"[^0-9a-z]+", " ", raw.lower())
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
+def _normalized_query_field(raw_value: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "_", normalize_str(raw_value).lower()).strip("_")
+    return DISCOVERY_QUERY_FIELD_ALIASES.get(normalized, "")
+
+
+def discovery_search_fields(asset: Dict[str, Any]) -> Dict[str, str]:
+    tag_terms = _discovery_tag_terms(asset)
+    glossary_terms = [
+        normalize_str(term.get("term") if isinstance(term, dict) else term)
+        for term in asset.get("glossaryTerms", [])
+        if normalize_str(term.get("term") if isinstance(term, dict) else term)
+    ]
+    owner_terms = [
+        normalize_str(owner.get("name"))
+        for owner in asset.get("owners", [])
+        if isinstance(owner, dict) and normalize_str(owner.get("name"))
+    ]
+    fields = {
+        "name": normalized_search_text(asset.get("name")),
+        "fqn": normalized_search_text(asset.get("fqn")),
+        "description": normalized_search_text(asset.get("description")),
+        "catalog": normalized_search_text(asset.get("catalog")),
+        "schema": normalized_search_text(asset.get("schema")),
+        "domain": normalized_search_text(asset.get("domain")),
+        "tier": normalized_search_text(asset.get("tier")),
+        "certification": normalized_search_text(asset.get("certification")),
+        "sensitivity": normalized_search_text(asset.get("sensitivity")),
+        "criticality": normalized_search_text(asset.get("criticality")),
+        "glossary": normalized_search_text(asset.get("glossaryTerm"), " ".join(glossary_terms)),
+        "tag": normalized_search_text(" ".join(tag_terms)),
+        "owner": normalized_search_text(" ".join(owner_terms)),
+        "type": normalized_search_text(asset.get("objectType")),
+        "data_product": normalized_search_text(asset.get("dataProduct"), asset.get("data_product")),
+    }
+    fields["all"] = normalized_search_text(
         asset.get("fqn"),
         asset.get("name"),
         asset.get("description"),
@@ -881,24 +1007,437 @@ def discovery_result_haystack(asset: Dict[str, Any]) -> str:
         asset.get("tier"),
         asset.get("certification"),
         asset.get("sensitivity"),
+        asset.get("criticality"),
         asset.get("glossaryTerm"),
-        " ".join(normalize_str(term) for term in asset.get("glossaryTerms", []) if normalize_str(term)),
+        " ".join(glossary_terms),
         asset.get("objectType"),
         " ".join(tag_terms),
-        " ".join(
-            normalize_str(owner.get("name"))
-            for owner in asset.get("owners", [])
-            if isinstance(owner, dict) and normalize_str(owner.get("name"))
-        ),
+        " ".join(owner_terms),
+        asset.get("dataProduct"),
+        asset.get("data_product"),
     )
+    return fields
 
 
-def normalized_search_text(*values: Any) -> str:
-    raw = " ".join(normalize_str(value) for value in values if normalize_str(value))
-    if not raw:
+def discovery_result_haystack(asset: Dict[str, Any]) -> str:
+    return discovery_search_fields(asset).get("all", "")
+
+
+def _tokenize_discovery_query(query: str) -> List[Tuple[str, str, int]]:
+    tokens: List[Tuple[str, str, int]] = []
+    index = 0
+    while index < len(query):
+        char = query[index]
+        if char.isspace():
+            index += 1
+            continue
+        if char == "(":
+            tokens.append(("LPAREN", char, index))
+            index += 1
+            continue
+        if char == ")":
+            tokens.append(("RPAREN", char, index))
+            index += 1
+            continue
+        if char == ":":
+            tokens.append(("COLON", char, index))
+            index += 1
+            continue
+        if char == '"':
+            value: List[str] = []
+            index += 1
+            while index < len(query):
+                if query[index] == "\\" and index + 1 < len(query):
+                    value.append(query[index + 1])
+                    index += 2
+                    continue
+                if query[index] == '"':
+                    break
+                value.append(query[index])
+                index += 1
+            if index >= len(query) or query[index] != '"':
+                raise DiscoveryQuerySyntaxError("Unterminated quoted phrase in discovery query.")
+            tokens.append(("PHRASE", "".join(value), index))
+            index += 1
+            continue
+        start = index
+        while index < len(query) and not query[index].isspace() and query[index] not in '():"':
+            index += 1
+        raw = query[start:index]
+        upper = raw.upper()
+        if upper == "AND":
+            tokens.append(("AND", raw, start))
+        elif upper == "OR":
+            tokens.append(("OR", raw, start))
+        else:
+            tokens.append(("WORD", raw, start))
+    return tokens
+
+
+def parse_discovery_query(query: str) -> Dict[str, Any]:
+    tokens = _tokenize_discovery_query(query)
+    position = 0
+
+    def _peek() -> Optional[Tuple[str, str, int]]:
+        return tokens[position] if position < len(tokens) else None
+
+    def _starts_factor(token: Optional[Tuple[str, str, int]]) -> bool:
+        return bool(token and token[0] in {"WORD", "PHRASE", "LPAREN"})
+
+    def _take(expected: Optional[str] = None) -> Tuple[str, str, int]:
+        nonlocal position
+        token = _peek()
+        if token is None:
+            if expected == "RPAREN":
+                raise DiscoveryQuerySyntaxError("Missing closing parenthesis in discovery query.")
+            raise DiscoveryQuerySyntaxError("Discovery query ended before the expression was complete.")
+        if expected and token[0] != expected:
+            if token[0] == "RPAREN":
+                raise DiscoveryQuerySyntaxError("Unexpected closing parenthesis in discovery query.")
+            raise DiscoveryQuerySyntaxError(f"Unexpected discovery query token `{token[1]}`.")
+        position += 1
+        return token
+
+    def _parse_or(forced_field: str = "") -> Dict[str, Any]:
+        left = _parse_and(forced_field)
+        children = [left]
+        while True:
+            token = _peek()
+            if not token or token[0] != "OR":
+                break
+            _take("OR")
+            if not _starts_factor(_peek()):
+                raise DiscoveryQuerySyntaxError("Expected a search term after OR.")
+            children.append(_parse_and(forced_field))
+        return {"kind": "or", "children": children} if len(children) > 1 else left
+
+    def _parse_and(forced_field: str = "") -> Dict[str, Any]:
+        left = _parse_factor(forced_field)
+        children = [left]
+        while True:
+            token = _peek()
+            if token and token[0] == "AND":
+                _take("AND")
+                if not _starts_factor(_peek()):
+                    raise DiscoveryQuerySyntaxError("Expected a search term after AND.")
+                children.append(_parse_factor(forced_field))
+                continue
+            if _starts_factor(token):
+                children.append(_parse_factor(forced_field))
+                continue
+            break
+        return {"kind": "and", "children": children} if len(children) > 1 else left
+
+    def _parse_factor(forced_field: str = "") -> Dict[str, Any]:
+        token = _peek()
+        if token and token[0] == "LPAREN":
+            _take("LPAREN")
+            if _peek() and _peek()[0] == "RPAREN":
+                raise DiscoveryQuerySyntaxError("Empty grouped expression in discovery query.")
+            node = _parse_or(forced_field)
+            _take("RPAREN")
+            return node
+        return _parse_term(forced_field)
+
+    def _parse_term(forced_field: str = "") -> Dict[str, Any]:
+        token = _peek()
+        if not token or token[0] not in {"WORD", "PHRASE"}:
+            raise DiscoveryQuerySyntaxError("Expected a search term in discovery query.")
+        _, raw_value, _ = _take()
+        normalized_value = normalized_search_text(raw_value)
+        if not normalized_value:
+            raise DiscoveryQuerySyntaxError("Expected a search term in discovery query.")
+        if forced_field:
+            if _peek() and _peek()[0] == "COLON":
+                raise DiscoveryQuerySyntaxError(
+                    "Nested field selectors are not supported inside grouped discovery field clauses."
+                )
+            return {
+                "kind": "term",
+                "field": forced_field,
+                "value": normalized_value,
+                "rawValue": normalize_str(raw_value) or normalized_value,
+            }
+        if _peek() and _peek()[0] == "COLON":
+            _take("COLON")
+            normalized_field = _normalized_query_field(raw_value)
+            if not normalized_field:
+                raise DiscoveryQuerySyntaxError(
+                    f"Unknown discovery field `{normalize_str(raw_value) or raw_value}`."
+                )
+            if not _starts_factor(_peek()):
+                raise DiscoveryQuerySyntaxError(
+                    f"Expected a value after {normalize_str(raw_value) or raw_value}:"
+                )
+            if _peek() and _peek()[0] == "LPAREN":
+                return _parse_factor(normalized_field)
+            return _parse_term(normalized_field)
+        return {
+            "kind": "term",
+            "field": "",
+            "value": normalized_value,
+            "rawValue": normalize_str(raw_value) or normalized_value,
+        }
+
+    parsed = _parse_or()
+    trailing = _peek()
+    if trailing:
+        if trailing[0] == "RPAREN":
+            raise DiscoveryQuerySyntaxError("Unexpected closing parenthesis in discovery query.")
+        if trailing[0] in {"AND", "OR"}:
+            raise DiscoveryQuerySyntaxError(f"Expected a search term after {trailing[1]}.")
+        raise DiscoveryQuerySyntaxError(f"Unexpected discovery query token `{trailing[1]}`.")
+    return parsed
+
+
+def _serialize_discovery_query_value(value: str) -> str:
+    normalized = normalize_str(value)
+    if not normalized:
         return ""
-    normalized = re.sub(r"[^0-9a-z]+", " ", raw.lower())
-    return re.sub(r"\s+", " ", normalized).strip()
+    escaped = normalized.replace("\\", "\\\\").replace('"', '\\"')
+    return normalized if re.fullmatch(r"[A-Za-z0-9_.-]+", normalized) else f'"{escaped}"'
+
+
+def _discovery_query_group_field(node: Dict[str, Any]) -> str:
+    kind = normalize_str(node.get("kind")).lower()
+    if kind == "term":
+        return normalize_str(node.get("field"))
+    if kind not in {"and", "or"}:
+        return ""
+    fields = {
+        _discovery_query_group_field(child)
+        for child in node.get("children", [])
+        if isinstance(child, dict)
+    }
+    return fields.pop() if len(fields) == 1 and fields and "" not in fields else ""
+
+
+def _serialize_discovery_field_group(node: Dict[str, Any], parent_kind: str = "") -> str:
+    kind = normalize_str(node.get("kind")).lower()
+    if kind == "term":
+        return _serialize_discovery_query_value(
+            normalize_str(node.get("rawValue")) or normalize_str(node.get("value"))
+        )
+    if kind not in {"and", "or"}:
+        return ""
+    joiner = f" {kind.upper()} "
+    rendered = joiner.join(
+        _serialize_discovery_field_group(child, kind)
+        for child in node.get("children", [])
+        if isinstance(child, dict)
+    )
+    if parent_kind and parent_kind != kind:
+        return f"({rendered})"
+    return rendered
+
+
+def serialize_discovery_query_ast(node: Optional[Dict[str, Any]], parent_kind: str = "") -> str:
+    if not isinstance(node, dict):
+        return ""
+    kind = normalize_str(node.get("kind")).lower()
+    if kind == "term":
+        field = normalize_str(node.get("field"))
+        value = _serialize_discovery_query_value(
+            normalize_str(node.get("rawValue")) or normalize_str(node.get("value"))
+        )
+        if not value:
+            return ""
+        return f"{field}:{value}" if field else value
+    if kind not in {"and", "or"}:
+        return ""
+
+    common_field = _discovery_query_group_field(node)
+    if common_field:
+        grouped = _serialize_discovery_field_group(node)
+        return f"{common_field}:({grouped})" if grouped else ""
+
+    joiner = f" {kind.upper()} "
+    rendered_children = [
+        serialize_discovery_query_ast(child, kind)
+        for child in node.get("children", [])
+        if isinstance(child, dict)
+    ]
+    rendered_children = [child for child in rendered_children if child]
+    if not rendered_children:
+        return ""
+    rendered = joiner.join(rendered_children)
+    if parent_kind and parent_kind != kind:
+        return f"({rendered})"
+    return rendered
+
+
+def discovery_query_clause_chips(compiled_query: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if normalize_str(compiled_query.get("state")).lower() != "valid":
+        return []
+    ast = compiled_query.get("ast")
+    if not isinstance(ast, dict):
+        return []
+
+    kind = normalize_str(ast.get("kind")).lower()
+    if kind == "and":
+        children = [child for child in ast.get("children", []) if isinstance(child, dict)]
+        if not children:
+            return []
+        chips: List[Dict[str, Any]] = []
+        for index, child in enumerate(children):
+            remaining_children = children[:index] + children[index + 1 :]
+            if not remaining_children:
+                next_query = ""
+            elif len(remaining_children) == 1:
+                next_query = serialize_discovery_query_ast(remaining_children[0])
+            else:
+                next_query = serialize_discovery_query_ast({"kind": "and", "children": remaining_children})
+            expression = serialize_discovery_query_ast(child, kind)
+            chips.append(
+                {
+                    "label": expression,
+                    "expression": expression,
+                    "nextQuery": next_query,
+                    "removable": True,
+                }
+            )
+        return [chip for chip in chips if chip.get("label")]
+
+    expression = serialize_discovery_query_ast(ast)
+    if not expression:
+        return []
+    return [
+        {
+            "label": expression,
+            "expression": expression,
+            "nextQuery": "",
+            "removable": True,
+        }
+    ]
+
+
+def compile_discovery_query(query: str) -> Dict[str, Any]:
+    normalized_query = normalize_str(query)
+    if not normalized_query:
+        return {
+            "state": "empty",
+            "message": "",
+            "syntaxHint": DISCOVERY_QUERY_SYNTAX_HINT,
+            "supportedFields": _discovery_query_supported_fields(),
+            "ast": None,
+            "clauseChips": [],
+        }
+    compiled = {
+        "state": "valid",
+        "message": "",
+        "syntaxHint": DISCOVERY_QUERY_SYNTAX_HINT,
+        "supportedFields": _discovery_query_supported_fields(),
+        "ast": parse_discovery_query(normalized_query),
+    }
+    compiled["clauseChips"] = discovery_query_clause_chips(compiled)
+    return compiled
+
+
+def _structured_discovery_query_matches(
+    node: Dict[str, Any],
+    *,
+    haystack: str,
+    search_fields: Dict[str, str],
+) -> bool:
+    kind = normalize_str(node.get("kind")).lower()
+    if kind == "term":
+        field = normalize_str(node.get("field")).replace(" ", "_")
+        target = search_fields.get(field) if field else haystack
+        value = normalize_str(node.get("value"))
+        return bool(value and target and value in target)
+    if kind == "and":
+        return all(
+            _structured_discovery_query_matches(child, haystack=haystack, search_fields=search_fields)
+            for child in node.get("children", [])
+        )
+    if kind == "or":
+        return any(
+            _structured_discovery_query_matches(child, haystack=haystack, search_fields=search_fields)
+            for child in node.get("children", [])
+        )
+    return False
+
+
+def _general_discovery_term_score(value: str, *, haystack: str, search_fields: Dict[str, str]) -> int:
+    if not value or value not in haystack:
+        return 0
+    terms = [term for term in value.split(" ") if term]
+    if not terms:
+        return 0
+
+    name = search_fields.get("name", "")
+    schema = search_fields.get("schema", "")
+    catalog = search_fields.get("catalog", "")
+    description = search_fields.get("description", "")
+    fqn = search_fields.get("fqn", "")
+    glossary = search_fields.get("glossary", "")
+    owner = search_fields.get("owner", "")
+    tag = search_fields.get("tag", "")
+    object_type = search_fields.get("type", "")
+    data_product = search_fields.get("data_product", "")
+    criticality = search_fields.get("criticality", "")
+
+    score = 0
+    if value in name:
+        score += 7
+    elif all(term in name for term in terms):
+        score += 5
+    if value in fqn:
+        score += 4
+    elif all(term in fqn for term in terms):
+        score += 3
+    if value in schema or all(term in schema for term in terms):
+        score += 2
+    if value in catalog or all(term in catalog for term in terms):
+        score += 2
+    if value in description or all(term in description for term in terms):
+        score += 2
+    if value in glossary or all(term in glossary for term in terms):
+        score += 2
+    if value in owner or all(term in owner for term in terms):
+        score += 2
+    if value in tag or all(term in tag for term in terms):
+        score += 2
+    if value in object_type or all(term in object_type for term in terms):
+        score += 2
+    if value in data_product or all(term in data_product for term in terms):
+        score += 2
+    if value in criticality or all(term in criticality for term in terms):
+        score += 2
+    score += len(terms)
+    return score
+
+
+def _structured_discovery_query_score(
+    node: Dict[str, Any],
+    *,
+    haystack: str,
+    search_fields: Dict[str, str],
+) -> int:
+    kind = normalize_str(node.get("kind")).lower()
+    if kind == "term":
+        field = normalize_str(node.get("field")).replace(" ", "_")
+        value = normalize_str(node.get("value"))
+        target = search_fields.get(field) if field else haystack
+        if not value or not target or value not in target:
+            return 0
+        if field:
+            return DISCOVERY_QUERY_FIELD_WEIGHTS.get(field, 2) + len(value.split(" "))
+        return _general_discovery_term_score(value, haystack=haystack, search_fields=search_fields)
+    if kind == "and":
+        child_scores = [
+            _structured_discovery_query_score(child, haystack=haystack, search_fields=search_fields)
+            for child in node.get("children", [])
+        ]
+        return sum(child_scores) if child_scores and all(score > 0 for score in child_scores) else 0
+    if kind == "or":
+        child_scores = [
+            _structured_discovery_query_score(child, haystack=haystack, search_fields=search_fields)
+            for child in node.get("children", [])
+        ]
+        positive_scores = [score for score in child_scores if score > 0]
+        return max(positive_scores) if positive_scores else 0
+    return 0
 
 
 def discovery_match_score(asset: Dict[str, Any], query: str, *, haystack: str = "") -> int:
@@ -933,6 +1472,24 @@ def discovery_match_score(asset: Dict[str, Any], query: str, *, haystack: str = 
         score += 2
     score += len(terms)
     return score
+
+
+def structured_discovery_match_score(
+    asset: Dict[str, Any],
+    compiled_query: Dict[str, Any],
+    *,
+    haystack: str = "",
+    search_fields: Optional[Dict[str, str]] = None,
+) -> int:
+    if compiled_query.get("state") != "valid" or not compiled_query.get("ast"):
+        return 0
+    resolved_fields = search_fields or discovery_search_fields(asset)
+    resolved_haystack = haystack or resolved_fields.get("all", "")
+    return _structured_discovery_query_score(
+        compiled_query["ast"],
+        haystack=resolved_haystack,
+        search_fields=resolved_fields,
+    )
 
 
 def view_matches(asset: Dict[str, Any], view: str) -> bool:
@@ -1009,12 +1566,31 @@ def sort_discovery_assets(
     *,
     sort_by: str,
     query: str,
+    query_mode: str = "plain",
+    compiled_query: Optional[Dict[str, Any]] = None,
+    search_fields_by_fqn: Optional[Dict[str, Dict[str, str]]] = None,
 ) -> List[Dict[str, Any]]:
     normalized_sort = normalize_str(sort_by)
+    normalized_query_mode = normalize_str(query_mode).lower()
 
     def _best_match_key(asset: Dict[str, Any]) -> Tuple[int, int, int, str]:
+        search_fields = (
+            search_fields_by_fqn.get(asset.get("fqn"), {})
+            if isinstance(search_fields_by_fqn, dict)
+            else {}
+        )
+        haystack = search_fields.get("all", "")
+        if normalized_query_mode == "structured" and compiled_query:
+            match_score = structured_discovery_match_score(
+                asset,
+                compiled_query,
+                haystack=haystack,
+                search_fields=search_fields or None,
+            )
+        else:
+            match_score = discovery_match_score(asset, query, haystack=haystack)
         return (
-            discovery_match_score(asset, query),
+            match_score,
             safe_int(asset.get("coverageScore")),
             safe_int(asset.get("openRequests")),
             normalize_str(asset.get("fqn")),
@@ -1063,7 +1639,8 @@ def _discovery_index(
     entries: List[Dict[str, Any]] = []
     for _, row in inventory.iterrows():
         asset = base_asset_payload(row)
-        entries.append({"asset": asset, "haystack": discovery_result_haystack(asset)})
+        search_fields = discovery_search_fields(asset)
+        entries.append({"asset": asset, "haystack": search_fields.get("all", ""), "fields": search_fields})
     return entries
 
 
@@ -1091,6 +1668,7 @@ def discovery_search_payload(
     store=None,
     *,
     query: str = "",
+    query_mode: str = "plain",
     views: Optional[List[str]] = None,
     asset_types: Optional[List[str]] = None,
     catalogs: Optional[List[str]] = None,
@@ -1109,6 +1687,18 @@ def discovery_search_payload(
         hidden_catalogs=hidden_catalogs,
     )
     query_text = normalize_str(query)
+    normalized_query_mode = normalize_str(query_mode).lower()
+    compiled_query = (
+        compile_discovery_query(query_text)
+        if normalized_query_mode == "structured"
+        else {
+            "state": "empty" if not query_text else "valid",
+            "message": "",
+            "syntaxHint": DISCOVERY_QUERY_SYNTAX_HINT,
+            "supportedFields": _discovery_query_supported_fields(),
+            "ast": None,
+        }
+    )
     selected_views = normalize_filter_values(views, "All assets")
     selected_catalogs = normalize_filter_values(catalogs, "All catalogs")
     selected_domains = normalize_filter_values(domains, "All domains")
@@ -1118,10 +1708,25 @@ def discovery_search_payload(
     selected_types = normalize_filter_values(asset_types, "All types")
 
     matched_assets: List[Dict[str, Any]] = []
+    search_fields_by_fqn: Dict[str, Dict[str, str]] = {}
     for entry in index_entries:
         asset = entry["asset"]
-        if query_text and discovery_match_score(asset, query_text, haystack=entry.get("haystack", "")) <= 0:
-            continue
+        search_fields = entry.get("fields", {}) if isinstance(entry.get("fields"), dict) else {}
+        asset_fqn = normalize_str(asset.get("fqn"))
+        if asset_fqn:
+            search_fields_by_fqn[asset_fqn] = search_fields
+        if query_text:
+            if normalized_query_mode == "structured":
+                match_score = structured_discovery_match_score(
+                    asset,
+                    compiled_query,
+                    haystack=entry.get("haystack", ""),
+                    search_fields=search_fields or None,
+                )
+            else:
+                match_score = discovery_match_score(asset, query_text, haystack=entry.get("haystack", ""))
+            if match_score <= 0:
+                continue
         matched_assets.append(asset)
 
     def in_scope(asset: Dict[str, Any], *, exclude: Optional[set[str]] = None) -> bool:
@@ -1154,7 +1759,14 @@ def discovery_search_payload(
             continue
         scoped_assets.append(asset)
 
-    sorted_assets = sort_discovery_assets(scoped_assets, sort_by=sort_by, query=query_text)
+    sorted_assets = sort_discovery_assets(
+        scoped_assets,
+        sort_by=sort_by,
+        query=query_text,
+        query_mode=normalized_query_mode,
+        compiled_query=compiled_query if normalized_query_mode == "structured" else None,
+        search_fields_by_fqn=search_fields_by_fqn,
+    )
     safe_limit = max(1, min(limit, 200))
     safe_offset = max(0, offset)
     window = sorted_assets[safe_offset : safe_offset + safe_limit]
@@ -1201,6 +1813,13 @@ def discovery_search_payload(
         "assets": window,
         "count": len(sorted_assets),
         "facets": facets,
+        "queryState": {
+            "state": compiled_query.get("state", "empty"),
+            "message": "",
+            "syntaxHint": compiled_query.get("syntaxHint", DISCOVERY_QUERY_SYNTAX_HINT),
+            "supportedFields": list(compiled_query.get("supportedFields", _discovery_query_supported_fields())),
+            "clauseChips": list(compiled_query.get("clauseChips", [])),
+        },
         "selection": {
             "primaryAssetFqn": window[0]["fqn"] if window else "",
             "reason": "top_result" if window else "none",
