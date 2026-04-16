@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field, field_validator
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from govhub.api import build_runtime_router
 from govhub.config import AppConfig
 from govhub.services import assets as asset_service
 from govhub.services import capabilities as capability_service
@@ -925,6 +926,7 @@ def _discovery_search_payload(
     request: Optional[Request] = None,
     *,
     query: str = "",
+    query_mode: str = "plain",
     views: Optional[List[str]] = None,
     asset_types: Optional[List[str]] = None,
     catalogs: Optional[List[str]] = None,
@@ -939,6 +941,7 @@ def _discovery_search_payload(
     return asset_service.discovery_search_payload(
         _visible_assets(_request_cache_scope(request)),
         query=query,
+        query_mode=query_mode,
         views=views,
         asset_types=asset_types,
         catalogs=catalogs,
@@ -1393,7 +1396,6 @@ def _inventory_option_values(
 def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
     route = _route_context(request)
     selected_fqn = route["asset"]
-    requested_surface = route["surface"]
     if not selected_fqn:
         return None
     selected_asset = _bootstrap_selected_asset_seed(request, selected_fqn)
@@ -1403,11 +1405,6 @@ def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
     store_status = _store_status()
     boot_state = "live" if store_status["state"] == "live" else "degraded"
     boot_message = "" if store_status["state"] == "live" else store_status["message"]
-    governance_payload = (
-        _governance_summary(request)
-        if store_status["state"] == "live"
-        else _degraded_governance_payload(store_status["message"])
-    )
     selected_catalog = _normalize_str(selected_asset.get("catalog"))
     selected_domain = _normalize_str(selected_asset.get("domain"))
     selected_tier = _normalize_str(selected_asset.get("tier"))
@@ -1422,7 +1419,6 @@ def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
             "bootState": boot_state,
             "bootMessage": boot_message,
             "apiBase": "/api",
-            "graphs": {},
             "discovery": {
                 "catalogs": ["All catalogs", *([selected_catalog] if selected_catalog else [])],
                 "domains": ["All domains", *([selected_domain] if selected_domain and selected_domain != "Unassigned" else [])],
@@ -1439,64 +1435,62 @@ def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
                 "views": DISCOVERY_VIEWS,
                 "sortOptions": DISCOVERY_SORTS,
                 "defaultQuery": "",
-                "summary": {
-                    "visibleAssets": 1,
-                    "catalogCount": 1 if selected_catalog else 0,
-                    "availableCatalogCount": 0,
-                    "observedCatalogCount": 0,
-                    "governanceGaps": 1 if _normalize_str(selected_asset.get("governanceStatus")) == "Needs Work" else 0,
-                    "certifiedAssets": 1 if selected_certification and selected_certification != "Unassigned" else 0,
-                    "ownedAssets": 1 if selected_asset.get("owners") else 0,
-                    "assetTypeCounts": {selected_type: 1} if selected_type else {},
-                    "catalogCounts": {selected_catalog: 1} if selected_catalog else {},
-                    "catalogSnapshot": [selected_catalog] if selected_catalog else [],
-                },
             },
-            "governance": governance_payload,
             "help": HELP_ITEMS,
         },
     }
-    return _compose_bootstrap_payload(
-        request,
-        base_payload,
-        seed_selected_graphs=requested_surface != "lineage",
-    )
+    return _compose_bootstrap_payload(request, base_payload)
+
+
+def _bootstrap_contract_payload() -> Dict[str, Any]:
+    return {
+        "version": "bootstrap-v2",
+        "class": "shell-capability",
+        "warnings": [
+            (
+                "Bootstrap remains on bounded temporary seed adapters for shell help items and "
+                "asset warm-start data until those surfaces finish migrating to live queries."
+            )
+        ],
+        "seedAdapters": {
+            "seededAssets": {
+                "state": "temporary",
+                "bounded": True,
+                "removalRequired": False,
+                "surfaces": ["discovery", "entity", "lineage"],
+                "reason": (
+                    "Provides a small first-render asset seed while discovery, entity, and lineage "
+                    "surfaces transition to their own live queries."
+                ),
+            },
+            "helpItems": {
+                "state": "temporary",
+                "bounded": True,
+                "removalRequired": False,
+                "surfaces": ["shell"],
+                "reason": (
+                    "Static operator-safe help copy remains bounded until setup and diagnostics "
+                    "surfaces fully own remediation guidance."
+                ),
+            },
+        },
+    }
 
 
 def _compose_bootstrap_payload(
     request: Request,
     base_payload: Dict[str, Any],
-    *,
-    seed_selected_graphs: bool = True,
 ) -> Dict[str, Any]:
     payload = base_payload.get("payload", base_payload)
     asset_pool = list(base_payload.get("_assetPool") or payload.get("assets") or [])
-    route = _route_context(request)
-    selected_fqn = route["asset"] or (asset_pool[0]["fqn"] if asset_pool else "")
-    requested_surface = route["surface"]
+    selected_fqn = _route_context(request)["asset"] or (asset_pool[0]["fqn"] if asset_pool else "")
     if selected_fqn and not any(_normalize_str(asset.get("fqn")) == selected_fqn for asset in asset_pool):
         selected_asset = _bootstrap_selected_asset_seed(request, selected_fqn)
         if selected_asset:
             asset_pool = [selected_asset, *asset_pool]
     seeded_assets = _bootstrap_seed_assets(asset_pool, selected_fqn=selected_fqn)
     asset_index = {asset["fqn"]: asset for asset in seeded_assets}
-    seeded_graphs = dict(payload.get("graphs") or {})
-
-    if (
-        seed_selected_graphs
-        and
-        _normalize_str(selected_fqn)
-        and requested_surface in {"entity", "lineage"}
-        and selected_fqn not in seeded_graphs
-    ):
-        try:
-            seeded_graphs[selected_fqn] = {
-                "data": _build_data_graph(selected_fqn),
-                "operational": _build_operational_graph(selected_fqn),
-            }
-        except Exception:
-            pass
-
+    payload_without_legacy_graphs = {key: value for key, value in payload.items() if key != "graphs"}
     summary = dict((payload.get("discovery") or {}).get("summary") or {})
     runtime_status = _uc_runtime_status()
     store_status = _store_status() if runtime_status.get("state") == "live" else {
@@ -1512,10 +1506,9 @@ def _compose_bootstrap_payload(
     )
 
     return {
-        **payload,
+        **payload_without_legacy_graphs,
         "assets": seeded_assets,
         "assetIndex": asset_index,
-        "graphs": seeded_graphs,
         "initialSelection": {"primaryAssetFqn": selected_fqn},
         "capabilities": capabilities,
         "diagnostics": _runtime_diagnostics_payload(
@@ -1526,8 +1519,9 @@ def _compose_bootstrap_payload(
             capabilities=capabilities,
             boot_message=_normalize_str(payload.get("bootMessage")),
         ),
+        "bootstrapContract": _bootstrap_contract_payload(),
         "shell": {
-            "metrics": payload.get("governance", {}).get("metrics", []),
+            "metrics": [],
             "role": _user_role(request),
             "userEmail": _user_email(request),
             "buildId": _build_id(),
@@ -1541,7 +1535,6 @@ def _compose_bootstrap_payload(
             "assetMetadataUpdate": "/api/assets/:fqn/metadata",
             "assetColumnMetadataUpdate": "/api/assets/:fqn/columns/:column/metadata",
             "lineage": "/api/lineage/:fqn",
-            "governanceSummary": "/api/governance/summary",
             "glossary": "/api/governance/glossary",
             "governanceRequest": "/api/governance/requests/:id",
             "governanceNotification": "/api/governance/notifications/:id",
@@ -1558,11 +1551,6 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
         store_status = _store_status()
         summary = _bootstrap_inventory_summary(cache_scope)
         seeded_assets = _bootstrap_seed_asset_pool(cache_scope)
-        governance = (
-            _governance_summary(request)
-            if store_status["state"] == "live"
-            else _degraded_governance_payload(store_status["message"])
-        )
 
         boot_state = "live" if store_status["state"] == "live" else "degraded"
         boot_message = "" if store_status["state"] == "live" else store_status["message"]
@@ -1578,7 +1566,6 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
                 "bootState": boot_state,
                 "bootMessage": boot_message,
                 "apiBase": "/api",
-                "graphs": {},
                 "discovery": {
                     "catalogs": ["All catalogs", *(summary.get("catalogs") or [])],
                     "domains": ["All domains", *(summary.get("domains") or [])],
@@ -1589,20 +1576,7 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
                     "views": DISCOVERY_VIEWS,
                     "sortOptions": DISCOVERY_SORTS,
                     "defaultQuery": "",
-                    "summary": {
-                        "visibleAssets": int(summary.get("visibleAssets") or 0),
-                        "catalogCount": int(summary.get("catalogCount") or 0),
-                        "availableCatalogCount": int(summary.get("availableCatalogCount") or 0),
-                        "observedCatalogCount": int(summary.get("observedCatalogCount") or 0),
-                        "governanceGaps": int(summary.get("governanceGaps") or 0),
-                        "certifiedAssets": int(summary.get("certifiedAssets") or 0),
-                        "ownedAssets": int(summary.get("ownedAssets") or 0),
-                        "assetTypeCounts": dict(summary.get("assetTypeCounts") or {}),
-                        "catalogCounts": dict(summary.get("catalogCounts") or {}),
-                        "catalogSnapshot": list(summary.get("catalogSnapshot") or []),
-                    },
                 },
-                "governance": governance,
                 "help": HELP_ITEMS,
             },
         }
@@ -1976,7 +1950,6 @@ def _bootstrap_unavailable_payload(
         "apiBase": "/api",
         "assets": [],
         "assetIndex": {},
-        "graphs": {},
         "discovery": {
             "catalogs": ["All catalogs"],
             "domains": ["All domains"],
@@ -1987,32 +1960,10 @@ def _bootstrap_unavailable_payload(
             "sortOptions": DISCOVERY_SORTS,
             "assetTypes": ["All types"],
             "defaultQuery": "",
-            "summary": {
-                "visibleAssets": 0,
-                "catalogCount": 0,
-                "availableCatalogCount": 0,
-                "observedCatalogCount": 0,
-                "governanceGaps": 0,
-                "certifiedAssets": 0,
-                "ownedAssets": 0,
-                "assetTypeCounts": {},
-                "catalogCounts": {},
-                "catalogSnapshot": [],
-            },
-        },
-        "governance": {
-            "metrics": [],
-            "backlog": [],
-            "glossary": [],
-            "inbox": {
-                "state": "unavailable",
-                "message": "A forwarded Databricks user identity is required for a personal governance inbox.",
-                "unreadCount": 0,
-                "items": [],
-            },
         },
         "capabilities": capabilities,
         "diagnostics": diagnostics,
+        "bootstrapContract": _bootstrap_contract_payload(),
         "shell": {
             "metrics": [],
             "role": role,
@@ -2028,7 +1979,6 @@ def _bootstrap_unavailable_payload(
             "assetMetadataUpdate": "/api/assets/:fqn/metadata",
             "assetColumnMetadataUpdate": "/api/assets/:fqn/columns/:column/metadata",
             "lineage": "/api/lineage/:fqn",
-            "governanceSummary": "/api/governance/summary",
             "governanceNotification": "/api/governance/notifications/:id",
             "glossary": "/api/governance/glossary",
             "runtimeStatus": "/api/runtime/status",
@@ -2159,8 +2109,7 @@ def index(request: Request) -> HTMLResponse:
     return _spa_shell_response(request)
 
 
-@app.get("/api/bootstrap")
-def api_bootstrap(request: Request) -> JSONResponse:
+def _api_bootstrap_response(request: Request) -> JSONResponse:
     runtime_status = _uc_runtime_status()
     if runtime_status.get("state") != "live":
         return JSONResponse(
@@ -2183,8 +2132,7 @@ def api_bootstrap(request: Request) -> JSONResponse:
         )
 
 
-@app.get("/api/runtime/status")
-def api_runtime_status(request: Request) -> JSONResponse:
+def _api_runtime_status_response(request: Request) -> JSONResponse:
     runtime_status = _uc_runtime_status()
     store_status = _store_status() if runtime_status.get("state") == "live" else {
         "state": "skipped",
@@ -2228,10 +2176,19 @@ def api_runtime_status(request: Request) -> JSONResponse:
     return JSONResponse(payload)
 
 
+app.include_router(
+    build_runtime_router(
+        bootstrap_response=lambda request: _api_bootstrap_response(request),
+        runtime_status_response=lambda request: _api_runtime_status_response(request),
+    )
+)
+
+
 @app.get("/api/discovery/search")
 def api_discovery_search(
     request: Request,
     query: str = "",
+    query_mode: str = Query(default="plain", alias="queryMode"),
     view: str = "All assets",
     asset_type: str = Query(default="All types", alias="type"),
     views: Optional[List[str]] = Query(default=None),
@@ -2250,6 +2207,7 @@ def api_discovery_search(
         payload = _discovery_search_payload(
             request=request,
             query=query,
+            query_mode=query_mode,
             views=views or ([view] if _normalize_str(view) and view != "All assets" else []),
             asset_types=types or ([asset_type] if _normalize_str(asset_type) and asset_type != "All types" else []),
             catalogs=catalogs,
@@ -2260,6 +2218,14 @@ def api_discovery_search(
             sort_by=sort_by,
             limit=limit,
             offset=offset,
+        )
+    except asset_service.DiscoveryQuerySyntaxError as exc:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "detail": _normalize_str(exc.message) or "Invalid discovery query.",
+                "invalidQuery": asset_service.discovery_invalid_query_payload(exc.message),
+            },
         )
     except HTTPException:
         raise

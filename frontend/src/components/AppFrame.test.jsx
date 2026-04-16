@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import AppFrame from "./AppFrame";
 
@@ -15,6 +15,7 @@ function FrameHarness({
   diagnosticsAvailable = true,
   diagnosticsStatus = null,
   governanceInbox = null,
+  onModuleChange = () => {},
 }) {
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
@@ -54,7 +55,7 @@ function FrameHarness({
         });
       }}
       onBrowseCatalog={() => {}}
-      onModuleChange={() => {}}
+      onModuleChange={onModuleChange}
       onNavigationStateChange={() => {}}
       onSearchResultSelect={() => {}}
       onToggleDiagnostics={() => setDiagnosticsOpen((current) => !current)}
@@ -101,6 +102,71 @@ describe("AppFrame", () => {
     expect(screen.getByText("Setup attention")).not.toBeNull();
     expect(screen.getByText("Next step: Per User Authorization.")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Workspace setup" })).not.toBeNull();
+  });
+
+  it("shows command bar guidance and visible catalog scope copy", () => {
+    render(<FrameHarness />);
+
+    expect(screen.getByText("Command bar")).not.toBeNull();
+    expect(
+      screen.getAllByText("Search stays scoped to visible assets; Discovery opens the broader workspace view."),
+    ).toHaveLength(2);
+    expect(screen.getByText("3 visible assets indexed")).not.toBeNull();
+  });
+
+  it("publishes a measured shell header height for sticky workspace offsets", async () => {
+    const rectSpy = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function () {
+      const baseRect = {
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+        toJSON() {
+          return {};
+        },
+      };
+      if (this.classList?.contains("gh-shell-header")) {
+        return {
+          ...baseRect,
+          width: 1280,
+          right: 1280,
+          height: 264,
+          bottom: 264,
+        };
+      }
+      return baseRect;
+    });
+
+    try {
+      const { container } = render(<FrameHarness />);
+      const app = container.querySelector(".gh-app");
+      if (!app) throw new Error("Expected app shell root");
+
+      await waitFor(() => {
+        expect(app.style.getPropertyValue("--gh-shell-header-height")).toBe("264px");
+      });
+      expect(app.getAttribute("data-shell-sticky-ready")).toBe("true");
+    } finally {
+      rectSpy.mockRestore();
+    }
+  });
+
+  it("routes the brand button and discovery tab through the shared discovery module callback", () => {
+    const onModuleChange = vi.fn();
+
+    render(<FrameHarness onModuleChange={onModuleChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Governance Hub/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Discovery" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lineage" }));
+
+    expect(onModuleChange).toHaveBeenNthCalledWith(1, "discovery");
+    expect(onModuleChange).toHaveBeenNthCalledWith(2, "discovery");
+    expect(onModuleChange).toHaveBeenNthCalledWith(3, "lineage");
   });
 
   it("keeps a generic setup status hint visible when the diagnostics trigger is unavailable", () => {

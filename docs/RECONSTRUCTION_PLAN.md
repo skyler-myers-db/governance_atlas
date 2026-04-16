@@ -32,6 +32,14 @@ Guiding rule:
   metrics, data contracts, security-trimmed discovery, export, and privileged
   operational surfaces are implemented or formally excluded with narrower
   product positioning
+- no parity claim is valid for a surface until its persistence model,
+  background-work model, and branch-state proof all exist in the shipping
+  branch
+- collaboration positioning remains `workflow collaboration core` rather than
+  full mention-parity until `@user/team` and `#asset` mentions are real,
+  persisted, and role-tested
+- no governance breadth entity may ship without a canonical route, preview
+  contract, state machine, version model, and cutover-safe authority source
 
 ## Branch-State Verification Gate
 
@@ -49,6 +57,34 @@ Guiding rule:
   - script/package evidence for lint, typecheck, router, query, and other
     foundational contracts
   - targeted regression tests for prior P0 or contract-critical failures
+- required automated proofs are explicit, not narrative-only:
+  - runtime-entrypoint assertions must follow the declared current
+    architecture, not a rename in isolation:
+    - assert only one supported runtime entrypoint chain exists
+    - assert removed legacy runtime/config paths are absent
+    - assert the packaged app still launches through the declared entrypoint
+  - current-branch runtime assertions are:
+    - `rg` or equivalent checks for `runtime_app.py`, `run_app.py`,
+      `app.yaml`, and absence of `modern_app.py`
+    - file-chain assertions proving the currently declared runtime chain:
+      `app.yaml -> run_app.py -> runtime_app.py`
+  - `frontend/package.json` script and dependency assertions for:
+    - `lint`
+    - `test`
+    - `typecheck`
+    - `build`
+    - `react-router-dom`
+    - `@tanstack/react-query`
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run build`
+  - targeted import-regression proof for the `EntityWorkspace.jsx`
+    missing-import crash path
+  - deploy-artifact inventory checks proving:
+    - `frontend/dist` is not tracked in git
+    - packaged bundles exclude removed legacy/runtime artifacts
+  - Databricks `bundle validate` and `bundle summary` proof for the shipping
+    branch using profile `tristate`
 - if the branch and the plan disagree, the branch truth wins until the plan or
   implementation is corrected
 
@@ -104,12 +140,16 @@ Phase 0 exit:
 
 - follower/following model
 - deleted-asset read-only browsing until a tombstone retention plane exists
+- full `@user/team` and `#asset` mention parity; collaboration claims remain
+  at `workflow collaboration core` until mentions are real
 
 ### Later-phase extensions
 
 - announcements with a non-follower delivery model
 - broader health dashboard and incident workflow
-- richer mention/reaction network
+- basic `@user/team` and `#asset` mentions, then richer mention/reaction
+  network
+- admin/compliance audit-log browser, filters, retention visibility, and export
 - external notifications and chat/tool integrations:
   - email
   - webhooks
@@ -130,6 +170,8 @@ Phase 0 exit:
   - UC tag values are a transition path only, not the final authority model
   - the authority cutover from UC tags to governed entities is phase-bounded
     and may not remain an open-ended hybrid truth model
+  - governed domain and data-product entities require explicit version/history
+    support before governance-depth claims are valid
 - Glossary semantic depth extends beyond hierarchy and links.
   - required semantics:
     - synonyms
@@ -160,10 +202,29 @@ Phase 0 exit:
   - recommendation evidence, raw findings, and any sample-derived fields are
     redacted by default and hidden unless the current actor is explicitly
     authorized to view them
+  - classification taxonomy edits and term changes require explicit
+    version/history support before taxonomy-governance claims are valid
+  - Databricks-native governance differentiation includes an explicit
+    recommendation-to-policy loop:
+    - classification result
+    - steward review
+    - approved metadata or classification change
+    - suggested policy or remediation action
+    - no policy action is auto-applied without an explicit later-phase policy
+      contract
 - Governance-breadth parity claim rule:
   - no OpenMetadata-class governance-breadth claim is valid until metrics and
     data contracts are implemented or formally excluded with the claim narrowed
     accordingly
+- breadth and scale entities do not ship as hidden rows inside a generic
+  governance shell:
+  - classifications
+  - domains
+  - data products
+  - metrics
+  - data contracts
+  each require canonical routes, previews, detail surfaces, and workflow
+  contracts before their claims expand
 
 ## Governance Kernel / Breadth / Scale Boundaries
 
@@ -251,24 +312,24 @@ Execution boundary rules:
    - glossary minimum
 10. Governance kernel tranche E
    - summary projections and queue read models
-11. Quality core
+11. Early vertical slice hardening
+   - discovery browse to entity hero
+   - task request and thread flow
+   - glossary link flow
+   - lineage preview or truthful unavailable state
+   - quality status badge or truthful unavailable state
+   - may use temporary adapters only where removal tickets and demo acceptance
+     are explicit
+12. Quality core
    - identity directory
    - test library
    - profile and quality contracts
    - alert model
    - entity-facing projections
-12. Lineage v2 read-only core
+13. Lineage v2 read-only core
    - provenance
    - drawer and preview contract
    - summary projections
-13. Early vertical slice hardening
-   - discovery browse to entity hero
-   - task request and thread flow
-   - glossary link flow
-   - lineage preview
-   - quality status badge or panel
-   - may use temporary adapters only where removal tickets and demo acceptance
-     are explicit
 14. Discovery v2
 15. Entity v2 including capability-gated queries/usage/profile/quality/history
 16. Governance breadth
@@ -283,8 +344,9 @@ Execution boundary rules:
    - bulk governance workflows
 18. Lineage overrides
 19. Quality scheduling and broader health/incident flows
-20. Post-parity Databricks differentiation
-21. Final polish, accessibility, visual regression, role-matrix QA, and live
+20. Audit log browser/export and compliance reporting
+21. Post-parity Databricks differentiation
+22. Final polish, accessibility, visual regression, role-matrix QA, and live
    sign-off
 
 Rules:
@@ -297,6 +359,12 @@ Rules:
   ready
 - no rebuilt major surface may consume unstable legacy payloads unless it uses
   an explicitly temporary adapter with a removal ticket and defined exit point
+- every non-trivial app tranche closes with Databricks-native validation and
+  `bundle summary` through the Databricks MCP/CLI path using profile
+  `tristate`; these checks are required even when no deploy occurs
+- destructive Databricks actions in the production workspace require explicit
+  user approval unless they are limited to app-owned development-cycle
+  resources for this project
 
 ## Phase Exit Criteria
 
@@ -327,16 +395,28 @@ Rules:
   - JSON schema/OpenAPI snapshots generated
   - generated frontend types wired into hot-path consumers
   - canonical entity identity and rename handling live in control-plane writes
+  - minimal bootstrap contract is explicit, tested, and limited to shell
+    identity, actor context, capabilities, route hints, and safe diagnostics
+    metadata rather than seeded heavy surface data
   - install/setup validation exists for required workspace capabilities before
     first-use claims are shown
+  - install/setup explicitly validates the safe non-admin operational sharing
+    path for queries/usage/workloads:
+    - actor-scoped OBO
+    - validated dynamic-view plane
+    - warehouse `CAN VIEW` plus downstream data-visibility model
+    - or hard disable of the surface
   - background work-plane contract, ownership, and retry/idempotency rules are
     explicit before async export, corpus rebuild, or quality scheduling begins
+  - no async work persists or replays raw OBO tokens
   - feature-flag and temporary-adapter inventory is explicit and auditable
   - physical schema / DDL appendix is complete for every new table family
   - no table family begins implementation before API and UX acceptance
     criteria are locked alongside the DDL
   - no rebuilt surface consumes unstable legacy payloads except behind a
     temporary adapter with an explicit removal ticket
+  - custom properties, persisted profile models, and governed-entity version
+    models are defined before those surfaces claim parity
 - Governance kernel tranche A:
   - identity directory works
   - entity registry mints durable IDs or maps stable source IDs truthfully
@@ -355,19 +435,21 @@ Rules:
 - Governance kernel tranche E:
   - summary projections back hero counts, governance queue counts, and glossary
     counts
+- Early vertical slice:
+  - one deployed workflow proves discovery to entity to task/thread to
+    glossary link to lineage preview and quality status end to end, with
+    truthful unavailable or degraded states accepted until those capability
+    planes land
+  - any temporary adapter used in the slice has an explicit removal ticket and
+    exit phase
 - Quality core:
-  - reusable tests, profile contracts, normalized runs, alerts, and entity
-    projections are real
+  - reusable tests, persisted profile snapshots, normalized runs, alerts, and
+    entity projections are real
 - Lineage read-only core:
   - graph truth matches backend probes
   - truncation and provenance are visible
   - masked and incomplete column-lineage states are labeled truthfully
   - drawer content is never empty or misleading
-- Early vertical slice:
-  - one deployed workflow proves discovery to entity to task/thread to
-    glossary link to lineage preview to quality status end to end
-  - any temporary adapter used in the slice has an explicit removal ticket and
-    exit phase
 - Discovery:
   - grouped search works
   - counts/facets/cards/preview/export agree
@@ -377,6 +459,8 @@ Rules:
   - capability-driven tabs only
   - hero, history, share/copy-link, queries/usage/profile/quality are real
     only when the required workspace capability plane exists
+  - queries parity in v1 means observed history only unless a saved-query model
+    is explicitly added later
   - when the operational plane is unavailable, queries/usage/workloads/profile
     surfaces show explicit capability-unavailable states instead of empty truth
   - mutations survive hard refresh
@@ -414,19 +498,22 @@ local Vite/FastAPI preflight.
 6. Governance kernel tranche C: inbox behavior and unread counts.
 7. Governance kernel tranche D: glossary minimum.
 8. Governance kernel tranche E: queue and hero projections.
-9. Quality core and entity-facing quality/profile surfaces.
-10. Lineage read-only correctness and preview/drawer contract.
-11. Early vertical slice: discovery to entity to task request to glossary link
-    to lineage preview to quality status.
+9. Early vertical slice: discovery to entity to task request to glossary link
+   to lineage preview or truthful unavailable state to quality status or
+   truthful unavailable state.
+10. Quality core and entity-facing quality/profile surfaces.
+11. Lineage read-only correctness and preview/drawer contract.
 12. Discovery v2 against the security-trimmed corpus.
 13. Entity hero plus capability-driven tabs.
 14. Governance breadth: classifications, domains/data products, glossary deep
    semantics, and column bulk operations.
 15. Governance scale and claim-expansion: metrics, data contracts, and broader
     bulk governance workflows.
-16. Databricks-native differentiation: capability dashboard, permission
+16. Audit/compliance surface: audit-log browser, filtering, export, and
+    retention truth.
+17. Databricks-native differentiation: capability dashboard, permission
     explanations, deep links, and evidence-linked diagnostics.
-17. Branch-state verification: the current shipping branch proves every
+18. Branch-state verification: the current shipping branch proves every
     previously claimed landed prerequisite and no stale plan claim survives.
 
 ## Early Vertical Slice Demo Contract
@@ -438,8 +525,8 @@ local Vite/FastAPI preflight.
   - entity hero open
   - thread plus task request
   - glossary link creation or review visibility
-  - lineage preview or drawer truth
-  - quality status badge or panel
+  - lineage preview or drawer truth, or a truthful unavailable/degraded state
+  - quality status badge or panel, or a truthful unavailable/degraded state
 - the slice must run in the deployed Databricks App with real auth and real
   capability responses
 - if a workspace lacks query, workload, lineage, or quality capabilities, the
@@ -451,6 +538,38 @@ local Vite/FastAPI preflight.
   - the removal ticket
   - the exit phase
   - the deployed demo it is allowed to unblock
+
+## Deployment Tenancy / Scope Contract
+
+- one Governance Hub deployment owns one Databricks workspace as its primary
+  control-plane, export, and operator-diagnostics boundary
+- the deployment may observe broader source facts, but only with explicit scope
+  attribution:
+  - workspace-scoped facts
+  - metastore-scoped facts
+  - account-region-scoped facts
+- metastore- or account-region-scoped source facts may inform discovery,
+  lineage, diagnostics, or recommendations only as attributed evidence inside
+  that deployment; they do not create shared governance state across separate
+  Governance Hub deployments by default
+- persisted governance state attaches to the deployment boundary first:
+  - entity registry
+  - glossary links
+  - tasks and threads
+  - projections
+  - exports
+  - diagnostics snapshots
+- every persisted model that can carry broader source facts must record:
+  - deployment scope
+  - source workspace scope where applicable
+  - source metastore scope where applicable
+  - source account-region scope where applicable
+- discovery corpus slices, export jobs, and background work may not widen
+  beyond the deployment scope unless a later-phase cross-workspace projection
+  contract explicitly allows it and labels the source scope truthfully
+- cross-workspace operational facts may appear only as redacted, attributed
+  evidence unless the deployment's authority contract explicitly grants a
+  broader read-only projection mode
 
 ## Metadata Authority Matrix
 
@@ -464,11 +583,12 @@ local Vite/FastAPI preflight.
 | Sensitivity | UC tag for now | discovery facets, entity hero | metadata/tag patch API | audit log tag snapshot | same as domain |
 | Criticality | UC tag for now | entity hero, governance rollups | metadata/tag patch API | audit log tag snapshot | same as domain |
 | Data product | UC tag until governance-breadth cutover, then governed entity authority | entity hero and discovery filters | metadata/tag patch API until cutover, then data-product APIs | audit log tag snapshot plus governed-entity audit rows | same as domain |
+| Custom properties | `custom_property_definitions` plus `custom_property_assignments` | custom-properties tab, entity detail, eligible discovery filters | custom-property definition and assignment APIs only | definition versions plus audit log | invalidate entity/discovery/preview; label `Schema-driven custom property` |
 | Glossary associations | `glossary_term_links` Delta table | entity chips, glossary assets rail, column rows | link attach/detach APIs | association rows with actor/timestamps | invalidate asset, governance, discovery, lineage; label `Manual` or `Migrated tag` |
 | Tasks / thread counts | `threads` and `tasks` | entity activity, governance queue | thread/task APIs only | post and state rows | invalidate asset/governance/entity summary; never derive from posture gaps |
 | Lineage | live UC/system lineage plus approved overlays | lineage graph, drawer, entity summary | read-only live first; overlays later | overlay rows and approvals | invalidate lineage/entity; label live vs overlay provenance |
 | Quality | `quality_tests`, `quality_runs`, `quality_alerts` | profile and quality tabs | test CRUD and run APIs | run rows with SQL/template, params, actor, evidence | invalidate quality/entity/governance; mark stale |
-| Sample / profile / usage numbers | live query outputs and profiling/usage sources | sample, queries, usage, profile tabs | no direct write path | provenance only unless later snapshotted | TTL plus explicit stale label |
+| Sample / profile / usage numbers | live query outputs plus persisted `profile_*` and workload observations where available | sample, queries, usage, profile tabs | no direct write path | provenance plus profile/workload snapshots | TTL plus explicit stale label |
 
 Rules:
 
@@ -484,7 +604,6 @@ Authority-matrix completion rules before sign-off:
   views must have an authority row before sign-off
 - required row families still to be enumerated during implementation:
   - generic classification tags beyond the named governance tags
-  - custom properties
   - constraints, defaults, nullability, and schema truth
   - row counts, file counts, storage metrics, and storage-management fields
   - lineage-summary counts and adjacency totals
@@ -584,6 +703,7 @@ Authority-matrix completion rules before sign-off:
   - `change_events`:
     - append-only machine fanout bus emitted after a successful authoritative
       write
+    - every event carries an explicit `event_schema_version`
   - `activity_events`:
     - user-facing feed projection derived from `change_events` plus thread/task
       state transitions; it is not independently authored in parallel
@@ -616,6 +736,19 @@ Authority-matrix completion rules before sign-off:
     they do not silently block unrelated consumers forever
   - replay tooling must support one-consumer replay without rewinding unrelated
     consumers
+  - every event declares an `event_schema_version`
+  - every consumer family declares:
+    - owner
+    - supported event families
+    - delivery semantics:
+      - exactly-once where proven
+      - otherwise at-least-once with idempotent replay
+    - replay guarantee and retention window
+    - schema-compatibility policy
+    - poison-event acknowledgement workflow
+  - schema evolution may add backward-compatible fields, but incompatible
+    changes require a new `event_schema_version` and an explicit consumer
+    migration plan
 
 ## Entity Registry / Alias Reconciliation
 
@@ -740,6 +873,19 @@ Mutual exclusivity:
   - comment requirement on approval or rejection
 - reviewer-policy fulfillment, inheritance, and override behavior must be
   tested before glossary approval flows claim parity
+- reviewer policy uses a typed schema rather than opaque JSON-only conventions:
+  - fulfillment mode
+  - quorum count where applicable
+  - inheritance mode
+  - override mode
+  - comment requirement
+  - inactive-reviewer handling
+  - no-qualified-reviewer escalation behavior
+- evaluator semantics are deterministic for:
+  - reviewer-set changes while a review is in flight
+  - inactive or removed reviewers
+  - quorum recalculation
+  - glossary-level vs term-level inheritance changes
 
 ## Deleted Asset Strategy
 
@@ -791,7 +937,7 @@ current actor.
 | System tables / UC inventory readable | live metadata probes | discovery, entity summary, counts, sample/profile/usage | return degraded or unavailable, not empty truth |
 | Table lineage available | system lineage probes | lineage graph, lineage summary, discovery preview | hide lineage affordances or show degraded messaging |
 | Column lineage available | lineage capability probe | column mode, lineage drawers, entity schema lineage | disable column mode explicitly |
-| Workload / query visibility | operational-plane probe plus actor auth | queries, usage, workloads, preview snippets | hide or redact query/workload evidence |
+| Workload / query visibility | operational-plane probe plus actor auth plus validated safe sharing path | queries, usage, workloads, preview snippets | hide or redact query/workload evidence unless OBO, a validated dynamic-view plane, or warehouse `CAN VIEW` plus downstream visibility rules are proven |
 | Classification recommendation source available | classification system-table probe plus serverless/admin policy checks | Databricks classification recommendations and evidence | hide recommendation flows or restrict them to admin-safe diagnostics until eligible |
 | Profile and quality run eligibility | warehouse + role + policy checks | profile tab, quality tab, run buttons | show read-only history or disable run actions |
 | Export allowed | actor auth + surface policy | discovery export, detail export | hide or disable export with policy message |
@@ -834,6 +980,12 @@ Rules:
   - actor-scoped discovery, preview, export, lineage, sample, query, workload,
     and other permission-sensitive metadata reads prefer user authorization/OBO
     or another equivalent per-user enforcement plane
+  - non-admin query, usage, and workload surfaces require one validated safe
+    sharing path before the capability may turn `available`:
+    - actor-scoped OBO reads
+    - a validated dynamic-view plane
+    - warehouse `CAN VIEW` plus the downstream data-visibility model
+    - otherwise the surface stays disabled or explicitly unavailable
   - if OBO is unavailable, expired, or misconfigured, the product must narrow
     claims and return explicit unavailable or degraded states instead of
     implying per-user-trimmed truth
@@ -844,6 +996,14 @@ Rules:
     user-authoritative visibility trimming
   - no user-facing surface may silently fall back from OBO to broad
     app-principal reads when that would widen visibility
+- async-work guardrail:
+  - no background work family may persist, replay, serialize, or otherwise
+    retain raw OBO/user tokens outside the live request boundary
+  - allowed async patterns are limited to:
+    - app principal on safe shared data
+    - actor-scoped pre-trimmed input universes
+    - delivery-time reauthorization
+    - feature disabled until a safe model exists
 - audit rules:
   - audit rows capture actor identity, auth mode, and any app-principal
     execution context needed for operator traceability
@@ -856,6 +1016,20 @@ Rules:
 - Queries:
   - source: Databricks operational lineage and workload metadata, with query
     text only when the source plane exposes it safely
+  - safe shared-plane contract:
+    - raw query-history source existence is not sufficient
+    - install/setup must validate which safe sharing path, if any, exists for
+      non-admin exposure:
+      - actor-scoped OBO
+      - validated dynamic-view plane
+      - warehouse `CAN VIEW` plus downstream data-visibility rules
+    - if no safe sharing path is proven, the capability remains unavailable and
+      the product may not infer a general-facing query-history surface from the
+      raw source alone
+  - v1 disposition:
+    - observed workload/query history only
+    - saved or manually-authored query objects are explicitly out of scope
+      until a dedicated persistence, audit, and authorization model lands
   - default freshness window: last 30 days or source retention window,
     whichever is smaller
   - query-history caveat:
@@ -875,8 +1049,21 @@ Rules:
     inferred from the operational lineage plane
   - retention and masking follow the same operational-plane rules as lineage
 - Profile:
-  - source: live-on-demand profile queries plus persisted quality/profile runs
-    when that plane exists
+  - source: persisted profile snapshots plus bounded live-on-demand profile
+    queries where policy and cost ceilings allow them
+  - profile parity requires durable table-profile and column-profile models; it
+    may not be implied by ad hoc live reads alone
+- system-table tolerance rules:
+  - ingestion and downstream projections must tolerate additive schema changes
+    and unknown fields
+  - region-, account-, metastore-, and workspace-scope columns are preserved in
+    stored models where the source exposes them
+  - system-table-backed surfaces must label freshness as `updated throughout
+    the day` or another truthful non-real-time window when the source is not
+    real-time
+  - schema contract tests may reject removed or incompatible fields, but they
+    must allow additive fields where the source plane documents additive
+    evolution
 - Lineage and workload caveats:
   - Unity Catalog lineage retention is expected to be bounded to roughly one
     year or the source-system retention window, whichever is stricter
@@ -921,7 +1108,13 @@ Rules:
 |---|---|---|---|---|
 | Discovery result preview | Right rail | identity, source/object type, owners, tier/domain, usage/workload highlights, schema preview, lineage summary, quality/profile summary, provenance | degraded banner; no silent empty panel | preview never exceeds search authority |
 | Glossary term preview | Right rail | definition, reviewers, synonyms, related terms, child-term counts, asset counts, version, provenance | degraded banner or empty-state with explicit cause | assets previewed from the term rail |
+| Domain preview | Right rail | description, owners, reviewers, asset counts, data-product counts, status, provenance | degraded banner or empty-state with explicit cause | opens `/domains/:domainId` |
+| Data product preview | Right rail | description, domain, owners, reviewers, asset counts, quality or contract indicators, status, provenance | degraded banner or empty-state with explicit cause | opens `/data-products/:dataProductId` |
+| Classification preview | Right rail | taxonomy summary, owners, term counts, usage counts, recommendation state, provenance | degraded banner or empty-state with explicit cause | opens `/classifications/:classificationId` |
+| Metric preview | Right rail or drawer | definition summary, owners, related assets, status, version, provenance | degraded banner or empty-state with explicit cause | opens `/metrics/:metricId` |
+| Data contract preview | Right rail or drawer | owner, status, version, assertion counts, last run summary, provenance | degraded banner or empty-state with explicit cause | opens `/contracts/:contractId` |
 | Lineage node preview | Drawer | identity, neighbors, schema summary, provenance, quality/profile summary, open actions | unavailable badge plus allowed actions only | must distinguish operational vs data lineage context |
+| Task inbox item / notification target preview | Inbox tray or rail | target type, target identity, event family, actor, timestamp, reason, unread state, next action, canonical target route | degraded banner; no silent dead link | notification clicks resolve to canonical target route or explicit degraded target state |
 | Inaccessible asset preview | Right rail or drawer | redacted identity only, reason, supported next action | no leaked metadata | counts may remain aggregated only |
 | Degraded preview | Match parent surface | stale timestamp, warning, retry affordance, preserved layout shell | do not collapse layout | preview may show last-good data only with stale label |
 | Deleted asset preview | Later phase | tombstone metadata, deleted source, read-only badge | n/a until tombstones exist | out of v1 core |
@@ -948,6 +1141,13 @@ Rules:
 
 - `queries`, `usage`, `workloads`, `profile`, and `quality` are not folded back
   into a single synthetic asset-detail blob
+- `/queries` means observed history only until a dedicated saved-query model
+  exists; the product may not imply OM-style manual query authoring before that
+  persistence model ships
+- `/profile` is real only when backed by persisted profile snapshots or an
+  explicitly typed profile subtype, not only ad hoc live SQL
+- `/custom-properties` is real only when backed by schema-driven definitions,
+  applicability rules, assignments, audit, and version history
 - version history composes `entity_versions` with audit provenance from
   `metadata_audit_log`
 - share/copy-link are real actions, not decorative icons
@@ -957,6 +1157,95 @@ Rules:
 - if the safe operational/query plane is unavailable, the entity surface must
   render truthful capability-unavailable states rather than an empty history or
   zero-usage implication
+
+## Governance Entity Surface Contract
+
+Governance breadth and scale entities are first-class product surfaces, not
+opaque rows under a generic governance page.
+
+| Entity | Canonical route | Required detail surfaces | History / activity rule |
+|---|---|---|---|
+| Classification taxonomy | `/classifications/:classificationId` | summary, terms, usage, recommendations, history | render `entity_versions`, reviewer decisions, and recommendation activity with provenance |
+| Classification term | `/classifications/:classificationId/terms/:termId` | summary, linked assets, recommendation evidence state, history | show term versions, assignment changes, review decisions, and provenance |
+| Domain | `/domains/:domainId` | summary, assets, data products, activity, history | render version history, reviewer or owner changes, and asset-membership activity |
+| Data product | `/data-products/:dataProductId` | summary, assets, quality or contract signals, activity, history | render version history, reviewer changes, asset-membership activity, and related governance events |
+| Metric | `/metrics/:metricId` | summary, definition, related assets, activity, history | render metric versions, approval decisions, and usage or relationship changes with provenance |
+| Data contract | `/contracts/:contractId` | summary, spec sections, assertions, runs, history | render contract versions, approval decisions, run history summaries, and provenance |
+| Logical column group | `/governance/columns/:groupId` | summary, grouped members, bulk actions, history | render grouping changes, steward decisions, and bulk-operation activity with provenance |
+
+Rules:
+
+- no breadth or scale entity may ship without:
+  - canonical route
+  - preview contract
+  - summary surface
+  - activity/history surface
+  - allowed actions contract
+  - provenance labels
+- user-facing history for breadth/scale entities composes:
+  - `entity_versions`
+  - `activity_events`
+  - reviewer or approval decisions
+  with explicit provenance labels
+- notification targets, queue rows, and related-entity links must open these
+  canonical routes or a degraded preview that preserves the target identity and
+  reason
+- detail tabs may stay hidden until their backing plane is real, but the route
+  contract and tab vocabulary must be locked before the entity claims parity
+
+## Custom Properties Contract
+
+- custom properties are schema-driven metadata, not freeform opaque JSON
+- required models:
+  - definition rows
+  - version/history for definitions
+  - assignment/value rows
+  - applicability rules for entity kinds and columns
+- validation rules are explicit:
+  - scalar type
+  - enum set
+  - cardinality
+  - nullability
+  - default handling
+  - coercion or rejection behavior
+- audit and version rules:
+  - definition edits append version history and audit rows
+  - assignment edits append audit rows and current-value snapshots
+- discovery and entity rules:
+  - only explicitly indexed custom properties may participate in discovery
+    filters, ranking, or preview
+  - custom properties inherit the same provenance, stale-bound, and masking
+    requirements as other metadata fields
+
+## Profile Persistence Contract
+
+- table profile and column profile are first-class persisted models, not only
+  derived views over quality runs
+- required persisted concepts:
+  - profile run envelope
+  - table-level metric snapshots
+  - column-level metric snapshots
+- minimum metric families:
+  - row count
+  - column count
+  - null count / null percentage
+  - distinct count / uniqueness ratio
+  - min/max/range
+  - completeness
+  - freshness or observation window where applicable
+- profile tabs may combine persisted snapshots with bounded live reads, but the
+  persisted snapshot model is the authoritative parity surface
+
+## Parity Surface Disposition Matrix
+
+| Surface | v1 disposition | Claim rule |
+|---|---|---|
+| Rename from the app | Source-only rename in v1; Governance Hub preserves continuity through registry aliases and history | no in-app rename parity claim until a source-authoritative rename workflow exists |
+| Delete from the app | Source-only delete in v1; deleted browsing remains out of scope until tombstones exist | no delete parity claim in v1 |
+| Manual/saved queries | Observed workload/query history only in v1 | no OM-style `add query` parity claim until a saved-query model lands |
+| `@user/team` and `#asset` mentions | Deferred from parity-core collaboration in v1 | collaboration claims stay at `workflow collaboration core` until mention support lands |
+| External notifications | In-app inbox in kernel; email/webhook/chat delivery later-phase only | external notification parity is deferred until that phase lands |
+| Non-tabular discovery breadth | limited to shipped entity classes in v1 | discovery parity claims stay limited to shipped entity classes until broader support is real |
 
 ## Column-Level Parity Contract
 
@@ -979,6 +1268,34 @@ Rules:
 - wide schemas must virtualize row rendering before deeper feature work lands
 - incomplete or source-limited column lineage must render as partial or
   unavailable with truthful provenance rather than implying complete mapping
+
+## Logical Column Grouping Contract
+
+- column bulk operations are powered by durable logical column groups, not only
+  ad hoc batch rows
+- grouping requires explicit persisted models for:
+  - logical group identity
+  - member columns
+  - steward-approved aliases or synonym handling
+  - match rule or confidence
+- grouping rules:
+  - exact normalized column-name matching is the default starting point
+  - heuristic grouping may propose candidates, but heuristic membership is not
+    authoritative until it is accepted or materialized into the group model
+  - steward-approved aliases may widen a group beyond exact-match naming
+  - no fuzzy auto-merge may silently create authoritative bulk-governance scope
+- aggregation rules:
+  - cross-asset grouping must preserve source asset identity and scope
+  - grouped views surface consistency gaps, not only bulk-apply actions
+  - preview and detail surfaces for a logical group must show:
+    - canonical group name
+    - member count
+    - conflicting descriptions, tags, or glossary links
+    - last reviewed time
+    - provenance and match rule
+- logical column groups open through `/governance/columns/:groupId` and may not
+  remain a hidden backend-only construct once column bulk operations claim
+  parity value
 
 ## Discovery Contract
 
@@ -1033,7 +1350,8 @@ Noisy asset exclusion policy:
     open
   - autocomplete, ranking, and export must not leak invisible asset identity
 - corpus storage model:
-  - normalized search documents keyed by `entity_id/current_fqn_snapshot`
+  - normalized search documents keyed by
+    `deployment_scope + entity_id/current_fqn_snapshot`
   - separate facet aggregates and ranking metadata
 - corpus schema must include:
   - identity fields
@@ -1079,7 +1397,8 @@ Noisy asset exclusion policy:
 - discovery uses a hybrid trimming model rather than a naive per-user full
   corpus clone
 - required layers:
-  - a canonical base corpus keyed by entity identity and safe source facts
+  - a canonical base corpus keyed by deployment scope, entity identity, and
+    safe source facts
   - scope-trimmed search slices keyed by `visibility_scope_hash`
   - live permission re-checks on preview, entity open, and export delivery
 - `visibility_scope_hash` rules:
@@ -1133,6 +1452,18 @@ Noisy asset exclusion policy:
     again before download
   - stale scope slices may show a warning but may not widen visibility while
     waiting for rebuild
+- overload and failure fallback:
+  - if scope-slice budgets are exceeded, freshness cannot be maintained
+    safely, or slice rebuild correctness is uncertain, the affected workspace
+    mode must fail closed
+  - fail-closed behavior means:
+    - disable security-trimmed discovery for that workspace mode
+    - narrow claims immediately
+    - fall back to live-only browse/search with reduced features where safe
+    - suppress export, autocomplete, and aggregated counts until safe trimming
+      recovers
+  - no overload fallback may widen visibility, silently stale-serve unsafe
+    counts, or revert to broad app-principal reads
 - model constraints:
   - the base corpus may store non-sensitive search facts, but security-trimmed
     slices are the only source for counts, ranking, autocomplete, and export
@@ -1161,6 +1492,27 @@ Rules:
 - projections carry provenance and stale bounds
 - projections are read models only; source mutations still go through the
   authoritative control plane
+
+## Projection / Corpus Read-Switch Contract
+
+- no hot surface may switch from live reads to projection- or corpus-backed
+  reads until all of the following are proven:
+  - initial backfill or bootstrap materialization completed
+  - the relevant `projection_watermarks` or corpus watermark caught up to the
+    latest required event boundary
+  - measured drift is below the declared tolerance for that surface
+  - read-after-write invalidation is verified
+  - operator diagnostics for the projection or corpus are healthy
+- cutover is surface-specific:
+  - entity hero counters
+  - governance queue counts
+  - glossary counts
+  - discovery facets and ranking
+  each declare their own readiness gate before becoming projection-backed
+- if a cutover gate fails after launch, the surface must:
+  - fall back to live reads where safe, or
+  - render degraded projection truth with stale labels and diagnostics
+  but it may not silently continue as `mostly right`
 
 ## Background Work Plane
 
@@ -1236,6 +1588,8 @@ Rules:
       exposure
 - no background work family may silently fall back from actor-scoped reads to a
   broader app-principal read if that would widen visibility
+- raw OBO/user tokens may never be persisted, replayed, queued, or embedded in
+  background-work payloads, logs, or artifacts
 
 ## Background Work Operational Contract
 
@@ -1263,10 +1617,18 @@ Implementation-lock rules:
 - every control-plane table declares identity columns, optimistic-locking
   column, actor/timestamp fields, retention/compaction policy, and
   application-level uniqueness rules where Delta does not enforce them
+- every persisted table family declares the deployment tenancy boundary
+  explicitly:
+  - `deployment_scope` for the Governance Hub deployment that owns the row
+  - source workspace, metastore, and account-region scope columns where the
+    source fact can exceed one workspace
 - every entity-bound table stores `entity_id` plus
   `entity_fqn_snapshot` where applicable
 - every table that reads, stores, or fans out account-, metastore-, region-, or
   workspace-scoped facts declares the required scope columns explicitly
+- system-table-backed ingestion, staging, and projection schemas must tolerate
+  additive source fields and preserve unknown additive columns safely until
+  downstream consumers are updated
 - every corpus or projection table stores provenance, `observed_at`, and
   `stale_after`
 - every migration spec records primary key, uniqueness rules, secondary
@@ -1291,7 +1653,8 @@ Implementation-lock rules:
 | `entity_aliases` | `alias_id`, `entity_id`, `alias_type`, `alias_value`, `source_system`, `is_current`, `confidence`, `observed_at`, `updated_at` | Tracks FQN aliases, prior names, observed external IDs, and location history |
 | `entity_relationships` | `relationship_id`, `from_entity_id`, `to_entity_id`, `relationship_type`, `source`, `payload_json`, `observed_at`, `updated_at`, `removed_at` | Generic relationship core for extensibility; hot-path entity families may still project specialized relationship tables |
 | `entity_versions` | `entity_version_id`, `entity_id`, `version_kind`, `version`, `snapshot_json`, `diff_json`, `changed_by_entry_id`, `changed_at` | Generic version/history scaffold for entity resources |
-| `change_events` | `change_event_id`, `entity_id`, `event_family`, `source`, `payload_json`, `actor_entry_id`, `request_id`, `created_at` | Append-only change stream for projections, notifications, exports, and operator diagnostics |
+| `change_events` | `change_event_id`, `entity_id`, `event_family`, `event_schema_version`, `source`, `payload_json`, `actor_entry_id`, `request_id`, `created_at` | Append-only change stream for projections, notifications, exports, and operator diagnostics |
+| `change_event_consumers` | `consumer_key`, `consumer_family`, `owner_entry_id`, `supported_event_families_json`, `delivery_semantics`, `schema_compatibility_policy`, `poison_ack_policy_json`, `created_at`, `updated_at` | Consumer registry and compatibility contract for `change_events` |
 | `change_event_consumer_offsets` | `consumer_key`, `scope_key`, `last_change_event_id`, `last_change_event_at`, `replay_cursor_json`, `dedupe_window_key`, `poison_state`, `last_succeeded_at`, `last_failed_at`, `updated_at` | Per-consumer watermark, replay, and poison-event tracking |
 | `projection_watermarks` | `projection_key`, `scope_key`, `last_change_event_id`, `last_rebuilt_at`, `stale_after`, `updated_at` | Projection rebuild checkpoints and staleness truth |
 | `capability_probe_runs` | `probe_run_id`, `workspace_scope`, `probe_family`, `auth_mode`, `outcome`, `summary_json`, `observed_at`, `created_at` | Setup/diagnostic history for capability probes |
@@ -1305,6 +1668,14 @@ Implementation-lock rules:
 | `background_dead_letters` | `dead_letter_id`, `work_item_id`, `last_run_id`, `failure_class`, `payload_json`, `created_at`, `resolved_at`, `resolved_by_entry_id` | Terminal failures and remediation tracking |
 | `export_jobs` | `export_job_id`, `workspace_scope`, `scope_hash`, `requested_by_entry_id`, `delivery_principal_mode`, `export_type`, `filter_snapshot_json`, `status`, `row_limit`, `redaction_policy_json`, `artifact_uri`, `artifact_size_bytes`, `artifact_checksum`, `materialized_at`, `revoked_at`, `expires_at`, `created_at`, `updated_at` | Async export materialization and delivery contract with revocation and artifact-integrity proof |
 | `feature_flags` | `flag_key`, `flag_type`, `description`, `owner_entry_id`, `default_state`, `rollout_json`, `expires_at`, `removal_ticket`, `updated_at` | Partial-route migrations, kill switches, and risky-phase rollout controls |
+
+### Metadata Extension Tables
+
+| Table | Required columns | Notes |
+|---|---|---|
+| `custom_property_definitions` | `definition_id`, `name`, `display_name`, `description`, `data_type`, `cardinality`, `allowed_values_json`, `default_value_json`, `applies_to_json`, `validation_json`, `status`, `expected_version`, `created_at`, `updated_at` | Schema-driven custom-property definitions and applicability rules |
+| `custom_property_definition_versions` | `definition_version_id`, `definition_id`, `version`, `snapshot_json`, `diff_json`, `changed_by_entry_id`, `changed_at`, `change_note` | Version history for custom-property definitions |
+| `custom_property_assignments` | `assignment_id`, `definition_id`, `entity_id`, `entity_fqn_snapshot`, `column_name`, `value_json`, `coercion_state`, `created_at`, `updated_at`, `removed_at` | Entity- and column-scoped assignments with validation/coercion outcome tracking |
 
 ### Governance Kernel Tables
 
@@ -1333,14 +1704,20 @@ Implementation-lock rules:
 | Table | Required columns | Notes |
 |---|---|---|
 | `classifications` | `classification_id`, `name`, `description`, `owner_entry_id`, `status`, `source`, `created_at`, `updated_at` | Taxonomy roots |
+| `classification_versions` | `classification_version_id`, `classification_id`, `version`, `snapshot_json`, `diff_json`, `changed_by_entry_id`, `changed_at`, `change_note` | Version history for taxonomy-level edits |
 | `classification_terms` | `classification_term_id`, `classification_id`, `parent_term_id`, `name`, `display_name`, `description`, `sensitivity_rank`, `recommendation_source`, `status`, `version`, `created_at`, `updated_at` | Supports Databricks-derived recommendations plus manual approval |
+| `classification_term_versions` | `classification_term_version_id`, `classification_term_id`, `version`, `snapshot_json`, `diff_json`, `changed_by_entry_id`, `changed_at`, `change_note` | Reviewable version history for taxonomy terms |
 | `classification_assignments` | `assignment_id`, `classification_term_id`, `entity_id`, `entity_fqn_snapshot`, `column_name`, `source`, `status`, `created_at`, `updated_at`, `removed_at` | Explicit classification assignment truth for assets and columns |
 | `classification_recommendations` | `recommendation_id`, `classification_term_id`, `entity_id`, `entity_fqn_snapshot`, `column_name`, `source`, `evidence_redaction_state`, `evidence_json`, `status`, `created_at`, `updated_at` | Privileged recommendation rows; evidence stays redacted by default |
 | `classification_recommendation_reviews` | `review_id`, `recommendation_id`, `reviewer_entry_id`, `decision`, `comment`, `created_at` | Acceptance or rejection history for recommendations |
 | `domains` | `domain_id`, `name`, `description`, `owner_entry_id`, `reviewer_entry_id`, `status`, `source`, `created_at`, `updated_at` | Governed entity, not just a UC tag |
+| `domain_versions` | `domain_version_id`, `domain_id`, `version`, `snapshot_json`, `diff_json`, `changed_by_entry_id`, `changed_at`, `change_note` | Versioned change context for domains |
 | `domain_asset_links` | `domain_asset_link_id`, `domain_id`, `entity_id`, `entity_fqn_snapshot`, `created_at`, `updated_at`, `removed_at` | Domain membership and browse grouping |
 | `data_products` | `data_product_id`, `domain_id`, `name`, `description`, `owner_entry_id`, `reviewer_entry_id`, `lifecycle_state`, `source`, `created_at`, `updated_at` | Governed entity with collections |
+| `data_product_versions` | `data_product_version_id`, `data_product_id`, `version`, `snapshot_json`, `diff_json`, `changed_by_entry_id`, `changed_at`, `change_note` | Versioned change context for data products |
 | `data_product_asset_links` | `data_product_asset_link_id`, `data_product_id`, `entity_id`, `entity_fqn_snapshot`, `created_at`, `updated_at`, `removed_at` | Data-product membership and browse grouping |
+| `logical_column_groups` | `group_id`, `canonical_name`, `display_name`, `match_rule`, `scope_json`, `status`, `created_by_entry_id`, `created_at`, `updated_at` | Durable logical-column grouping key for bulk governance surfaces |
+| `logical_column_group_members` | `group_member_id`, `group_id`, `entity_id`, `entity_fqn_snapshot`, `column_name`, `membership_source`, `confidence`, `created_at`, `updated_at`, `removed_at` | Steward-approved or heuristically proposed group membership; authoritative bulk scope comes from active members only |
 | `governance_bulk_batches` | `batch_id`, `batch_type`, `created_by_entry_id`, `scope_json`, `status`, `created_at`, `updated_at` | Phase 16 launches batch types needed for column bulk operations; later phases expand allowed batch families |
 | `governance_bulk_items` | `batch_item_id`, `batch_id`, `entity_id`, `entity_fqn_snapshot`, `column_name`, `requested_payload_json`, `status`, `resolution_json`, `updated_at` | Bulk review and apply items; unique active item rule must be enforced per `batch_id + entity_id + column_name` |
 
@@ -1370,10 +1747,15 @@ Implementation-lock rules:
 
 | Table | Required columns | Notes |
 |---|---|---|
+| `quality_test_definitions` | `definition_id`, `name`, `display_name`, `description`, `definition_type`, `sql_template`, `parameter_schema_json`, `result_schema_json`, `default_severity`, `status`, `owner_entry_id`, `expected_version`, `created_at`, `updated_at` | Persisted reusable quality test library entry |
+| `quality_test_definition_versions` | `definition_version_id`, `definition_id`, `version`, `snapshot_json`, `diff_json`, `changed_by_entry_id`, `changed_at`, `change_note` | Version history for reusable quality definitions |
+| `profile_runs` | `profile_run_id`, `entity_id`, `entity_fqn_snapshot`, `triggered_by_entry_id`, `trigger_type`, `execution_state`, `observed_at`, `started_at`, `finished_at`, `cost_json`, `statement_ids_json`, `stale_after` | Durable envelope for table and column profile collection |
+| `profile_table_metrics` | `profile_table_metric_id`, `profile_run_id`, `entity_id`, `metric_family`, `metric_value_json`, `observed_at`, `created_at` | Persisted table-profile metric snapshots |
+| `profile_column_metrics` | `profile_column_metric_id`, `profile_run_id`, `entity_id`, `column_name`, `metric_family`, `metric_value_json`, `redaction_state`, `observed_at`, `created_at` | Persisted column-profile metric snapshots |
 | `quality_suites` | `suite_id`, `entity_id`, `entity_fqn_snapshot`, `scope_type`, `name`, `description`, `owner_entry_id`, `created_at`, `updated_at` | Suite/group container |
-| `quality_test_cases` | `test_case_id`, `suite_id`, `entity_id`, `entity_fqn_snapshot`, `column_name`, `template_type`, `params_json`, `threshold_json`, `severity`, `enabled`, `expected_version`, `created_at`, `updated_at` | Parameterized test definitions; natural-key uniqueness must be defined per suite/entity/column/template |
+| `quality_test_cases` | `test_case_id`, `suite_id`, `definition_id`, `entity_id`, `entity_fqn_snapshot`, `column_name`, `params_json`, `threshold_json`, `severity`, `enabled`, `expected_version`, `created_at`, `updated_at` | Parameterized applications of reusable test definitions; natural-key uniqueness must be defined per suite/entity/column/definition |
 | `quality_runs` | `run_id`, `suite_id`, `entity_id`, `entity_fqn_snapshot`, `triggered_by_entry_id`, `trigger_type`, `execution_state`, `observed_at`, `started_at`, `finished_at`, `cost_json`, `statement_ids_json`, `stale_after` | Execution envelope |
-| `quality_run_results` | `result_id`, `run_id`, `test_case_id`, `entity_id`, `column_name`, `status`, `metric_value_json`, `evidence_json`, `redaction_state`, `created_at` | Renderable quality/profile results |
+| `quality_run_results` | `result_id`, `run_id`, `test_case_id`, `entity_id`, `column_name`, `status`, `metric_value_json`, `evidence_json`, `redaction_state`, `created_at` | Renderable quality results; profile persistence lives in the dedicated `profile_*` tables rather than as an implicit subtype only |
 | `quality_alerts` | `alert_id`, `entity_id`, `entity_fqn_snapshot`, `test_case_id`, `run_id`, `severity`, `status`, `dedupe_key`, `opened_at`, `acknowledged_at`, `resolved_at`, `actor_entry_id` | Alert state machine; active-alert dedupe key must be unique among open alerts |
 
 ### Governance Scale Tables
@@ -1406,6 +1788,9 @@ Implementation-lock rules:
     notifications, and other background consumers
   - `metadata_audit_log` remains the immutable compliance ledger; consumers may
     not substitute `activity_events` or notifications for audit truth
+- metadata extension tables:
+  - custom-property definitions and assignments preserve schema-driven
+    validation, version history, and audit continuity
 - corpus/projection tables:
   - `entity_summary_projection` is the required read model for entity hero
     workflow counters
@@ -1416,8 +1801,16 @@ Implementation-lock rules:
   - `quality_alert_projection` is the required read model for entity alert
     badges and summary chips
 - quality tables:
+  - `quality_test_definitions` and
+    `quality_test_definition_versions` are the durable reusable-test library
+    contract; test cases may not collapse the library into per-asset rows
+  - `profile_runs`, `profile_table_metrics`, and `profile_column_metrics` are
+    the durable profile-snapshot contract for the profile tab
   - `quality_runs` and `quality_run_results` define retention/compaction and
     evidence redaction policy before first production run
+- governance breadth tables:
+  - `logical_column_groups` and `logical_column_group_members` are the durable
+    grouping contract for column bulk operations and inconsistency review
 - background-work and export tables:
   - export artifacts expire and require download re-authorization
   - work items, runs, and dead letters must preserve enough payload context for
@@ -1463,8 +1856,31 @@ Implementation-lock rules:
 - `/entity/:fqn`
 - `/lineage/:fqn`
 - `/governance`
+- `/classifications`
+- `/classifications/:classificationId`
+- `/classifications/:classificationId/terms/:termId`
+- `/domains`
+- `/domains/:domainId`
+- `/data-products`
+- `/data-products/:dataProductId`
+- `/metrics`
+- `/metrics/:metricId`
+- `/contracts`
+- `/contracts/:contractId`
+- `/governance/columns/:groupId`
 - `/glossary/:glossaryId`
 - `/glossary/:glossaryId/terms/:termId`
+
+Rules:
+
+- breadth and scale routes are declared now to lock the information
+  architecture even when the backing surfaces land in later phases
+- no governance-breadth or governance-scale entity may remain reachable only
+  through a generic `/governance` list or modal once its phase claims are
+  expanded
+- inbox items, notifications, and right-rail actions must resolve to one
+  canonical target route or an explicitly degraded target preview; they may not
+  invent ad hoc destination patterns per surface
 
 ### Config injection
 
@@ -1504,6 +1920,27 @@ Implementation-lock rules:
   `__MACOSX`, `.DS_Store`, `.venv`, `node_modules`, `__pycache__`, test caches,
   and removed legacy folders
 
+## Bootstrap v2 Contract
+
+- bootstrap is a shell and capability contract, not a hidden page-data API
+- bootstrap may include only:
+  - shell identity and actor context
+  - role and workspace capability flags
+  - build ID and safe diagnostics metadata
+  - canonical route hints and API contract hints
+  - feature-flag inventory needed to render the shell truthfully
+  - bounded first-render defaults that are explicitly safe and lightweight
+- bootstrap may not become the transport for:
+  - heavy discovery result sets
+  - governance summaries
+  - seeded lineage graphs
+  - quality/profile evidence
+  - request-scoped runtime data that would make the payload non-shareable
+  - large live counts that violate the bootstrap budget
+- if a surface needs first-render seed data beyond the shell contract, that
+  seed must be explicitly justified, bounded, removable, and separately tested
+  against the bootstrap budget
+
 ## Install / Setup Wizard
 
 - first-run setup must validate the workspace before the product claims any
@@ -1515,6 +1952,12 @@ Implementation-lock rules:
   - Databricks user authorization/OBO availability
   - Unity Catalog inventory and lineage readability
   - operational-plane/query-history availability where claimed
+  - validated safe sharing path for non-admin query, usage, and workload
+    surfaces:
+    - actor-scoped OBO
+    - validated dynamic-view plane
+    - warehouse `CAN VIEW` plus downstream visibility rules
+    - or explicit disable
   - background work runner availability
   - export staging and artifact-delivery prerequisites
   - transaction eligibility probe
@@ -1537,6 +1980,8 @@ Implementation-lock rules:
 - required diagnostics coverage:
   - current auth mode and OBO status
   - workspace capability probe results
+  - validated operational sharing path or explicit absence for non-admin query
+    and workload surfaces
   - governance store health
   - background work queue depth, failures, retries, and dead letters
   - corpus freshness and invalidation status
@@ -1548,6 +1993,18 @@ Implementation-lock rules:
   tokens, or protected evidence values
 - diagnostics may surface build ID, request IDs, and recent probe timestamps,
   but not raw credential material
+
+## Audit Log Product Surface
+
+- `metadata_audit_log` is not storage-only forever; post-parity admin and
+  compliance workflows require a real audit surface
+- planned surface capabilities:
+  - browser with filtering by actor, entity, operation family, and time window
+  - retention and export visibility
+  - operator-safe export/report generation
+  - provenance labels that distinguish audit rows from activity feed entries
+- audit-log browsing/export is not parity-core, but it is required before
+  enterprise auditability claims expand beyond storage semantics alone
 
 ## Feature Flag / Rollout Model
 
@@ -1620,6 +2077,17 @@ Rules:
   `steward` or `admin`
 - every mutation persists actor identity into audit rows
 - impersonation is not trusted from arbitrary client input
+- parity-core ships with these four global roles, but governance breadth and
+  scale must plan for scoped stewardship and approval grants rather than
+  relying on global roles forever
+- likely phase-16+ scoped permission families include:
+  - domain stewardship
+  - data-product review
+  - glossary review
+  - classification stewardship
+  - contract approval
+  - export approval
+  - quality administration
 
 ## Identity Directory Contract
 
@@ -1697,6 +2165,72 @@ Rules:
 - reviewer inheritance, override, and quorum or approval-mode fulfillment must
   be modeled explicitly and tested
 
+### Classification taxonomies and terms
+
+- taxonomy roots:
+  - `draft`
+  - `active`
+  - `deprecated`
+  - `archived`
+- taxonomy terms:
+  - `draft`
+  - `in_review`
+  - `approved`
+  - `rejected`
+  - `deprecated`
+- material taxonomy or term edits append version history, audit rows, and
+  activity events
+- recommendation accept or reject decisions append review history with actor,
+  comment, evidence state, and resulting metadata effect
+- reviewer or steward semantics must be explicit before classification
+  browse/detail surfaces claim parity breadth
+
+### Domains and data products
+
+- lifecycle states:
+  - `draft`
+  - `in_review`
+  - `active`
+  - `deprecated`
+  - `archived`
+- owner, reviewer, asset-membership, and state changes append version and
+  activity history automatically
+- material edits do not silently overwrite the last approved snapshot in place
+- previews and detail surfaces render owner, reviewer, membership counts,
+  history, and provenance as first-class workflow state
+
+### Metrics
+
+- states:
+  - `draft`
+  - `in_review`
+  - `approved`
+  - `deprecated`
+  - `superseded`
+- metric version promotion requires reviewer approval semantics and preserves
+  prior approved definitions
+- metric detail and history surfaces render definition changes, related assets,
+  owner or reviewer changes, and provenance
+
+### Data contracts
+
+- states:
+  - `draft`
+  - `in_review`
+  - `approved`
+  - `active`
+  - `superseded`
+  - `deprecated`
+- contract versions preserve:
+  - schema section
+  - semantic section
+  - quality section
+  - SLA or expectation section
+- contract approval, activation, supersession, and deprecation append version,
+  audit, and activity history automatically
+- contract run outcomes render as execution history tied to the active or
+  historical contract version; they do not silently mutate contract state
+
 ### Lineage overrides
 
 - states:
@@ -1751,6 +2285,9 @@ Rules:
   - thread participants
 - every event stores actor, timestamp, affected entity identity, and any
   required comment or review note
+- parity-core collaboration claims stop at workflow collaboration core:
+  `@user/team` and `#asset` mention parity are explicitly deferred until later
+  phases
 
 ## Notification Model
 
@@ -1781,6 +2318,11 @@ Rules:
 - read/unread and badge behavior:
   - inbox state, seen state, read state, and dismissal are persisted
   - badge counts derive from unread receipts, not from raw event totals
+- target resolution:
+  - every inbox or notification item stores the canonical target route or an
+    explicit degraded target reference
+  - notification clicks may not dead-end on a generic governance shell when a
+    first-class target route exists
 - suppression and preferences:
   - recipients can mute by event family and scope where policy allows
   - suppression never drops required audit/event rows
@@ -2023,10 +2565,30 @@ Instrumentation requirements:
 - surface drift warnings in the UI and operator diagnostics
 - no automatic reconciliation may silently drop user-entered governance state
 
+## Quality Test Definition Library Contract
+
+- the reusable quality test library is a persisted, administrable entity set,
+  not only a code-backed template catalog
+- required persisted concepts:
+  - quality test definitions
+  - version history for definitions
+  - parameter schema
+  - result schema
+  - default severity or execution hints
+- test cases bind entities or columns to reusable definitions; suites group
+  test cases, not the other way around
+- quality-definition admin surfaces require canonical routes and history before
+  the library may be described as user-managed
+- if a future implementation chooses a code-backed-only catalog instead, the
+  product claim must narrow explicitly and the persisted library language must
+  be removed
+
 ## Quality Core Contract
 
 - reusable test-definition library with explicit template types and parameter
   rules
+- table profile and column profile are distinct first-class persisted surfaces,
+  not only derived views over quality results
 - suite/group model for table and column tests
 - threshold semantics and pass/warn/fail normalization
 - normalized result model for entity quality/profile rendering
@@ -2451,6 +3013,16 @@ Master backlog rules:
   - metrics, data contracts, and bulk governance workflows are real or formally
     excluded with narrowed claims
 
+### Audit and compliance
+
+- likely files:
+  - audit-log services and admin routes
+  - operator/compliance UI surfaces
+  - export/report tooling
+- done when:
+  - audit-log browser, filtering, retention truth, and export are real
+  - auditability claims are backed by product surfaces, not only storage
+
 ### Lineage
 
 - likely files:
@@ -2523,6 +3095,9 @@ Required first post-parity differentiators:
 - system-table health diagnostics for operational and metadata planes
 - capability-gated classification recommendations sourced from Databricks
   classification detections
+- classification result to steward review to approved metadata to suggested
+  policy or remediation action loop, with policy actions remaining explicit and
+  non-automatic until their own contract lands
 - Delta/UC-specific governance insights that surface ownership, policy,
   freshness, and evidence gaps
 

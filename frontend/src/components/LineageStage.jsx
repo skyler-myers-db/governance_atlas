@@ -1,5 +1,7 @@
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
+import { SurfaceHeader, SurfaceTabs } from "./ShellLayoutPrimitives";
 import LineageGraph from "./LineageGraph";
+import { EmptyStateBlock, InlineStatusBanner } from "./ShellStatePrimitives";
 
 function selectGraph(graphBundle, context) {
   if (!graphBundle) return null;
@@ -52,6 +54,7 @@ export default function LineageStage({
   authoritative = true,
   provisional = false,
   context,
+  linkedRecordUnavailableOverrides = {},
   onContextChange,
   onOpenGovernance,
   onSelectAsset,
@@ -81,81 +84,68 @@ export default function LineageStage({
     <section className={`gh-lineage-stage-shell ${embedded ? "is-embedded" : "is-full"}`}>
       <section className="gh-lineage-graph-panel gh-lineage-graph-stage">
         {showTopbar ? (
-          <div className="gh-lineage-stage-topbar">
-            <div className="gh-lineage-stage-topbar-main">
-              <div className="gh-panel-title">{context}</div>
-              <div className="gh-lineage-headbar-title">{asset.name}</div>
-              <div className="gh-lineage-headbar-meta">
-                <span>{assetPathLabel(asset)}</span>
-                {displayObjectType(asset) ? <span>{displayObjectType(asset)}</span> : null}
-                {context === "Data Lineage" ? (
-                  <>
-                    <span>{stats.upstreamCount || 0} upstream</span>
-                    <span>{stats.downstreamCount || 0} downstream</span>
-                  </>
-                ) : (
-                  <>
-                    <span>{stats.operationalProducerCount || 0} producers</span>
-                    <span>{stats.operationalConsumerCount || 0} consumers</span>
-                  </>
-                )}
-                {stats.generatedAt ? <span>{stats.generatedAt}</span> : null}
-                {context === "Data Lineage" && (truncated.upstream || truncated.downstream || truncated.columnLineage) ? (
-                  <span>
-                    Limited to {limits.tableLineage || "?"} table edges. Column lineage may be partial or unavailable in this workspace.
-                  </span>
-                ) : null}
-                {context === "Operational Context" && (truncated.operationalProducers || truncated.operationalConsumers) ? (
-                  <span>Limited to {limits.operationalContext || "?"} operational records per direction</span>
-                ) : null}
-              </div>
-            </div>
-            <div className="gh-lineage-stage-topbar-actions">
-              <div className="gh-segment-row gh-lineage-context-switch">
-                {["Data Lineage", "Operational Context"].map((option) => (
-                  <button
-                    className={`gh-segment-button ${context === option ? "is-active" : ""}`}
-                    key={option}
-                    onClick={() => onContextChange?.(option)}
-                    type="button"
-                  >
-                    {option}
+          <SurfaceHeader
+            className="gh-lineage-stage-topbar"
+            eyebrow={context}
+            identity={assetPathLabel(asset)}
+            meta={[
+              displayObjectType(asset) || null,
+              context === "Data Lineage"
+                ? `${stats.upstreamCount || 0} upstream`
+                : `${stats.operationalProducerCount || 0} producers`,
+              context === "Data Lineage"
+                ? `${stats.downstreamCount || 0} downstream`
+                : `${stats.operationalConsumerCount || 0} consumers`,
+              stats.generatedAt || null,
+              context === "Data Lineage" && (truncated.upstream || truncated.downstream || truncated.columnLineage)
+                ? `Limited to ${limits.tableLineage || "?"} table edges. Column lineage may be partial or unavailable in this workspace.`
+                : null,
+              context === "Operational Context" && (truncated.operationalProducers || truncated.operationalConsumers)
+                ? `Limited to ${limits.operationalContext || "?"} operational records per direction`
+                : null,
+            ]}
+            title={asset.name}
+            actions={(
+              <div className="gh-lineage-stage-topbar-actions">
+                <SurfaceTabs
+                  activeKey={context}
+                  ariaLabel="Lineage context"
+                  className="gh-lineage-context-switch"
+                  items={["Data Lineage", "Operational Context"].map((option) => ({
+                    key: option,
+                    label: option,
+                  }))}
+                  onChange={(nextContext) => onContextChange?.(nextContext)}
+                  variant="segment"
+                />
+                {embedded && onOpenFullGraph ? (
+                  <button className="gh-secondary-button" onClick={() => onOpenFullGraph(context)} type="button">
+                    Open Full Graph
                   </button>
-                ))}
+                ) : null}
               </div>
-              {embedded && onOpenFullGraph ? (
-                <button className="gh-secondary-button" onClick={() => onOpenFullGraph(context)} type="button">
-                  Open Full Graph
-                </button>
-              ) : null}
-            </div>
-          </div>
+            )}
+          />
         ) : null}
-        {notice ? (
-          <div className="gh-inline-alert tone-warn">
-            <div>{notice}</div>
-          </div>
-        ) : null}
+        {notice ? <InlineStatusBanner message={notice} title="Navigation limited" /> : null}
         {provisional ? (
-          <div className="gh-inline-alert tone-warn gh-lineage-inline-warning">
-            <div className="gh-inline-alert-title">Live lineage still loading</div>
-            <div>
-              {authoritative
+          <InlineStatusBanner
+            className="gh-lineage-inline-warning"
+            message={
+              authoritative
                 ? "Showing cached live lineage while the graph refresh completes."
-                : "Showing provisional lineage context until the authoritative graph resolves."}
-            </div>
-          </div>
+                : "Showing provisional lineage context until the authoritative graph resolves."
+            }
+            title="Live lineage still loading"
+          />
         ) : null}
         <div className="gh-lineage-stage-canvas">
-        {loading && !hasGraph ? (
-          <div className="gh-empty-state">Loading lineage graph…</div>
+          {loading && !hasGraph ? (
+            <EmptyStateBlock message="Loading lineage graph…" title="Refreshing graph" />
           ) : hasGraph || overlay ? (
             <>
               {error ? (
-                <div className="gh-inline-alert tone-warn gh-lineage-inline-warning">
-                  <div className="gh-inline-alert-title">Lineage refresh degraded</div>
-                  <div>{error}</div>
-                </div>
+                <InlineStatusBanner className="gh-lineage-inline-warning" message={error} title="Lineage refresh degraded" />
               ) : null}
               <LineageGraph
                 asset={asset}
@@ -168,6 +158,7 @@ export default function LineageStage({
                 lineagePayload={lineagePayload}
                 graph={graph || emptyGraph}
                 hasEdges={hasEdges}
+                linkedRecordUnavailableOverrides={linkedRecordUnavailableOverrides}
                 onAssetSearchQueryChange={onAssetSearchQueryChange}
                 onContextChange={onContextChange}
                 onOpenAsset={onOpenAsset}
@@ -177,13 +168,16 @@ export default function LineageStage({
               />
             </>
           ) : error ? (
-            <div className="gh-empty-state">{error}</div>
+            <EmptyStateBlock message={error} title="Lineage unavailable" />
           ) : (
-            <div className="gh-empty-state">
-              {context === "Operational Context"
-                ? "No operational entities are currently connected to this asset."
-                : "No connected lineage edges are available for this asset yet."}
-            </div>
+            <EmptyStateBlock
+              message={
+                context === "Operational Context"
+                  ? "No operational entities are currently connected to this asset."
+                  : "No connected lineage edges are available for this asset yet."
+              }
+              title={context === "Operational Context" ? "No operational context" : "No connected lineage"}
+            />
           )}
         </div>
       </section>

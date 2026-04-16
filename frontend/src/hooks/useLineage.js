@@ -47,20 +47,6 @@ function setCachedLineage(assetFqn, payload) {
   return normalized;
 }
 
-function seededLineagePayload(assetFqn, seededGraph) {
-  if (!assetFqn || !seededGraph) return null;
-  return normalizeCanonicalPayload(
-    assetFqn,
-    {
-      graphs: seededGraph,
-    },
-    {
-      authoritative: false,
-      source: "seeded",
-    },
-  );
-}
-
 export function primeLineagePayload(assetFqn, payload) {
   return setCachedLineage(assetFqn, payload);
 }
@@ -88,11 +74,7 @@ export function prefetchLineage(assetFqn, options = {}) {
     .catch(() => readCachedLineage(assetFqn, { maxAgeMs: null }) || null);
 }
 
-export function useLineage(assetFqn, seededGraph = null, enabled = true) {
-  const seededPayload = useMemo(
-    () => seededLineagePayload(assetFqn, seededGraph),
-    [assetFqn, seededGraph],
-  );
+export function useLineage(assetFqn, enabled = true) {
   const cachedPayload = useMemo(
     () => readCachedLineage(assetFqn, { maxAgeMs: null }),
     [assetFqn],
@@ -103,7 +85,6 @@ export function useLineage(assetFqn, seededGraph = null, enabled = true) {
     enabled: Boolean(assetFqn) && enabled,
     staleTime: LINEAGE_CACHE_TTL_MS,
     queryFn: ({ signal }) => fetchLineage(assetFqn, { signal }),
-    placeholderData: seededPayload || undefined,
   });
 
   if (!assetFqn) {
@@ -117,10 +98,7 @@ export function useLineage(assetFqn, seededGraph = null, enabled = true) {
     };
   }
 
-  const payload =
-    query.data ||
-    cachedPayload ||
-    ((!enabled || query.isPending || query.isFetching || query.isError) ? seededPayload : null);
+  const payload = query.data || cachedPayload || null;
   const authoritative = Boolean(payload && payload.authoritative !== false);
   const provisional = Boolean(payload) && !authoritative;
 

@@ -20,7 +20,7 @@ describe("useLineage", () => {
     govhubQueryClient.clear();
   });
 
-  it("keeps seeded lineage provisional until the live payload resolves", async () => {
+  it("starts without provisional seeded lineage and resolves to the live payload", async () => {
     fetchLineageMock.mockResolvedValue({
       fqn: "main.sales.orders",
       graphs: {
@@ -31,24 +31,17 @@ describe("useLineage", () => {
       },
     });
 
-    const seededGraph = {
-      data: {
-        nodes: [{ id: "seed", assetFqn: "main.sales.orders" }],
-        edges: [],
-      },
-    };
-
     const { result } = renderHook(
-      () => useLineage("main.sales.orders", seededGraph, true),
+      () => useLineage("main.sales.orders", true),
       {
         wrapper: Wrapper,
       },
     );
 
-    expect(result.current.graph).toEqual(seededGraph);
+    expect(result.current.graph).toBe(null);
     expect(result.current.loading).toBe(true);
     expect(result.current.authoritative).toBe(false);
-    expect(result.current.provisional).toBe(true);
+    expect(result.current.provisional).toBe(false);
 
     await waitFor(() => {
       expect(fetchLineageMock).toHaveBeenCalledTimes(1);
@@ -93,9 +86,9 @@ describe("useLineage", () => {
     });
 
     const { result, rerender } = renderHook(
-      ({ assetFqn, seededGraph }) => useLineage(assetFqn, seededGraph, true),
+      ({ assetFqn, enabled }) => useLineage(assetFqn, enabled),
       {
-        initialProps: { assetFqn: "main.sales.orders", seededGraph: null },
+        initialProps: { assetFqn: "main.sales.orders", enabled: true },
         wrapper: Wrapper,
       },
     );
@@ -104,7 +97,7 @@ describe("useLineage", () => {
       expect(result.current.graph?.data?.nodes?.[0]?.id).toBe("orders");
     });
 
-    rerender({ assetFqn: "main.sales.customers", seededGraph: null });
+    rerender({ assetFqn: "main.sales.customers", enabled: true });
 
     expect(result.current.loading).toBe(true);
     expect(result.current.graph).toBe(null);
