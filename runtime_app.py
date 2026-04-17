@@ -6,6 +6,7 @@ import json
 import logging
 import math
 import os
+import threading
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -50,7 +51,9 @@ if not LOGGER.handlers:
     _handler.setFormatter(logging.Formatter("%(message)s"))
     LOGGER.addHandler(_handler)
 LOGGER.setLevel(
-    getattr(logging, os.getenv("GOVHUB_LOG_LEVEL", "INFO").strip().upper(), logging.INFO)
+    getattr(
+        logging, os.getenv("GOVHUB_LOG_LEVEL", "INFO").strip().upper(), logging.INFO
+    )
 )
 LOGGER.propagate = False
 
@@ -58,6 +61,7 @@ LOGGER.propagate = False
 @lru_cache(maxsize=1)
 def _frontend_bundle_metadata() -> Dict[str, Any]:
     return validate_frontend_bundle(ROOT)
+
 
 HELP_ITEMS = [
     {
@@ -157,7 +161,13 @@ async def request_diagnostics_middleware(request: Request, call_next):
 class _NullGovernanceStore:
     def list_owner_assignments(self) -> pd.DataFrame:
         return pd.DataFrame(
-            columns=["uc_full_name", "owner_email", "owner_type", "updated_at", "updated_by"]
+            columns=[
+                "uc_full_name",
+                "owner_email",
+                "owner_type",
+                "updated_at",
+                "updated_by",
+            ]
         )
 
     def list_change_requests(
@@ -264,6 +274,7 @@ class _NullGovernanceStore:
     def get_role(self, email: str, admin_emails: Optional[List[str]] = None) -> str:
         return "reader"
 
+
 _normalize_str = asset_service.normalize_str
 _split_uc_name = asset_service.split_uc_name
 _catalog_filter_options = asset_service.catalog_filter_options
@@ -318,7 +329,9 @@ def _uc_runtime_status() -> Dict[str, Any]:
             return {
                 "state": "live",
                 "message": "",
-                "catalogCount": int(len(catalogs.index)) if isinstance(catalogs, pd.DataFrame) else 0,
+                "catalogCount": int(len(catalogs.index))
+                if isinstance(catalogs, pd.DataFrame)
+                else 0,
                 "client": uc.runtime_context(),
             }
         except Exception as exc:
@@ -330,7 +343,35 @@ def _uc_runtime_status() -> Dict[str, Any]:
                 "client": _uc().runtime_context() if _uc.cache_info().currsize else {},
             }
 
-    return _ttl_value("runtime_uc_status", 30, _loader)
+    return _ttl_value("runtime_uc_status", 300, _loader)
+
+
+def _uc_runtime_status_fast(background: bool = True) -> Dict[str, Any]:
+    """Non-blocking variant for bootstrap: return cached value if fresh, else an
+    optimistic "warming" payload and kick the real probe off in the background.
+
+    Serverless SQL warehouses can take 60–120 seconds to cold start. Blocking the
+    shell bootstrap on that probe makes the entire UI appear unresponsive for
+    minutes on first load. The honest per-surface status is still delivered via
+    /api/runtime/status, so we never lie to the user about actual capabilities.
+    """
+    cached = _TTL_CACHE.get("runtime_uc_status")
+    now = time.time()
+    if cached and now - cached[0] < 300:
+        return cached[1]
+    if background:
+        thread = threading.Thread(target=_uc_runtime_status, daemon=True)
+        thread.daemon = True
+        thread.start()
+    return {
+        "state": "loading",
+        "message": (
+            "Warming the Databricks SQL warehouse. Serverless warehouses take 30–90 "
+            "seconds to start after idle; capabilities will hydrate automatically."
+        ),
+        "catalogCount": 0,
+        "client": _uc().runtime_context() if _uc.cache_info().currsize else {},
+    }
 
 
 def _store_status() -> Dict[str, str]:
@@ -388,7 +429,9 @@ def _route_context(request: Request) -> Dict[str, str]:
         elif root in {"governance", "glossary"}:
             requested_surface = "governance"
     if requested_surface not in KNOWN_SURFACES:
-        requested_surface = requested_module if requested_module in KNOWN_SURFACES else ""
+        requested_surface = (
+            requested_module if requested_module in KNOWN_SURFACES else ""
+        )
     if requested_surface == "discovery":
         requested_asset = ""
     return {
@@ -406,9 +449,7 @@ def _user_email(request: Optional[Request]) -> str:
     if not callable(getter):
         return "unknown"
     email = (
-        getter("x-forwarded-email")
-        or getter("x-forwarded-preferred-username")
-        or ""
+        getter("x-forwarded-email") or getter("x-forwarded-preferred-username") or ""
     )
     return email.strip().lower() or "unknown"
 
@@ -457,10 +498,14 @@ def _http_request_id(request: Optional[Request]) -> str:
 
 
 def _build_id() -> str:
-    return _config().build_id or str(_frontend_bundle_metadata().get("buildId") or APP_VERSION)
+    return _config().build_id or str(
+        _frontend_bundle_metadata().get("buildId") or APP_VERSION
+    )
 
 
-def _set_response_diagnostics_headers(response, request_id: str, duration_ms: float) -> None:
+def _set_response_diagnostics_headers(
+    response, request_id: str, duration_ms: float
+) -> None:
     response.headers[REQUEST_ID_HEADER] = request_id
     response.headers[BUILD_ID_HEADER] = _build_id()
     response.headers[DURATION_HEADER] = f"{duration_ms:.1f}"
@@ -485,7 +530,9 @@ def _log_request_event(
     payload = {
         "event": "http_request",
         "httpRequestId": _http_request_id(request),
-        "clientRequestId": (request.headers.get(CLIENT_REQUEST_ID_HEADER) or "").strip(),
+        "clientRequestId": (
+            request.headers.get(CLIENT_REQUEST_ID_HEADER) or ""
+        ).strip(),
         "buildId": _build_id(),
         "method": request.method,
         "path": path,
@@ -562,7 +609,9 @@ def _future_iso(seconds: int) -> str:
 
 def _request_auth_mode(request: Optional[Request]) -> str:
     return capability_service.runtime_auth_mode(
-        authenticated=_user_email(request) != "unknown" if request is not None else False,
+        authenticated=_user_email(request) != "unknown"
+        if request is not None
+        else False,
         per_user_authorization=False,
     )
 
@@ -711,8 +760,11 @@ def _capabilities_payload(
     resolved_summary = summary or {}
     return capability_service.bootstrap_capabilities(
         actor_role=_user_role_slug(request) if request is not None else "reader",
-        authenticated=_user_email(request) != "unknown" if request is not None else False,
-        runtime_state=_normalize_str(resolved_runtime_status.get("state")) or "unavailable",
+        authenticated=_user_email(request) != "unknown"
+        if request is not None
+        else False,
+        runtime_state=_normalize_str(resolved_runtime_status.get("state"))
+        or "unavailable",
         runtime_message=_normalize_str(resolved_runtime_status.get("message")),
         store_state=_normalize_str(resolved_store_status.get("state")) or "unknown",
         store_message=_normalize_str(resolved_store_status.get("message")),
@@ -849,7 +901,9 @@ def _asset_visibility_record(
     request: Optional[Request] = None,
 ) -> Dict[str, Any]:
     try:
-        actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
+        actor_scoped = (
+            _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
+        )
         visible = _asset_is_visible(asset_fqn, request)
         exists = visible or (actor_scoped and _asset_exists(asset_fqn, request))
         if visible:
@@ -870,7 +924,8 @@ def _asset_visibility_record(
             "visible": False,
             "openable": False,
             "visibilityState": "unknown",
-            "reason": _normalize_str(exc) or "Asset visibility could not be determined.",
+            "reason": _normalize_str(exc)
+            or "Asset visibility could not be determined.",
         }
 
 
@@ -1008,9 +1063,13 @@ def _discovery_result_haystack(asset: Dict[str, Any]) -> str:
             if normalized_key:
                 tag_terms.append(normalized_key)
             if normalized_value:
-                tag_terms.extend([normalized_value, f"{normalized_key} {normalized_value}".strip()])
+                tag_terms.extend(
+                    [normalized_value, f"{normalized_key} {normalized_value}".strip()]
+                )
     else:
-        tag_terms = [_normalize_str(tag) for tag in asset.get("tags", []) if _normalize_str(tag)]
+        tag_terms = [
+            _normalize_str(tag) for tag in asset.get("tags", []) if _normalize_str(tag)
+        ]
     return " ".join(
         [
             _normalize_str(asset.get("name")),
@@ -1084,10 +1143,7 @@ def _facet_payload(
             continue
         counts[value] = counts.get(value, 0) + 1
     items = [{"value": all_label, "count": len(assets)}]
-    items.extend(
-        {"value": value, "count": counts[value]}
-        for value in sorted(counts)
-    )
+    items.extend({"value": value, "count": counts[value]} for value in sorted(counts))
     return items
 
 
@@ -1143,7 +1199,9 @@ def _sort_discovery_assets(
             reverse=True,
         )
     if normalized_sort == "Recently updated":
-        return sorted(assets, key=lambda asset: _normalize_str(asset.get("name")).lower())
+        return sorted(
+            assets, key=lambda asset: _normalize_str(asset.get("name")).lower()
+        )
     return sorted(assets, key=_best_match_key, reverse=True)
 
 
@@ -1239,7 +1297,8 @@ def _metadata_audit_column_snapshot(
         (
             record
             for record in column_records
-            if _normalize_str(record.get("name")).lower() == _normalize_str(column_name).lower()
+            if _normalize_str(record.get("name")).lower()
+            == _normalize_str(column_name).lower()
         ),
         None,
     )
@@ -1347,9 +1406,16 @@ def _graph_node_for_asset(
     row = _inventory_row(asset_fqn)
     label = _normalize_str(row.get("table_name")) or asset_fqn.split(".")[-1]
     subtitle = " / ".join(
-        part for part in [_normalize_str(row.get("table_catalog")), _normalize_str(row.get("table_schema"))] if part
+        part
+        for part in [
+            _normalize_str(row.get("table_catalog")),
+            _normalize_str(row.get("table_schema")),
+        ]
+        if part
     )
-    item_kind = kind or _friendly_table_type(row.get("table_type"), row.get("data_source_format"))
+    item_kind = kind or _friendly_table_type(
+        row.get("table_type"), row.get("data_source_format")
+    )
     footer = foot or [item_kind]
     return {
         "id": f"{role}-{asset_fqn}",
@@ -1366,7 +1432,9 @@ def _graph_node_for_asset(
     }
 
 
-def _stack_positions(count: int, *, x: int, top: int = 22, bottom: int = 78) -> List[Tuple[int, int]]:
+def _stack_positions(
+    count: int, *, x: int, top: int = 22, bottom: int = 78
+) -> List[Tuple[int, int]]:
     if count <= 0:
         return []
     if count == 1:
@@ -1407,7 +1475,8 @@ def _degraded_governance_payload(message: str) -> Dict[str, Any]:
         "glossary": [],
         "inbox": {
             "state": "degraded",
-            "message": _normalize_str(message) or "Governance inbox is unavailable while the control plane is degraded.",
+            "message": _normalize_str(message)
+            or "Governance inbox is unavailable while the control plane is degraded.",
             "unreadCount": 0,
             "items": [],
         },
@@ -1518,8 +1587,12 @@ def _bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
         )
         domains = _inventory_option_values(inventory, lambda row: row.get("domain"))
         tiers = _inventory_option_values(inventory, lambda row: row.get("tier"))
-        certifications = _inventory_option_values(inventory, lambda row: row.get("certification"))
-        sensitivities = _inventory_option_values(inventory, lambda row: row.get("sensitivity"))
+        certifications = _inventory_option_values(
+            inventory, lambda row: row.get("certification")
+        )
+        sensitivities = _inventory_option_values(
+            inventory, lambda row: row.get("sensitivity")
+        )
         governance_gaps = sum(
             1
             for _, row in inventory.iterrows()
@@ -1531,7 +1604,9 @@ def _bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
             if _normalize_str(row.get("certification"))
             and _normalize_str(row.get("certification")) != "Unassigned"
         )
-        owned_assets = sum(1 for _, row in inventory.iterrows() if asset_service.owner_entries(row))
+        owned_assets = sum(
+            1 for _, row in inventory.iterrows() if asset_service.owner_entries(row)
+        )
         return {
             "catalogs": visible_catalogs,
             "assetTypes": asset_types,
@@ -1599,7 +1674,9 @@ def _bootstrap_selected_asset_seed(
     try:
         inventory = _visible_assets(_request_cache_scope(request))
         if asset_service.asset_is_visible(inventory, normalized_fqn):
-            return asset_service.base_asset_payload(asset_service.inventory_row(inventory, normalized_fqn))
+            return asset_service.base_asset_payload(
+                asset_service.inventory_row(inventory, normalized_fqn)
+            )
     except Exception:
         return None
     return None
@@ -1646,18 +1723,47 @@ def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
             "bootMessage": boot_message,
             "apiBase": "/api",
             "discovery": {
-                "catalogs": ["All catalogs", *([selected_catalog] if selected_catalog else [])],
-                "domains": ["All domains", *([selected_domain] if selected_domain and selected_domain != "Unassigned" else [])],
-                "tiers": ["All tiers", *([selected_tier] if selected_tier and selected_tier != "Unassigned" else [])],
+                "catalogs": [
+                    "All catalogs",
+                    *([selected_catalog] if selected_catalog else []),
+                ],
+                "domains": [
+                    "All domains",
+                    *(
+                        [selected_domain]
+                        if selected_domain and selected_domain != "Unassigned"
+                        else []
+                    ),
+                ],
+                "tiers": [
+                    "All tiers",
+                    *(
+                        [selected_tier]
+                        if selected_tier and selected_tier != "Unassigned"
+                        else []
+                    ),
+                ],
                 "certifications": [
                     "All certifications",
-                    *([selected_certification] if selected_certification and selected_certification != "Unassigned" else []),
+                    *(
+                        [selected_certification]
+                        if selected_certification
+                        and selected_certification != "Unassigned"
+                        else []
+                    ),
                 ],
                 "sensitivities": [
                     "All sensitivities",
-                    *([selected_sensitivity] if selected_sensitivity and selected_sensitivity != "Unassigned" else []),
+                    *(
+                        [selected_sensitivity]
+                        if selected_sensitivity and selected_sensitivity != "Unassigned"
+                        else []
+                    ),
                 ],
-                "assetTypes": ["All types", *([selected_type] if selected_type else [])],
+                "assetTypes": [
+                    "All types",
+                    *([selected_type] if selected_type else []),
+                ],
                 "views": DISCOVERY_VIEWS,
                 "sortOptions": DISCOVERY_SORTS,
                 "defaultQuery": "",
@@ -1667,26 +1773,37 @@ def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
     }
     return _compose_bootstrap_payload(request, base_payload)
 
+
 def _compose_bootstrap_payload(
     request: Request,
     base_payload: Dict[str, Any],
 ) -> Dict[str, Any]:
     payload = base_payload.get("payload", base_payload)
     asset_pool = list(base_payload.get("_assetPool") or payload.get("assets") or [])
-    selected_fqn = _route_context(request)["asset"] or (asset_pool[0]["fqn"] if asset_pool else "")
-    if selected_fqn and not any(_normalize_str(asset.get("fqn")) == selected_fqn for asset in asset_pool):
+    selected_fqn = _route_context(request)["asset"] or (
+        asset_pool[0]["fqn"] if asset_pool else ""
+    )
+    if selected_fqn and not any(
+        _normalize_str(asset.get("fqn")) == selected_fqn for asset in asset_pool
+    ):
         selected_asset = _bootstrap_selected_asset_seed(request, selected_fqn)
         if selected_asset:
             asset_pool = [selected_asset, *asset_pool]
     seeded_assets = _bootstrap_seed_assets(asset_pool, selected_fqn=selected_fqn)
     asset_index = {asset["fqn"]: asset for asset in seeded_assets}
-    payload_without_legacy_graphs = {key: value for key, value in payload.items() if key != "graphs"}
+    payload_without_legacy_graphs = {
+        key: value for key, value in payload.items() if key != "graphs"
+    }
     summary = dict((payload.get("discovery") or {}).get("summary") or {})
     runtime_status = _uc_runtime_status()
-    store_status = _store_status() if runtime_status.get("state") == "live" else {
-        "state": "skipped",
-        "message": "Governance store check skipped until the SQL runtime recovers.",
-    }
+    store_status = (
+        _store_status()
+        if runtime_status.get("state") == "live"
+        else {
+            "state": "skipped",
+            "message": "Governance store check skipped until the SQL runtime recovers.",
+        }
+    )
     capabilities = _capabilities_payload(
         request,
         runtime_status=runtime_status,
@@ -1744,7 +1861,9 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
         seeded_assets = _bootstrap_seed_asset_pool(cache_scope)
 
         boot_state = "live" if store_status["state"] == "live" else "degraded"
-        boot_message = "" if store_status["state"] == "live" else store_status["message"]
+        boot_message = (
+            "" if store_status["state"] == "live" else store_status["message"]
+        )
         if int(summary.get("visibleAssets") or 0) <= 0:
             boot_state = "degraded"
             if not boot_message:
@@ -1761,8 +1880,14 @@ def _bootstrap_payload(request: Request) -> Dict[str, Any]:
                     "catalogs": ["All catalogs", *(summary.get("catalogs") or [])],
                     "domains": ["All domains", *(summary.get("domains") or [])],
                     "tiers": ["All tiers", *(summary.get("tiers") or [])],
-                    "certifications": ["All certifications", *(summary.get("certifications") or [])],
-                    "sensitivities": ["All sensitivities", *(summary.get("sensitivities") or [])],
+                    "certifications": [
+                        "All certifications",
+                        *(summary.get("certifications") or []),
+                    ],
+                    "sensitivities": [
+                        "All sensitivities",
+                        *(summary.get("sensitivities") or []),
+                    ],
                     "assetTypes": ["All types", *(summary.get("assetTypes") or [])],
                     "views": DISCOVERY_VIEWS,
                     "sortOptions": DISCOVERY_SORTS,
@@ -2037,7 +2162,9 @@ def _apply_column_tags(
         for key, value in tags.items()
         if _normalize_str(key) and _normalize_str(value)
     }
-    current_tags = _normalized_tag_map(_uc().get_column_tags(catalog, schema, table, column_name))
+    current_tags = _normalized_tag_map(
+        _uc().get_column_tags(catalog, schema, table, column_name)
+    )
     to_unset = [key for key in current_tags if key not in normalized_tags]
     to_set = {
         key: value
@@ -2062,17 +2189,23 @@ def _apply_column_tags(
             to_set,
             table_type=table_type,
         )
-    applied_tags = _normalized_tag_map(_uc().get_column_tags(catalog, schema, table, column_name))
+    applied_tags = _normalized_tag_map(
+        _uc().get_column_tags(catalog, schema, table, column_name)
+    )
     store = _store()
     linked_terms = store.replace_glossary_term_links(
         subject_type="column",
         subject_fqn=asset_fqn,
         column_name=column_name,
-        links=[normalized_tags["glossary_term"]] if normalized_tags.get("glossary_term") else [],
+        links=[normalized_tags["glossary_term"]]
+        if normalized_tags.get("glossary_term")
+        else [],
         updated_by=updated_by,
         source="uc_tag",
     )
-    if normalized_tags.get("glossary_term") and not any(link.get("resolutionState") == "linked" for link in linked_terms):
+    if normalized_tags.get("glossary_term") and not any(
+        link.get("resolutionState") == "linked" for link in linked_terms
+    ):
         applied_tags["glossary_term_resolution"] = "unresolved"
     return applied_tags
 
@@ -2088,7 +2221,11 @@ def _asset_availability_payload(
     asset_fqns: List[str],
     request: Optional[Request] = None,
 ) -> Dict[str, Any]:
-    unique_assets = [asset_fqn for asset_fqn in dict.fromkeys(asset_fqns or []) if _normalize_str(asset_fqn)]
+    unique_assets = [
+        asset_fqn
+        for asset_fqn in dict.fromkeys(asset_fqns or [])
+        if _normalize_str(asset_fqn)
+    ]
     availability: Dict[str, Dict[str, Any]] = {}
     warnings: List[str] = []
     actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
@@ -2175,8 +2312,12 @@ def _shell_feature_flags_payload(
         if resolved_reason:
             payload["reason"] = resolved_reason
         if not enabled or state == "unavailable":
-            payload["disabledReason"] = resolved_reason or "This capability is unavailable."
-            payload["unavailableReason"] = resolved_reason or "This capability is unavailable."
+            payload["disabledReason"] = (
+                resolved_reason or "This capability is unavailable."
+            )
+            payload["unavailableReason"] = (
+                resolved_reason or "This capability is unavailable."
+            )
         return payload
 
     diagnostics_reason = (
@@ -2225,9 +2366,12 @@ def _shell_payload(
     }
     capabilities = capability_service.bootstrap_capabilities(
         actor_role=_lightweight_user_role_slug(request),
-        authenticated=_user_email(request) != "unknown" if request is not None else False,
+        authenticated=_user_email(request) != "unknown"
+        if request is not None
+        else False,
         runtime_state=_normalize_str(resolved_runtime_status.get("state")) or state,
-        runtime_message=_normalize_str(resolved_runtime_status.get("message")) or message,
+        runtime_message=_normalize_str(resolved_runtime_status.get("message"))
+        or message,
         store_state="skipped",
         store_message="Governance control-plane checks load after the shell becomes interactive.",
         visible_asset_count=0,
@@ -2311,12 +2455,7 @@ def _inject_bootstrap(html_text: str, payload: Optional[Dict[str, Any]]) -> str:
     if payload is None:
         return html_text
     bootstrap = json.dumps(payload, default=str).replace("</", "<\\/")
-    inline_bootstrap = (
-        "<script>"
-        "window.__GOVHUB_BOOTSTRAP__ = "
-        f"{bootstrap};"
-        "</script>"
-    )
+    inline_bootstrap = f"<script>window.__GOVHUB_BOOTSTRAP__ = {bootstrap};</script>"
     return html_text.replace("</head>", f"{inline_bootstrap}\n  </head>")
 
 
@@ -2360,8 +2499,14 @@ def index(request: Request) -> HTMLResponse:
 
 def _api_bootstrap_response(request: Request) -> JSONResponse:
     try:
-        runtime_status = _uc_runtime_status()
-        state = "live" if runtime_status.get("state") == "live" else str(runtime_status.get("state") or "degraded")
+        # Use the non-blocking fast path so the shell never waits on a cold
+        # warehouse probe. The real probe still runs via /api/runtime/status.
+        runtime_status = _uc_runtime_status_fast()
+        state = (
+            "live"
+            if runtime_status.get("state") == "live"
+            else str(runtime_status.get("state") or "degraded")
+        )
         message = (
             ""
             if state == "live"
@@ -2389,10 +2534,14 @@ def _api_bootstrap_response(request: Request) -> JSONResponse:
 
 def _api_runtime_status_response(request: Request) -> JSONResponse:
     runtime_status = _uc_runtime_status()
-    store_status = _store_status() if runtime_status.get("state") == "live" else {
-        "state": "skipped",
-        "message": "Governance store check skipped until the SQL runtime recovers.",
-    }
+    store_status = (
+        _store_status()
+        if runtime_status.get("state") == "live"
+        else {
+            "state": "skipped",
+            "message": "Governance store check skipped until the SQL runtime recovers.",
+        }
+    )
     summary = (
         _bootstrap_inventory_summary(_request_cache_scope(request))
         if runtime_status.get("state") == "live"
@@ -2450,6 +2599,31 @@ app.include_router(
 )
 
 
+@app.on_event("startup")
+def _warmup_live_runtime() -> None:
+    """Kick off Databricks warehouse + governance-store probes in the background
+    the moment the app container starts, so the first user request doesn't have
+    to absorb the cold-start latency.
+    """
+
+    def _warm() -> None:
+        try:
+            _uc_runtime_status()
+        except Exception:
+            pass
+        try:
+            _store_status()
+        except Exception:
+            pass
+        try:
+            _bootstrap_inventory_summary("anonymous")
+        except Exception:
+            pass
+
+    thread = threading.Thread(target=_warm, name="govhub-warmup", daemon=True)
+    thread.start()
+
+
 @app.get("/api/discovery/search")
 def api_discovery_search(
     request: Request,
@@ -2474,8 +2648,14 @@ def api_discovery_search(
             request=request,
             query=query,
             query_mode=query_mode,
-            views=views or ([view] if _normalize_str(view) and view != "All assets" else []),
-            asset_types=types or ([asset_type] if _normalize_str(asset_type) and asset_type != "All types" else []),
+            views=views
+            or ([view] if _normalize_str(view) and view != "All assets" else []),
+            asset_types=types
+            or (
+                [asset_type]
+                if _normalize_str(asset_type) and asset_type != "All types"
+                else []
+            ),
             catalogs=catalogs,
             domains=domains,
             tiers=tiers,
@@ -2494,7 +2674,9 @@ def api_discovery_search(
             detail=detail,
             state="degraded",
             extra={
-                "invalidQuery": asset_service.discovery_invalid_query_payload(exc.message),
+                "invalidQuery": asset_service.discovery_invalid_query_payload(
+                    exc.message
+                ),
             },
         )
     except HTTPException:
@@ -2552,7 +2734,10 @@ def api_asset_detail(
                 capabilities={"visibilityState": "hidden"},
             )
         if visibility.get("visibilityState") == "unknown":
-            detail = visibility.get("reason") or "Asset visibility could not be verified in the current workspace scope."
+            detail = (
+                visibility.get("reason")
+                or "Asset visibility could not be verified in the current workspace scope."
+            )
             return _error_response(
                 request,
                 status_code=503,
@@ -2571,7 +2756,9 @@ def api_asset_detail(
             detail="Asset not found.",
             entity_fqn=asset_fqn,
             entity_id=asset_fqn,
-            capabilities={"visibilityState": visibility.get("visibilityState") or "missing"},
+            capabilities={
+                "visibilityState": visibility.get("visibilityState") or "missing"
+            },
         )
     actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
     protected_sections = {"preview", "operational"}
@@ -2579,7 +2766,11 @@ def api_asset_detail(
     resolved_sections = requested_sections
     warnings: List[str] = []
     if not actor_scoped:
-        resolved_sections = [section for section in requested_sections if section not in protected_sections]
+        resolved_sections = [
+            section
+            for section in requested_sections
+            if section not in protected_sections
+        ]
         if not requested_sections:
             resolved_sections = ["header", "activity", "schema", "properties"]
         elif not resolved_sections:
@@ -2588,9 +2779,13 @@ def api_asset_detail(
             warnings.append(
                 "Protected preview and operational sections were removed because Databricks per-user authorization / OBO is not available."
             )
-    payload = _asset_detail_payload(asset_fqn, request=request, sections=resolved_sections)
+    payload = _asset_detail_payload(
+        asset_fqn, request=request, sections=resolved_sections
+    )
     if warnings:
-        payload["restrictedSections"] = sorted(set(requested_sections) - set(resolved_sections))
+        payload["restrictedSections"] = sorted(
+            set(requested_sections) - set(resolved_sections)
+        )
     return JSONResponse(
         _with_meta(
             payload,
@@ -2649,7 +2844,9 @@ def api_patch_column_description(
             "fqn": asset_fqn,
             "column": column_name,
             "description": payload.description or "",
-            "asset": _asset_detail_payload(asset_fqn, request=request, sections=["header", "schema"]),
+            "asset": _asset_detail_payload(
+                asset_fqn, request=request, sections=["header", "schema"]
+            ),
         }
     )
 
@@ -2700,7 +2897,9 @@ def api_patch_column_tags(
             "fqn": asset_fqn,
             "column": column_name,
             "tags": applied,
-            "asset": _asset_detail_payload(asset_fqn, request=request, sections=["header", "schema"]),
+            "asset": _asset_detail_payload(
+                asset_fqn, request=request, sections=["header", "schema"]
+            ),
             "warning": _tag_write_warning(requested, applied, scope_label="Column"),
         }
     )
@@ -2747,7 +2946,9 @@ def api_patch_column_metadata(
             "column": column_name,
             "description": applied["description"],
             "tags": applied["tags"],
-            "asset": _asset_detail_payload(asset_fqn, request=request, sections=["header", "schema"]),
+            "asset": _asset_detail_payload(
+                asset_fqn, request=request, sections=["header", "schema"]
+            ),
             "warning": applied.get("warning") or "",
         }
     )
@@ -2914,9 +3115,15 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
             _with_meta(
                 {
                     "fqn": asset_fqn,
-                    "graphs": {"data": {"nodes": [], "edges": [], "meta": {}}, "operational": {"nodes": [], "edges": [], "meta": {}}},
+                    "graphs": {
+                        "data": {"nodes": [], "edges": [], "meta": {}},
+                        "operational": {"nodes": [], "edges": [], "meta": {}},
+                    },
                     "columnLineage": {"upstream": [], "downstream": [], "meta": {}},
-                    "lineageDepth": {"oneHop": {"upstream": [], "downstream": []}, "twoHop": {"upstream": {}, "downstream": {}}},
+                    "lineageDepth": {
+                        "oneHop": {"upstream": [], "downstream": []},
+                        "twoHop": {"upstream": {}, "downstream": {}},
+                    },
                     "edgeDetails": {},
                     "stats": {},
                     "unavailableReason": "Lineage is not available for actor-scoped reads in the current runtime mode.",
@@ -2958,7 +3165,10 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
                 capabilities={"visibilityState": "hidden"},
             )
         if visibility.get("visibilityState") == "unknown":
-            detail = visibility.get("reason") or "Asset visibility could not be verified in the current workspace scope."
+            detail = (
+                visibility.get("reason")
+                or "Asset visibility could not be verified in the current workspace scope."
+            )
             return _error_response(
                 request,
                 status_code=503,
@@ -2977,7 +3187,9 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
             detail="Asset not found.",
             entity_fqn=asset_fqn,
             entity_id=asset_fqn,
-            capabilities={"visibilityState": visibility.get("visibilityState") or "missing"},
+            capabilities={
+                "visibilityState": visibility.get("visibilityState") or "missing"
+            },
         )
     return JSONResponse(
         _with_meta(
@@ -2990,7 +3202,9 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
             entity_id=asset_fqn,
             capabilities={
                 "visibilityState": visibility.get("visibilityState"),
-                "includesOperationalContext": bool((payload.get("graphs") or {}).get("operational")),
+                "includesOperationalContext": bool(
+                    (payload.get("graphs") or {}).get("operational")
+                ),
             },
             warnings=[],
         )
@@ -3087,10 +3301,14 @@ def api_governance_patch_request(
     if change_request.uc_full_name:
         visibility = _asset_visibility_record(change_request.uc_full_name, request)
         if not visibility.get("openable"):
-            raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+            raise HTTPException(
+                status_code=404, detail="Asset not found or not visible."
+            )
     status = _normalize_str(payload.status).lower()
     if status not in {"pending", "approved", "rejected"}:
-        raise HTTPException(status_code=400, detail="status must be pending, approved, or rejected.")
+        raise HTTPException(
+            status_code=400, detail="status must be pending, approved, or rejected."
+        )
     store.set_request_status(
         request_id=request_id,
         status=status,
@@ -3104,7 +3322,9 @@ def api_governance_patch_request(
         governance_service.invalidate_governance_caches()
     asset_payload = None
     if change_request.uc_full_name and visibility and visibility.get("openable"):
-        asset_payload = _asset_detail_payload(change_request.uc_full_name, request=request)
+        asset_payload = _asset_detail_payload(
+            change_request.uc_full_name, request=request
+        )
     return JSONResponse(
         {
             "ok": True,
@@ -3126,7 +3346,9 @@ def api_governance_patch_notification(
     actor_email = _require_actor_email(request)
     action = _normalize_str(payload.action).lower()
     if action not in {"seen", "read", "dismiss"}:
-        raise HTTPException(status_code=400, detail="action must be seen, read, or dismiss.")
+        raise HTTPException(
+            status_code=400, detail="action must be seen, read, or dismiss."
+        )
     try:
         _store().update_notification_receipt(
             notification_id=notification_id,
@@ -3156,7 +3378,9 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
     owner_email = _normalize_str(payload.get("ownerEmail")).lower()
     owner_type = (_normalize_str(payload.get("ownerType")) or "steward").lower()
     if not asset_fqn or not owner_email:
-        raise HTTPException(status_code=400, detail="assetFqn and ownerEmail are required.")
+        raise HTTPException(
+            status_code=400, detail="assetFqn and ownerEmail are required."
+        )
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     governance_service.add_owner(

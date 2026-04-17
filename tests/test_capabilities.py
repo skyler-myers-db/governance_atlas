@@ -29,7 +29,9 @@ class CapabilityPayloadTests(unittest.TestCase):
         self.assertTrue(payload["tableLineage"]["available"])
         self.assertEqual(payload["columnLineage"]["state"], "available")
         self.assertTrue(payload["columnLineage"]["available"])
-        self.assertEqual(payload["tableLineage"]["visibilityScope"], "workspace-app-principal")
+        self.assertEqual(
+            payload["tableLineage"]["visibilityScope"], "workspace-app-principal"
+        )
         self.assertTrue(payload["tableLineage"]["workspaceScoped"])
         self.assertFalse(payload["tableLineage"]["actorScoped"])
         self.assertEqual(payload["qualityRunEligibility"]["state"], "unavailable")
@@ -57,7 +59,9 @@ class CapabilityPayloadTests(unittest.TestCase):
         self.assertEqual(payload["columnLineage"]["state"], "unknown")
         self.assertEqual(payload["workloadVisibility"]["state"], "unknown")
 
-    def test_runtime_unavailable_marks_runtime_scoped_capabilities_unavailable(self) -> None:
+    def test_runtime_unavailable_marks_runtime_scoped_capabilities_unavailable(
+        self,
+    ) -> None:
         payload = capability_service.bootstrap_capabilities(
             actor_role="admin",
             authenticated=True,
@@ -86,7 +90,10 @@ class RuntimeCapabilityWiringTests(unittest.TestCase):
         source = Path("runtime_app.py").read_text(encoding="utf-8")
         tree = ast.parse(source, filename="runtime_app.py")
 
-        for function_name in ["_compose_bootstrap_payload", "_api_runtime_status_response"]:
+        for function_name in [
+            "_compose_bootstrap_payload",
+            "_api_runtime_status_response",
+        ]:
             node = next(
                 item
                 for item in tree.body
@@ -99,7 +106,8 @@ class RuntimeCapabilityWiringTests(unittest.TestCase):
         unavailable_node = next(
             item
             for item in tree.body
-            if isinstance(item, ast.FunctionDef) and item.name == "_bootstrap_unavailable_payload"
+            if isinstance(item, ast.FunctionDef)
+            and item.name == "_bootstrap_unavailable_payload"
         )
         unavailable_segment = ast.get_source_segment(source, unavailable_node) or ""
         self.assertIn("_shell_payload(", unavailable_segment)

@@ -19,7 +19,11 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
             },
             store_status={"state": "live", "message": ""},
             capabilities={
-                "systemInventoryRead": {"state": "available", "available": True, "reason": ""},
+                "systemInventoryRead": {
+                    "state": "available",
+                    "available": True,
+                    "reason": "",
+                },
                 "tableLineage": {"state": "available", "available": True, "reason": ""},
                 "workloadVisibility": {
                     "state": "unknown",
@@ -57,7 +61,9 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertEqual(payload["readiness"]["nextStep"], "background_work_plane")
         self.assertEqual(payload["readiness"]["blockedBy"], [])
         self.assertIn("workload_visibility", payload["readiness"]["attentionBy"])
-        claim_surfaces = {item["surface"] for item in payload["readiness"]["claimNarrowing"]}
+        claim_surfaces = {
+            item["surface"] for item in payload["readiness"]["claimNarrowing"]
+        }
         self.assertIn("Queries, usage, and workloads", claim_surfaces)
         self.assertIn("Actor-scoped protected reads", claim_surfaces)
         self.assertIn("Workspace-scoped metadata reads", claim_surfaces)
@@ -74,7 +80,9 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         # is wired; only the visibility scope stays workspace-app-principal.
         self.assertTrue(workspace_access["canUseLineage"])
         self.assertFalse(workspace_access["canUseQueryHistory"])
-        self.assertEqual(workspace_access["queryHistorySharingPath"]["state"], "unavailable")
+        self.assertEqual(
+            workspace_access["queryHistorySharingPath"]["state"], "unavailable"
+        )
         self.assertEqual(
             workspace_access["queryHistorySharingPath"]["acceptedPaths"],
             [
@@ -87,13 +95,25 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertFalse(workspace_access["canRunBackgroundWork"])
         self.assertFalse(workspace_access["canUseClassificationRecommendations"])
         self.assertEqual(workspace_access["transactionMode"]["state"], "degraded")
-        self.assertNotIn("Discovery and entity inventory", workspace_access["blockedSurfaces"])
-        self.assertIn("Asset preview and sample data", workspace_access["blockedSurfaces"])
-        self.assertNotIn("Lineage graph and drawer", workspace_access["blockedSurfaces"])
-        self.assertIn("Queries, usage, and workloads", workspace_access["blockedSurfaces"])
-        self.assertIn("Discovery and detail export", workspace_access["blockedSurfaces"])
+        self.assertNotIn(
+            "Discovery and entity inventory", workspace_access["blockedSurfaces"]
+        )
+        self.assertIn(
+            "Asset preview and sample data", workspace_access["blockedSurfaces"]
+        )
+        self.assertNotIn(
+            "Lineage graph and drawer", workspace_access["blockedSurfaces"]
+        )
+        self.assertIn(
+            "Queries, usage, and workloads", workspace_access["blockedSurfaces"]
+        )
+        self.assertIn(
+            "Discovery and detail export", workspace_access["blockedSurfaces"]
+        )
         self.assertIn("Background work runner", workspace_access["blockedSurfaces"])
-        self.assertIn("Classification recommendations", workspace_access["blockedSurfaces"])
+        self.assertIn(
+            "Classification recommendations", workspace_access["blockedSurfaces"]
+        )
         self.assertEqual(
             [item["key"] for item in workspace_access["gates"]],
             [
@@ -113,9 +133,14 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertEqual(workspace_access["gates"][3]["state"], "available")
         self.assertEqual(workspace_access["gates"][4]["state"], "unavailable")
         self.assertEqual(workspace_access["gates"][5]["state"], "unavailable")
-        self.assertEqual(workspace_access["gates"][4]["blockedSurfaces"], ["Queries, usage, and workloads"])
+        self.assertEqual(
+            workspace_access["gates"][4]["blockedSurfaces"],
+            ["Queries, usage, and workloads"],
+        )
         self.assertIn("remediation", workspace_access["gates"][5])
-        surface_policies = {item["key"]: item for item in workspace_access["surfacePolicies"]}
+        surface_policies = {
+            item["key"]: item for item in workspace_access["surfacePolicies"]
+        }
         self.assertTrue(surface_policies["discovery"]["allowed"])
         self.assertFalse(surface_policies["asset_preview"]["allowed"])
         self.assertTrue(surface_policies["lineage"]["allowed"])
@@ -129,7 +154,9 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertEqual(checks["system_inventory"]["state"], "available")
         self.assertEqual(checks["table_lineage"]["state"], "available")
         self.assertEqual(checks["workload_visibility"]["state"], "unknown")
-        self.assertEqual(checks["workload_visibility"]["safeSharingPath"]["state"], "unavailable")
+        self.assertEqual(
+            checks["workload_visibility"]["safeSharingPath"]["state"], "unavailable"
+        )
         self.assertEqual(
             checks["workload_visibility"]["safeSharingPath"]["acceptedPaths"],
             [
@@ -141,13 +168,19 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertEqual(checks["export_delivery"]["state"], "unavailable")
         self.assertEqual(checks["background_work_plane"]["state"], "unavailable")
         self.assertEqual(checks["transaction_mode"]["state"], "degraded")
-        self.assertEqual(checks["classification_recommendations"]["state"], "unavailable")
+        self.assertEqual(
+            checks["classification_recommendations"]["state"], "unavailable"
+        )
         self.assertEqual(
             checks["app_service_principal"]["label"],
             "App service-principal reachability and permissions",
         )
-        self.assertEqual(checks["background_work_plane"]["label"], "Background work runner")
-        self.assertEqual(checks["export_delivery"]["label"], "Export delivery prerequisites")
+        self.assertEqual(
+            checks["background_work_plane"]["label"], "Background work runner"
+        )
+        self.assertEqual(
+            checks["export_delivery"]["label"], "Export delivery prerequisites"
+        )
         self.assertEqual(checks["transaction_mode"]["label"], "Transaction eligibility")
         self.assertEqual(
             checks["classification_recommendations"]["label"],
@@ -157,15 +190,18 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertIn("evidence", checks["warehouse_runtime"])
 
         sequence = payload["setupSequence"]
-        self.assertEqual([item["key"] for item in sequence], [
-            "environment_config",
-            "runtime_probe",
-            "store_probe",
-            "app_service_principal_probe",
-            "identity_probe",
-            "capability_inventory",
-            "rollout_controls",
-        ])
+        self.assertEqual(
+            [item["key"] for item in sequence],
+            [
+                "environment_config",
+                "runtime_probe",
+                "store_probe",
+                "app_service_principal_probe",
+                "identity_probe",
+                "capability_inventory",
+                "rollout_controls",
+            ],
+        )
         self.assertTrue(all(item["rerunnable"] for item in sequence))
         self.assertIn("runtime_probe", sequence[0]["unlocks"])
         self.assertIn("workspace_setup_diagnostics", sequence[-1]["unlocks"])
@@ -176,16 +212,24 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertTrue(flags["workspace_setup_diagnostics"]["enabled"])
         self.assertIn("summary", flags["workspace_setup_diagnostics"])
         self.assertIn("reason", flags["workspace_setup_diagnostics"])
-        self.assertEqual(flags["workspace_setup_diagnostics"]["scope"], "shell diagnostics + bootstrap-unavailable fallback")
+        self.assertEqual(
+            flags["workspace_setup_diagnostics"]["scope"],
+            "shell diagnostics + bootstrap-unavailable fallback",
+        )
         self.assertIn("rolloutPolicy", flags["workspace_setup_diagnostics"])
         self.assertIn("rationale", flags["workspace_setup_diagnostics"])
-        self.assertEqual(flags["per_user_authorization"]["disabledReason"], "Actor-scoped protected reads stay disabled until Databricks user authorization / OBO is real.")
+        self.assertEqual(
+            flags["per_user_authorization"]["disabledReason"],
+            "Actor-scoped protected reads stay disabled until Databricks user authorization / OBO is real.",
+        )
         self.assertIn("unavailableReason", flags["per_user_authorization"])
         self.assertIn("disabledReason", flags["query_history_surface"])
         self.assertEqual(flags["query_history_surface"]["state"], "unknown")
         self.assertIn("summary", flags["query_history_surface"])
         self.assertIn("reason", flags["query_history_surface"])
-        self.assertEqual(flags["query_history_surface"]["safeSharingPath"]["state"], "unavailable")
+        self.assertEqual(
+            flags["query_history_surface"]["safeSharingPath"]["state"], "unavailable"
+        )
         self.assertEqual(flags["background_work_plane"]["state"], "unavailable")
         self.assertIn("unavailableReason", flags["background_work_plane"])
         self.assertEqual(flags["transaction_fallback_mode"]["state"], "degraded")
@@ -193,7 +237,9 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertIn("summary", flags["transaction_fallback_mode"])
         self.assertIn("removalTicket", flags["workspace_setup_diagnostics"])
 
-    def test_missing_identity_and_config_surface_degraded_and_unavailable_checks(self) -> None:
+    def test_missing_identity_and_config_surface_degraded_and_unavailable_checks(
+        self,
+    ) -> None:
         payload = runtime_setup.setup_payload(
             runtime_status={"state": "unavailable", "message": "Warehouse is down."},
             store_status={"state": "skipped", "message": "Store probe skipped."},
@@ -220,8 +266,12 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertIn("warehouse_runtime", payload["readiness"]["blockedBy"])
         self.assertIn("app_service_principal", payload["readiness"]["blockedBy"])
         self.assertIn("workload_visibility", payload["readiness"]["attentionBy"])
-        claim_surfaces = {item["surface"] for item in payload["readiness"]["claimNarrowing"]}
-        self.assertIn("App service-principal reachability and permissions", claim_surfaces)
+        claim_surfaces = {
+            item["surface"] for item in payload["readiness"]["claimNarrowing"]
+        }
+        self.assertIn(
+            "App service-principal reachability and permissions", claim_surfaces
+        )
         self.assertIn("Workspace-scoped metadata reads", claim_surfaces)
 
         workspace_access = payload["workspaceAccess"]
@@ -233,21 +283,33 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertFalse(workspace_access["canUseAssetPreview"])
         self.assertFalse(workspace_access["canUseLineage"])
         self.assertFalse(workspace_access["canUseQueryHistory"])
-        self.assertEqual(workspace_access["queryHistorySharingPath"]["state"], "unavailable")
+        self.assertEqual(
+            workspace_access["queryHistorySharingPath"]["state"], "unavailable"
+        )
         self.assertFalse(workspace_access["canExport"])
         self.assertFalse(workspace_access["canRunBackgroundWork"])
         self.assertFalse(workspace_access["canUseClassificationRecommendations"])
         self.assertEqual(workspace_access["transactionMode"]["state"], "degraded")
         self.assertIn("Governance writes", workspace_access["blockedSurfaces"])
-        self.assertIn("Asset preview and sample data", workspace_access["blockedSurfaces"])
+        self.assertIn(
+            "Asset preview and sample data", workspace_access["blockedSurfaces"]
+        )
         self.assertIn("Lineage graph and drawer", workspace_access["blockedSurfaces"])
-        self.assertIn("Queries, usage, and workloads", workspace_access["blockedSurfaces"])
-        self.assertIn("Discovery and detail export", workspace_access["blockedSurfaces"])
+        self.assertIn(
+            "Queries, usage, and workloads", workspace_access["blockedSurfaces"]
+        )
+        self.assertIn(
+            "Discovery and detail export", workspace_access["blockedSurfaces"]
+        )
         self.assertIn("Background work runner", workspace_access["blockedSurfaces"])
-        self.assertIn("Classification recommendations", workspace_access["blockedSurfaces"])
+        self.assertIn(
+            "Classification recommendations", workspace_access["blockedSurfaces"]
+        )
         self.assertEqual(workspace_access["gates"][0]["key"], "discovery_inventory")
         self.assertFalse(payload["featureFlags"][0]["enabled"])
-        self.assertEqual(payload["featureFlags"][0]["key"], "workspace_setup_diagnostics")
+        self.assertEqual(
+            payload["featureFlags"][0]["key"], "workspace_setup_diagnostics"
+        )
         self.assertEqual(payload["featureFlags"][0]["state"], "unavailable")
         self.assertIn("disabledReason", payload["featureFlags"][0])
         self.assertIn("unavailableReason", payload["featureFlags"][0])

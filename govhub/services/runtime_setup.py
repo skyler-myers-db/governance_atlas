@@ -47,7 +47,11 @@ def _state_rank(state: str) -> int:
 
 
 def _worst_state(*states: str, fallback: str = "unknown") -> str:
-    normalized = [_normalize_state(state, fallback) for state in states if str(state or "").strip()]
+    normalized = [
+        _normalize_state(state, fallback)
+        for state in states
+        if str(state or "").strip()
+    ]
     if not normalized:
         return fallback
     return min(normalized, key=_state_rank)
@@ -217,7 +221,11 @@ def _app_service_principal_probe(
             "evidence": evidence,
             "detail": "The app-principal SQL probe did not reach the live warehouse runtime.",
         }
-    if runtime_state == "available" and store_state == "available" and explicit_app_principal:
+    if (
+        runtime_state == "available"
+        and store_state == "available"
+        and explicit_app_principal
+    ):
         return {
             "state": "available",
             "evidence": evidence,
@@ -232,7 +240,10 @@ def _app_service_principal_probe(
                 "explicitly prove app-principal ownership."
             ),
         }
-    if runtime_state in {"degraded", "unknown"} or store_state in {"degraded", "unknown"}:
+    if runtime_state in {"degraded", "unknown"} or store_state in {
+        "degraded",
+        "unknown",
+    }:
         return {
             "state": "degraded",
             "evidence": evidence,
@@ -245,7 +256,9 @@ def _app_service_principal_probe(
     }
 
 
-def _claim_item(check: Mapping[str, Any], *, surface: str, effect: str) -> Dict[str, Any]:
+def _claim_item(
+    check: Mapping[str, Any], *, surface: str, effect: str
+) -> Dict[str, Any]:
     return {
         "key": str(check.get("key") or surface).strip() or surface,
         "surface": surface,
@@ -325,7 +338,13 @@ def _feature_flag(
         elif normalized_state == "degraded":
             canonical_reason = str(rationale or summary or description).strip()
         else:
-            canonical_reason = str(unavailable_reason or disabled_reason or rationale or summary or description).strip()
+            canonical_reason = str(
+                unavailable_reason
+                or disabled_reason
+                or rationale
+                or summary
+                or description
+            ).strip()
 
     disabled_text = str(disabled_reason or "").strip()
     if not disabled_text and not enabled:
@@ -375,7 +394,9 @@ def feature_flag_inventory(
             label="Workspace setup diagnostics",
             enabled=bool(diagnostics_enabled),
             state="available" if diagnostics_enabled else "unavailable",
-            summary="Shell-owned operator diagnostics are available." if diagnostics_enabled else "Shell-owned operator diagnostics are disabled.",
+            summary="Shell-owned operator diagnostics are available."
+            if diagnostics_enabled
+            else "Shell-owned operator diagnostics are disabled.",
             rationale="Expose the operator-only setup truth needed for first-run validation without creating a separate admin route.",
             truth_source="runtime configuration",
             rollout="global",
@@ -388,8 +409,12 @@ def feature_flag_inventory(
             description="Read-only setup and diagnostics baseline surfaced in the shell-owned operator view.",
             owner="phase-5-foundation",
             source="code",
-            disabled_reason="" if diagnostics_enabled else "Diagnostics are intentionally disabled until the shell-owned setup view is enabled.",
-            unavailable_reason="" if diagnostics_enabled else "Diagnostics are not available because the shell-owned setup view is disabled.",
+            disabled_reason=""
+            if diagnostics_enabled
+            else "Diagnostics are intentionally disabled until the shell-owned setup view is enabled.",
+            unavailable_reason=""
+            if diagnostics_enabled
+            else "Diagnostics are not available because the shell-owned setup view is disabled.",
         ),
         _feature_flag(
             key="per_user_authorization",
@@ -414,28 +439,28 @@ def feature_flag_inventory(
         ),
         {
             **_feature_flag(
-            key="query_history_surface",
-            label="Query history surface",
-            enabled=workload_state == "available",
-            state=workload_state,
-            summary="Query and workload visibility is workspace-scoped.",
-            rationale="Do not expose query and workload tabs unless the workspace proves a safe sharing path for non-admin actors.",
-            truth_source="Databricks query history",
-            rollout="workspace-scoped",
-            rollout_policy="Only enable when the capability probe proves OBO, a validated dynamic-view plane, or warehouse CAN VIEW plus downstream visibility rules for the current actor.",
-            scope="queries, workloads, usage, and preview evidence",
-            default_state="disabled",
-            expires_after="Revisit after the query/workload plane is production-safe for parity-core surfaces.",
-            removal_ticket="phase-10-query-usage-surface",
-            rollback="Keep query-history-driven surfaces hidden or explicitly unavailable when the workspace does not expose a safe plane.",
-            description="Controls whether query and workload visibility may be rendered as an actual surface once a safe non-admin sharing path is validated.",
-            owner="workspace-capabilities",
-            source="capability-probe",
-            disabled_reason="Query and workload surfaces remain disabled until the capability probe proves OBO, a validated dynamic-view plane, or warehouse CAN VIEW plus downstream visibility rules.",
-            unavailable_reason=_flag_reason(
-                capabilities.get("workloadVisibility"),
-                "Query history is not available in this workspace.",
-            ),
+                key="query_history_surface",
+                label="Query history surface",
+                enabled=workload_state == "available",
+                state=workload_state,
+                summary="Query and workload visibility is workspace-scoped.",
+                rationale="Do not expose query and workload tabs unless the workspace proves a safe sharing path for non-admin actors.",
+                truth_source="Databricks query history",
+                rollout="workspace-scoped",
+                rollout_policy="Only enable when the capability probe proves OBO, a validated dynamic-view plane, or warehouse CAN VIEW plus downstream visibility rules for the current actor.",
+                scope="queries, workloads, usage, and preview evidence",
+                default_state="disabled",
+                expires_after="Revisit after the query/workload plane is production-safe for parity-core surfaces.",
+                removal_ticket="phase-10-query-usage-surface",
+                rollback="Keep query-history-driven surfaces hidden or explicitly unavailable when the workspace does not expose a safe plane.",
+                description="Controls whether query and workload visibility may be rendered as an actual surface once a safe non-admin sharing path is validated.",
+                owner="workspace-capabilities",
+                source="capability-probe",
+                disabled_reason="Query and workload surfaces remain disabled until the capability probe proves OBO, a validated dynamic-view plane, or warehouse CAN VIEW plus downstream visibility rules.",
+                unavailable_reason=_flag_reason(
+                    capabilities.get("workloadVisibility"),
+                    "Query history is not available in this workspace.",
+                ),
             ),
             "safeSharingPath": _safe_operational_sharing_path(),
         },
@@ -595,11 +620,13 @@ def setup_payload(
             runtime_state,
             "The live metadata runtime is reachable."
             if runtime_state == "available"
-            else runtime_message or "The live metadata runtime is not currently reachable.",
+            else runtime_message
+            or "The live metadata runtime is not currently reachable.",
             "" if runtime_state == "available" else runtime_message,
             observed_at=observed_at,
             stale_after=stale_after,
-            evidence=runtime_message or "Runtime health is derived from the live SQL metadata probe.",
+            evidence=runtime_message
+            or "Runtime health is derived from the live SQL metadata probe.",
             remediation=""
             if runtime_state == "available"
             else "Verify the configured warehouse is running and that the app can execute Unity Catalog metadata queries.",
@@ -610,11 +637,13 @@ def setup_payload(
             store_state,
             "The governance control-plane store is reachable."
             if store_state == "available"
-            else store_message or "The governance control-plane store is degraded or unavailable.",
+            else store_message
+            or "The governance control-plane store is degraded or unavailable.",
             "" if store_state == "available" else store_message,
             observed_at=observed_at,
             stale_after=stale_after,
-            evidence=store_message or "Governance store reachability is derived from the control-plane probe.",
+            evidence=store_message
+            or "Governance store reachability is derived from the control-plane probe.",
             remediation=""
             if store_state == "available"
             else "Verify the governance catalog/schema exists and that the app principal can read and write the control-plane tables.",
@@ -622,7 +651,9 @@ def setup_payload(
         _check(
             "governance_config",
             "Governance config",
-            "available" if warehouse_id and gov_catalog and gov_schema else "unavailable",
+            "available"
+            if warehouse_id and gov_catalog and gov_schema
+            else "unavailable",
             "Warehouse, catalog, and schema configuration are present."
             if warehouse_id and gov_catalog and gov_schema
             else "Warehouse, catalog, or schema configuration is missing.",
@@ -645,7 +676,9 @@ def setup_payload(
             "A forwarded Databricks user identity is present."
             if authenticated
             else "No forwarded Databricks user identity was detected; the app is in read-only mode.",
-            "" if authenticated else "Governance writes require a forwarded user identity header.",
+            ""
+            if authenticated
+            else "Governance writes require a forwarded user identity header.",
             observed_at=observed_at,
             stale_after=stale_after,
             evidence=(
@@ -765,7 +798,9 @@ def setup_payload(
             1,
             "environment_config",
             "Environment configuration",
-            "available" if warehouse_id and gov_catalog and gov_schema else "unavailable",
+            "available"
+            if warehouse_id and gov_catalog and gov_schema
+            else "unavailable",
             "Required deployment settings are present."
             if warehouse_id and gov_catalog and gov_schema
             else "Deployment settings are incomplete.",
@@ -785,16 +820,22 @@ def setup_payload(
             runtime_state,
             "The live metadata runtime probe has been evaluated."
             if runtime_state == "available"
-            else runtime_message or "The live metadata runtime is not currently reachable.",
+            else runtime_message
+            or "The live metadata runtime is not currently reachable.",
             runtime_message,
             observed_at=observed_at,
             stale_after=stale_after,
-            evidence=runtime_message or "Runtime health is derived from the live SQL metadata probe.",
+            evidence=runtime_message
+            or "Runtime health is derived from the live SQL metadata probe.",
             remediation=""
             if runtime_state == "available"
             else "Verify the configured warehouse is running and that the app can execute Unity Catalog metadata queries.",
             prerequisites=["environment_config"],
-            unlocks=["system_inventory", "table_lineage_surface", "query_history_surface"],
+            unlocks=[
+                "system_inventory",
+                "table_lineage_surface",
+                "query_history_surface",
+            ],
         ),
         _sequence_step(
             3,
@@ -803,16 +844,22 @@ def setup_payload(
             store_state,
             "The governance control-plane probe has been evaluated."
             if store_state == "available"
-            else store_message or "The governance control-plane store is degraded or unavailable.",
+            else store_message
+            or "The governance control-plane store is degraded or unavailable.",
             store_message,
             observed_at=observed_at,
             stale_after=stale_after,
-            evidence=store_message or "Governance store reachability is derived from the control-plane probe.",
+            evidence=store_message
+            or "Governance store reachability is derived from the control-plane probe.",
             remediation=""
             if store_state == "available"
             else "Verify the governance catalog/schema exists and that the app principal can reach the control-plane tables.",
             prerequisites=["environment_config"],
-            unlocks=["classification_recommendations", "background_work_plane", "transaction_fallback_mode"],
+            unlocks=[
+                "classification_recommendations",
+                "background_work_plane",
+                "transaction_fallback_mode",
+            ],
         ),
         _sequence_step(
             4,
@@ -842,7 +889,9 @@ def setup_payload(
             "A forwarded Databricks user identity is present."
             if authenticated
             else "No forwarded Databricks user identity was detected; the app is in read-only mode.",
-            "" if authenticated else "Governance writes require a forwarded user identity header.",
+            ""
+            if authenticated
+            else "Governance writes require a forwarded user identity header.",
             observed_at=observed_at,
             stale_after=stale_after,
             evidence=(
@@ -873,7 +922,12 @@ def setup_payload(
             category="capability",
             evidence="Capability truth is sourced from the runtime probes and is not inferred from empty payloads.",
             remediation="Keep capability-gated surfaces hidden or explicitly degraded until the workspace probes prove them available.",
-            prerequisites=["runtime_probe", "store_probe", "app_service_principal_probe", "identity_probe"],
+            prerequisites=[
+                "runtime_probe",
+                "store_probe",
+                "app_service_principal_probe",
+                "identity_probe",
+            ],
         ),
         _sequence_step(
             7,
@@ -908,11 +962,18 @@ def setup_payload(
     can_use_entity_metadata = can_use_discovery
     can_write_governance = all(
         check_map.get(key, {}).get("state") == "available"
-        for key in ["identity_forwarding", "governance_config", "warehouse_runtime", "governance_store", "app_service_principal"]
+        for key in [
+            "identity_forwarding",
+            "governance_config",
+            "warehouse_runtime",
+            "governance_store",
+            "app_service_principal",
+        ]
     )
     can_use_asset_preview = (
         auth_mode == capability_service.OBO_AVAILABLE_MODE
-        and check_map.get("system_inventory", {}).get("state") in {"available", "degraded"}
+        and check_map.get("system_inventory", {}).get("state")
+        in {"available", "degraded"}
     )
     # Lineage reads come from system.access.table_lineage / column_lineage and succeed for
     # the app principal when it has been granted SELECT. OBO narrows the view to the acting
@@ -925,11 +986,12 @@ def setup_payload(
     )
     can_export = (
         auth_mode == capability_service.OBO_AVAILABLE_MODE
-        and
-        check_map.get("export_delivery", {}).get("state") == "available"
+        and check_map.get("export_delivery", {}).get("state") == "available"
         and check_map.get("identity_forwarding", {}).get("state") == "available"
     )
-    can_run_background_work = check_map.get("background_work_plane", {}).get("state") == "available"
+    can_run_background_work = (
+        check_map.get("background_work_plane", {}).get("state") == "available"
+    )
     can_use_classification_recommendations = (
         check_map.get("classification_recommendations", {}).get("state") == "available"
     )
@@ -958,7 +1020,8 @@ def setup_payload(
     attention_keys = [
         item["key"]
         for item in checks
-        if item["state"] in {"degraded", "unavailable", "unknown"} and item["key"] not in hard_block_keys
+        if item["state"] in {"degraded", "unavailable", "unknown"}
+        and item["key"] not in hard_block_keys
     ]
     # These checks are expected to remain unavailable whenever Databricks per-user
     # authorization / OBO is not wired into the app. They reflect an honest product-mode
@@ -1040,7 +1103,9 @@ def setup_payload(
         {
             **_workspace_access_gate(
                 check_map["system_inventory"],
-                blocked_surfaces=[] if can_use_discovery else ["Discovery and entity inventory"],
+                blocked_surfaces=[]
+                if can_use_discovery
+                else ["Discovery and entity inventory"],
             ),
             "key": "discovery_inventory",
             "label": "Discovery and entity inventory",
@@ -1048,7 +1113,9 @@ def setup_payload(
         {
             "key": "governance_writes",
             "label": "Governance writes",
-            "state": "available" if can_write_governance else _worst_state(
+            "state": "available"
+            if can_write_governance
+            else _worst_state(
                 check_map["identity_forwarding"]["state"],
                 check_map["governance_config"]["state"],
                 check_map["warehouse_runtime"]["state"],
@@ -1082,7 +1149,9 @@ def setup_payload(
         {
             **_workspace_access_gate(
                 check_map["system_inventory"],
-                blocked_surfaces=[] if can_use_asset_preview else ["Asset preview and sample data"],
+                blocked_surfaces=[]
+                if can_use_asset_preview
+                else ["Asset preview and sample data"],
             ),
             "key": "asset_preview",
             "label": "Asset preview and sample data",
@@ -1098,7 +1167,11 @@ def setup_payload(
                 if can_use_asset_preview
                 else "Asset preview and sample data require per-user authorization / OBO; app-principal fallback does not widen user-visible data."
                 if auth_mode != capability_service.OBO_AVAILABLE_MODE
-                else str(check_map["system_inventory"].get("summary") or check_map["system_inventory"].get("detail") or "")
+                else str(
+                    check_map["system_inventory"].get("summary")
+                    or check_map["system_inventory"].get("detail")
+                    or ""
+                )
             ),
             "remediation": (
                 ""
@@ -1109,7 +1182,9 @@ def setup_payload(
         {
             **_workspace_access_gate(
                 check_map["table_lineage"],
-                blocked_surfaces=[] if can_use_lineage else ["Lineage graph and drawer"],
+                blocked_surfaces=[]
+                if can_use_lineage
+                else ["Lineage graph and drawer"],
             ),
             "state": (
                 "available"
@@ -1123,7 +1198,11 @@ def setup_payload(
                 if can_use_lineage
                 else "Lineage requires per-user authorization / OBO; app-principal fallback does not widen user-visible data."
                 if auth_mode != capability_service.OBO_AVAILABLE_MODE
-                else str(check_map["table_lineage"].get("summary") or check_map["table_lineage"].get("detail") or "")
+                else str(
+                    check_map["table_lineage"].get("summary")
+                    or check_map["table_lineage"].get("detail")
+                    or ""
+                )
             ),
             "remediation": (
                 ""
@@ -1134,7 +1213,9 @@ def setup_payload(
         {
             **_workspace_access_gate(
                 check_map["workload_visibility"],
-                blocked_surfaces=[] if can_use_query_history else ["Queries, usage, and workloads"],
+                blocked_surfaces=[]
+                if can_use_query_history
+                else ["Queries, usage, and workloads"],
             ),
             "state": (
                 "available"
@@ -1148,7 +1229,11 @@ def setup_payload(
                 if can_use_query_history
                 else "Queries, usage, and workloads require per-user authorization / OBO or a validated safe-sharing path; app-principal fallback does not widen user-visible data."
                 if auth_mode != capability_service.OBO_AVAILABLE_MODE
-                else str(check_map["workload_visibility"].get("summary") or check_map["workload_visibility"].get("detail") or "")
+                else str(
+                    check_map["workload_visibility"].get("summary")
+                    or check_map["workload_visibility"].get("detail")
+                    or ""
+                )
             ),
             "remediation": (
                 ""
@@ -1179,7 +1264,11 @@ def setup_payload(
                 if can_export
                 else "Discovery and detail export require per-user authorization / OBO plus authenticated delivery; app-principal fallback does not widen user-visible data."
                 if auth_mode != capability_service.OBO_AVAILABLE_MODE
-                else str(check_map["export_delivery"].get("summary") or check_map["export_delivery"].get("detail") or "")
+                else str(
+                    check_map["export_delivery"].get("summary")
+                    or check_map["export_delivery"].get("detail")
+                    or ""
+                )
             ),
             "remediation": (
                 ""
@@ -1189,11 +1278,15 @@ def setup_payload(
         },
         _workspace_access_gate(
             check_map["background_work_plane"],
-            blocked_surfaces=[] if can_run_background_work else ["Background work runner"],
+            blocked_surfaces=[]
+            if can_run_background_work
+            else ["Background work runner"],
         ),
         _workspace_access_gate(
             check_map["classification_recommendations"],
-            blocked_surfaces=[] if can_use_classification_recommendations else ["Classification recommendations"],
+            blocked_surfaces=[]
+            if can_use_classification_recommendations
+            else ["Classification recommendations"],
         ),
         _workspace_access_gate(
             check_map["transaction_mode"],
@@ -1206,35 +1299,47 @@ def setup_payload(
             key="discovery",
             label="Discovery browse and search",
             allowed=can_use_discovery,
-            state="available" if can_use_discovery else check_map["system_inventory"]["state"],
+            state="available"
+            if can_use_discovery
+            else check_map["system_inventory"]["state"],
             mode=auth_mode,
             visibility_scope=read_visibility_scope,
             reason=(
                 "Actor-scoped discovery is available."
-                if auth_mode == capability_service.OBO_AVAILABLE_MODE and can_use_discovery
+                if auth_mode == capability_service.OBO_AVAILABLE_MODE
+                and can_use_discovery
                 else "Discovery is restricted to workspace-scoped app-principal inventory until per-user authorization / OBO exists."
-                if auth_mode == capability_service.APP_PRINCIPAL_ONLY_MODE and can_use_discovery
+                if auth_mode == capability_service.APP_PRINCIPAL_ONLY_MODE
+                and can_use_discovery
                 else "Discovery is degraded read-only inventory until actor identity and per-user authorization exist."
-                if auth_mode == capability_service.NO_IDENTITY_MODE and can_use_discovery
+                if auth_mode == capability_service.NO_IDENTITY_MODE
+                and can_use_discovery
                 else check_map["system_inventory"]["summary"]
             ),
-            blocked_surfaces=[] if can_use_discovery else ["Discovery and entity inventory"],
+            blocked_surfaces=[]
+            if can_use_discovery
+            else ["Discovery and entity inventory"],
         ),
         _surface_policy(
             key="entity_metadata",
             label="Entity summary and metadata record",
             allowed=can_use_entity_metadata,
-            state="available" if can_use_entity_metadata else check_map["system_inventory"]["state"],
+            state="available"
+            if can_use_entity_metadata
+            else check_map["system_inventory"]["state"],
             mode=auth_mode,
             visibility_scope=read_visibility_scope,
             reason=(
                 "Entity metadata is actor-scoped."
-                if auth_mode == capability_service.OBO_AVAILABLE_MODE and can_use_entity_metadata
+                if auth_mode == capability_service.OBO_AVAILABLE_MODE
+                and can_use_entity_metadata
                 else "Entity metadata remains workspace-scoped and read-only until per-user authorization / OBO exists."
                 if can_use_entity_metadata
                 else check_map["system_inventory"]["summary"]
             ),
-            blocked_surfaces=[] if can_use_entity_metadata else ["Discovery and entity inventory"],
+            blocked_surfaces=[]
+            if can_use_entity_metadata
+            else ["Discovery and entity inventory"],
         ),
         _surface_policy(
             key="asset_preview",
@@ -1242,13 +1347,17 @@ def setup_payload(
             allowed=can_use_asset_preview,
             state="available" if can_use_asset_preview else "unavailable",
             mode=auth_mode,
-            visibility_scope=capability_service.ACTOR_SCOPED_VISIBILITY if can_use_asset_preview else "",
+            visibility_scope=capability_service.ACTOR_SCOPED_VISIBILITY
+            if can_use_asset_preview
+            else "",
             reason=(
                 "Sample rows and preview details are actor-scoped."
                 if can_use_asset_preview
                 else "Asset preview and sample data stay disabled until Databricks per-user authorization / OBO is real."
             ),
-            blocked_surfaces=[] if can_use_asset_preview else ["Asset preview and sample data"],
+            blocked_surfaces=[]
+            if can_use_asset_preview
+            else ["Asset preview and sample data"],
         ),
         _surface_policy(
             key="lineage",
@@ -1262,7 +1371,9 @@ def setup_payload(
                 else check_map["table_lineage"]["state"]
             ),
             mode=auth_mode,
-            visibility_scope=capability_service.ACTOR_SCOPED_VISIBILITY if can_use_lineage else "",
+            visibility_scope=capability_service.ACTOR_SCOPED_VISIBILITY
+            if can_use_lineage
+            else "",
             reason=(
                 "Lineage is actor-scoped."
                 if can_use_lineage
@@ -1282,13 +1393,17 @@ def setup_payload(
                 else check_map["workload_visibility"]["state"]
             ),
             mode=auth_mode,
-            visibility_scope=capability_service.ACTOR_SCOPED_VISIBILITY if can_use_query_history else "",
+            visibility_scope=capability_service.ACTOR_SCOPED_VISIBILITY
+            if can_use_query_history
+            else "",
             reason=(
                 "Operational query history is available."
                 if can_use_query_history
                 else "Query and workload visibility stays disabled until both OBO and a validated safe-sharing path exist."
             ),
-            blocked_surfaces=[] if can_use_query_history else ["Queries, usage, and workloads"],
+            blocked_surfaces=[]
+            if can_use_query_history
+            else ["Queries, usage, and workloads"],
         ),
         _surface_policy(
             key="export",
@@ -1302,7 +1417,9 @@ def setup_payload(
                 else check_map["export_delivery"]["state"]
             ),
             mode=auth_mode,
-            visibility_scope=capability_service.ACTOR_SCOPED_VISIBILITY if can_export else "",
+            visibility_scope=capability_service.ACTOR_SCOPED_VISIBILITY
+            if can_export
+            else "",
             reason=(
                 "Export is actor-scoped and authenticated."
                 if can_export
@@ -1314,7 +1431,9 @@ def setup_payload(
             key="governance_writes",
             label="Governance writes",
             allowed=can_write_governance,
-            state="available" if can_write_governance else _worst_state(
+            state="available"
+            if can_write_governance
+            else _worst_state(
                 check_map["identity_forwarding"]["state"],
                 check_map["governance_config"]["state"],
                 check_map["warehouse_runtime"]["state"],
@@ -1322,7 +1441,9 @@ def setup_payload(
                 check_map["app_service_principal"]["state"],
             ),
             mode=auth_mode,
-            visibility_scope=capability_service.CONTROL_PLANE_VISIBILITY if can_write_governance else "",
+            visibility_scope=capability_service.CONTROL_PLANE_VISIBILITY
+            if can_write_governance
+            else "",
             reason=(
                 "Governance writes are limited to the app-owned control plane for the current actor and workspace."
                 if can_write_governance
@@ -1345,7 +1466,9 @@ def setup_payload(
             "degradedCount": counts["degraded"],
             "unavailableCount": counts["unavailable"],
             "unknownCount": counts["unknown"],
-            "ready": counts["unavailable"] == 0 and counts["degraded"] == 0 and counts["unknown"] == 0,
+            "ready": counts["unavailable"] == 0
+            and counts["degraded"] == 0
+            and counts["unknown"] == 0,
         },
         "readiness": {
             "state": readiness_state,
@@ -1354,7 +1477,9 @@ def setup_payload(
             "attentionBy": attention_keys,
             "claimNarrowing": claim_narrowing,
             "retriable": True,
-            "nextStep": (hard_block_keys or operational_attention_keys or ["complete"])[0],
+            "nextStep": (hard_block_keys or operational_attention_keys or ["complete"])[
+                0
+            ],
         },
         "setupSequence": sequence,
         "checks": checks,

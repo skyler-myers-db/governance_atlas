@@ -15,7 +15,7 @@ function FrameHarness({
   diagnosticsAvailable = true,
   diagnosticsStatus = null,
   governanceInbox = null,
-  onModuleChange = () => {},
+  onModuleChange = () => { },
 }) {
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [inboxOpen, setInboxOpen] = useState(false);
@@ -54,10 +54,10 @@ function FrameHarness({
           };
         });
       }}
-      onBrowseCatalog={() => {}}
+      onBrowseCatalog={() => { }}
       onModuleChange={onModuleChange}
-      onNavigationStateChange={() => {}}
-      onSearchResultSelect={() => {}}
+      onNavigationStateChange={() => { }}
+      onSearchResultSelect={() => { }}
       onToggleDiagnostics={() => setDiagnosticsOpen((current) => !current)}
       onToggleInbox={() => setInboxOpen((current) => !current)}
       searchSeedAssets={[]}

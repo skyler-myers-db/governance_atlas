@@ -75,7 +75,7 @@ def _load_runtime_app():
 
         def __getattr__(self, name):
             if name in {"get", "post", "put", "patch", "delete", "options", "head"}:
-                return lambda *args, **kwargs: (lambda func: func)
+                return lambda *args, **kwargs: lambda func: func
             raise AttributeError(name)
 
     def _query(*args, **kwargs):
@@ -150,7 +150,9 @@ runtime_app = _load_runtime_app()
 
 
 class RuntimeDiagnosticsTests(unittest.TestCase):
-    def test_runtime_diagnostics_payload_includes_setup_checks_and_feature_flags(self) -> None:
+    def test_runtime_diagnostics_payload_includes_setup_checks_and_feature_flags(
+        self,
+    ) -> None:
         config = SimpleNamespace(
             build_id="build-123",
             diagnostics_enabled=False,
@@ -221,7 +223,9 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
         self.assertIn("unavailableReason", flag_map["workspace_setup_diagnostics"])
         self.assertIn("reason", flag_map["query_history_surface"])
         self.assertIn("disabledReason", flag_map["query_history_surface"])
-        self.assertEqual(flag_map["query_history_surface"]["safeSharingPath"]["state"], "unavailable")
+        self.assertEqual(
+            flag_map["query_history_surface"]["safeSharingPath"]["state"], "unavailable"
+        )
         self.assertEqual(payload["auth"]["mode"], "no-identity")
         self.assertEqual(payload["auth"]["visibilityScope"], "anonymous-app-principal")
         self.assertIn("serverTiming", payload["headers"])
@@ -235,15 +239,25 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
         self.assertEqual(payload["setupReadiness"]["nextStep"], "background_work_plane")
         self.assertTrue(payload["setupSequence"])
         self.assertEqual(payload["workspaceAccess"]["mode"], "no-identity")
-        self.assertEqual(payload["workspaceAccess"]["visibilityScope"], "anonymous-app-principal")
+        self.assertEqual(
+            payload["workspaceAccess"]["visibilityScope"], "anonymous-app-principal"
+        )
         self.assertTrue(payload["workspaceAccess"]["canUseDiscovery"])
         self.assertTrue(payload["workspaceAccess"]["canUseEntityMetadata"])
         self.assertFalse(payload["workspaceAccess"]["canUseAssetPreview"])
         self.assertFalse(payload["workspaceAccess"]["canUseLineage"])
         self.assertFalse(payload["workspaceAccess"]["canUseQueryHistory"])
-        self.assertEqual(payload["workspaceAccess"]["queryHistorySharingPath"]["state"], "unavailable")
-        self.assertIn("Queries, usage, and workloads", payload["workspaceAccess"]["blockedSurfaces"])
-        self.assertEqual(payload["workspaceAccess"]["transactionMode"]["state"], "degraded")
+        self.assertEqual(
+            payload["workspaceAccess"]["queryHistorySharingPath"]["state"],
+            "unavailable",
+        )
+        self.assertIn(
+            "Queries, usage, and workloads",
+            payload["workspaceAccess"]["blockedSurfaces"],
+        )
+        self.assertEqual(
+            payload["workspaceAccess"]["transactionMode"]["state"], "degraded"
+        )
 
         checks = {check["key"]: check for check in payload["setupChecks"]}
         self.assertIn("warehouse_runtime", checks)
@@ -258,9 +272,13 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
         self.assertEqual(checks["app_service_principal"]["state"], "available")
         self.assertEqual(checks["table_lineage"]["state"], "unknown")
         self.assertEqual(checks["workload_visibility"]["state"], "unavailable")
-        self.assertEqual(checks["workload_visibility"]["safeSharingPath"]["state"], "unavailable")
+        self.assertEqual(
+            checks["workload_visibility"]["safeSharingPath"]["state"], "unavailable"
+        )
         self.assertTrue(checks["classification_recommendations"]["remediation"])
-        claim_surfaces = {item["surface"] for item in payload["setupReadiness"]["claimNarrowing"]}
+        claim_surfaces = {
+            item["surface"] for item in payload["setupReadiness"]["claimNarrowing"]
+        }
         self.assertIn("Queries, usage, and workloads", claim_surfaces)
         self.assertEqual(
             payload["bootMessage"],
@@ -366,7 +384,11 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
 
         with (
             patch.object(runtime_app, "_config", return_value=config),
-            patch.object(runtime_app.runtime_setup_service, "setup_payload", return_value=setup_snapshot) as setup_payload,
+            patch.object(
+                runtime_app.runtime_setup_service,
+                "setup_payload",
+                return_value=setup_snapshot,
+            ) as setup_payload,
         ):
             payload = runtime_app._runtime_diagnostics_payload(
                 None,
@@ -392,15 +414,19 @@ class RuntimeDiagnosticsWiringTests(unittest.TestCase):
         runtime_status_node = next(
             item
             for item in tree.body
-            if isinstance(item, ast.FunctionDef) and item.name == "_api_runtime_status_response"
+            if isinstance(item, ast.FunctionDef)
+            and item.name == "_api_runtime_status_response"
         )
-        runtime_status_segment = ast.get_source_segment(source, runtime_status_node) or ""
+        runtime_status_segment = (
+            ast.get_source_segment(source, runtime_status_node) or ""
+        )
         self.assertIn("_runtime_diagnostics_payload(", runtime_status_segment)
 
         bootstrap_node = next(
             item
             for item in tree.body
-            if isinstance(item, ast.FunctionDef) and item.name == "_api_bootstrap_response"
+            if isinstance(item, ast.FunctionDef)
+            and item.name == "_api_bootstrap_response"
         )
         bootstrap_segment = ast.get_source_segment(source, bootstrap_node) or ""
         self.assertNotIn("_runtime_diagnostics_payload(", bootstrap_segment)

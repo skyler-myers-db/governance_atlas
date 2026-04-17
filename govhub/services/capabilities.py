@@ -78,21 +78,27 @@ def bootstrap_capabilities(
     boot_message: str = "",
 ) -> Dict[str, Dict[str, Any]]:
     role = _normalize_role(actor_role)
-    auth_mode = runtime_auth_mode(authenticated=authenticated, per_user_authorization=False)
+    auth_mode = runtime_auth_mode(
+        authenticated=authenticated, per_user_authorization=False
+    )
     read_visibility_scope = runtime_visibility_scope(auth_mode)
     actor_scoped_reads = auth_mode == OBO_AVAILABLE_MODE
     runtime_live = runtime_state == "live"
     store_live = store_state == "live"
-    mutation_allowed = authenticated and runtime_live and store_live and role in MUTATION_ROLES
-    approval_allowed = authenticated and runtime_live and store_live and role in APPROVAL_ROLES
+    mutation_allowed = (
+        authenticated and runtime_live and store_live and role in MUTATION_ROLES
+    )
+    approval_allowed = (
+        authenticated and runtime_live and store_live and role in APPROVAL_ROLES
+    )
     metadata_source = (
-        "unity-catalog-actor"
-        if actor_scoped_reads
-        else "unity-catalog-app-principal"
+        "unity-catalog-actor" if actor_scoped_reads else "unity-catalog-app-principal"
     )
 
     if not runtime_live:
-        unavailable_reason = runtime_message or "The live metadata runtime is unavailable."
+        unavailable_reason = (
+            runtime_message or "The live metadata runtime is unavailable."
+        )
         inventory = _flag(
             available=False,
             state="unavailable",
@@ -147,12 +153,9 @@ def bootstrap_capabilities(
                 product_mode=auth_mode,
             )
         else:
-            degraded_reason = (
-                boot_message
-                or (
-                    f"The runtime is live, but no visible assets were returned yet across "
-                    f"{int(available_catalog_count or 0)} catalog(s)."
-                )
+            degraded_reason = boot_message or (
+                f"The runtime is live, but no visible assets were returned yet across "
+                f"{int(available_catalog_count or 0)} catalog(s)."
             )
             inventory = _flag(
                 available=True,
@@ -288,7 +291,9 @@ def bootstrap_capabilities(
             product_mode=auth_mode,
         )
     elif not authenticated:
-        auth_reason = "A forwarded Databricks user identity is required for governance mutations."
+        auth_reason = (
+            "A forwarded Databricks user identity is required for governance mutations."
+        )
         governance_write = _flag(
             available=False,
             state="unavailable",
@@ -387,7 +392,11 @@ def bootstrap_capabilities(
             product_mode=auth_mode,
         )
     else:
-        base_reason = runtime_message or store_message or "The required runtime capability is unavailable."
+        base_reason = (
+            runtime_message
+            or store_message
+            or "The required runtime capability is unavailable."
+        )
         quality_run = _flag(
             available=False,
             state="unavailable",
