@@ -128,9 +128,7 @@ class RuntimeApiContractsTests(unittest.TestCase):
 
     def test_request_obo_token_reads_forwarded_access_token_header(self) -> None:
         runtime_app = snapshot_script.runtime_app
-        request = SimpleNamespace(
-            headers={"x-forwarded-access-token": "obo-token-abc"}
-        )
+        request = SimpleNamespace(headers={"x-forwarded-access-token": "obo-token-abc"})
         self.assertEqual(runtime_app._request_obo_token(request), "obo-token-abc")
 
     def test_request_auth_mode_flips_to_obo_when_token_forwarded(self) -> None:
@@ -148,9 +146,7 @@ class RuntimeApiContractsTests(unittest.TestCase):
 
     def test_request_auth_mode_stays_app_principal_without_token(self) -> None:
         runtime_app = snapshot_script.runtime_app
-        request = SimpleNamespace(
-            headers={"x-forwarded-email": "user@example.com"}
-        )
+        request = SimpleNamespace(headers={"x-forwarded-email": "user@example.com"})
         self.assertEqual(
             runtime_app._request_auth_mode(request),
             "app-principal-only",
@@ -382,6 +378,124 @@ class RuntimeApiContractsTests(unittest.TestCase):
 
         self.assertEqual(exc.exception.status_code, 404)
         self.assertFalse(mutated["called"])
+
+    def test_uc_for_request_returns_app_principal_client_without_token(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        sentinel = object()
+        request = SimpleNamespace(headers={})
+
+        with patch.multiple(
+            runtime_app,
+            _uc=lambda: sentinel,
+            _uc_for_token=lambda _token: (_ for _ in ()).throw(
+                AssertionError("token path should not run without forwarded token")
+            ),
+        ):
+            client = runtime_app._uc_for_request(request)
+
+        self.assertIs(client, sentinel)
+
+    def test_uc_for_request_uses_forwarded_token_to_build_actor_scoped_client(
+        self,
+    ) -> None:
+        runtime_app = snapshot_script.runtime_app
+        app_principal_sentinel = object()
+        actor_scoped_sentinel = object()
+        observed_tokens: list[str] = []
+        request = SimpleNamespace(headers={"x-forwarded-access-token": "obo-token-42"})
+
+        def _actor_scoped(token: str) -> object:
+            observed_tokens.append(token)
+            return actor_scoped_sentinel
+
+        with patch.multiple(
+            runtime_app,
+            _uc=lambda: app_principal_sentinel,
+            _uc_for_token=_actor_scoped,
+        ):
+            client = runtime_app._uc_for_request(request)
+
+        self.assertIs(client, actor_scoped_sentinel)
+        self.assertEqual(observed_tokens, ["obo-token-42"])
+
+    def test_uc_for_request_falls_back_to_app_principal_if_actor_scoped_build_fails(
+        self,
+    ) -> None:
+        runtime_app = snapshot_script.runtime_app
+        app_principal_sentinel = object()
+        request = SimpleNamespace(headers={"x-forwarded-access-token": "obo-token-99"})
+
+        def _actor_scoped(_token: str) -> object:
+            raise RuntimeError("boom")
+
+        with patch.multiple(
+            runtime_app,
+            _uc=lambda: app_principal_sentinel,
+            _uc_for_token=_actor_scoped,
+        ):
+            client = runtime_app._uc_for_request(request)
+
+        self.assertIs(client, app_principal_sentinel)
+
+    def test_request_cache_scope_partitions_obo_and_app_principal_buckets(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        obo_request = SimpleNamespace(
+            headers={
+                "x-forwarded-email": "user@example.com",
+                "x-forwarded-access-token": "obo-token-xyz",
+            }
+        )
+        app_request = SimpleNamespace(
+            headers={"x-forwarded-email": "user@example.com"}
+        )
+
+        obo_scope = runtime_app._request_cache_scope(obo_request)
+        app_scope = runtime_app._request_cache_scope(app_request)
+
+        self.assertNotEqual(obo_scope, app_scope)
+        self.assertTrue(obo_scope.endswith("|obo-available"))
+        self.assertTrue(app_scope.endswith("|app-principal-only"))
+
+    def test_response_meta_downgrades_unity_catalog_reads_without_obo(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(headers={"x-forwarded-email": "user@example.com"})
+
+        meta = runtime_app._response_meta(
+            request,
+            source="unity-catalog-inventory",
+            state="available",
+            authoritative=True,
+        )
+
+        self.assertFalse(meta["authoritative"])
+        self.assertEqual(meta["state"], "degraded")
+        self.assertEqual(meta["visibilityScope"], "workspace-app-principal")
+        self.assertTrue(meta["degraded"])
+        self.assertTrue(
+            any("workspace-scoped app-principal" in w for w in meta["warnings"])
+        )
+
+    def test_response_meta_keeps_obo_reads_authoritative_and_actor_scoped(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(
+            headers={
+                "x-forwarded-email": "user@example.com",
+                "x-forwarded-access-token": "obo-token-live",
+            }
+        )
+
+        meta = runtime_app._response_meta(
+            request,
+            source="unity-catalog-inventory",
+            state="available",
+            authoritative=True,
+        )
+
+        self.assertTrue(meta["authoritative"])
+        self.assertEqual(meta["state"], "available")
+        self.assertEqual(meta["visibilityScope"], "actor-scoped")
+        self.assertFalse(meta["degraded"])
+        self.assertEqual(meta["warnings"], [])
 
 
 if __name__ == "__main__":

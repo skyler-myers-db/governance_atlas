@@ -348,11 +348,7 @@ def _request_obo_token(request: Optional[Request]) -> str:
         return ""
     # Databricks Apps forwards the OAuth access token for per-user authorization
     # via `X-Forwarded-Access-Token`. Be tolerant of header-case variants.
-    raw = (
-        getter("x-forwarded-access-token")
-        or getter("X-Forwarded-Access-Token")
-        or ""
-    )
+    raw = getter("x-forwarded-access-token") or getter("X-Forwarded-Access-Token") or ""
     return raw.strip()
 
 
@@ -657,7 +653,16 @@ def _ensure_can_mutate_uc_metadata(request: Request) -> str:
 
 def _request_cache_scope(request: Optional[Request]) -> str:
     email = _normalize_str(_user_email(request))
-    return email if email and email != "unknown" else "anonymous"
+    base = email if email and email != "unknown" else "anonymous"
+    # Separate cache buckets per auth mode so OBO-scoped reads never share storage
+    # with app-principal-scoped reads — they return materially different row sets
+    # for the same actor, and cross-pollution would silently widen user-visible data.
+    mode = (
+        _request_auth_mode(request)
+        if request is not None
+        else capability_service.NO_IDENTITY_MODE
+    )
+    return f"{base}|{mode}"
 
 
 def _utc_iso(value: datetime) -> str:
@@ -892,44 +897,52 @@ def _runtime_diagnostics_payload(
     }
 
 
-def _inventory() -> pd.DataFrame:
+def _inventory(request: Optional[Request] = None) -> pd.DataFrame:
     return asset_service.inventory(
-        _uc(),
+        _uc_for_request(request),
         _store_for_read(),
         hidden_catalogs=HIDDEN_CATALOGS,
     )
 
 
-def _visible_assets(cache_scope: str = "") -> pd.DataFrame:
-    normalized_scope = _normalize_str(cache_scope) or "shared"
+def _visible_assets(
+    request: Optional[Request] = None,
+    *,
+    cache_scope: str = "",
+) -> pd.DataFrame:
+    scope = cache_scope or _request_cache_scope(request)
+    normalized_scope = _normalize_str(scope) or "shared"
     return _ttl_value(
         f"runtime_inventory:{normalized_scope}",
         300,
         lambda: asset_service.visible_assets(
-            _uc(),
+            _uc_for_request(request),
             _store_for_read(),
             hidden_catalogs=HIDDEN_CATALOGS,
         ),
     )
 
 
-def _inventory_catalogs() -> List[str]:
+def _inventory_catalogs(request: Optional[Request] = None) -> List[str]:
     return asset_service.inventory_catalogs(
-        _uc(),
+        _uc_for_request(request),
         hidden_catalogs=HIDDEN_CATALOGS,
     )
 
 
-def _lineage_observed_catalogs() -> List[str]:
+def _lineage_observed_catalogs(request: Optional[Request] = None) -> List[str]:
     return asset_service.lineage_observed_catalogs(
-        _uc(),
+        _uc_for_request(request),
         hidden_catalogs=HIDDEN_CATALOGS,
     )
 
 
-def _inventory_row(asset_fqn: str) -> pd.Series:
+def _inventory_row(
+    asset_fqn: str,
+    request: Optional[Request] = None,
+) -> pd.Series:
     return asset_service.inventory_row(
-        _uc(),
+        _uc_for_request(request),
         _store_for_read(),
         asset_fqn,
         hidden_catalogs=HIDDEN_CATALOGS,
@@ -938,7 +951,7 @@ def _inventory_row(asset_fqn: str) -> pd.Series:
 
 def _asset_exists(asset_fqn: str, request: Optional[Request] = None) -> bool:
     return asset_service.asset_exists(
-        _uc(),
+        _uc_for_request(request),
         _store_for_read(),
         asset_fqn,
         hidden_catalogs=HIDDEN_CATALOGS,
@@ -947,11 +960,10 @@ def _asset_exists(asset_fqn: str, request: Optional[Request] = None) -> bool:
 
 def _asset_is_visible(asset_fqn: str, request: Optional[Request] = None) -> bool:
     if request is not None:
-        cache_scope = _request_cache_scope(request)
-        inventory = _visible_assets(cache_scope)
+        inventory = _visible_assets(request)
         return asset_service.asset_is_visible(inventory, asset_fqn)
     return asset_service.asset_is_visible(
-        _uc(),
+        _uc_for_request(request),
         _store_for_read(),
         asset_fqn,
         hidden_catalogs=HIDDEN_CATALOGS,
@@ -1288,7 +1300,7 @@ def _discovery_search_payload(
     offset: int = 0,
 ) -> Dict[str, Any]:
     return asset_service.discovery_search_payload(
-        _visible_assets(_request_cache_scope(request)),
+        _visible_assets(request),
         query=query,
         query_mode=query_mode,
         views=views,
@@ -1305,8 +1317,16 @@ def _discovery_search_payload(
     )
 
 
-def _related_assets(catalog: str, schema: str, table: str, focus_fqn: str) -> List[str]:
-    return asset_service.related_assets(_uc(), catalog, schema, table, focus_fqn)
+def _related_assets(
+    catalog: str,
+    schema: str,
+    table: str,
+    focus_fqn: str,
+    request: Optional[Request] = None,
+) -> List[str]:
+    return asset_service.related_assets(
+        _uc_for_request(request), catalog, schema, table, focus_fqn
+    )
 
 
 def _asset_detail_payload(
@@ -1316,7 +1336,7 @@ def _asset_detail_payload(
     sections: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     return asset_service.asset_detail_payload(
-        _uc(),
+        _uc_for_request(request),
         _store_for_read(),
         asset_fqn,
         cache_scope=_request_cache_scope(request),
@@ -1468,8 +1488,9 @@ def _graph_node_for_asset(
     kind: str = "",
     foot: Optional[List[str]] = None,
     depth: int = 1,
+    request: Optional[Request] = None,
 ) -> Dict[str, Any]:
-    row = _inventory_row(asset_fqn)
+    row = _inventory_row(asset_fqn, request)
     label = _normalize_str(row.get("table_name")) or asset_fqn.split(".")[-1]
     subtitle = " / ".join(
         part
@@ -1510,13 +1531,21 @@ def _stack_positions(
     return [(x, round(top + idx * step)) for idx in range(count)]
 
 
-def _build_data_graph(asset_fqn: str) -> Dict[str, Any]:
-    return lineage_service.build_data_graph(_uc(), _store_for_read(), asset_fqn)
+def _build_data_graph(
+    asset_fqn: str,
+    request: Optional[Request] = None,
+) -> Dict[str, Any]:
+    return lineage_service.build_data_graph(
+        _uc_for_request(request), _store_for_read(), asset_fqn
+    )
 
 
-def _build_operational_graph(asset_fqn: str) -> Dict[str, Any]:
+def _build_operational_graph(
+    asset_fqn: str,
+    request: Optional[Request] = None,
+) -> Dict[str, Any]:
     return lineage_service.build_operational_graph(
-        _uc(),
+        _uc_for_request(request),
         _store_for_read(),
         asset_fqn,
     )
@@ -1527,7 +1556,7 @@ def _lineage_payload(
     request: Optional[Request] = None,
 ) -> Dict[str, Any]:
     return lineage_service.lineage_payload(
-        _uc(),
+        _uc_for_request(request),
         _store_for_read(),
         asset_fqn,
         cache_scope=_request_cache_scope(request),
@@ -1558,7 +1587,7 @@ def _degraded_governance_payload(message: str) -> Dict[str, Any]:
 
 def _governance_summary(request: Optional[Request] = None) -> Dict[str, Any]:
     payload = governance_service.governance_summary(
-        _uc(),
+        _uc_for_request(request),
         _store(),
         actor_email=_user_email(request),
         hidden_catalogs=HIDDEN_CATALOGS,
@@ -2097,9 +2126,7 @@ def _normalized_tag_map(df: pd.DataFrame) -> Dict[str, str]:
     return tags
 
 
-def _asset_table_type(
-    asset_fqn: str, *, request: Optional[Request] = None
-) -> str:
+def _asset_table_type(asset_fqn: str, *, request: Optional[Request] = None) -> str:
     catalog, schema, table = _split_uc_name(asset_fqn)
     uc = _uc_for_request(request)
     try:
@@ -2286,8 +2313,12 @@ def _apply_column_tags(
     return applied_tags
 
 
-def _ensure_asset_column_exists(asset_fqn: str, column_name: str) -> None:
-    columns_df = asset_service.asset_columns_df(_uc(), asset_fqn)
+def _ensure_asset_column_exists(
+    asset_fqn: str,
+    column_name: str,
+    request: Optional[Request] = None,
+) -> None:
+    columns_df = asset_service.asset_columns_df(_uc_for_request(request), asset_fqn)
     column_names = set(columns_df["column_name"].dropna().astype(str).tolist())
     if column_name not in column_names:
         raise HTTPException(status_code=404, detail="Column not found.")
@@ -2894,10 +2925,10 @@ def api_patch_column_description(
     actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    _ensure_asset_column_exists(asset_fqn, column_name)
+    _ensure_asset_column_exists(asset_fqn, column_name, request)
     before = _metadata_audit_column_snapshot(asset_fqn, column_name, request)
     governance_service.patch_column_description(
-        _uc(),
+        _uc_for_request(request),
         asset_fqn=asset_fqn,
         column_name=column_name,
         description=payload.description or "",
@@ -2940,7 +2971,7 @@ def api_patch_column_tags(
     actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    _ensure_asset_column_exists(asset_fqn, column_name)
+    _ensure_asset_column_exists(asset_fqn, column_name, request)
     before = _metadata_audit_column_snapshot(asset_fqn, column_name, request)
     requested = {
         _normalize_str(key): _normalize_str(value)
@@ -2995,10 +3026,10 @@ def api_patch_column_metadata(
     actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    _ensure_asset_column_exists(asset_fqn, column_name)
+    _ensure_asset_column_exists(asset_fqn, column_name, request)
     before = _metadata_audit_column_snapshot(asset_fqn, column_name, request)
     applied = governance_service.patch_column_metadata(
-        _uc(),
+        _uc_for_request(request),
         asset_fqn=asset_fqn,
         column_name=column_name,
         description=payload.description or "",
@@ -3045,7 +3076,7 @@ def api_patch_asset_description(
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     before = _metadata_audit_asset_snapshot(asset_fqn, request)
     governance_service.patch_asset_description(
-        _uc(),
+        _uc_for_request(request),
         asset_fqn=asset_fqn,
         description=payload.description or "",
     )
@@ -3306,7 +3337,7 @@ def api_governance_glossary(request: Request) -> JSONResponse:
     return JSONResponse(
         {
             "glossary": governance_service.glossary_terms(
-                _uc(),
+                _uc_for_request(request),
                 store,
                 actor_email=actor_email,
             )
@@ -3321,7 +3352,7 @@ def api_governance_glossary_term(term_id: str, request: Request) -> JSONResponse
     store = _store()
     actor_email = _user_email(request)
     term = governance_service.glossary_term_detail(
-        _uc(),
+        _uc_for_request(request),
         store,
         term_id=_normalize_str(term_id),
         actor_email=actor_email,
@@ -3514,7 +3545,7 @@ def api_governance_upsert_glossary(
             "ok": True,
             "termId": term_id,
             "term": governance_service.glossary_term_detail(
-                _uc(),
+                _uc_for_request(request),
                 store,
                 term_id=term_id,
                 actor_email=_user_email(request),
@@ -3557,7 +3588,7 @@ def api_governance_patch_glossary(
             "ok": True,
             "termId": normalized_term_id,
             "term": governance_service.glossary_term_detail(
-                _uc(),
+                _uc_for_request(request),
                 store,
                 term_id=normalized_term_id,
                 actor_email=_user_email(request),
