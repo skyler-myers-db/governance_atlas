@@ -161,18 +161,34 @@ def lineage_observed_catalogs(
     *,
     hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
 ) -> List[str]:
-    try:
-        df = uc.list_lineage_catalogs()
-    except Exception:
-        return []
-    if df is None or df.empty:
-        return []
-    hidden = {str(value).lower() for value in hidden_catalogs}
-    return sorted(
-        normalize_str(value)
-        for value in df.iloc[:, 0].tolist()
-        if normalize_str(value) and normalize_str(value).lower() not in hidden
-    )
+    key = f"lineage_catalogs:{_warehouse_key(uc)}"
+    cached = _TTL_CACHE.get(key)
+    now = time.time()
+    if cached and now - cached[0] < 600:
+        payload = cached[1]
+        if payload:
+            return payload
+        # Empty result: short retry window so permission lag doesn't pin to [].
+        if now - cached[0] < 15:
+            return payload
+
+    def _load() -> List[str]:
+        try:
+            df = uc.list_lineage_catalogs()
+        except Exception:
+            return []
+        if df is None or df.empty:
+            return []
+        hidden_lower = {str(value).lower() for value in hidden_catalogs}
+        return sorted(
+            normalize_str(value)
+            for value in df.iloc[:, 0].tolist()
+            if normalize_str(value) and normalize_str(value).lower() not in hidden_lower
+        )
+
+    value = _load()
+    _TTL_CACHE[key] = (now, value)
+    return value
 
 
 def inventory(

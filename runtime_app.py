@@ -786,7 +786,7 @@ def _visible_assets(cache_scope: str = "") -> pd.DataFrame:
     normalized_scope = _normalize_str(cache_scope) or "shared"
     return _ttl_value(
         f"runtime_inventory:{normalized_scope}",
-        10,
+        300,
         lambda: asset_service.visible_assets(
             _uc(),
             _store_for_read(),
@@ -1562,7 +1562,7 @@ def _bootstrap_seed_asset_pool(cache_scope: str) -> List[Dict[str, Any]]:
     normalized_scope = _normalize_str(cache_scope) or "shared"
     return _ttl_value(
         f"runtime_bootstrap_seed_assets:{normalized_scope}",
-        10,
+        120,
         lambda: _bootstrap_seed_inventory_assets(_visible_assets(normalized_scope)),
     )
 

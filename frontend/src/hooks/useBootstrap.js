@@ -30,7 +30,8 @@ export function useBootstrap(routeContext = {}) {
     ],
     queryFn: ({ signal }) => fetchBootstrap(resolvedRouteContext, { signal }),
     initialData: seeded || undefined,
-    staleTime: 0,
+    initialDataUpdatedAt: 0,
+    staleTime: 60_000,
   });
   const message = query.error?.message || "Failed to load Governance Hub bootstrap payload.";
   const shellOnly = isInlineShellBootstrap(query.data);
