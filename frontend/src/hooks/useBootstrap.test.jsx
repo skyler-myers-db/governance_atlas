@@ -32,8 +32,7 @@ describe("useBootstrap", () => {
       },
       bootstrapContract: {
         class: "shell-capability",
-        warnings: ["Bootstrap remains on temporary seed adapters."],
-        seedAdapters: {},
+        warnings: [],
       },
       apiContract: {
         bootstrap: "/api/bootstrap",
@@ -50,8 +49,7 @@ describe("useBootstrap", () => {
       },
       bootstrapContract: {
         class: "shell-capability",
-        warnings: ["Bootstrap remains on temporary seed adapters."],
-        seedAdapters: {},
+        warnings: [],
       },
       apiContract: {
         bootstrap: "/api/bootstrap",
@@ -71,7 +69,6 @@ describe("useBootstrap", () => {
     );
 
     expect(result.current.data?.assets?.[0]?.fqn).toBe("main.sales.seeded");
-    expect(result.current.data?.bootstrapContract?.seedAdapters?.governanceSummary).toBeUndefined();
     expect(result.current.data?.apiContract?.governanceSummary).toBeUndefined();
     expect(result.current.refreshing).toBe(true);
 
@@ -79,7 +76,6 @@ describe("useBootstrap", () => {
       expect(fetchBootstrapMock).toHaveBeenCalledTimes(1);
       expect(result.current.refreshing).toBe(false);
       expect(result.current.data?.assets?.[0]?.fqn).toBe("main.sales.authoritative");
-      expect(result.current.data?.bootstrapContract?.seedAdapters?.lineageGraphs).toBeUndefined();
       expect(result.current.data?.apiContract?.governanceSummary).toBeUndefined();
     });
 
@@ -106,7 +102,6 @@ describe("useBootstrap", () => {
       bootstrapContract: {
         class: "shell-capability",
         warnings: [],
-        seedAdapters: {},
       },
       apiContract: {
         bootstrap: "/api/bootstrap",
@@ -146,8 +141,7 @@ describe("useBootstrap", () => {
       },
       bootstrapContract: {
         class: "shell-capability",
-        warnings: ["Bootstrap remains on temporary seed adapters."],
-        seedAdapters: {},
+        warnings: [],
       },
       apiContract: {
         bootstrap: "/api/bootstrap",
@@ -168,8 +162,7 @@ describe("useBootstrap", () => {
       },
       bootstrapContract: {
         class: "shell-capability",
-        warnings: ["Bootstrap remains on temporary seed adapters."],
-        seedAdapters: {},
+        warnings: [],
       },
       apiContract: {
         bootstrap: "/api/bootstrap",
@@ -195,11 +188,9 @@ describe("useBootstrap", () => {
     );
 
     expect(result.current.data?.capabilities?.systemInventoryRead?.state).toBe("degraded");
-    expect(result.current.data?.bootstrapContract?.seedAdapters?.discoverySummary).toBeUndefined();
 
     await waitFor(() => {
       expect(result.current.data?.capabilities?.tableLineage?.state).toBe("available");
-      expect(result.current.data?.bootstrapContract?.seedAdapters?.governanceSummary).toBeUndefined();
     });
   });
 });
