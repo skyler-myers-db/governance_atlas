@@ -11,7 +11,7 @@ env:
 
   # ── Governance Hub defaults ───────────────────────────────
   - name: GOVHUB_CATALOG
-    value: main
+    value: prod
   - name: GOVHUB_SCHEMA
     value: governance_hub
   - name: GOVHUB_ADMIN_EMAILS
