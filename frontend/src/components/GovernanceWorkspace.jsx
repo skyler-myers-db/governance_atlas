@@ -999,6 +999,7 @@ export default function GovernanceWorkspace({
                               "Request approved.",
                             )
                           }
+                          title={!selectedItem.requestId ? "This item is not backed by a governance request, so there is nothing to approve." : undefined}
                           type="button"
                         >
                           Approve
@@ -1017,6 +1018,7 @@ export default function GovernanceWorkspace({
                               "Request rejected.",
                             )
                           }
+                          title={!selectedItem.requestId ? "This item is not backed by a governance request, so there is nothing to reject." : undefined}
                           type="button"
                         >
                           Reject
@@ -1132,6 +1134,13 @@ export default function GovernanceWorkspace({
                                 "Owner assignment saved.",
                               ).then(() => setOwnerEmail(""))
                             }
+                            title={
+                              mutationState.loading
+                                ? "Saving governance mutation — please wait."
+                                : !ownerEmail.trim()
+                                  ? "Enter an owner email before saving."
+                                  : undefined
+                            }
                             type="button"
                           >
                             Save owner
@@ -1177,6 +1186,13 @@ export default function GovernanceWorkspace({
                                 setRequestNote("");
                               })
                             }
+                          title={
+                            mutationState.loading
+                              ? "Saving governance mutation — please wait."
+                              : !requestTitle.trim()
+                                ? "Enter a request title before submitting."
+                                : undefined
+                          }
                           type="button"
                           >
                             Create request
@@ -1241,6 +1257,13 @@ export default function GovernanceWorkspace({
                           <button
                             className="gh-secondary-button gh-secondary-button-compact"
                             disabled={!glossaryName.trim() || mutationState.loading}
+                            title={
+                              mutationState.loading
+                                ? "Saving governance mutation — please wait."
+                                : !glossaryName.trim()
+                                  ? "Enter a term name before creating."
+                                  : undefined
+                            }
                             onClick={() =>
                               runGovernanceMutation(
                                 "glossary",
@@ -1423,6 +1446,7 @@ export default function GovernanceWorkspace({
                               "Request approved.",
                             )
                           }
+                          title={!selectedItem.requestId ? "This item is not backed by a governance request, so there is nothing to approve." : undefined}
                           type="button"
                         >
                           Approve
@@ -1441,6 +1465,7 @@ export default function GovernanceWorkspace({
                               "Request rejected.",
                             )
                           }
+                          title={!selectedItem.requestId ? "This item is not backed by a governance request, so there is nothing to reject." : undefined}
                           type="button"
                         >
                           Reject
@@ -1724,6 +1749,15 @@ export default function GovernanceWorkspace({
                         className="gh-primary-button"
                         disabled={!selectedGlossary.termId || mutationState.loading || !glossaryDraft.name.trim()}
                         onClick={saveSelectedGlossaryTerm}
+                        title={
+                          mutationState.loading
+                            ? "Saving governance mutation — please wait."
+                            : !selectedGlossary.termId
+                              ? "No glossary term is selected to save."
+                              : !glossaryDraft.name.trim()
+                                ? "Enter a term name before saving."
+                                : undefined
+                        }
                         type="button"
                       >
                         {mutationState.kind === "glossary-update" && mutationState.loading ? "Saving..." : "Save term"}

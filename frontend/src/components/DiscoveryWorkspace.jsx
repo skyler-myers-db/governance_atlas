@@ -382,6 +382,16 @@ function DiscoveryQueryBuilder({
       value: builderValue,
       matchMode: builderMatchMode,
     }));
+  const joinOperatorDisabledReason = !normalizedActiveQuery
+    ? "Enter a search in the main query box before chaining another clause."
+    : queryIsInvalid
+      ? "Clear or correct the invalid search before chaining another clause."
+      : undefined;
+  const insertClauseDisabledReason = queryIsInvalid
+    ? "Clear or correct the invalid search before inserting this clause."
+    : !builderValue?.trim()
+      ? "Enter a value for this clause to insert it."
+      : undefined;
 
   const applyQueryClause = () => {
     const nextClause = buildDiscoveryQueryClause({
@@ -448,6 +458,7 @@ function DiscoveryQueryBuilder({
             className="gh-select"
             disabled={!normalizedActiveQuery || queryIsInvalid}
             onChange={(event) => setBuilderJoin(event.target.value)}
+            title={joinOperatorDisabledReason}
             value={builderJoin}
           >
             <option value="AND">AND</option>
@@ -487,6 +498,7 @@ function DiscoveryQueryBuilder({
           className="gh-secondary-button"
           disabled={!canApplyClause}
           onClick={applyQueryClause}
+          title={insertClauseDisabledReason}
           type="button"
         >
           Insert into search
@@ -1748,6 +1760,7 @@ export default function DiscoveryWorkspace({
                         ),
                       )
                     }
+                    title={loadingMoreResults ? "Loading the next page of results — please wait." : undefined}
                     type="button"
                   >
                     {loadingMoreResults ? "Loading more results…" : "Load more results"}

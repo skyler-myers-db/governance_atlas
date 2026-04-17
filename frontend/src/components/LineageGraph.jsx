@@ -574,6 +574,11 @@ function LineageRecordCard({
   const detail = nodeDetailRecord(node);
   const forcedUnavailable = availabilityOverride === false;
   const isOpenable = !forcedUnavailable && detail?.isOpenable !== false;
+  const unavailableReason = !isOpenable
+    ? forcedUnavailable
+      ? "This asset has no governed metadata record yet. It only appears as a lineage reference."
+      : "This node is a lineage-only reference with no governed metadata record in the visible catalog."
+    : undefined;
   const tags = [
     node?.kind,
     node?.role === "focus" ? "Focus" : node?.role === "source" ? "Upstream" : node?.role === "target" ? "Downstream" : "",
@@ -642,6 +647,7 @@ function LineageRecordCard({
             className="gh-secondary-button gh-secondary-button-compact"
             disabled={!isOpenable}
             onClick={() => onOpenAsset(node.assetFqn)}
+            title={unavailableReason}
             type="button"
           >
             {forcedUnavailable ? "Metadata record unavailable" : "Open Record"}
@@ -652,6 +658,7 @@ function LineageRecordCard({
             className="gh-secondary-button gh-secondary-button-compact"
             disabled={!isOpenable}
             onClick={() => onOpenGovernance(node.assetFqn)}
+            title={unavailableReason}
             type="button"
           >
             Open Governance
@@ -662,6 +669,7 @@ function LineageRecordCard({
             className="gh-primary-button gh-secondary-button-compact"
             disabled={!isOpenable}
             onClick={() => onRefocus(node.assetFqn)}
+            title={unavailableReason}
             type="button"
           >
             {focusActionLabel}
@@ -1436,8 +1444,18 @@ export default function LineageGraph({
                   <button
                     className="gh-secondary-button"
                     onClick={() => {
-                      setGraphMode("path");
-                      setDrawerOpen(true);
+                      const node = flowInstance?.getNode?.(selectedNode.id);
+                      if (node?.position) {
+                        const width = node.width || node.measured?.width || 220;
+                        const height = node.height || node.measured?.height || 120;
+                        flowInstance?.setCenter?.(
+                          node.position.x + width / 2,
+                          node.position.y + height / 2,
+                          { zoom: 1.1, duration: 240 },
+                        );
+                      } else {
+                        flowInstance?.fitView?.({ padding: 0.2, duration: 240 });
+                      }
                     }}
                     type="button"
                   >

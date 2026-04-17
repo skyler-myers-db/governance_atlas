@@ -108,12 +108,7 @@ describe("AppFrame", () => {
     render(<FrameHarness />);
 
     expect(screen.getByText("Command bar")).not.toBeNull();
-    expect(
-      screen.getAllByText(
-        "Search covers the workspace inventory visible to the app. Press Enter or Browse to open the full Discovery surface.",
-      ),
-    ).toHaveLength(2);
-    expect(screen.getByText("3 visible assets indexed")).not.toBeNull();
+    expect(screen.getByText("3 visible assets in scope")).not.toBeNull();
   });
 
   it("publishes a measured shell header height for sticky workspace offsets", async () => {

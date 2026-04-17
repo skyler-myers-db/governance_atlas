@@ -327,6 +327,13 @@ export default function WorkspaceDiagnosticsSurface({
                   className="gh-tertiary-button gh-inline-link-button"
                   disabled={refreshing || loading}
                   onClick={onRefresh}
+                  title={
+                    refreshing
+                      ? "Refreshing workspace readiness probe — please wait."
+                      : loading
+                        ? "Initial readiness probe in progress — please wait."
+                        : undefined
+                  }
                   type="button"
                 >
                   {refreshing ? "Refreshing readiness..." : "Refresh readiness"}

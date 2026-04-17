@@ -197,6 +197,12 @@ export default function AppFrame({
   const visibleCatalogCount =
     typeof liveCatalogVisibleCount === "number" ? liveCatalogVisibleCount : visibleAssetSet?.size || 0;
   const shellDisabled = (bootState === "unavailable" || bootState === "error") && !hasRenderableLiveCatalog;
+  const shellDisabledReason = shellDisabled
+    ? bootMessage
+      || (bootState === "error"
+        ? "The live catalog failed to load. Complete workspace setup or retry to re-enable navigation."
+        : "The live catalog is not available yet. Complete workspace setup to re-enable navigation.")
+    : undefined;
   const showRuntimeStatus =
     (bootState === "unavailable" || bootState === "error") && !hasRenderableLiveCatalog;
   const setupStatusState = String(diagnosticsStatus?.state || "").trim().toLowerCase();
@@ -238,12 +244,10 @@ export default function AppFrame({
         ? "restricted workspace inventory"
         : "visible assets";
   const searchScopeLabel = hasRenderableLiveCatalog
-    ? `${visibleCatalogCount.toLocaleString()} visible asset${visibleCatalogCount === 1 ? "" : "s"} indexed`
+    ? `${visibleCatalogCount.toLocaleString()} visible asset${visibleCatalogCount === 1 ? "" : "s"} in scope`
     : "Visible catalog unavailable";
   const searchScopeHint = hasRenderableLiveCatalog
-    ? accessBanner
-      ? `${accessBanner.message} Search covers ${searchScopeSubject}.`
-      : `Search covers the workspace inventory visible to the app. Press Enter or Browse to open the full Discovery surface.`
+    ? accessBanner?.message || ""
     : "Search is paused until the live catalog becomes available.";
   const searchEnabled = !shellDisabled && searchPanelOpen && searchQuery.trim().length >= 2;
   const shellSearch = useAssetSearch(searchQuery, searchEnabled, searchSeedAssets);
@@ -394,6 +398,7 @@ export default function AppFrame({
                 className="gh-shell-brand"
                 disabled={shellDisabled}
                 onClick={openDiscoveryModule}
+                title={shellDisabledReason}
                 type="button"
               >
                 <div className="gh-shell-brand-mark" aria-hidden="true">
@@ -472,6 +477,7 @@ export default function AppFrame({
                     disabled={shellDisabled}
                     key={module.key}
                     onClick={module.key === "discovery" ? openDiscoveryModule : () => onModuleChange(module.key)}
+                    title={shellDisabledReason}
                     type="button"
                   >
                     <span>{module.label}</span>
@@ -488,7 +494,9 @@ export default function AppFrame({
             <div className="gh-shell-commandbar-title">
               {`Search ${searchScopeSubject}, then open the broader discovery surface.`}
             </div>
-            <div className="gh-shell-commandbar-subtitle">{searchScopeHint}</div>
+            {searchScopeHint ? (
+              <div className="gh-shell-commandbar-subtitle">{searchScopeHint}</div>
+            ) : null}
             <div className="gh-shell-commandbar-scope">{searchScopeLabel}</div>
           </div>
           {navigationState?.pending ? (
@@ -512,13 +520,14 @@ export default function AppFrame({
                   <label className="gh-global-search-label" htmlFor="gh-global-search-input">
                     Search
                   </label>
-                  <div className="gh-global-search-subtitle">{searchScopeHint}</div>
                 </div>
                 <div className="gh-global-search-input-wrap">
                   <input
+                    aria-describedby={shellDisabled ? "gh-global-search-disabled-note" : undefined}
                     className="gh-input gh-global-search-input"
                     disabled={shellDisabled}
                     id="gh-global-search-input"
+                    title={shellDisabledReason}
                     onBlur={() => {
                       if (typeof window === "undefined") return;
                       window.requestAnimationFrame(() => {
@@ -545,9 +554,32 @@ export default function AppFrame({
                     value={searchQuery}
                   />
                 </div>
-                <button className="gh-secondary-button gh-search-submit" disabled={shellDisabled} type="submit">
+                <button
+                  className="gh-secondary-button gh-search-submit"
+                  disabled={shellDisabled}
+                  title={shellDisabledReason}
+                  type="submit"
+                >
                   {topDirectResult ? "Open" : "Browse"}
                 </button>
+                {shellDisabledReason ? (
+                  <span
+                    id="gh-global-search-disabled-note"
+                    style={{
+                      position: "absolute",
+                      width: 1,
+                      height: 1,
+                      padding: 0,
+                      margin: -1,
+                      overflow: "hidden",
+                      clip: "rect(0,0,0,0)",
+                      whiteSpace: "nowrap",
+                      border: 0,
+                    }}
+                  >
+                    {shellDisabledReason}
+                  </span>
+                ) : null}
               </div>
 
               {searchEnabled ? (
@@ -626,6 +658,13 @@ export default function AppFrame({
                         className="gh-tertiary-button gh-inline-link-button"
                         disabled={!canMarkRead}
                         onClick={() => onInboxItemAction?.(item.notificationId, "read")}
+                        title={
+                          !canMarkRead
+                            ? itemState === "dismissed"
+                              ? "Already dismissed — cannot mark read."
+                              : "Already marked as read."
+                            : undefined
+                        }
                         type="button"
                       >
                         Mark read
@@ -634,6 +673,7 @@ export default function AppFrame({
                         className="gh-tertiary-button gh-inline-link-button"
                         disabled={!canDismiss}
                         onClick={() => onInboxItemAction?.(item.notificationId, "dismiss")}
+                        title={!canDismiss ? "Already dismissed." : undefined}
                         type="button"
                       >
                         Dismiss
