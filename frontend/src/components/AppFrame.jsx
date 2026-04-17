@@ -200,11 +200,15 @@ export default function AppFrame({
   const showRuntimeStatus =
     (bootState === "unavailable" || bootState === "error") && !hasRenderableLiveCatalog;
   const setupStatusState = String(diagnosticsStatus?.state || "").trim().toLowerCase();
-  const showSetupStatus = Boolean(setupStatusState && setupStatusState !== "ready");
+  const showSetupStatus = Boolean(
+    setupStatusState && setupStatusState !== "ready" && setupStatusState !== "complete",
+  );
   const setupStatusToneValue = setupStatusTone(setupStatusState);
   const setupStatusNextStep = diagnosticsAvailable && diagnosticsStatus?.nextStep
     ? `Next step: ${humanizeStatusLabel(diagnosticsStatus.nextStep)}.`
-    : "Claims narrowed until readiness improves.";
+    : diagnosticsAvailable
+      ? "Setup diagnostics are being refreshed."
+      : "Setup diagnostics have not loaded yet.";
   const inboxItems = Array.isArray(governanceInbox?.items) ? governanceInbox.items : [];
   const inboxUnreadCount = Number.isFinite(Number(governanceInbox?.unreadCount))
     ? Math.max(0, Math.trunc(Number(governanceInbox.unreadCount)))
@@ -234,12 +238,12 @@ export default function AppFrame({
         ? "restricted workspace inventory"
         : "visible assets";
   const searchScopeLabel = hasRenderableLiveCatalog
-    ? `${visibleCatalogCount} visible asset${visibleCatalogCount === 1 ? "" : "s"} indexed`
+    ? `${visibleCatalogCount.toLocaleString()} visible asset${visibleCatalogCount === 1 ? "" : "s"} indexed`
     : "Visible catalog unavailable";
   const searchScopeHint = hasRenderableLiveCatalog
     ? accessBanner
-      ? `${accessBanner.message} Search stays scoped to ${searchScopeSubject}.`
-      : "Search stays scoped to visible assets; Discovery opens the broader workspace view."
+      ? `${accessBanner.message} Search covers ${searchScopeSubject}.`
+      : `Search covers the workspace inventory visible to the app. Press Enter or Browse to open the full Discovery surface.`
     : "Search is paused until the live catalog becomes available.";
   const searchEnabled = !shellDisabled && searchPanelOpen && searchQuery.trim().length >= 2;
   const shellSearch = useAssetSearch(searchQuery, searchEnabled, searchSeedAssets);
