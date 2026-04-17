@@ -246,22 +246,9 @@ function normalizeAssetIndex(assetIndex) {
 
 function normalizeBootstrapContract(contract) {
   const normalized = objectValue(contract);
-  const seedAdapters = objectValue(normalized.seedAdapters);
   return {
     ...normalized,
     warnings: arrayValue(normalized.warnings),
-    seedAdapters: Object.fromEntries(
-      Object.entries(seedAdapters).map(([key, adapter]) => {
-        const normalizedAdapter = objectValue(adapter);
-        return [
-          key,
-          {
-            ...normalizedAdapter,
-            surfaces: arrayValue(normalizedAdapter.surfaces),
-          },
-        ];
-      }),
-    ),
   };
 }
 

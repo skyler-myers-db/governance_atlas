@@ -98,7 +98,6 @@ DISCOVERY_SORTS = [
     "Name (A-Z)",
     "Open requests",
 ]
-BOOTSTRAP_ASSET_SEED_LIMIT = 24
 IDENTITY_SOURCE = "x-forwarded-email | x-forwarded-preferred-username"
 SHELL_API_CONTRACT = {
     "bootstrap": "/api/bootstrap",
@@ -1027,8 +1026,6 @@ def _invalidate_asset_caches(asset_fqn: str) -> None:
     _TTL_CACHE.pop(f"runtime_lineage:{asset_fqn}", None)
     _invalidate_cache_prefix("runtime_inventory:")
     _invalidate_cache_prefix("runtime_bootstrap_inventory_summary:")
-    _invalidate_cache_prefix("runtime_bootstrap_seed_assets:")
-    _invalidate_cache_prefix("runtime_bootstrap_base:")
     _TTL_CACHE.pop("runtime_governance", None)
 
 
@@ -1608,55 +1605,6 @@ def _governance_summary(request: Optional[Request] = None) -> Dict[str, Any]:
     return payload
 
 
-def _bootstrap_seed_assets(
-    assets: List[Dict[str, Any]],
-    *,
-    selected_fqn: str = "",
-    limit: int = BOOTSTRAP_ASSET_SEED_LIMIT,
-) -> List[Dict[str, Any]]:
-    if not assets or limit <= 0:
-        return []
-
-    seeded: List[Dict[str, Any]] = []
-    seen: set[str] = set()
-
-    def remember(asset: Optional[Dict[str, Any]]) -> bool:
-        if not asset:
-            return False
-        asset_fqn = _normalize_str(asset.get("fqn"))
-        if not asset_fqn or asset_fqn in seen:
-            return False
-        seen.add(asset_fqn)
-        seeded.append(asset)
-        return True
-
-    if selected_fqn:
-        for asset in assets:
-            if _normalize_str(asset.get("fqn")) == selected_fqn:
-                remember(asset)
-                break
-
-    for asset in assets:
-        remember(asset)
-        if len(seeded) >= limit:
-            break
-
-    return seeded
-
-
-def _bootstrap_seed_inventory_assets(
-    inventory: pd.DataFrame,
-    *,
-    limit: int = BOOTSTRAP_ASSET_SEED_LIMIT,
-) -> List[Dict[str, Any]]:
-    if inventory is None or inventory.empty or limit <= 0:
-        return []
-    seeded_assets: List[Dict[str, Any]] = []
-    for _, row in inventory.head(limit).iterrows():
-        seeded_assets.append(asset_service.base_asset_payload(row))
-    return seeded_assets
-
-
 def _bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
     normalized_scope = _normalize_str(cache_scope) or "shared"
 
@@ -1734,15 +1682,6 @@ def _bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
     )
 
 
-def _bootstrap_seed_asset_pool(cache_scope: str) -> List[Dict[str, Any]]:
-    normalized_scope = _normalize_str(cache_scope) or "shared"
-    return _ttl_value(
-        f"runtime_bootstrap_seed_assets:{normalized_scope}",
-        120,
-        lambda: _bootstrap_seed_inventory_assets(_visible_assets(normalized_scope)),
-    )
-
-
 def _empty_inventory_boot_message(summary: Dict[str, Any]) -> str:
     if int(summary.get("visibleAssets") or 0) > 0:
         return ""
@@ -1765,24 +1704,6 @@ def _empty_inventory_boot_message(summary: Dict[str, Any]) -> str:
     )
 
 
-def _bootstrap_selected_asset_seed(
-    request: Request,
-    asset_fqn: str,
-) -> Optional[Dict[str, Any]]:
-    normalized_fqn = _normalize_str(asset_fqn)
-    if not normalized_fqn:
-        return None
-    try:
-        inventory = _visible_assets(_request_cache_scope(request))
-        if asset_service.asset_is_visible(inventory, normalized_fqn):
-            return asset_service.base_asset_payload(
-                asset_service.inventory_row(inventory, normalized_fqn)
-            )
-    except Exception:
-        return None
-    return None
-
-
 def _inventory_option_values(
     inventory: pd.DataFrame,
     extractor: Callable[[pd.Series], str],
@@ -1795,211 +1716,6 @@ def _inventory_option_values(
         if value and value != "Unassigned":
             values.add(value)
     return sorted(values)
-
-
-def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
-    route = _route_context(request)
-    selected_fqn = route["asset"]
-    if not selected_fqn:
-        return None
-    selected_asset = _bootstrap_selected_asset_seed(request, selected_fqn)
-    if not selected_asset:
-        return None
-
-    store_status = _store_status()
-    boot_state = "live" if store_status["state"] == "live" else "degraded"
-    boot_message = "" if store_status["state"] == "live" else store_status["message"]
-    selected_catalog = _normalize_str(selected_asset.get("catalog"))
-    selected_domain = _normalize_str(selected_asset.get("domain"))
-    selected_tier = _normalize_str(selected_asset.get("tier"))
-    selected_certification = _normalize_str(selected_asset.get("certification"))
-    selected_sensitivity = _normalize_str(selected_asset.get("sensitivity"))
-    selected_type = _normalize_str(selected_asset.get("objectType"))
-
-    base_payload = {
-        "_assetPool": [selected_asset],
-        "payload": {
-            "version": "governance-hub-route-seed-1",
-            "bootState": boot_state,
-            "bootMessage": boot_message,
-            "apiBase": "/api",
-            "discovery": {
-                "catalogs": [
-                    "All catalogs",
-                    *([selected_catalog] if selected_catalog else []),
-                ],
-                "domains": [
-                    "All domains",
-                    *(
-                        [selected_domain]
-                        if selected_domain and selected_domain != "Unassigned"
-                        else []
-                    ),
-                ],
-                "tiers": [
-                    "All tiers",
-                    *(
-                        [selected_tier]
-                        if selected_tier and selected_tier != "Unassigned"
-                        else []
-                    ),
-                ],
-                "certifications": [
-                    "All certifications",
-                    *(
-                        [selected_certification]
-                        if selected_certification
-                        and selected_certification != "Unassigned"
-                        else []
-                    ),
-                ],
-                "sensitivities": [
-                    "All sensitivities",
-                    *(
-                        [selected_sensitivity]
-                        if selected_sensitivity and selected_sensitivity != "Unassigned"
-                        else []
-                    ),
-                ],
-                "assetTypes": [
-                    "All types",
-                    *([selected_type] if selected_type else []),
-                ],
-                "views": DISCOVERY_VIEWS,
-                "sortOptions": DISCOVERY_SORTS,
-                "defaultQuery": "",
-            },
-            "help": HELP_ITEMS,
-        },
-    }
-    return _compose_bootstrap_payload(request, base_payload)
-
-
-def _compose_bootstrap_payload(
-    request: Request,
-    base_payload: Dict[str, Any],
-) -> Dict[str, Any]:
-    payload = base_payload.get("payload", base_payload)
-    asset_pool = list(base_payload.get("_assetPool") or payload.get("assets") or [])
-    selected_fqn = _route_context(request)["asset"] or (
-        asset_pool[0]["fqn"] if asset_pool else ""
-    )
-    if selected_fqn and not any(
-        _normalize_str(asset.get("fqn")) == selected_fqn for asset in asset_pool
-    ):
-        selected_asset = _bootstrap_selected_asset_seed(request, selected_fqn)
-        if selected_asset:
-            asset_pool = [selected_asset, *asset_pool]
-    seeded_assets = _bootstrap_seed_assets(asset_pool, selected_fqn=selected_fqn)
-    asset_index = {asset["fqn"]: asset for asset in seeded_assets}
-    payload_without_legacy_graphs = {
-        key: value for key, value in payload.items() if key != "graphs"
-    }
-    summary = dict((payload.get("discovery") or {}).get("summary") or {})
-    runtime_status = _uc_runtime_status()
-    store_status = (
-        _store_status()
-        if runtime_status.get("state") == "live"
-        else {
-            "state": "skipped",
-            "message": "Governance store check skipped until the SQL runtime recovers.",
-        }
-    )
-    capabilities = _capabilities_payload(
-        request,
-        runtime_status=runtime_status,
-        store_status=store_status,
-        summary=summary,
-        boot_message=_normalize_str(payload.get("bootMessage")),
-    )
-
-    return {
-        **payload_without_legacy_graphs,
-        "assets": seeded_assets,
-        "assetIndex": asset_index,
-        "initialSelection": {"primaryAssetFqn": selected_fqn},
-        "capabilities": capabilities,
-        "diagnostics": _runtime_diagnostics_payload(
-            request,
-            runtime_status=runtime_status,
-            store_status=store_status,
-            summary=summary,
-            capabilities=capabilities,
-            boot_message=_normalize_str(payload.get("bootMessage")),
-        ),
-        "bootstrapContract": _bootstrap_contract_payload(),
-        "shell": {
-            "metrics": [],
-            "role": _user_role(request),
-            "roleProvisional": False,
-            "userEmail": _user_email(request),
-            "buildId": _build_id(),
-            "diagnosticsEnabled": _config().diagnostics_enabled,
-        },
-        "apiContract": {
-            "bootstrap": "/api/bootstrap",
-            "discoverySearch": "/api/discovery/search",
-            "assetDetail": "/api/assets/:fqn",
-            "assetAvailability": "/api/assets/availability",
-            "assetMetadataUpdate": "/api/assets/:fqn/metadata",
-            "assetColumnMetadataUpdate": "/api/assets/:fqn/columns/:column/metadata",
-            "lineage": "/api/lineage/:fqn",
-            "glossary": "/api/governance/glossary",
-            "governanceRequest": "/api/governance/requests/:id",
-            "governanceNotification": "/api/governance/notifications/:id",
-            "governanceGlossaryTerm": "/api/governance/glossary/:id",
-            "runtimeStatus": "/api/runtime/status",
-        },
-    }
-
-
-def _bootstrap_payload(request: Request) -> Dict[str, Any]:
-    cache_scope = _request_cache_scope(request)
-
-    def load_base() -> Dict[str, Any]:
-        store_status = _store_status()
-        summary = _bootstrap_inventory_summary(cache_scope)
-        seeded_assets = _bootstrap_seed_asset_pool(cache_scope)
-
-        boot_state = "live" if store_status["state"] == "live" else "degraded"
-        boot_message = (
-            "" if store_status["state"] == "live" else store_status["message"]
-        )
-        if int(summary.get("visibleAssets") or 0) <= 0:
-            boot_state = "degraded"
-            if not boot_message:
-                boot_message = _empty_inventory_boot_message(summary)
-
-        return {
-            "_assetPool": seeded_assets,
-            "payload": {
-                "version": APP_VERSION,
-                "bootState": boot_state,
-                "bootMessage": boot_message,
-                "apiBase": "/api",
-                "discovery": {
-                    "catalogs": ["All catalogs", *(summary.get("catalogs") or [])],
-                    "domains": ["All domains", *(summary.get("domains") or [])],
-                    "tiers": ["All tiers", *(summary.get("tiers") or [])],
-                    "certifications": [
-                        "All certifications",
-                        *(summary.get("certifications") or []),
-                    ],
-                    "sensitivities": [
-                        "All sensitivities",
-                        *(summary.get("sensitivities") or []),
-                    ],
-                    "assetTypes": ["All types", *(summary.get("assetTypes") or [])],
-                    "views": DISCOVERY_VIEWS,
-                    "sortOptions": DISCOVERY_SORTS,
-                    "defaultQuery": "",
-                },
-                "help": HELP_ITEMS,
-            },
-        }
-
-    base_payload = _ttl_value(f"runtime_bootstrap_base:{cache_scope}", 10, load_base)
-    return _compose_bootstrap_payload(request, base_payload)
 
 
 def _ensure_live_runtime() -> None:
@@ -2395,7 +2111,6 @@ def _bootstrap_contract_payload(mode: str = "route-bootstrap") -> Dict[str, Any]
         "class": "shell-capability",
         "mode": mode,
         "warnings": [],
-        "seedAdapters": {},
     }
 
 
@@ -2571,17 +2286,6 @@ def _inject_bootstrap(html_text: str, payload: Optional[Dict[str, Any]]) -> str:
     bootstrap = json.dumps(payload, default=str).replace("</", "<\\/")
     inline_bootstrap = f"<script>window.__GOVHUB_BOOTSTRAP__ = {bootstrap};</script>"
     return html_text.replace("</head>", f"{inline_bootstrap}\n  </head>")
-
-
-def _cached_bootstrap_seed(request: Request) -> Optional[Dict[str, Any]]:
-    cache_scope = _request_cache_scope(request)
-    cached = _TTL_CACHE.get(f"runtime_bootstrap_base:{cache_scope}")
-    if not cached:
-        return None
-    cached_at, base_payload = cached
-    if time.time() - cached_at > 60:
-        return None
-    return _compose_bootstrap_payload(request, base_payload)
 
 
 def _render_index(live_payload: Optional[Dict[str, Any]] = None) -> str:

@@ -148,18 +148,24 @@ class RuntimeCapabilityWiringTests(unittest.TestCase):
         source = Path("runtime_app.py").read_text(encoding="utf-8")
         tree = ast.parse(source, filename="runtime_app.py")
 
-        for function_name in [
-            "_compose_bootstrap_payload",
-            "_api_runtime_status_response",
-        ]:
-            node = next(
-                item
-                for item in tree.body
-                if isinstance(item, ast.FunctionDef) and item.name == function_name
-            )
-            segment = ast.get_source_segment(source, node) or ""
-            self.assertIn('"capabilities"', segment, function_name)
-            self.assertIn("_capabilities_payload(", segment, function_name)
+        runtime_status_node = next(
+            item
+            for item in tree.body
+            if isinstance(item, ast.FunctionDef)
+            and item.name == "_api_runtime_status_response"
+        )
+        runtime_status_segment = ast.get_source_segment(source, runtime_status_node) or ""
+        self.assertIn('"capabilities"', runtime_status_segment)
+        self.assertIn("_capabilities_payload(", runtime_status_segment)
+
+        shell_node = next(
+            item
+            for item in tree.body
+            if isinstance(item, ast.FunctionDef) and item.name == "_shell_payload"
+        )
+        shell_segment = ast.get_source_segment(source, shell_node) or ""
+        self.assertIn('"capabilities"', shell_segment)
+        self.assertIn("capability_service.bootstrap_capabilities(", shell_segment)
 
         unavailable_node = next(
             item
