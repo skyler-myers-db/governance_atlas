@@ -1262,8 +1262,9 @@ export default function DiscoveryWorkspace({
     "Use field:value clauses with AND/OR, parentheses, and quoted phrases.";
   const filtersApplied = activeFilters(filters, discoveryResults.queryState);
   const directFilterCount = filterVisibilityCount(filters, discoveryResults.queryState);
-  const visibleAssetsSummary = effectiveVisibleCount ?? resultsCount ?? 0;
+  const rawVisibleCount = effectiveVisibleCount ?? resultsCount;
   const showLiveFacetCounts = resultsSettled && !resultsError;
+  const visibleAssetsSummary = showLiveFacetCounts ? (rawVisibleCount ?? 0) : "—";
   const assetTypeOptions = facetValues(
     resultsFacets,
     "assetTypes",
@@ -1519,7 +1520,9 @@ export default function DiscoveryWorkspace({
                   type="button"
                 >
                   <span>{view}</span>
-                  <span className="gh-category-count">{facetCount(resultsFacets, "views", view)}</span>
+                  <span className="gh-category-count">
+                    {showLiveFacetCounts ? facetCount(resultsFacets, "views", view) : "—"}
+                  </span>
                 </button>
               ))}
             </div>
@@ -1556,8 +1559,16 @@ export default function DiscoveryWorkspace({
             <SurfaceHeader
               actions={(
                 <span className="gh-results-inline-state gh-results-inline-state-bar">
-                  {resultsCount} {resultsCount === 1 ? "result" : "results"}
-                  {resultsLoading ? <span className="gh-inline-updating">Updating…</span> : null}
+                  {showLiveFacetCounts ? (
+                    <>
+                      {resultsCount} {resultsCount === 1 ? "result" : "results"}
+                    </>
+                  ) : (
+                    <span className="gh-results-inline-loading">Loading…</span>
+                  )}
+                  {resultsLoading && showLiveFacetCounts ? (
+                    <span className="gh-inline-updating">Updating…</span>
+                  ) : null}
                 </span>
               )}
               className="gh-discovery-command-head"

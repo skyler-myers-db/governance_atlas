@@ -1210,7 +1210,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    expect(screen.getByText("0 visible")).not.toBeNull();
+    expect(screen.getByText("— visible")).not.toBeNull();
     expect(screen.queryByText("17 visible")).toBeNull();
     expect(screen.queryByText(/^17$/)).toBeNull();
   });
