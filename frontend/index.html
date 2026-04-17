@@ -218,6 +218,49 @@
         0% { background-position: 200% 0; }
         100% { background-position: -20% 0; }
       }
+      @media (max-width: 1120px) {
+        .gh-preboot-topbar {
+          grid-template-columns: 1fr;
+        }
+        .gh-preboot-identity {
+          justify-items: start;
+          text-align: left;
+        }
+        .gh-preboot-search {
+          grid-template-columns: 1fr;
+        }
+        .gh-preboot-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 760px) {
+        .gh-preboot {
+          width: min(100vw - 24px, 1500px);
+          margin: 12px auto;
+        }
+        .gh-preboot-shell {
+          padding: 16px;
+        }
+        .gh-preboot-brand strong {
+          font-size: 1.72rem;
+        }
+        .gh-preboot-grid {
+          grid-template-columns: 1fr;
+        }
+        .gh-preboot-module-row {
+          flex-direction: column;
+        }
+        .gh-preboot-pill {
+          width: 100%;
+          min-width: 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .gh-preboot-bars span,
+        .gh-preboot-cards span {
+          animation: none;
+        }
+      }
     </style>
   </head>
   <body>
@@ -242,7 +285,7 @@
             </div>
             <div class="gh-preboot-identity">
               <div class="gh-preboot-kicker">Preparing workspace</div>
-              <div class="gh-preboot-user">Loading live metadata</div>
+              <div class="gh-preboot-user">Confirming route and shell access</div>
             </div>
           </div>
           <div class="gh-preboot-search">
@@ -251,11 +294,11 @@
             <div class="gh-preboot-search-button">Browse</div>
           </div>
         </div>
-        <div class="gh-preboot-grid">
+          <div class="gh-preboot-grid">
           <div class="gh-preboot-panel">
-            <div class="gh-preboot-kicker">Discovery Scope</div>
-            <strong>Preparing filters</strong>
-            <div class="gh-preboot-copy">Loading asset types, saved views, and catalog scope.</div>
+            <div class="gh-preboot-kicker">Workspace</div>
+            <strong>Opening the requested view</strong>
+            <div class="gh-preboot-copy">Holding the selected module and asset while the live workspace loads.</div>
             <div class="gh-preboot-bars">
               <span></span>
               <span></span>
@@ -264,9 +307,9 @@
             </div>
           </div>
           <div class="gh-preboot-panel">
-            <div class="gh-preboot-kicker">Metadata Catalog</div>
-            <strong>Loading visible assets</strong>
-            <div class="gh-preboot-copy">Warming discovery, selected asset context, and governance signals.</div>
+            <div class="gh-preboot-kicker">Access</div>
+            <strong>Confirming your workspace scope</strong>
+            <div class="gh-preboot-copy">Loading the workspace for your role and visible data scope.</div>
             <div class="gh-preboot-cards">
               <span></span>
               <span></span>
@@ -274,9 +317,9 @@
             </div>
           </div>
           <div class="gh-preboot-panel">
-            <div class="gh-preboot-kicker">Selected Asset</div>
-            <strong>Preparing preview context</strong>
-            <div class="gh-preboot-copy">Loading schema, sample data, and lineage context for the first asset.</div>
+            <div class="gh-preboot-kicker">Live data</div>
+            <strong>Loading sections progressively</strong>
+            <div class="gh-preboot-copy">Discovery, entity, lineage, and governance details continue after the shell is visible.</div>
             <div class="gh-preboot-bars">
               <span></span>
               <span></span>

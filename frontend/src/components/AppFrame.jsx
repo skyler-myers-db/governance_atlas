@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useAssetSearch } from "../hooks/useAssetSearch";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
+import { workspaceAccessBanner } from "../lib/capabilities";
+import { InlineStatusBanner } from "./ShellStatePrimitives";
 
 function statusTone(bootState) {
   if (bootState === "unavailable" || bootState === "error") return "bad";
@@ -75,6 +77,7 @@ function SearchDropdown({
   assets,
   error,
   loading,
+  scopeLabel = "visible assets",
   notice,
   onBrowseCatalog,
   onSelectAsset,
@@ -83,10 +86,10 @@ function SearchDropdown({
 }) {
   const trimmedQuery = query.trim();
   const searchStatus = loading
-    ? "Searching visible assets..."
+    ? `Searching ${scopeLabel}...`
     : trimmedQuery
-      ? "Direct matches across visible assets"
-      : "Start typing to search visible assets";
+      ? `Direct matches across ${scopeLabel}`
+      : `Start typing to search ${scopeLabel}`;
   const searchCount = loading
     ? ""
     : assets.length
@@ -162,6 +165,7 @@ export default function AppFrame({
   shell,
   searchSeedAssets = [],
   visibleAssetSet = new Set(),
+  workspaceAccess = null,
   activeModule,
   diagnosticsAvailable = false,
   diagnosticsStatus = null,
@@ -217,11 +221,25 @@ export default function AppFrame({
   const inboxMessage =
     String(governanceInbox?.message || "").trim() ||
     "Unread workflow notifications from governance activity.";
+  const shellRoleLabel = shell?.role
+    ? shell?.roleProvisional
+      ? `${shell.role} (verifying)`
+      : shell.role
+    : "workspace user";
+  const accessBanner = workspaceAccessBanner({ workspaceAccess });
+  const searchScopeSubject =
+    accessBanner?.title === "Workspace-scoped metadata"
+      ? "workspace inventory"
+      : accessBanner?.title === "No actor identity"
+        ? "restricted workspace inventory"
+        : "visible assets";
   const searchScopeLabel = hasRenderableLiveCatalog
     ? `${visibleCatalogCount} visible asset${visibleCatalogCount === 1 ? "" : "s"} indexed`
     : "Visible catalog unavailable";
   const searchScopeHint = hasRenderableLiveCatalog
-    ? "Search stays scoped to visible assets; Discovery opens the broader workspace view."
+    ? accessBanner
+      ? `${accessBanner.message} Search stays scoped to ${searchScopeSubject}.`
+      : "Search stays scoped to visible assets; Discovery opens the broader workspace view."
     : "Search is paused until the live catalog becomes available.";
   const searchEnabled = !shellDisabled && searchPanelOpen && searchQuery.trim().length >= 2;
   const shellSearch = useAssetSearch(searchQuery, searchEnabled, searchSeedAssets);
@@ -360,7 +378,9 @@ export default function AppFrame({
     <div
       className="gh-app"
       data-shell-sticky-ready={shellHeaderHeight > 0 ? "true" : "false"}
-      style={{ "--gh-shell-header-height": `${shellHeaderHeight}px` }}
+      style={/** @type {import("react").CSSProperties} */ ({
+        "--gh-shell-header-height": `${shellHeaderHeight}px`,
+      })}
     >
       <header className="gh-shell-header" ref={shellHeaderRef}>
         <div className="gh-shell-topbar">
@@ -387,7 +407,7 @@ export default function AppFrame({
                 <div className="gh-shell-module-label">Modules</div>
                 <div className="gh-shell-identity-inline">
                   <div className="gh-shell-identity-block">
-                    <div className="gh-shell-identity">{shell?.role || "workspace user"}</div>
+                    <div className="gh-shell-identity">{shellRoleLabel}</div>
                     <div className="gh-shell-user">{shell?.userEmail || "unknown"}</div>
                   </div>
                   <div className="gh-shell-context-stack">
@@ -461,7 +481,9 @@ export default function AppFrame({
         <div className="gh-shell-commandbar">
           <div className="gh-shell-commandbar-copy">
             <div className="gh-shell-module-label">Command bar</div>
-            <div className="gh-shell-commandbar-title">Search visible assets, then open the broader discovery surface.</div>
+            <div className="gh-shell-commandbar-title">
+              {`Search ${searchScopeSubject}, then open the broader discovery surface.`}
+            </div>
             <div className="gh-shell-commandbar-subtitle">{searchScopeHint}</div>
             <div className="gh-shell-commandbar-scope">{searchScopeLabel}</div>
           </div>
@@ -482,12 +504,12 @@ export default function AppFrame({
           >
             <div className={`gh-global-search-field ${searchPanelOpen ? "is-open" : ""}`} ref={searchRootRef}>
               <div className="gh-global-search-frame">
-                <div className="gh-global-search-copy">
-                  <label className="gh-global-search-label" htmlFor="gh-global-search-input">
-                    Search
-                  </label>
-                  <div className="gh-global-search-subtitle">{searchScopeHint}</div>
-                </div>
+                  <div className="gh-global-search-copy">
+                    <label className="gh-global-search-label" htmlFor="gh-global-search-input">
+                      Search
+                    </label>
+                    <div className="gh-global-search-subtitle">{searchScopeHint}</div>
+                  </div>
                 <div className="gh-global-search-input-wrap">
                   <input
                     className="gh-input gh-global-search-input"
@@ -515,7 +537,7 @@ export default function AppFrame({
                     onKeyDown={(event) => {
                       if (event.key === "Escape") setSearchPanelOpen(false);
                     }}
-                    placeholder="Search visible assets by name, schema, domain, or tag"
+                    placeholder={`Search ${searchScopeSubject} by name, schema, domain, or tag`}
                     value={searchQuery}
                   />
                 </div>
@@ -529,6 +551,7 @@ export default function AppFrame({
                   assets={shellSearch.assets || []}
                   error={shellSearch.error}
                   loading={shellSearch.loading}
+                  scopeLabel={searchScopeSubject}
                   notice={searchNotice}
                   onBrowseCatalog={() => submitSearch()}
                   onSelectAsset={(assetFqn) => {
@@ -541,6 +564,14 @@ export default function AppFrame({
             </div>
           </form>
         </div>
+        {accessBanner ? (
+          <InlineStatusBanner
+            className="gh-shell-access-banner"
+            message={accessBanner.message}
+            title={accessBanner.title}
+            tone={accessBanner.tone}
+          />
+        ) : null}
       </header>
 
       {showInboxPanel ? (

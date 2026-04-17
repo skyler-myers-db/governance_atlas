@@ -46,6 +46,50 @@ def _lookup_key(value: Any) -> str:
     return asset_service.normalize_str(value).lower()
 
 
+def _visible_asset_keys(inventory: pd.DataFrame | None) -> set[str]:
+    if inventory is None or inventory.empty or "fqn" not in inventory.columns:
+        return set()
+    return {
+        _lookup_key(value)
+        for value in inventory["fqn"].dropna().astype(str).tolist()
+        if _lookup_key(value)
+    }
+
+
+def _filter_request_records_to_visible_assets(
+    request_records: Sequence[Dict[str, Any]],
+    visible_asset_keys: set[str],
+) -> List[Dict[str, Any]]:
+    return _filter_records_to_visible_assets(
+        request_records,
+        visible_asset_keys,
+        asset_key="assetFqn",
+        keep_orphans=False,
+    )
+
+
+def _filter_records_to_visible_assets(
+    records: Sequence[Dict[str, Any]],
+    visible_asset_keys: set[str],
+    *,
+    asset_key: str = "assetFqn",
+    keep_orphans: bool = True,
+) -> List[Dict[str, Any]]:
+    if not records:
+        return []
+    filtered: List[Dict[str, Any]] = []
+    for record in records:
+        asset_fqn = asset_service.normalize_str(record.get(asset_key))
+        if not asset_fqn:
+            if keep_orphans:
+                filtered.append(record)
+            continue
+        if _lookup_key(asset_fqn) not in visible_asset_keys:
+            continue
+        filtered.append(record)
+    return filtered
+
+
 def _request_title(new_comment: Any) -> str:
     text = asset_service.normalize_str(new_comment)
     if not text:
@@ -449,6 +493,7 @@ def _glossary_rows_from_frames(
     if glossary_df is None or glossary_df.empty:
         return []
 
+    visible_asset_keys = _visible_asset_keys(inventory)
     request_records = _request_records(requests_df)
     requests_by_asset: Dict[str, List[Dict[str, Any]]] = {}
     for request_record in request_records:
@@ -566,9 +611,13 @@ def _glossary_rows_from_frames(
         term_key = _lookup_key(term_name)
         term_id = asset_service.normalize_str(row.get("term_id"))
         term_id_key = _lookup_key(term_id)
-        related_assets = glossary_asset_map.get(_lookup_key(term_id), []) or glossary_asset_map.get(
-            term_key, []
+        related_assets_all = (
+            glossary_asset_map.get(_lookup_key(term_id), [])
+            or glossary_asset_map.get(term_key, [])
         )
+        related_assets = [
+            asset_fqn for asset_fqn in related_assets_all if _lookup_key(asset_fqn) in visible_asset_keys
+        ]
         related_requests: List[Dict[str, Any]] = []
         seen_requests: set[str] = set()
         for asset_fqn in related_assets:
@@ -592,7 +641,11 @@ def _glossary_rows_from_frames(
         glossary_projection = glossary_summary_by_term.get(term_id_key, {})
         projection_fresh = bool(glossary_projection) and _projection_is_fresh(glossary_projection)
         asset_count = len(related_assets)
-        if projection_fresh and association_source == "links":
+        if (
+            projection_fresh
+            and association_source == "links"
+            and len(related_assets_all) == len(related_assets)
+        ):
             asset_count = int(glossary_projection.get("assetCount") or 0)
         reviewer_count = (
             int(glossary_projection.get("reviewerCount") or 0)
@@ -823,11 +876,17 @@ def governance_summary(
             store,
             hidden_catalogs=hidden_catalogs,
         )
+        visible_asset_keys = _visible_asset_keys(inventory)
         try:
             pending = store.list_change_requests(status="pending", limit=5000)
         except Exception:
             pending = pd.DataFrame()
-        pending_request_records = _request_records(pending)
+        raw_pending_request_records = _request_records(pending)
+        pending_request_records = _filter_request_records_to_visible_assets(
+            raw_pending_request_records,
+            visible_asset_keys,
+        )
+        pending_request_scope_safe = len(raw_pending_request_records) == len(pending_request_records)
         try:
             requests = store.list_change_requests(limit=5000)
         except Exception:
@@ -846,15 +905,22 @@ def governance_summary(
         if normalized_actor and normalized_actor != "unknown":
             if hasattr(store, "list_notifications") and hasattr(store, "count_unread_notifications"):
                 try:
+                    inbox_items = _inbox_records(
+                        store.list_notifications(recipient_email=normalized_actor, limit=12)
+                    )
+                    filtered_inbox_items = _filter_records_to_visible_assets(
+                        inbox_items,
+                        visible_asset_keys,
+                        asset_key="assetFqn",
+                    )
+                    unread_count = int(store.count_unread_notifications(recipient_email=normalized_actor))
+                    if len(filtered_inbox_items) != len(inbox_items):
+                        unread_count = min(unread_count, len(filtered_inbox_items))
                     inbox = {
                         "state": "live",
                         "message": "",
-                        "unreadCount": int(
-                            store.count_unread_notifications(recipient_email=normalized_actor)
-                        ),
-                        "items": _inbox_records(
-                            store.list_notifications(recipient_email=normalized_actor, limit=12)
-                        ),
+                        "unreadCount": unread_count,
+                        "items": filtered_inbox_items,
                     }
                 except Exception:
                     inbox = {
@@ -864,14 +930,18 @@ def governance_summary(
                         "items": [],
                     }
 
-        activity_records = _activity_records(activity_events)
+        activity_records = _filter_records_to_visible_assets(
+            _activity_records(activity_events),
+            visible_asset_keys,
+            asset_key="assetFqn",
+        )
         queue_summary = _queue_summary_from_live_requests(pending_request_records)
         if hasattr(store, "get_governance_queue_projection"):
             try:
                 queue_projection = store.get_governance_queue_projection("workspace:default")
             except Exception:
                 queue_projection = None
-            if queue_projection and _projection_is_fresh(queue_projection):
+            if queue_projection and _projection_is_fresh(queue_projection) and pending_request_scope_safe:
                 queue_summary = {
                     "scopeKey": asset_service.normalize_str(queue_projection.get("scopeKey"))
                     or "workspace:default",
@@ -885,6 +955,8 @@ def governance_summary(
                     "observedAt": asset_service.normalize_str(queue_projection.get("observedAt")),
                     "staleAfter": asset_service.normalize_str(queue_projection.get("staleAfter")),
                 }
+        if asset_service.normalize_str(queue_summary.get("source")).lower() != "projection":
+            queue_summary["openTaskCount"] = len(pending_request_records)
 
         metrics = [
             {"label": "Assets", "value": int(len(inventory.index))},

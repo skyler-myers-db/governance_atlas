@@ -178,6 +178,57 @@ describe("GovernanceWorkspace", () => {
     });
   });
 
+  it("uses authoritative queue lane counts in the open work view", async () => {
+    render(
+      <GovernanceWorkspace
+        bootstrap={{
+          assets: [],
+          shell: {
+            role: "Steward",
+            diagnosticsEnabled: true,
+          },
+        }}
+        contextSeedAssets={[]}
+        governance={{
+          ...governancePayload,
+          queue: {
+            source: "projection",
+            laneCounts: {
+              "open-work": 8,
+              ownership: 5,
+              classification: 1,
+              trust: 0,
+            },
+          },
+          backlog: [
+            {
+              requestId: "req-1",
+              title: "Assign owner",
+              asset: "main.sales.orders",
+              assetFqn: "main.sales.orders",
+              status: "Pending",
+              note: "Backlog sample item",
+            },
+          ],
+        }}
+        initialAssetFqn=""
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenLineage={() => {}}
+        onRouteAssetChange={() => {}}
+        onSurfaceReady={() => {}}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Authoritative queue")).not.toBeNull();
+    });
+
+    expect(screen.getByRole("button", { name: /Open work/i }).textContent).toContain("8");
+    expect(screen.getByRole("button", { name: /Ownership work/i }).textContent).toContain("5");
+  });
+
   it("uses the shared workbench wrapper across stewardship and glossary layouts", async () => {
     const { container } = render(
       <GovernanceWorkspace

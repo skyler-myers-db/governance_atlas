@@ -4,6 +4,7 @@ import json
 import unittest
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pandas as pd
@@ -189,7 +190,7 @@ class DiscoverySearchEndpointTests(unittest.TestCase):
             side_effect=assets.DiscoveryQuerySyntaxError("Unknown discovery field `workspace`."),
         ):
             response = runtime_app.api_discovery_search(
-                request=object(),
+                request=SimpleNamespace(headers={}),
                 query="workspace:main",
                 query_mode="structured",
             )

@@ -2,7 +2,13 @@ import fs from "fs/promises";
 import path from "path";
 import { chromium } from "playwright";
 
-const BASE_URL = "https://governance-hub-7405619023278880.0.azure.databricksapps.com";
+const BASE_URL =
+  process.env.GOVHUB_BASE_URL || "https://governance-hub-7405619023278880.0.azure.databricksapps.com";
+const APP_ORIGIN = new URL(BASE_URL).origin;
+const CDP_URL = process.env.GOVHUB_CDP_URL || "http://127.0.0.1:9223";
+const ALLOW_CHROME_PROFILE_FALLBACK = process.env.GOVHUB_ALLOW_CHROME_PROFILE_FALLBACK === "1";
+const MAX_VISIBLE_ASSET_CANDIDATES = Number.parseInt(process.env.GOVHUB_MAX_VISIBLE_ASSET_CANDIDATES || "6", 10);
+const MAX_WRITABLE_ASSET_CANDIDATES = Number.parseInt(process.env.GOVHUB_MAX_WRITABLE_ASSET_CANDIDATES || "18", 10);
 const WRITABLE_ASSET_FQN = "dev.wacs_silver_test.slv_work_req_latest_status";
 const WRITABLE_COLUMN_NAME = "work_req_id";
 const OUT_DIR = "/tmp/govhub-live-qa";
@@ -44,13 +50,19 @@ const report = {
   consoleErrors: [],
 };
 
+async function flushReport() {
+  await fs.mkdir(OUT_DIR, { recursive: true });
+  await fs.writeFile(path.join(OUT_DIR, "report.json"), JSON.stringify(report, null, 2));
+}
+
 function pushCheck(name, status, detail = {}) {
   report.checks.push({ name, status, ...detail });
+  void flushReport();
 }
 
 async function connect() {
   try {
-    const browser = await chromium.connectOverCDP("http://127.0.0.1:9223");
+    const browser = await chromium.connectOverCDP(CDP_URL);
     const context = browser.contexts()[0];
     const existingPages = context.pages();
     const page =
@@ -63,6 +75,20 @@ async function connect() {
     attachRuntimeListeners(page);
     return { browser, context, page, close: null, mode: "cdp" };
   } catch (error) {
+    if (!ALLOW_CHROME_PROFILE_FALLBACK) {
+      pushCheck("browser-connect", "error", {
+        cdpUrl: CDP_URL,
+        message:
+          error?.message ||
+          "Failed to attach to authenticated Chrome. Start Chrome with --remote-debugging-port=9223 first.",
+      });
+      await flushReport();
+      throw new Error(
+        "CDP connection unavailable and copied-profile fallback is disabled. "
+          + "Start an authenticated Chrome session with --remote-debugging-port=9223 "
+          + "or set GOVHUB_ALLOW_CHROME_PROFILE_FALLBACK=1."
+      );
+    }
     pushCheck("browser-connect-fallback", "warn", {
       message: `CDP connection unavailable. Launching a copied Chrome profile instead.`,
       detail: error?.message || String(error),
@@ -73,19 +99,27 @@ async function connect() {
 
 function attachRuntimeListeners(page) {
   page.on("pageerror", (error) => {
+    const url = page.url();
+    const appOrigin = url.startsWith(APP_ORIGIN);
     report.pageErrors.push({
       message: error?.message || String(error),
       stack: error?.stack || "",
-      url: page.url(),
+      url,
+      appOrigin,
     });
+    void flushReport();
   });
   page.on("console", (message) => {
     if (!["error", "warning"].includes(message.type())) return;
+    const url = page.url();
+    const appOrigin = url.startsWith(APP_ORIGIN);
     report.consoleErrors.push({
       type: message.type(),
       text: message.text(),
-      url: page.url(),
+      url,
+      appOrigin,
     });
+    void flushReport();
   });
 }
 
@@ -151,8 +185,35 @@ async function launchCopiedChromeContext() {
   };
 }
 
+function sameAppOrigin(url) {
+  try {
+    return new URL(url).origin === APP_ORIGIN;
+  } catch {
+    return false;
+  }
+}
+
+async function assertAppOrigin(page, name) {
+  if (sameAppOrigin(page.url())) return;
+  const detail = await page.evaluate(() => ({
+    url: window.location.href,
+    title: document.title,
+    readyState: document.readyState,
+    bodyPreview: (document.body?.innerText || "").slice(0, 1400),
+  }));
+  pushCheck(name, "error", {
+    reason: "auth-required",
+    expectedOrigin: APP_ORIGIN,
+    landedUrl: page.url(),
+    detail,
+  });
+  await screenshot(page, `${name}-auth-required`);
+  throw new Error(`Navigation left the app origin during ${name}: ${page.url()}`);
+}
+
 async function gotoSurface(page, url, selector, waitMs = 1200) {
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 90000 });
+  await assertAppOrigin(page, "surface-navigation");
   try {
     await page.waitForSelector(selector, { timeout: 90000 });
   } catch (error) {
@@ -213,6 +274,7 @@ async function screenshot(page, name, fullPage = false) {
   const filePath = path.join(OUT_DIR, `${name}.png`);
   await page.screenshot({ path: filePath, fullPage });
   report.screenshots.push(filePath);
+  await flushReport();
 }
 
 function currentRoute(page) {
@@ -242,18 +304,20 @@ async function collectDiscoveryCards(page, limit = 6) {
 }
 
 async function finalizeRuntimeChecks() {
-  const pageErrorCount = report.pageErrors.length;
-  const consoleWarningCount = report.consoleErrors.filter((entry) => entry.type === "warning").length;
-  const consoleErrorCount = report.consoleErrors.filter((entry) => entry.type === "error").length;
+  const pageErrors = report.pageErrors.filter((entry) => entry.appOrigin !== false);
+  const consoleMessages = report.consoleErrors.filter((entry) => entry.appOrigin !== false);
+  const pageErrorCount = pageErrors.length;
+  const consoleWarningCount = consoleMessages.filter((entry) => entry.type === "warning").length;
+  const consoleErrorCount = consoleMessages.filter((entry) => entry.type === "error").length;
 
   pushCheck("page-errors", pageErrorCount ? "error" : "ok", {
     count: pageErrorCount,
-    messages: report.pageErrors.slice(0, 5),
+    messages: pageErrors.slice(0, 5),
   });
   pushCheck("console-errors", consoleErrorCount ? "error" : consoleWarningCount ? "warn" : "ok", {
     warningCount: consoleWarningCount,
     errorCount: consoleErrorCount,
-    messages: report.consoleErrors.slice(0, 10),
+    messages: consoleMessages.slice(0, 10),
   });
 
   if (pageErrorCount || consoleErrorCount) {
@@ -452,6 +516,13 @@ function lineageApiPath(assetFqn, query = "") {
 }
 
 async function resolveVisibleAssetTargets(page) {
+  if (process.env.GOVHUB_VISIBLE_ASSET_FQN) {
+    return {
+      assetFqn: process.env.GOVHUB_VISIBLE_ASSET_FQN,
+      columnName: process.env.GOVHUB_VISIBLE_COLUMN_NAME || "",
+      lineageAssetFqn: process.env.GOVHUB_LINEAGE_ASSET_FQN || process.env.GOVHUB_VISIBLE_ASSET_FQN,
+    };
+  }
   const candidateFqns = await page.evaluate(() => {
     const selected = document.querySelector(".gh-selection-preview[data-asset-fqn]")?.dataset?.assetFqn || "";
     const resultRows = [...document.querySelectorAll(".gh-discovery-result-row[data-asset-fqn]")]
@@ -469,7 +540,7 @@ async function resolveVisibleAssetTargets(page) {
 
   let assetFqn = candidateFqns[0] || "";
   let columnName = "";
-  for (const candidate of candidateFqns.slice(0, 12)) {
+  for (const candidate of candidateFqns.slice(0, Math.max(1, MAX_VISIBLE_ASSET_CANDIDATES))) {
     const assetDetail = await fetchJson(page, `${assetApiPath(candidate, `?sections=schema&_qa=${Date.now()}`)}`);
     const nextColumnName = assetDetail.json?.columns?.[0]?.name || "";
     if (nextColumnName) {
@@ -480,7 +551,7 @@ async function resolveVisibleAssetTargets(page) {
   }
 
   let lineageAssetFqn = assetFqn;
-  for (const candidate of candidateFqns.slice(0, 12)) {
+  for (const candidate of candidateFqns.slice(0, Math.max(1, MAX_VISIBLE_ASSET_CANDIDATES))) {
     const lineagePayload = await fetchJson(page, `${lineageApiPath(candidate, `?_qa=${Date.now()}`)}`);
     const dataEdges = lineagePayload.json?.graphs?.data?.edges?.length || 0;
     const opEdges = lineagePayload.json?.graphs?.operational?.edges?.length || 0;
@@ -498,6 +569,12 @@ async function resolveVisibleAssetTargets(page) {
 }
 
 async function resolveWritableAssetTarget(page) {
+  if (process.env.GOVHUB_WRITABLE_ASSET_FQN) {
+    return {
+      assetFqn: process.env.GOVHUB_WRITABLE_ASSET_FQN,
+      columnName: process.env.GOVHUB_WRITABLE_COLUMN_NAME || "",
+    };
+  }
   const seededCandidates = await page.evaluate(() => {
     const resultRows = [...document.querySelectorAll(".gh-discovery-result-row[data-asset-fqn]")]
       .map((row) => row.dataset.assetFqn || "")
@@ -509,14 +586,14 @@ async function resolveWritableAssetTarget(page) {
   });
   const deltaSearch = await fetchJson(
     page,
-    `/api/discovery/search?types=${encodeURIComponent("Delta Table")}&limit=120&_qa=${Date.now()}`,
+    `/api/discovery/search?types=${encodeURIComponent("Delta Table")}&limit=${Math.max(6, MAX_WRITABLE_ASSET_CANDIDATES)}&_qa=${Date.now()}`,
   );
   const apiCandidates = (deltaSearch.json?.assets || [])
     .map((asset) => asset?.fqn || "")
     .filter(Boolean);
   const candidateFqns = [...new Set([...seededCandidates, ...apiCandidates])];
 
-  for (const candidate of candidateFqns.slice(0, 120)) {
+  for (const candidate of candidateFqns.slice(0, Math.max(1, MAX_WRITABLE_ASSET_CANDIDATES))) {
     const detail = await fetchJson(
       page,
       assetApiPath(candidate, `?sections=header,schema&_qa=${Date.now()}`),
@@ -546,6 +623,7 @@ function rowMap(rows = []) {
 }
 
 await fs.mkdir(OUT_DIR, { recursive: true });
+await flushReport();
 
 const runtime = await connect();
 const { page } = runtime;

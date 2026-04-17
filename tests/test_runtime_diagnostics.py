@@ -185,7 +185,15 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
         with patch.object(runtime_app, "_config", return_value=config):
             payload = runtime_app._runtime_diagnostics_payload(
                 None,
-                runtime_status={"state": "live", "message": ""},
+                runtime_status={
+                    "state": "live",
+                    "message": "",
+                    "client": {
+                        "authMode": "oauth-m2m-env",
+                        "authType": "oauth-m2m",
+                        "hostPresent": True,
+                    },
+                },
                 store_status={"state": "live", "message": ""},
                 summary={
                     "visibleAssets": 7,
@@ -214,7 +222,8 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
         self.assertIn("reason", flag_map["query_history_surface"])
         self.assertIn("disabledReason", flag_map["query_history_surface"])
         self.assertEqual(flag_map["query_history_surface"]["safeSharingPath"]["state"], "unavailable")
-        self.assertEqual(payload["auth"]["mode"], "read-only-no-identity")
+        self.assertEqual(payload["auth"]["mode"], "no-identity")
+        self.assertEqual(payload["auth"]["visibilityScope"], "anonymous-app-principal")
         self.assertIn("serverTiming", payload["headers"])
         self.assertIn("setupSummary", payload)
         self.assertIn("setupReadiness", payload)
@@ -223,7 +232,12 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
         self.assertEqual(payload["setupReadiness"]["state"], "attention_required")
         self.assertEqual(payload["setupReadiness"]["nextStep"], "identity_forwarding")
         self.assertTrue(payload["setupSequence"])
-        self.assertEqual(payload["workspaceAccess"]["mode"], "read-only-no-identity")
+        self.assertEqual(payload["workspaceAccess"]["mode"], "no-identity")
+        self.assertEqual(payload["workspaceAccess"]["visibilityScope"], "anonymous-app-principal")
+        self.assertTrue(payload["workspaceAccess"]["canUseDiscovery"])
+        self.assertTrue(payload["workspaceAccess"]["canUseEntityMetadata"])
+        self.assertFalse(payload["workspaceAccess"]["canUseAssetPreview"])
+        self.assertFalse(payload["workspaceAccess"]["canUseLineage"])
         self.assertFalse(payload["workspaceAccess"]["canUseQueryHistory"])
         self.assertEqual(payload["workspaceAccess"]["queryHistorySharingPath"]["state"], "unavailable")
         self.assertIn("Queries, usage, and workloads", payload["workspaceAccess"]["blockedSurfaces"])
@@ -298,9 +312,13 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
                 },
             ],
             "workspaceAccess": {
-                "mode": "forwarded-user-header",
+                "mode": "app-principal-only",
+                "visibilityScope": "workspace-app-principal",
+                "canUseDiscovery": True,
+                "canUseEntityMetadata": True,
                 "canWriteGovernance": True,
-                "canUseLineage": True,
+                "canUseAssetPreview": False,
+                "canUseLineage": False,
                 "canUseQueryHistory": False,
                 "canExport": False,
                 "canRunBackgroundWork": False,
@@ -333,8 +351,9 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
                 },
             ],
             "auth": {
-                "mode": "forwarded-user-header",
+                "mode": "app-principal-only",
                 "actorRole": "admin",
+                "visibilityScope": "workspace-app-principal",
                 "perUserAuthorization": {
                     "implemented": False,
                     "state": "unavailable",
@@ -364,22 +383,25 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
 
 
 class RuntimeDiagnosticsWiringTests(unittest.TestCase):
-    def test_runtime_status_and_bootstrap_payloads_call_shared_diagnostics_helper(self) -> None:
+    def test_runtime_status_payload_calls_shared_diagnostics_helper(self) -> None:
         source = Path("runtime_app.py").read_text(encoding="utf-8")
         tree = ast.parse(source, filename="runtime_app.py")
 
-        for function_name in [
-            "_compose_bootstrap_payload",
-            "_bootstrap_unavailable_payload",
-            "_api_runtime_status_response",
-        ]:
-            node = next(
-                item
-                for item in tree.body
-                if isinstance(item, ast.FunctionDef) and item.name == function_name
-            )
-            segment = ast.get_source_segment(source, node) or ""
-            self.assertIn("_runtime_diagnostics_payload(", segment, function_name)
+        runtime_status_node = next(
+            item
+            for item in tree.body
+            if isinstance(item, ast.FunctionDef) and item.name == "_api_runtime_status_response"
+        )
+        runtime_status_segment = ast.get_source_segment(source, runtime_status_node) or ""
+        self.assertIn("_runtime_diagnostics_payload(", runtime_status_segment)
+
+        bootstrap_node = next(
+            item
+            for item in tree.body
+            if isinstance(item, ast.FunctionDef) and item.name == "_api_bootstrap_response"
+        )
+        bootstrap_segment = ast.get_source_segment(source, bootstrap_node) or ""
+        self.assertNotIn("_runtime_diagnostics_payload(", bootstrap_segment)
 
 
 if __name__ == "__main__":

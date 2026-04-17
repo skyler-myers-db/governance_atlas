@@ -25,8 +25,13 @@ class CapabilityPayloadTests(unittest.TestCase):
         self.assertFalse(payload["governanceApproval"]["available"])
         self.assertEqual(payload["systemInventoryRead"]["state"], "available")
         self.assertTrue(payload["systemInventoryRead"]["available"])
-        self.assertEqual(payload["tableLineage"]["state"], "available")
-        self.assertEqual(payload["columnLineage"]["state"], "available")
+        self.assertEqual(payload["tableLineage"]["state"], "unavailable")
+        self.assertFalse(payload["tableLineage"]["available"])
+        self.assertEqual(payload["columnLineage"]["state"], "unavailable")
+        self.assertFalse(payload["columnLineage"]["available"])
+        self.assertEqual(payload["tableLineage"]["visibilityScope"], "workspace-app-principal")
+        self.assertTrue(payload["tableLineage"]["workspaceScoped"])
+        self.assertFalse(payload["tableLineage"]["actorScoped"])
         self.assertEqual(payload["qualityRunEligibility"]["state"], "unavailable")
         self.assertEqual(payload["exportAllowed"]["state"], "unavailable")
         self.assertEqual(payload["manualLineageOverrides"]["state"], "unavailable")
@@ -48,8 +53,8 @@ class CapabilityPayloadTests(unittest.TestCase):
         self.assertEqual(payload["governanceApproval"]["state"], "degraded")
         self.assertEqual(payload["systemInventoryRead"]["state"], "degraded")
         self.assertTrue(payload["systemInventoryRead"]["available"])
-        self.assertEqual(payload["tableLineage"]["state"], "unknown")
-        self.assertEqual(payload["columnLineage"]["state"], "unknown")
+        self.assertEqual(payload["tableLineage"]["state"], "unavailable")
+        self.assertEqual(payload["columnLineage"]["state"], "unavailable")
         self.assertEqual(payload["workloadVisibility"]["state"], "unknown")
 
     def test_runtime_unavailable_marks_runtime_scoped_capabilities_unavailable(self) -> None:
@@ -81,11 +86,7 @@ class RuntimeCapabilityWiringTests(unittest.TestCase):
         source = Path("runtime_app.py").read_text(encoding="utf-8")
         tree = ast.parse(source, filename="runtime_app.py")
 
-        for function_name in [
-            "_compose_bootstrap_payload",
-            "_bootstrap_unavailable_payload",
-            "_api_runtime_status_response",
-        ]:
+        for function_name in ["_compose_bootstrap_payload", "_api_runtime_status_response"]:
             node = next(
                 item
                 for item in tree.body
@@ -94,6 +95,14 @@ class RuntimeCapabilityWiringTests(unittest.TestCase):
             segment = ast.get_source_segment(source, node) or ""
             self.assertIn('"capabilities"', segment, function_name)
             self.assertIn("_capabilities_payload(", segment, function_name)
+
+        unavailable_node = next(
+            item
+            for item in tree.body
+            if isinstance(item, ast.FunctionDef) and item.name == "_bootstrap_unavailable_payload"
+        )
+        unavailable_segment = ast.get_source_segment(source, unavailable_node) or ""
+        self.assertIn("_shell_payload(", unavailable_segment)
 
 
 if __name__ == "__main__":

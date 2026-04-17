@@ -1,4 +1,351 @@
 {
+  "components": {
+    "schemas": {
+      "AssetAvailabilityRequest": {
+        "properties": {
+          "assets": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Assets",
+            "type": "array"
+          }
+        },
+        "title": "AssetAvailabilityRequest",
+        "type": "object"
+      },
+      "AssetDescriptionPatch": {
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "title": "AssetDescriptionPatch",
+        "type": "object"
+      },
+      "AssetMetadataPatch": {
+        "properties": {
+          "certification": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certification"
+          },
+          "criticality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Criticality"
+          },
+          "dataProduct": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataproduct"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "domain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Domain"
+          },
+          "freeformTags": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freeformtags"
+          },
+          "sensitivity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sensitivity"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          }
+        },
+        "title": "AssetMetadataPatch",
+        "type": "object"
+      },
+      "AssetOwnersPatch": {
+        "properties": {
+          "owners": {
+            "items": {
+              "$ref": "#/components/schemas/OwnerAssignment"
+            },
+            "title": "Owners",
+            "type": "array"
+          }
+        },
+        "title": "AssetOwnersPatch",
+        "type": "object"
+      },
+      "AssetTagsPatch": {
+        "properties": {
+          "tags": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "object"
+          }
+        },
+        "title": "AssetTagsPatch",
+        "type": "object"
+      },
+      "ColumnDescriptionPatch": {
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          }
+        },
+        "title": "ColumnDescriptionPatch",
+        "type": "object"
+      },
+      "ColumnMetadataPatch": {
+        "properties": {
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "tags": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "object"
+          }
+        },
+        "title": "ColumnMetadataPatch",
+        "type": "object"
+      },
+      "ColumnTagsPatch": {
+        "properties": {
+          "tags": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "object"
+          }
+        },
+        "title": "ColumnTagsPatch",
+        "type": "object"
+      },
+      "GlossaryTermUpsert": {
+        "properties": {
+          "changeNote": {
+            "default": "",
+            "title": "Changenote",
+            "type": "string"
+          },
+          "definition": {
+            "default": "",
+            "title": "Definition",
+            "type": "string"
+          },
+          "domain": {
+            "default": "",
+            "title": "Domain",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ownerEmail": {
+            "default": "",
+            "title": "Owneremail",
+            "type": "string"
+          },
+          "reviewers": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewers"
+          },
+          "status": {
+            "default": "draft",
+            "title": "Status",
+            "type": "string"
+          },
+          "termId": {
+            "default": "",
+            "title": "Termid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "GlossaryTermUpsert",
+        "type": "object"
+      },
+      "GovernanceNotificationPatch": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "GovernanceNotificationPatch",
+        "type": "object"
+      },
+      "GovernanceRequestStatusPatch": {
+        "properties": {
+          "reviewNote": {
+            "default": "",
+            "title": "Reviewnote",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "GovernanceRequestStatusPatch",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "OwnerAssignment": {
+        "properties": {
+          "ownerEmail": {
+            "title": "Owneremail",
+            "type": "string"
+          },
+          "ownerType": {
+            "default": "steward",
+            "title": "Ownertype",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ownerEmail"
+        ],
+        "title": "OwnerAssignment",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
   "info": {
     "title": "Governance Hub Runtime",
     "version": "0.1.0"
@@ -7,22 +354,40 @@
   "paths": {
     "/api/bootstrap": {
       "get": {
-        "operationId": "get_api_bootstrap",
+        "operationId": "api_bootstrap_api_bootstrap_get",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
             "description": "Successful Response"
           }
-        }
+        },
+        "summary": "Api Bootstrap",
+        "tags": [
+          "runtime"
+        ]
       }
     },
     "/api/runtime/status": {
       "get": {
-        "operationId": "get_api_runtime_status",
+        "operationId": "api_runtime_status_api_runtime_status_get",
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
             "description": "Successful Response"
           }
-        }
+        },
+        "summary": "Api Runtime Status",
+        "tags": [
+          "runtime"
+        ]
       }
     }
   }

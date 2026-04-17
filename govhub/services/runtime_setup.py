@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, Mapping
 
+from govhub.services import capabilities as capability_service
+
 SAFE_OPERATIONAL_SHARING_PATHS = [
     "actor-scoped OBO",
     "validated dynamic-view plane",
@@ -173,24 +175,74 @@ def _capability_check(
     )
 
 
-def _app_service_principal_state(
+def _app_service_principal_probe(
     *,
+    runtime_status: Mapping[str, Any],
     runtime_state: str,
     store_state: str,
     warehouse_id: str,
     gov_catalog: str,
     gov_schema: str,
-) -> str:
+) -> Dict[str, str]:
+    client = runtime_status.get("client") if isinstance(runtime_status, Mapping) else {}
+    auth_mode = str((client or {}).get("authMode") or "").strip()
+    auth_type = str((client or {}).get("authType") or "").strip()
+    host_present = bool((client or {}).get("hostPresent"))
+    client_error = str((client or {}).get("clientInitError") or "").strip()
+    explicit_app_principal = auth_mode == "oauth-m2m-env" and host_present
     config_ready = bool(warehouse_id and gov_catalog and gov_schema)
     runtime_state = _normalize_state(runtime_state)
     store_state = _normalize_state(store_state)
-    if not config_ready or runtime_state == "unavailable" or store_state == "unavailable":
-        return "unavailable"
+    evidence_parts = [
+        f"runtime={runtime_state}",
+        f"store={store_state}",
+        f"config={'present' if config_ready else 'missing'}",
+        f"clientAuthMode={auth_mode or 'unknown'}",
+        f"clientAuthType={auth_type or 'unknown'}",
+        f"host={'present' if host_present else 'missing'}",
+    ]
+    if client_error:
+        evidence_parts.append(f"clientInitError={client_error}")
+    evidence = ", ".join(evidence_parts)
+
+    if not config_ready:
+        return {
+            "state": "unavailable",
+            "evidence": evidence,
+            "detail": "Deploy-time warehouse, catalog, or schema configuration is still missing.",
+        }
+    if runtime_state == "unavailable":
+        return {
+            "state": "unavailable",
+            "evidence": evidence,
+            "detail": "The app-principal SQL probe did not reach the live warehouse runtime.",
+        }
+    if runtime_state == "available" and store_state == "available" and explicit_app_principal:
+        return {
+            "state": "available",
+            "evidence": evidence,
+            "detail": "The app-principal SQL runtime explicitly proved warehouse and governance-store access.",
+        }
     if runtime_state == "available" and store_state == "available":
-        return "available"
+        return {
+            "state": "unknown",
+            "evidence": evidence,
+            "detail": (
+                "The warehouse runtime and governance store responded, but the client auth context did not "
+                "explicitly prove app-principal ownership."
+            ),
+        }
     if runtime_state in {"degraded", "unknown"} or store_state in {"degraded", "unknown"}:
-        return "degraded"
-    return "unknown"
+        return {
+            "state": "degraded",
+            "evidence": evidence,
+            "detail": "The app principal partially reached the runtime, but store or runtime proof is still degraded.",
+        }
+    return {
+        "state": "unknown",
+        "evidence": evidence,
+        "detail": "The app-principal reachability probe did not produce a definitive state.",
+    }
 
 
 def _claim_item(check: Mapping[str, Any], *, surface: str, effect: str) -> Dict[str, Any]:
@@ -216,6 +268,29 @@ def _workspace_access_gate(
         "proofSource": str(check.get("evidence") or "").strip(),
         "remediation": str(check.get("remediation") or "").strip(),
         "blockedSurfaces": list(blocked_surfaces),
+    }
+
+
+def _surface_policy(
+    *,
+    key: str,
+    label: str,
+    allowed: bool,
+    state: str,
+    mode: str,
+    visibility_scope: str,
+    reason: str,
+    blocked_surfaces: Iterable[str] | None = None,
+) -> Dict[str, Any]:
+    return {
+        "key": key,
+        "label": label,
+        "allowed": bool(allowed),
+        "state": _normalize_state(state),
+        "mode": str(mode or "").strip(),
+        "visibilityScope": str(visibility_scope or "").strip(),
+        "reason": str(reason or "").strip(),
+        "blockedSurfaces": list(blocked_surfaces or []),
     }
 
 
@@ -398,7 +473,7 @@ def feature_flag_inventory(
             truth_source="Unity Catalog lineage probe",
             rollout="workspace-scoped",
             rollout_policy="Only enable when the table lineage capability is available for the current actor.",
-            scope="lineage graph, preview, and drawer",
+            scope="lineage graph and drawer",
             default_state="disabled",
             expires_after="Remove once lineage is a stable capability-gated default surface.",
             removal_ticket="phase-8-lineage-read-only-core",
@@ -494,19 +569,24 @@ def setup_payload(
     runtime_state = _normalize_state(str(runtime_status.get("state") or "unknown"))
     store_state = _normalize_state(str(store_status.get("state") or "unknown"))
     role = str(actor_role or "reader").strip().lower() or "reader"
+    auth_mode = capability_service.runtime_auth_mode(
+        authenticated=authenticated,
+        per_user_authorization=False,
+    )
+    read_visibility_scope = capability_service.runtime_visibility_scope(auth_mode)
 
     runtime_message = str(runtime_status.get("message") or "").strip()
     store_message = str(store_status.get("message") or "").strip()
-    app_service_principal_state = _app_service_principal_state(
+    app_service_principal_probe = _app_service_principal_probe(
+        runtime_status=runtime_status,
         runtime_state=runtime_state,
         store_state=store_state,
         warehouse_id=warehouse_id,
         gov_catalog=gov_catalog,
         gov_schema=gov_schema,
     )
-    app_service_principal_evidence = (
-        f"runtime={runtime_state}, store={store_state}, config={'present' if warehouse_id and gov_catalog and gov_schema else 'missing'}"
-    )
+    app_service_principal_state = app_service_principal_probe["state"]
+    app_service_principal_evidence = app_service_principal_probe["evidence"]
 
     checks = [
         _check(
@@ -584,9 +664,9 @@ def setup_payload(
             "The app service principal can reach the warehouse and governance store."
             if app_service_principal_state == "available"
             else "The app service-principal reachability and permissions have not been proven yet.",
-            "This check validates the app principal that powers install/setup probes, operator diagnostics, and app-owned control-plane access."
-            if app_service_principal_state != "available"
-            else "",
+            ""
+            if app_service_principal_state == "available"
+            else app_service_principal_probe["detail"],
             observed_at=observed_at,
             stale_after=stale_after,
             evidence=app_service_principal_evidence,
@@ -742,9 +822,9 @@ def setup_payload(
             "The app service principal can reach the warehouse and governance store."
             if app_service_principal_state == "available"
             else "The app service-principal reachability and permissions have not been proven yet.",
-            "This check validates the app principal that powers install/setup probes, operator diagnostics, and app-owned control-plane access."
-            if app_service_principal_state != "available"
-            else "",
+            ""
+            if app_service_principal_state == "available"
+            else app_service_principal_probe["detail"],
             observed_at=observed_at,
             stale_after=stale_after,
             evidence=app_service_principal_evidence,
@@ -821,13 +901,30 @@ def setup_payload(
         counts[state] = counts.get(state, 0) + 1
 
     check_map = {item["key"]: item for item in checks}
+    can_use_discovery = check_map.get("system_inventory", {}).get("state") in {
+        "available",
+        "degraded",
+    }
+    can_use_entity_metadata = can_use_discovery
     can_write_governance = all(
         check_map.get(key, {}).get("state") == "available"
         for key in ["identity_forwarding", "governance_config", "warehouse_runtime", "governance_store", "app_service_principal"]
     )
-    can_use_lineage = check_map.get("table_lineage", {}).get("state") == "available"
-    can_use_query_history = check_map.get("workload_visibility", {}).get("state") == "available"
+    can_use_asset_preview = (
+        auth_mode == capability_service.OBO_AVAILABLE_MODE
+        and check_map.get("system_inventory", {}).get("state") in {"available", "degraded"}
+    )
+    can_use_lineage = (
+        auth_mode == capability_service.OBO_AVAILABLE_MODE
+        and check_map.get("table_lineage", {}).get("state") == "available"
+    )
+    can_use_query_history = (
+        auth_mode == capability_service.OBO_AVAILABLE_MODE
+        and check_map.get("workload_visibility", {}).get("state") == "available"
+    )
     can_export = (
+        auth_mode == capability_service.OBO_AVAILABLE_MODE
+        and
         check_map.get("export_delivery", {}).get("state") == "available"
         and check_map.get("identity_forwarding", {}).get("state") == "available"
     )
@@ -836,10 +933,14 @@ def setup_payload(
         check_map.get("classification_recommendations", {}).get("state") == "available"
     )
     blocked_surfaces: list[str] = []
+    if not can_use_discovery:
+        blocked_surfaces.append("Discovery and entity inventory")
     if not can_write_governance:
         blocked_surfaces.append("Governance writes")
+    if not can_use_asset_preview:
+        blocked_surfaces.append("Asset preview and sample data")
     if not can_use_lineage:
-        blocked_surfaces.append("Lineage graph, preview, and drawer")
+        blocked_surfaces.append("Lineage graph and drawer")
     if not can_use_query_history:
         blocked_surfaces.append("Queries, usage, and workloads")
     if not can_export:
@@ -871,6 +972,11 @@ def setup_payload(
             "system_inventory",
             "Discovery and entity inventory",
             "Discovery and entity inventory surfaces must stay degraded or unavailable instead of implying empty truth.",
+        ),
+        (
+            "per_user_authorization",
+            "Workspace-scoped metadata reads",
+            "Workspace-scoped app-principal inventory must stay explicitly restricted until actor-scoped OBO exists.",
         ),
         (
             "table_lineage",
@@ -914,6 +1020,14 @@ def setup_payload(
 
     workspace_access_gates = [
         {
+            **_workspace_access_gate(
+                check_map["system_inventory"],
+                blocked_surfaces=[] if can_use_discovery else ["Discovery and entity inventory"],
+            ),
+            "key": "discovery_inventory",
+            "label": "Discovery and entity inventory",
+        },
+        {
             "key": "governance_writes",
             "label": "Governance writes",
             "state": "available" if can_write_governance else _worst_state(
@@ -947,21 +1061,114 @@ def setup_payload(
             ),
             "blockedSurfaces": [] if can_write_governance else ["Governance writes"],
         },
-        _workspace_access_gate(
-            check_map["table_lineage"],
-            blocked_surfaces=[] if can_use_lineage else ["Lineage graph, preview, and drawer"],
-        ),
+        {
+            **_workspace_access_gate(
+                check_map["system_inventory"],
+                blocked_surfaces=[] if can_use_asset_preview else ["Asset preview and sample data"],
+            ),
+            "key": "asset_preview",
+            "label": "Asset preview and sample data",
+            "state": (
+                "available"
+                if can_use_asset_preview
+                else "unavailable"
+                if auth_mode != capability_service.OBO_AVAILABLE_MODE
+                else _normalize_state(check_map["system_inventory"]["state"])
+            ),
+            "reason": (
+                "Actor-scoped preview and sample data are available."
+                if can_use_asset_preview
+                else "Asset preview and sample data require per-user authorization / OBO; app-principal fallback does not widen user-visible data."
+                if auth_mode != capability_service.OBO_AVAILABLE_MODE
+                else str(check_map["system_inventory"].get("summary") or check_map["system_inventory"].get("detail") or "")
+            ),
+            "remediation": (
+                ""
+                if can_use_asset_preview
+                else "Enable and verify Databricks Apps per-user authorization before enabling actor-scoped asset preview and sample data."
+            ),
+        },
+        {
+            **_workspace_access_gate(
+                check_map["table_lineage"],
+                blocked_surfaces=[] if can_use_lineage else ["Lineage graph and drawer"],
+            ),
+            "state": (
+                "available"
+                if can_use_lineage
+                else "unavailable"
+                if auth_mode != capability_service.OBO_AVAILABLE_MODE
+                else _normalize_state(check_map["table_lineage"]["state"])
+            ),
+            "reason": (
+                "Actor-scoped table lineage is available."
+                if can_use_lineage
+                else "Lineage requires per-user authorization / OBO; app-principal fallback does not widen user-visible data."
+                if auth_mode != capability_service.OBO_AVAILABLE_MODE
+                else str(check_map["table_lineage"].get("summary") or check_map["table_lineage"].get("detail") or "")
+            ),
+            "remediation": (
+                ""
+                if can_use_lineage
+                else "Enable and verify Databricks Apps per-user authorization before enabling actor-scoped lineage."
+            ),
+        },
         {
             **_workspace_access_gate(
                 check_map["workload_visibility"],
                 blocked_surfaces=[] if can_use_query_history else ["Queries, usage, and workloads"],
             ),
+            "state": (
+                "available"
+                if can_use_query_history
+                else "unavailable"
+                if auth_mode != capability_service.OBO_AVAILABLE_MODE
+                else _normalize_state(check_map["workload_visibility"]["state"])
+            ),
+            "reason": (
+                "Actor-scoped workload visibility is available."
+                if can_use_query_history
+                else "Queries, usage, and workloads require per-user authorization / OBO or a validated safe-sharing path; app-principal fallback does not widen user-visible data."
+                if auth_mode != capability_service.OBO_AVAILABLE_MODE
+                else str(check_map["workload_visibility"].get("summary") or check_map["workload_visibility"].get("detail") or "")
+            ),
+            "remediation": (
+                ""
+                if can_use_query_history
+                else "Enable OBO or a validated safe-sharing path before exposing query history and workload surfaces."
+            ),
             "safeSharingPath": _safe_operational_sharing_path(),
         },
-        _workspace_access_gate(
-            check_map["export_delivery"],
-            blocked_surfaces=[] if can_export else ["Discovery and detail export"],
-        ),
+        {
+            **_workspace_access_gate(
+                check_map["export_delivery"],
+                blocked_surfaces=[] if can_export else ["Discovery and detail export"],
+            ),
+            "state": (
+                "available"
+                if can_export
+                else "unavailable"
+                if auth_mode != capability_service.OBO_AVAILABLE_MODE
+                else _normalize_state(
+                    _worst_state(
+                        check_map["export_delivery"]["state"],
+                        check_map["identity_forwarding"]["state"],
+                    )
+                )
+            ),
+            "reason": (
+                "Authenticated export delivery is available for the current actor."
+                if can_export
+                else "Discovery and detail export require per-user authorization / OBO plus authenticated delivery; app-principal fallback does not widen user-visible data."
+                if auth_mode != capability_service.OBO_AVAILABLE_MODE
+                else str(check_map["export_delivery"].get("summary") or check_map["export_delivery"].get("detail") or "")
+            ),
+            "remediation": (
+                ""
+                if can_export
+                else "Enable per-user authorization and validated export delivery before exposing export actions."
+            ),
+        },
         _workspace_access_gate(
             check_map["background_work_plane"],
             blocked_surfaces=[] if can_run_background_work else ["Background work runner"],
@@ -973,6 +1180,137 @@ def setup_payload(
         _workspace_access_gate(
             check_map["transaction_mode"],
             blocked_surfaces=[],
+        ),
+    ]
+
+    surface_policies = [
+        _surface_policy(
+            key="discovery",
+            label="Discovery browse and search",
+            allowed=can_use_discovery,
+            state="available" if can_use_discovery else check_map["system_inventory"]["state"],
+            mode=auth_mode,
+            visibility_scope=read_visibility_scope,
+            reason=(
+                "Actor-scoped discovery is available."
+                if auth_mode == capability_service.OBO_AVAILABLE_MODE and can_use_discovery
+                else "Discovery is restricted to workspace-scoped app-principal inventory until per-user authorization / OBO exists."
+                if auth_mode == capability_service.APP_PRINCIPAL_ONLY_MODE and can_use_discovery
+                else "Discovery is degraded read-only inventory until actor identity and per-user authorization exist."
+                if auth_mode == capability_service.NO_IDENTITY_MODE and can_use_discovery
+                else check_map["system_inventory"]["summary"]
+            ),
+            blocked_surfaces=[] if can_use_discovery else ["Discovery and entity inventory"],
+        ),
+        _surface_policy(
+            key="entity_metadata",
+            label="Entity summary and metadata record",
+            allowed=can_use_entity_metadata,
+            state="available" if can_use_entity_metadata else check_map["system_inventory"]["state"],
+            mode=auth_mode,
+            visibility_scope=read_visibility_scope,
+            reason=(
+                "Entity metadata is actor-scoped."
+                if auth_mode == capability_service.OBO_AVAILABLE_MODE and can_use_entity_metadata
+                else "Entity metadata remains workspace-scoped and read-only until per-user authorization / OBO exists."
+                if can_use_entity_metadata
+                else check_map["system_inventory"]["summary"]
+            ),
+            blocked_surfaces=[] if can_use_entity_metadata else ["Discovery and entity inventory"],
+        ),
+        _surface_policy(
+            key="asset_preview",
+            label="Asset preview and sample data",
+            allowed=can_use_asset_preview,
+            state="available" if can_use_asset_preview else "unavailable",
+            mode=auth_mode,
+            visibility_scope=capability_service.ACTOR_SCOPED_VISIBILITY if can_use_asset_preview else "",
+            reason=(
+                "Sample rows and preview details are actor-scoped."
+                if can_use_asset_preview
+                else "Asset preview and sample data stay disabled until Databricks per-user authorization / OBO is real."
+            ),
+            blocked_surfaces=[] if can_use_asset_preview else ["Asset preview and sample data"],
+        ),
+        _surface_policy(
+            key="lineage",
+            label="Lineage graph and drawer",
+            allowed=can_use_lineage,
+            state=(
+                "available"
+                if can_use_lineage
+                else "unavailable"
+                if auth_mode != capability_service.OBO_AVAILABLE_MODE
+                else check_map["table_lineage"]["state"]
+            ),
+            mode=auth_mode,
+            visibility_scope=capability_service.ACTOR_SCOPED_VISIBILITY if can_use_lineage else "",
+            reason=(
+                "Lineage is actor-scoped."
+                if can_use_lineage
+                else "Lineage stays degraded until actor-scoped authorization / OBO is available."
+            ),
+            blocked_surfaces=[] if can_use_lineage else ["Lineage graph and drawer"],
+        ),
+        _surface_policy(
+            key="query_history",
+            label="Queries, usage, and workloads",
+            allowed=can_use_query_history,
+            state=(
+                "available"
+                if can_use_query_history
+                else "unavailable"
+                if auth_mode != capability_service.OBO_AVAILABLE_MODE
+                else check_map["workload_visibility"]["state"]
+            ),
+            mode=auth_mode,
+            visibility_scope=capability_service.ACTOR_SCOPED_VISIBILITY if can_use_query_history else "",
+            reason=(
+                "Operational query history is available."
+                if can_use_query_history
+                else "Query and workload visibility stays disabled until both OBO and a validated safe-sharing path exist."
+            ),
+            blocked_surfaces=[] if can_use_query_history else ["Queries, usage, and workloads"],
+        ),
+        _surface_policy(
+            key="export",
+            label="Discovery and detail export",
+            allowed=can_export,
+            state=(
+                "available"
+                if can_export
+                else "unavailable"
+                if auth_mode != capability_service.OBO_AVAILABLE_MODE
+                else check_map["export_delivery"]["state"]
+            ),
+            mode=auth_mode,
+            visibility_scope=capability_service.ACTOR_SCOPED_VISIBILITY if can_export else "",
+            reason=(
+                "Export is actor-scoped and authenticated."
+                if can_export
+                else "Export remains disabled until actor-scoped authorization, delivery, redaction, and audit guarantees exist."
+            ),
+            blocked_surfaces=[] if can_export else ["Discovery and detail export"],
+        ),
+        _surface_policy(
+            key="governance_writes",
+            label="Governance writes",
+            allowed=can_write_governance,
+            state="available" if can_write_governance else _worst_state(
+                check_map["identity_forwarding"]["state"],
+                check_map["governance_config"]["state"],
+                check_map["warehouse_runtime"]["state"],
+                check_map["governance_store"]["state"],
+                check_map["app_service_principal"]["state"],
+            ),
+            mode=auth_mode,
+            visibility_scope=capability_service.CONTROL_PLANE_VISIBILITY if can_write_governance else "",
+            reason=(
+                "Governance writes are limited to the app-owned control plane for the current actor and workspace."
+                if can_write_governance
+                else "Governance writes remain blocked until identity, runtime, store, config, and app-principal proof all succeed."
+            ),
+            blocked_surfaces=[] if can_write_governance else ["Governance writes"],
         ),
     ]
 
@@ -1003,8 +1341,16 @@ def setup_payload(
         "setupSequence": sequence,
         "checks": checks,
         "auth": {
-            "mode": "forwarded-user-header" if authenticated else "read-only-no-identity",
+            "mode": auth_mode,
             "actorRole": role,
+            "visibilityScope": read_visibility_scope,
+            "modeSummary": (
+                "Actor-scoped Databricks authorization is available."
+                if auth_mode == capability_service.OBO_AVAILABLE_MODE
+                else "Workspace-scoped app-principal metadata is active."
+                if auth_mode == capability_service.APP_PRINCIPAL_ONLY_MODE
+                else "No forwarded actor identity is present; the runtime is degraded read-only."
+            ),
             "perUserAuthorization": {
                 "implemented": False,
                 "state": "unavailable",
@@ -1012,13 +1358,17 @@ def setup_payload(
             },
         },
         "workspaceAccess": {
-            "mode": "forwarded-user-header" if authenticated else "read-only-no-identity",
+            "mode": auth_mode,
+            "visibilityScope": read_visibility_scope,
             "transactionMode": {
                 "state": check_map["transaction_mode"]["state"],
                 "summary": check_map["transaction_mode"]["summary"],
                 "reason": check_map["transaction_mode"].get("detail", ""),
             },
+            "canUseDiscovery": can_use_discovery,
+            "canUseEntityMetadata": can_use_entity_metadata,
             "canWriteGovernance": can_write_governance,
+            "canUseAssetPreview": can_use_asset_preview,
             "canUseLineage": can_use_lineage,
             "canUseQueryHistory": can_use_query_history,
             "queryHistorySharingPath": _safe_operational_sharing_path(),
@@ -1027,6 +1377,7 @@ def setup_payload(
             "canUseClassificationRecommendations": can_use_classification_recommendations,
             "blockedSurfaces": blocked_surfaces,
             "gates": workspace_access_gates,
+            "surfacePolicies": surface_policies,
             "observedAt": observed_at,
             "staleAfter": stale_after,
         },
