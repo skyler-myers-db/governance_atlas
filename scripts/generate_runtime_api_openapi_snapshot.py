@@ -9,7 +9,28 @@ from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT_PATH = ROOT / "docs" / "runtime_api_openapi_snapshot.json"
-RUNTIME_PATHS = ("/api/bootstrap", "/api/runtime/status")
+RUNTIME_PATHS = (
+    "/api/bootstrap",
+    "/api/runtime/status",
+    "/api/discovery/search",
+    "/api/assets/availability",
+    "/api/assets/{asset_fqn}",
+    "/api/assets/{asset_fqn}/columns/{column_name}/description",
+    "/api/assets/{asset_fqn}/columns/{column_name}/tags",
+    "/api/assets/{asset_fqn}/columns/{column_name}/metadata",
+    "/api/assets/{asset_fqn}/description",
+    "/api/assets/{asset_fqn}/metadata",
+    "/api/assets/{asset_fqn}/owners",
+    "/api/assets/{asset_fqn}/tags",
+    "/api/lineage/{asset_fqn}",
+    "/api/governance/summary",
+    "/api/governance/glossary",
+    "/api/governance/glossary/{term_id}",
+    "/api/governance/requests",
+    "/api/governance/requests/{request_id}",
+    "/api/governance/notifications/{notification_id}",
+    "/api/governance/owners",
+)
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))

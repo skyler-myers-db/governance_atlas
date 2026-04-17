@@ -352,6 +352,475 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/assets/availability": {
+      "post": {
+        "operationId": "api_asset_availability_api_assets_availability_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetAvailabilityRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Asset Availability",
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/api/assets/{asset_fqn}": {
+      "get": {
+        "operationId": "api_asset_detail_api_assets__asset_fqn__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sections",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Sections",
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Asset Detail",
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/api/assets/{asset_fqn}/columns/{column_name}/description": {
+      "patch": {
+        "operationId": "api_patch_column_description_api_assets__asset_fqn__columns__column_name__description_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "column_name",
+            "required": true,
+            "schema": {
+              "title": "Column Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ColumnDescriptionPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Patch Column Description",
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/api/assets/{asset_fqn}/columns/{column_name}/metadata": {
+      "patch": {
+        "operationId": "api_patch_column_metadata_api_assets__asset_fqn__columns__column_name__metadata_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "column_name",
+            "required": true,
+            "schema": {
+              "title": "Column Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ColumnMetadataPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Patch Column Metadata",
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/api/assets/{asset_fqn}/columns/{column_name}/tags": {
+      "patch": {
+        "operationId": "api_patch_column_tags_api_assets__asset_fqn__columns__column_name__tags_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "column_name",
+            "required": true,
+            "schema": {
+              "title": "Column Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ColumnTagsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Patch Column Tags",
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/api/assets/{asset_fqn}/description": {
+      "patch": {
+        "operationId": "api_patch_asset_description_api_assets__asset_fqn__description_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetDescriptionPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Patch Asset Description",
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/api/assets/{asset_fqn}/metadata": {
+      "patch": {
+        "operationId": "api_patch_asset_metadata_api_assets__asset_fqn__metadata_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetMetadataPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Patch Asset Metadata",
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/api/assets/{asset_fqn}/owners": {
+      "patch": {
+        "operationId": "api_patch_asset_owners_api_assets__asset_fqn__owners_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetOwnersPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Patch Asset Owners",
+        "tags": [
+          "assets"
+        ]
+      }
+    },
+    "/api/assets/{asset_fqn}/tags": {
+      "patch": {
+        "operationId": "api_patch_asset_tags_api_assets__asset_fqn__tags_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetTagsPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Patch Asset Tags",
+        "tags": [
+          "assets"
+        ]
+      }
+    },
     "/api/bootstrap": {
       "get": {
         "operationId": "api_bootstrap_api_bootstrap_get",
@@ -368,6 +837,581 @@
         "summary": "Api Bootstrap",
         "tags": [
           "runtime"
+        ]
+      }
+    },
+    "/api/discovery/search": {
+      "get": {
+        "operationId": "api_discovery_search_api_discovery_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Query",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "queryMode",
+            "required": false,
+            "schema": {
+              "default": "plain",
+              "title": "Querymode",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "view",
+            "required": false,
+            "schema": {
+              "default": "All assets",
+              "title": "View",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "required": false,
+            "schema": {
+              "default": "All types",
+              "title": "Type",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "views",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Views"
+            }
+          },
+          {
+            "in": "query",
+            "name": "types",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Types"
+            }
+          },
+          {
+            "in": "query",
+            "name": "catalogs",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Catalogs"
+            }
+          },
+          {
+            "in": "query",
+            "name": "domains",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Domains"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tiers",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tiers"
+            }
+          },
+          {
+            "in": "query",
+            "name": "certifications",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Certifications"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sensitivities",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sensitivities"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "required": false,
+            "schema": {
+              "default": "Best match",
+              "title": "Sortby",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Discovery Search",
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/governance/glossary": {
+      "get": {
+        "operationId": "api_governance_glossary_api_governance_glossary_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Api Governance Glossary",
+        "tags": [
+          "governance"
+        ]
+      },
+      "post": {
+        "operationId": "api_governance_upsert_glossary_api_governance_glossary_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GlossaryTermUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Governance Upsert Glossary",
+        "tags": [
+          "governance"
+        ]
+      }
+    },
+    "/api/governance/glossary/{term_id}": {
+      "get": {
+        "operationId": "api_governance_glossary_term_api_governance_glossary__term_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "term_id",
+            "required": true,
+            "schema": {
+              "title": "Term Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Governance Glossary Term",
+        "tags": [
+          "governance"
+        ]
+      },
+      "patch": {
+        "operationId": "api_governance_patch_glossary_api_governance_glossary__term_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "term_id",
+            "required": true,
+            "schema": {
+              "title": "Term Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GlossaryTermUpsert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Governance Patch Glossary",
+        "tags": [
+          "governance"
+        ]
+      }
+    },
+    "/api/governance/notifications/{notification_id}": {
+      "patch": {
+        "operationId": "api_governance_patch_notification_api_governance_notifications__notification_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notification_id",
+            "required": true,
+            "schema": {
+              "title": "Notification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GovernanceNotificationPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Governance Patch Notification",
+        "tags": [
+          "governance"
+        ]
+      }
+    },
+    "/api/governance/owners": {
+      "post": {
+        "operationId": "api_governance_upsert_owner_api_governance_owners_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Api Governance Upsert Owner",
+        "tags": [
+          "governance"
+        ]
+      }
+    },
+    "/api/governance/requests": {
+      "post": {
+        "operationId": "api_governance_create_request_api_governance_requests_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Api Governance Create Request",
+        "tags": [
+          "governance"
+        ]
+      }
+    },
+    "/api/governance/requests/{request_id}": {
+      "patch": {
+        "operationId": "api_governance_patch_request_api_governance_requests__request_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "request_id",
+            "required": true,
+            "schema": {
+              "title": "Request Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GovernanceRequestStatusPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Governance Patch Request",
+        "tags": [
+          "governance"
+        ]
+      }
+    },
+    "/api/governance/summary": {
+      "get": {
+        "operationId": "api_governance_summary_api_governance_summary_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Api Governance Summary",
+        "tags": [
+          "governance"
+        ]
+      }
+    },
+    "/api/lineage/{asset_fqn}": {
+      "get": {
+        "operationId": "api_lineage_api_lineage__asset_fqn__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Lineage",
+        "tags": [
+          "lineage"
         ]
       }
     },
