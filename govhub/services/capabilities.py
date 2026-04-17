@@ -165,40 +165,24 @@ def bootstrap_capabilities(
                 product_mode=auth_mode,
             )
 
-        if not actor_scoped_reads:
-            lineage_reason = (
-                "Live lineage remains unavailable until Databricks per-user authorization / OBO "
-                "is available for actor-scoped reads."
+        # Lineage reads query `system.access.table_lineage` / `system.access.column_lineage`.
+        # Those reads execute through the same UC SQL client used for inventory, so they are
+        # available whenever the runtime is live and the SP can observe lineage catalogs.
+        # OBO (per-user authorization) narrows lineage to actor-scoped visibility, but its
+        # absence does not render the lineage surface unavailable.
+        lineage_workspace_note = (
+            ""
+            if actor_scoped_reads
+            else (
+                "Lineage is scoped to the workspace app-principal until per-user "
+                "authorization / OBO is enabled."
             )
-            table_lineage = _flag(
-                available=False,
-                state="unavailable",
-                reason=lineage_reason,
-                actor_scoped=False,
-                workspace_scoped=True,
-                visibility_scope=read_visibility_scope,
-                source=metadata_source,
-                protected_read=True,
-                product_mode=auth_mode,
-            )
-            column_lineage = _flag(
-                available=False,
-                state="unavailable",
-                reason=(
-                    "Column lineage remains unavailable until Databricks per-user authorization / OBO "
-                    "is available for actor-scoped reads."
-                ),
-                actor_scoped=False,
-                workspace_scoped=True,
-                visibility_scope=read_visibility_scope,
-                source=metadata_source,
-                protected_read=True,
-                product_mode=auth_mode,
-            )
-        elif int(observed_catalog_count or 0) > 0:
+        )
+        if int(observed_catalog_count or 0) > 0:
             table_lineage = _flag(
                 available=True,
                 state="available",
+                reason=lineage_workspace_note,
                 actor_scoped=actor_scoped_reads,
                 workspace_scoped=not actor_scoped_reads,
                 visibility_scope=read_visibility_scope,
@@ -209,6 +193,7 @@ def bootstrap_capabilities(
             column_lineage = _flag(
                 available=True,
                 state="available",
+                reason=lineage_workspace_note,
                 actor_scoped=actor_scoped_reads,
                 workspace_scoped=not actor_scoped_reads,
                 visibility_scope=read_visibility_scope,
@@ -221,8 +206,8 @@ def bootstrap_capabilities(
                 available=True,
                 state="unknown",
                 reason=(
-                    "No lineage-observed catalogs are detected yet; keep lineage surfaces capability-gated "
-                    "and handle masked or empty results truthfully."
+                    "No lineage-observed catalogs are detected yet; lineage surfaces will hydrate "
+                    "once system lineage tables report activity for the visible catalogs."
                 ),
                 actor_scoped=actor_scoped_reads,
                 workspace_scoped=not actor_scoped_reads,
