@@ -126,6 +126,36 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertNotIn("summary", payload["discovery"])
         self.assertEqual(payload["apiContract"]["bootstrap"], "/api/bootstrap")
 
+    def test_request_obo_token_reads_forwarded_access_token_header(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(
+            headers={"x-forwarded-access-token": "obo-token-abc"}
+        )
+        self.assertEqual(runtime_app._request_obo_token(request), "obo-token-abc")
+
+    def test_request_auth_mode_flips_to_obo_when_token_forwarded(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(
+            headers={
+                "x-forwarded-email": "user@example.com",
+                "x-forwarded-access-token": "obo-token-xyz",
+            }
+        )
+        self.assertEqual(
+            runtime_app._request_auth_mode(request),
+            "obo-available",
+        )
+
+    def test_request_auth_mode_stays_app_principal_without_token(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(
+            headers={"x-forwarded-email": "user@example.com"}
+        )
+        self.assertEqual(
+            runtime_app._request_auth_mode(request),
+            "app-principal-only",
+        )
+
     def test_runtime_router_invokes_injected_handlers(self) -> None:
         calls: list[tuple[str, object]] = []
 

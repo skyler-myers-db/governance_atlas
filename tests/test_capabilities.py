@@ -84,6 +84,64 @@ class CapabilityPayloadTests(unittest.TestCase):
             self.assertEqual(payload[key]["state"], "unavailable", key)
             self.assertFalse(payload[key]["available"], key)
 
+    def test_per_user_authorization_flips_auth_mode_without_overclaiming_reads(
+        self,
+    ) -> None:
+        payload = capability_service.bootstrap_capabilities(
+            actor_role="writer",
+            authenticated=True,
+            runtime_state="live",
+            store_state="live",
+            visible_asset_count=5,
+            available_catalog_count=2,
+            observed_catalog_count=1,
+            per_user_authorization=True,
+        )
+
+        self.assertEqual(
+            payload["systemInventoryRead"]["productMode"],
+            capability_service.OBO_AVAILABLE_MODE,
+        )
+        self.assertEqual(
+            payload["systemInventoryRead"]["visibilityScope"],
+            capability_service.WORKSPACE_APP_PRINCIPAL_VISIBILITY,
+        )
+        self.assertTrue(payload["systemInventoryRead"]["workspaceScoped"])
+        self.assertFalse(payload["systemInventoryRead"]["actorScoped"])
+        self.assertEqual(
+            payload["systemInventoryRead"]["source"], "unity-catalog-app-principal"
+        )
+
+    def test_claim_actor_scoped_reads_requires_per_user_authorization(self) -> None:
+        no_obo = capability_service.bootstrap_capabilities(
+            actor_role="writer",
+            authenticated=True,
+            runtime_state="live",
+            store_state="live",
+            visible_asset_count=5,
+            available_catalog_count=2,
+            observed_catalog_count=1,
+            per_user_authorization=False,
+            claim_actor_scoped_reads=True,
+        )
+        self.assertFalse(no_obo["systemInventoryRead"]["actorScoped"])
+
+        with_obo = capability_service.bootstrap_capabilities(
+            actor_role="writer",
+            authenticated=True,
+            runtime_state="live",
+            store_state="live",
+            visible_asset_count=5,
+            available_catalog_count=2,
+            observed_catalog_count=1,
+            per_user_authorization=True,
+            claim_actor_scoped_reads=True,
+        )
+        self.assertTrue(with_obo["systemInventoryRead"]["actorScoped"])
+        self.assertEqual(
+            with_obo["systemInventoryRead"]["source"], "unity-catalog-actor"
+        )
+
 
 class RuntimeCapabilityWiringTests(unittest.TestCase):
     def test_runtime_surfaces_thread_capability_payload_helper(self) -> None:

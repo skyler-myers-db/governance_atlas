@@ -144,8 +144,9 @@ def _comment_ddl_keywords(raw: Any) -> List[str]:
 class UCSQLClient:
     """Run SQL via Statement Execution API against a Databricks SQL Warehouse."""
 
-    def __init__(self, warehouse_id: str):
+    def __init__(self, warehouse_id: str, *, user_access_token: str | None = None):
         self.warehouse_id = warehouse_id
+        self._user_access_token = (user_access_token or "").strip() or None
         self._client_context = self._build_client_context()
         self.w = self._build_workspace_client()
 
@@ -165,6 +166,7 @@ class UCSQLClient:
             "clientSecretPresent": bool(client_secret),
             "warehouseId": self.warehouse_id,
             "workspaceId": _env("DATABRICKS_WORKSPACE_ID"),
+            "userAccessTokenPresent": bool(self._user_access_token),
         }
 
     def _build_workspace_client(self) -> WorkspaceClient:
@@ -174,6 +176,22 @@ class UCSQLClient:
         client_secret = _env("DATABRICKS_CLIENT_SECRET")
         auth_type = self._client_context["authType"] or "oauth-m2m"
         explicit_error = None
+        if self._user_access_token and host:
+            try:
+                client = workspace_client(
+                    host=host,
+                    token=self._user_access_token,
+                    auth_type="pat",
+                    product="governance-hub",
+                    product_version="governance-hub-runtime-obo",
+                )
+                self._client_context["authMode"] = "obo-forwarded-token"
+                self._client_context["authType"] = "pat"
+                return client
+            except Exception as exc:
+                explicit_error = exc
+                self._client_context["authMode"] = "obo-fallback"
+                self._client_context["clientInitError"] = _safe_error_text(exc)
         if host and client_id and client_secret:
             try:
                 client = workspace_client(

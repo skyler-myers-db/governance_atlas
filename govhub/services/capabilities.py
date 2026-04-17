@@ -76,13 +76,28 @@ def bootstrap_capabilities(
     available_catalog_count: int = 0,
     observed_catalog_count: int = 0,
     boot_message: str = "",
+    per_user_authorization: bool = False,
+    claim_actor_scoped_reads: bool = False,
 ) -> Dict[str, Dict[str, Any]]:
     role = _normalize_role(actor_role)
     auth_mode = runtime_auth_mode(
-        authenticated=authenticated, per_user_authorization=False
+        authenticated=authenticated, per_user_authorization=per_user_authorization
     )
-    read_visibility_scope = runtime_visibility_scope(auth_mode)
-    actor_scoped_reads = auth_mode == OBO_AVAILABLE_MODE
+    # Reads and writes can be scoped independently: in OBO mode, writes execute under
+    # the forwarded user token while reads can remain on the app principal when the
+    # catalog view is intentionally workspace-wide. Callers flip
+    # ``claim_actor_scoped_reads`` only when the read path itself uses the forwarded
+    # token, so the capability payload cannot overclaim actor scoping.
+    actor_scoped_reads = bool(
+        claim_actor_scoped_reads and auth_mode == OBO_AVAILABLE_MODE
+    )
+    read_visibility_scope = (
+        runtime_visibility_scope(auth_mode)
+        if actor_scoped_reads
+        else runtime_visibility_scope(
+            APP_PRINCIPAL_ONLY_MODE if authenticated else NO_IDENTITY_MODE
+        )
+    )
     runtime_live = runtime_state == "live"
     store_live = store_state == "live"
     mutation_allowed = (
