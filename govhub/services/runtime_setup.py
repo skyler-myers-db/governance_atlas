@@ -588,6 +588,7 @@ def setup_payload(
     authenticated: bool,
     actor_role: str,
     diagnostics_enabled: bool,
+    per_user_authorization: bool = False,
 ) -> Dict[str, Any]:
     observed_at = _now_iso()
     stale_after = _future_iso(60)
@@ -596,7 +597,7 @@ def setup_payload(
     role = str(actor_role or "reader").strip().lower() or "reader"
     auth_mode = capability_service.runtime_auth_mode(
         authenticated=authenticated,
-        per_user_authorization=False,
+        per_user_authorization=bool(per_user_authorization),
     )
     read_visibility_scope = capability_service.runtime_visibility_scope(auth_mode)
 
@@ -1494,11 +1495,19 @@ def setup_payload(
                 if auth_mode == capability_service.APP_PRINCIPAL_ONLY_MODE
                 else "No forwarded actor identity is present; the runtime is degraded read-only."
             ),
-            "perUserAuthorization": {
-                "implemented": False,
-                "state": "unavailable",
-                "reason": "Per-user Databricks authorization / OBO is not implemented in the live runtime yet.",
-            },
+            "perUserAuthorization": (
+                {
+                    "implemented": True,
+                    "state": "available",
+                    "reason": "Databricks per-user authorization / OBO token was forwarded on this request.",
+                }
+                if per_user_authorization
+                else {
+                    "implemented": False,
+                    "state": "unavailable",
+                    "reason": "No forwarded Databricks per-user authorization / OBO token on this request; reads fall back to the app-principal scope.",
+                }
+            ),
         },
         "workspaceAccess": {
             "mode": auth_mode,

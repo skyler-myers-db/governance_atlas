@@ -1,6 +1,16 @@
 bundle:
   name: governance-hub
 
+# ── Sync overrides ─────────────────────────────────────────
+# The repo-level .gitignore excludes frontend/dist/ from git tracking, but the
+# compiled React bundle is the only artifact the FastAPI server can serve.
+# Without it _ensure_react_bundle raises and every page render 500s. Explicitly
+# include the built frontend in bundle sync so deploys always ship the current
+# `npm run build` output even though it stays out of git.
+sync:
+  include:
+    - frontend/dist/**
+
 # ── Variables ──────────────────────────────────────────────
 # Override per-target or via CLI: databricks bundle deploy -t prod
 variables:
@@ -25,6 +35,22 @@ resources:
         Governance Hub — a Databricks-native enterprise metadata workspace
         extending Unity Catalog, deployable to any Databricks workspace.
       source_code_path: .
+      # OBO (on-behalf-of-user) scopes. Without these declared here, every
+      # `bundle deploy` wipes scopes the operator set in the Databricks UI,
+      # which silently demotes user reads to app-principal fallback and makes
+      # truthful degradation banners fire for every signed-in user.
+      #
+      # The `iam.current-user:read` and `iam.access-control:read` scopes are
+      # NOT listed — Databricks Apps rejects them as invalid when configured
+      # via bundle deploy, but the platform grants them implicitly (they show
+      # up in `effective_user_api_scopes` on the deployed app regardless).
+      user_api_scopes:
+        - sql
+        - catalog.catalogs:read
+        - catalog.schemas:read
+        - catalog.tables:read
+        - catalog.connections
+        - dashboards.genie
       resources:
         - name: uc_warehouse
           sql_warehouse:

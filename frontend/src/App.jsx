@@ -234,9 +234,36 @@ export default function App() {
   });
   const runtimeStatus = useRuntimeStatus({
     enabled: Boolean(error) || Boolean(refreshError) || (Boolean(data) && !shellOnly),
+    // Poll while the warehouse is still warming. Runtime status returns immediately
+    // with "loading" on a cold serverless warehouse; we need to refetch until the
+    // real probe resolves so capability / summary data hydrates without forcing
+    // the user to refresh the tab. Stops polling once state is not "loading".
+    refetchInterval: (query) =>
+      query?.state?.data?.runtime?.state === "loading" ? 5000 : false,
   });
   const runtimeStatusRefresh = runtimeStatus.refresh;
   const resolvedIdentity = runtimeStatus.data?.identity || data?.identity || {};
+  const runtimeCapabilitiesLive =
+    runtimeStatus.data?.runtime?.state && runtimeStatus.data.runtime.state !== "loading"
+      ? runtimeStatus.data?.capabilities || null
+      : null;
+  const runtimeFeatureFlagsLive =
+    runtimeStatus.data?.runtime?.state && runtimeStatus.data.runtime.state !== "loading"
+      ? runtimeStatus.data?.featureFlags ||
+        runtimeStatus.data?.diagnostics?.featureFlags ||
+        null
+      : null;
+  const mergedBootstrap = useMemo(() => {
+    if (!data) return data;
+    if (!runtimeCapabilitiesLive && !runtimeFeatureFlagsLive) return data;
+    return {
+      ...data,
+      capabilities: runtimeCapabilitiesLive
+        ? { ...(data.capabilities || {}), ...runtimeCapabilitiesLive }
+        : data.capabilities,
+      featureFlags: runtimeFeatureFlagsLive || data.featureFlags,
+    };
+  }, [data, runtimeCapabilitiesLive, runtimeFeatureFlagsLive]);
   const shell = useMemo(() => {
     const seededShell = data?.shell || {};
     return {
@@ -547,7 +574,7 @@ export default function App() {
           )}
         >
           <DiscoveryWorkspace
-            bootstrap={data}
+            bootstrap={mergedBootstrap}
             effectiveBootMessage={effectiveBootMessage}
             effectiveBootState={effectiveBootState}
             effectiveVisibleCount={liveCatalogVisibleCount}
@@ -585,7 +612,7 @@ export default function App() {
         >
           <EntityWorkspace
             assetFqn={surface === "entity" ? routeAssetFqn : ""}
-            bootstrap={data}
+            bootstrap={mergedBootstrap}
             contextSeedAssets={contextSeedAssets}
             onNavigationStateChange={handleNavigationStateChange}
             onSurfaceReady={handleSurfaceReady}
@@ -613,7 +640,7 @@ export default function App() {
           )}
         >
           <LineageWorkspace
-            bootstrap={data}
+            bootstrap={mergedBootstrap}
             contextSeedAssets={contextSeedAssets}
             initialAssetFqn={surface === "lineage" ? routeAssetFqn : ""}
             onNavigationStateChange={handleNavigationStateChange}
@@ -642,7 +669,7 @@ export default function App() {
           )}
         >
           <GovernanceWorkspace
-            bootstrap={data}
+            bootstrap={mergedBootstrap}
             contextSeedAssets={contextSeedAssets}
             initialAssetFqn={surface === "governance" ? routeAssetFqn : ""}
             governance={governanceRouteFallback}

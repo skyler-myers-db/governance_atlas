@@ -527,25 +527,33 @@ def inventory_row(
     *,
     hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
 ) -> pd.Series:
-    exact_row: Optional[pd.Series] = None
+    uc_client = None
     if isinstance(inventory_or_uc, pd.DataFrame):
         inventory_df = inventory_or_uc
         resolved_asset_fqn = str(store_or_asset_fqn)
     else:
-        exact_row = exact_identity_row(inventory_or_uc, str(asset_fqn or ""))
+        uc_client = inventory_or_uc
         inventory_df = visible_assets(
             inventory_or_uc,
             store_or_asset_fqn,
             hidden_catalogs=hidden_catalogs,
         )
         resolved_asset_fqn = str(asset_fqn or "")
+    if inventory_df is not None and not inventory_df.empty:
+        match = inventory_df[inventory_df["fqn"] == resolved_asset_fqn]
+        if not match.empty:
+            return match.iloc[0]
+    # Fall back to an exact per-asset identity probe only when the visible
+    # inventory does not already contain the row. Calling this eagerly for
+    # every node fires two extra SQL queries per asset (get_table_identity
+    # and get_table_tags), which dominated lineage build time for graphs
+    # with many nodes.
+    if uc_client is not None:
+        exact_row = exact_identity_row(uc_client, resolved_asset_fqn)
+        if exact_row is not None:
+            return exact_row
     if inventory_df is None or inventory_df.empty:
         return lineage_asset_stub(pd.DataFrame(), resolved_asset_fqn)
-    match = inventory_df[inventory_df["fqn"] == resolved_asset_fqn]
-    if not match.empty:
-        return match.iloc[0]
-    if exact_row is not None:
-        return exact_row
     return lineage_asset_stub(inventory_df, resolved_asset_fqn)
 
 

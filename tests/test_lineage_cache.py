@@ -24,7 +24,7 @@ class LineageCacheTests(unittest.TestCase):
         store = object()
         load_calls: list[str] = []
 
-        def fake_build(_uc, _store, asset_fqn: str):
+        def fake_build(_uc, _store, asset_fqn: str, **_kwargs):
             load_calls.append(asset_fqn)
             return {
                 "fqn": asset_fqn,
@@ -69,7 +69,7 @@ class LineageCacheTests(unittest.TestCase):
         store = object()
         load_calls: list[str] = []
 
-        def fake_build(_uc, _store, asset_fqn: str):
+        def fake_build(_uc, _store, asset_fqn: str, **_kwargs):
             load_calls.append(asset_fqn)
             return {
                 "fqn": asset_fqn,

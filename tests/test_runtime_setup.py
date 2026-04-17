@@ -315,5 +315,30 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertIn("unavailableReason", payload["featureFlags"][0])
 
 
+    def test_per_user_authorization_flag_flips_auth_mode_to_obo_available(self) -> None:
+        payload = runtime_setup.setup_payload(
+            runtime_status={"state": "live", "message": ""},
+            store_status={"state": "live", "message": ""},
+            capabilities={
+                "systemInventoryRead": {
+                    "state": "available",
+                    "available": True,
+                    "reason": "",
+                },
+            },
+            warehouse_id="wh-123",
+            gov_catalog="main",
+            gov_schema="gov",
+            authenticated=True,
+            actor_role="reader",
+            diagnostics_enabled=True,
+            per_user_authorization=True,
+        )
+        self.assertEqual(payload["auth"]["mode"], "obo-available")
+        self.assertEqual(payload["workspaceAccess"]["mode"], "obo-available")
+        self.assertTrue(payload["auth"]["perUserAuthorization"]["implemented"])
+        self.assertEqual(payload["auth"]["perUserAuthorization"]["state"], "available")
+
+
 if __name__ == "__main__":
     unittest.main()

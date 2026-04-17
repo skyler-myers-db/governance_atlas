@@ -876,6 +876,7 @@ def _runtime_diagnostics_payload(
         authenticated=_user_email(request) != "unknown",
         actor_role=_user_role_slug(request),
         diagnostics_enabled=_config().diagnostics_enabled,
+        per_user_authorization=bool(_request_obo_token(request)),
     )
     return {
         "buildId": _build_id(),
@@ -1538,8 +1539,16 @@ def _build_data_graph(
     asset_fqn: str,
     request: Optional[Request] = None,
 ) -> Dict[str, Any]:
+    # `system.access.table_lineage` / `column_lineage` apply row-level filtering
+    # to match the querying principal's SELECT grants on the source and target
+    # tables. When the actor has OBO but lacks SELECT on some upstream tier
+    # (e.g., bronze / raw), those edges are filtered out and the UI shows an
+    # empty graph even though lineage exists. Route `system.access.*` reads
+    # through the app-principal client (broader SELECT granted at install time)
+    # so the lineage topology reflects the actual crawler view. OBO continues
+    # to gate the API endpoint and to drive asset metadata / visibility reads.
     return lineage_service.build_data_graph(
-        _uc_for_request(request), _store_for_read(), asset_fqn
+        _uc_for_request(request), _store_for_read(), asset_fqn, system_uc=_uc()
     )
 
 
@@ -1551,6 +1560,7 @@ def _build_operational_graph(
         _uc_for_request(request),
         _store_for_read(),
         asset_fqn,
+        system_uc=_uc(),
     )
 
 
@@ -1563,6 +1573,7 @@ def _lineage_payload(
         _store_for_read(),
         asset_fqn,
         cache_scope=_request_cache_scope(request),
+        system_uc=_uc(),
     )
 
 
@@ -2351,7 +2362,14 @@ def _api_bootstrap_response(request: Request) -> JSONResponse:
 
 
 def _api_runtime_status_response(request: Request) -> JSONResponse:
-    runtime_status = _uc_runtime_status()
+    # Non-blocking probe: on cold-start the serverless warehouse takes 60-120s
+    # to return live, during which the UI used to show *no* diagnostics banner
+    # at all. The auth-mode / workspaceAccess / identity payload is derived from
+    # request headers and is available instantly, so returning "loading" runtime
+    # state immediately lets the OBO / degraded banner surface within seconds.
+    # The warehouse probe continues in the background; clients poll this
+    # endpoint until state transitions away from "loading".
+    runtime_status = _uc_runtime_status_fast()
     store_status = (
         _store_status()
         if runtime_status.get("state") == "live"
