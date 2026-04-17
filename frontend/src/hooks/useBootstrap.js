@@ -15,6 +15,10 @@ function normalizeRouteContext(routeContext = {}) {
   };
 }
 
+function isInlineShellBootstrap(payload) {
+  return payload?.bootstrapContract?.mode === "inline-shell";
+}
+
 export function useBootstrap(routeContext = {}) {
   const seeded = useMemo(() => initialBootstrap(), []);
   const resolvedRouteContext = normalizeRouteContext(routeContext);
@@ -29,12 +33,15 @@ export function useBootstrap(routeContext = {}) {
     staleTime: 0,
   });
   const message = query.error?.message || "Failed to load Governance Hub bootstrap payload.";
+  const shellOnly = isInlineShellBootstrap(query.data);
+  const hasData = Boolean(query.data);
 
   return {
-    loading: query.isPending && !query.data,
+    loading: !hasData || (shellOnly && query.isFetching),
     refreshing: query.isFetching,
-    error: query.data ? "" : query.isError ? message : "",
-    refreshError: query.data && query.isError ? message : "",
+    shellOnly,
+    error: !hasData && query.isError ? message : "",
+    refreshError: hasData && query.isError ? message : "",
     data: query.data || null,
     refresh: query.refetch,
   };

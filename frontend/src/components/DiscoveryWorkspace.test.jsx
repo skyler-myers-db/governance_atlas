@@ -67,10 +67,20 @@ function makeAssets(count) {
 
 const lineageUnavailableReason = "Lineage is disabled in this workspace.";
 const lineageRolloutUnavailableReason = "Table lineage rollout is disabled in this workspace.";
+const fullWorkspaceAccess = {
+  mode: "obo-available",
+  observedAt: "2026-04-16T00:00:00Z",
+  canUseAssetPreview: true,
+  canUseLineage: true,
+  canUseQueryHistory: true,
+  gates: [],
+};
 
 function bootstrapPayload({
   capabilityAvailable = false,
   capabilityReason = lineageUnavailableReason,
+  previewAvailable = true,
+  previewReason = "",
   assets = [asset],
 } = {}) {
   return {
@@ -86,6 +96,11 @@ function bootstrapPayload({
       sortOptions: ["Best match"],
     },
     capabilities: {
+      systemInventoryRead: {
+        available: previewAvailable,
+        state: previewAvailable ? "available" : "unavailable",
+        reason: previewReason,
+      },
       tableLineage: {
         available: capabilityAvailable,
         state: capabilityAvailable ? "available" : "unavailable",
@@ -181,6 +196,7 @@ describe("DiscoveryWorkspace", () => {
           },
         ]}
         sharedVisibleAssetSet={new Set([asset.fqn])}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 
@@ -215,6 +231,7 @@ describe("DiscoveryWorkspace", () => {
         querySeedKey="test"
         runtimeFeatureFlags={[]}
         sharedVisibleAssetSet={new Set([asset.fqn])}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 
@@ -257,10 +274,11 @@ describe("DiscoveryWorkspace", () => {
           },
         ]}
         workspaceAccess={{
+          ...fullWorkspaceAccess,
           canUseLineage: false,
           gates: [
             {
-              key: "lineage_access",
+              key: "table_lineage",
               reason: "Lineage is blocked by workspace access.",
             },
           ],
@@ -276,6 +294,47 @@ describe("DiscoveryWorkspace", () => {
     unavailableButtons.forEach((button) => expect(button.disabled).toBe(true));
     expect(screen.getByText("Lineage is blocked by workspace access.")).not.toBeNull();
     expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false);
+  });
+
+  it("fails closed when preview capability is unavailable", () => {
+    render(
+      <DiscoveryWorkspace
+        bootstrap={bootstrapPayload({
+          capabilityAvailable: true,
+          capabilityReason: "",
+          previewAvailable: false,
+          previewReason: "Live preview rows are disabled in this workspace.",
+        })}
+        effectiveBootMessage=""
+        effectiveBootState="live"
+        effectiveVisibleCount={1}
+        initialQuery=""
+        onLiveCatalogStateChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenGovernance={() => {}}
+        onOpenLineage={() => {}}
+        onRouteQueryChange={() => {}}
+        onSurfaceReady={() => {}}
+        querySeedFresh={false}
+        querySeedKey="test-preview-gated"
+        runtimeFeatureFlags={[
+          {
+            key: "table_lineage_surface",
+            enabled: true,
+            state: "available",
+          },
+        ]}
+        sharedVisibleAssetSet={new Set([asset.fqn])}
+      />,
+    );
+
+    expect(
+      screen.getByText("Live preview rows and schema are unavailable for this workspace."),
+    ).not.toBeNull();
+    expect(screen.getByText("Live preview rows are disabled in this workspace.")).not.toBeNull();
+    expect(useAssetDetailMock.mock.calls[0]?.[1]?.enabled).toBe(false);
+    expect(useAssetDetailMock.mock.calls[1]?.[1]?.enabled).toBe(false);
   });
 
   it("keeps the selected-asset rail visible when live preview refresh is degraded", () => {
@@ -749,6 +808,7 @@ describe("DiscoveryWorkspace", () => {
           },
         ]}
         sharedVisibleAssetSet={new Set([previewAssetWithRelated.fqn])}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 
@@ -847,6 +907,7 @@ describe("DiscoveryWorkspace", () => {
           },
         ]}
         sharedVisibleAssetSet={new Set([previewAssetWithRelated.fqn])}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 
@@ -965,6 +1026,7 @@ describe("DiscoveryWorkspace", () => {
           },
         ]}
         sharedVisibleAssetSet={new Set([firstPreviewAsset.fqn, secondPreviewAsset.fqn])}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 
@@ -1005,6 +1067,7 @@ describe("DiscoveryWorkspace", () => {
           },
         ]}
         sharedVisibleAssetSet={new Set([firstPreviewAsset.fqn, secondPreviewAsset.fqn])}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 
@@ -2279,6 +2342,7 @@ describe("DiscoveryWorkspace", () => {
           },
         ]}
         sharedVisibleAssetSet={new Set(assets.map((entry) => entry.fqn))}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 

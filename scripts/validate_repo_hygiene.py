@@ -8,8 +8,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from govhub.runtime_contract import load_runtime_manifest
+
+
 
 REMOVED_PATHS = (
     "app.py",
@@ -56,10 +61,32 @@ REQUIRED_BRANCH_STATE_PATHS = (
     "app.yaml",
     "run_app.py",
     "runtime_app.py",
+    "runtime_manifest.yaml",
     "frontend/package.json",
     "frontend/eslint.config.js",
+    "frontend/src/App.jsx",
     "frontend/src/components/EntityWorkspace.jsx",
+    "frontend/src/lib/api.js",
+    "frontend/src/main.jsx",
+    "govhub/runtime_contract.py",
     "scripts/prepare_bundle.py",
+)
+
+REQUIRED_RUNTIME_MANIFEST = {
+    "app_yaml": "app.yaml",
+    "launcher": "run_app.py",
+    "backend_module": "runtime_app.py",
+    "app_object": "app",
+    "frontend_dist": "frontend/dist/index.html",
+    "frontend_assets": "frontend/dist/assets",
+    "frontend_build_manifest": "frontend/dist/govhub-build-manifest.json",
+}
+
+REQUIRED_RUNTIME_REMOVED_PATHS = (
+    "app.py",
+    "modern_app.py",
+    "modern_ui",
+    "govhub/openmetadata.py",
 )
 
 REQUIRED_FRONTEND_SCRIPTS = {
@@ -107,19 +134,28 @@ REQUIRED_RUN_APP_TOKENS = (
     'APP_ENTRYPOINT: Final[str] = "runtime_app:app"',
     'APP_MODULE: Final[str] = "runtime_app"',
     "FRONTEND_DIST",
+    "FRONTEND_ASSETS",
+    "FRONTEND_BUILD_MANIFEST",
+    "validate_frontend_bundle",
 )
 
 REQUIRED_PREPARE_BUNDLE_TOKENS = (
     "REQUIRED_FRONTEND_FILES",
+    "validate_frontend_bundle",
+    "govhub-build-manifest.json",
     ".git",
     ".github",
     "node_modules",
 )
 
 REQUIRED_DEPLOY_WORKFLOW_TOKENS = (
+    "npm run lint",
+    "npm run typecheck",
+    "npm run test",
     "databricks bundle validate",
     "databricks bundle summary",
     "python3 scripts/prepare_bundle.py",
+    "python3 -m py_compile run_app.py",
     "npm run build",
 )
 
@@ -157,10 +193,45 @@ def _looks_like_removed_legacy_shell(path: Path) -> bool:
     )
 
 
-def _validate_required_branch_state(root: Path, failures: list[str]) -> None:
+def _validate_required_branch_state(
+    root: Path,
+    tracked_set: set[str],
+    failures: list[str],
+) -> None:
     missing_paths = [path for path in REQUIRED_BRANCH_STATE_PATHS if not (root / path).exists()]
     for path in missing_paths:
         failures.append(f"Required branch-state path is missing: {path}")
+    for path in REQUIRED_BRANCH_STATE_PATHS:
+        if path in tracked_set:
+            continue
+        if (root / path).exists():
+            failures.append(
+                "Required branch-state path exists locally but is not tracked by git: "
+                f"{path}"
+            )
+
+    runtime_manifest_path = root / "runtime_manifest.yaml"
+    if runtime_manifest_path.exists():
+        try:
+            runtime_manifest = load_runtime_manifest(root)
+        except RuntimeError as exc:
+            failures.append(str(exc))
+        else:
+            runtime = runtime_manifest.get("runtime") or {}
+            for key, expected_value in REQUIRED_RUNTIME_MANIFEST.items():
+                actual_value = str(runtime.get(key) or "").strip()
+                if actual_value != expected_value:
+                    failures.append(
+                        "runtime_manifest.yaml does not match the supported runtime chain for "
+                        f"`runtime.{key}`."
+                    )
+            removed_runtime_paths = tuple(runtime_manifest.get("removed_runtime_paths") or ())
+            for expected_path in REQUIRED_RUNTIME_REMOVED_PATHS:
+                if expected_path not in removed_runtime_paths:
+                    failures.append(
+                        "runtime_manifest.yaml is missing the required removed runtime path "
+                        f"`{expected_path}`."
+                    )
 
     package_path = root / "frontend/package.json"
     if package_path.exists():
@@ -287,7 +358,7 @@ def validate(root: Path = ROOT, tracked_files: list[str] | None = None) -> list[
                     f"Banned runtime token '{token}' found in {file_path.relative_to(root)}"
                 )
 
-    _validate_required_branch_state(root, failures)
+    _validate_required_branch_state(root, tracked_set, failures)
 
     # `frontend/dist` is allowed in the working tree after a build, but must not be tracked.
     if "frontend/dist/index.html" in tracked_set and (root / "frontend/dist/index.html").exists():

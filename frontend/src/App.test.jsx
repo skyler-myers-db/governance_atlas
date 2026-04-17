@@ -166,7 +166,7 @@ describe("App", () => {
     });
   });
 
-  it("shows the shell launch screen during bootstrap loading without mounting workspaces", () => {
+  it("shows a workspace-area loading shell during bootstrap without mounting workspaces", () => {
     useBootstrapMock.mockReturnValue({
       loading: true,
       error: "",
@@ -184,8 +184,12 @@ describe("App", () => {
 
     render(<App />);
 
-    expect(screen.getByText("Preparing the metadata workspace.")).not.toBeNull();
-    expect(screen.getByText("Connecting the discovery plane, lineage graph, and governance workbench.")).not.toBeNull();
+    expect(screen.getByText("Preparing the workspace surface.")).not.toBeNull();
+    expect(
+      screen.getByText(
+        "Confirming route handoff, identity headers, and shell capabilities before live surface hydration.",
+      ),
+    ).not.toBeNull();
     expect(discoveryWorkspaceMock).not.toHaveBeenCalled();
     expect(entityWorkspaceMock).not.toHaveBeenCalled();
     expect(lineageWorkspaceMock).not.toHaveBeenCalled();
@@ -461,6 +465,80 @@ describe("App", () => {
 
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.diagnosticsAvailable).toBe(true);
+  });
+
+  it("promotes the shell role from runtime identity once diagnostics resolve", () => {
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "live",
+        shell: {
+          role: "Reader",
+          roleProvisional: true,
+          userEmail: "admin@example.com",
+          diagnosticsEnabled: true,
+        },
+        discovery: {
+          summary: {
+            visibleAssets: 1,
+          },
+        },
+        governance: {
+          metrics: [],
+          backlog: [],
+          glossary: [],
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: {
+        runtime: {
+          state: "live",
+          message: "",
+        },
+        store: {
+          state: "live",
+          message: "",
+        },
+        identity: {
+          actorEmail: "admin@example.com",
+          actorRole: "Admin",
+          actorRoleProvisional: false,
+          source: "x-forwarded-email",
+        },
+        diagnostics: {
+          diagnosticsEnabled: true,
+          observedAt: "2026-04-14T22:00:00Z",
+          setupChecks: [],
+          featureFlags: [
+            {
+              key: "workspace_setup_diagnostics",
+              enabled: true,
+              state: "available",
+            },
+          ],
+        },
+      },
+    });
+
+    render(<App />);
+
+    const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
+    expect(appFrameProps?.diagnosticsAvailable).toBe(true);
+    expect(appFrameProps?.shell).toEqual(
+      expect.objectContaining({
+        role: "Admin",
+        roleProvisional: false,
+        userEmail: "admin@example.com",
+      }),
+    );
   });
 
   it("passes setup readiness into AppFrame and runtime feature flags into DiscoveryWorkspace", async () => {
@@ -1022,6 +1100,112 @@ describe("App", () => {
     });
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.governanceInbox?.unreadCount).toBe(1);
+  });
+
+  it("degrades retained governance state when a live refresh fails", async () => {
+    useAppRouteStateMock.mockReturnValue({
+      surface: "governance",
+      routeAssetFqn: "main.sales.orders",
+      discoveryRouteState: {
+        query: "",
+        previewAssetFqn: "",
+        sortBy: "",
+        fresh: false,
+        requestKey: "seed",
+      },
+      setDiscoveryRoutePreview: vi.fn(),
+      setDiscoveryRouteQuery: vi.fn(),
+      setDiscoveryRouteSort: vi.fn(),
+      openDiscoveryWorkspace: vi.fn(),
+      openEntityWorkspace: vi.fn(),
+      openLineageWorkspace: vi.fn(),
+      openGovernanceWorkspace: vi.fn(),
+      onModuleChange: vi.fn(),
+    });
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "live",
+        shell: {
+          role: "Admin",
+          userEmail: "admin@example.com",
+          diagnosticsEnabled: true,
+        },
+        discovery: {
+          summary: {
+            visibleAssets: 1,
+          },
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useGovernanceSummaryMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "Governance summary could not be refreshed.",
+      data: {
+        authoritative: true,
+        provenance: {
+          warnings: [],
+        },
+        metrics: [{ label: "Open requests", value: "3" }],
+        backlog: [
+          {
+            requestId: "req-1",
+            title: "Review ownership",
+            assetFqn: "main.sales.orders",
+            asset: "orders",
+            status: "open",
+          },
+        ],
+        glossary: [],
+        inbox: {
+          state: "ready",
+          message: "Notifications from workflow activity.",
+          unreadCount: 2,
+          items: [
+            {
+              notificationId: "notification-1",
+              title: "Review requested",
+              detail: "Ownership change needs approval.",
+              assetFqn: "main.sales.orders",
+              createdAt: "2026-04-14T22:00:00Z",
+              createdBy: "admin@example.com",
+              status: "open",
+              inboxState: "new",
+            },
+          ],
+        },
+      },
+      refresh: vi.fn(),
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+      refresh: vi.fn(),
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      const governanceProps = governanceWorkspaceMock.mock.calls.at(-1)?.[0];
+      expect(governanceProps?.governance?.authoritative).toBe(false);
+      expect(governanceProps?.governance?.provenance?.warnings).toContain(
+        "Governance summary could not be refreshed.",
+      );
+      expect(governanceProps?.governance?.inbox?.state).toBe("degraded");
+      expect(governanceProps?.governance?.backlog?.[0]?.requestId).toBe("req-1");
+    });
+
+    const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
+    expect(appFrameProps?.governanceInbox?.state).toBe("degraded");
+    expect(appFrameProps?.governanceInbox?.unreadCount).toBe(2);
   });
 
   it("passes runtime feature flags into EntityWorkspace on the entity route", async () => {

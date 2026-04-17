@@ -78,74 +78,6 @@ function updateGovernanceInbox(governance, notificationId, action) {
   });
 }
 
-function bootShell(kicker, title, body) {
-  return (
-    <div className="gh-launch-screen">
-      <div className="gh-launch-shell">
-        <div className="gh-launch-header">
-          <div className="gh-launch-brand">
-            <div className="gh-launch-brand-mark">
-              <span className="gh-launch-brand-glyph">GH</span>
-            </div>
-            <div className="gh-launch-brand-copy">
-              <strong>Governance Hub</strong>
-              <span>Metadata Workspace</span>
-            </div>
-          </div>
-          <div className="gh-launch-modules">
-            <span className="gh-launch-pill is-active">Discovery</span>
-            <span className="gh-launch-pill">Lineage</span>
-            <span className="gh-launch-pill">Governance</span>
-          </div>
-          <div className="gh-launch-identity">Preparing workspace</div>
-        </div>
-
-        <div className="gh-launch-search">
-          <div className="gh-launch-search-label">Global Search</div>
-          <div className="gh-launch-search-input">Search visible assets by name, schema, domain, or tag</div>
-          <div className="gh-launch-search-button">Browse</div>
-        </div>
-
-        <div className="gh-launch-grid">
-          <aside className="gh-launch-panel">
-            <div className="gh-launch-kicker">Discovery Scope</div>
-            <strong>Preparing filters</strong>
-            <p>Loading asset types, saved views, and catalog scope.</p>
-            <div className="gh-launch-skeleton-list">
-              <span />
-              <span />
-              <span />
-              <span />
-            </div>
-          </aside>
-
-          <main className="gh-launch-panel">
-            <div className="gh-launch-kicker">{kicker}</div>
-            <strong>{title}</strong>
-            <p>{body}</p>
-            <div className="gh-launch-skeleton-cards">
-              <span />
-              <span />
-              <span />
-            </div>
-          </main>
-
-          <aside className="gh-launch-panel">
-            <div className="gh-launch-kicker">Selected Asset</div>
-            <strong>Preparing preview context</strong>
-            <p>Loading schema, sample data, and lineage context for the first asset.</p>
-            <div className="gh-launch-skeleton-list">
-              <span />
-              <span />
-              <span />
-            </div>
-          </aside>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function unavailableWorkspace(message, diagnostics = null) {
   return (
     <section className="gh-workspace gh-unavailable-workspace">
@@ -226,6 +158,36 @@ function degradedGovernanceState(message) {
   });
 }
 
+function overlayGovernanceDegradedState(governance, message) {
+  const normalizedGovernance = normalizeGovernancePayload(governance || {});
+  const provenanceWarnings = [
+    ...(normalizedGovernance?.provenance?.warnings || []),
+    message,
+  ].filter(Boolean);
+  const inbox = normalizedGovernance?.inbox;
+
+  return normalizeGovernancePayload({
+    ...normalizedGovernance,
+    authoritative: false,
+    provenance: {
+      ...(normalizedGovernance?.provenance || {}),
+      warnings: [...new Set(provenanceWarnings)],
+    },
+    inbox: {
+      ...(inbox || {}),
+      state: "degraded",
+      message:
+        message ||
+        inbox?.message ||
+        "Governance summary is stale right now.",
+      unreadCount: Number.isFinite(Number(inbox?.unreadCount))
+        ? Math.max(0, Math.trunc(Number(inbox.unreadCount)))
+        : 0,
+      items: Array.isArray(inbox?.items) ? inbox.items : [],
+    },
+  });
+}
+
 export default function App() {
   const [navigationState, setNavigationState] = useState({
     pending: false,
@@ -261,6 +223,7 @@ export default function App() {
   const [shellDiagnosticsOpen, setShellDiagnosticsOpen] = useState(false);
   const {
     loading,
+    shellOnly,
     error,
     refreshError,
     data,
@@ -269,21 +232,50 @@ export default function App() {
     surface,
     asset: routeAssetFqn,
   });
-  const runtimeStatus = useRuntimeStatus({ enabled: !loading });
+  const runtimeStatus = useRuntimeStatus({
+    enabled: Boolean(error) || Boolean(refreshError) || (Boolean(data) && !shellOnly),
+  });
   const runtimeStatusRefresh = runtimeStatus.refresh;
+  const resolvedIdentity = runtimeStatus.data?.identity || data?.identity || {};
+  const shell = useMemo(() => {
+    const seededShell = data?.shell || {};
+    return {
+      ...seededShell,
+      role: resolvedIdentity.actorRole || seededShell.role || "",
+      roleProvisional:
+        typeof resolvedIdentity.actorRoleProvisional === "boolean"
+          ? resolvedIdentity.actorRoleProvisional
+          : Boolean(seededShell.roleProvisional),
+      userEmail:
+        resolvedIdentity.actorEmail ||
+        seededShell.userEmail ||
+        data?.identity?.actorEmail ||
+        "",
+    };
+  }, [data?.identity?.actorEmail, data?.shell, resolvedIdentity.actorEmail, resolvedIdentity.actorRole, resolvedIdentity.actorRoleProvisional]);
   const diagnosticsSource =
     runtimeStatus.data?.diagnostics
       ? {
           ...(data || {}),
-          shell: data?.shell || {},
+          shell,
           diagnostics: runtimeStatus.data.diagnostics,
-          identity: runtimeStatus.data.identity || data?.identity || {},
+          identity: resolvedIdentity,
         }
-      : data;
+      : data
+        ? {
+            ...data,
+            shell,
+            identity: resolvedIdentity,
+          }
+        : data;
   const governanceSummary = useGovernanceSummary({
-    enabled: !loading && !error && Boolean(data),
+    enabled: !loading && !error && !shellOnly && Boolean(data) && surface === "governance",
   });
-  const runtimeRolloutFlags = diagnosticsSource?.diagnostics?.featureFlags || [];
+  const runtimeRolloutFlags =
+    runtimeStatus.data?.diagnostics?.featureFlags ||
+    diagnosticsSource?.featureFlags ||
+    diagnosticsSource?.diagnostics?.featureFlags ||
+    [];
   const workspaceAccess = diagnosticsSource?.diagnostics?.workspaceAccess || null;
   const diagnosticsAvailable = diagnosticsSurfaceAvailable(diagnosticsSource);
   const diagnosticsRecovery = diagnosticsRecoveryAvailable(runtimeStatus.data || diagnosticsSource);
@@ -403,8 +395,10 @@ export default function App() {
     };
   }, [navigationState.pending]);
 
-  const shell = data?.shell || {};
-  const governance = liveGovernanceState || governanceSummary.data || null;
+  const governanceBase = liveGovernanceState || governanceSummary.data || null;
+  const governance = governanceSummary.refreshError && governanceBase
+    ? overlayGovernanceDegradedState(governanceBase, governanceSummary.refreshError)
+    : governanceBase;
   const governanceInbox = governance?.inbox || null;
   const governanceSummaryLoading = governanceSummary.loading && !liveGovernanceState && !governanceSummary.data;
   const governanceRouteFallback =
@@ -485,33 +479,10 @@ export default function App() {
     }
   }, [governanceSummary.data, liveGovernanceState]);
 
-  if (loading) {
-    return bootShell(
-      "Loading",
-      "Preparing the metadata workspace.",
-      "Connecting the discovery plane, lineage graph, and governance workbench.",
-    );
-  }
-
-  if (error || !data) {
-    return unavailableWorkspace(
-      error || "Bootstrap payload was unavailable.",
-      diagnosticsRecovery ? (
-        <WorkspaceDiagnosticsSurface
-          error={runtimeStatus.error}
-          loading={runtimeStatus.loading}
-          refreshError={runtimeStatus.refreshError}
-          refreshing={runtimeStatus.refreshing}
-          onRefresh={handleDiagnosticsRefresh}
-          status={runtimeStatus.data}
-          title="Setup Diagnostics"
-        />
-      ) : null,
-    );
-  }
-
-  const bootState = data.bootState || "live";
-  const bootMessage = data.bootMessage || "";
+  const bootstrapReady = Boolean(data) && !shellOnly;
+  const bootstrapPending = loading || (shellOnly && !refreshError);
+  const bootState = bootstrapReady ? data.bootState || "live" : bootstrapPending ? "loading" : "error";
+  const bootMessage = bootstrapReady ? data.bootMessage || "" : refreshError || error || "";
   const liveCatalogVisibleCount =
     hasCurrentDiscoveryTruth && typeof liveDiscoveryState.count === "number"
       ? liveDiscoveryState.count
@@ -544,22 +515,27 @@ export default function App() {
         />,
       )
     : null;
-  let content = unavailableWorkspace(
-    effectiveBootMessage,
-    (effectiveBootState === "unavailable" || effectiveBootState === "error") && diagnosticsRecovery ? (
-      <WorkspaceDiagnosticsSurface
-        error={runtimeStatus.error}
-        loading={runtimeStatus.loading}
-        refreshError={runtimeStatus.refreshError}
-        refreshing={runtimeStatus.refreshing}
-        onRefresh={handleDiagnosticsRefresh}
-        status={runtimeStatus.data}
-        title="Setup Diagnostics"
-      />
-    ) : null,
+  let content = workspaceLoading(
+    "Preparing workspace shell",
+    "Confirming route handoff, identity headers, and shell capabilities before live surface hydration.",
   );
 
-  if (effectiveBootState !== "unavailable" && effectiveBootState !== "error") {
+  if (!bootstrapPending && (!bootstrapReady || error)) {
+    content = unavailableWorkspace(
+      refreshError || error || "Bootstrap payload was unavailable.",
+      diagnosticsRecovery ? (
+        <WorkspaceDiagnosticsSurface
+          error={runtimeStatus.error}
+          loading={runtimeStatus.loading}
+          refreshError={runtimeStatus.refreshError}
+          refreshing={runtimeStatus.refreshing}
+          onRefresh={handleDiagnosticsRefresh}
+          status={runtimeStatus.data}
+          title="Setup Diagnostics"
+        />
+      ) : null,
+    );
+  } else if (bootstrapReady && effectiveBootState !== "unavailable" && effectiveBootState !== "error") {
     if (shellDiagnosticsOpen && diagnosticsPanel) {
       content = diagnosticsPanel;
     } else if (surface === "discovery") {
@@ -642,7 +618,6 @@ export default function App() {
             initialAssetFqn={surface === "lineage" ? routeAssetFqn : ""}
             onNavigationStateChange={handleNavigationStateChange}
             onSurfaceReady={handleSurfaceReady}
-            sharedVisibleAssetSet={visibleAssetSet}
             onRouteAssetChange={(assetFqn, nextContext = "Data Lineage") =>
               openLineageWorkspace(assetFqn, nextContext)
             }
@@ -716,6 +691,7 @@ export default function App() {
       searchSeedAssets={searchSeedAssets}
       shell={shell}
       visibleAssetSet={visibleAssetSet}
+      workspaceAccess={workspaceAccess}
     >
       {content}
     </AppFrame>

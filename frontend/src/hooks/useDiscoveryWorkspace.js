@@ -18,6 +18,14 @@ const GROUPED_FILTER_ALL_LABELS = {
   certifications: "All certifications",
   sensitivities: "All sensitivities",
 };
+/** @typedef {{
+ *   types: string[],
+ *   catalogs: string[],
+ *   domains: string[],
+ *   tiers: string[],
+ *   certifications: string[],
+ *   sensitivities: string[],
+ * }} DiscoveryFilterGroups */
 
 function discoverySessionKey(bootstrap) {
   if (typeof window === "undefined") return DISCOVERY_SESSION_KEY;
@@ -61,7 +69,14 @@ function normalizeDiscoveryFilterGroups(groups = {}) {
   return DISCOVERY_GROUPED_FILTER_KEYS.reduce((next, key) => {
     next[key] = discoverySelectionValues(source[key], GROUPED_FILTER_ALL_LABELS[key]);
     return next;
-  }, {});
+  }, /** @type {DiscoveryFilterGroups} */ ({
+    types: [],
+    catalogs: [],
+    domains: [],
+    tiers: [],
+    certifications: [],
+    sensitivities: [],
+  }));
 }
 
 function discoverySelectionValues(values = [], disallow = "") {
@@ -246,7 +261,7 @@ export function useDiscoveryWorkspace({
   const lastSyncedRouteSortRef = useRef(seedState.sortBy || initialRouteSort);
   const lastSyncedRouteViewsRef = useRef(discoverySelectionKey(initialRouteViews));
   const lastSyncedRouteFilterGroupsRef = useRef(discoveryFilterGroupsKey(initialRouteFilterGroups));
-  const appliedRouteSeedKeyRef = useRef();
+  const appliedRouteSeedKeyRef = useRef(/** @type {string | number | null} */ (null));
   const updateFilters = (updater) => {
     setFilters((current) => {
       const next = typeof updater === "function" ? updater(current) : updater;

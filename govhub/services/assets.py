@@ -704,16 +704,19 @@ def detail_map(detail_df: pd.DataFrame) -> Dict[str, Any]:
 
 
 def normalize_asset_detail_sections(sections: Optional[Sequence[str]] = None) -> Tuple[str, ...]:
-    normalized = {
-        normalize_str(section).lower()
-        for section in (sections or [])
-        if normalize_str(section)
-    }
-    if not normalized:
+    if sections is None:
         normalized = set(ASSET_DETAIL_SECTIONS)
+    else:
+        normalized = {
+            normalize_str(section).lower()
+            for section in sections
+            if normalize_str(section)
+        }
+        if not normalized:
+            normalized = {"header"}
     normalized.add("header")
     if "profiler" in normalized:
-        normalized.update({"activity", "schema", "preview", "operational"})
+        normalized.update({"activity", "schema"})
     return tuple(section for section in ASSET_DETAIL_SECTIONS if section in normalized)
 
 
@@ -2376,6 +2379,9 @@ def profiler_payload(
     related_assets: Sequence[str],
     activity: Sequence[Dict[str, str]],
     operational_context: Dict[str, Sequence[Dict[str, Any]]],
+    *,
+    include_preview: bool = True,
+    include_operational: bool = True,
 ) -> Dict[str, Any]:
     column_count = len(columns)
     described_count = sum(
@@ -2400,51 +2406,63 @@ def profiler_payload(
             return "warn"
         return "bad"
 
-    return {
-        "cards": [
-            {
-                "title": "Description Coverage",
-                "value": f"{described_count}/{column_count}" if column_count else "No schema",
-                "status": status_for(described_count, column_count),
-                "note": "Columns with captured descriptions.",
-            },
-            {
-                "title": "Classification Coverage",
-                "value": f"{classified_count}/{column_count}" if column_count else "No schema",
-                "status": status_for(classified_count, column_count),
-                "note": "Columns with at least one governance tag.",
-            },
-            {
-                "title": "Glossary Coverage",
-                "value": f"{glossary_count}/{column_count}" if column_count else "No schema",
-                "status": status_for(glossary_count, column_count),
-                "note": "Columns linked to glossary terms.",
-            },
+    cards = [
+        {
+            "title": "Description Coverage",
+            "value": f"{described_count}/{column_count}" if column_count else "No schema",
+            "status": status_for(described_count, column_count),
+            "note": "Columns with captured descriptions.",
+        },
+        {
+            "title": "Classification Coverage",
+            "value": f"{classified_count}/{column_count}" if column_count else "No schema",
+            "status": status_for(classified_count, column_count),
+            "note": "Columns with at least one governance tag.",
+        },
+        {
+            "title": "Glossary Coverage",
+            "value": f"{glossary_count}/{column_count}" if column_count else "No schema",
+            "status": status_for(glossary_count, column_count),
+            "note": "Columns linked to glossary terms.",
+        },
+    ]
+    if include_preview:
+        cards.append(
             {
                 "title": "Sample Data",
                 "value": "Available" if preview else "Missing",
                 "status": "good" if preview else "warn",
                 "note": "Sample rows surfaced from the live asset.",
-            },
-            {
-                "title": "Lineage Context",
-                "value": f"{len(related_assets)} assets",
-                "status": "good" if related_assets else "warn",
-                "note": "Connected assets surfaced in lineage.",
-            },
+            }
+        )
+    cards.append(
+        {
+            "title": "Lineage Context",
+            "value": f"{len(related_assets)} assets",
+            "status": "good" if related_assets else "warn",
+            "note": "Connected assets surfaced in lineage.",
+        }
+    )
+    if include_operational:
+        cards.append(
             {
                 "title": "Operational Usage",
                 "value": f"{producer_count + consumer_count} workloads",
                 "status": "good" if producer_count or consumer_count else "warn",
                 "note": "Jobs, queries, pipelines, and dashboards linked through UC lineage.",
-            },
-            {
-                "title": "Open Work",
-                "value": str(len(activity)),
-                "status": "warn" if activity else "good",
-                "note": "Governance tasks or requests currently tied to this asset.",
-            },
-        ],
+            }
+        )
+    cards.append(
+        {
+            "title": "Open Work",
+            "value": str(len(activity)),
+            "status": "warn" if activity else "good",
+            "note": "Governance tasks or requests currently tied to this asset.",
+        }
+    )
+
+    return {
+        "cards": cards,
         "summary": {
             "columnCount": column_count,
             "describedColumns": described_count,
@@ -2467,6 +2485,7 @@ def asset_detail_payload(
     cache_scope: str = "",
     hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
     sections: Optional[Sequence[str]] = None,
+    allow_direct_metadata_write: bool = True,
 ) -> Dict[str, Any]:
     normalized_scope = normalize_str(cache_scope) or "shared"
     requested_sections = normalize_asset_detail_sections(sections)
@@ -2643,7 +2662,10 @@ def asset_detail_payload(
             base["format"] = base["storageFormat"] or "—"
             base["size"] = human_bytes(detail.get("sizeinbytes"))
             base["files"] = str(safe_int(detail.get("numfiles"))) if safe_int(detail.get("numfiles")) else "—"
-            metadata_write_supported = supports_direct_metadata_write(base.get("tableTypeRaw"))
+            metadata_write_supported = (
+                supports_direct_metadata_write(base.get("tableTypeRaw"))
+                and bool(allow_direct_metadata_write)
+            )
             base["metadataEditor"] = {
                 "available": metadata_write_supported,
                 "updatePath": "/api/assets/:fqn/metadata",
@@ -2651,7 +2673,7 @@ def asset_detail_payload(
                 "message": (
                     ""
                     if metadata_write_supported
-                    else "Direct metadata edits are unavailable for this relation type or the current workspace permissions."
+                    else "Direct metadata edits are unavailable for this relation type or until Databricks per-user authorization / OBO is implemented for the current actor."
                 ),
                 "fields": [
                     {
@@ -2773,6 +2795,8 @@ def asset_detail_payload(
                 base["relatedAssets"],
                 base["activity"],
                 base["operationalContext"],
+                include_preview="preview" in loaded_sections,
+                include_operational="operational" in loaded_sections,
             )
 
         base["loadedSections"] = list(requested_sections)

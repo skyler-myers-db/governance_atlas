@@ -501,8 +501,8 @@ class GovernanceWorkflowTests(unittest.TestCase):
                     "scopeKey": scope_key,
                     "laneCounts": {"open-work": 2, "ownership": 5, "classification": 1, "trust": 0},
                     "openTaskCount": 8,
-                    "observedAt": "2026-04-16 22:30:00",
-                    "staleAfter": "2026-04-16 22:35:00",
+                    "observedAt": "2099-04-16 22:30:00",
+                    "staleAfter": "2099-04-16 22:35:00",
                 }
 
         with patch.object(asset_service, "visible_assets", return_value=inventory):
@@ -573,6 +573,283 @@ class GovernanceWorkflowTests(unittest.TestCase):
         )
         self.assertEqual(open_requests_metric, 1)
         self.assertEqual(payload["queue"]["source"], "live")
+
+    def test_governance_summary_filters_hidden_backlog_assets_to_visible_inventory(self) -> None:
+        inventory = pd.DataFrame(
+            [
+                {
+                    "fqn": "main.sales.visible_orders",
+                    "table_name": "visible_orders",
+                    "table_catalog": "main",
+                    "table_schema": "sales",
+                    "table_type": "TABLE",
+                    "data_source_format": "DELTA",
+                    "governance_status": "Needs Work",
+                    "pending_requests": 1,
+                    "certification": "",
+                    "steward": "",
+                    "sensitivity": "",
+                    "domain": "Sales",
+                }
+            ]
+        )
+
+        class Store(EmptyGovernanceSummaryStore):
+            def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "request_id": "visible-1",
+                            "created_at": "2026-04-14 22:00:00",
+                            "created_by": "writer@example.com",
+                            "status": "pending",
+                            "uc_full_name": "main.sales.visible_orders",
+                            "new_comment": "Refresh owner",
+                            "review_note": "",
+                        },
+                        {
+                            "request_id": "hidden-1",
+                            "created_at": "2026-04-14 22:01:00",
+                            "created_by": "writer@example.com",
+                            "status": "pending",
+                            "uc_full_name": "main.sales.hidden_orders",
+                            "new_comment": "Investigate lineage",
+                            "review_note": "",
+                        },
+                    ]
+                )
+
+        with patch.object(asset_service, "visible_assets", return_value=inventory):
+            payload = governance_service.governance_summary(FakeUC(), Store(), hidden_catalogs=set())
+
+        self.assertEqual([item["assetFqn"] for item in payload["backlog"]], ["main.sales.visible_orders"])
+        open_requests_metric = next(
+            item["value"] for item in payload["metrics"] if item.get("label") == "Open requests"
+        )
+        self.assertEqual(open_requests_metric, 1)
+
+    def test_governance_summary_filters_hidden_activity_and_inbox_assets_to_visible_inventory(self) -> None:
+        inventory = pd.DataFrame(
+            [
+                {
+                    "fqn": "main.sales.visible_orders",
+                    "table_name": "visible_orders",
+                    "table_catalog": "main",
+                    "table_schema": "sales",
+                    "table_type": "TABLE",
+                    "data_source_format": "DELTA",
+                    "governance_status": "Needs Work",
+                    "pending_requests": 1,
+                    "certification": "",
+                    "steward": "",
+                    "sensitivity": "",
+                    "domain": "Sales",
+                }
+            ]
+        )
+
+        class Store(EmptyGovernanceSummaryStore):
+            def list_activity_events(self, limit: int = 200) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "event_id": "visible-activity",
+                            "event_type": "task_created",
+                            "entity_fqn_snapshot": "main.sales.visible_orders",
+                            "payload_json": '{"title":"Visible request","body":"Review visible asset"}',
+                            "created_at": "2026-04-14 22:00:00",
+                            "actor_email": "writer@example.com",
+                        },
+                        {
+                            "event_id": "hidden-activity",
+                            "event_type": "task_created",
+                            "entity_fqn_snapshot": "main.sales.hidden_orders",
+                            "payload_json": '{"title":"Hidden request","body":"Review hidden asset"}',
+                            "created_at": "2026-04-14 22:01:00",
+                            "actor_email": "writer@example.com",
+                        },
+                    ]
+                )
+
+            def list_notifications(self, *, recipient_email: str, unread_only: bool = False, limit: int = 25) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "notification_id": "visible-note",
+                            "event_id": "visible-activity",
+                            "payload_json": '{"title":"Visible request","detail":"Review visible asset","assetFqn":"main.sales.visible_orders","assetLabel":"visible_orders"}',
+                            "created_at": "2026-04-14 22:02:00",
+                            "inbox_state": "new",
+                        },
+                        {
+                            "notification_id": "hidden-note",
+                            "event_id": "hidden-activity",
+                            "payload_json": '{"title":"Hidden request","detail":"Review hidden asset","assetFqn":"main.sales.hidden_orders","assetLabel":"hidden_orders"}',
+                            "created_at": "2026-04-14 22:03:00",
+                            "inbox_state": "new",
+                        },
+                    ]
+                )
+
+            def count_unread_notifications(self, *, recipient_email: str) -> int:
+                return 2
+
+        with patch.object(asset_service, "visible_assets", return_value=inventory):
+            payload = governance_service.governance_summary(
+                FakeUC(),
+                Store(),
+                actor_email="writer@example.com",
+                hidden_catalogs=set(),
+            )
+
+        self.assertEqual([item["assetFqn"] for item in payload["activity"]], ["main.sales.visible_orders"])
+        self.assertEqual(payload["inbox"]["unreadCount"], 1)
+        self.assertEqual(
+            [item["assetFqn"] for item in payload["inbox"]["items"]],
+            ["main.sales.visible_orders"],
+        )
+
+    def test_governance_summary_ignores_queue_projection_when_pending_scope_is_mixed(self) -> None:
+        inventory = pd.DataFrame(
+            [
+                {
+                    "fqn": "main.sales.visible_orders",
+                    "table_name": "visible_orders",
+                    "table_catalog": "main",
+                    "table_schema": "sales",
+                    "table_type": "TABLE",
+                    "data_source_format": "DELTA",
+                    "governance_status": "Needs Work",
+                    "pending_requests": 1,
+                    "certification": "",
+                    "steward": "",
+                    "sensitivity": "",
+                    "domain": "Sales",
+                }
+            ]
+        )
+
+        class Store(EmptyGovernanceSummaryStore):
+            def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "request_id": "visible-1",
+                            "created_at": "2026-04-14 22:00:00",
+                            "created_by": "writer@example.com",
+                            "status": "pending",
+                            "uc_full_name": "main.sales.visible_orders",
+                            "new_comment": "Refresh owner",
+                            "review_note": "",
+                        },
+                        {
+                            "request_id": "hidden-1",
+                            "created_at": "2026-04-14 22:01:00",
+                            "created_by": "writer@example.com",
+                            "status": "pending",
+                            "uc_full_name": "main.sales.hidden_orders",
+                            "new_comment": "Investigate lineage",
+                            "review_note": "",
+                        },
+                    ]
+                )
+
+            def get_governance_queue_projection(self, scope_key: str) -> dict | None:
+                return {
+                    "scopeKey": scope_key,
+                    "laneCounts": {"open-work": 5, "ownership": 2, "classification": 1, "trust": 0},
+                    "openTaskCount": 8,
+                    "observedAt": "2099-04-16 22:30:00",
+                    "staleAfter": "2099-04-16 22:35:00",
+                }
+
+        with patch.object(asset_service, "visible_assets", return_value=inventory):
+            payload = governance_service.governance_summary(FakeUC(), Store(), hidden_catalogs=set())
+
+        self.assertEqual(payload["queue"]["source"], "live")
+        self.assertEqual(payload["queue"]["laneCounts"]["ownership"], 1)
+        open_requests_metric = next(
+            item["value"] for item in payload["metrics"] if item.get("label") == "Open requests"
+        )
+        self.assertEqual(open_requests_metric, 1)
+
+    def test_glossary_term_detail_filters_hidden_asset_links_to_visible_inventory(self) -> None:
+        inventory = pd.DataFrame(
+            [
+                {
+                    "fqn": "main.sales.visible_orders",
+                    "table_name": "visible_orders",
+                    "table_catalog": "main",
+                    "table_schema": "sales",
+                    "table_type": "TABLE",
+                    "data_source_format": "DELTA",
+                    "comment": "Visible orders table",
+                    "governance_status": "Needs Work",
+                    "pending_requests": 0,
+                    "domain": "Sales",
+                    "tier": "Gold",
+                    "certification": "",
+                    "sensitivity": "",
+                    "criticality": "",
+                    "data_product": "",
+                    "business_owner": "",
+                }
+            ]
+        )
+
+        class Store(EmptyGovernanceSummaryStore):
+            def get_glossary_term(self, term_id: str) -> pd.Series | None:
+                return pd.Series(
+                    {
+                        "term_id": "term-1",
+                        "name": "Order",
+                        "definition": "Order entity",
+                        "status": "approved",
+                    }
+                )
+
+            def list_glossary_term_links(self) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "term_id": "term-1",
+                            "subject_type": "asset",
+                            "subject_fqn": "main.sales.visible_orders",
+                            "removed_at": None,
+                            "resolution_state": "linked",
+                        },
+                        {
+                            "term_id": "term-1",
+                            "subject_type": "asset",
+                            "subject_fqn": "main.sales.hidden_orders",
+                            "removed_at": None,
+                            "resolution_state": "linked",
+                        },
+                    ]
+                )
+
+            def get_glossary_summary_projection(self, term_id: str) -> dict | None:
+                return {
+                    "termId": term_id,
+                    "assetCount": 2,
+                    "reviewerCount": 0,
+                    "childCount": 0,
+                    "source": "projection",
+                    "observedAt": "2099-04-16 22:30:00",
+                    "staleAfter": "2099-04-16 22:35:00",
+                }
+
+        with patch.object(asset_service, "visible_assets", return_value=inventory):
+            payload = governance_service.glossary_term_detail(
+                FakeUC(),
+                Store(),
+                term_id="term-1",
+                hidden_catalogs=set(),
+            )
+
+        self.assertIsNotNone(payload)
+        self.assertEqual(payload["assets"], ["main.sales.visible_orders"])
+        self.assertEqual(payload["assetCount"], 1)
 
     def test_governance_queue_projection_round_trip(self) -> None:
         projection_rows = pd.DataFrame(
@@ -1001,8 +1278,8 @@ class GovernanceWorkflowTests(unittest.TestCase):
                     "assetCount": 5,
                     "childCount": 2,
                     "reviewerCount": 3,
-                    "observedAt": "2026-04-16 22:45:00",
-                    "staleAfter": "2026-04-16 22:50:00",
+                    "observedAt": "2099-04-16 22:45:00",
+                    "staleAfter": "2099-04-16 22:50:00",
                 }
 
         with patch.object(asset_service, "visible_assets", return_value=inventory):

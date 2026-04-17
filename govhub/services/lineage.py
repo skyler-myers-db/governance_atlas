@@ -64,9 +64,16 @@ def graph_node_for_asset(
     kind: str = "",
     foot: Optional[List[str]] = None,
     depth: int = 1,
+    visible_inventory: Optional[pd.DataFrame] = None,
 ) -> Dict[str, Any]:
     row = asset_service.inventory_row(uc, store, asset_fqn)
     identity_resolved = bool(asset_service.normalize_str(row.get("table_type")))
+    visible_inventory_df = (
+        visible_inventory
+        if isinstance(visible_inventory, pd.DataFrame)
+        else asset_service.visible_assets(uc, store)
+    )
+    is_openable = asset_service.asset_is_visible(visible_inventory_df, asset_fqn)
     label = asset_service.normalize_str(row.get("table_name")) or asset_fqn.split(".")[-1]
     subtitle = " / ".join(
         part
@@ -83,8 +90,8 @@ def graph_node_for_asset(
     if not identity_resolved and not item_kind:
         item_kind = "Lineage Reference"
     footer = foot or [item_kind]
-    if not identity_resolved and "Lineage only" not in footer:
-        footer = [*footer, "Lineage only"]
+    if not is_openable and "Metadata record unavailable" not in footer:
+        footer = [*footer, "Metadata record unavailable"]
     return {
         "id": f"{role}-{asset_fqn}",
         "assetFqn": asset_fqn,
@@ -102,7 +109,7 @@ def graph_node_for_asset(
             "description": asset_service.normalize_str(row.get("comment"))
             or (
                 "This related asset is present in lineage metadata, but its live record is not currently openable from this workspace."
-                if not identity_resolved
+                if not is_openable
                 else asset_service.PLACEHOLDER_DESCRIPTION
             ),
             "governanceStatus": asset_service.normalize_str(row.get("governance_status"))
@@ -111,8 +118,8 @@ def graph_node_for_asset(
             "tier": asset_service.normalize_str(row.get("tier")) or "Unassigned",
             "certification": asset_service.normalize_str(row.get("certification")) or "Unassigned",
             "sensitivity": asset_service.normalize_str(row.get("sensitivity")) or "Unassigned",
-            "isOpenable": identity_resolved,
-            "resolutionState": "resolved" if identity_resolved else "lineage-only",
+            "isOpenable": is_openable,
+            "resolutionState": "resolved" if is_openable else "lineage-only",
         },
     }
 
@@ -356,6 +363,7 @@ def _recursive_branch_graph(
     depth_limit: int,
     node_limit: int,
     per_hop_limit: int,
+    visible_inventory: Optional[pd.DataFrame] = None,
 ) -> Dict[str, Any]:
     focus_fqn_n = asset_service.normalize_str(focus_fqn)
     branch_role = "source" if direction == "upstream" else "target"
@@ -414,6 +422,7 @@ def _recursive_branch_graph(
                     0,
                     kicker=branch_kicker,
                     depth=current_depth + 1,
+                    visible_inventory=visible_inventory,
                 )
                 node_id = asset_service.normalize_str(node.get("id"))
                 if node_id not in seen_node_ids:
@@ -544,6 +553,7 @@ def _lineage_depth_payload(
 
 def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, Any]:
     row = asset_service.inventory_row(uc, store, asset_fqn)
+    visible_inventory = asset_service.visible_assets(uc, store)
     catalog, schema, table = asset_service.split_uc_name(
         asset_service.normalize_str(row.get("fqn"))
     )
@@ -561,6 +571,7 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
         ),
         foot=[asset_service.normalize_str(row.get("certification")) or "Unassigned"],
         depth=0,
+        visible_inventory=visible_inventory,
     )
     per_branch_limit = max(8, LINEAGE_GRAPH_NODE_LIMIT // 2)
     upstream_branch = _recursive_branch_graph(
@@ -571,6 +582,7 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
         depth_limit=LINEAGE_GRAPH_DEPTH_LIMIT,
         node_limit=per_branch_limit,
         per_hop_limit=LINEAGE_GRAPH_PER_HOP_LIMIT,
+        visible_inventory=visible_inventory,
     )
     downstream_branch = _recursive_branch_graph(
         uc,
@@ -580,6 +592,7 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
         depth_limit=LINEAGE_GRAPH_DEPTH_LIMIT,
         node_limit=per_branch_limit,
         per_hop_limit=LINEAGE_GRAPH_PER_HOP_LIMIT,
+        visible_inventory=visible_inventory,
     )
 
     nodes = [focus, *upstream_branch["nodes"], *downstream_branch["nodes"]]
@@ -603,6 +616,7 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
 
 def build_operational_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, Any]:
     row = asset_service.inventory_row(uc, store, asset_fqn)
+    visible_inventory = asset_service.visible_assets(uc, store)
     catalog, schema, table = asset_service.split_uc_name(
         asset_service.normalize_str(row.get("fqn"))
     )
@@ -620,6 +634,7 @@ def build_operational_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict
         ),
         foot=["Operational center"],
         depth=0,
+        visible_inventory=visible_inventory,
     )
     try:
         upstream_df = metadata_service.enrich_operational_context_names(

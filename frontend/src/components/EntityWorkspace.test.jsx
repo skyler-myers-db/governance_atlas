@@ -100,11 +100,25 @@ const secondAsset = {
 
 const lineageUnavailableReason = "Lineage is disabled in this workspace.";
 const workloadUnavailableReason = "Operational query and workload visibility is not available in this workspace right now.";
+const availableSystemInventoryCapability = {
+  available: true,
+  state: "available",
+  reason: "",
+};
+const fullWorkspaceAccess = {
+  mode: "obo-available",
+  observedAt: "2026-04-16T00:00:00Z",
+  canUseAssetPreview: true,
+  canUseLineage: true,
+  canUseQueryHistory: true,
+  gates: [],
+};
 
 function bootstrapPayload() {
   return {
     assets: [asset],
     capabilities: {
+      systemInventoryRead: availableSystemInventoryCapability,
       tableLineage: {
         available: false,
         state: "unavailable",
@@ -123,6 +137,7 @@ function enabledBootstrapPayload() {
   return {
     assets: [asset],
     capabilities: {
+      systemInventoryRead: availableSystemInventoryCapability,
       tableLineage: {
         available: true,
         state: "available",
@@ -200,12 +215,25 @@ describe("EntityWorkspace", () => {
         onOpenLineage={() => {}}
         onSelectAsset={() => {}}
         onSurfaceReady={() => {}}
+        runtimeFeatureFlags={[
+          {
+            key: "table_lineage_surface",
+            enabled: true,
+            state: "available",
+          },
+          {
+            key: "query_history_surface",
+            enabled: true,
+            state: "available",
+          },
+        ]}
         sharedVisibleAssetSet={new Set([asset.fqn])}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Definition")).not.toBeNull();
+      expect(screen.getByRole("button", { name: "Sample Data" })).not.toBeNull();
     });
 
     expect(screen.queryByRole("button", { name: "Lineage" })).toBeNull();
@@ -221,6 +249,7 @@ describe("EntityWorkspace", () => {
         bootstrap={{
           assets: [asset],
           capabilities: {
+            systemInventoryRead: availableSystemInventoryCapability,
             tableLineage: {
               available: true,
               state: "available",
@@ -256,11 +285,12 @@ describe("EntityWorkspace", () => {
           },
         ]}
         sharedVisibleAssetSet={new Set([asset.fqn])}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Definition")).not.toBeNull();
+      expect(screen.getByRole("button", { name: "Sample Data" })).not.toBeNull();
     });
 
     expect(screen.queryByRole("button", { name: "Lineage" })).toBeNull();
@@ -489,7 +519,7 @@ describe("EntityWorkspace", () => {
       expect(screen.getByText("returns")).not.toBeNull();
     });
     expect(screen.getByRole("button", { name: new RegExp(`^${linkedAssetFqn} `) })).not.toBeNull();
-    expect(screen.getByText("Checking access...")).not.toBeNull();
+    expect(screen.getAllByText("Checking access...").length).toBeGreaterThan(0);
   });
 
   it("demotes a selected-column lineage row after a confirmed failed open", async () => {
@@ -908,6 +938,7 @@ describe("EntityWorkspace", () => {
         bootstrap={{
           assets: [asset],
           capabilities: {
+            systemInventoryRead: availableSystemInventoryCapability,
             tableLineage: {
               available: true,
               state: "available",
@@ -930,11 +961,12 @@ describe("EntityWorkspace", () => {
         onSurfaceReady={() => {}}
         runtimeFeatureFlags={[]}
         sharedVisibleAssetSet={new Set([asset.fqn])}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Definition")).not.toBeNull();
+      expect(screen.getByRole("button", { name: "Sample Data" })).not.toBeNull();
     });
 
     expect(screen.queryByRole("button", { name: "Lineage" })).toBeNull();
@@ -952,7 +984,22 @@ describe("EntityWorkspace", () => {
     render(
       <EntityWorkspace
         assetFqn={asset.fqn}
-        bootstrap={bootstrapPayload()}
+        bootstrap={{
+          assets: [asset],
+          capabilities: {
+            systemInventoryRead: availableSystemInventoryCapability,
+            tableLineage: {
+              available: true,
+              state: "available",
+              reason: "",
+            },
+            workloadVisibility: {
+              available: false,
+              state: "unknown",
+              reason: workloadUnavailableReason,
+            },
+          },
+        }}
         contextSeedAssets={[asset]}
         onBack={() => {}}
         onGovernanceChange={() => {}}
@@ -961,12 +1008,25 @@ describe("EntityWorkspace", () => {
         onOpenLineage={() => {}}
         onSelectAsset={() => {}}
         onSurfaceReady={() => {}}
+        runtimeFeatureFlags={[
+          {
+            key: "table_lineage_surface",
+            enabled: true,
+            state: "available",
+          },
+          {
+            key: "query_history_surface",
+            enabled: true,
+            state: "available",
+          },
+        ]}
         sharedVisibleAssetSet={new Set([asset.fqn])}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("Profiler & Data Quality").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Profiler & Evidence").length).toBeGreaterThan(0);
     });
 
     expect(screen.queryByRole("button", { name: "Usage & Workloads" })).toBeNull();
@@ -983,15 +1043,22 @@ describe("EntityWorkspace", () => {
     const workloadCard = screen.getByText("Workloads").closest(".gh-entity-metric-card");
     expect(workloadCard).not.toBeNull();
     expect(within(workloadCard).getByText("Unavailable")).not.toBeNull();
+    expect(screen.queryByText("Operational Usage")).toBeNull();
+    expect(screen.queryByText("0 producers")).toBeNull();
+    expect(screen.queryByText("0 consumers")).toBeNull();
   });
 
-  it("fails closed when workspace access blocks lineage despite available capability and rollout", async () => {
+  it("fails closed on lineage while preserving preview when workspace access blocks lineage", async () => {
+    peekWorkspaceIntentMock.mockReturnValue("SampleData");
+    consumeWorkspaceIntentMock.mockReturnValue("SampleData");
+
     render(
       <EntityWorkspace
         assetFqn={asset.fqn}
         bootstrap={{
           assets: [asset],
           capabilities: {
+            systemInventoryRead: availableSystemInventoryCapability,
             tableLineage: {
               available: true,
               state: "available",
@@ -1026,11 +1093,12 @@ describe("EntityWorkspace", () => {
         ]}
         sharedVisibleAssetSet={new Set([asset.fqn])}
         workspaceAccess={{
+          ...fullWorkspaceAccess,
           canUseLineage: false,
           canUseQueryHistory: false,
           gates: [
             {
-              key: "lineage_access",
+              key: "table_lineage",
               reason: "Lineage is blocked by workspace access.",
             },
             {
@@ -1043,14 +1111,248 @@ describe("EntityWorkspace", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Definition")).not.toBeNull();
+      expect(screen.getByRole("button", { name: "Sample Data" })).not.toBeNull();
     });
 
     expect(screen.queryByRole("button", { name: "Lineage" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Sample Data" })).not.toBeNull();
     expect(screen.getByRole("button", { name: "Lineage unavailable" }).disabled).toBe(true);
-    expect(screen.getAllByText("Lineage is blocked by workspace access.").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Lineage unavailable" }).getAttribute("title")).toBe(
+      "Lineage is blocked by workspace access.",
+    );
     expect(screen.getAllByText("Unavailable").length).toBeGreaterThan(0);
+    expect(useAssetDetailMock.mock.calls[0]?.[1]?.sections || []).toContain("preview");
     expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false);
+  });
+
+  it("keeps a deep-linked sample tab pending until workspace access resolves", async () => {
+    peekWorkspaceIntentMock.mockReturnValue("SampleData");
+    consumeWorkspaceIntentMock.mockReturnValue("SampleData");
+
+    const props = {
+      assetFqn: asset.fqn,
+      bootstrap: enabledBootstrapPayload(),
+      contextSeedAssets: [asset],
+      onBack: () => {},
+      onGovernanceChange: () => {},
+      onNavigationStateChange: () => {},
+      onOpenGovernance: () => {},
+      onOpenLineage: () => {},
+      onSelectAsset: () => {},
+      onSurfaceReady: () => {},
+      runtimeFeatureFlags: [
+        {
+          key: "table_lineage_surface",
+          enabled: true,
+          state: "available",
+        },
+        {
+          key: "query_history_surface",
+          enabled: true,
+          state: "available",
+        },
+      ],
+      sharedVisibleAssetSet: new Set([asset.fqn]),
+    };
+
+    const { rerender } = render(<EntityWorkspace {...props} />);
+
+    expect(screen.getByText("Checking preview access...")).not.toBeNull();
+
+    rerender(
+      <EntityWorkspace
+        {...props}
+        workspaceAccess={fullWorkspaceAccess}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Checking preview access...")).toBeNull();
+    });
+    expect(screen.getByText("No preview rows are available for this asset.")).not.toBeNull();
+  });
+
+  it("shows neutral lineage affordances while workspace access is unresolved", async () => {
+    peekWorkspaceIntentMock.mockReturnValue("Overview");
+    consumeWorkspaceIntentMock.mockReturnValue("Overview");
+
+    render(
+      <EntityWorkspace
+        assetFqn={asset.fqn}
+        bootstrap={enabledBootstrapPayload()}
+        contextSeedAssets={[asset]}
+        onBack={() => {}}
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenGovernance={() => {}}
+        onOpenLineage={() => {}}
+        onSelectAsset={() => {}}
+        onSurfaceReady={() => {}}
+        runtimeFeatureFlags={[
+          {
+            key: "table_lineage_surface",
+            enabled: true,
+            state: "available",
+          },
+          {
+            key: "query_history_surface",
+            enabled: true,
+            state: "available",
+          },
+        ]}
+        sharedVisibleAssetSet={new Set([asset.fqn])}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Checking lineage access..." })).not.toBeNull();
+    });
+    expect(screen.getAllByText("Checking lineage access...").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Checking access...").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: "Lineage unavailable" })).toBeNull();
+  });
+
+  it("shows neutral column-lineage copy while workspace access is unresolved", async () => {
+    peekWorkspaceIntentMock.mockReturnValue("Schema");
+    consumeWorkspaceIntentMock.mockReturnValue("Schema");
+    const schemaAsset = {
+      ...asset,
+      loadedSections: ["header", "schema"],
+      columns: [
+        {
+          name: "order_id",
+          type: "bigint",
+          description: "Primary key",
+          tagLabels: [],
+          glossaryTerms: [],
+        },
+      ],
+    };
+    useAssetDetailMock.mockReturnValue({
+      detail: schemaAsset,
+      loading: false,
+      error: "",
+    });
+    useSeededAssetContextMock.mockReturnValue({
+      summary: schemaAsset,
+    });
+
+    render(
+      <EntityWorkspace
+        assetFqn={schemaAsset.fqn}
+        bootstrap={enabledBootstrapPayload()}
+        contextSeedAssets={[schemaAsset]}
+        onBack={() => {}}
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenGovernance={() => {}}
+        onOpenLineage={() => {}}
+        onSelectAsset={() => {}}
+        onSurfaceReady={() => {}}
+        runtimeFeatureFlags={[
+          {
+            key: "table_lineage_surface",
+            enabled: true,
+            state: "available",
+          },
+          {
+            key: "query_history_surface",
+            enabled: true,
+            state: "available",
+          },
+        ]}
+        sharedVisibleAssetSet={new Set([schemaAsset.fqn])}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Selected Column")).not.toBeNull();
+    });
+    expect(screen.getAllByText("Checking lineage access...").length).toBeGreaterThan(0);
+  });
+
+  it("preserves preview-derived profiler signals when lineage access is blocked", async () => {
+    const profilerAsset = {
+      ...asset,
+      loadedSections: ["header", "activity", "schema", "profiler"],
+      profiler: {
+        summary: {
+          producerCount: 0,
+          consumerCount: 0,
+        },
+        cards: [
+          {
+            title: "Sample Data",
+            value: "Available",
+            status: "good",
+            note: "Sample rows surfaced from the live asset.",
+          },
+          {
+            title: "Lineage Context",
+            value: "2 assets",
+            status: "good",
+            note: "Connected assets surfaced in lineage.",
+          },
+        ],
+      },
+    };
+    peekWorkspaceIntentMock.mockReturnValue("Profiler");
+    consumeWorkspaceIntentMock.mockReturnValue("Profiler");
+    useAssetDetailMock.mockReturnValue({
+      detail: profilerAsset,
+      loading: false,
+      error: "",
+    });
+    useSeededAssetContextMock.mockReturnValue({
+      summary: profilerAsset,
+    });
+
+    render(
+      <EntityWorkspace
+        assetFqn={profilerAsset.fqn}
+        bootstrap={enabledBootstrapPayload()}
+        contextSeedAssets={[profilerAsset]}
+        onBack={() => {}}
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenGovernance={() => {}}
+        onOpenLineage={() => {}}
+        onSelectAsset={() => {}}
+        onSurfaceReady={() => {}}
+        runtimeFeatureFlags={[
+          {
+            key: "table_lineage_surface",
+            enabled: true,
+            state: "available",
+          },
+          {
+            key: "query_history_surface",
+            enabled: true,
+            state: "available",
+          },
+        ]}
+        sharedVisibleAssetSet={new Set([profilerAsset.fqn])}
+        workspaceAccess={{
+          ...fullWorkspaceAccess,
+          canUseLineage: false,
+          gates: [
+            {
+              key: "table_lineage",
+              reason: "Lineage is blocked by workspace access.",
+            },
+          ],
+        }}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText("Profiler & Evidence").length).toBeGreaterThan(1);
+    });
+
+    expect(screen.getByRole("button", { name: "Sample Data" })).not.toBeNull();
+    expect(screen.getByText("Sample rows surfaced from the live asset.")).not.toBeNull();
+    expect(screen.queryByText("Connected assets surfaced in lineage.")).toBeNull();
+    expect(useAssetDetailMock.mock.calls[0]?.[1]?.sections || []).toContain("preview");
   });
 
   it("keeps hero actions live and preserves the lineage context toggle across rerenders", async () => {
@@ -1134,8 +1436,8 @@ describe("EntityWorkspace", () => {
         ]}
         sharedVisibleAssetSet={new Set([asset.fqn])}
         workspaceAccess={{
+          ...fullWorkspaceAccess,
           canUseLineage: true,
-          canUseQueryHistory: true,
           gates: [],
         }}
       />,
@@ -1183,8 +1485,8 @@ describe("EntityWorkspace", () => {
         ]}
         sharedVisibleAssetSet={new Set([asset.fqn])}
         workspaceAccess={{
+          ...fullWorkspaceAccess,
           canUseLineage: true,
-          canUseQueryHistory: true,
           gates: [],
         }}
       />,
@@ -1257,8 +1559,8 @@ describe("EntityWorkspace", () => {
         ]}
         sharedVisibleAssetSet={new Set([asset.fqn])}
         workspaceAccess={{
+          ...fullWorkspaceAccess,
           canUseLineage: true,
-          canUseQueryHistory: true,
           gates: [],
         }}
       />,
@@ -1310,8 +1612,8 @@ describe("EntityWorkspace", () => {
         ]}
         sharedVisibleAssetSet={new Set([asset.fqn])}
         workspaceAccess={{
+          ...fullWorkspaceAccess,
           canUseLineage: true,
-          canUseQueryHistory: true,
           gates: [],
         }}
       />,
@@ -1357,8 +1659,8 @@ describe("EntityWorkspace", () => {
         ]}
         sharedVisibleAssetSet={new Set([asset.fqn])}
         workspaceAccess={{
+          ...fullWorkspaceAccess,
           canUseLineage: true,
-          canUseQueryHistory: true,
           gates: [],
         }}
       />,
@@ -1411,14 +1713,14 @@ describe("EntityWorkspace", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getAllByText("Profiler & Data Quality").length).toBeGreaterThan(1);
+      expect(screen.getAllByText("Profiler & Evidence").length).toBeGreaterThan(1);
     });
 
     const section = container.querySelector(".gh-entity-record-profiler-section");
     expect(section).not.toBeNull();
-    expect(within(section).getByText("0 upstream")).not.toBeNull();
-    expect(within(section).getByText("0 downstream")).not.toBeNull();
-    expect(within(section).getByText("No profiler or metadata quality signals are available yet.")).not.toBeNull();
+    expect(within(section).queryByText("0 upstream")).toBeNull();
+    expect(within(section).queryByText("0 downstream")).toBeNull();
+    expect(within(section).getByText("No profiler or live evidence signals are available yet.")).not.toBeNull();
   });
 
   it("uses the shared section shell for the queries tab without changing workload rows", async () => {
@@ -1461,6 +1763,7 @@ describe("EntityWorkspace", () => {
         bootstrap={{
           assets: [queryAsset],
           capabilities: {
+            systemInventoryRead: availableSystemInventoryCapability,
             tableLineage: {
               available: true,
               state: "available",
@@ -1541,6 +1844,7 @@ describe("EntityWorkspace", () => {
         bootstrap={{
           assets: [propertiesAsset],
           capabilities: {
+            systemInventoryRead: availableSystemInventoryCapability,
             tableLineage: {
               available: true,
               state: "available",

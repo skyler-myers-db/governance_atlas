@@ -2327,6 +2327,22 @@ button.gh-chip:not(.is-readonly):focus-visible,
   padding-bottom: 0;
 }
 
+.gh-coverage-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.gh-coverage-row-main {
+  display: grid;
+  gap: 6px;
+}
+
+.gh-coverage-row-status {
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  text-align: right;
+}
+
 .gh-attribute-label {
   color: var(--gh-ink-soft);
   font-size: 0.86rem;

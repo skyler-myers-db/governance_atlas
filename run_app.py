@@ -9,11 +9,15 @@ import sys
 from pathlib import Path
 from typing import Final
 
+from govhub.runtime_contract import validate_frontend_bundle
+
 
 APP_ENTRYPOINT: Final[str] = "runtime_app:app"
 APP_MODULE: Final[str] = "runtime_app"
 ROOT: Final[Path] = Path(__file__).resolve().parent
 FRONTEND_DIST: Final[Path] = ROOT / "frontend" / "dist" / "index.html"
+FRONTEND_ASSETS: Final[Path] = ROOT / "frontend" / "dist" / "assets"
+FRONTEND_BUILD_MANIFEST: Final[Path] = ROOT / "frontend" / "dist" / "govhub-build-manifest.json"
 
 
 def _port() -> str:
@@ -36,11 +40,10 @@ def _run_runtime() -> None:
         )
     if importlib.util.find_spec("uvicorn") is None:
         raise SystemExit("Governance Hub requires uvicorn to be installed.")
-    if not FRONTEND_DIST.exists():
-        raise SystemExit(
-            "Governance Hub requires a packaged React frontend bundle at "
-            "frontend/dist/index.html. Build and package the frontend before launch."
-        )
+    try:
+        validate_frontend_bundle(ROOT)
+    except RuntimeError as exc:
+        raise SystemExit(str(exc)) from exc
     _exec(
         [
             sys.executable,
