@@ -60,16 +60,27 @@ export default function LineageWorkspace({
   const [linkFeedback, setLinkFeedback] = useState("");
   const lineageAvailable = tableLineageAvailable(bootstrap);
   const lineageUnavailableReason = tableLineageReason(bootstrap);
-  const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", true);
+  const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", false);
   const lineageRolloutAvailable = runtimeFeatureFlagAvailable(
     runtimeFeatureFlags,
     "table_lineage_surface",
   );
+  const workspaceAccessResolved = Boolean(
+    workspaceAccess &&
+      (
+        workspaceAccess.mode ||
+        workspaceAccess.observedAt ||
+        Array.isArray(workspaceAccess.gates) ||
+        typeof workspaceAccess.canUseLineage === "boolean"
+      ),
+  );
+  const lineageAccessPending =
+    !workspaceAccessResolved && lineageAvailable && lineageRolloutAvailable;
   const lineageSurfaceAvailable = lineageAvailable && lineageRolloutAvailable && workspaceLineageAvailable;
   const lineageRolloutUnavailableReason =
     "Table lineage rollout is not available in this workspace right now.";
   const lineageSurfaceUnavailableReason = !workspaceLineageAvailable
-    ? workspaceAccessReason(workspaceAccess, "lineage_access", lineageUnavailableReason)
+    ? workspaceAccessReason(workspaceAccess, "table_lineage", lineageUnavailableReason)
     : lineageAvailable
     ? lineageRolloutAvailable
       ? lineageUnavailableReason
@@ -132,6 +143,7 @@ export default function LineageWorkspace({
       onSurfaceReady?.();
       return;
     }
+    if (!workspaceAccessResolved) return;
     if (!lineage.loading && (!assetDetail.loading || assetDetail.detail?.fqn === focusAssetFqn)) {
       onSurfaceReady?.();
     }
@@ -141,6 +153,7 @@ export default function LineageWorkspace({
     focusAssetFqn,
     lineage.loading,
     onSurfaceReady,
+    workspaceAccessResolved,
   ]);
 
   const searchOverlay = (
@@ -251,6 +264,23 @@ export default function LineageWorkspace({
     });
   };
 
+  if (lineageAccessPending) {
+    return (
+      <section className="gh-workspace gh-lineage-shell">
+        <WorkspaceStateCard
+          eyebrow="Lineage Access"
+          message="Checking actor-scoped lineage access for this route."
+          title="Resolving live lineage access..."
+          tone="neutral"
+        >
+          {asset || focusAssetFqn ? (
+            <div className="gh-support-copy">{asset ? assetPathLabel(asset) : focusAssetFqn}</div>
+          ) : null}
+        </WorkspaceStateCard>
+      </section>
+    );
+  }
+
   if (!lineageSurfaceAvailable) {
     return (
       <section className="gh-workspace gh-lineage-shell">
@@ -315,6 +345,7 @@ export default function LineageWorkspace({
         onContextChange={(nextContext) => {
           setLocalContext(nextContext);
         }}
+        onOpenFullGraph={() => {}}
         onOpenGovernance={onOpenGovernance}
         onOpenAsset={openLineageAsset}
         onSelectAsset={(assetFqn) => {

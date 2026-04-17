@@ -352,6 +352,24 @@ function workLanes(requests = []) {
   ];
 }
 
+function authoritativeQueueLanes(queue = {}) {
+  const laneCounts = queue?.laneCounts || {};
+  return [
+    { key: "open-work", label: "Open work", count: Number(laneCounts["open-work"] || 0) },
+    { key: "ownership", label: "Ownership work", count: Number(laneCounts.ownership || 0) },
+    {
+      key: "classification",
+      label: "Classification work",
+      count: Number(laneCounts.classification || 0),
+    },
+    {
+      key: "trust",
+      label: "Trust work",
+      count: Number(laneCounts.trust || 0),
+    },
+  ];
+}
+
 function displayMetricValue(value) {
   if (value === 0) return "0";
   return value == null || value === "" ? "—" : String(value);
@@ -398,6 +416,7 @@ export default function GovernanceWorkspace({
   onRouteAssetChange,
   onOpenAsset,
   onOpenLineage,
+  runtimeFeatureFlags = [],
 }) {
   const [focusedAssetFqn, setFocusedAssetFqn] = useState(initialAssetFqn || "");
   const [liveGovernance, setLiveGovernance] = useState(governance);
@@ -505,6 +524,7 @@ export default function GovernanceWorkspace({
 
   const focusedAssetUnavailable = Boolean(focusedAssetFqn && assetDetail.error && !focusedAsset);
   const focusedAssetLimited = Boolean(focusedAssetFqn && assetDetail.error);
+  const queueSource = String(liveGovernance?.queue?.source || "").trim().toLowerCase();
 
   const workItems = useMemo(() => {
     if (!focusedAssetFqn) return views.requests;
@@ -523,7 +543,15 @@ export default function GovernanceWorkspace({
   }, [selectedLaneKey, workItems]);
   const selectedItem = visibleWorkItems.find((item) => item.id === selectedWorkId) || null;
   const actionTrack = governanceActionTrack(focusedAsset);
-  const laneSummary = workLanes(workItems);
+  const laneSummary = focusedAssetFqn
+    ? workLanes(workItems)
+    : authoritativeQueueLanes(liveGovernance?.queue);
+  const lanePanelTitle = focusedAssetFqn ? "Visible work filters" : "Work lanes";
+  const lanePanelMeta = focusedAssetFqn
+    ? `${visibleWorkItems.length} visible`
+    : queueSource === "projection"
+      ? "Authoritative queue"
+      : "Live queue";
   const linkedGlossary = useMemo(() => {
     if (!focusedAsset) return [];
     return views.glossary.filter((item) => item.assets?.includes(focusedAsset.fqn));
@@ -847,8 +875,8 @@ export default function GovernanceWorkspace({
           <SurfaceWorkbench>
             <SurfaceWorkbenchMain className="gh-governance-main-pane" dense>
                 <SurfacePanelSection
-                  actions={<span className="gh-chip gh-chip-soft">{visibleWorkItems.length} visible</span>}
-                  title="Work lanes"
+                  actions={<span className="gh-chip gh-chip-soft">{lanePanelMeta}</span>}
+                  title={lanePanelTitle}
                 >
                   <div className="gh-governance-lane-rail">
                     {laneSummary.map((lane) => (
@@ -1292,8 +1320,8 @@ export default function GovernanceWorkspace({
           <SurfaceWorkbench>
             <SurfaceWorkbenchMain className="gh-governance-main-pane" dense>
                 <SurfacePanelSection
-                  actions={<span className="gh-chip gh-chip-soft">{visibleWorkItems.length} visible</span>}
-                  title="Work lanes"
+                  actions={<span className="gh-chip gh-chip-soft">{lanePanelMeta}</span>}
+                  title={lanePanelTitle}
                 >
                   <div className="gh-governance-lane-rail">
                     {laneSummary.map((lane) => (

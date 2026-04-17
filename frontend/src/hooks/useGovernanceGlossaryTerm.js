@@ -1,9 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchGovernanceGlossaryTerm } from "../lib/api";
 
+/**
+ * @param {string} termId
+ * @param {{enabled?: boolean, seedTerm?: any} | boolean} [options={}]
+ */
 export function useGovernanceGlossaryTerm(termId, options = {}) {
   const resolvedOptions =
-    options && typeof options === "object"
+    typeof options === "boolean"
+      ? { enabled: options }
+      : options && typeof options === "object"
       ? options
       : {};
   const enabled = resolvedOptions.enabled !== false && Boolean(termId);

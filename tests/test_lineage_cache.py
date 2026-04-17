@@ -5,6 +5,8 @@ import unittest
 from unittest.mock import patch
 from pathlib import Path
 
+import pandas as pd
+
 from govhub.services import lineage as lineage_service
 
 
@@ -143,6 +145,36 @@ class LineageCacheTests(unittest.TestCase):
             [arg.id for arg in keywords["cache_scope"].args if isinstance(arg, ast.Name)],
             ["request"],
         )
+
+    def test_graph_node_uses_visible_inventory_for_openability(self) -> None:
+        row = pd.Series(
+            {
+                "fqn": "main.sales.hidden_orders",
+                "table_catalog": "main",
+                "table_schema": "sales",
+                "table_name": "hidden_orders",
+                "table_type": "TABLE",
+                "data_source_format": "DELTA",
+                "comment": "Sensitive table",
+            }
+        )
+        visible_inventory = pd.DataFrame(columns=["fqn"])
+
+        with patch("govhub.services.lineage.asset_service.inventory_row", return_value=row):
+            node = lineage_service.graph_node_for_asset(
+                FakeUC(),
+                object(),
+                "main.sales.hidden_orders",
+                "source",
+                0,
+                0,
+                kicker="Upstream",
+                visible_inventory=visible_inventory,
+            )
+
+        self.assertFalse(node["details"]["isOpenable"])
+        self.assertEqual(node["details"]["resolutionState"], "lineage-only")
+        self.assertIn("Metadata record unavailable", node["foot"])
 
 
 if __name__ == "__main__":

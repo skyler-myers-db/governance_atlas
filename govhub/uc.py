@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 import pandas as pd
-from databricks.sdk import WorkspaceClient
 
 from .util import quote_ident, quote_uc_3part, sql_literal
+
+if TYPE_CHECKING:
+    from databricks.sdk import WorkspaceClient
+else:
+    WorkspaceClient = Any
 
 
 def _get(obj: Any, *path: str) -> Any:
@@ -59,6 +63,16 @@ def _is_skippable_metadata_error(exc: Exception) -> bool:
 
 def _env(name: str) -> str:
     return os.getenv(name, "").strip()
+
+
+def _workspace_client_class():
+    try:
+        from databricks.sdk import WorkspaceClient as workspace_client
+    except ImportError as exc:
+        raise RuntimeError(
+            "databricks-sdk with WorkspaceClient support is required for live Unity Catalog access."
+        ) from exc
+    return workspace_client
 
 
 def _safe_error_text(exc: Exception | None) -> str:
@@ -154,6 +168,7 @@ class UCSQLClient:
         }
 
     def _build_workspace_client(self) -> WorkspaceClient:
+        workspace_client = _workspace_client_class()
         host = self._client_context["host"]
         client_id = _env("DATABRICKS_CLIENT_ID")
         client_secret = _env("DATABRICKS_CLIENT_SECRET")
@@ -161,7 +176,7 @@ class UCSQLClient:
         explicit_error = None
         if host and client_id and client_secret:
             try:
-                client = WorkspaceClient(
+                client = workspace_client(
                     host=host,
                     client_id=client_id,
                     client_secret=client_secret,
@@ -177,7 +192,7 @@ class UCSQLClient:
                 self._client_context["authMode"] = "default-fallback"
                 self._client_context["clientInitError"] = _safe_error_text(exc)
         try:
-            client = WorkspaceClient(
+            client = workspace_client(
                 product="governance-hub",
                 product_version="governance-hub-runtime",
             )

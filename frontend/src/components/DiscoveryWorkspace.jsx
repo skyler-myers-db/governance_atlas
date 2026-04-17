@@ -12,6 +12,8 @@ import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 import {
   runtimeFeatureFlagAvailable,
   runtimeFeatureFlagReason,
+  systemInventoryAvailable,
+  systemInventoryReason,
   tableLineageAvailable,
   tableLineageReason,
   workspaceAccessAvailable,
@@ -724,6 +726,8 @@ function SelectionPreview({
   onOpenLinkedAsset,
   onOpenLineage,
   visibleAssetSet,
+  previewAvailable = true,
+  previewUnavailableReason = "",
   lineageAvailable = true,
   lineageUnavailableReason = "",
   recordOpenable = null,
@@ -732,7 +736,7 @@ function SelectionPreview({
   const [lineageWarm, setLineageWarm] = useState(false);
   const lineage = useLineage(
     asset?.fqn || "",
-    Boolean(asset?.fqn) && lineageWarm && lineageAvailable,
+    Boolean(asset?.fqn) && lineageWarm && lineageAvailable && previewAvailable,
   );
   const lineageAuthoritative = lineage.authoritative;
   const lineageProvisional = lineage.provisional;
@@ -751,7 +755,7 @@ function SelectionPreview({
   });
 
   useEffect(() => {
-    if (!asset?.fqn || !lineageAvailable) {
+    if (!asset?.fqn || !lineageAvailable || !previewAvailable) {
       setLineageWarm(false);
       return undefined;
     }
@@ -776,7 +780,7 @@ function SelectionPreview({
         window.clearTimeout(timeoutId);
       }
     };
-  }, [asset?.fqn, lineageAvailable]);
+  }, [asset?.fqn, lineageAvailable, previewAvailable]);
 
   if (!asset) {
     return (
@@ -800,6 +804,68 @@ function SelectionPreview({
     lineageAvailable,
   );
   const recordUnavailable = recordOpenable === false;
+  const previewActions = (
+    <>
+      <button
+        className="gh-secondary-button"
+        disabled={recordUnavailable}
+        onClick={() => onOpenAsset(asset.fqn)}
+        title={recordUnavailable ? recordUnavailableReason : undefined}
+        type="button"
+      >
+        {recordUnavailable ? "Metadata record unavailable" : "Open Record"}
+      </button>
+      <button
+        className="gh-secondary-button"
+        disabled={!lineageAvailable}
+        onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
+        title={!lineageAvailable ? lineageUnavailableReason : undefined}
+        type="button"
+      >
+        {lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
+      </button>
+      <button
+        className="gh-secondary-button"
+        disabled={recordUnavailable}
+        onClick={() => onOpenGovernance(asset.fqn)}
+        title={recordUnavailable ? recordUnavailableReason : undefined}
+        type="button"
+      >
+        Open Governance
+      </button>
+    </>
+  );
+
+  if (!previewAvailable) {
+    return (
+      <SurfaceRail
+        className="gh-selection-preview"
+        data-asset-fqn={asset.fqn}
+        eyebrow="Selected Asset"
+        identity={assetPathLabel(asset, true)}
+        title={asset.name}
+        titleMeta={
+          asset.governanceStatus ? (
+            <span className={`gh-status-chip tone-${statusTone(asset)}`}>
+              {asset.governanceStatus}
+            </span>
+          ) : null
+        }
+        actions={previewActions}
+      >
+        {recordUnavailable ? (
+          <div className="gh-support-copy gh-selection-preview-record-state">
+            {recordUnavailableReason}
+          </div>
+        ) : null}
+        <WorkspaceStateCard
+          eyebrow="Preview unavailable"
+          message={previewUnavailableReason}
+          title="Live preview rows and schema are unavailable for this workspace."
+        />
+      </SurfaceRail>
+    );
+  }
 
   return (
     <SurfaceRail
@@ -815,37 +881,7 @@ function SelectionPreview({
           </span>
         ) : null
       }
-      actions={
-        <>
-          <button
-            className="gh-secondary-button"
-            disabled={recordUnavailable}
-            onClick={() => onOpenAsset(asset.fqn)}
-            title={recordUnavailable ? recordUnavailableReason : undefined}
-            type="button"
-          >
-            {recordUnavailable ? "Metadata record unavailable" : "Open Record"}
-          </button>
-          <button
-            className="gh-secondary-button"
-            disabled={!lineageAvailable}
-            onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
-            title={!lineageAvailable ? lineageUnavailableReason : undefined}
-            type="button"
-          >
-            {lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
-          </button>
-          <button
-            className="gh-secondary-button"
-            disabled={recordUnavailable}
-            onClick={() => onOpenGovernance(asset.fqn)}
-            title={recordUnavailable ? recordUnavailableReason : undefined}
-            type="button"
-          >
-            Open Governance
-          </button>
-        </>
-      }
+      actions={previewActions}
     >
       {detailError ? <InlineStatusBanner message={detailError} title="Preview degraded" /> : null}
       {detailLoading ? <div className="gh-support-copy">Refreshing live header and schema metadata...</div> : null}
@@ -1025,12 +1061,24 @@ export default function DiscoveryWorkspace({
       : renderableDiscoveryAssets.find((asset) => asset.fqn === selectedAssetFqn) ||
         renderableDiscoveryAssets[0] ||
         null;
+  const previewAvailable = systemInventoryAvailable(bootstrap);
+  const previewUnavailableReason = systemInventoryReason(bootstrap);
+  const workspacePreviewAvailable = workspaceAccessAvailable(
+    workspaceAccess,
+    "canUseAssetPreview",
+    false,
+  );
+  const previewSurfaceAvailable = previewAvailable && workspacePreviewAvailable;
+  const previewSurfaceUnavailableReason = !workspacePreviewAvailable
+    ? workspaceAccessReason(workspaceAccess, "asset_preview", previewUnavailableReason)
+    : previewUnavailableReason || "Live preview rows and schema are not available in this workspace right now.";
   const previewDetail = useAssetDetail(selectedSeedAsset?.fqn || "", {
     sections: ["header"],
+    enabled: Boolean(selectedSeedAsset?.fqn) && previewSurfaceAvailable,
   });
   const previewSchemaDetail = useAssetDetail(selectedSeedAsset?.fqn || "", {
     sections: ["header", "schema"],
-    enabled: Boolean(selectedSeedAsset?.fqn) && previewSchemaWarm,
+    enabled: Boolean(selectedSeedAsset?.fqn) && previewSchemaWarm && previewSurfaceAvailable,
   });
   const previewAsset = isUsableAssetDetail(previewSchemaDetail.detail)
     ? previewSchemaDetail.detail
@@ -1056,7 +1104,7 @@ export default function DiscoveryWorkspace({
   );
   const lineageAvailable = tableLineageAvailable(bootstrap);
   const lineageUnavailableReason = tableLineageReason(bootstrap);
-  const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", true);
+  const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", false);
   const lineageRolloutAvailable = runtimeFeatureFlagAvailable(
     runtimeFeatureFlags,
     "table_lineage_surface",
@@ -1065,7 +1113,7 @@ export default function DiscoveryWorkspace({
   const lineageRolloutUnavailableReason =
     "Table lineage rollout is not available in this workspace right now.";
   const lineageSurfaceUnavailableReason = !workspaceLineageAvailable
-    ? workspaceAccessReason(workspaceAccess, "lineage_access", lineageUnavailableReason)
+    ? workspaceAccessReason(workspaceAccess, "table_lineage", lineageUnavailableReason)
     : lineageAvailable
     ? lineageRolloutAvailable
       ? lineageUnavailableReason
@@ -1407,6 +1455,7 @@ export default function DiscoveryWorkspace({
   useEffect(() => {
     const previewReady =
       !selectedSeedAsset ||
+      !previewSurfaceAvailable ||
       !previewDetail.loading ||
       Boolean(previewDetail.error) ||
       isUsableAssetDetail(previewDetail.detail);
@@ -1418,6 +1467,7 @@ export default function DiscoveryWorkspace({
     previewDetail.detail,
     previewDetail.error,
     previewDetail.loading,
+    previewSurfaceAvailable,
     resultsLoading,
     resultsSettled,
     selectedSeedAsset,
@@ -1757,9 +1807,17 @@ export default function DiscoveryWorkspace({
 
         <SelectionPreview
           asset={previewAsset}
-          detailError={previewSchemaDetail.error || previewDetail.error}
-          detailLoading={previewDetail.loading || (previewSchemaDetail.loading && !previewSchemaDetail.detail?.columns?.length)}
+          detailError={
+            previewSurfaceAvailable ? previewSchemaDetail.error || previewDetail.error : ""
+          }
+          detailLoading={
+            previewSurfaceAvailable
+              ? previewDetail.loading || (previewSchemaDetail.loading && !previewSchemaDetail.detail?.columns?.length)
+              : false
+          }
           linkedRecordUnavailableOverrides={linkedRecordUnavailableOverrides}
+          previewAvailable={previewSurfaceAvailable}
+          previewUnavailableReason={previewSurfaceUnavailableReason}
           lineageAvailable={lineageSurfaceAvailable}
           lineageUnavailableReason={lineageSurfaceUnavailableReason}
           onOpenAsset={openAssetRecord}

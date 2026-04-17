@@ -8,6 +8,7 @@ import math
 import os
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -21,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 from govhub.api import build_runtime_router
 from govhub.config import AppConfig
+from govhub.runtime_contract import validate_frontend_bundle
 from govhub.services import assets as asset_service
 from govhub.services import capabilities as capability_service
 from govhub.services import governance as governance_service
@@ -52,6 +54,11 @@ LOGGER.setLevel(
 )
 LOGGER.propagate = False
 
+
+@lru_cache(maxsize=1)
+def _frontend_bundle_metadata() -> Dict[str, Any]:
+    return validate_frontend_bundle(ROOT)
+
 HELP_ITEMS = [
     {
         "title": "Discovery",
@@ -82,6 +89,21 @@ DISCOVERY_SORTS = [
     "Open requests",
 ]
 BOOTSTRAP_ASSET_SEED_LIMIT = 24
+IDENTITY_SOURCE = "x-forwarded-email | x-forwarded-preferred-username"
+SHELL_API_CONTRACT = {
+    "bootstrap": "/api/bootstrap",
+    "discoverySearch": "/api/discovery/search",
+    "assetDetail": "/api/assets/:fqn",
+    "assetAvailability": "/api/assets/availability",
+    "assetMetadataUpdate": "/api/assets/:fqn/metadata",
+    "assetColumnMetadataUpdate": "/api/assets/:fqn/columns/:column/metadata",
+    "lineage": "/api/lineage/:fqn",
+    "glossary": "/api/governance/glossary",
+    "governanceRequest": "/api/governance/requests/:id",
+    "governanceNotification": "/api/governance/notifications/:id",
+    "governanceGlossaryTerm": "/api/governance/glossary/:id",
+    "runtimeStatus": "/api/runtime/status",
+}
 
 
 app = FastAPI(title="Governance Hub Runtime")
@@ -379,9 +401,13 @@ def _route_context(request: Request) -> Dict[str, str]:
 def _user_email(request: Optional[Request]) -> str:
     if request is None:
         return "unknown"
+    headers = getattr(request, "headers", None) or {}
+    getter = getattr(headers, "get", None)
+    if not callable(getter):
+        return "unknown"
     email = (
-        request.headers.get("x-forwarded-email")
-        or request.headers.get("x-forwarded-preferred-username")
+        getter("x-forwarded-email")
+        or getter("x-forwarded-preferred-username")
         or ""
     )
     return email.strip().lower() or "unknown"
@@ -403,6 +429,20 @@ def _user_role(request: Optional[Request]) -> str:
     return _user_role_slug(request).title()
 
 
+def _lightweight_user_role_slug(request: Optional[Request]) -> str:
+    email = _user_email(request)
+    if email == "unknown":
+        return "reader"
+    admin_emails = {item.strip().lower() for item in _config().admin_emails if item}
+    if email in admin_emails:
+        return "admin"
+    return "reader"
+
+
+def _lightweight_user_role(request: Optional[Request]) -> str:
+    return _lightweight_user_role_slug(request).title()
+
+
 def _http_request_id(request: Optional[Request]) -> str:
     if request is None:
         return ""
@@ -417,7 +457,7 @@ def _http_request_id(request: Optional[Request]) -> str:
 
 
 def _build_id() -> str:
-    return _config().build_id or APP_VERSION
+    return _config().build_id or str(_frontend_bundle_metadata().get("buildId") or APP_VERSION)
 
 
 def _set_response_diagnostics_headers(response, request_id: str, duration_ms: float) -> None:
@@ -486,9 +526,169 @@ def _ensure_can_mutate(request: Request) -> str:
     return actor_email
 
 
+def _direct_uc_metadata_writes_enabled(request: Optional[Request]) -> bool:
+    return _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
+
+
+def _ensure_can_mutate_uc_metadata(request: Request) -> str:
+    actor_email = _ensure_can_mutate(request)
+    if not _direct_uc_metadata_writes_enabled(request):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Direct Unity Catalog metadata writes stay disabled until Databricks per-user authorization / "
+                "OBO is implemented and verified for the current actor."
+            ),
+        )
+    return actor_email
+
+
 def _request_cache_scope(request: Optional[Request]) -> str:
     email = _normalize_str(_user_email(request))
     return email if email and email != "unknown" else "anonymous"
+
+
+def _utc_iso(value: datetime) -> str:
+    return value.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _now_iso() -> str:
+    return _utc_iso(datetime.now(timezone.utc))
+
+
+def _future_iso(seconds: int) -> str:
+    return _utc_iso(datetime.now(timezone.utc) + timedelta(seconds=seconds))
+
+
+def _request_auth_mode(request: Optional[Request]) -> str:
+    return capability_service.runtime_auth_mode(
+        authenticated=_user_email(request) != "unknown" if request is not None else False,
+        per_user_authorization=False,
+    )
+
+
+def _request_read_visibility_scope(request: Optional[Request]) -> str:
+    return capability_service.runtime_visibility_scope(_request_auth_mode(request))
+
+
+def _request_scope_warning(request: Optional[Request], source: str) -> str:
+    auth_mode = _request_auth_mode(request)
+    normalized_source = _normalize_str(source).lower()
+    if auth_mode == capability_service.OBO_AVAILABLE_MODE:
+        return ""
+    if normalized_source.startswith("unity-catalog"):
+        return (
+            "This response is sourced from workspace-scoped app-principal metadata. "
+            "Do not treat it as actor-scoped proof until Databricks per-user authorization / OBO is available."
+        )
+    return ""
+
+
+def _response_meta(
+    request: Optional[Request],
+    *,
+    source: str,
+    state: str = "available",
+    authoritative: bool = True,
+    entity_fqn: str | None = None,
+    entity_id: str | None = None,
+    capabilities: Dict[str, Any] | None = None,
+    allowed_actions: Dict[str, Any] | None = None,
+    warnings: List[str] | None = None,
+    unavailable_reason: str = "",
+) -> Dict[str, Any]:
+    scope_warning = _request_scope_warning(request, source)
+    warning_list = [*(warnings or [])]
+    if scope_warning and scope_warning not in warning_list:
+        warning_list.append(scope_warning)
+    auth_mode = _request_auth_mode(request)
+    read_scope = _request_read_visibility_scope(request)
+    normalized_state = _normalize_str(state) or "unknown"
+    resolved_authoritative = bool(authoritative) and not bool(scope_warning)
+    if not resolved_authoritative and normalized_state == "available":
+        normalized_state = "degraded"
+    return {
+        "state": normalized_state,
+        "entityId": entity_id,
+        "entityFqn": entity_fqn,
+        "source": source,
+        "authoritative": resolved_authoritative,
+        "observedAt": _now_iso(),
+        "staleAfter": _future_iso(60),
+        "capabilities": capabilities or {},
+        "allowedActions": allowed_actions or {},
+        "warnings": warning_list,
+        "degraded": normalized_state in {"degraded", "unknown"} or bool(warning_list),
+        "visibilityScope": read_scope,
+        "readScope": read_scope,
+        "authMode": auth_mode,
+        "productMode": auth_mode,
+        "unavailableReason": _normalize_str(unavailable_reason),
+    }
+
+
+def _with_meta(
+    payload: Dict[str, Any],
+    request: Optional[Request],
+    *,
+    source: str,
+    state: str = "available",
+    authoritative: bool = True,
+    entity_fqn: str | None = None,
+    entity_id: str | None = None,
+    capabilities: Dict[str, Any] | None = None,
+    allowed_actions: Dict[str, Any] | None = None,
+    warnings: List[str] | None = None,
+    unavailable_reason: str = "",
+) -> Dict[str, Any]:
+    next_payload = dict(payload or {})
+    resolved_meta = _response_meta(
+        request,
+        source=source,
+        state=state,
+        authoritative=authoritative,
+        entity_fqn=entity_fqn,
+        entity_id=entity_id,
+        capabilities=capabilities,
+        allowed_actions=allowed_actions,
+        warnings=warnings,
+        unavailable_reason=unavailable_reason,
+    )
+    next_payload["authoritative"] = bool(resolved_meta.get("authoritative"))
+    next_payload["meta"] = resolved_meta
+    next_payload["errors"] = list(next_payload.get("errors") or [])
+    return next_payload
+
+
+def _error_response(
+    request: Optional[Request],
+    *,
+    status_code: int,
+    source: str,
+    detail: str,
+    state: str = "unavailable",
+    entity_fqn: str | None = None,
+    entity_id: str | None = None,
+    capabilities: Dict[str, Any] | None = None,
+    warnings: List[str] | None = None,
+    extra: Dict[str, Any] | None = None,
+) -> JSONResponse:
+    payload = dict(extra or {})
+    payload["detail"] = detail
+    payload["errors"] = list(payload.get("errors") or [{"message": detail}])
+    payload["meta"] = _response_meta(
+        request,
+        source=source,
+        state=state,
+        authoritative=False,
+        entity_fqn=entity_fqn,
+        entity_id=entity_id,
+        capabilities=capabilities,
+        warnings=warnings,
+        unavailable_reason=detail,
+    )
+    payload["authoritative"] = False
+    return JSONResponse(status_code=status_code, content=payload)
 
 
 def _capabilities_payload(
@@ -619,11 +819,6 @@ def _inventory_row(asset_fqn: str) -> pd.Series:
 
 
 def _asset_exists(asset_fqn: str, request: Optional[Request] = None) -> bool:
-    if request is not None:
-        cache_scope = _request_cache_scope(request)
-        inventory = _visible_assets(cache_scope)
-        if asset_service.asset_is_visible(inventory, asset_fqn):
-            return True
     return asset_service.asset_exists(
         _uc(),
         _store_for_read(),
@@ -646,7 +841,37 @@ def _asset_is_visible(asset_fqn: str, request: Optional[Request] = None) -> bool
 
 
 def _asset_is_openable(asset_fqn: str, request: Optional[Request] = None) -> bool:
-    return _asset_exists(asset_fqn, request)
+    return _asset_is_visible(asset_fqn, request)
+
+
+def _asset_visibility_record(
+    asset_fqn: str,
+    request: Optional[Request] = None,
+) -> Dict[str, Any]:
+    try:
+        actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
+        visible = _asset_is_visible(asset_fqn, request)
+        exists = visible or (actor_scoped and _asset_exists(asset_fqn, request))
+        if visible:
+            visibility_state = "visible"
+        elif exists and actor_scoped:
+            visibility_state = "hidden"
+        else:
+            visibility_state = "missing"
+        return {
+            "exists": exists,
+            "visible": visible,
+            "openable": visible,
+            "visibilityState": visibility_state,
+        }
+    except Exception as exc:
+        return {
+            "exists": False,
+            "visible": False,
+            "openable": False,
+            "visibilityState": "unknown",
+            "reason": _normalize_str(exc) or "Asset visibility could not be determined.",
+        }
 
 
 def _invalidate_cache_prefix(prefix: str) -> None:
@@ -973,6 +1198,7 @@ def _asset_detail_payload(
         cache_scope=_request_cache_scope(request),
         hidden_catalogs=HIDDEN_CATALOGS,
         sections=sections,
+        allow_direct_metadata_write=_direct_uc_metadata_writes_enabled(request),
     )
 
 
@@ -1441,42 +1667,6 @@ def _cold_route_seed_payload(request: Request) -> Optional[Dict[str, Any]]:
     }
     return _compose_bootstrap_payload(request, base_payload)
 
-
-def _bootstrap_contract_payload() -> Dict[str, Any]:
-    return {
-        "version": "bootstrap-v2",
-        "class": "shell-capability",
-        "warnings": [
-            (
-                "Bootstrap remains on bounded temporary seed adapters for shell help items and "
-                "asset warm-start data until those surfaces finish migrating to live queries."
-            )
-        ],
-        "seedAdapters": {
-            "seededAssets": {
-                "state": "temporary",
-                "bounded": True,
-                "removalRequired": False,
-                "surfaces": ["discovery", "entity", "lineage"],
-                "reason": (
-                    "Provides a small first-render asset seed while discovery, entity, and lineage "
-                    "surfaces transition to their own live queries."
-                ),
-            },
-            "helpItems": {
-                "state": "temporary",
-                "bounded": True,
-                "removalRequired": False,
-                "surfaces": ["shell"],
-                "reason": (
-                    "Static operator-safe help copy remains bounded until setup and diagnostics "
-                    "surfaces fully own remediation guidance."
-                ),
-            },
-        },
-    }
-
-
 def _compose_bootstrap_payload(
     request: Request,
     base_payload: Dict[str, Any],
@@ -1523,6 +1713,7 @@ def _compose_bootstrap_payload(
         "shell": {
             "metrics": [],
             "role": _user_role(request),
+            "roleProvisional": False,
             "userEmail": _user_email(request),
             "buildId": _build_id(),
             "diagnosticsEnabled": _config().diagnostics_enabled,
@@ -1897,102 +2088,211 @@ def _asset_availability_payload(
     asset_fqns: List[str],
     request: Optional[Request] = None,
 ) -> Dict[str, Any]:
-    cache_scope = _request_cache_scope(request)
-    inventory = _visible_assets(cache_scope)
-    visible_asset_set = (
-        set(inventory["fqn"].dropna().astype(str).tolist())
-        if isinstance(inventory, pd.DataFrame) and not inventory.empty
-        else set()
-    )
     unique_assets = [asset_fqn for asset_fqn in dict.fromkeys(asset_fqns or []) if _normalize_str(asset_fqn)]
-    availability: Dict[str, Dict[str, bool]] = {}
+    availability: Dict[str, Dict[str, Any]] = {}
+    warnings: List[str] = []
+    actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
     for asset_fqn in unique_assets[:200]:
-        visible = asset_fqn in visible_asset_set
-        exists = visible or _asset_exists(asset_fqn, request)
-        availability[asset_fqn] = {
-            "visible": visible,
-            "exists": exists,
-            "openable": exists,
+        record = _asset_visibility_record(asset_fqn, request)
+        availability[asset_fqn] = record
+        if record.get("visibilityState") == "unknown" and record.get("reason"):
+            warnings.append(str(record["reason"]))
+    return {
+        "assets": availability,
+        "meta": _response_meta(
+            request,
+            source="unity-catalog-inventory",
+            state="available" if actor_scoped and not warnings else "degraded",
+            authoritative=actor_scoped and not warnings,
+            capabilities={
+                "separatesExistsFromVisible": actor_scoped,
+            },
+            allowed_actions={},
+            warnings=[*dict.fromkeys(warnings)],
+            unavailable_reason=warnings[0] if warnings else "",
+        ),
+        "errors": [],
+    }
+
+
+def _shell_discovery_payload() -> Dict[str, Any]:
+    return {
+        "catalogs": ["All catalogs"],
+        "domains": ["All domains"],
+        "tiers": ["All tiers"],
+        "certifications": ["All certifications"],
+        "sensitivities": ["All sensitivities"],
+        "assetTypes": ["All types"],
+        "views": DISCOVERY_VIEWS,
+        "sortOptions": DISCOVERY_SORTS,
+        "defaultQuery": "",
+    }
+
+
+def _api_contract_payload() -> Dict[str, str]:
+    return dict(SHELL_API_CONTRACT)
+
+
+def _route_hints_payload(request: Optional[Request]) -> Dict[str, str]:
+    if request is None:
+        return {"surface": "discovery", "asset": "", "query": ""}
+    return _route_context(request)
+
+
+def _bootstrap_contract_payload(mode: str = "route-bootstrap") -> Dict[str, Any]:
+    return {
+        "version": "bootstrap-v3",
+        "class": "shell-capability",
+        "mode": mode,
+        "warnings": [],
+        "seedAdapters": {},
+    }
+
+
+def _shell_feature_flags_payload(
+    capabilities: Dict[str, Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    diagnostics_enabled = _config().diagnostics_enabled
+    table_lineage = capabilities.get("tableLineage") or {}
+    workload_visibility = capabilities.get("workloadVisibility") or {}
+
+    def _flag(
+        key: str,
+        *,
+        enabled: bool,
+        state: str,
+        reason: str = "",
+        summary: str = "",
+    ) -> Dict[str, Any]:
+        payload = {
+            "key": key,
+            "enabled": bool(enabled),
+            "state": state,
         }
-    return {"assets": availability}
+        resolved_reason = reason or summary
+        if summary:
+            payload["summary"] = summary
+        if resolved_reason:
+            payload["reason"] = resolved_reason
+        if not enabled or state == "unavailable":
+            payload["disabledReason"] = resolved_reason or "This capability is unavailable."
+            payload["unavailableReason"] = resolved_reason or "This capability is unavailable."
+        return payload
+
+    diagnostics_reason = (
+        "Workspace setup diagnostics are available from the runtime status endpoint."
+        if diagnostics_enabled
+        else "Workspace setup diagnostics are disabled for this deployment."
+    )
+    return [
+        _flag(
+            "workspace_setup_diagnostics",
+            enabled=diagnostics_enabled,
+            state="available" if diagnostics_enabled else "unavailable",
+            reason=diagnostics_reason,
+            summary="Operator diagnostics stay off the initial shell payload.",
+        ),
+        _flag(
+            "table_lineage_surface",
+            enabled=table_lineage.get("available") is True,
+            state=str(table_lineage.get("state") or "unavailable"),
+            reason=_normalize_str(table_lineage.get("reason"))
+            or "Live table lineage is not available in this workspace right now.",
+            summary="Lineage surfaces hydrate after shell render.",
+        ),
+        _flag(
+            "query_history_surface",
+            enabled=workload_visibility.get("available") is True,
+            state=str(workload_visibility.get("state") or "unavailable"),
+            reason=_normalize_str(workload_visibility.get("reason"))
+            or "Operational query and workload visibility is not available in this workspace right now.",
+            summary="Usage and workload surfaces hydrate after shell render.",
+        ),
+    ]
+
+
+def _shell_payload(
+    request: Optional[Request],
+    *,
+    mode: str,
+    state: str,
+    message: str = "",
+    runtime_status: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    resolved_runtime_status = runtime_status or {
+        "state": "loading" if state == "loading" else state,
+        "message": message,
+    }
+    capabilities = capability_service.bootstrap_capabilities(
+        actor_role=_lightweight_user_role_slug(request),
+        authenticated=_user_email(request) != "unknown" if request is not None else False,
+        runtime_state=_normalize_str(resolved_runtime_status.get("state")) or state,
+        runtime_message=_normalize_str(resolved_runtime_status.get("message")) or message,
+        store_state="skipped",
+        store_message="Governance control-plane checks load after the shell becomes interactive.",
+        visible_asset_count=0,
+        available_catalog_count=0,
+        observed_catalog_count=0,
+        boot_message=message,
+    )
+    payload = {
+        "version": APP_VERSION,
+        "bootState": state,
+        "bootMessage": message,
+        "apiBase": "/api",
+        "discovery": _shell_discovery_payload(),
+        "capabilities": capabilities,
+        "featureFlags": _shell_feature_flags_payload(capabilities),
+        "bootstrapContract": _bootstrap_contract_payload(mode),
+        "shell": {
+            "metrics": [],
+            "role": _lightweight_user_role(request),
+            "roleProvisional": True,
+            "userEmail": _user_email(request),
+            "buildId": _build_id(),
+            "diagnosticsEnabled": _config().diagnostics_enabled,
+        },
+        "identity": {
+            "actorEmail": _user_email(request),
+            "actorRole": _lightweight_user_role(request),
+            "actorRoleProvisional": True,
+            "authenticatedUserPresent": _user_email(request) != "unknown",
+            "authMode": _request_auth_mode(request),
+            "visibilityScope": _request_read_visibility_scope(request),
+            "source": IDENTITY_SOURCE,
+        },
+        "routeHints": _route_hints_payload(request),
+        "apiContract": _api_contract_payload(),
+        "help": [],
+    }
+    return _with_meta(
+        payload,
+        request,
+        source="runtime-shell",
+        state=state,
+        authoritative=state == "live",
+        capabilities={
+            "shellOnly": True,
+        },
+        warnings=[message] if _normalize_str(message) and state != "live" else [],
+        unavailable_reason=message if state in {"unavailable", "error"} else "",
+    )
 
 
 def _bootstrap_unavailable_payload(
     request: Optional[Request], message: str, *, state: str = "unavailable"
 ) -> Dict[str, Any]:
-    role = _user_role(request) if request is not None else "Unavailable"
-    email = _user_email(request) if request is not None else "offline"
-    capabilities = _capabilities_payload(
+    return _shell_payload(
         request,
+        mode="bootstrap-unavailable",
+        state=state,
+        message=message,
         runtime_status={"state": state, "message": message},
-        store_status={
-            "state": "skipped",
-            "message": "Governance store check skipped until the SQL runtime recovers.",
-        },
-        summary={"visibleAssets": 0, "availableCatalogCount": 0, "observedCatalogCount": 0},
-        boot_message=message,
     )
-    diagnostics = _runtime_diagnostics_payload(
-        request,
-        runtime_status={"state": state, "message": message},
-        store_status={
-            "state": "skipped",
-            "message": "Governance store check skipped until the SQL runtime recovers.",
-        },
-        summary={"visibleAssets": 0, "availableCatalogCount": 0, "observedCatalogCount": 0},
-        capabilities=capabilities,
-        boot_message=message,
-    )
-    return {
-        "version": "governance-hub-unavailable-2",
-        "bootState": state,
-        "bootMessage": message,
-        "apiBase": "/api",
-        "assets": [],
-        "assetIndex": {},
-        "discovery": {
-            "catalogs": ["All catalogs"],
-            "domains": ["All domains"],
-            "tiers": ["All tiers"],
-            "certifications": ["All certifications"],
-            "sensitivities": ["All sensitivities"],
-            "views": DISCOVERY_VIEWS,
-            "sortOptions": DISCOVERY_SORTS,
-            "assetTypes": ["All types"],
-            "defaultQuery": "",
-        },
-        "capabilities": capabilities,
-        "diagnostics": diagnostics,
-        "bootstrapContract": _bootstrap_contract_payload(),
-        "shell": {
-            "metrics": [],
-            "role": role,
-            "userEmail": email,
-            "buildId": _build_id(),
-            "diagnosticsEnabled": _config().diagnostics_enabled,
-        },
-        "apiContract": {
-            "bootstrap": "/api/bootstrap",
-            "discoverySearch": "/api/discovery/search",
-            "assetDetail": "/api/assets/:fqn",
-            "assetAvailability": "/api/assets/availability",
-            "assetMetadataUpdate": "/api/assets/:fqn/metadata",
-            "assetColumnMetadataUpdate": "/api/assets/:fqn/columns/:column/metadata",
-            "lineage": "/api/lineage/:fqn",
-            "governanceNotification": "/api/governance/notifications/:id",
-            "glossary": "/api/governance/glossary",
-            "runtimeStatus": "/api/runtime/status",
-        },
-        "help": [
-            {
-                "title": "Workspace unavailable",
-                "body": message,
-            }
-        ],
-    }
 
 
 def _ensure_react_bundle() -> Path:
+    _frontend_bundle_metadata()
     index_path = REACT_DIST_DIR / "index.html"
     assets_dir = REACT_DIST_DIR / "assets"
     if index_path.exists() and assets_dir.exists():
@@ -2032,33 +2332,7 @@ def _cached_bootstrap_seed(request: Request) -> Optional[Dict[str, Any]]:
 
 
 def _render_index(live_payload: Optional[Dict[str, Any]] = None) -> str:
-    try:
-        react_index = _compiled_react_index()
-    except Exception as exc:
-        return f"""<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Governance Hub Bundle Missing</title>
-    <style>
-      body {{ font-family: Inter, system-ui, sans-serif; background: #f5f7ff; color: #1d2740; padding: 40px; }}
-      .card {{ max-width: 920px; margin: 40px auto; background: #fff; border: 1px solid #d8e1f5; border-radius: 24px; padding: 32px; box-shadow: 0 20px 44px rgba(21, 32, 65, 0.08); }}
-      h1 {{ margin: 0 0 12px; font-size: 2rem; }}
-      p {{ color: #5d6c8c; line-height: 1.6; }}
-      code {{ background: #eef1ff; padding: 0.15rem 0.4rem; border-radius: 8px; }}
-    </style>
-  </head>
-  <body>
-    <div class="card">
-      <h1>Workspace bundle is missing</h1>
-      <p>The packaged frontend assets were not found in the deployed workspace bundle.</p>
-      <p>Build <code>frontend/dist</code> in CI or a predeploy packaging step, then deploy from that packaged directory.</p>
-      <p>Runtime detail: {json.dumps(_normalize_str(exc) or 'unknown error')}</p>
-    </div>
-  </body>
-</html>"""
-    return _inject_bootstrap(react_index, live_payload)
+    return _inject_bootstrap(_compiled_react_index(), live_payload)
 
 
 def _render_unavailable_index(message: str) -> str:
@@ -2066,42 +2340,17 @@ def _render_unavailable_index(message: str) -> str:
 
 
 def _spa_shell_response(request: Request) -> HTMLResponse:
-    cached_status = _TTL_CACHE.get("runtime_uc_status")
-    if cached_status:
-        _, runtime_status = cached_status
-        if runtime_status.get("state") == "unavailable":
-            return HTMLResponse(
-                _render_index(
-                    _bootstrap_unavailable_payload(
-                        request,
-                        runtime_status.get("message")
-                        or "Live Databricks metadata runtime is unavailable. Fix the warehouse or governance configuration or warehouse access, then retry.",
-                    )
-                ),
-                status_code=200,
+    return HTMLResponse(
+        _render_index(
+            _shell_payload(
+                request,
+                mode="inline-shell",
+                state="loading",
+                message="Preparing the live metadata workspace.",
             )
-    try:
-        route = _route_context(request)
-        seeded_payload = _cached_bootstrap_seed(request)
-        if seeded_payload is None:
-            requested_asset = route["asset"]
-            requested_surface = route["surface"]
-            if requested_asset:
-                seeded_payload = _cold_route_seed_payload(request)
-            elif requested_surface in {"", "discovery"}:
-                seeded_payload = _bootstrap_payload(request)
-        return HTMLResponse(_render_index(seeded_payload))
-    except Exception as exc:
-        return HTMLResponse(
-            _render_index(
-                _bootstrap_unavailable_payload(
-                    request,
-                    f"Workspace bootstrap failed: {_normalize_str(exc) or 'unknown error'}.",
-                    state="error",
-                )
-            ),
-            status_code=200,
-        )
+        ),
+        status_code=200,
+    )
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -2110,18 +2359,24 @@ def index(request: Request) -> HTMLResponse:
 
 
 def _api_bootstrap_response(request: Request) -> JSONResponse:
-    runtime_status = _uc_runtime_status()
-    if runtime_status.get("state") != "live":
+    try:
+        runtime_status = _uc_runtime_status()
+        state = "live" if runtime_status.get("state") == "live" else str(runtime_status.get("state") or "degraded")
+        message = (
+            ""
+            if state == "live"
+            else runtime_status.get("message")
+            or "Live Databricks metadata runtime is unavailable. Fix the warehouse access or runtime configuration, then retry."
+        )
         return JSONResponse(
-            _bootstrap_unavailable_payload(
+            _shell_payload(
                 request,
-                runtime_status.get("message")
-                or "Live Databricks metadata runtime is unavailable. Fix the warehouse or governance configuration or warehouse access, then retry.",
-                state=str(runtime_status.get("state") or "unavailable"),
+                mode="route-bootstrap",
+                state=state,
+                message=message,
+                runtime_status=runtime_status,
             )
         )
-    try:
-        return JSONResponse(_bootstrap_payload(request))
     except Exception as exc:
         return JSONResponse(
             _bootstrap_unavailable_payload(
@@ -2143,11 +2398,18 @@ def _api_runtime_status_response(request: Request) -> JSONResponse:
         if runtime_status.get("state") == "live"
         else {"visibleAssets": 0, "availableCatalogCount": 0, "observedCatalogCount": 0}
     )
+    boot_message = ""
+    if runtime_status.get("state") == "live":
+        if store_status.get("state") != "live":
+            boot_message = _normalize_str(store_status.get("message"))
+        elif int(summary.get("visibleAssets") or 0) <= 0:
+            boot_message = _empty_inventory_boot_message(summary)
     capabilities = _capabilities_payload(
         request,
         runtime_status=runtime_status,
         store_status=store_status,
         summary=summary,
+        boot_message=boot_message,
     )
     payload = {
         "runtime": runtime_status,
@@ -2162,8 +2424,11 @@ def _api_runtime_status_response(request: Request) -> JSONResponse:
         "identity": {
             "actorEmail": _user_email(request),
             "actorRole": _user_role(request),
+            "actorRoleProvisional": False,
             "authenticatedUserPresent": _user_email(request) != "unknown",
-            "source": "x-forwarded-email | x-forwarded-preferred-username",
+            "authMode": _request_auth_mode(request),
+            "visibilityScope": _request_read_visibility_scope(request),
+            "source": IDENTITY_SOURCE,
         },
         "diagnostics": _runtime_diagnostics_payload(
             request,
@@ -2171,6 +2436,7 @@ def _api_runtime_status_response(request: Request) -> JSONResponse:
             store_status=store_status,
             summary=summary,
             capabilities=capabilities,
+            boot_message=boot_message,
         ),
     }
     return JSONResponse(payload)
@@ -2220,10 +2486,14 @@ def api_discovery_search(
             offset=offset,
         )
     except asset_service.DiscoveryQuerySyntaxError as exc:
-        return JSONResponse(
+        detail = _normalize_str(exc.message) or "Invalid discovery query."
+        return _error_response(
+            request,
             status_code=400,
-            content={
-                "detail": _normalize_str(exc.message) or "Invalid discovery query.",
+            source="unity-catalog-inventory",
+            detail=detail,
+            state="degraded",
+            extra={
                 "invalidQuery": asset_service.discovery_invalid_query_payload(exc.message),
             },
         )
@@ -2237,7 +2507,20 @@ def api_discovery_search(
                 f"{_normalize_str(exc) or 'Unexpected metadata runtime error.'}"
             ),
         ) from exc
-    return JSONResponse(payload)
+    actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
+    return JSONResponse(
+        _with_meta(
+            payload,
+            request,
+            source="unity-catalog-inventory",
+            state="available" if actor_scoped else "degraded",
+            authoritative=actor_scoped,
+            capabilities={
+                "workspaceScopedInventory": not actor_scoped,
+            },
+            warnings=[],
+        )
+    )
 
 
 @app.post("/api/assets/availability")
@@ -2256,10 +2539,75 @@ def api_asset_detail(
     sections: List[str] = Query(default=[]),
 ) -> JSONResponse:
     _ensure_live_runtime()
-    if not _asset_is_openable(asset_fqn, request):
-        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    payload = _asset_detail_payload(asset_fqn, request=request, sections=sections)
-    return JSONResponse(payload)
+    visibility = _asset_visibility_record(asset_fqn, request)
+    if not visibility.get("openable"):
+        if visibility.get("visibilityState") == "hidden":
+            return _error_response(
+                request,
+                status_code=404,
+                source="unity-catalog-detail",
+                detail="Asset exists but is not visible in the current workspace scope.",
+                entity_fqn=asset_fqn,
+                entity_id=asset_fqn,
+                capabilities={"visibilityState": "hidden"},
+            )
+        if visibility.get("visibilityState") == "unknown":
+            detail = visibility.get("reason") or "Asset visibility could not be verified in the current workspace scope."
+            return _error_response(
+                request,
+                status_code=503,
+                source="unity-catalog-detail",
+                detail=detail,
+                state="unknown",
+                entity_fqn=asset_fqn,
+                entity_id=asset_fqn,
+                capabilities={"visibilityState": "unknown"},
+                warnings=[detail],
+            )
+        return _error_response(
+            request,
+            status_code=404,
+            source="unity-catalog-detail",
+            detail="Asset not found.",
+            entity_fqn=asset_fqn,
+            entity_id=asset_fqn,
+            capabilities={"visibilityState": visibility.get("visibilityState") or "missing"},
+        )
+    actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
+    protected_sections = {"preview", "operational"}
+    requested_sections = list(sections or [])
+    resolved_sections = requested_sections
+    warnings: List[str] = []
+    if not actor_scoped:
+        resolved_sections = [section for section in requested_sections if section not in protected_sections]
+        if not requested_sections:
+            resolved_sections = ["header", "activity", "schema", "properties"]
+        elif not resolved_sections:
+            resolved_sections = ["header"]
+        if set(requested_sections) - set(resolved_sections):
+            warnings.append(
+                "Protected preview and operational sections were removed because Databricks per-user authorization / OBO is not available."
+            )
+    payload = _asset_detail_payload(asset_fqn, request=request, sections=resolved_sections)
+    if warnings:
+        payload["restrictedSections"] = sorted(set(requested_sections) - set(resolved_sections))
+    return JSONResponse(
+        _with_meta(
+            payload,
+            request,
+            source="unity-catalog-detail",
+            state="available" if actor_scoped else "degraded",
+            authoritative=actor_scoped,
+            entity_fqn=asset_fqn,
+            entity_id=asset_fqn,
+            capabilities={
+                "requestedSections": requested_sections,
+                "resolvedSections": resolved_sections,
+                "visibilityState": visibility.get("visibilityState"),
+            },
+            warnings=warnings,
+        )
+    )
 
 
 @app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/description")
@@ -2270,7 +2618,7 @@ def api_patch_column_description(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    actor_email = _ensure_can_mutate(request)
+    actor_email = _ensure_can_mutate_uc_metadata(request)
     actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
@@ -2314,7 +2662,7 @@ def api_patch_column_tags(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    actor_email = _ensure_can_mutate(request)
+    actor_email = _ensure_can_mutate_uc_metadata(request)
     actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
@@ -2366,7 +2714,7 @@ def api_patch_column_metadata(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    actor_email = _ensure_can_mutate(request)
+    actor_email = _ensure_can_mutate_uc_metadata(request)
     actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
@@ -2412,7 +2760,7 @@ def api_patch_asset_description(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    actor_email = _ensure_can_mutate(request)
+    actor_email = _ensure_can_mutate_uc_metadata(request)
     actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
@@ -2452,7 +2800,7 @@ def api_patch_asset_metadata(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    actor_email = _ensure_can_mutate(request)
+    actor_email = _ensure_can_mutate_uc_metadata(request)
     actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
@@ -2518,7 +2866,7 @@ def api_patch_asset_tags(
     request: Request,
 ) -> JSONResponse:
     _ensure_live_runtime()
-    actor_email = _ensure_can_mutate(request)
+    actor_email = _ensure_can_mutate_uc_metadata(request)
     actor_role = _user_role_slug(request)
     if not _asset_is_openable(asset_fqn, request):
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
@@ -2560,6 +2908,31 @@ def api_patch_asset_tags(
 @app.get("/api/lineage/{asset_fqn:path}")
 def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
     _ensure_live_runtime()
+    actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
+    if not actor_scoped:
+        return JSONResponse(
+            _with_meta(
+                {
+                    "fqn": asset_fqn,
+                    "graphs": {"data": {"nodes": [], "edges": [], "meta": {}}, "operational": {"nodes": [], "edges": [], "meta": {}}},
+                    "columnLineage": {"upstream": [], "downstream": [], "meta": {}},
+                    "lineageDepth": {"oneHop": {"upstream": [], "downstream": []}, "twoHop": {"upstream": {}, "downstream": {}}},
+                    "edgeDetails": {},
+                    "stats": {},
+                    "unavailableReason": "Lineage is not available for actor-scoped reads in the current runtime mode.",
+                },
+                request,
+                source="unity-catalog-lineage",
+                state="degraded",
+                authoritative=False,
+                entity_fqn=asset_fqn,
+                entity_id=asset_fqn,
+                warnings=[
+                    "Lineage stays degraded until Databricks per-user authorization / OBO is available for actor-scoped reads.",
+                ],
+                unavailable_reason="Lineage is not available for actor-scoped reads in the current runtime mode.",
+            )
+        )
     payload = _lineage_payload(asset_fqn, request=request)
     stats = payload.get("stats") or {}
     column_lineage = payload.get("columnLineage") or {}
@@ -2572,9 +2945,56 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
             "operationalConsumerCount",
         ]
     ) or bool(column_lineage.get("upstream") or column_lineage.get("downstream"))
-    if not _asset_is_openable(asset_fqn, request) and not has_lineage_context:
-        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
-    return JSONResponse(payload)
+    visibility = _asset_visibility_record(asset_fqn, request)
+    if not visibility.get("openable") and not has_lineage_context:
+        if visibility.get("visibilityState") == "hidden":
+            return _error_response(
+                request,
+                status_code=404,
+                source="unity-catalog-lineage",
+                detail="Asset exists but is not visible in the current workspace scope.",
+                entity_fqn=asset_fqn,
+                entity_id=asset_fqn,
+                capabilities={"visibilityState": "hidden"},
+            )
+        if visibility.get("visibilityState") == "unknown":
+            detail = visibility.get("reason") or "Asset visibility could not be verified in the current workspace scope."
+            return _error_response(
+                request,
+                status_code=503,
+                source="unity-catalog-lineage",
+                detail=detail,
+                state="unknown",
+                entity_fqn=asset_fqn,
+                entity_id=asset_fqn,
+                capabilities={"visibilityState": "unknown"},
+                warnings=[detail],
+            )
+        return _error_response(
+            request,
+            status_code=404,
+            source="unity-catalog-lineage",
+            detail="Asset not found.",
+            entity_fqn=asset_fqn,
+            entity_id=asset_fqn,
+            capabilities={"visibilityState": visibility.get("visibilityState") or "missing"},
+        )
+    return JSONResponse(
+        _with_meta(
+            payload,
+            request,
+            source="unity-catalog-lineage",
+            state="available" if actor_scoped else "degraded",
+            authoritative=actor_scoped,
+            entity_fqn=asset_fqn,
+            entity_id=asset_fqn,
+            capabilities={
+                "visibilityState": visibility.get("visibilityState"),
+                "includesOperationalContext": bool((payload.get("graphs") or {}).get("operational")),
+            },
+            warnings=[],
+        )
+    )
 
 
 @app.get("/api/governance/summary")
@@ -2663,6 +3083,11 @@ def api_governance_patch_request(
     change_request = store.get_change_request(request_id)
     if change_request is None:
         raise HTTPException(status_code=404, detail="Request not found.")
+    visibility = None
+    if change_request.uc_full_name:
+        visibility = _asset_visibility_record(change_request.uc_full_name, request)
+        if not visibility.get("openable"):
+            raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     status = _normalize_str(payload.status).lower()
     if status not in {"pending", "approved", "rejected"}:
         raise HTTPException(status_code=400, detail="status must be pending, approved, or rejected.")
@@ -2677,11 +3102,9 @@ def api_governance_patch_request(
         _invalidate_asset_caches(change_request.uc_full_name)
     else:
         governance_service.invalidate_governance_caches()
-    asset_payload = (
-        _asset_detail_payload(change_request.uc_full_name, request=request)
-        if change_request.uc_full_name
-        else None
-    )
+    asset_payload = None
+    if change_request.uc_full_name and visibility and visibility.get("openable"):
+        asset_payload = _asset_detail_payload(change_request.uc_full_name, request=request)
     return JSONResponse(
         {
             "ok": True,
