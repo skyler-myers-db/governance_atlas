@@ -1,38 +1,4 @@
-:root {
-  --gh-bg: #edf2f8;
-  --gh-bg-2: #e3ebf4;
-  --gh-surface: #ffffff;
-  --gh-surface-soft: #f5f8fc;
-  --gh-surface-muted: #eef3f8;
-  --gh-line: #d6e0ec;
-  --gh-line-strong: #b6c6d8;
-  --gh-ink: #162338;
-  --gh-ink-soft: #52657d;
-  --gh-ink-muted: #74859b;
-  --gh-accent: #0f5cc0;
-  --gh-accent-2: #0b79c9;
-  --gh-accent-soft: #e6f0ff;
-  --gh-good: #1f8b67;
-  --gh-warn: #b67b1f;
-  --gh-bad: #c1545f;
-  --gh-radius-xl: 20px;
-  --gh-radius-lg: 16px;
-  --gh-radius-md: 12px;
-  --gh-radius-sm: 10px;
-  --gh-space-0: 0;
-  --gh-space-1: 4px;
-  --gh-space-2: 8px;
-  --gh-space-3: 12px;
-  --gh-space-4: 16px;
-  --gh-space-5: 20px;
-  --gh-space-6: 24px;
-  --gh-space-7: 32px;
-  --gh-space-8: 40px;
-  --gh-space-9: 48px;
-  --gh-shadow: 0 16px 44px rgba(18, 35, 58, 0.08);
-  --gh-shadow-soft: 0 6px 18px rgba(18, 35, 58, 0.05);
-  --gh-font: "Avenir Next", "Inter", "Segoe UI Variable Text", "Segoe UI", sans-serif;
-}
+@import "../design/tokens/index.css";
 
 .gh-breadcrumbs {
   display: flex;

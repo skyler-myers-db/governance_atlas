@@ -1,0 +1,27 @@
+/*
+ * Motion tokens.
+ * Duration and easing. The catalogue showed only two transition declarations
+ * in the entire app, both at 140ms ease — so these tokens both formalize
+ * that choice and give Tranche C a vocabulary to reach for when adding
+ * motion without it becoming a free-for-all.
+ */
+
+:root {
+  --gh-duration-instant: 80ms;
+  --gh-duration-quick: 140ms;
+  --gh-duration-standard: 220ms;
+  --gh-duration-slow: 360ms;
+
+  --gh-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --gh-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --gh-ease-in: cubic-bezier(0.4, 0, 1, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --gh-duration-instant: 0ms;
+    --gh-duration-quick: 0ms;
+    --gh-duration-standard: 0ms;
+    --gh-duration-slow: 0ms;
+  }
+}

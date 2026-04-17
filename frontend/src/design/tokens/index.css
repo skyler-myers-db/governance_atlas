@@ -1,0 +1,17 @@
+/*
+ * Design tokens entry point.
+ * Imported once at the top of app.css. Category files each declare their
+ * tokens on :root so the cascade stays flat and every token is overridable
+ * from a consumer that needs a local override (a rare, deliberate action).
+ *
+ * Order matters only if two files declare the same custom property — they
+ * don't, currently, and that's the intended invariant.
+ */
+
+@import "./colors.css";
+@import "./spacing.css";
+@import "./radius.css";
+@import "./typography.css";
+@import "./shadow.css";
+@import "./motion.css";
+@import "./z-index.css";

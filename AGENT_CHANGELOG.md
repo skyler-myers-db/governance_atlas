@@ -62,6 +62,30 @@ Use these as the standard minimum verification steps for non-trivial passes:
 
 ## Active Entries
 
+## 2026-04-17 19:11:00 EDT - Phase 2 Tranche B: design tokens module
+
+Phase 2 Tranche B lifts the scattered design values out of `frontend/src/styles/app.css` into a dedicated tokens module at `frontend/src/design/tokens/`. This tranche is deliberately a behavior-free refactor — no visible pixel changes — so the Tranche C defect sweep that follows can refer to a stable token vocabulary instead of planting new magic values.
+
+What shipped:
+
+- `frontend/src/design/tokens/colors.css` — bg/surface/line/ink/accent/status tokens, verbatim from the original `:root` block.
+- `frontend/src/design/tokens/spacing.css` — `--gh-space-0..9` 4px-based scale, verbatim.
+- `frontend/src/design/tokens/radius.css` — existing sm/md/lg/xl plus new `--gh-radius-xs` (6px), `--gh-radius-2xl` (24px), `--gh-radius-pill` (999px) covering scattered 6/22/24px uses.
+- `frontend/src/design/tokens/typography.css` — `--gh-font` stack plus font-weight (bold/heavy/black) and line-height (tight/snug/normal/loose) scales. Fluid clamp() expressions remain in app.css; those are a Tranche C call.
+- `frontend/src/design/tokens/shadow.css` — existing `--gh-shadow` / `--gh-shadow-soft` plus `--gh-shadow-sm/md/lg` depth scale, `--gh-shadow-focus`, `--gh-shadow-accent`, and `--gh-glass-highlight` for the inset top-edge bevel effect used throughout.
+- `frontend/src/design/tokens/motion.css` — `--gh-duration-instant/quick/standard/slow` and `--gh-ease-standard/out/in`. Reduced-motion media query zeroes the durations.
+- `frontend/src/design/tokens/z-index.css` — `--gh-z-base/raised/sticky/shell-header/dropdown/overlay/modal/toast/max` stacking tiers, replacing the 20 ad-hoc z-index numbers catalogued in step 1.
+- `frontend/src/design/tokens/index.css` — aggregates all category files with `@import` so `app.css` pulls a single entry point.
+- `frontend/src/styles/app.css` — the 35-line `:root` block at the top is replaced with `@import "../design/tokens/index.css";`. No other line changed.
+
+Catalogue: ran an Explore subagent across all 6546 lines of app.css and produced a full inventory (27 unique shadow declarations, 46 hex colors, 60+ rgba variants, 19 `clamp()` expressions, 20 z-index values, etc.). Informs Tranche C.
+
+Gauntlet: 212/212 frontend tests still pass (24.10s). `npm run build` succeeds. CSS bundle size change: 101.98 kB → 103.15 kB (unused new tokens).
+
+Deploy + live-verify: `databricks bundle deploy` + `databricks apps deploy` both `SUCCEEDED` (deployment_id `01f13ab285bd13fea11382a56b2a1a8a`). Playwright on prod `/entity/test.silver.ap_self_assessed_tax_dist` confirms the new tokens resolve at the document root (`--gh-radius-xs: 6px`, `--gh-shadow-md: 0 10px 22px rgba(18, 35, 58, .08)`, `--gh-z-sticky: 40`) and Tranche A tooltips remain intact (Save metadata disabled with `title="No unsaved metadata changes to save."`). Screenshot at `.playwright-mcp/tranche-b-tokens-live.png` pixel-matches the Tranche A baseline.
+
+Not yet: Tranche C (visual defect sweep — overflow, box-in-box, empty column on Entity). Tranche C is where the new tokens actually get applied to the raw values scattered through app.css.
+
 ## 2026-04-17 18:49:00 EDT - Phase 2 Tranche A: truthful disabled-control explanations
 
 Phase 2 acceptance rule: "No visible control may ship unless it does something real or is disabled with a truthful explanation." Swept 20 previously-silent disabled controls across 7 files and wired each one to a derived reason string that is announced via `title` (and `aria-describedby` + visually-hidden text where screen-reader surfacing matters).

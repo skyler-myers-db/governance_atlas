@@ -1,0 +1,20 @@
+/*
+ * Typography tokens.
+ * The font stack is authoritative — every surface should inherit it.
+ * Responsive font-size uses clamp() at the document level in app.css and
+ * must be preserved. Tranche B does not attempt to normalize the 19+
+ * clamp() expressions; that's a Tranche C decision with visible impact.
+ */
+
+:root {
+  --gh-font: "Avenir Next", "Inter", "Segoe UI Variable Text", "Segoe UI", sans-serif;
+
+  --gh-font-weight-bold: 700;
+  --gh-font-weight-heavy: 800;
+  --gh-font-weight-black: 900;
+
+  --gh-line-height-tight: 1.2;
+  --gh-line-height-snug: 1.35;
+  --gh-line-height-normal: 1.5;
+  --gh-line-height-loose: 1.65;
+}
