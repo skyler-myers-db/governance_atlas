@@ -288,15 +288,35 @@ def cached_catalogs(uc: UCSQLClient) -> List[str]:
         hidden = _hidden_catalog_set()
         return sorted(value for value in values if value and value.lower() not in hidden)
 
-    return _ttl_value(f"catalogs:{_warehouse_key(uc)}", 600, _load)
+    key = f"catalogs:{_warehouse_key(uc)}"
+    # Use a short TTL for empty results so a transient warehouse cold-start or
+    # permission propagation lag does not poison the cache for 10 minutes.
+    cached = _TTL_CACHE.get(key)
+    now = time.time()
+    if cached and now - cached[0] < 600 and cached[1]:
+        return cached[1]
+    if cached and now - cached[0] < 15 and not cached[1]:
+        return cached[1]
+    value = _load()
+    _TTL_CACHE[key] = (now, value)
+    return value
 
 
 def cached_catalog_inventory(uc: UCSQLClient, catalog: str) -> pd.DataFrame:
-    return _ttl_value(
-        f"catalog_inventory:{_warehouse_key(uc)}:{normalize_str(catalog)}",
-        600,
-        lambda: uc.get_catalog_table_inventory(catalog),
-    )
+    key = f"catalog_inventory:{_warehouse_key(uc)}:{normalize_str(catalog)}"
+    cached = _TTL_CACHE.get(key)
+    now = time.time()
+    if cached and now - cached[0] < 600:
+        payload = cached[1]
+        # Empty frames from a transient permission / cold-start failure should
+        # not stick for 10 minutes; fall through to a quick retry after 15s.
+        if payload is not None and not (hasattr(payload, "empty") and payload.empty):
+            return payload
+        if now - cached[0] < 15:
+            return payload
+    value = uc.get_catalog_table_inventory(catalog)
+    _TTL_CACHE[key] = (now, value)
+    return value
 
 
 def cached_catalog_table_tags(uc: UCSQLClient, catalog: str) -> pd.DataFrame:

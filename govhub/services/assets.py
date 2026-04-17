@@ -181,16 +181,25 @@ def inventory(
     *,
     hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
 ) -> pd.DataFrame:
-    return _ttl_value(
-        f"inventory:{_warehouse_key(uc)}",
-        600,
-        lambda: build_inventory(
-            uc,
-            store,
-            hidden_catalogs,
-            _is_skippable_metadata_error,
-        ),
+    key = f"inventory:{_warehouse_key(uc)}"
+    cached = _TTL_CACHE.get(key)
+    now = time.time()
+    if cached and now - cached[0] < 600:
+        payload = cached[1]
+        # Empty inventory should not stick for 10 minutes if it came from a
+        # transient failure; fall through to a quick retry after 15 seconds.
+        if payload is not None and not (hasattr(payload, "empty") and payload.empty):
+            return payload
+        if now - cached[0] < 15:
+            return payload
+    value = build_inventory(
+        uc,
+        store,
+        hidden_catalogs,
+        _is_skippable_metadata_error,
     )
+    _TTL_CACHE[key] = (now, value)
+    return value
 
 
 def build_inventory(uc, store, hidden_catalogs: Sequence[str], is_skippable_metadata_error) -> pd.DataFrame:
