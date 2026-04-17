@@ -21,7 +21,13 @@ from pydantic import BaseModel, Field, field_validator
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from govhub.api import build_runtime_router
+from govhub.api import (
+    build_assets_router,
+    build_discovery_router,
+    build_governance_router,
+    build_lineage_router,
+    build_runtime_router,
+)
 from govhub.config import AppConfig
 from govhub.runtime_contract import validate_frontend_bundle
 from govhub.services import assets as asset_service
@@ -2732,7 +2738,6 @@ def _warmup_live_runtime() -> None:
     thread.start()
 
 
-@app.get("/api/discovery/search")
 def api_discovery_search(
     request: Request,
     query: str = "",
@@ -2813,7 +2818,6 @@ def api_discovery_search(
     )
 
 
-@app.post("/api/assets/availability")
 def api_asset_availability(
     payload: AssetAvailabilityRequest,
     request: Request,
@@ -2822,7 +2826,6 @@ def api_asset_availability(
     return JSONResponse(_asset_availability_payload(payload.assets, request))
 
 
-@app.get("/api/assets/{asset_fqn:path}")
 def api_asset_detail(
     asset_fqn: str,
     request: Request,
@@ -2913,7 +2916,6 @@ def api_asset_detail(
     )
 
 
-@app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/description")
 def api_patch_column_description(
     asset_fqn: str,
     column_name: str,
@@ -2959,7 +2961,6 @@ def api_patch_column_description(
     )
 
 
-@app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/tags")
 def api_patch_column_tags(
     asset_fqn: str,
     column_name: str,
@@ -3014,7 +3015,6 @@ def api_patch_column_tags(
     )
 
 
-@app.patch("/api/assets/{asset_fqn:path}/columns/{column_name}/metadata")
 def api_patch_column_metadata(
     asset_fqn: str,
     column_name: str,
@@ -3063,7 +3063,6 @@ def api_patch_column_metadata(
     )
 
 
-@app.patch("/api/assets/{asset_fqn:path}/description")
 def api_patch_asset_description(
     asset_fqn: str,
     payload: AssetDescriptionPatch,
@@ -3103,7 +3102,6 @@ def api_patch_asset_description(
     )
 
 
-@app.patch("/api/assets/{asset_fqn:path}/metadata")
 def api_patch_asset_metadata(
     asset_fqn: str,
     payload: AssetMetadataPatch,
@@ -3139,7 +3137,6 @@ def api_patch_asset_metadata(
     )
 
 
-@app.patch("/api/assets/{asset_fqn:path}/owners")
 def api_patch_asset_owners(
     asset_fqn: str,
     payload: AssetOwnersPatch,
@@ -3169,7 +3166,6 @@ def api_patch_asset_owners(
     )
 
 
-@app.patch("/api/assets/{asset_fqn:path}/tags")
 def api_patch_asset_tags(
     asset_fqn: str,
     payload: AssetTagsPatch,
@@ -3216,7 +3212,6 @@ def api_patch_asset_tags(
     )
 
 
-@app.get("/api/lineage/{asset_fqn:path}")
 def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
     _ensure_live_runtime()
     actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
@@ -3321,14 +3316,12 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
     )
 
 
-@app.get("/api/governance/summary")
 def api_governance_summary(request: Request) -> JSONResponse:
     _ensure_live_runtime()
     _ensure_governance_store()
     return JSONResponse(_governance_summary(request))
 
 
-@app.get("/api/governance/glossary")
 def api_governance_glossary(request: Request) -> JSONResponse:
     _ensure_live_runtime()
     _ensure_governance_store()
@@ -3345,7 +3338,6 @@ def api_governance_glossary(request: Request) -> JSONResponse:
     )
 
 
-@app.get("/api/governance/glossary/{term_id}")
 def api_governance_glossary_term(term_id: str, request: Request) -> JSONResponse:
     _ensure_live_runtime()
     _ensure_governance_store()
@@ -3362,7 +3354,6 @@ def api_governance_glossary_term(term_id: str, request: Request) -> JSONResponse
     return JSONResponse({"term": term})
 
 
-@app.post("/api/governance/requests")
 async def api_governance_create_request(request: Request) -> JSONResponse:
     _ensure_live_runtime()
     actor_email = _ensure_can_mutate(request)
@@ -3394,7 +3385,6 @@ async def api_governance_create_request(request: Request) -> JSONResponse:
     )
 
 
-@app.patch("/api/governance/requests/{request_id}")
 def api_governance_patch_request(
     request_id: str,
     payload: GovernanceRequestStatusPatch,
@@ -3445,7 +3435,6 @@ def api_governance_patch_request(
     )
 
 
-@app.patch("/api/governance/notifications/{notification_id}")
 def api_governance_patch_notification(
     notification_id: str,
     payload: GovernanceNotificationPatch,
@@ -3477,7 +3466,6 @@ def api_governance_patch_notification(
     )
 
 
-@app.post("/api/governance/owners")
 async def api_governance_upsert_owner(request: Request) -> JSONResponse:
     _ensure_live_runtime()
     actor_email = _ensure_can_mutate(request)
@@ -3510,7 +3498,6 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
     )
 
 
-@app.post("/api/governance/glossary")
 def api_governance_upsert_glossary(
     payload: GlossaryTermUpsert,
     request: Request,
@@ -3556,7 +3543,6 @@ def api_governance_upsert_glossary(
     )
 
 
-@app.patch("/api/governance/glossary/{term_id}")
 def api_governance_patch_glossary(
     term_id: str,
     payload: GlossaryTermUpsert,
@@ -3597,6 +3583,44 @@ def api_governance_patch_glossary(
             "governance": _governance_summary(request),
         }
     )
+
+
+app.include_router(
+    build_discovery_router(
+        search_endpoint=api_discovery_search,
+    )
+)
+app.include_router(
+    build_assets_router(
+        availability_endpoint=api_asset_availability,
+        detail_endpoint=api_asset_detail,
+        patch_column_description_endpoint=api_patch_column_description,
+        patch_column_tags_endpoint=api_patch_column_tags,
+        patch_column_metadata_endpoint=api_patch_column_metadata,
+        patch_asset_description_endpoint=api_patch_asset_description,
+        patch_asset_metadata_endpoint=api_patch_asset_metadata,
+        patch_asset_owners_endpoint=api_patch_asset_owners,
+        patch_asset_tags_endpoint=api_patch_asset_tags,
+    )
+)
+app.include_router(
+    build_lineage_router(
+        lineage_endpoint=api_lineage,
+    )
+)
+app.include_router(
+    build_governance_router(
+        summary_endpoint=api_governance_summary,
+        glossary_list_endpoint=api_governance_glossary,
+        glossary_term_endpoint=api_governance_glossary_term,
+        create_request_endpoint=api_governance_create_request,
+        patch_request_endpoint=api_governance_patch_request,
+        patch_notification_endpoint=api_governance_patch_notification,
+        upsert_owner_endpoint=api_governance_upsert_owner,
+        upsert_glossary_endpoint=api_governance_upsert_glossary,
+        patch_glossary_endpoint=api_governance_patch_glossary,
+    )
+)
 
 
 @app.get("/{client_path:path}", response_class=HTMLResponse, include_in_schema=False)
