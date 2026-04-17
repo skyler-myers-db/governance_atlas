@@ -434,10 +434,33 @@ function MetadataEditorPanel({
           ))}
 
           <div className="gh-record-form-actions">
-            <button className="gh-primary-button" disabled={editor.submitting || !dirty} type="submit">
+            <button
+              className="gh-primary-button"
+              disabled={editor.submitting || !dirty}
+              title={
+                editor.submitting
+                  ? "Saving metadata — please wait."
+                  : !dirty
+                    ? "No unsaved metadata changes to save."
+                    : undefined
+              }
+              type="submit"
+            >
               {editor.submitting ? "Saving..." : "Save metadata"}
             </button>
-            <button className="gh-secondary-button" disabled={editor.submitting || !dirty} onClick={onReset} type="button">
+            <button
+              className="gh-secondary-button"
+              disabled={editor.submitting || !dirty}
+              onClick={onReset}
+              title={
+                editor.submitting
+                  ? "Saving metadata — please wait before resetting."
+                  : !dirty
+                    ? "No unsaved metadata changes to reset."
+                    : undefined
+              }
+              type="button"
+            >
               Reset
             </button>
           </div>
@@ -1885,7 +1908,13 @@ export default function EntityWorkspace({
                         {columnMutation.error ? <div className="gh-inline-alert tone-warn">{columnMutation.error}</div> : null}
                         {columnMutation.success ? <div className="gh-inline-alert">{columnMutation.success}</div> : null}
                         <div className="gh-record-form-actions">
-                          <button className="gh-primary-button" disabled={columnMutation.loading} onClick={saveColumnMetadata} type="button">
+                          <button
+                            className="gh-primary-button"
+                            disabled={columnMutation.loading}
+                            onClick={saveColumnMetadata}
+                            title={columnMutation.loading ? "Saving column metadata — please wait." : undefined}
+                            type="button"
+                          >
                             {columnMutation.loading ? "Saving..." : "Save column"}
                           </button>
                         </div>

@@ -62,6 +62,60 @@ Use these as the standard minimum verification steps for non-trivial passes:
 
 ## Active Entries
 
+## 2026-04-17 18:49:00 EDT - Phase 2 Tranche A: truthful disabled-control explanations
+
+Phase 2 acceptance rule: "No visible control may ship unless it does something real or is disabled with a truthful explanation." Swept 20 previously-silent disabled controls across 7 files and wired each one to a derived reason string that is announced via `title` (and `aria-describedby` + visually-hidden text where screen-reader surfacing matters).
+
+Files touched:
+
+- `frontend/src/components/AppFrame.jsx` — shell brand button, 4 module tabs, global search input + submit (when bootstrap is not ready or errored), plus Mark read / Dismiss inbox buttons now carry state-derived titles. Search input additionally exposes `aria-describedby="gh-global-search-disabled-note"` pointing at a sr-only `<span>` carrying the reason so assistive tech reads it.
+- `frontend/src/components/DiscoveryWorkspace.jsx` — Join operator select, Insert-into-search button, and Load more results button now derive `joinOperatorDisabledReason` / `insertClauseDisabledReason` and surface them via `title`.
+- `frontend/src/components/EntityWorkspace.jsx` — Save metadata, Reset, and Save column buttons now derive loading vs. not-dirty reasoning (e.g. `"No unsaved metadata changes to save."`).
+- `frontend/src/components/GovernanceWorkspace.jsx` — Approve/Reject (both open-work and glossary lanes), Save owner, Create request, Create glossary term, Save term all carry dynamic titles keyed off `mutationState.loading` and field presence. Approve/Reject explicitly explains "This item is not backed by a governance request, so there is nothing to approve."
+- `frontend/src/components/LineageGraph.jsx` — Open Record, Open Governance, and Set as Focus now derive `unavailableReason` distinguishing "lineage-only reference" from "asset has no governed metadata record yet."
+- `frontend/src/components/WorkspaceDiagnosticsSurface.jsx` and `frontend/src/components/WorkspaceSetupWizard.jsx` — the single disabled refresh button in each now explains "Refreshing diagnostics…" vs "Initial diagnostics load in progress…".
+
+Gauntlet: 212/212 frontend tests pass (19.26s). `npm run build` succeeds; manifest hash `09b49855c877a809ef287f7b1f12c0b551a2437c121402bc5bfea15dcf65ea29`. `databricks bundle deploy` + `databricks apps deploy` both `SUCCEEDED` (deployment_id `01f13aae5ecd13df94f44370eaea0cb4`, app state `RUNNING`).
+
+Live verification: Navigated Playwright to prod `/entity/prod.silver.ap_self_assessed_tax_dist_history`, confirmed on live DOM that Save metadata button is `disabled` with `title="No unsaved metadata changes to save."` and Reset with `title="No unsaved metadata changes to reset."`. Screenshot at `.playwright-mcp/tranche-a-save-disabled-live.png`.
+
+Not yet done: Tranche B (design tokens), Tranche C (visual defect sweep), Tranche D (remaining primitives). Tranche C will likely surface more disabled-without-reason controls as a side effect; sweep those in as they are found rather than with a dedicated pass.
+
+## 2026-04-17 15:59:00 EDT - Lineage-unavailable regression, React bundle missing from deploys
+
+User-reported blocker: "every item says 'lineage unavailable'" after the fast-path runtime-status deploy.
+
+Root causes + fixes:
+
+- `frontend/src/App.jsx`: `DiscoveryWorkspace`, `EntityWorkspace`, `LineageWorkspace`, `GovernanceWorkspace` all read capabilities from the static `bootstrap` payload. With the new non-blocking bootstrap, `bootstrap.capabilities.tableLineage` returns `{available: false}` during the cold-warehouse warmup and never re-hydrates in the child components. `/api/runtime/status` already exposes the authoritative capability set (verified via curl: `tableLineage.available: true`, `canUseLineage: true` once the probe resolves) — it just never reached the workspaces. Added a `mergedBootstrap` memo that overlays `runtimeStatus.data.capabilities` and `runtimeStatus.data.featureFlags` onto the bootstrap payload once `runtimeStatus.data.runtime.state` is no longer `loading`, and passed `bootstrap={mergedBootstrap}` to the four workspace components. Result: DiscoveryResultCard's `Lineage unavailable` label flips back to `Open Lineage` automatically as soon as the warehouse probe succeeds.
+- `databricks.yml`: the repo-level `.gitignore` excludes `frontend/dist/`, and `databricks bundle deploy` was silently respecting that exclusion. The resulting prod app deployment contained `frontend/src`, `frontend/scripts`, etc., but no `frontend/dist/`, so `validate_frontend_bundle` couldn't find `index.html` or the build manifest and the first page render crashed the app with `FAILED: app crashed unexpectedly`. This also means *every prior deploy today* was shipping without the rebuilt React bundle — the UI the user was interacting with was whatever stale copy the Databricks Apps platform was caching. Tried a `.databricksignore` with `!frontend/dist/**`, but the CLI still dropped `dist/` (gitignore precedence won). Settled on `sync.include: [frontend/dist/**]` at the bundle root, which forces the built bundle into the upload. Verified via `databricks workspace list`: `index.html`, `govhub-build-manifest.json`, and the `assets/` directory now land in `/Workspace/.../files/frontend/dist/`. Post-deploy status: `App has status: App is running`, `deployment_state: SUCCEEDED`, all 8 effective scopes active.
+
+Gauntlet: 94 Python tests pass (full suite minus the repo-hygiene self-test), 212 frontend tests pass (26 files), `npm run build` succeeds, frontend source hash verified to match Python-computed hash (`011a11091920dbec2286560a81b33e7d1e7926715977e512a6cbe96340159955`). Deploy to prod succeeded end-to-end on the second attempt (first attempt crashed due to missing dist/).
+
+Still pending live verification: Playwright golden paths + screenshots against the fixed app, confirming "Open Lineage" button labels flip from unavailable to available once `/api/runtime/status` resolves. Blocked on Chrome CDP attachment.
+
+## 2026-04-17 14:30:00 EDT - OBO banner truth, fast /api/runtime/status, bundle-config scope persistence, hash parity
+
+User-reported blockers:
+
+1. "OBO is set up in the Databricks UI but the app still says it's not available."
+2. "The 'no OBO' / degraded banner takes 1-2 minutes to surface after the shell loads."
+3. "Every bundle deploy wipes the user_api_scopes I set in the Apps UI."
+4. `prepare_bundle.py` was flagging the frontend bundle as stale even after a fresh `npm run build`.
+
+Root causes + fixes:
+
+- `databricks.yml`: `user_api_scopes` was not declared in the app resource config, so every `databricks bundle deploy` rewrote the app resource with an empty scope list and silently demoted user reads back to app-principal fallback. Fixed by declaring the full scope list (`sql`, `catalog.{catalogs,schemas,tables}:read`, `catalog.connections`, `dashboards.genie`, `iam.current-user:read`, `iam.access-control:read`) under `resources.apps.governance_hub.user_api_scopes`.
+- `govhub/services/runtime_setup.py::setup_payload`: hardcoded `per_user_authorization=False`, so `auth.mode` / `workspaceAccess.mode` always reported `app-principal-only` even when the request carried a forwarded OBO token. Added `per_user_authorization: bool = False` parameter and plumbed it through the `runtime_auth_mode` call; `auth.perUserAuthorization` now reports `{implemented: True, state: "available"}` when the token is present. New test `test_per_user_authorization_flag_flips_auth_mode_to_obo_available` in `tests/test_runtime_setup.py`.
+- `runtime_app.py::_runtime_diagnostics_payload`: now passes `per_user_authorization=bool(_request_obo_token(request))` when building the setup payload, so the UI's workspaceAccess banner reflects the real per-request OBO state.
+- `runtime_app.py::_api_runtime_status_response`: was calling the blocking `_uc_runtime_status()` probe, which sat for 60-120s on cold serverless warehouse starts. Because the frontend sources `workspaceAccess` (and therefore the OBO banner) from `/api/runtime/status`, the banner couldn't surface until the warehouse probe completed — that was the reported 1-2 min delay. Swapped to `_uc_runtime_status_fast()`, which returns `state=loading` immediately with the warehouse probe running in the background.
+- `frontend/src/App.jsx`: added a dynamic `refetchInterval` on `useRuntimeStatus` that polls `/api/runtime/status` every 5s while `runtime.state === "loading"` and stops polling once the warehouse resolves. This lets capability/summary data hydrate transparently once the cold warehouse is ready without forcing a page refresh.
+- `frontend/scripts/write_build_manifest.mjs`: the JS-side `frontendSourceHash` was diverging from `govhub/runtime_contract.py::frontend_source_hash` because the JS walker used per-directory `localeCompare` sort while Python uses `Path.rglob("*")` + `sorted()` (flat byte-order sort over full POSIX relative paths). Rewrote the JS walker to collect all files recursively then sort by full POSIX relative path with byte-order comparison. Hash parity verified: JS-written manifest `sourceHash` now matches `python -c "from govhub.runtime_contract import frontend_source_hash; print(frontend_source_hash())"` → `5c3b1c1ad240c17288c3c978169e408eed3d3a86f3dbcc0b530d534bb46af239`.
+
+Gauntlet: 99 backend tests pass, 212 frontend tests pass (26 files), ESLint clean (11 pre-existing warnings, 0 errors), vite build succeeds, `prepare_bundle.py` succeeds with matching hash, `scripts/validate_repo_hygiene.py` passes.
+
+Still pending live verification: the 1-2 min delay fix and OBO banner fix need a redeploy + live Playwright / log pull. The two remaining user feedback items — UI text overflow / boxes-in-boxes on the Metadata Catalog surface, and mouse-lag performance degradation after a few minutes idle — could not be diagnosed from static code review alone and will be triaged in the live session once Chrome CDP or OAuth login is working.
+
 ## 2026-04-17 00:42:00 EDT - OBO wiring: read forwarded token, actor-scoped writes, truthful capabilities
 
 - User feedback: "OBO is enabled in the Apps console but the app says it is unavailable. Fix that."
