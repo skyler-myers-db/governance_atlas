@@ -218,7 +218,9 @@ class UCSQLClient:
                 self._client_context["authMode"] = "default"
             return client
         except Exception as exc:
-            self._client_context["clientInitError"] = _safe_error_text(explicit_error or exc)
+            self._client_context["clientInitError"] = _safe_error_text(
+                explicit_error or exc
+            )
             raise explicit_error or exc
 
     def runtime_context(self) -> Dict[str, Any]:
@@ -226,12 +228,25 @@ class UCSQLClient:
 
     def _empty_table_tag_df(self) -> pd.DataFrame:
         return pd.DataFrame(
-            columns=["table_catalog", "table_schema", "table_name", "tag_name", "tag_value"]
+            columns=[
+                "table_catalog",
+                "table_schema",
+                "table_name",
+                "tag_name",
+                "tag_value",
+            ]
         )
 
     def _empty_column_tag_df(self) -> pd.DataFrame:
         return pd.DataFrame(
-            columns=["table_catalog", "table_schema", "table_name", "column_name", "tag_name", "tag_value"]
+            columns=[
+                "table_catalog",
+                "table_schema",
+                "table_name",
+                "column_name",
+                "tag_name",
+                "tag_value",
+            ]
         )
 
     def _relation_type(
@@ -278,8 +293,12 @@ class UCSQLClient:
             return pd.DataFrame(columns=["tag_name", "tag_value"])
         if "tag_value" not in normalized.columns:
             normalized["tag_value"] = ""
-        normalized["tag_name"] = normalized["tag_name"].map(lambda value: str(value or "").strip())
-        normalized["tag_value"] = normalized["tag_value"].map(lambda value: str(value or "").strip())
+        normalized["tag_name"] = normalized["tag_name"].map(
+            lambda value: str(value or "").strip()
+        )
+        normalized["tag_value"] = normalized["tag_value"].map(
+            lambda value: str(value or "").strip()
+        )
         normalized = normalized[normalized["tag_name"].ne("")].copy()
         if normalized.empty:
             return pd.DataFrame(columns=["tag_name", "tag_value"])
@@ -522,7 +541,10 @@ ORDER BY table_schema, table_name, tag_name""",
             if df.empty:
                 continue
             normalized = _normalized_columns_df(df)
-            if "table_schema" not in normalized.columns and "schema_name" in normalized.columns:
+            if (
+                "table_schema" not in normalized.columns
+                and "schema_name" in normalized.columns
+            ):
                 normalized["table_schema"] = normalized["schema_name"]
             if "table_catalog" not in normalized.columns:
                 normalized["table_catalog"] = catalog
@@ -598,7 +620,9 @@ WHERE table_catalog = {sql_literal(catalog)}
   AND table_schema  = {sql_literal(schema)}
   AND table_name    = {sql_literal(table)}
 LIMIT 1"""
-        df = self._query_first_non_empty([q_with_format, q, q_system_with_format, q_system])
+        df = self._query_first_non_empty(
+            [q_with_format, q, q_system_with_format, q_system]
+        )
         if df.empty:
             return pd.DataFrame(
                 columns=[
@@ -675,9 +699,7 @@ ORDER BY ordinal_position""",
         normalized = normalized.reset_index(drop=True)
         normalized["ordinal_position"] = range(1, len(normalized) + 1)
         normalized = normalized.rename(columns={"col_name": "column_name"})
-        return normalized[
-            ["ordinal_position", "column_name", "data_type", "comment"]
-        ]
+        return normalized[["ordinal_position", "column_name", "data_type", "comment"]]
 
     def get_table_tags(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
         queries = [
@@ -853,7 +875,9 @@ ORDER BY tc.constraint_name, kcu.ordinal_position"""
         for target_keyword in _relation_tag_target_keywords(relation_type):
             try:
                 for key in tag_keys:
-                    self.execute(f"UNSET TAG ON {target_keyword} {full} {sql_literal(key)}")
+                    self.execute(
+                        f"UNSET TAG ON {target_keyword} {full} {sql_literal(key)}"
+                    )
                 return
             except Exception as exc:
                 last_error = exc
@@ -892,9 +916,7 @@ ORDER BY tc.constraint_name, kcu.ordinal_position"""
         except Exception:
             pass
         if not rows:
-            return pd.DataFrame(
-                columns=["email", "display_name", "principal_type"]
-            )
+            return pd.DataFrame(columns=["email", "display_name", "principal_type"])
         return (
             pd.DataFrame(rows)
             .drop_duplicates(subset=["email"])
@@ -1152,9 +1174,7 @@ LIMIT {int(limit)}
             if entity_type_n in {"PIPELINE", "DLT_PIPELINE", "LAKEFLOW_PIPELINE"}:
                 response = self.w.pipelines.get(entity_id_n)
                 return str(
-                    _get(response, "name")
-                    or _get(response, "spec", "name")
-                    or ""
+                    _get(response, "name") or _get(response, "spec", "name") or ""
                 ).strip()
 
             if entity_type_n in {
@@ -1165,9 +1185,7 @@ LIMIT {int(limit)}
             }:
                 response = self.w.queries.get(entity_id_n)
                 return str(
-                    _get(response, "display_name")
-                    or _get(response, "name")
-                    or ""
+                    _get(response, "display_name") or _get(response, "name") or ""
                 ).strip()
 
             if entity_type_n in {"DASHBOARD", "DBSQL_DASHBOARD"}:
@@ -1298,7 +1316,10 @@ ORDER BY column_name, tag_name""",
             normalized = _normalized_columns_df(df)
             if "table_catalog" not in normalized.columns:
                 normalized["table_catalog"] = catalog
-            if "table_schema" not in normalized.columns and "schema_name" in normalized.columns:
+            if (
+                "table_schema" not in normalized.columns
+                and "schema_name" in normalized.columns
+            ):
                 normalized["table_schema"] = normalized["schema_name"]
             return normalized[
                 [
