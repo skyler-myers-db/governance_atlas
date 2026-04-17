@@ -303,6 +303,71 @@ def _uc() -> UCSQLClient:
     return UCSQLClient(warehouse_id=_config().warehouse_id)
 
 
+# OBO / per-user actor clients are scoped by forwarded access token. The Databricks
+# Apps platform rotates forwarded tokens on the order of minutes, so we memoize by a
+# short hash of the token with a brief TTL to avoid rebuilding a WorkspaceClient on
+# every request while still respecting the token lifecycle.
+_OBO_CLIENT_CACHE: Dict[str, Tuple[float, UCSQLClient]] = {}
+_OBO_CLIENT_TTL_SECONDS = 120
+
+
+def _obo_token_key(token: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
+
+
+def _uc_for_token(user_access_token: str) -> UCSQLClient:
+    token = (user_access_token or "").strip()
+    if not token:
+        return _uc()
+    key = _obo_token_key(token)
+    now = time.time()
+    cached = _OBO_CLIENT_CACHE.get(key)
+    if cached and now - cached[0] < _OBO_CLIENT_TTL_SECONDS:
+        return cached[1]
+    client = UCSQLClient(
+        warehouse_id=_config().warehouse_id,
+        user_access_token=token,
+    )
+    _OBO_CLIENT_CACHE[key] = (now, client)
+    # Trim the cache so it cannot grow unbounded across long-running containers.
+    if len(_OBO_CLIENT_CACHE) > 32:
+        cutoff = now - _OBO_CLIENT_TTL_SECONDS
+        for stale_key in [k for k, v in _OBO_CLIENT_CACHE.items() if v[0] < cutoff]:
+            _OBO_CLIENT_CACHE.pop(stale_key, None)
+    return client
+
+
+def _request_obo_token(request: Optional[Request]) -> str:
+    if request is None:
+        return ""
+    headers = getattr(request, "headers", None) or {}
+    getter = getattr(headers, "get", None)
+    if not callable(getter):
+        return ""
+    # Databricks Apps forwards the OAuth access token for per-user authorization
+    # via `X-Forwarded-Access-Token`. Be tolerant of header-case variants.
+    raw = (
+        getter("x-forwarded-access-token")
+        or getter("X-Forwarded-Access-Token")
+        or ""
+    )
+    return raw.strip()
+
+
+def _uc_for_request(request: Optional[Request]) -> UCSQLClient:
+    token = _request_obo_token(request)
+    if token:
+        try:
+            return _uc_for_token(token)
+        except Exception:
+            # If actor-scoped client construction fails we transparently fall back to
+            # the app-principal client so the read path stays available.
+            return _uc()
+    return _uc()
+
+
 @lru_cache(maxsize=1)
 def _store() -> GovernanceStore:
     cfg = _config()
@@ -612,7 +677,7 @@ def _request_auth_mode(request: Optional[Request]) -> str:
         authenticated=_user_email(request) != "unknown"
         if request is not None
         else False,
-        per_user_authorization=False,
+        per_user_authorization=bool(_request_obo_token(request)),
     )
 
 
@@ -772,6 +837,7 @@ def _capabilities_payload(
         available_catalog_count=int(resolved_summary.get("availableCatalogCount") or 0),
         observed_catalog_count=int(resolved_summary.get("observedCatalogCount") or 0),
         boot_message=boot_message,
+        per_user_authorization=bool(_request_obo_token(request)),
     )
 
 
@@ -2031,10 +2097,13 @@ def _normalized_tag_map(df: pd.DataFrame) -> Dict[str, str]:
     return tags
 
 
-def _asset_table_type(asset_fqn: str) -> str:
+def _asset_table_type(
+    asset_fqn: str, *, request: Optional[Request] = None
+) -> str:
     catalog, schema, table = _split_uc_name(asset_fqn)
+    uc = _uc_for_request(request)
     try:
-        identity_df = _uc().get_table_identity(catalog, schema, table)
+        identity_df = uc.get_table_identity(catalog, schema, table)
     except Exception:
         return ""
     if identity_df is None or identity_df.empty:
@@ -2047,14 +2116,16 @@ def _apply_table_tags(
     tags: Dict[str, str],
     *,
     table_type: str = "",
+    request: Optional[Request] = None,
 ) -> Dict[str, str]:
     catalog, schema, table = _split_uc_name(asset_fqn)
+    uc = _uc_for_request(request)
     normalized_tags = {
         _normalize_str(key): _normalize_str(value)
         for key, value in tags.items()
         if _normalize_str(key) and _normalize_str(value)
     }
-    current_tags = _normalized_tag_map(_uc().get_table_tags(catalog, schema, table))
+    current_tags = _normalized_tag_map(uc.get_table_tags(catalog, schema, table))
     to_unset = [key for key in current_tags if key not in normalized_tags]
     to_set = {
         key: value
@@ -2062,7 +2133,7 @@ def _apply_table_tags(
         if current_tags.get(key) != value
     }
     if to_unset:
-        _uc().unset_table_tags(
+        uc.unset_table_tags(
             catalog,
             schema,
             table,
@@ -2070,14 +2141,14 @@ def _apply_table_tags(
             table_type=table_type,
         )
     if to_set:
-        _uc().set_table_tags(
+        uc.set_table_tags(
             catalog,
             schema,
             table,
             to_set,
             table_type=table_type,
         )
-    return _normalized_tag_map(_uc().get_table_tags(catalog, schema, table))
+    return _normalized_tag_map(uc.get_table_tags(catalog, schema, table))
 
 
 def _tag_write_warning(
@@ -2100,15 +2171,16 @@ def _apply_asset_metadata(
     request: Optional[Request] = None,
 ) -> Tuple[Dict[str, Any], str]:
     catalog, schema, table = _split_uc_name(asset_fqn)
-    table_type = _asset_table_type(asset_fqn)
-    _uc().set_table_comment(
+    table_type = _asset_table_type(asset_fqn, request=request)
+    uc = _uc_for_request(request)
+    uc.set_table_comment(
         catalog,
         schema,
         table,
         payload.description or "",
         table_type=table_type,
     )
-    current_tags = _normalized_tag_map(_uc().get_table_tags(catalog, schema, table))
+    current_tags = _normalized_tag_map(uc.get_table_tags(catalog, schema, table))
     next_tags = dict(current_tags)
     structured = {
         "domain": payload.domain,
@@ -2140,7 +2212,9 @@ def _apply_asset_metadata(
                 next_tags.pop(key, None)
         for key, value in normalized_freeform_tags.items():
             next_tags[key] = value
-    applied_tags = _apply_table_tags(asset_fqn, next_tags, table_type=table_type)
+    applied_tags = _apply_table_tags(
+        asset_fqn, next_tags, table_type=table_type, request=request
+    )
     _invalidate_asset_caches(asset_fqn)
     return (
         _asset_detail_payload(asset_fqn, request=request),
@@ -2155,15 +2229,17 @@ def _apply_column_tags(
     *,
     table_type: str = "",
     updated_by: str = "unknown",
+    request: Optional[Request] = None,
 ) -> Dict[str, str]:
     catalog, schema, table = _split_uc_name(asset_fqn)
+    uc = _uc_for_request(request)
     normalized_tags = {
         _normalize_str(key): _normalize_str(value)
         for key, value in tags.items()
         if _normalize_str(key) and _normalize_str(value)
     }
     current_tags = _normalized_tag_map(
-        _uc().get_column_tags(catalog, schema, table, column_name)
+        uc.get_column_tags(catalog, schema, table, column_name)
     )
     to_unset = [key for key in current_tags if key not in normalized_tags]
     to_set = {
@@ -2172,7 +2248,7 @@ def _apply_column_tags(
         if current_tags.get(key) != value
     }
     if to_unset:
-        _uc().unset_column_tags(
+        uc.unset_column_tags(
             catalog,
             schema,
             table,
@@ -2181,7 +2257,7 @@ def _apply_column_tags(
             table_type=table_type,
         )
     if to_set:
-        _uc().set_column_tags(
+        uc.set_column_tags(
             catalog,
             schema,
             table,
@@ -2190,7 +2266,7 @@ def _apply_column_tags(
             table_type=table_type,
         )
     applied_tags = _normalized_tag_map(
-        _uc().get_column_tags(catalog, schema, table, column_name)
+        uc.get_column_tags(catalog, schema, table, column_name)
     )
     store = _store()
     linked_terms = store.replace_glossary_term_links(
@@ -2378,6 +2454,7 @@ def _shell_payload(
         available_catalog_count=0,
         observed_catalog_count=0,
         boot_message=message,
+        per_user_authorization=bool(_request_obo_token(request)),
     )
     payload = {
         "version": APP_VERSION,
@@ -2874,8 +2951,9 @@ def api_patch_column_tags(
         asset_fqn,
         column_name,
         payload.tags,
-        table_type=_asset_table_type(asset_fqn),
+        table_type=_asset_table_type(asset_fqn, request=request),
         updated_by=actor_email,
+        request=request,
     )
     _invalidate_asset_caches(asset_fqn)
     after = _metadata_audit_column_snapshot(asset_fqn, column_name, request)
@@ -3080,7 +3158,8 @@ def api_patch_asset_tags(
     applied = _apply_table_tags(
         asset_fqn,
         payload.tags,
-        table_type=_asset_table_type(asset_fqn),
+        table_type=_asset_table_type(asset_fqn, request=request),
+        request=request,
     )
     _invalidate_asset_caches(asset_fqn)
     after = _metadata_audit_asset_snapshot(asset_fqn, request)
