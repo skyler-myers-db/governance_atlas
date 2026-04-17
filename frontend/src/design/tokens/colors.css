@@ -1,0 +1,29 @@
+/*
+ * Color tokens.
+ * Semantic surfaces, borders, text, accent, and status.
+ * Names and values match the original :root block in app.css — any change here
+ * is a visible change to the product surface and must be intentional.
+ */
+
+:root {
+  --gh-bg: #edf2f8;
+  --gh-bg-2: #e3ebf4;
+  --gh-surface: #ffffff;
+  --gh-surface-soft: #f5f8fc;
+  --gh-surface-muted: #eef3f8;
+
+  --gh-line: #d6e0ec;
+  --gh-line-strong: #b6c6d8;
+
+  --gh-ink: #162338;
+  --gh-ink-soft: #52657d;
+  --gh-ink-muted: #74859b;
+
+  --gh-accent: #0f5cc0;
+  --gh-accent-2: #0b79c9;
+  --gh-accent-soft: #e6f0ff;
+
+  --gh-good: #1f8b67;
+  --gh-warn: #b67b1f;
+  --gh-bad: #c1545f;
+}

@@ -1,0 +1,20 @@
+/*
+ * Spacing scale.
+ * 4px-based modular scale: space-1 = 4, space-2 = 8, step=4 until space-6, then 8.
+ * Intermediate values (2, 6, 10, 14) still appear hardcoded throughout app.css;
+ * Tranche B step 3 will migrate those sites to the scale where the shift is
+ * imperceptible, and leave true one-offs alone.
+ */
+
+:root {
+  --gh-space-0: 0;
+  --gh-space-1: 4px;
+  --gh-space-2: 8px;
+  --gh-space-3: 12px;
+  --gh-space-4: 16px;
+  --gh-space-5: 20px;
+  --gh-space-6: 24px;
+  --gh-space-7: 32px;
+  --gh-space-8: 40px;
+  --gh-space-9: 48px;
+}

@@ -1,0 +1,18 @@
+/*
+ * Stacking layer tokens.
+ * The catalogue surfaced 20 ad-hoc z-index values with no discipline.
+ * These tokens name the stacking intent. Tranche C sweeps will migrate
+ * existing sites to these layers; don't invent new numeric z-index values.
+ */
+
+:root {
+  --gh-z-base: 0;
+  --gh-z-raised: 10;
+  --gh-z-sticky: 40;
+  --gh-z-shell-header: 80;
+  --gh-z-dropdown: 140;
+  --gh-z-overlay: 220;
+  --gh-z-modal: 260;
+  --gh-z-toast: 320;
+  --gh-z-max: 999;
+}
