@@ -82,7 +82,15 @@ class RuntimeApiContractsTests(unittest.TestCase):
         with patch.multiple(
             runtime_app,
             _uc_runtime_status=lambda: {"state": "live", "message": ""},
-            _route_context=lambda _request: {"surface": "discovery", "asset": "", "query": ""},
+            _uc_runtime_status_fast=lambda background=True: {
+                "state": "live",
+                "message": "",
+            },
+            _route_context=lambda _request: {
+                "surface": "discovery",
+                "asset": "",
+                "query": "",
+            },
             _build_id=lambda: "build-123",
             _config=lambda: SimpleNamespace(diagnostics_enabled=True, admin_emails=[]),
         ):
@@ -104,7 +112,9 @@ class RuntimeApiContractsTests(unittest.TestCase):
             _build_id=lambda: "build-123",
             _config=lambda: SimpleNamespace(diagnostics_enabled=False, admin_emails=[]),
         ):
-            payload = runtime_app._bootstrap_unavailable_payload(None, "Warehouse unavailable.")
+            payload = runtime_app._bootstrap_unavailable_payload(
+                None, "Warehouse unavailable."
+            )
 
         self.assertEqual(payload["bootstrapContract"]["version"], "bootstrap-v3")
         self.assertEqual(payload["bootstrapContract"]["mode"], "bootstrap-unavailable")
@@ -147,12 +157,16 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertEqual(bootstrap_result.status_code, 200)
         self.assertEqual(runtime_status_result.status_code, 200)
         self.assertEqual(_response_json(bootstrap_result), {"surface": "bootstrap"})
-        self.assertEqual(_response_json(runtime_status_result), {"surface": "runtime_status"})
+        self.assertEqual(
+            _response_json(runtime_status_result), {"surface": "runtime_status"}
+        )
 
     def test_runtime_app_routes_delegate_to_runtime_helpers(self) -> None:
         runtime_app = snapshot_script.runtime_app
         routes = {
-            route.path: route for route in runtime_app.app.routes if route.path in snapshot_script.RUNTIME_PATHS
+            route.path: route
+            for route in runtime_app.app.routes
+            if route.path in snapshot_script.RUNTIME_PATHS
         }
         request = object()
 
@@ -195,7 +209,9 @@ class RuntimeApiContractsTests(unittest.TestCase):
                 "visibilityState": "visible",
             },
         ):
-            payload = runtime_app._asset_availability_payload(["main.sales.orders"], request)
+            payload = runtime_app._asset_availability_payload(
+                ["main.sales.orders"], request
+            )
 
         self.assertFalse(payload["meta"]["authoritative"])
         self.assertTrue(payload["meta"]["degraded"])
@@ -203,7 +219,9 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertEqual(payload["meta"]["visibilityScope"], "workspace-app-principal")
         self.assertFalse(payload["meta"]["capabilities"]["separatesExistsFromVisible"])
 
-    def test_asset_detail_unknown_visibility_returns_canonical_error_payload(self) -> None:
+    def test_asset_detail_unknown_visibility_returns_canonical_error_payload(
+        self,
+    ) -> None:
         runtime_app = snapshot_script.runtime_app
         request = SimpleNamespace(headers={})
 
@@ -218,16 +236,22 @@ class RuntimeApiContractsTests(unittest.TestCase):
                 "reason": "Visibility verification failed.",
             },
         ):
-            response = runtime_app.api_asset_detail("main.sales.orders", request, sections=[])
+            response = runtime_app.api_asset_detail(
+                "main.sales.orders", request, sections=[]
+            )
 
         payload = _response_json(response)
         self.assertEqual(response.status_code, 503)
         self.assertEqual(payload["detail"], "Visibility verification failed.")
         self.assertEqual(payload["meta"]["capabilities"]["visibilityState"], "unknown")
         self.assertEqual(payload["meta"]["state"], "unknown")
-        self.assertEqual(payload["errors"][0]["message"], "Visibility verification failed.")
+        self.assertEqual(
+            payload["errors"][0]["message"], "Visibility verification failed."
+        )
 
-    def test_asset_availability_fails_closed_without_actor_scoped_visibility_proof(self) -> None:
+    def test_asset_availability_fails_closed_without_actor_scoped_visibility_proof(
+        self,
+    ) -> None:
         runtime_app = snapshot_script.runtime_app
         request = SimpleNamespace(headers={})
 
@@ -237,7 +261,9 @@ class RuntimeApiContractsTests(unittest.TestCase):
             _asset_is_visible=lambda *_args, **_kwargs: False,
             _asset_exists=lambda *_args, **_kwargs: True,
         ):
-            payload = runtime_app._asset_availability_payload(["main.sales.hidden_orders"], request)
+            payload = runtime_app._asset_availability_payload(
+                ["main.sales.hidden_orders"], request
+            )
 
         record = payload["assets"]["main.sales.hidden_orders"]
         self.assertFalse(record["exists"])
@@ -246,7 +272,9 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertEqual(record["visibilityState"], "missing")
         self.assertEqual(payload["meta"]["state"], "degraded")
 
-    def test_invalid_discovery_query_preserves_invalid_query_payload_and_meta(self) -> None:
+    def test_invalid_discovery_query_preserves_invalid_query_payload_and_meta(
+        self,
+    ) -> None:
         runtime_app = snapshot_script.runtime_app
         request = SimpleNamespace(headers={})
         invalid_query = {
@@ -256,16 +284,21 @@ class RuntimeApiContractsTests(unittest.TestCase):
             "supportedFields": ["name", "domain"],
         }
 
-        with patch.multiple(
-            runtime_app,
-            _ensure_live_runtime=lambda: None,
-            _discovery_search_payload=lambda **_kwargs: (_ for _ in ()).throw(
-                runtime_app.asset_service.DiscoveryQuerySyntaxError("Expected a search term after OR.")
+        with (
+            patch.multiple(
+                runtime_app,
+                _ensure_live_runtime=lambda: None,
+                _discovery_search_payload=lambda **_kwargs: (_ for _ in ()).throw(
+                    runtime_app.asset_service.DiscoveryQuerySyntaxError(
+                        "Expected a search term after OR."
+                    )
+                ),
             ),
-        ), patch.object(
-            runtime_app.asset_service,
-            "discovery_invalid_query_payload",
-            return_value=invalid_query,
+            patch.object(
+                runtime_app.asset_service,
+                "discovery_invalid_query_payload",
+                return_value=invalid_query,
+            ),
         ):
             response = runtime_app.api_discovery_search(request)
 
@@ -288,24 +321,27 @@ class RuntimeApiContractsTests(unittest.TestCase):
                 mutated["called"] = True
                 return None
 
-        with patch.multiple(
-            runtime_app,
-            _ensure_live_runtime=lambda: None,
-            _ensure_can_mutate=lambda _request: "writer@example.com",
-            _user_role_slug=lambda _request: "admin",
-            _store=lambda: Store(),
-            _governance_summary=lambda _request: {"backlog": []},
-            _invalidate_asset_caches=lambda _asset_fqn: None,
-            _asset_visibility_record=lambda *_args, **_kwargs: {
-                "openable": False,
-                "visible": False,
-                "exists": False,
-                "visibilityState": "missing",
-            },
-        ), patch.object(
-            runtime_app,
-            "_asset_detail_payload",
-            side_effect=AssertionError("hidden asset detail should not be loaded"),
+        with (
+            patch.multiple(
+                runtime_app,
+                _ensure_live_runtime=lambda: None,
+                _ensure_can_mutate=lambda _request: "writer@example.com",
+                _user_role_slug=lambda _request: "admin",
+                _store=lambda: Store(),
+                _governance_summary=lambda _request: {"backlog": []},
+                _invalidate_asset_caches=lambda _asset_fqn: None,
+                _asset_visibility_record=lambda *_args, **_kwargs: {
+                    "openable": False,
+                    "visible": False,
+                    "exists": False,
+                    "visibilityState": "missing",
+                },
+            ),
+            patch.object(
+                runtime_app,
+                "_asset_detail_payload",
+                side_effect=AssertionError("hidden asset detail should not be loaded"),
+            ),
         ):
             with self.assertRaises(runtime_app.HTTPException) as exc:
                 runtime_app.api_governance_patch_request(

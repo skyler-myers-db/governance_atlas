@@ -214,7 +214,8 @@ def glossary_link_lookup(
                 "termId": term_id,
                 "term": normalize_str(term.get("name")) if term else "",
                 "source": normalize_str(row.get("source")).lower() or "manual",
-                "resolutionState": normalize_str(row.get("resolution_state")).lower() or "linked",
+                "resolutionState": normalize_str(row.get("resolution_state")).lower()
+                or "linked",
             }
         )
     return lookup
@@ -225,7 +226,11 @@ def glossary_terms_for_subject(
     subject_fqn: str,
     link_lookup: Dict[str, List[Dict[str, Any]]],
 ) -> List[Dict[str, Any]]:
-    return list(link_lookup.get(f"{normalize_str(subject_type).lower()}:{normalize_str(subject_fqn)}:", []))
+    return list(
+        link_lookup.get(
+            f"{normalize_str(subject_type).lower()}:{normalize_str(subject_fqn)}:", []
+        )
+    )
 
 
 def empty_inventory() -> pd.DataFrame:
@@ -286,7 +291,9 @@ def cached_catalogs(uc: UCSQLClient) -> List[str]:
                 if normalize_str(value)
             )
         hidden = _hidden_catalog_set()
-        return sorted(value for value in values if value and value.lower() not in hidden)
+        return sorted(
+            value for value in values if value and value.lower() not in hidden
+        )
 
     key = f"catalogs:{_warehouse_key(uc)}"
     # Use a short TTL for empty results so a transient warehouse cold-start or
@@ -327,7 +334,9 @@ def cached_catalog_table_tags(uc: UCSQLClient, catalog: str) -> pd.DataFrame:
     )
 
 
-def cached_columns(uc: UCSQLClient, catalog: str, schema: str, table: str) -> pd.DataFrame:
+def cached_columns(
+    uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
     return _ttl_value(
         f"columns:{_warehouse_key(uc)}:{normalize_str(catalog)}:{normalize_str(schema)}:{normalize_str(table)}",
         600,
@@ -343,7 +352,9 @@ def cached_comment(uc: UCSQLClient, catalog: str, schema: str, table: str) -> st
     )
 
 
-def cached_table_detail(uc: UCSQLClient, catalog: str, schema: str, table: str) -> pd.DataFrame:
+def cached_table_detail(
+    uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
     return _ttl_value(
         f"table_detail:{_warehouse_key(uc)}:{normalize_str(catalog)}:{normalize_str(schema)}:{normalize_str(table)}",
         600,
@@ -351,7 +362,9 @@ def cached_table_detail(uc: UCSQLClient, catalog: str, schema: str, table: str) 
     )
 
 
-def cached_table_row_count(uc: UCSQLClient, catalog: str, schema: str, table: str) -> Any:
+def cached_table_row_count(
+    uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> Any:
     return _ttl_value(
         f"row_count:{_warehouse_key(uc)}:{normalize_str(catalog)}:{normalize_str(schema)}:{normalize_str(table)}",
         600,
@@ -359,7 +372,9 @@ def cached_table_row_count(uc: UCSQLClient, catalog: str, schema: str, table: st
     )
 
 
-def cached_table_properties(uc: UCSQLClient, catalog: str, schema: str, table: str) -> pd.DataFrame:
+def cached_table_properties(
+    uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
     return _ttl_value(
         f"table_properties:{_warehouse_key(uc)}:{normalize_str(catalog)}:{normalize_str(schema)}:{normalize_str(table)}",
         600,
@@ -367,7 +382,9 @@ def cached_table_properties(uc: UCSQLClient, catalog: str, schema: str, table: s
     )
 
 
-def cached_table_constraints(uc: UCSQLClient, catalog: str, schema: str, table: str) -> pd.DataFrame:
+def cached_table_constraints(
+    uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
     return _ttl_value(
         f"table_constraints:{_warehouse_key(uc)}:{normalize_str(catalog)}:{normalize_str(schema)}:{normalize_str(table)}",
         600,
@@ -375,7 +392,9 @@ def cached_table_constraints(uc: UCSQLClient, catalog: str, schema: str, table: 
     )
 
 
-def cached_sample_rows(uc: UCSQLClient, catalog: str, schema: str, table: str) -> pd.DataFrame:
+def cached_sample_rows(
+    uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
     return _ttl_value(
         f"sample_rows:{_warehouse_key(uc)}:{normalize_str(catalog)}:{normalize_str(schema)}:{normalize_str(table)}",
         600,
@@ -383,7 +402,9 @@ def cached_sample_rows(uc: UCSQLClient, catalog: str, schema: str, table: str) -
     )
 
 
-def cached_lineage_up(uc: UCSQLClient, catalog: str, schema: str, table: str) -> pd.DataFrame:
+def cached_lineage_up(
+    uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
     return _ttl_value(
         f"lineage_up:{_warehouse_key(uc)}:{normalize_str(catalog)}:{normalize_str(schema)}:{normalize_str(table)}",
         600,
@@ -391,7 +412,9 @@ def cached_lineage_up(uc: UCSQLClient, catalog: str, schema: str, table: str) ->
     )
 
 
-def cached_lineage_down(uc: UCSQLClient, catalog: str, schema: str, table: str) -> pd.DataFrame:
+def cached_lineage_down(
+    uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
     return _ttl_value(
         f"lineage_down:{_warehouse_key(uc)}:{normalize_str(catalog)}:{normalize_str(schema)}:{normalize_str(table)}",
         600,
@@ -419,7 +442,9 @@ def cached_operational_context_down(
     )
 
 
-def cached_operational_entity_name(uc: UCSQLClient, entity_type: str, entity_id: str) -> str:
+def cached_operational_entity_name(
+    uc: UCSQLClient, entity_type: str, entity_id: str
+) -> str:
     return _ttl_value(
         f"operational_entity_name:{_warehouse_key(uc)}:{normalize_str(entity_type)}:{normalize_str(entity_id)}",
         600,
@@ -534,7 +559,11 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
     glossary_term_index = glossary_term_lookup(glossary_terms_df)
     glossary_link_index = glossary_link_lookup(glossary_links_df, glossary_term_index)
     inventory["glossaryLinks"] = inventory["fqn"].map(
-        lambda fqn: glossary_terms_for_subject("asset", str(fqn), glossary_link_index) if pd.notna(fqn) else []
+        lambda fqn: (
+            glossary_terms_for_subject("asset", str(fqn), glossary_link_index)
+            if pd.notna(fqn)
+            else []
+        )
     )
     inventory["glossaryTerms"] = inventory["glossaryLinks"].map(
         lambda links: [
@@ -547,7 +576,10 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
         lambda terms: terms[0] if terms else ""
     )
     inventory["glossary_term"] = inventory.apply(
-        lambda row: normalize_str(row.get("glossary_term")) or normalize_str(row.get("glossary_term_tag")),
+        lambda row: (
+            normalize_str(row.get("glossary_term"))
+            or normalize_str(row.get("glossary_term_tag"))
+        ),
         axis=1,
     )
 
@@ -661,8 +693,12 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
         + 15 * inventory["glossary_term"].ne("").astype(int)
     )
     inventory["governance_status"] = "Needs Work"
-    inventory.loc[inventory["governance_score"] >= 55, "governance_status"] = "Operational"
-    inventory.loc[inventory["governance_score"] >= 80, "governance_status"] = "Enterprise Ready"
+    inventory.loc[inventory["governance_score"] >= 55, "governance_status"] = (
+        "Operational"
+    )
+    inventory.loc[inventory["governance_score"] >= 80, "governance_status"] = (
+        "Enterprise Ready"
+    )
 
     search_cols = [
         "fqn",
@@ -672,13 +708,13 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
         "domain",
         "tier",
         "certification",
-            "sensitivity",
-            "criticality",
-            "glossary_term_tag",
-            "glossary_term",
-            "glossaryLinks",
-            "glossaryTerms",
-            "data_product",
+        "sensitivity",
+        "criticality",
+        "glossary_term_tag",
+        "glossary_term",
+        "glossaryLinks",
+        "glossaryTerms",
+        "data_product",
         "owners_summary",
         "business_owner",
         "technical_owner",

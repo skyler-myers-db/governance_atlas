@@ -133,10 +133,18 @@ def _warehouse_key(uc: Any) -> str:
 def invalidate_asset_caches(asset_fqn: str | None = None) -> None:
     metadata_service.invalidate_live_metadata_caches(asset_fqn)
     for key in list(_TTL_CACHE):
-        if key.startswith("inventory:") or key.startswith("visible_assets:") or key.startswith("discovery_index:"):
+        if (
+            key.startswith("inventory:")
+            or key.startswith("visible_assets:")
+            or key.startswith("discovery_index:")
+        ):
             _TTL_CACHE.pop(key, None)
             continue
-        if asset_fqn and key.startswith("asset_detail:") and normalize_str(asset_fqn) in key:
+        if (
+            asset_fqn
+            and key.startswith("asset_detail:")
+            and normalize_str(asset_fqn) in key
+        ):
             _TTL_CACHE.pop(key, None)
     try:
         from govhub.services import lineage as lineage_service
@@ -218,11 +226,17 @@ def inventory(
     return value
 
 
-def build_inventory(uc, store, hidden_catalogs: Sequence[str], is_skippable_metadata_error) -> pd.DataFrame:
+def build_inventory(
+    uc, store, hidden_catalogs: Sequence[str], is_skippable_metadata_error
+) -> pd.DataFrame:
     catalogs = inventory_catalogs(uc, hidden_catalogs)
     if not catalogs:
         fallback = cached_asset_inventory(uc, store)
-        return fallback if fallback is not None and not fallback.empty else empty_inventory()
+        return (
+            fallback
+            if fallback is not None and not fallback.empty
+            else empty_inventory()
+        )
 
     inventory_frames: List[pd.DataFrame] = []
     tag_maps: Dict[str, Dict[str, str]] = {}
@@ -271,7 +285,11 @@ def build_inventory(uc, store, hidden_catalogs: Sequence[str], is_skippable_meta
 
     if not inventory_frames:
         fallback = cached_asset_inventory(uc, store)
-        return fallback if fallback is not None and not fallback.empty else empty_inventory()
+        return (
+            fallback
+            if fallback is not None and not fallback.empty
+            else empty_inventory()
+        )
 
     inventory = pd.concat(inventory_frames, ignore_index=True)
     inventory = filter_asset_rows(inventory, ["table_name", "fqn"])
@@ -318,7 +336,11 @@ def build_inventory(uc, store, hidden_catalogs: Sequence[str], is_skippable_meta
     glossary_term_index = glossary_term_lookup(glossary_terms_df)
     glossary_link_index = glossary_link_lookup(glossary_links_df, glossary_term_index)
     inventory["glossaryLinks"] = inventory["fqn"].map(
-        lambda fqn: _glossary_terms_for_subject("asset", str(fqn), glossary_link_index) if pd.notna(fqn) else []
+        lambda fqn: (
+            _glossary_terms_for_subject("asset", str(fqn), glossary_link_index)
+            if pd.notna(fqn)
+            else []
+        )
     )
     inventory["glossaryTerms"] = inventory["glossaryLinks"].map(
         lambda links: [
@@ -328,9 +350,11 @@ def build_inventory(uc, store, hidden_catalogs: Sequence[str], is_skippable_meta
         ]
     )
     inventory["glossary_term"] = inventory.apply(
-        lambda row: normalize_str(row["glossaryTerms"][0])
-        if row.get("glossaryTerms")
-        else normalize_str(row.get("glossary_term_tag")),
+        lambda row: (
+            normalize_str(row["glossaryTerms"][0])
+            if row.get("glossaryTerms")
+            else normalize_str(row.get("glossary_term_tag"))
+        ),
         axis=1,
     )
 
@@ -444,8 +468,12 @@ def build_inventory(uc, store, hidden_catalogs: Sequence[str], is_skippable_meta
         + 15 * inventory["glossary_term"].ne("").astype(int)
     )
     inventory["governance_status"] = "Needs Work"
-    inventory.loc[inventory["governance_score"] >= 55, "governance_status"] = "Operational"
-    inventory.loc[inventory["governance_score"] >= 80, "governance_status"] = "Enterprise Ready"
+    inventory.loc[inventory["governance_score"] >= 55, "governance_status"] = (
+        "Operational"
+    )
+    inventory.loc[inventory["governance_score"] >= 80, "governance_status"] = (
+        "Enterprise Ready"
+    )
 
     search_cols = [
         "fqn",
@@ -640,7 +668,10 @@ def _prefer_specific_table_type(detail_type: Any, inventory_type: Any) -> str:
         "STREAMING TABLE",
         "VIEW",
     }
-    if detail_normalized in generic_table_types and inventory_normalized in specific_types:
+    if (
+        detail_normalized in generic_table_types
+        and inventory_normalized in specific_types
+    ):
         return normalize_str(inventory_type)
     return normalize_str(detail_type) or normalize_str(inventory_type)
 
@@ -728,7 +759,9 @@ def detail_map(detail_df: pd.DataFrame) -> Dict[str, Any]:
     return {str(key).lower(): value for key, value in row.items()}
 
 
-def normalize_asset_detail_sections(sections: Optional[Sequence[str]] = None) -> Tuple[str, ...]:
+def normalize_asset_detail_sections(
+    sections: Optional[Sequence[str]] = None,
+) -> Tuple[str, ...]:
     if sections is None:
         normalized = set(ASSET_DETAIL_SECTIONS)
     else:
@@ -826,7 +859,8 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
     ]
     return {
         "fqn": normalize_str(row.get("fqn")),
-        "name": normalize_str(row.get("table_name")) or normalize_str(row.get("fqn")).split(".")[-1],
+        "name": normalize_str(row.get("table_name"))
+        or normalize_str(row.get("fqn")).split(".")[-1],
         "catalog": normalize_str(row.get("table_catalog")),
         "schema": normalize_str(row.get("table_schema")),
         "objectType": friendly_table_type(raw_table_type, raw_storage_format),
@@ -851,9 +885,15 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
             or normalize_str(row.get("glossaryTerm"))
         ),
         "glossaryTerms": normalized_glossary_terms,
-        "glossaryLinks": list(glossary_links or []) if isinstance(glossary_links, list) else [],
-        "dataProduct": normalize_str(row.get("data_product")) or normalize_str(row.get("dataProduct")) or "Unassigned",
-        "data_product": normalize_str(row.get("data_product")) or normalize_str(row.get("dataProduct")) or "Unassigned",
+        "glossaryLinks": list(glossary_links or [])
+        if isinstance(glossary_links, list)
+        else [],
+        "dataProduct": normalize_str(row.get("data_product"))
+        or normalize_str(row.get("dataProduct"))
+        or "Unassigned",
+        "data_product": normalize_str(row.get("data_product"))
+        or normalize_str(row.get("dataProduct"))
+        or "Unassigned",
         "openRequests": safe_int(row.get("pending_requests")),
         "owners": owner_entries(row),
         "tags": raw_tags,
@@ -916,7 +956,9 @@ def exact_identity_row(
     return pd.Series(base)
 
 
-def merge_identity_row(base_row: pd.Series, exact_row: Optional[pd.Series]) -> pd.Series:
+def merge_identity_row(
+    base_row: pd.Series, exact_row: Optional[pd.Series]
+) -> pd.Series:
     if exact_row is None:
         return base_row
 
@@ -935,7 +977,9 @@ def merge_identity_row(base_row: pd.Series, exact_row: Optional[pd.Series]) -> p
             merged[key] = value
 
     base_tags = merged.get("tags") if isinstance(merged.get("tags"), dict) else {}
-    exact_tags = exact_row.get("tags") if isinstance(exact_row.get("tags"), dict) else {}
+    exact_tags = (
+        exact_row.get("tags") if isinstance(exact_row.get("tags"), dict) else {}
+    )
     if exact_tags:
         merged["tags"] = {**base_tags, **exact_tags}
 
@@ -978,7 +1022,9 @@ def _discovery_tag_terms(asset: Dict[str, Any]) -> List[str]:
             if normalized_key:
                 tag_terms.append(normalized_key)
             if normalized_value:
-                tag_terms.extend([normalized_value, f"{normalized_key} {normalized_value}".strip()])
+                tag_terms.extend(
+                    [normalized_value, f"{normalized_key} {normalized_value}".strip()]
+                )
         return tag_terms
     return [normalize_str(tag) for tag in asset.get("tags", []) if normalize_str(tag)]
 
@@ -1019,11 +1065,15 @@ def discovery_search_fields(asset: Dict[str, Any]) -> Dict[str, str]:
         "certification": normalized_search_text(asset.get("certification")),
         "sensitivity": normalized_search_text(asset.get("sensitivity")),
         "criticality": normalized_search_text(asset.get("criticality")),
-        "glossary": normalized_search_text(asset.get("glossaryTerm"), " ".join(glossary_terms)),
+        "glossary": normalized_search_text(
+            asset.get("glossaryTerm"), " ".join(glossary_terms)
+        ),
         "tag": normalized_search_text(" ".join(tag_terms)),
         "owner": normalized_search_text(" ".join(owner_terms)),
         "type": normalized_search_text(asset.get("objectType")),
-        "data_product": normalized_search_text(asset.get("dataProduct"), asset.get("data_product")),
+        "data_product": normalized_search_text(
+            asset.get("dataProduct"), asset.get("data_product")
+        ),
     }
     fields["all"] = normalized_search_text(
         asset.get("fqn"),
@@ -1084,12 +1134,18 @@ def _tokenize_discovery_query(query: str) -> List[Tuple[str, str, int]]:
                 value.append(query[index])
                 index += 1
             if index >= len(query) or query[index] != '"':
-                raise DiscoveryQuerySyntaxError("Unterminated quoted phrase in discovery query.")
+                raise DiscoveryQuerySyntaxError(
+                    "Unterminated quoted phrase in discovery query."
+                )
             tokens.append(("PHRASE", "".join(value), index))
             index += 1
             continue
         start = index
-        while index < len(query) and not query[index].isspace() and query[index] not in '():"':
+        while (
+            index < len(query)
+            and not query[index].isspace()
+            and query[index] not in '():"'
+        ):
             index += 1
         raw = query[start:index]
         upper = raw.upper()
@@ -1117,12 +1173,20 @@ def parse_discovery_query(query: str) -> Dict[str, Any]:
         token = _peek()
         if token is None:
             if expected == "RPAREN":
-                raise DiscoveryQuerySyntaxError("Missing closing parenthesis in discovery query.")
-            raise DiscoveryQuerySyntaxError("Discovery query ended before the expression was complete.")
+                raise DiscoveryQuerySyntaxError(
+                    "Missing closing parenthesis in discovery query."
+                )
+            raise DiscoveryQuerySyntaxError(
+                "Discovery query ended before the expression was complete."
+            )
         if expected and token[0] != expected:
             if token[0] == "RPAREN":
-                raise DiscoveryQuerySyntaxError("Unexpected closing parenthesis in discovery query.")
-            raise DiscoveryQuerySyntaxError(f"Unexpected discovery query token `{token[1]}`.")
+                raise DiscoveryQuerySyntaxError(
+                    "Unexpected closing parenthesis in discovery query."
+                )
+            raise DiscoveryQuerySyntaxError(
+                f"Unexpected discovery query token `{token[1]}`."
+            )
         position += 1
         return token
 
@@ -1161,7 +1225,9 @@ def parse_discovery_query(query: str) -> Dict[str, Any]:
         if token and token[0] == "LPAREN":
             _take("LPAREN")
             if _peek() and _peek()[0] == "RPAREN":
-                raise DiscoveryQuerySyntaxError("Empty grouped expression in discovery query.")
+                raise DiscoveryQuerySyntaxError(
+                    "Empty grouped expression in discovery query."
+                )
             node = _parse_or(forced_field)
             _take("RPAREN")
             return node
@@ -1170,11 +1236,15 @@ def parse_discovery_query(query: str) -> Dict[str, Any]:
     def _parse_term(forced_field: str = "") -> Dict[str, Any]:
         token = _peek()
         if not token or token[0] not in {"WORD", "PHRASE"}:
-            raise DiscoveryQuerySyntaxError("Expected a search term in discovery query.")
+            raise DiscoveryQuerySyntaxError(
+                "Expected a search term in discovery query."
+            )
         _, raw_value, _ = _take()
         normalized_value = normalized_search_text(raw_value)
         if not normalized_value:
-            raise DiscoveryQuerySyntaxError("Expected a search term in discovery query.")
+            raise DiscoveryQuerySyntaxError(
+                "Expected a search term in discovery query."
+            )
         if forced_field:
             if _peek() and _peek()[0] == "COLON":
                 raise DiscoveryQuerySyntaxError(
@@ -1211,10 +1281,16 @@ def parse_discovery_query(query: str) -> Dict[str, Any]:
     trailing = _peek()
     if trailing:
         if trailing[0] == "RPAREN":
-            raise DiscoveryQuerySyntaxError("Unexpected closing parenthesis in discovery query.")
+            raise DiscoveryQuerySyntaxError(
+                "Unexpected closing parenthesis in discovery query."
+            )
         if trailing[0] in {"AND", "OR"}:
-            raise DiscoveryQuerySyntaxError(f"Expected a search term after {trailing[1]}.")
-        raise DiscoveryQuerySyntaxError(f"Unexpected discovery query token `{trailing[1]}`.")
+            raise DiscoveryQuerySyntaxError(
+                f"Expected a search term after {trailing[1]}."
+            )
+        raise DiscoveryQuerySyntaxError(
+            f"Unexpected discovery query token `{trailing[1]}`."
+        )
     return parsed
 
 
@@ -1223,7 +1299,9 @@ def _serialize_discovery_query_value(value: str) -> str:
     if not normalized:
         return ""
     escaped = normalized.replace("\\", "\\\\").replace('"', '\\"')
-    return normalized if re.fullmatch(r"[A-Za-z0-9_.-]+", normalized) else f'"{escaped}"'
+    return (
+        normalized if re.fullmatch(r"[A-Za-z0-9_.-]+", normalized) else f'"{escaped}"'
+    )
 
 
 def _discovery_query_group_field(node: Dict[str, Any]) -> str:
@@ -1240,7 +1318,9 @@ def _discovery_query_group_field(node: Dict[str, Any]) -> str:
     return fields.pop() if len(fields) == 1 and fields and "" not in fields else ""
 
 
-def _serialize_discovery_field_group(node: Dict[str, Any], parent_kind: str = "") -> str:
+def _serialize_discovery_field_group(
+    node: Dict[str, Any], parent_kind: str = ""
+) -> str:
     kind = normalize_str(node.get("kind")).lower()
     if kind == "term":
         return _serialize_discovery_query_value(
@@ -1259,7 +1339,9 @@ def _serialize_discovery_field_group(node: Dict[str, Any], parent_kind: str = ""
     return rendered
 
 
-def serialize_discovery_query_ast(node: Optional[Dict[str, Any]], parent_kind: str = "") -> str:
+def serialize_discovery_query_ast(
+    node: Optional[Dict[str, Any]], parent_kind: str = ""
+) -> str:
     if not isinstance(node, dict):
         return ""
     kind = normalize_str(node.get("kind")).lower()
@@ -1294,7 +1376,9 @@ def serialize_discovery_query_ast(node: Optional[Dict[str, Any]], parent_kind: s
     return rendered
 
 
-def discovery_query_clause_chips(compiled_query: Dict[str, Any]) -> List[Dict[str, Any]]:
+def discovery_query_clause_chips(
+    compiled_query: Dict[str, Any],
+) -> List[Dict[str, Any]]:
     if normalize_str(compiled_query.get("state")).lower() != "valid":
         return []
     ast = compiled_query.get("ast")
@@ -1303,7 +1387,9 @@ def discovery_query_clause_chips(compiled_query: Dict[str, Any]) -> List[Dict[st
 
     kind = normalize_str(ast.get("kind")).lower()
     if kind == "and":
-        children = [child for child in ast.get("children", []) if isinstance(child, dict)]
+        children = [
+            child for child in ast.get("children", []) if isinstance(child, dict)
+        ]
         if not children:
             return []
         chips: List[Dict[str, Any]] = []
@@ -1314,7 +1400,9 @@ def discovery_query_clause_chips(compiled_query: Dict[str, Any]) -> List[Dict[st
             elif len(remaining_children) == 1:
                 next_query = serialize_discovery_query_ast(remaining_children[0])
             else:
-                next_query = serialize_discovery_query_ast({"kind": "and", "children": remaining_children})
+                next_query = serialize_discovery_query_ast(
+                    {"kind": "and", "children": remaining_children}
+                )
             expression = serialize_discovery_query_ast(child, kind)
             chips.append(
                 {
@@ -1375,18 +1463,24 @@ def _structured_discovery_query_matches(
         return bool(value and target and value in target)
     if kind == "and":
         return all(
-            _structured_discovery_query_matches(child, haystack=haystack, search_fields=search_fields)
+            _structured_discovery_query_matches(
+                child, haystack=haystack, search_fields=search_fields
+            )
             for child in node.get("children", [])
         )
     if kind == "or":
         return any(
-            _structured_discovery_query_matches(child, haystack=haystack, search_fields=search_fields)
+            _structured_discovery_query_matches(
+                child, haystack=haystack, search_fields=search_fields
+            )
             for child in node.get("children", [])
         )
     return False
 
 
-def _general_discovery_term_score(value: str, *, haystack: str, search_fields: Dict[str, str]) -> int:
+def _general_discovery_term_score(
+    value: str, *, haystack: str, search_fields: Dict[str, str]
+) -> int:
     if not value or value not in haystack:
         return 0
     terms = [term for term in value.split(" ") if term]
@@ -1451,16 +1545,26 @@ def _structured_discovery_query_score(
             return 0
         if field:
             return DISCOVERY_QUERY_FIELD_WEIGHTS.get(field, 2) + len(value.split(" "))
-        return _general_discovery_term_score(value, haystack=haystack, search_fields=search_fields)
+        return _general_discovery_term_score(
+            value, haystack=haystack, search_fields=search_fields
+        )
     if kind == "and":
         child_scores = [
-            _structured_discovery_query_score(child, haystack=haystack, search_fields=search_fields)
+            _structured_discovery_query_score(
+                child, haystack=haystack, search_fields=search_fields
+            )
             for child in node.get("children", [])
         ]
-        return sum(child_scores) if child_scores and all(score > 0 for score in child_scores) else 0
+        return (
+            sum(child_scores)
+            if child_scores and all(score > 0 for score in child_scores)
+            else 0
+        )
     if kind == "or":
         child_scores = [
-            _structured_discovery_query_score(child, haystack=haystack, search_fields=search_fields)
+            _structured_discovery_query_score(
+                child, haystack=haystack, search_fields=search_fields
+            )
             for child in node.get("children", [])
         ]
         positive_scores = [score for score in child_scores if score > 0]
@@ -1468,7 +1572,9 @@ def _structured_discovery_query_score(
     return 0
 
 
-def discovery_match_score(asset: Dict[str, Any], query: str, *, haystack: str = "") -> int:
+def discovery_match_score(
+    asset: Dict[str, Any], query: str, *, haystack: str = ""
+) -> int:
     q = normalized_search_text(query)
     if not q:
         return 0
@@ -1541,7 +1647,11 @@ def view_matches(asset: Dict[str, Any], view: str) -> bool:
 
 
 def views_match(asset: Dict[str, Any], views: Sequence[str]) -> bool:
-    normalized = [normalize_str(view) for view in views if normalize_str(view) and normalize_str(view) != "All assets"]
+    normalized = [
+        normalize_str(view)
+        for view in views
+        if normalize_str(view) and normalize_str(view) != "All assets"
+    ]
     if not normalized:
         return True
     return all(view_matches(asset, view) for view in normalized)
@@ -1557,7 +1667,9 @@ def normalize_filter_values(values: Optional[List[str]], all_label: str) -> List
     ]
 
 
-def facet_payload(assets: List[Dict[str, Any]], field: str, *, all_label: str) -> List[Dict[str, Any]]:
+def facet_payload(
+    assets: List[Dict[str, Any]], field: str, *, all_label: str
+) -> List[Dict[str, Any]]:
     counts: Dict[str, int] = {}
     for asset in assets:
         value = normalize_str(asset.get(field))
@@ -1645,7 +1757,9 @@ def sort_discovery_assets(
             reverse=True,
         )
     if normalized_sort == "Name (A-Z)":
-        return sorted(assets, key=lambda asset: normalize_str(asset.get("name")).lower())
+        return sorted(
+            assets, key=lambda asset: normalize_str(asset.get("name")).lower()
+        )
     return sorted(assets, key=_best_match_key, reverse=True)
 
 
@@ -1668,7 +1782,13 @@ def _discovery_index(
     for _, row in inventory.iterrows():
         asset = base_asset_payload(row)
         search_fields = discovery_search_fields(asset)
-        entries.append({"asset": asset, "haystack": search_fields.get("all", ""), "fields": search_fields})
+        entries.append(
+            {
+                "asset": asset,
+                "haystack": search_fields.get("all", ""),
+                "fields": search_fields,
+            }
+        )
     return entries
 
 
@@ -1731,7 +1851,9 @@ def discovery_search_payload(
     selected_catalogs = normalize_filter_values(catalogs, "All catalogs")
     selected_domains = normalize_filter_values(domains, "All domains")
     selected_tiers = normalize_filter_values(tiers, "All tiers")
-    selected_certifications = normalize_filter_values(certifications, "All certifications")
+    selected_certifications = normalize_filter_values(
+        certifications, "All certifications"
+    )
     selected_sensitivities = normalize_filter_values(sensitivities, "All sensitivities")
     selected_types = normalize_filter_values(asset_types, "All types")
 
@@ -1739,7 +1861,9 @@ def discovery_search_payload(
     search_fields_by_fqn: Dict[str, Dict[str, str]] = {}
     for entry in index_entries:
         asset = entry["asset"]
-        search_fields = entry.get("fields", {}) if isinstance(entry.get("fields"), dict) else {}
+        search_fields = (
+            entry.get("fields", {}) if isinstance(entry.get("fields"), dict) else {}
+        )
         asset_fqn = normalize_str(asset.get("fqn"))
         if asset_fqn:
             search_fields_by_fqn[asset_fqn] = search_fields
@@ -1752,14 +1876,20 @@ def discovery_search_payload(
                     search_fields=search_fields or None,
                 )
             else:
-                match_score = discovery_match_score(asset, query_text, haystack=entry.get("haystack", ""))
+                match_score = discovery_match_score(
+                    asset, query_text, haystack=entry.get("haystack", "")
+                )
             if match_score <= 0:
                 continue
         matched_assets.append(asset)
 
     def in_scope(asset: Dict[str, Any], *, exclude: Optional[set[str]] = None) -> bool:
         excluded = exclude or set()
-        if selected_views and "views" not in excluded and not views_match(asset, selected_views):
+        if (
+            selected_views
+            and "views" not in excluded
+            and not views_match(asset, selected_views)
+        ):
             return False
         if selected_types and asset.get("objectType") not in selected_types:
             if "types" not in excluded:
@@ -1773,10 +1903,16 @@ def discovery_search_payload(
         if selected_tiers and asset.get("tier") not in selected_tiers:
             if "tiers" not in excluded:
                 return False
-        if selected_certifications and asset.get("certification") not in selected_certifications:
+        if (
+            selected_certifications
+            and asset.get("certification") not in selected_certifications
+        ):
             if "certifications" not in excluded:
                 return False
-        if selected_sensitivities and asset.get("sensitivity") not in selected_sensitivities:
+        if (
+            selected_sensitivities
+            and asset.get("sensitivity") not in selected_sensitivities
+        ):
             if "sensitivities" not in excluded:
                 return False
         return True
@@ -1792,7 +1928,9 @@ def discovery_search_payload(
         sort_by=sort_by,
         query=query_text,
         query_mode=normalized_query_mode,
-        compiled_query=compiled_query if normalized_query_mode == "structured" else None,
+        compiled_query=compiled_query
+        if normalized_query_mode == "structured"
+        else None,
         search_fields_by_fqn=search_fields_by_fqn,
     )
     safe_limit = max(1, min(limit, 200))
@@ -1803,7 +1941,14 @@ def discovery_search_payload(
         "views": view_facet_payload(
             [asset for asset in matched_assets if in_scope(asset, exclude={"views"})],
             all_label="All assets",
-            views=["All assets", "Needs attention", "Needs owner", "Needs certification", "Certified", "High coverage"],
+            views=[
+                "All assets",
+                "Needs attention",
+                "Needs owner",
+                "Needs certification",
+                "Certified",
+                "High coverage",
+            ],
         ),
         "assetTypes": facet_payload(
             [asset for asset in matched_assets if in_scope(asset, exclude={"types"})],
@@ -1811,7 +1956,11 @@ def discovery_search_payload(
             all_label="All types",
         ),
         "catalogs": facet_payload(
-            [asset for asset in matched_assets if in_scope(asset, exclude={"catalogs"})],
+            [
+                asset
+                for asset in matched_assets
+                if in_scope(asset, exclude={"catalogs"})
+            ],
             "catalog",
             all_label="All catalogs",
         ),
@@ -1826,12 +1975,20 @@ def discovery_search_payload(
             all_label="All tiers",
         ),
         "certifications": facet_payload(
-            [asset for asset in matched_assets if in_scope(asset, exclude={"certifications"})],
+            [
+                asset
+                for asset in matched_assets
+                if in_scope(asset, exclude={"certifications"})
+            ],
             "certification",
             all_label="All certifications",
         ),
         "sensitivities": facet_payload(
-            [asset for asset in matched_assets if in_scope(asset, exclude={"sensitivities"})],
+            [
+                asset
+                for asset in matched_assets
+                if in_scope(asset, exclude={"sensitivities"})
+            ],
             "sensitivity",
             all_label="All sensitivities",
         ),
@@ -1845,7 +2002,11 @@ def discovery_search_payload(
             "state": compiled_query.get("state", "empty"),
             "message": "",
             "syntaxHint": compiled_query.get("syntaxHint", DISCOVERY_QUERY_SYNTAX_HINT),
-            "supportedFields": list(compiled_query.get("supportedFields", _discovery_query_supported_fields())),
+            "supportedFields": list(
+                compiled_query.get(
+                    "supportedFields", _discovery_query_supported_fields()
+                )
+            ),
             "clauseChips": list(compiled_query.get("clauseChips", [])),
         },
         "selection": {
@@ -1880,10 +2041,20 @@ def related_assets(
     except Exception:
         downstream = pd.DataFrame()
     values: List[str] = []
-    if upstream is not None and not upstream.empty and "source_table_full_name" in upstream.columns:
+    if (
+        upstream is not None
+        and not upstream.empty
+        and "source_table_full_name" in upstream.columns
+    ):
         values.extend(upstream["source_table_full_name"].dropna().astype(str).tolist())
-    if downstream is not None and not downstream.empty and "target_table_full_name" in downstream.columns:
-        values.extend(downstream["target_table_full_name"].dropna().astype(str).tolist())
+    if (
+        downstream is not None
+        and not downstream.empty
+        and "target_table_full_name" in downstream.columns
+    ):
+        values.extend(
+            downstream["target_table_full_name"].dropna().astype(str).tolist()
+        )
     normalized = [normalize_str(item) for item in values if normalize_str(item)]
     deduped = list(dict.fromkeys(item for item in normalized if item != focus_fqn))
     openable: List[str] = []
@@ -1966,7 +2137,9 @@ def column_tag_lookup(column_tags_df: pd.DataFrame) -> Dict[str, List[Dict[str, 
         tag_value = normalize_str(row.get("tag_value"))
         if not column_name or not tag_name:
             continue
-        lookup.setdefault(column_name, []).append({"name": tag_name, "value": tag_value})
+        lookup.setdefault(column_name, []).append(
+            {"name": tag_name, "value": tag_value}
+        )
     return lookup
 
 
@@ -2152,7 +2325,9 @@ def owner_assignment_records(store: Any, asset_fqn: str) -> List[Dict[str, str]]
     return rows
 
 
-def activity_records(store: Any, asset_fqn: str, limit: int = 20) -> List[Dict[str, str]]:
+def activity_records(
+    store: Any, asset_fqn: str, limit: int = 20
+) -> List[Dict[str, str]]:
     if store is None:
         return []
     if hasattr(store, "list_activity_events"):
@@ -2176,7 +2351,10 @@ def activity_records(store: Any, asset_fqn: str, limit: int = 20) -> List[Dict[s
                 resolution_code = normalize_str(payload.get("resolutionCode")).lower()
                 task_status = normalize_str(payload.get("status")).lower()
                 status = "Pending"
-                if resolution_code == "approved" or task_status in {"resolved", "closed"}:
+                if resolution_code == "approved" or task_status in {
+                    "resolved",
+                    "closed",
+                }:
                     status = "Approved"
                 elif resolution_code == "rejected" or task_status == "rejected":
                     status = "Rejected"
@@ -2236,7 +2414,9 @@ def activity_records(store: Any, asset_fqn: str, limit: int = 20) -> List[Dict[s
     return rows
 
 
-def metadata_audit_records(store: Any, asset_fqn: str, limit: int = 20) -> List[Dict[str, str]]:
+def metadata_audit_records(
+    store: Any, asset_fqn: str, limit: int = 20
+) -> List[Dict[str, str]]:
     if store is None:
         return []
     try:
@@ -2290,7 +2470,9 @@ def _operational_entity_label(raw: Any) -> str:
         "DASHBOARD": "Dashboard",
         "DBSQL_DASHBOARD": "DBSQL Dashboard",
     }
-    return mapping.get(normalized, normalize_str(raw).replace("_", " ").title() or "Operational Entity")
+    return mapping.get(
+        normalized, normalize_str(raw).replace("_", " ").title() or "Operational Entity"
+    )
 
 
 def _metadata_name_candidate(raw_metadata: Any) -> str:
@@ -2331,7 +2513,9 @@ def _metadata_name_candidate(raw_metadata: Any) -> str:
                     if "/" in candidate:
                         return candidate.rstrip("/").split("/")[-1] or candidate
                     return candidate
-            queue.extend(value for value in current.values() if isinstance(value, (dict, list)))
+            queue.extend(
+                value for value in current.values() if isinstance(value, (dict, list))
+            )
         elif isinstance(current, list):
             queue.extend(value for value in current if isinstance(value, (dict, list)))
     return ""
@@ -2353,7 +2537,11 @@ def operational_entity_records(
         key = f"{group_key}:{entity_id or statement_id or run_id or len(grouped)}"
         current = grouped.get(key)
         if current is None:
-            resolved_name = uc.resolve_operational_entity_name(entity_type, entity_id) if entity_type and entity_id else ""
+            resolved_name = (
+                uc.resolve_operational_entity_name(entity_type, entity_id)
+                if entity_type and entity_id
+                else ""
+            )
             entity_label = _operational_entity_label(entity_type)
             fallback_identifier = entity_id or statement_id or run_id
             fallback_name = (
@@ -2388,7 +2576,9 @@ def operational_entity_records(
     )
 
 
-def query_records(operational_entities: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def query_records(
+    operational_entities: Sequence[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
     query_types = {"SQL", "SQL_QUERY", "DBSQL_QUERY", "QUERY"}
     return [
         entity
@@ -2410,7 +2600,9 @@ def profiler_payload(
 ) -> Dict[str, Any]:
     column_count = len(columns)
     described_count = sum(
-        1 for column in columns if normalize_str(column.get("description")) not in {"", "No description"}
+        1
+        for column in columns
+        if normalize_str(column.get("description")) not in {"", "No description"}
     )
     classified_count = sum(1 for column in columns if column.get("tags"))
     glossary_count = sum(
@@ -2434,19 +2626,25 @@ def profiler_payload(
     cards = [
         {
             "title": "Description Coverage",
-            "value": f"{described_count}/{column_count}" if column_count else "No schema",
+            "value": f"{described_count}/{column_count}"
+            if column_count
+            else "No schema",
             "status": status_for(described_count, column_count),
             "note": "Columns with captured descriptions.",
         },
         {
             "title": "Classification Coverage",
-            "value": f"{classified_count}/{column_count}" if column_count else "No schema",
+            "value": f"{classified_count}/{column_count}"
+            if column_count
+            else "No schema",
             "status": status_for(classified_count, column_count),
             "note": "Columns with at least one governance tag.",
         },
         {
             "title": "Glossary Coverage",
-            "value": f"{glossary_count}/{column_count}" if column_count else "No schema",
+            "value": f"{glossary_count}/{column_count}"
+            if column_count
+            else "No schema",
             "status": status_for(glossary_count, column_count),
             "note": "Columns linked to glossary terms.",
         },
@@ -2497,7 +2695,8 @@ def profiler_payload(
             "openActivityCount": len(activity),
             "producerCount": producer_count,
             "consumerCount": consumer_count,
-            "governanceStatus": normalize_str(asset.get("governanceStatus")) or "Needs Work",
+            "governanceStatus": normalize_str(asset.get("governanceStatus"))
+            or "Needs Work",
         },
     }
 
@@ -2515,9 +2714,7 @@ def asset_detail_payload(
     normalized_scope = normalize_str(cache_scope) or "shared"
     requested_sections = normalize_asset_detail_sections(sections)
     section_key = ",".join(requested_sections)
-    cache_key = (
-        f"asset_detail:{_warehouse_key(uc)}:{normalized_scope}:{normalize_str(asset_fqn)}:{section_key}"
-    )
+    cache_key = f"asset_detail:{_warehouse_key(uc)}:{normalized_scope}:{normalize_str(asset_fqn)}:{section_key}"
 
     cached = _TTL_CACHE.get(cache_key)
     if cached:
@@ -2528,7 +2725,9 @@ def asset_detail_payload(
             return payload
 
     def load() -> Dict[str, Any]:
-        store = None if isinstance(inventory_or_store, pd.DataFrame) else inventory_or_store
+        store = (
+            None if isinstance(inventory_or_store, pd.DataFrame) else inventory_or_store
+        )
         inventory = _resolve_inventory_df(
             inventory_or_store if isinstance(inventory_or_store, pd.DataFrame) else uc,
             store,
@@ -2536,10 +2735,16 @@ def asset_detail_payload(
         )
         if isinstance(inventory_or_store, pd.DataFrame):
             row = inventory_row(inventory, asset_fqn)
-            inventory_columns = list(inventory.columns) if isinstance(inventory, pd.DataFrame) else None
+            inventory_columns = (
+                list(inventory.columns) if isinstance(inventory, pd.DataFrame) else None
+            )
         else:
-            row = inventory_row(uc, inventory_or_store, asset_fqn, hidden_catalogs=hidden_catalogs)
-            inventory_columns = list(inventory.columns) if isinstance(inventory, pd.DataFrame) else None
+            row = inventory_row(
+                uc, inventory_or_store, asset_fqn, hidden_catalogs=hidden_catalogs
+            )
+            inventory_columns = (
+                list(inventory.columns) if isinstance(inventory, pd.DataFrame) else None
+            )
             row = merge_identity_row(
                 row,
                 exact_identity_row(
@@ -2576,37 +2781,60 @@ def asset_detail_payload(
         base["profiler"] = {"cards": [], "summary": {}}
 
         try:
-            glossary_terms_df = store.list_glossary_terms(limit=500) if store is not None else pd.DataFrame()
+            glossary_terms_df = (
+                store.list_glossary_terms(limit=500)
+                if store is not None
+                else pd.DataFrame()
+            )
         except Exception:
             glossary_terms_df = pd.DataFrame()
         try:
             glossary_links_df = (
-                store.list_glossary_term_links() if store is not None and hasattr(store, "list_glossary_term_links") else pd.DataFrame()
+                store.list_glossary_term_links()
+                if store is not None and hasattr(store, "list_glossary_term_links")
+                else pd.DataFrame()
             )
         except Exception:
             glossary_links_df = pd.DataFrame()
         glossary_term_index = glossary_term_lookup(glossary_terms_df)
-        glossary_link_index = glossary_link_lookup(glossary_links_df, glossary_term_index)
-        asset_glossary_links = _glossary_terms_for_subject("asset", base["fqn"], glossary_link_index)
+        glossary_link_index = glossary_link_lookup(
+            glossary_links_df, glossary_term_index
+        )
+        asset_glossary_links = _glossary_terms_for_subject(
+            "asset", base["fqn"], glossary_link_index
+        )
         fallback_glossary_term = normalize_str(base.get("glossaryTerm"))
         if not asset_glossary_links and fallback_glossary_term:
             fallback_term = next(
                 (
                     term
                     for term in glossary_term_index.values()
-                    if normalize_str(term.get("name")).lower() == fallback_glossary_term.lower()
+                    if normalize_str(term.get("name")).lower()
+                    == fallback_glossary_term.lower()
                 ),
                 None,
             )
             asset_glossary_links = [
                 {
                     "linkId": "",
-                    "termId": normalize_str(fallback_term.get("termId")) if fallback_term else "",
-                    "term": normalize_str(fallback_term.get("name")) if fallback_term else fallback_glossary_term,
-                    "definition": normalize_str(fallback_term.get("definition")) if fallback_term else "",
-                    "domain": normalize_str(fallback_term.get("domain")) if fallback_term else "",
-                    "ownerEmail": normalize_str(fallback_term.get("ownerEmail")) if fallback_term else "",
-                    "status": normalize_str(fallback_term.get("status")) if fallback_term else "",
+                    "termId": normalize_str(fallback_term.get("termId"))
+                    if fallback_term
+                    else "",
+                    "term": normalize_str(fallback_term.get("name"))
+                    if fallback_term
+                    else fallback_glossary_term,
+                    "definition": normalize_str(fallback_term.get("definition"))
+                    if fallback_term
+                    else "",
+                    "domain": normalize_str(fallback_term.get("domain"))
+                    if fallback_term
+                    else "",
+                    "ownerEmail": normalize_str(fallback_term.get("ownerEmail"))
+                    if fallback_term
+                    else "",
+                    "status": normalize_str(fallback_term.get("status"))
+                    if fallback_term
+                    else "",
                     "subjectType": "asset",
                     "subjectFqn": base["fqn"],
                     "columnName": "",
@@ -2650,14 +2878,19 @@ def asset_detail_payload(
                     base["description"] = ""
                 if not normalize_str(base["description"]):
                     try:
-                        base["description"] = uc.get_table_comment(catalog, schema, table)
+                        base["description"] = uc.get_table_comment(
+                            catalog, schema, table
+                        )
                     except Exception:
                         base["description"] = ""
                 if not normalize_str(base["description"]):
                     base["description"] = PLACEHOLDER_DESCRIPTION
 
             try:
-                row_count = coalesce(detail.get("numrows"), cached_table_row_count(uc, catalog, schema, table))
+                row_count = coalesce(
+                    detail.get("numrows"),
+                    cached_table_row_count(uc, catalog, schema, table),
+                )
             except Exception:
                 row_count = coalesce(detail.get("numrows"))
             base["rows"] = f"{safe_int(row_count):,}" if safe_int(row_count) else "—"
@@ -2665,7 +2898,9 @@ def asset_detail_payload(
                 detail.get("type"),
                 base.get("tableTypeRaw"),
             )
-            raw_detail_format = coalesce(detail.get("format"), base.get("storageFormat"))
+            raw_detail_format = coalesce(
+                detail.get("format"), base.get("storageFormat")
+            )
             base["tableTypeRaw"] = raw_detail_type or base.get("tableTypeRaw", "")
             base["objectType"] = coalesce(
                 friendly_table_type(raw_detail_type, raw_detail_format),
@@ -2678,19 +2913,26 @@ def asset_detail_payload(
             )
             if base["storageFormat"] == "—":
                 try:
-                    properties_for_identity_df = uc.get_table_properties(catalog, schema, table)
+                    properties_for_identity_df = uc.get_table_properties(
+                        catalog, schema, table
+                    )
                 except Exception:
                     properties_for_identity_df = pd.DataFrame()
-                inferred_storage_format = infer_storage_format_from_properties(properties_for_identity_df)
+                inferred_storage_format = infer_storage_format_from_properties(
+                    properties_for_identity_df
+                )
                 if inferred_storage_format:
                     base["storageFormat"] = inferred_storage_format
             base["format"] = base["storageFormat"] or "—"
             base["size"] = human_bytes(detail.get("sizeinbytes"))
-            base["files"] = str(safe_int(detail.get("numfiles"))) if safe_int(detail.get("numfiles")) else "—"
-            metadata_write_supported = (
-                supports_direct_metadata_write(base.get("tableTypeRaw"))
-                and bool(allow_direct_metadata_write)
+            base["files"] = (
+                str(safe_int(detail.get("numfiles")))
+                if safe_int(detail.get("numfiles"))
+                else "—"
             )
+            metadata_write_supported = supports_direct_metadata_write(
+                base.get("tableTypeRaw")
+            ) and bool(allow_direct_metadata_write)
             base["metadataEditor"] = {
                 "available": metadata_write_supported,
                 "updatePath": "/api/assets/:fqn/metadata",
@@ -2745,8 +2987,15 @@ def asset_detail_payload(
             column_links_df = pd.DataFrame()
             if not glossary_links_df.empty:
                 column_links_df = glossary_links_df[
-                    glossary_links_df["subject_type"].fillna("").astype(str).str.lower().eq("column")
-                    & glossary_links_df["subject_fqn"].fillna("").astype(str).eq(base["fqn"])
+                    glossary_links_df["subject_type"]
+                    .fillna("")
+                    .astype(str)
+                    .str.lower()
+                    .eq("column")
+                    & glossary_links_df["subject_fqn"]
+                    .fillna("")
+                    .astype(str)
+                    .eq(base["fqn"])
                 ].copy()
             base["columns"] = column_records(
                 columns_df,
@@ -2784,11 +3033,15 @@ def asset_detail_payload(
 
         if "operational" in loaded_sections:
             try:
-                operational_upstream_df = uc.get_operational_context_upstream(catalog, schema, table)
+                operational_upstream_df = uc.get_operational_context_upstream(
+                    catalog, schema, table
+                )
             except Exception:
                 operational_upstream_df = pd.DataFrame()
             try:
-                operational_downstream_df = uc.get_operational_context_downstream(catalog, schema, table)
+                operational_downstream_df = uc.get_operational_context_downstream(
+                    catalog, schema, table
+                )
             except Exception:
                 operational_downstream_df = pd.DataFrame()
             base["relatedAssets"] = related_assets(
@@ -2804,7 +3057,10 @@ def asset_detail_payload(
                 "consumers": operational_entity_records(uc, operational_downstream_df),
             }
             base["queries"] = query_records(
-                [*base["operationalContext"]["producers"], *base["operationalContext"]["consumers"]]
+                [
+                    *base["operationalContext"]["producers"],
+                    *base["operationalContext"]["consumers"],
+                ]
             )
             base["usage"] = {
                 "queryCount": len(base["queries"]),
@@ -2826,7 +3082,9 @@ def asset_detail_payload(
 
         base["loadedSections"] = list(requested_sections)
         base["deferredSections"] = [
-            section for section in ASSET_DETAIL_SECTIONS if section not in loaded_sections
+            section
+            for section in ASSET_DETAIL_SECTIONS
+            if section not in loaded_sections
         ]
         return base
 

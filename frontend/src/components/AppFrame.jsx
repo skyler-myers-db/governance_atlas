@@ -508,12 +508,12 @@ export default function AppFrame({
           >
             <div className={`gh-global-search-field ${searchPanelOpen ? "is-open" : ""}`} ref={searchRootRef}>
               <div className="gh-global-search-frame">
-                  <div className="gh-global-search-copy">
-                    <label className="gh-global-search-label" htmlFor="gh-global-search-input">
-                      Search
-                    </label>
-                    <div className="gh-global-search-subtitle">{searchScopeHint}</div>
-                  </div>
+                <div className="gh-global-search-copy">
+                  <label className="gh-global-search-label" htmlFor="gh-global-search-input">
+                    Search
+                  </label>
+                  <div className="gh-global-search-subtitle">{searchScopeHint}</div>
+                </div>
                 <div className="gh-global-search-input-wrap">
                   <input
                     className="gh-input gh-global-search-input"
