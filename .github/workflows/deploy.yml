@@ -51,15 +51,6 @@ jobs:
         working-directory: frontend
         run: npm ci
 
-      - name: Repo hygiene checks
-        run: python3 scripts/validate_repo_hygiene.py
-
-      - name: Backend compile check
-        run: python3 -m py_compile runtime_app.py govhub/services/*.py govhub/*.py scripts/prepare_bundle.py scripts/validate_repo_hygiene.py
-
-      - name: Backend unit tests
-        run: python3 -m unittest discover -s tests
-
       - name: Frontend lint
         working-directory: frontend
         run: npm run lint
@@ -68,9 +59,22 @@ jobs:
         working-directory: frontend
         run: npm run typecheck
 
+      - name: Frontend tests
+        working-directory: frontend
+        run: npm run test
+
       - name: Frontend build
         working-directory: frontend
         run: npm run build
+
+      - name: Repo hygiene checks
+        run: python3 scripts/validate_repo_hygiene.py
+
+      - name: Backend compile check
+        run: python3 -m py_compile run_app.py runtime_app.py govhub/api/*.py govhub/services/*.py govhub/*.py scripts/prepare_bundle.py scripts/validate_repo_hygiene.py
+
+      - name: Backend unit tests
+        run: python3 -m unittest discover -s tests
 
       - name: Prepare clean bundle directory
         run: python3 scripts/prepare_bundle.py --output "${RUNNER_TEMP}/governance_hub_bundle"

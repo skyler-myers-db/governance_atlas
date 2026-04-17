@@ -118,6 +118,7 @@ export default function WorkspaceSetupWizard({
   const claimNarrowing = Array.isArray(setupReadiness.claimNarrowing) ? setupReadiness.claimNarrowing : [];
   const workspaceAccess = diagnostics.workspaceAccess || {};
   const workspaceAccessGates = Array.isArray(workspaceAccess.gates) ? workspaceAccess.gates : [];
+  const surfacePolicies = Array.isArray(workspaceAccess.surfacePolicies) ? workspaceAccess.surfacePolicies : [];
   const safeSharingPath = workspaceAccess.queryHistorySharingPath || {};
   const acceptedSharingPaths = Array.isArray(safeSharingPath.acceptedPaths)
     ? safeSharingPath.acceptedPaths
@@ -273,6 +274,12 @@ export default function WorkspaceSetupWizard({
               state={workspaceAccess.canWriteGovernance ? "available" : "unavailable"}
               value={formatAvailability(workspaceAccess.canWriteGovernance)}
             />
+            <SummaryCard
+              label="Preview / sample"
+              note="Preview and sample data remain actor-scoped protected reads."
+              state={workspaceAccess.canUseAssetPreview ? "available" : "unavailable"}
+              value={formatAvailability(workspaceAccess.canUseAssetPreview)}
+            />
           </div>
         </section>
 
@@ -367,6 +374,26 @@ export default function WorkspaceSetupWizard({
           )}
         </section>
 
+        <section className="gh-detail-section">
+          <div className="gh-governance-section-head">
+            <div>
+              <div className="gh-panel-title">Surface policy matrix</div>
+              <div className="gh-support-copy">
+                Runtime mode mapping for discovery, entity metadata, preview, lineage, query history, export, and governance writes.
+              </div>
+            </div>
+            <span className="gh-chip gh-chip-soft">{surfacePolicies.length} policies</span>
+          </div>
+          {surfacePolicies.length ? (
+            <SetupList items={surfacePolicies} />
+          ) : (
+            <EmptyStateBlock
+              message="No surface policy matrix was returned by the runtime yet."
+              title="Surface policy pending"
+            />
+          )}
+        </section>
+
         {showDiagnostics ? (
           <section className="gh-detail-section">
             <div className="gh-governance-section-head">
@@ -400,6 +427,8 @@ export default function WorkspaceSetupWizard({
               { label: "Actor", value: status?.identity?.actorEmail || "unknown" },
               { label: "Role", value: status?.identity?.actorRole || "Unknown" },
               { label: "Identity source", value: status?.identity?.source || "Unknown" },
+              { label: "Auth mode", value: diagnostics.auth?.mode || status?.identity?.authMode || "Unknown" },
+              { label: "Visibility scope", value: workspaceAccess.visibilityScope || diagnostics.auth?.visibilityScope || "Unknown" },
             ]}
           />
         </SurfaceRailSection>

@@ -8,6 +8,9 @@ const EMPTY_GOVERNANCE = {
   inbox: null,
 };
 
+/**
+ * @param {{enabled?: boolean, staleTime?: number, refetchInterval?: number | false} | boolean} [options={}]
+ */
 export function useGovernanceSummary(options = {}) {
   const resolvedOptions =
     typeof options === "boolean"

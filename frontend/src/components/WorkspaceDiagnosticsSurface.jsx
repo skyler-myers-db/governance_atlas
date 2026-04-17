@@ -256,6 +256,7 @@ export default function WorkspaceDiagnosticsSurface({
   const featureFlags = status?.diagnostics?.featureFlags || [];
   const workspaceAccess = status?.diagnostics?.workspaceAccess || null;
   const workspaceAccessGates = workspaceAccess?.gates || [];
+  const surfacePolicies = workspaceAccess?.surfacePolicies || [];
   const transactionCheck = setupChecks.find((item) => item?.key === "transaction_mode") || null;
   const capabilities = Object.entries(status?.capabilities || {}).map(([key, value]) => ({
     key,
@@ -265,7 +266,10 @@ export default function WorkspaceDiagnosticsSurface({
     state: value?.state || "unknown",
     summary: value?.reason || "",
   }));
-  const clientDiagnostics = getRuntimeDiagnostics();
+  const clientDiagnostics = /** @type {{
+    lastRequest?: { httpRequestId?: string, clientRequestId?: string, clientDurationMs?: number } | null,
+    initialNavigation?: { durationMs?: number } | null,
+  } | null} */ (getRuntimeDiagnostics());
   const lastRequest = clientDiagnostics?.lastRequest || null;
   const initialNavigation = clientDiagnostics?.initialNavigation || null;
   const claimNarrowingItems = (setupReadiness.claimNarrowing || []).map((item, index) => ({
@@ -419,6 +423,10 @@ export default function WorkspaceDiagnosticsSurface({
           <AttributeList
             items={[
               { label: "Access mode", value: labelForState(workspaceAccess?.mode || status?.diagnostics?.auth?.mode || "unknown") },
+              { label: "Visibility scope", value: workspaceAccess?.visibilityScope || status?.diagnostics?.auth?.visibilityScope || "Unknown" },
+              { label: "Discovery", value: availabilityLabel(workspaceAccess?.canUseDiscovery) },
+              { label: "Entity metadata", value: availabilityLabel(workspaceAccess?.canUseEntityMetadata) },
+              { label: "Preview / sample", value: availabilityLabel(workspaceAccess?.canUseAssetPreview) },
               { label: "Governance writes", value: availabilityLabel(workspaceAccess?.canWriteGovernance) },
               { label: "Lineage", value: availabilityLabel(workspaceAccess?.canUseLineage) },
               { label: "Query history", value: availabilityLabel(workspaceAccess?.canUseQueryHistory) },
@@ -452,6 +460,26 @@ export default function WorkspaceDiagnosticsSurface({
             <EmptyStateBlock
               message="No workspace access summary was returned by the runtime yet."
               title="Workspace access summary pending"
+            />
+          )}
+        </section>
+
+        <section className="gh-detail-section">
+          <div className="gh-governance-section-head">
+            <div>
+              <div className="gh-panel-title">Surface policy matrix</div>
+              <div className="gh-support-copy">
+                Product-mode contract for discovery, entity metadata, preview, lineage, query history, export, and governance writes.
+              </div>
+            </div>
+            <span className="gh-chip gh-chip-soft">{surfacePolicies.length} policies</span>
+          </div>
+          {surfacePolicies.length ? (
+            <DiagnosticsList items={surfacePolicies} />
+          ) : (
+            <EmptyStateBlock
+              message="No surface policy matrix was returned by the runtime yet."
+              title="Surface policy pending"
             />
           )}
         </section>

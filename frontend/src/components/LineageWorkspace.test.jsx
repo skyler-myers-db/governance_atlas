@@ -77,6 +77,12 @@ const secondAsset = {
 };
 
 const lineageUnavailableReason = "Lineage is disabled in this workspace.";
+const fullWorkspaceAccess = {
+  mode: "obo-available",
+  observedAt: "2026-04-16T00:00:00Z",
+  canUseLineage: true,
+  gates: [],
+};
 
 function bootstrapPayload() {
   return {
@@ -174,11 +180,47 @@ describe("LineageWorkspace", () => {
             unavailableReason: "Table lineage rollout is disabled in this workspace.",
           },
         ]}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 
     expect(screen.getByText("Lineage Unavailable")).not.toBeNull();
     expect(screen.getByText("Table lineage rollout is disabled in this workspace.")).not.toBeNull();
+    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false);
+  });
+
+  it("shows a pending access state before workspace lineage access resolves", () => {
+    render(
+      <LineageWorkspace
+        bootstrap={{
+          assets: [asset],
+          capabilities: {
+            tableLineage: {
+              available: true,
+              state: "available",
+              reason: "",
+            },
+          },
+        }}
+        contextSeedAssets={[asset]}
+        initialAssetFqn={asset.fqn}
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenGovernance={() => {}}
+        onRouteAssetChange={() => {}}
+        onSurfaceReady={() => {}}
+        runtimeFeatureFlags={[
+          {
+            key: "table_lineage_surface",
+            enabled: true,
+            state: "available",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Resolving live lineage access...")).not.toBeNull();
+    expect(screen.getByText("Checking actor-scoped lineage access for this route.")).not.toBeNull();
     expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false);
   });
 
@@ -203,6 +245,7 @@ describe("LineageWorkspace", () => {
         onRouteAssetChange={() => {}}
         onSurfaceReady={() => {}}
         runtimeFeatureFlags={[]}
+        workspaceAccess={fullWorkspaceAccess}
       />,
     );
 
@@ -241,10 +284,11 @@ describe("LineageWorkspace", () => {
           },
         ]}
         workspaceAccess={{
+          ...fullWorkspaceAccess,
           canUseLineage: false,
           gates: [
             {
-              key: "lineage_access",
+              key: "table_lineage",
               reason: "Lineage is blocked by workspace access.",
             },
           ],

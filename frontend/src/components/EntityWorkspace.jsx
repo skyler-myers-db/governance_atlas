@@ -25,6 +25,8 @@ import {
   displayStorageFormat,
 } from "../lib/assetPresentation";
 import {
+  systemInventoryAvailable,
+  systemInventoryReason,
   runtimeFeatureFlagAvailable,
   runtimeFeatureFlagReason,
   tableLineageAvailable,
@@ -47,35 +49,35 @@ function statusTone(asset) {
   return "bad";
 }
 
-function governancePostureChecks(asset) {
+function governanceCoverageSignals(asset) {
   return [
     {
-      label: "Ownership",
-      action: "Assign accountable owners",
+      label: "Ownership coverage",
+      note: "Accountable owners are attached to the record.",
       complete: Boolean(asset.owners?.length),
       value: asset.owners?.length ? `${asset.owners.length} assigned` : "Unassigned",
     },
     {
-      label: "Domain",
-      action: "Map the asset to a business domain",
+      label: "Domain mapping",
+      note: "The record is mapped into a business domain.",
       complete: Boolean(asset.domain && asset.domain !== "Unassigned"),
       value: asset.domain || "Unassigned",
     },
     {
-      label: "Tier",
-      action: "Set a support tier for downstream use",
+      label: "Support tier",
+      note: "Downstream consumers have a declared support tier.",
       complete: Boolean(asset.tier && asset.tier !== "Unassigned"),
       value: asset.tier || "Unassigned",
     },
     {
       label: "Certification",
-      action: "Confirm whether the asset is approved for trusted reuse",
+      note: "Trusted-reuse status is recorded for this asset.",
       complete: Boolean(asset.certification && asset.certification !== "Unassigned"),
       value: asset.certification || "Unassigned",
     },
     {
-      label: "Sensitivity",
-      action: "Review privacy and classification posture",
+      label: "Sensitivity review",
+      note: "Privacy and classification markers are present.",
       complete: Boolean(asset.sensitivity && asset.sensitivity !== "Unassigned"),
       value: asset.sensitivity || "Unassigned",
     },
@@ -214,7 +216,7 @@ function metadataDraftFromAsset(asset) {
   };
 }
 
-function detailSectionsForTab(activeTab, workloadAvailable = true) {
+function detailSectionsForTab(activeTab, previewAvailable = true, workloadAvailable = true) {
   switch (activeTab) {
     case "Overview":
       return ["header"];
@@ -223,13 +225,16 @@ function detailSectionsForTab(activeTab, workloadAvailable = true) {
     case "Schema":
       return ["header", "activity", "schema"];
     case "SampleData":
-      return ["header", "activity", "preview"];
+      return previewAvailable ? ["header", "activity", "preview"] : ["header", "activity"];
     case "Queries":
       return workloadAvailable ? ["header", "activity", "operational"] : ["header", "activity"];
-    case "Profiler":
-      return workloadAvailable
-        ? ["header", "activity", "schema", "preview", "operational", "profiler"]
-        : ["header", "activity", "schema", "preview", "profiler"];
+    case "Profiler": {
+      const sections = ["header", "activity", "schema"];
+      if (previewAvailable) sections.push("preview");
+      if (workloadAvailable) sections.push("operational");
+      sections.push("profiler");
+      return sections;
+    }
     case "CustomProperties":
       return ["header", "activity", "properties"];
     default:
@@ -237,21 +242,28 @@ function detailSectionsForTab(activeTab, workloadAvailable = true) {
   }
 }
 
-function entityTabs(lineageAvailable = true, workloadAvailable = true) {
+function entityTabs(previewAvailable = true, lineageAvailable = true, workloadAvailable = true) {
   return [
     { key: "Overview", label: "Overview" },
     { key: "Schema", label: "Schema" },
     { key: "Activity", label: "Activity & Tasks" },
-    { key: "SampleData", label: "Sample Data" },
+    ...(previewAvailable ? [{ key: "SampleData", label: "Sample Data" }] : []),
     ...(workloadAvailable ? [{ key: "Queries", label: "Usage & Workloads" }] : []),
-    { key: "Profiler", label: "Profiler & Data Quality" },
+    { key: "Profiler", label: "Profiler & Evidence" },
     ...(lineageAvailable ? [{ key: "Lineage", label: "Lineage" }] : []),
     { key: "CustomProperties", label: "Custom Properties" },
   ];
 }
 
-function resolvedEntityTab(requestedTab, lineageAvailable = true, workloadAvailable = true) {
-  const allowedTabKeys = new Set(entityTabs(lineageAvailable, workloadAvailable).map((tab) => tab.key));
+function resolvedEntityTab(
+  requestedTab,
+  previewAvailable = true,
+  lineageAvailable = true,
+  workloadAvailable = true,
+) {
+  const allowedTabKeys = new Set(
+    entityTabs(previewAvailable, lineageAvailable, workloadAvailable).map((tab) => tab.key),
+  );
   return allowedTabKeys.has(requestedTab) ? requestedTab : "Overview";
 }
 
@@ -268,27 +280,29 @@ function AttributeList({ items }) {
   );
 }
 
-function GovernanceGapRows({ items, onOpenGovernance }) {
+function CoverageSignalRows({ items, onOpenGovernance }) {
   return (
-    <div className="gh-task-list gh-task-list-rows">
-      {items.map((task) => (
-        <button
-          className={`gh-task-row ${task.complete ? "is-complete" : ""}`}
-          key={task.label}
-          onClick={onOpenGovernance}
-          type="button"
-        >
-          <div className="gh-task-row-main">
-            <div className="gh-task-row-head">
-              <span className="gh-task-title">{task.label}</span>
-              <span className={`gh-status-chip tone-${task.complete ? "good" : "bad"}`}>
-                {task.complete ? "Ready" : "Needs work"}
-              </span>
-            </div>
-            <div className="gh-support-copy">{task.action}</div>
+    <div className="gh-attribute-list">
+      {items.map((signal) => (
+        <div className="gh-attribute-row gh-coverage-row" key={signal.label}>
+          <div className="gh-coverage-row-main">
+            <div className="gh-panel-title">{signal.label}</div>
+            <div className="gh-support-copy">{signal.note}</div>
+            <button
+              className="gh-tertiary-button gh-inline-link-button"
+              onClick={onOpenGovernance}
+              type="button"
+            >
+              Review in Governance
+            </button>
           </div>
-          <div className="gh-task-row-value">{task.value}</div>
-        </button>
+          <div className="gh-coverage-row-status">
+            <span className={`gh-status-chip tone-${signal.complete ? "good" : "warn"}`}>
+              {signal.complete ? "Covered" : "Needs review"}
+            </span>
+            <span className="gh-attribute-value">{signal.value}</span>
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -612,7 +626,7 @@ function QueryRecords({
 
 function ProfilerCards({ cards = [] }) {
   if (!cards.length) {
-    return <div className="gh-empty-state">No profiler or metadata quality signals are available yet.</div>;
+    return <div className="gh-empty-state">No profiler or live evidence signals are available yet.</div>;
   }
 
   return (
@@ -631,7 +645,7 @@ function ProfilerCards({ cards = [] }) {
   );
 }
 
-function PropertyList({ title, items = [], renderValue, className = "" }) {
+function PropertyList({ title, items = [], renderValue = (item) => item.value, className = "" }) {
   return (
     <EntityRecordSection className={`gh-entity-record-property-section ${className}`.trim()} title={title}>
       {items.length ? (
@@ -665,12 +679,15 @@ export default function EntityWorkspace({
   runtimeFeatureFlags = [],
   workspaceAccess = null,
 }) {
+  const previewAvailable = systemInventoryAvailable(bootstrap);
+  const previewUnavailableReason = systemInventoryReason(bootstrap);
   const lineageAvailable = tableLineageAvailable(bootstrap);
   const lineageUnavailableReason = tableLineageReason(bootstrap);
   const workloadAvailable = workloadVisibilityAvailable(bootstrap);
   const workloadUnavailableReason = workloadVisibilityReason(bootstrap);
-  const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", true);
-  const workspaceWorkloadAvailable = workspaceAccessAvailable(workspaceAccess, "canUseQueryHistory", true);
+  const workspacePreviewAvailable = workspaceAccessAvailable(workspaceAccess, "canUseAssetPreview", false);
+  const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", false);
+  const workspaceWorkloadAvailable = workspaceAccessAvailable(workspaceAccess, "canUseQueryHistory", false);
   const lineageRolloutAvailable = runtimeFeatureFlagAvailable(
     runtimeFeatureFlags,
     "table_lineage_surface",
@@ -679,14 +696,36 @@ export default function EntityWorkspace({
     runtimeFeatureFlags,
     "query_history_surface",
   );
-  const lineageSurfaceAvailable = lineageAvailable && lineageRolloutAvailable && workspaceLineageAvailable;
-  const workloadSurfaceAvailable = workloadAvailable && workloadRolloutAvailable && workspaceWorkloadAvailable;
+  const workspaceAccessResolved = Boolean(
+    workspaceAccess &&
+      (
+        workspaceAccess.mode ||
+        workspaceAccess.observedAt ||
+        Array.isArray(workspaceAccess.gates) ||
+        typeof workspaceAccess.canUseAssetPreview === "boolean" ||
+        typeof workspaceAccess.canUseLineage === "boolean" ||
+        typeof workspaceAccess.canUseQueryHistory === "boolean"
+      ),
+  );
+  const previewTabAvailable = previewAvailable && (!workspaceAccessResolved || workspacePreviewAvailable);
+  const lineageTabAvailable =
+    lineageAvailable && lineageRolloutAvailable && (!workspaceAccessResolved || workspaceLineageAvailable);
+  const workloadTabAvailable =
+    workloadAvailable && workloadRolloutAvailable && (!workspaceAccessResolved || workspaceWorkloadAvailable);
+  const previewAccessPending = previewAvailable && !workspaceAccessResolved;
+  const lineageAccessPending = lineageAvailable && lineageRolloutAvailable && !workspaceAccessResolved;
+  const workloadAccessPending = workloadAvailable && workloadRolloutAvailable && !workspaceAccessResolved;
+  const lineageSurfaceAvailable =
+    lineageAvailable && lineageRolloutAvailable && workspaceAccessResolved && workspaceLineageAvailable;
+  const previewSurfaceAvailable = previewAvailable && workspaceAccessResolved && workspacePreviewAvailable;
+  const workloadSurfaceAvailable =
+    workloadAvailable && workloadRolloutAvailable && workspaceAccessResolved && workspaceWorkloadAvailable;
   const lineageRolloutUnavailableReason =
     "Table lineage rollout is not available in this workspace right now.";
   const workloadRolloutUnavailableReason =
     "Query and workload surfaces are not available in this workspace right now.";
   const lineageSurfaceUnavailableReason = !workspaceLineageAvailable
-    ? workspaceAccessReason(workspaceAccess, "lineage_access", lineageUnavailableReason)
+    ? workspaceAccessReason(workspaceAccess, "table_lineage", lineageUnavailableReason)
     : lineageAvailable
     ? lineageRolloutAvailable
       ? lineageUnavailableReason
@@ -707,11 +746,16 @@ export default function EntityWorkspace({
           workloadRolloutUnavailableReason,
         )
     : workloadUnavailableReason;
+  const previewSurfaceUnavailableReason = !workspacePreviewAvailable
+    ? workspaceAccessReason(workspaceAccess, "asset_preview", previewUnavailableReason)
+    : previewUnavailableReason ||
+      "Live preview rows are not available in this workspace right now.";
   const [activeTab, setActiveTab] = useState(() => {
     return resolvedEntityTab(
       peekWorkspaceIntent("entityTab", assetFqn, "Overview") || "Overview",
-      lineageSurfaceAvailable,
-      workloadSurfaceAvailable,
+      previewTabAvailable,
+      lineageTabAvailable,
+      workloadTabAvailable,
     );
   });
   const [localLineageContext, setLocalLineageContext] = useState(() =>
@@ -732,8 +776,8 @@ export default function EntityWorkspace({
   const seedAssets = contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [];
   const launchAssets = seedAssets.slice(0, 6);
   const tabs = useMemo(
-    () => entityTabs(lineageSurfaceAvailable, workloadSurfaceAvailable),
-    [lineageSurfaceAvailable, workloadSurfaceAvailable],
+    () => entityTabs(previewTabAvailable, lineageTabAvailable, workloadTabAvailable),
+    [lineageTabAvailable, previewTabAvailable, workloadTabAvailable],
   );
   const visibleAssetSet = useMemo(() => {
     if (sharedVisibleAssetSet?.size) return new Set(sharedVisibleAssetSet);
@@ -743,8 +787,8 @@ export default function EntityWorkspace({
     allowFallback: false,
   });
   const requestedDetailSections = useMemo(
-    () => detailSectionsForTab(activeTab, workloadSurfaceAvailable),
-    [activeTab, workloadSurfaceAvailable],
+    () => detailSectionsForTab(activeTab, previewSurfaceAvailable, workloadSurfaceAvailable),
+    [activeTab, previewSurfaceAvailable, workloadSurfaceAvailable],
   );
   const assetDetail = useAssetDetail(assetFqn || "", { sections: requestedDetailSections });
   const usableDetail = isUsableAssetDetail(assetDetail.detail) ? assetDetail.detail : null;
@@ -806,7 +850,7 @@ export default function EntityWorkspace({
   const detailHydrating = detailLoading && !asset;
   const detailUnavailable = Boolean(assetDetail.error) && !detailReady;
   const schemaUnavailable = Boolean(assetDetail.error) && !schemaLoaded;
-  const previewUnavailable = Boolean(assetDetail.error) && !previewLoaded;
+  const previewUnavailable = !previewSurfaceAvailable || (Boolean(assetDetail.error) && !previewLoaded);
   const operationalUnavailable = Boolean(assetDetail.error) && !operationalLoaded;
   const propertiesUnavailable = Boolean(assetDetail.error) && !propertiesLoaded;
   const profilerUnavailable = Boolean(assetDetail.error) && !profilerLoaded;
@@ -815,7 +859,7 @@ export default function EntityWorkspace({
     editor.config?.message ||
     "Column metadata editing is not available for this asset type right now.";
   const liveColumns = detailReady && schemaLoaded ? columns : [];
-  const livePreview = detailReady && previewLoaded ? preview : [];
+  const livePreview = detailReady && previewSurfaceAvailable && previewLoaded ? preview : [];
   const upstreamAssets = useMemo(
     () => dedupeLinkedAssets(lineageNeighbors.upstream, focusAssetFqn),
     [focusAssetFqn, lineageNeighbors.upstream],
@@ -863,7 +907,7 @@ export default function EntityWorkspace({
     [downstreamAssets, relatedAssets, upstreamAssets],
   );
   const previewKeys = livePreview[0] ? Object.keys(livePreview[0]) : [];
-  const postureChecks = governancePostureChecks(asset || {});
+  const postureChecks = governanceCoverageSignals(asset || {});
   const objectType = asset ? displayObjectType(asset) || (detailHydrating ? "Loading…" : "") : "";
   const identityLine = asset ? assetPathLabel(asset) : assetFqn;
   const lineageUnavailable =
@@ -878,17 +922,31 @@ export default function EntityWorkspace({
       ? "Refreshing live detail…"
       : "";
   const schemaPending = activeTab === "Schema" && detailLoading && !schemaLoaded;
-  const previewPending = activeTab === "SampleData" && detailLoading && !previewLoaded;
+  const previewPending = activeTab === "SampleData" && previewSurfaceAvailable && detailLoading && !previewLoaded;
   const operationalPending = activeTab === "Queries" && detailLoading && !operationalLoaded;
   const propertiesPending = activeTab === "CustomProperties" && detailLoading && !propertiesLoaded;
   const profilerPending = activeTab === "Profiler" && detailLoading && !profilerLoaded;
+  const profilerCards = useMemo(
+    () =>
+      (asset?.profiler?.cards || []).filter((card) => {
+        const title = String(card?.title || "").trim().toLowerCase();
+        if (!previewSurfaceAvailable && title === "sample data") return false;
+        if (!lineageSurfaceAvailable && title === "lineage context") return false;
+        if (!workloadSurfaceAvailable && title === "operational usage") return false;
+        return true;
+      }),
+    [asset?.profiler?.cards, lineageSurfaceAvailable, previewSurfaceAvailable, workloadSurfaceAvailable],
+  );
+  const profilerSummary = asset?.profiler?.summary || {};
   const metricTiles = [
     { label: "Coverage", value: asset?.coverageScore == null ? "—" : `${asset.coverageScore}` },
     { label: "Owners", value: `${asset?.owners?.length || 0}` },
     { label: "Open Requests", value: asset?.openRequests == null ? "—" : `${asset.openRequests}` },
     {
       label: "Workloads",
-      value: !workloadSurfaceAvailable
+      value: workloadAccessPending
+        ? "Checking access..."
+        : !workloadSurfaceAvailable
         ? "Unavailable"
         : operationalLoaded
           ? `${(asset?.usage?.producerCount || 0) + (asset?.usage?.consumerCount || 0)}`
@@ -898,7 +956,9 @@ export default function EntityWorkspace({
     },
     {
       label: "Connected Assets",
-      value: !lineageSurfaceAvailable
+      value: lineageAccessPending
+        ? "Checking access..."
+        : !lineageSurfaceAvailable
         ? "Unavailable"
         : (lineageLoading || lineageProvisional) && !connectedAssetCount
           ? "Loading…"
@@ -912,23 +972,47 @@ export default function EntityWorkspace({
   }, [assetFqn]);
 
   useEffect(() => {
-    const nextTab = consumeWorkspaceIntent("entityTab", assetFqn, "Overview") || "Overview";
-    setActiveTab(resolvedEntityTab(nextTab, lineageSurfaceAvailable, workloadSurfaceAvailable));
+    const nextTab = (
+      workspaceAccessResolved
+        ? consumeWorkspaceIntent("entityTab", assetFqn, "Overview")
+        : peekWorkspaceIntent("entityTab", assetFqn, "Overview")
+    ) || "Overview";
+    setActiveTab(
+      resolvedEntityTab(
+        nextTab,
+        workspaceAccessResolved ? previewSurfaceAvailable : previewTabAvailable,
+        workspaceAccessResolved ? lineageSurfaceAvailable : lineageTabAvailable,
+        workspaceAccessResolved ? workloadSurfaceAvailable : workloadTabAvailable,
+      ),
+    );
     setLocalOverrides({});
     setMetadataDirty(false);
     setSelectedColumnName("");
     setColumnDraft({ description: "", tags: "" });
     setColumnMutation({ loading: false, error: "", success: "" });
-  }, [assetFqn, lineageSurfaceAvailable, workloadSurfaceAvailable]);
+  }, [
+    assetFqn,
+    lineageSurfaceAvailable,
+    lineageTabAvailable,
+    previewSurfaceAvailable,
+    previewTabAvailable,
+    workloadSurfaceAvailable,
+    workloadTabAvailable,
+    workspaceAccessResolved,
+  ]);
 
   useEffect(() => {
+    if (!workspaceAccessResolved) return;
+    if (!previewSurfaceAvailable && activeTab === "SampleData") {
+      setActiveTab("Overview");
+    }
     if (!lineageSurfaceAvailable && activeTab === "Lineage") {
       setActiveTab("Overview");
     }
     if (!workloadSurfaceAvailable && activeTab === "Queries") {
       setActiveTab("Overview");
     }
-  }, [activeTab, lineageSurfaceAvailable, workloadSurfaceAvailable]);
+  }, [activeTab, lineageSurfaceAvailable, previewSurfaceAvailable, workloadSurfaceAvailable, workspaceAccessResolved]);
 
   useEffect(() => {
     if (!assetFqn) return;
@@ -1020,7 +1104,10 @@ export default function EntityWorkspace({
   useEffect(() => {
     if (activeTab !== "Overview" || !assetFqn || !loadedSections.has("header") || detailLoading) return undefined;
     const firstWaveSections = ["activity", "schema"].filter((section) => !loadedSections.has(section));
-    const secondWaveSections = ["preview", "operational"].filter((section) => !loadedSections.has(section));
+    const secondWaveSections = [
+      ...(previewSurfaceAvailable ? ["preview"] : []),
+      ...(workloadSurfaceAvailable ? ["operational"] : []),
+    ].filter((section) => !loadedSections.has(section));
     const thirdWaveSections = ["profiler", "properties"].filter((section) => !loadedSections.has(section));
     if (!firstWaveSections.length && !secondWaveSections.length && !thirdWaveSections.length) return undefined;
     let cancelled = false;
@@ -1073,7 +1160,7 @@ export default function EntityWorkspace({
         window.clearTimeout(thirdWaveTimeoutId);
       }
     };
-  }, [activeTab, assetFqn, detailLoading, loadedSections]);
+  }, [activeTab, assetFqn, detailLoading, loadedSections, previewSurfaceAvailable, workloadSurfaceAvailable]);
 
   if (assetFqn && assetDetail.loading && !asset) {
     return (
@@ -1402,6 +1489,17 @@ export default function EntityWorkspace({
     columnLineage.upstream.find((entry) => entry.column === selectedColumn?.name)?.sources || [];
   const selectedColumnDownstream =
     columnLineage.downstream.find((entry) => entry.column === selectedColumn?.name)?.targets || [];
+  const profilerLineageMeta = (() => {
+    const upstreamCount = Number.isFinite(lineageStats.upstreamCount) ? lineageStats.upstreamCount : null;
+    const downstreamCount = Number.isFinite(lineageStats.downstreamCount) ? lineageStats.downstreamCount : null;
+    if (!lineageSurfaceAvailable || (!lineageAuthoritative && upstreamCount == null && downstreamCount == null)) {
+      return [];
+    }
+    return [
+      upstreamCount == null ? null : `${upstreamCount} upstream`,
+      downstreamCount == null ? null : `${downstreamCount} downstream`,
+    ].filter(Boolean);
+  })();
   const recordFacts = [
     {
       label: "Management",
@@ -1414,7 +1512,9 @@ export default function EntityWorkspace({
     { label: "Owners", value: `${asset.ownerAssignments?.length || asset.owners?.length || 0}` },
     {
       label: "Workloads",
-      value: !workloadSurfaceAvailable
+      value: workloadAccessPending
+        ? "Checking access..."
+        : !workloadSurfaceAvailable
         ? "Unavailable"
         : operationalLoaded
           ? `${(asset?.usage?.producerCount || 0) + (asset?.usage?.consumerCount || 0)}`
@@ -1424,7 +1524,9 @@ export default function EntityWorkspace({
     },
     {
       label: "Connected Assets",
-      value: !lineageSurfaceAvailable
+      value: lineageAccessPending
+        ? "Checking access..."
+        : !lineageSurfaceAvailable
         ? "Unavailable"
         : (lineageLoading || lineageProvisional) && !connectedAssetCount
           ? "Loading…"
@@ -1451,10 +1553,20 @@ export default function EntityWorkspace({
                     onNavigationStateChange?.(true, "Opening lineage…");
                     onOpenLineage(asset.fqn, "Data Lineage");
                   }}
-                  title={!lineageSurfaceAvailable ? lineageSurfaceUnavailableReason : undefined}
+                  title={
+                    lineageAccessPending
+                      ? "Checking actor-scoped lineage access for this route."
+                      : !lineageSurfaceAvailable
+                        ? lineageSurfaceUnavailableReason
+                        : undefined
+                  }
                   type="button"
                 >
-                  {lineageSurfaceAvailable ? "Open Lineage" : "Lineage unavailable"}
+                  {lineageAccessPending
+                    ? "Checking lineage access..."
+                    : lineageSurfaceAvailable
+                      ? "Open Lineage"
+                      : "Lineage unavailable"}
                 </button>
                 <button
                   className="gh-secondary-button"
@@ -1534,7 +1646,9 @@ export default function EntityWorkspace({
 
               <EntityRecordSection
                 description={
-                  !lineageSurfaceAvailable
+                  lineageAccessPending
+                    ? "Checking actor-scoped lineage access for this asset."
+                    : !lineageSurfaceAvailable
                     ? lineageSurfaceUnavailableReason
                     : lineageProvisional && !lineageAuthoritative
                     ? "Refreshing live lineage context for this asset."
@@ -1550,7 +1664,9 @@ export default function EntityWorkspace({
                 }
                 title="Lineage Context"
               >
-                {lineageSurfaceAvailable ? (
+                {lineageAccessPending ? (
+                  <div className="gh-empty-state">Checking lineage access...</div>
+                ) : lineageSurfaceAvailable ? (
                   <>
                     <SurfaceTabs
                       activeKey={localLineageContext}
@@ -1640,43 +1756,54 @@ export default function EntityWorkspace({
               />
 
               <EntityRecordSection
-                description="These are posture gaps inferred from live metadata fields, not persisted workflow tasks."
-                title="Stewardship posture"
+                description="These signals summarize where core governance metadata is present and where steward review is still needed."
+                title="Governance coverage"
               >
-                <GovernanceGapRows items={postureChecks.slice(0, 4)} onOpenGovernance={() => onOpenGovernance(asset.fqn)} />
+                <CoverageSignalRows items={postureChecks.slice(0, 4)} onOpenGovernance={() => onOpenGovernance(asset.fqn)} />
               </EntityRecordSection>
             </div>
           </div>
         ) : null}
 
         {activeTab === "Lineage" ? (
-          <LineageStage
-            asset={asset}
-            allowRefocus={false}
-            assetSearchLoading={false}
-            assetSearchQuery=""
-            assetSearchResults={[]}
-            context={localLineageContext}
-            embedded
-            error={lineage.error}
-            graphBundle={lineageBundle}
-            lineagePayload={lineagePayload}
-            loading={lineageLoading}
-            authoritative={lineageAuthoritative}
-            provisional={lineageProvisional}
-            onAssetSearchQueryChange={() => {}}
-            onContextChange={setLocalLineageContext}
-            onOpenAsset={(nextAssetFqn) => {
-              setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
-              onSelectAsset(nextAssetFqn, "Overview");
-            }}
-            onOpenFullGraph={(nextContext) => onOpenLineage(asset.fqn, nextContext)}
-            onOpenGovernance={onOpenGovernance}
-            onSelectAsset={(nextAssetFqn) => {
-              setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
-              onSelectAsset(nextAssetFqn, "Overview");
-            }}
-          />
+          !workspaceAccessResolved ? (
+            <EntityRecordSection
+              className="gh-entity-record-lineage-section"
+              description="Actor-scoped lineage access is still being resolved for this route."
+              title="Lineage"
+            >
+              <div className="gh-empty-state">Checking lineage access...</div>
+            </EntityRecordSection>
+          ) : (
+            <LineageStage
+              asset={asset}
+              allowRefocus={false}
+              assetSearchLoading={false}
+              assetSearchQuery=""
+              assetSearchResults={[]}
+              assetSearchResolvedQuery=""
+              context={localLineageContext}
+              embedded
+              error={lineage.error}
+              graphBundle={lineageBundle}
+              lineagePayload={lineagePayload}
+              loading={lineageLoading}
+              authoritative={lineageAuthoritative}
+              provisional={lineageProvisional}
+              onAssetSearchQueryChange={() => {}}
+              onContextChange={setLocalLineageContext}
+              onOpenAsset={(nextAssetFqn) => {
+                setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
+                onSelectAsset(nextAssetFqn, "Overview");
+              }}
+              onOpenFullGraph={(nextContext) => onOpenLineage(asset.fqn, nextContext)}
+              onOpenGovernance={onOpenGovernance}
+              onSelectAsset={(nextAssetFqn) => {
+                setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
+                onSelectAsset(nextAssetFqn, "Overview");
+              }}
+            />
+          )
         ) : null}
 
         {activeTab === "Schema" ? (
@@ -1788,7 +1915,9 @@ export default function EntityWorkspace({
                     )}
                     <div className="gh-detail-section">
                       <div className="gh-panel-title">Column Lineage</div>
-                      {!lineageSurfaceAvailable ? (
+                      {lineageAccessPending ? (
+                        <div className="gh-empty-state">Checking lineage access...</div>
+                      ) : !lineageSurfaceAvailable ? (
                         <div className="gh-empty-state">{lineageSurfaceUnavailableReason}</div>
                       ) : selectedColumnUpstream.length || selectedColumnDownstream.length ? (
                         <div className="gh-lineage-linked-list">
@@ -1902,7 +2031,13 @@ export default function EntityWorkspace({
             title="Sample Data"
             description="Sample rows returned from the live asset preview."
           >
-            {previewPending ? (
+            {!workspaceAccessResolved ? (
+              <div className="gh-empty-state">Checking preview access...</div>
+            ) : !previewSurfaceAvailable ? (
+              <div className="gh-empty-state">
+                {previewSurfaceUnavailableReason}
+              </div>
+            ) : previewPending ? (
               <div className="gh-empty-state">Loading preview rows...</div>
             ) : previewUnavailable ? (
               <div className="gh-empty-state">
@@ -1938,7 +2073,9 @@ export default function EntityWorkspace({
             className="gh-entity-record-queries-section"
             title="Usage & Workloads"
           >
-            {workloadSurfaceAvailable ? (
+            {!workspaceAccessResolved ? (
+              <div className="gh-empty-state">Checking workload access...</div>
+            ) : workloadSurfaceAvailable ? (
               operationalPending ? (
                 <div className="gh-empty-state">Loading workload and operational context...</div>
               ) : operationalUnavailable ? (
@@ -1965,25 +2102,30 @@ export default function EntityWorkspace({
         {activeTab === "Profiler" ? (
           <EntityRecordSection
             className="gh-entity-record-profiler-section"
-            description="Live metadata quality signals derived from schema coverage, sample data, lineage, and governance posture."
-            title="Profiler & Data Quality"
+            description="Live evidence currently surfaced from schema, preview, workload, and lineage reads. Persisted quality tests and runs are not available in this workspace yet."
+            title="Profiler & Evidence"
             titleMeta={(
               <div className="gh-chip-row">
-                <span className="gh-chip gh-chip-soft">{lineageStats.upstreamCount || 0} upstream</span>
-                <span className="gh-chip gh-chip-soft">{lineageStats.downstreamCount || 0} downstream</span>
-                <span className="gh-chip gh-chip-soft">{asset.profiler?.summary?.producerCount || 0} producers</span>
-                <span className="gh-chip gh-chip-soft">{asset.profiler?.summary?.consumerCount || 0} consumers</span>
+                {profilerLineageMeta.map((label) => (
+                  <span className="gh-chip gh-chip-soft" key={label}>{label}</span>
+                ))}
+                {workloadSurfaceAvailable ? (
+                  <span className="gh-chip gh-chip-soft">{profilerSummary.producerCount || 0} producers</span>
+                ) : null}
+                {workloadSurfaceAvailable ? (
+                  <span className="gh-chip gh-chip-soft">{profilerSummary.consumerCount || 0} consumers</span>
+                ) : null}
               </div>
             )}
           >
             {profilerPending ? (
-              <div className="gh-empty-state">Loading profiler and metadata quality signals...</div>
+              <div className="gh-empty-state">Loading profiler and live evidence signals...</div>
             ) : profilerUnavailable ? (
               <div className="gh-empty-state">
-                {assetDetail.error || "Live profiler and metadata quality signals are unavailable for this asset right now."}
+                {assetDetail.error || "Live profiler and evidence signals are unavailable for this asset right now."}
               </div>
             ) : (
-              <ProfilerCards cards={asset.profiler?.cards || []} />
+              <ProfilerCards cards={profilerCards} />
             )}
           </EntityRecordSection>
         ) : null}

@@ -5,10 +5,38 @@ from typing import Any, Dict
 
 MUTATION_ROLES = {"writer", "steward", "admin"}
 APPROVAL_ROLES = {"steward", "admin"}
+OBO_AVAILABLE_MODE = "obo-available"
+APP_PRINCIPAL_ONLY_MODE = "app-principal-only"
+NO_IDENTITY_MODE = "no-identity"
+ACTOR_SCOPED_VISIBILITY = "actor-scoped"
+WORKSPACE_APP_PRINCIPAL_VISIBILITY = "workspace-app-principal"
+ANONYMOUS_APP_PRINCIPAL_VISIBILITY = "anonymous-app-principal"
+CONTROL_PLANE_VISIBILITY = "forwarded-actor-control-plane"
 
 
 def _normalize_role(value: str) -> str:
     return (value or "reader").strip().lower() or "reader"
+
+
+def runtime_auth_mode(
+    *,
+    authenticated: bool,
+    per_user_authorization: bool = False,
+) -> str:
+    if authenticated and per_user_authorization:
+        return OBO_AVAILABLE_MODE
+    if authenticated:
+        return APP_PRINCIPAL_ONLY_MODE
+    return NO_IDENTITY_MODE
+
+
+def runtime_visibility_scope(mode: str) -> str:
+    normalized = str(mode or "").strip().lower()
+    if normalized == OBO_AVAILABLE_MODE:
+        return ACTOR_SCOPED_VISIBILITY
+    if normalized == APP_PRINCIPAL_ONLY_MODE:
+        return WORKSPACE_APP_PRINCIPAL_VISIBILITY
+    return ANONYMOUS_APP_PRINCIPAL_VISIBILITY
 
 
 def _flag(
@@ -18,6 +46,10 @@ def _flag(
     reason: str = "",
     actor_scoped: bool = True,
     workspace_scoped: bool = True,
+    visibility_scope: str = "",
+    source: str = "",
+    protected_read: bool = False,
+    product_mode: str = "",
 ) -> Dict[str, Any]:
     return {
         "available": bool(available),
@@ -25,6 +57,10 @@ def _flag(
         "reason": reason,
         "actorScoped": bool(actor_scoped),
         "workspaceScoped": bool(workspace_scoped),
+        "visibilityScope": str(visibility_scope or "").strip(),
+        "source": str(source or "").strip(),
+        "protectedRead": bool(protected_read),
+        "productMode": str(product_mode or "").strip(),
     }
 
 
@@ -42,20 +78,74 @@ def bootstrap_capabilities(
     boot_message: str = "",
 ) -> Dict[str, Dict[str, Any]]:
     role = _normalize_role(actor_role)
+    auth_mode = runtime_auth_mode(authenticated=authenticated, per_user_authorization=False)
+    read_visibility_scope = runtime_visibility_scope(auth_mode)
+    actor_scoped_reads = auth_mode == OBO_AVAILABLE_MODE
     runtime_live = runtime_state == "live"
     store_live = store_state == "live"
     mutation_allowed = authenticated and runtime_live and store_live and role in MUTATION_ROLES
     approval_allowed = authenticated and runtime_live and store_live and role in APPROVAL_ROLES
+    metadata_source = (
+        "unity-catalog-actor"
+        if actor_scoped_reads
+        else "unity-catalog-app-principal"
+    )
 
     if not runtime_live:
         unavailable_reason = runtime_message or "The live metadata runtime is unavailable."
-        inventory = _flag(available=False, state="unavailable", reason=unavailable_reason)
-        table_lineage = _flag(available=False, state="unavailable", reason=unavailable_reason)
-        column_lineage = _flag(available=False, state="unavailable", reason=unavailable_reason)
-        workload_visibility = _flag(available=False, state="unavailable", reason=unavailable_reason)
+        inventory = _flag(
+            available=False,
+            state="unavailable",
+            reason=unavailable_reason,
+            actor_scoped=actor_scoped_reads,
+            workspace_scoped=not actor_scoped_reads,
+            visibility_scope=read_visibility_scope,
+            source=metadata_source,
+            product_mode=auth_mode,
+        )
+        table_lineage = _flag(
+            available=False,
+            state="unavailable",
+            reason=unavailable_reason,
+            actor_scoped=actor_scoped_reads,
+            workspace_scoped=not actor_scoped_reads,
+            visibility_scope=read_visibility_scope,
+            source=metadata_source,
+            product_mode=auth_mode,
+        )
+        column_lineage = _flag(
+            available=False,
+            state="unavailable",
+            reason=unavailable_reason,
+            actor_scoped=actor_scoped_reads,
+            workspace_scoped=not actor_scoped_reads,
+            visibility_scope=read_visibility_scope,
+            source=metadata_source,
+            protected_read=True,
+            product_mode=auth_mode,
+        )
+        workload_visibility = _flag(
+            available=False,
+            state="unavailable",
+            reason=unavailable_reason,
+            actor_scoped=actor_scoped_reads,
+            workspace_scoped=not actor_scoped_reads,
+            visibility_scope=read_visibility_scope,
+            source=metadata_source,
+            protected_read=True,
+            product_mode=auth_mode,
+        )
     else:
         if int(visible_asset_count or 0) > 0:
-            inventory = _flag(available=True, state="available")
+            inventory = _flag(
+                available=True,
+                state="available",
+                actor_scoped=actor_scoped_reads,
+                workspace_scoped=not actor_scoped_reads,
+                visibility_scope=read_visibility_scope,
+                source=metadata_source,
+                product_mode=auth_mode,
+            )
         else:
             degraded_reason = (
                 boot_message
@@ -64,11 +154,68 @@ def bootstrap_capabilities(
                     f"{int(available_catalog_count or 0)} catalog(s)."
                 )
             )
-            inventory = _flag(available=True, state="degraded", reason=degraded_reason)
+            inventory = _flag(
+                available=True,
+                state="degraded",
+                reason=degraded_reason,
+                actor_scoped=actor_scoped_reads,
+                workspace_scoped=not actor_scoped_reads,
+                visibility_scope=read_visibility_scope,
+                source=metadata_source,
+                product_mode=auth_mode,
+            )
 
-        if int(observed_catalog_count or 0) > 0:
-            table_lineage = _flag(available=True, state="available")
-            column_lineage = _flag(available=True, state="available")
+        if not actor_scoped_reads:
+            lineage_reason = (
+                "Live lineage remains unavailable until Databricks per-user authorization / OBO "
+                "is available for actor-scoped reads."
+            )
+            table_lineage = _flag(
+                available=False,
+                state="unavailable",
+                reason=lineage_reason,
+                actor_scoped=False,
+                workspace_scoped=True,
+                visibility_scope=read_visibility_scope,
+                source=metadata_source,
+                protected_read=True,
+                product_mode=auth_mode,
+            )
+            column_lineage = _flag(
+                available=False,
+                state="unavailable",
+                reason=(
+                    "Column lineage remains unavailable until Databricks per-user authorization / OBO "
+                    "is available for actor-scoped reads."
+                ),
+                actor_scoped=False,
+                workspace_scoped=True,
+                visibility_scope=read_visibility_scope,
+                source=metadata_source,
+                protected_read=True,
+                product_mode=auth_mode,
+            )
+        elif int(observed_catalog_count or 0) > 0:
+            table_lineage = _flag(
+                available=True,
+                state="available",
+                actor_scoped=actor_scoped_reads,
+                workspace_scoped=not actor_scoped_reads,
+                visibility_scope=read_visibility_scope,
+                source=metadata_source,
+                protected_read=True,
+                product_mode=auth_mode,
+            )
+            column_lineage = _flag(
+                available=True,
+                state="available",
+                actor_scoped=actor_scoped_reads,
+                workspace_scoped=not actor_scoped_reads,
+                visibility_scope=read_visibility_scope,
+                source=metadata_source,
+                protected_read=True,
+                product_mode=auth_mode,
+            )
         else:
             table_lineage = _flag(
                 available=True,
@@ -77,6 +224,12 @@ def bootstrap_capabilities(
                     "No lineage-observed catalogs are detected yet; keep lineage surfaces capability-gated "
                     "and handle masked or empty results truthfully."
                 ),
+                actor_scoped=actor_scoped_reads,
+                workspace_scoped=not actor_scoped_reads,
+                visibility_scope=read_visibility_scope,
+                source=metadata_source,
+                protected_read=True,
+                product_mode=auth_mode,
             )
             column_lineage = _flag(
                 available=True,
@@ -84,6 +237,12 @@ def bootstrap_capabilities(
                 reason=(
                     "Column lineage uses the same system lineage plane and still requires per-asset verification."
                 ),
+                actor_scoped=actor_scoped_reads,
+                workspace_scoped=not actor_scoped_reads,
+                visibility_scope=read_visibility_scope,
+                source=metadata_source,
+                protected_read=True,
+                product_mode=auth_mode,
             )
 
         workload_visibility = _flag(
@@ -92,6 +251,12 @@ def bootstrap_capabilities(
             reason=(
                 "Operational query and workload visibility is preview/admin-governed and must be rechecked per request."
             ),
+            actor_scoped=actor_scoped_reads,
+            workspace_scoped=not actor_scoped_reads,
+            visibility_scope=read_visibility_scope,
+            source=metadata_source,
+            protected_read=True,
+            product_mode=auth_mode,
         )
 
     if not runtime_live:
@@ -99,37 +264,107 @@ def bootstrap_capabilities(
             available=False,
             state="unavailable",
             reason=runtime_message or "The live metadata runtime is unavailable.",
+            actor_scoped=authenticated,
+            workspace_scoped=False,
+            visibility_scope=CONTROL_PLANE_VISIBILITY if authenticated else "",
+            source="governance-control-plane",
+            product_mode=auth_mode,
         )
         governance_approval = _flag(
             available=False,
             state="unavailable",
             reason=runtime_message or "The live metadata runtime is unavailable.",
+            actor_scoped=authenticated,
+            workspace_scoped=False,
+            visibility_scope=CONTROL_PLANE_VISIBILITY if authenticated else "",
+            source="governance-control-plane",
+            product_mode=auth_mode,
         )
     elif not store_live:
         degraded_reason = store_message or "The governance control plane is degraded."
-        governance_write = _flag(available=False, state="degraded", reason=degraded_reason)
-        governance_approval = _flag(available=False, state="degraded", reason=degraded_reason)
+        governance_write = _flag(
+            available=False,
+            state="degraded",
+            reason=degraded_reason,
+            actor_scoped=authenticated,
+            workspace_scoped=False,
+            visibility_scope=CONTROL_PLANE_VISIBILITY if authenticated else "",
+            source="governance-control-plane",
+            product_mode=auth_mode,
+        )
+        governance_approval = _flag(
+            available=False,
+            state="degraded",
+            reason=degraded_reason,
+            actor_scoped=authenticated,
+            workspace_scoped=False,
+            visibility_scope=CONTROL_PLANE_VISIBILITY if authenticated else "",
+            source="governance-control-plane",
+            product_mode=auth_mode,
+        )
     elif not authenticated:
         auth_reason = "A forwarded Databricks user identity is required for governance mutations."
-        governance_write = _flag(available=False, state="unavailable", reason=auth_reason)
-        governance_approval = _flag(available=False, state="unavailable", reason=auth_reason)
+        governance_write = _flag(
+            available=False,
+            state="unavailable",
+            reason=auth_reason,
+            actor_scoped=False,
+            workspace_scoped=False,
+            source="governance-control-plane",
+            product_mode=auth_mode,
+        )
+        governance_approval = _flag(
+            available=False,
+            state="unavailable",
+            reason=auth_reason,
+            actor_scoped=False,
+            workspace_scoped=False,
+            source="governance-control-plane",
+            product_mode=auth_mode,
+        )
     else:
         governance_write = (
-            _flag(available=True, state="available")
+            _flag(
+                available=True,
+                state="available",
+                actor_scoped=True,
+                workspace_scoped=False,
+                visibility_scope=CONTROL_PLANE_VISIBILITY,
+                source="governance-control-plane",
+                product_mode=auth_mode,
+            )
             if mutation_allowed
             else _flag(
                 available=False,
                 state="unavailable",
                 reason="This action requires writer, steward, or admin permissions.",
+                actor_scoped=True,
+                workspace_scoped=False,
+                visibility_scope=CONTROL_PLANE_VISIBILITY,
+                source="governance-control-plane",
+                product_mode=auth_mode,
             )
         )
         governance_approval = (
-            _flag(available=True, state="available")
+            _flag(
+                available=True,
+                state="available",
+                actor_scoped=True,
+                workspace_scoped=False,
+                visibility_scope=CONTROL_PLANE_VISIBILITY,
+                source="governance-control-plane",
+                product_mode=auth_mode,
+            )
             if approval_allowed
             else _flag(
                 available=False,
                 state="unavailable",
                 reason="This action requires steward or admin permissions.",
+                actor_scoped=True,
+                workspace_scoped=False,
+                visibility_scope=CONTROL_PLANE_VISIBILITY,
+                source="governance-control-plane",
+                product_mode=auth_mode,
             )
         )
 
@@ -138,22 +373,68 @@ def bootstrap_capabilities(
             available=False,
             state="unavailable",
             reason="Persisted quality run execution is not implemented in the live runtime yet.",
+            actor_scoped=True,
+            workspace_scoped=False,
+            visibility_scope=ACTOR_SCOPED_VISIBILITY,
+            source="quality-control-plane",
+            protected_read=True,
+            product_mode=auth_mode,
         )
         export_allowed = _flag(
             available=False,
             state="unavailable",
             reason="Authenticated export endpoints are not implemented in the live runtime yet.",
+            actor_scoped=actor_scoped_reads,
+            workspace_scoped=not actor_scoped_reads,
+            visibility_scope=read_visibility_scope,
+            source=metadata_source,
+            protected_read=True,
+            product_mode=auth_mode,
         )
         manual_lineage_overrides = _flag(
             available=False,
             state="unavailable",
             reason="Governed lineage overrides are not implemented in the live runtime yet.",
+            actor_scoped=True,
+            workspace_scoped=False,
+            visibility_scope=CONTROL_PLANE_VISIBILITY if authenticated else "",
+            source="governance-control-plane",
+            product_mode=auth_mode,
         )
     else:
         base_reason = runtime_message or store_message or "The required runtime capability is unavailable."
-        quality_run = _flag(available=False, state="unavailable", reason=base_reason)
-        export_allowed = _flag(available=False, state="unavailable", reason=base_reason)
-        manual_lineage_overrides = _flag(available=False, state="unavailable", reason=base_reason)
+        quality_run = _flag(
+            available=False,
+            state="unavailable",
+            reason=base_reason,
+            actor_scoped=True,
+            workspace_scoped=False,
+            visibility_scope=ACTOR_SCOPED_VISIBILITY if authenticated else "",
+            source="quality-control-plane",
+            protected_read=True,
+            product_mode=auth_mode,
+        )
+        export_allowed = _flag(
+            available=False,
+            state="unavailable",
+            reason=base_reason,
+            actor_scoped=actor_scoped_reads,
+            workspace_scoped=not actor_scoped_reads,
+            visibility_scope=read_visibility_scope,
+            source=metadata_source,
+            protected_read=True,
+            product_mode=auth_mode,
+        )
+        manual_lineage_overrides = _flag(
+            available=False,
+            state="unavailable",
+            reason=base_reason,
+            actor_scoped=authenticated,
+            workspace_scoped=False,
+            visibility_scope=CONTROL_PLANE_VISIBILITY if authenticated else "",
+            source="governance-control-plane",
+            product_mode=auth_mode,
+        )
 
     return {
         "governanceWrite": governance_write,

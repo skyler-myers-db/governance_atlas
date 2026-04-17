@@ -12,7 +12,7 @@ The authoritative reconstruction spec lives in
 The only supported app runtime path is:
 
 ```text
-app.yaml -> run_app.py -> runtime_app.py -> frontend/src
+app.yaml -> run_app.py -> runtime_app.py -> frontend/dist generated at package time
 ```
 
 `runtime_app.py` is the single backend runtime module behind the Governance Hub
@@ -37,7 +37,7 @@ Databricks App
   -> govhub/uc.py
   -> govhub/store.py
   -> govhub/services/*
-  -> React frontend in frontend/src
+  -> React frontend built to frontend/dist
 ```
 
 Governance Hub reads live Unity Catalog and Databricks system metadata directly and
@@ -60,7 +60,7 @@ stores governance workflow state in Delta tables inside the configured governanc
 ```bash
 pip install -r requirements.txt
 cd frontend
-npm install
+npm ci
 npm run build
 cd ..
 python run_app.py
@@ -74,12 +74,15 @@ The repo is deployed as a Databricks App through Databricks Asset Bundles.
 
 ```bash
 databricks auth login --host https://<workspace>.cloud.databricks.com
+python scripts/prepare_bundle.py --output /tmp/govhub_bundle
+cd /tmp/govhub_bundle
 databricks bundle deploy -t dev --var="warehouse_id=<warehouse-id>"
 ```
 
 ### Packaging contract
 
 - `frontend/dist` is built in CI or a predeploy packaging step
+- `frontend/dist/govhub-build-manifest.json` proves the bundle matches the current frontend source tree
 - `frontend/dist` is not source-controlled
 - the Databricks bundle is deployed from a clean packaged directory that includes the built frontend output
 - the runtime does not build frontend assets on startup

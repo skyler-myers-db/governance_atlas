@@ -14,15 +14,18 @@
     "types": ["node", "react", "react-dom"]
   },
   "include": [
-    "src/lib/api.js",
-    "src/lib/assetRecordNavigation.js",
-    "src/lib/queryClient.js",
-    "src/hooks/useAppRouteState.js",
+    "src/App.jsx",
+    "src/lib/**/*.js",
     "src/hooks/useAssetDetail.js",
-    "src/hooks/useAssetSearch.js",
     "src/hooks/useBootstrap.js",
-    "src/hooks/useDiscoveryResults.js",
-    "src/hooks/useLineage.js",
+    "src/hooks/useGovernanceGlossaryTerm.js",
+    "src/hooks/useGovernanceSummary.js",
+    "src/hooks/useRuntimeStatus.js",
+    "src/components/AppFrame.jsx",
+    "src/components/DiscoveryWorkspace.jsx",
+    "src/components/EntityWorkspace.jsx",
+    "src/components/GovernanceWorkspace.jsx",
+    "src/components/LineageWorkspace.jsx",
     "src/types/**/*.d.ts",
     "vite.config.js"
   ]
