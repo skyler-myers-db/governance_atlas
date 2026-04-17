@@ -109,7 +109,9 @@ describe("AppFrame", () => {
 
     expect(screen.getByText("Command bar")).not.toBeNull();
     expect(
-      screen.getAllByText("Search stays scoped to visible assets; Discovery opens the broader workspace view."),
+      screen.getAllByText(
+        "Search covers the workspace inventory visible to the app. Press Enter or Browse to open the full Discovery surface.",
+      ),
     ).toHaveLength(2);
     expect(screen.getByText("3 visible assets indexed")).not.toBeNull();
   });
@@ -181,7 +183,7 @@ describe("AppFrame", () => {
     );
 
     expect(screen.getByText("Setup attention")).not.toBeNull();
-    expect(screen.getByText("Claims narrowed until readiness improves.")).not.toBeNull();
+    expect(screen.getByText("Setup diagnostics have not loaded yet.")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Workspace setup" })).toBeNull();
   });
 

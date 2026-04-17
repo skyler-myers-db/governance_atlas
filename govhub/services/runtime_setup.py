@@ -914,10 +914,11 @@ def setup_payload(
         auth_mode == capability_service.OBO_AVAILABLE_MODE
         and check_map.get("system_inventory", {}).get("state") in {"available", "degraded"}
     )
-    can_use_lineage = (
-        auth_mode == capability_service.OBO_AVAILABLE_MODE
-        and check_map.get("table_lineage", {}).get("state") == "available"
-    )
+    # Lineage reads come from system.access.table_lineage / column_lineage and succeed for
+    # the app principal when it has been granted SELECT. OBO narrows the view to the acting
+    # user, but its absence does not hide the surface — workspace-scoped lineage is still
+    # truthful, it is just labeled as app-principal visibility in the capability payload.
+    can_use_lineage = check_map.get("table_lineage", {}).get("state") == "available"
     can_use_query_history = (
         auth_mode == capability_service.OBO_AVAILABLE_MODE
         and check_map.get("workload_visibility", {}).get("state") == "available"
@@ -959,11 +960,28 @@ def setup_payload(
         for item in checks
         if item["state"] in {"degraded", "unavailable", "unknown"} and item["key"] not in hard_block_keys
     ]
+    # These checks are expected to remain unavailable whenever Databricks per-user
+    # authorization / OBO is not wired into the app. They reflect an honest product-mode
+    # restriction, not a workspace fault, and must not keep the readiness banner in
+    # `attention_required` forever. They stay visible in the detailed check list and in
+    # `attentionBy` so operators can see why actor-scoped surfaces are narrowed, but they
+    # do not drive the top-line readiness state.
+    obo_deferred_keys = {
+        "per_user_authorization",
+        "table_lineage",
+        "column_lineage",
+        "workload_visibility",
+        "export_delivery",
+        "identity_forwarding",
+    }
+    operational_attention_keys = [
+        key for key in attention_keys if key not in obo_deferred_keys
+    ]
     readiness_state = (
         "blocked"
         if hard_block_keys
         else "attention_required"
-        if attention_keys
+        if operational_attention_keys
         else "ready"
     )
     claim_narrowing = []
@@ -1336,7 +1354,7 @@ def setup_payload(
             "attentionBy": attention_keys,
             "claimNarrowing": claim_narrowing,
             "retriable": True,
-            "nextStep": (hard_block_keys or attention_keys or ["complete"])[0],
+            "nextStep": (hard_block_keys or operational_attention_keys or ["complete"])[0],
         },
         "setupSequence": sequence,
         "checks": checks,

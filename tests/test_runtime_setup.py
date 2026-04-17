@@ -51,7 +51,10 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertEqual(payload["summary"]["unknownCount"], 1)
         self.assertEqual(payload["readiness"]["state"], "attention_required")
         self.assertTrue(payload["readiness"]["canRerun"])
-        self.assertEqual(payload["readiness"]["nextStep"], "per_user_authorization")
+        # OBO-deferred checks (per_user_authorization, table_lineage, column_lineage,
+        # workload_visibility, export_delivery, identity_forwarding) no longer drive the
+        # top-line readiness nextStep; the first real operational attention key does.
+        self.assertEqual(payload["readiness"]["nextStep"], "background_work_plane")
         self.assertEqual(payload["readiness"]["blockedBy"], [])
         self.assertIn("workload_visibility", payload["readiness"]["attentionBy"])
         claim_surfaces = {item["surface"] for item in payload["readiness"]["claimNarrowing"]}
@@ -67,7 +70,9 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertTrue(workspace_access["canUseEntityMetadata"])
         self.assertTrue(workspace_access["canWriteGovernance"])
         self.assertFalse(workspace_access["canUseAssetPreview"])
-        self.assertFalse(workspace_access["canUseLineage"])
+        # Lineage is now available in app-principal mode when the table_lineage capability
+        # is wired; only the visibility scope stays workspace-app-principal.
+        self.assertTrue(workspace_access["canUseLineage"])
         self.assertFalse(workspace_access["canUseQueryHistory"])
         self.assertEqual(workspace_access["queryHistorySharingPath"]["state"], "unavailable")
         self.assertEqual(
@@ -84,7 +89,7 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         self.assertEqual(workspace_access["transactionMode"]["state"], "degraded")
         self.assertNotIn("Discovery and entity inventory", workspace_access["blockedSurfaces"])
         self.assertIn("Asset preview and sample data", workspace_access["blockedSurfaces"])
-        self.assertIn("Lineage graph and drawer", workspace_access["blockedSurfaces"])
+        self.assertNotIn("Lineage graph and drawer", workspace_access["blockedSurfaces"])
         self.assertIn("Queries, usage, and workloads", workspace_access["blockedSurfaces"])
         self.assertIn("Discovery and detail export", workspace_access["blockedSurfaces"])
         self.assertIn("Background work runner", workspace_access["blockedSurfaces"])
@@ -105,7 +110,7 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         )
         self.assertEqual(workspace_access["gates"][0]["state"], "available")
         self.assertEqual(workspace_access["gates"][2]["state"], "unavailable")
-        self.assertEqual(workspace_access["gates"][3]["state"], "unavailable")
+        self.assertEqual(workspace_access["gates"][3]["state"], "available")
         self.assertEqual(workspace_access["gates"][4]["state"], "unavailable")
         self.assertEqual(workspace_access["gates"][5]["state"], "unavailable")
         self.assertEqual(workspace_access["gates"][4]["blockedSurfaces"], ["Queries, usage, and workloads"])
@@ -113,7 +118,7 @@ class RuntimeSetupPayloadTests(unittest.TestCase):
         surface_policies = {item["key"]: item for item in workspace_access["surfacePolicies"]}
         self.assertTrue(surface_policies["discovery"]["allowed"])
         self.assertFalse(surface_policies["asset_preview"]["allowed"])
-        self.assertFalse(surface_policies["lineage"]["allowed"])
+        self.assertTrue(surface_policies["lineage"]["allowed"])
 
         checks = {item["key"]: item for item in payload["checks"]}
         self.assertEqual(checks["warehouse_runtime"]["state"], "available")

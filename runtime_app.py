@@ -1553,7 +1553,7 @@ def _bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
 
     return _ttl_value(
         f"runtime_bootstrap_inventory_summary:{normalized_scope}",
-        15,
+        60,
         load,
     )
 
