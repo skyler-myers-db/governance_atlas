@@ -230,7 +230,9 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
         self.assertIn("setupSequence", payload)
         self.assertIn("workspaceAccess", payload)
         self.assertEqual(payload["setupReadiness"]["state"], "attention_required")
-        self.assertEqual(payload["setupReadiness"]["nextStep"], "identity_forwarding")
+        # OBO-deferred checks no longer drive the top-line nextStep; background_work_plane
+        # is the first operational attention item in the no-identity fixture.
+        self.assertEqual(payload["setupReadiness"]["nextStep"], "background_work_plane")
         self.assertTrue(payload["setupSequence"])
         self.assertEqual(payload["workspaceAccess"]["mode"], "no-identity")
         self.assertEqual(payload["workspaceAccess"]["visibilityScope"], "anonymous-app-principal")
