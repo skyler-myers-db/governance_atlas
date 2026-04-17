@@ -42,7 +42,7 @@ async function collectDirFiles(relativeDir) {
   const files = [];
   async function visit(currentDir) {
     const entries = await fs.readdir(currentDir, { withFileTypes: true });
-    for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
+    for (const entry of entries) {
       const nextPath = path.join(currentDir, entry.name);
       if (entry.isDirectory()) {
         await visit(nextPath);
@@ -53,6 +53,18 @@ async function collectDirFiles(relativeDir) {
   }
 
   await visit(absoluteDir);
+
+  // Sort by relative POSIX path using byte-order (Unicode code point) comparison
+  // to match Python's Path.rglob("*") + sorted(), which orders sibling files
+  // before sibling directories when those directory names start with a
+  // code-point-higher character (e.g. `ActionButton.jsx` before `__tests__/...`).
+  // Using localeCompare or per-directory name sorting produces a different
+  // order and would break hash parity with govhub/runtime_contract.py.
+  files.sort((left, right) => {
+    const leftRelative = path.relative(PROJECT_ROOT, left).split(path.sep).join("/");
+    const rightRelative = path.relative(PROJECT_ROOT, right).split(path.sep).join("/");
+    return leftRelative < rightRelative ? -1 : leftRelative > rightRelative ? 1 : 0;
+  });
   return files;
 }
 

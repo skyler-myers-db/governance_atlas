@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchRuntimeStatus } from "../lib/api";
 
 /**
- * @param {{enabled?: boolean, staleTime?: number, refetchInterval?: number | false} | boolean} [options={}]
+ * @param {{enabled?: boolean, staleTime?: number, refetchInterval?: number | false | ((query: any) => number | false)} | boolean} [options={}]
  */
 export function useRuntimeStatus(options = {}) {
   const resolvedOptions =

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, Deque, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
@@ -148,10 +149,22 @@ def _operational_edge_key(source_id: str, target_id: str) -> str:
     return f"operational:{source_id}->{target_id}"
 
 
-def _column_lineage_payload(uc: UCSQLClient, asset_fqn: str) -> Dict[str, Any]:
+def _column_lineage_payload(
+    uc: UCSQLClient,
+    asset_fqn: str,
+    *,
+    system_uc: Optional[UCSQLClient] = None,
+) -> Dict[str, Any]:
+    # system.access.column_lineage applies row-level filtering to match the
+    # querying principal's SELECT grants on source/target tables. When the actor
+    # has OBO but lacks SELECT on upstream bronze tables, the query returns zero
+    # rows even though lineage exists. Catalog tools uniformly show crawler-view
+    # lineage to authorized viewers, so route system-table reads through the
+    # app-principal client when one is supplied.
+    system_client = system_uc or uc
     catalog, schema, table = asset_service.split_uc_name(asset_fqn)
     try:
-        upstream_df = uc.get_column_lineage_upstream(
+        upstream_df = system_client.get_column_lineage_upstream(
             catalog,
             schema,
             table,
@@ -160,7 +173,7 @@ def _column_lineage_payload(uc: UCSQLClient, asset_fqn: str) -> Dict[str, Any]:
     except Exception:
         upstream_df = pd.DataFrame()
     try:
-        downstream_df = uc.get_column_lineage_downstream(
+        downstream_df = system_client.get_column_lineage_downstream(
             catalog,
             schema,
             table,
@@ -328,17 +341,19 @@ def _lineage_neighbors(
     *,
     direction: str,
     limit: int,
+    system_uc: Optional[UCSQLClient] = None,
 ) -> List[str]:
+    system_client = system_uc or uc
     try:
         catalog, schema, table = asset_service.split_uc_name(asset_fqn)
     except ValueError:
         return []
     try:
         if direction == "upstream":
-            df = uc.get_table_lineage_upstream(catalog, schema, table, limit=limit)
+            df = system_client.get_table_lineage_upstream(catalog, schema, table, limit=limit)
             column = "source_table_full_name"
         else:
-            df = uc.get_table_lineage_downstream(catalog, schema, table, limit=limit)
+            df = system_client.get_table_lineage_downstream(catalog, schema, table, limit=limit)
             column = "target_table_full_name"
     except Exception:
         return []
@@ -364,6 +379,7 @@ def _recursive_branch_graph(
     node_limit: int,
     per_hop_limit: int,
     visible_inventory: Optional[pd.DataFrame] = None,
+    system_uc: Optional[UCSQLClient] = None,
 ) -> Dict[str, Any]:
     focus_fqn_n = asset_service.normalize_str(focus_fqn)
     branch_role = "source" if direction == "upstream" else "target"
@@ -392,6 +408,7 @@ def _recursive_branch_graph(
             current_fqn,
             direction=direction,
             limit=max(TABLE_LINEAGE_LIMIT, per_hop_limit),
+            system_uc=system_uc,
         ):
             neighbor_fqn = asset_service.normalize_str(neighbor)
             if (
@@ -469,6 +486,7 @@ def _second_hop_payload(
     first_hop_assets: List[str],
     *,
     direction: str,
+    system_uc: Optional[UCSQLClient] = None,
 ) -> Dict[str, Any]:
     if not first_hop_assets:
         return {
@@ -494,6 +512,7 @@ def _second_hop_payload(
             seed_n,
             direction=direction,
             limit=SECOND_HOP_NEIGHBOR_LIMIT,
+            system_uc=system_uc,
         )
         clean_neighbors: List[str] = []
         for neighbor in neighbors:
@@ -528,6 +547,8 @@ def _lineage_depth_payload(
     uc: UCSQLClient,
     focus_fqn: str,
     data_graph: Dict[str, Any],
+    *,
+    system_uc: Optional[UCSQLClient] = None,
 ) -> Dict[str, Any]:
     first_hop = _first_hop_assets(data_graph)
     upstream_second_hop = _second_hop_payload(
@@ -535,12 +556,14 @@ def _lineage_depth_payload(
         focus_fqn,
         first_hop.get("upstream", []),
         direction="upstream",
+        system_uc=system_uc,
     )
     downstream_second_hop = _second_hop_payload(
         uc,
         focus_fqn,
         first_hop.get("downstream", []),
         direction="downstream",
+        system_uc=system_uc,
     )
     return {
         "oneHop": first_hop,
@@ -551,7 +574,13 @@ def _lineage_depth_payload(
     }
 
 
-def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, Any]:
+def build_data_graph(
+    uc: UCSQLClient,
+    store: Any,
+    asset_fqn: str,
+    *,
+    system_uc: Optional[UCSQLClient] = None,
+) -> Dict[str, Any]:
     row = asset_service.inventory_row(uc, store, asset_fqn)
     visible_inventory = asset_service.visible_assets(uc, store)
     catalog, schema, table = asset_service.split_uc_name(
@@ -583,6 +612,7 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
         node_limit=per_branch_limit,
         per_hop_limit=LINEAGE_GRAPH_PER_HOP_LIMIT,
         visible_inventory=visible_inventory,
+        system_uc=system_uc,
     )
     downstream_branch = _recursive_branch_graph(
         uc,
@@ -593,6 +623,7 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
         node_limit=per_branch_limit,
         per_hop_limit=LINEAGE_GRAPH_PER_HOP_LIMIT,
         visible_inventory=visible_inventory,
+        system_uc=system_uc,
     )
 
     nodes = [focus, *upstream_branch["nodes"], *downstream_branch["nodes"]]
@@ -614,7 +645,14 @@ def build_data_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, A
     }
 
 
-def build_operational_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, Any]:
+def build_operational_graph(
+    uc: UCSQLClient,
+    store: Any,
+    asset_fqn: str,
+    *,
+    system_uc: Optional[UCSQLClient] = None,
+) -> Dict[str, Any]:
+    system_client = system_uc or uc
     row = asset_service.inventory_row(uc, store, asset_fqn)
     visible_inventory = asset_service.visible_assets(uc, store)
     catalog, schema, table = asset_service.split_uc_name(
@@ -639,7 +677,7 @@ def build_operational_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict
     try:
         upstream_df = metadata_service.enrich_operational_context_names(
             uc,
-            uc.get_operational_context_upstream(
+            system_client.get_operational_context_upstream(
                 catalog,
                 schema,
                 table,
@@ -651,7 +689,7 @@ def build_operational_graph(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict
     try:
         downstream_df = metadata_service.enrich_operational_context_names(
             uc,
-            uc.get_operational_context_downstream(
+            system_client.get_operational_context_downstream(
                 catalog,
                 schema,
                 table,
@@ -738,6 +776,7 @@ def lineage_payload(
     asset_fqn: str,
     *,
     cache_scope: str = "",
+    system_uc: Optional[UCSQLClient] = None,
 ) -> Dict[str, Any]:
     return _ttl_value(
         (
@@ -745,15 +784,34 @@ def lineage_payload(
             f"{asset_service.normalize_str(asset_fqn)}"
         ),
         300,
-        lambda: _build_lineage_payload(uc, store, asset_fqn),
+        lambda: _build_lineage_payload(uc, store, asset_fqn, system_uc=system_uc),
     )
 
 
-def _build_lineage_payload(uc: UCSQLClient, store: Any, asset_fqn: str) -> Dict[str, Any]:
-    data_graph = build_data_graph(uc, store, asset_fqn)
-    operational_graph = build_operational_graph(uc, store, asset_fqn)
-    column_lineage = _column_lineage_payload(uc, asset_fqn)
-    lineage_depth = _lineage_depth_payload(uc, asset_fqn, data_graph)
+def _build_lineage_payload(
+    uc: UCSQLClient,
+    store: Any,
+    asset_fqn: str,
+    *,
+    system_uc: Optional[UCSQLClient] = None,
+) -> Dict[str, Any]:
+    # Data graph, operational graph, and column lineage are independent
+    # network-bound SQL paths. Running them concurrently cuts cold-load
+    # wall time roughly 3x vs. the old sequential build.
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        data_future = executor.submit(
+            build_data_graph, uc, store, asset_fqn, system_uc=system_uc
+        )
+        operational_future = executor.submit(
+            build_operational_graph, uc, store, asset_fqn, system_uc=system_uc
+        )
+        column_future = executor.submit(
+            _column_lineage_payload, uc, asset_fqn, system_uc=system_uc
+        )
+        data_graph = data_future.result()
+        operational_graph = operational_future.result()
+        column_lineage = column_future.result()
+    lineage_depth = _lineage_depth_payload(uc, asset_fqn, data_graph, system_uc=system_uc)
     data_edge_details = _data_edge_details(data_graph, column_lineage)
     operational_edge_details = _operational_edge_details(operational_graph)
     data_focus_id = next(
