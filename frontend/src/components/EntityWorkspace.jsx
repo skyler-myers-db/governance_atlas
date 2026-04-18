@@ -327,7 +327,7 @@ function EntityRecordSection({
 }) {
   return (
     <SurfacePanelSection
-      className={`gh-panel gh-record-card gh-entity-record-section ${className}`.trim()}
+      className={`gh-record-card gh-entity-record-section ${className}`.trim()}
       actions={actions}
       titleMeta={titleMeta}
       title={title}
