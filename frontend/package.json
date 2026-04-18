@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "vite build && node scripts/write_build_manifest.mjs",
     "smoke:deployed": "node scripts/govhub_deployed_smoke.mjs",
+    "screenshots:phase2": "node scripts/phase2_screenshot_pack.mjs",
     "preview": "vite preview --host 0.0.0.0 --port 4173"
   },
   "dependencies": {
