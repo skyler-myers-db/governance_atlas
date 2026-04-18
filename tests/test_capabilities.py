@@ -145,35 +145,40 @@ class CapabilityPayloadTests(unittest.TestCase):
 
 class RuntimeCapabilityWiringTests(unittest.TestCase):
     def test_runtime_surfaces_thread_capability_payload_helper(self) -> None:
-        source = Path("runtime_app.py").read_text(encoding="utf-8")
-        tree = ast.parse(source, filename="runtime_app.py")
+        runtime_source = Path("govhub/api/runtime.py").read_text(encoding="utf-8")
+        runtime_tree = ast.parse(runtime_source, filename="govhub/api/runtime.py")
 
         runtime_status_node = next(
             item
-            for item in tree.body
+            for item in runtime_tree.body
             if isinstance(item, ast.FunctionDef)
             and item.name == "_api_runtime_status_response"
         )
-        runtime_status_segment = ast.get_source_segment(source, runtime_status_node) or ""
+        runtime_status_segment = (
+            ast.get_source_segment(runtime_source, runtime_status_node) or ""
+        )
         self.assertIn('"capabilities"', runtime_status_segment)
         self.assertIn("_capabilities_payload(", runtime_status_segment)
 
+        app_source = Path("runtime_app.py").read_text(encoding="utf-8")
+        app_tree = ast.parse(app_source, filename="runtime_app.py")
+
         shell_node = next(
             item
-            for item in tree.body
+            for item in app_tree.body
             if isinstance(item, ast.FunctionDef) and item.name == "_shell_payload"
         )
-        shell_segment = ast.get_source_segment(source, shell_node) or ""
+        shell_segment = ast.get_source_segment(app_source, shell_node) or ""
         self.assertIn('"capabilities"', shell_segment)
         self.assertIn("capability_service.bootstrap_capabilities(", shell_segment)
 
         unavailable_node = next(
             item
-            for item in tree.body
+            for item in app_tree.body
             if isinstance(item, ast.FunctionDef)
             and item.name == "_bootstrap_unavailable_payload"
         )
-        unavailable_segment = ast.get_source_segment(source, unavailable_node) or ""
+        unavailable_segment = ast.get_source_segment(app_source, unavailable_node) or ""
         self.assertIn("_shell_payload(", unavailable_segment)
 
 

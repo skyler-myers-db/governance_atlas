@@ -408,8 +408,8 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
 
 class RuntimeDiagnosticsWiringTests(unittest.TestCase):
     def test_runtime_status_payload_calls_shared_diagnostics_helper(self) -> None:
-        source = Path("runtime_app.py").read_text(encoding="utf-8")
-        tree = ast.parse(source, filename="runtime_app.py")
+        source = Path("govhub/api/runtime.py").read_text(encoding="utf-8")
+        tree = ast.parse(source, filename="govhub/api/runtime.py")
 
         runtime_status_node = next(
             item
