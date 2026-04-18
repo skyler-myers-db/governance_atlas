@@ -327,6 +327,15 @@ function requestLane(item) {
   return "open-work";
 }
 
+function governanceLaneTone(key, count) {
+  const n = Number(count || 0);
+  if (n === 0) return "neutral";
+  if (key === "trust") return "bad";
+  if (key === "ownership") return "warn";
+  if (key === "classification") return "info";
+  return "accent";
+}
+
 function workLanes(requests = []) {
   const laneCounts = requests.reduce(
     (acc, item) => {
@@ -881,13 +890,14 @@ export default function GovernanceWorkspace({
                   <div className="gh-governance-lane-rail">
                     {laneSummary.map((lane) => (
                       <button
-                        className={`gh-governance-lane-chip ${selectedLaneKey === lane.key ? "is-active" : ""}`}
+                        aria-pressed={selectedLaneKey === lane.key}
+                        className={`gh-governance-lane-chip tone-${governanceLaneTone(lane.key, lane.count)} ${selectedLaneKey === lane.key ? "is-active" : ""}`.trim()}
                         key={lane.key}
                         onClick={() => setSelectedLaneKey(lane.key)}
                         type="button"
                       >
-                        <span>{lane.label}</span>
-                        <strong>{lane.count}</strong>
+                        <strong className="gh-governance-lane-count">{lane.count}</strong>
+                        <span className="gh-governance-lane-label">{lane.label}</span>
                       </button>
                     ))}
                   </div>
@@ -1349,13 +1359,14 @@ export default function GovernanceWorkspace({
                   <div className="gh-governance-lane-rail">
                     {laneSummary.map((lane) => (
                       <button
-                        className={`gh-governance-lane-chip ${selectedLaneKey === lane.key ? "is-active" : ""}`}
+                        aria-pressed={selectedLaneKey === lane.key}
+                        className={`gh-governance-lane-chip tone-${governanceLaneTone(lane.key, lane.count)} ${selectedLaneKey === lane.key ? "is-active" : ""}`.trim()}
                         key={lane.key}
                         onClick={() => setSelectedLaneKey(lane.key)}
                         type="button"
                       >
-                        <span>{lane.label}</span>
-                        <strong>{lane.count}</strong>
+                        <strong className="gh-governance-lane-count">{lane.count}</strong>
+                        <span className="gh-governance-lane-label">{lane.label}</span>
                       </button>
                     ))}
                   </div>
