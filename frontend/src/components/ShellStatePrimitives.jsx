@@ -64,3 +64,15 @@ export function EmptyStateBlock({
     </div>
   );
 }
+
+export function LoadingState({ message = "Loading…", className = "" }) {
+  return (
+    <div
+      aria-live="polite"
+      className={classes("gh-empty-state", "gh-loading-state", className)}
+      role="status"
+    >
+      {message}
+    </div>
+  );
+}

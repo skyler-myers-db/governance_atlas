@@ -62,6 +62,33 @@ Use these as the standard minimum verification steps for non-trivial passes:
 
 ## Active Entries
 
+## 2026-04-17 20:32:00 EDT - Phase 2 Tranche D: LoadingState primitive + aria-live loading announcements
+
+Phase 2 Tranche D was originally scoped as "finish missing primitives" (PrimaryNav, EntityHero, DataTable, LoadingSkeleton, DegradedBanner, EmptyState). Two parallel Explore subagents audited the codebase and found that most candidates already exist or shouldn't be extracted:
+
+- **PrimaryNav** — already centralized in AppFrame.jsx, single render site, no duplication.
+- **EntityHero** — 5 sites all compose `SurfaceHeader` directly; extraction without a workspace-wide refactor would add a wrapper without reducing duplication.
+- **DataTable** — 2 sites, both in EntityWorkspace Schema/Preview tabs, tightly coupled to asset detail rendering. Single-use.
+- **DegradedBanner** — already shipped as `InlineStatusBanner` in ShellStatePrimitives, adopted at 18+ sites.
+- **EmptyState** — `EmptyStateBlock` exists. Inline `gh-empty-state` divs are not bypassing it; `.gh-empty-state` (compact dashed) and `.gh-empty-state-block` (large paneled with gradient accent) are two distinct visual styles for different containers. Migrating the inline compact divs to the paneled block would visually enlarge them incorrectly.
+
+The only real gap: ad-hoc `<div className="gh-empty-state">Loading…</div>` for transient tab-loading states (11 sites across EntityWorkspace + GovernanceWorkspace), with no `role="status"` or `aria-live`, so screen readers got nothing when a tab was resolving data.
+
+What shipped:
+
+- `frontend/src/components/ShellStatePrimitives.jsx` — added `LoadingState({ message, className })` that wraps `gh-empty-state` with `role="status"` + `aria-live="polite"` and a `gh-loading-state` marker class. API matches the existing `EmptyStateBlock` / `InlineStatusBanner` / `WorkspaceStateCard` pattern in the same module.
+- `frontend/src/components/EntityWorkspace.jsx` — 10 inline `gh-empty-state` loading divs migrated to `<LoadingState message="…" />`: 3× "Checking lineage access..." (line ~1691/1798/1948), "Loading schema metadata...", "Checking preview access...", "Loading preview rows...", "Checking workload access...", "Loading workload and operational context...", "Loading profiler and live evidence signals...", "Loading custom properties and constraints...".
+- `frontend/src/components/GovernanceWorkspace.jsx` — 1 inline loading div migrated: "Searching assets…".
+- LoadingState import added to both files.
+
+Explicitly deferred (with reasons captured above): EntityHero extraction, Breadcrumbs adoption for "Back to Discovery" backlink, EmptyStateBlock migration of non-loading inline divs, DataTable extraction.
+
+Gauntlet: 212/212 frontend tests still pass (39.27s). `npm run build` succeeds (275 modules, 103.60 kB CSS, 483.76 kB JS). Message strings preserved in ASCII `...` form to keep existing test assertions valid — deliberate choice after first attempt with Unicode `…` broke 3 tests.
+
+Deploy + live-verify: `databricks bundle deploy` + `databricks apps deploy` both `SUCCEEDED` (deployment_id `01f13abd93261572b3dfb9dcaa564215`). Playwright on prod fetched the freshly-deployed `/assets/index-vcDnZh55.js` chunk and confirmed `gh-loading-state` class and `role="status"` / `aria-live="polite"` attributes are present in the live bundle. Runtime LoadingState instances on the page require specific tab-loading timing windows (a tab actively resolving data) which are not trivially reproducible on a warm session; the bundle-level verification confirms the primitive is compiled and deployed.
+
+Phase 2 complete for tranches A-D. Next: Phase 3 (runtime_app.py router decomposition) or Phase 4 Tranche 2 (OBO freshness for export/background work).
+
 ## 2026-04-17 20:13:00 EDT - Phase 2 Tranche C: visual defect sweep
 
 Phase 2 Tranche C fixes the three most visible layout defects the user called out and that the parallel Explore subagent audit confirmed across Discovery, Entity, Governance, and Lineage: shell header squeeze + nested bordered box, Entity record section double-padding stack, and long-text/chip overflow out of frames.
