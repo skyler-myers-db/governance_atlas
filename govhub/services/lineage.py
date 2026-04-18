@@ -875,3 +875,183 @@ def _build_lineage_payload(
             },
         },
     }
+
+
+# -----------------------------------------------------------------------------
+# Phase 9 — multi-hop column lineage
+# -----------------------------------------------------------------------------
+
+
+COLUMN_LINEAGE_HOP_LIMIT = 4
+COLUMN_LINEAGE_MAX_NODES = 64
+COLUMN_LINEAGE_PER_HOP_FANOUT = 8
+
+
+def trace_multi_hop_column_lineage(
+    *,
+    asset_fqn: str,
+    column_name: str,
+    direction: str,
+    depth: int,
+    fetch_neighbors: Callable[[str, str], List[Dict[str, str]]],
+    hop_limit: int = COLUMN_LINEAGE_HOP_LIMIT,
+    per_hop_fanout: int = COLUMN_LINEAGE_PER_HOP_FANOUT,
+    max_nodes: int = COLUMN_LINEAGE_MAX_NODES,
+) -> Dict[str, Any]:
+    """Walk column lineage depth-first with bounded fan-out + node budget.
+
+    `fetch_neighbors(asset_fqn, column_name)` returns a list of
+    {assetFqn, column} dicts representing neighbours in the given
+    direction. The traversal is direction-specific — the caller picks
+    upstream vs downstream and wires the right callback.
+
+    Returns:
+        {
+            "nodes": [ { "id", "assetFqn", "column", "depth" }, ... ],
+            "edges": [ { "source", "target", "depth" }, ... ],
+            "meta": { "direction", "depthLimit", "truncated", "reason" }
+        }
+
+    Pure function — the fetch callback is the only I/O and is supplied
+    by the router. That keeps this unit-testable and the production
+    shape injectable against live UC or a mock.
+    """
+    direction_norm = (direction or "").strip().lower()
+    if direction_norm not in ("upstream", "downstream"):
+        raise ValueError("direction must be 'upstream' or 'downstream'")
+    depth_requested = max(1, min(int(depth or 1), hop_limit))
+
+    root_id = f"{asset_fqn}#{column_name}"
+    nodes: Dict[str, Dict[str, Any]] = {
+        root_id: {
+            "id": root_id,
+            "assetFqn": asset_fqn,
+            "column": column_name,
+            "depth": 0,
+        }
+    }
+    edges: List[Dict[str, Any]] = []
+    seen_edges: Set[Tuple[str, str]] = set()
+    truncated = False
+    truncation_reason: Optional[str] = None
+
+    frontier: Deque[Tuple[str, str, int]] = deque([(asset_fqn, column_name, 0)])
+    while frontier:
+        current_asset, current_column, current_depth = frontier.popleft()
+        if current_depth >= depth_requested:
+            continue
+        try:
+            neighbors = fetch_neighbors(current_asset, current_column) or []
+        except Exception:
+            neighbors = []
+        if len(neighbors) > per_hop_fanout:
+            truncated = True
+            truncation_reason = truncation_reason or "per-hop fanout cap"
+            neighbors = neighbors[:per_hop_fanout]
+        current_id = f"{current_asset}#{current_column}"
+        for neighbor in neighbors:
+            neighbor_asset = asset_service.normalize_str(neighbor.get("assetFqn"))
+            neighbor_column = asset_service.normalize_str(neighbor.get("column"))
+            if not neighbor_asset or not neighbor_column:
+                continue
+            neighbor_id = f"{neighbor_asset}#{neighbor_column}"
+            if neighbor_id not in nodes:
+                if len(nodes) >= max_nodes:
+                    truncated = True
+                    truncation_reason = truncation_reason or "node budget"
+                    continue
+                nodes[neighbor_id] = {
+                    "id": neighbor_id,
+                    "assetFqn": neighbor_asset,
+                    "column": neighbor_column,
+                    "depth": current_depth + 1,
+                }
+            # Direction of the edge matches the requested direction —
+            # for upstream, neighbor feeds current (neighbor -> current).
+            if direction_norm == "upstream":
+                edge_key = (neighbor_id, current_id)
+            else:
+                edge_key = (current_id, neighbor_id)
+            if edge_key not in seen_edges:
+                seen_edges.add(edge_key)
+                edges.append(
+                    {"source": edge_key[0], "target": edge_key[1], "depth": current_depth + 1}
+                )
+            if current_depth + 1 < depth_requested:
+                frontier.append((neighbor_asset, neighbor_column, current_depth + 1))
+
+    return {
+        "nodes": list(nodes.values()),
+        "edges": edges,
+        "meta": {
+            "direction": direction_norm,
+            "depthLimit": depth_requested,
+            "hopLimit": hop_limit,
+            "maxNodes": max_nodes,
+            "perHopFanout": per_hop_fanout,
+            "truncated": bool(truncated),
+            "reason": truncation_reason,
+            "rootAssetFqn": asset_fqn,
+            "rootColumn": column_name,
+        },
+    }
+
+
+def build_upstream_column_fetcher(
+    system_uc: UCSQLClient,
+    *,
+    limit_per_call: int = COLUMN_LINEAGE_LIMIT,
+) -> Callable[[str, str], List[Dict[str, str]]]:
+    """Return a closure that queries system.access.column_lineage for a
+    single (asset, column) to its immediate upstream neighbors. The
+    closure is suitable as the fetch_neighbors callback."""
+
+    def _fetch(asset_fqn: str, column_name: str) -> List[Dict[str, str]]:
+        catalog, schema, table = asset_service.split_uc_name(asset_fqn)
+        if not (catalog and schema and table and column_name):
+            return []
+        frame = system_uc.get_column_lineage_upstream(catalog, schema, table, limit=limit_per_call)
+        if frame is None or frame.empty:
+            return []
+        results: List[Dict[str, str]] = []
+        for _, row in frame.iterrows():
+            target_column = asset_service.normalize_str(row.get("target_column_name"))
+            if target_column.lower() != column_name.lower():
+                continue
+            results.append(
+                {
+                    "assetFqn": asset_service.normalize_str(row.get("source_table_full_name")),
+                    "column": asset_service.normalize_str(row.get("source_column_name")),
+                }
+            )
+        return results
+
+    return _fetch
+
+
+def build_downstream_column_fetcher(
+    system_uc: UCSQLClient,
+    *,
+    limit_per_call: int = COLUMN_LINEAGE_LIMIT,
+) -> Callable[[str, str], List[Dict[str, str]]]:
+    def _fetch(asset_fqn: str, column_name: str) -> List[Dict[str, str]]:
+        catalog, schema, table = asset_service.split_uc_name(asset_fqn)
+        if not (catalog and schema and table and column_name):
+            return []
+        frame = system_uc.get_column_lineage_downstream(catalog, schema, table, limit=limit_per_call)
+        if frame is None or frame.empty:
+            return []
+        results: List[Dict[str, str]] = []
+        for _, row in frame.iterrows():
+            source_column = asset_service.normalize_str(row.get("source_column_name"))
+            if source_column.lower() != column_name.lower():
+                continue
+            results.append(
+                {
+                    "assetFqn": asset_service.normalize_str(row.get("target_table_full_name")),
+                    "column": asset_service.normalize_str(row.get("target_column_name")),
+                }
+            )
+        return results
+
+    return _fetch

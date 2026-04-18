@@ -23,6 +23,7 @@ RUNTIME_PATHS = (
     "/api/assets/{asset_fqn}/owners",
     "/api/assets/{asset_fqn}/tags",
     "/api/lineage/{asset_fqn}",
+    "/api/lineage/columns/{asset_fqn}/{column_name}/trace",
     "/api/governance/summary",
     "/api/governance/glossary",
     "/api/governance/glossary/{term_id}",
