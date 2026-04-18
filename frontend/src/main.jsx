@@ -7,6 +7,10 @@ import App from "./App";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import { govhubQueryClient } from "./lib/queryClient";
 import "./styles/app.css";
+import "./styles/lineage.css";
+import "./styles/discovery.css";
+import "./styles/entity.css";
+import "./styles/governance.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

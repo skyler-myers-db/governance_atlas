@@ -1,0 +1,254 @@
+/* Extracted from app.css by Phase 2-g.2 — selectors exclusive to the governance feature. */
+
+.gh-governance-linked-list {
+  display: grid;
+  gap: 8px;
+}
+
+.gh-governance-linked-row {
+  padding: 8px 10px;
+  border: 1px solid rgba(198, 210, 234, 0.72);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+}
+.gh-governance-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-governance-shell-header {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.gh-governance-shell-header-tools {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+.gh-governance-focus-command {
+  position: relative;
+  width: min(300px, 30vw);
+}
+
+.gh-governance-status-banner {
+  margin-top: 2px;
+}
+.gh-governance-focus-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--gh-line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16px 26px rgba(19, 31, 65, 0.1);
+  z-index: 6;
+}
+.gh-governance-workbench,
+.gh-governance-workbench-single {
+  display: grid;
+  gap: 10px;
+  align-items: start;
+}
+
+.gh-governance-workbench,
+.gh-governance-workbench-single {
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+}
+.gh-governance-main-pane,
+.gh-governance-side-pane {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.gh-governance-side-pane-dense {
+  gap: 8px;
+}
+
+.gh-governance-side-pane .gh-surface-rail-body {
+  gap: 14px;
+}
+
+.gh-governance-side-pane .gh-surface-rail-actions {
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+}
+
+.gh-governance-side-pane .gh-surface-rail-section {
+  gap: 10px;
+}
+
+.gh-governance-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gh-governance-lane-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gh-governance-lane-chip {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid rgba(198, 210, 234, 0.85);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--gh-ink);
+  font-weight: 800;
+}
+
+.gh-governance-lane-chip strong {
+  font-size: 0.86rem;
+}
+
+.gh-governance-lane-chip.is-active {
+  border-color: rgba(103, 79, 236, 0.4);
+  background: rgba(238, 235, 255, 0.9);
+  box-shadow: none;
+}
+
+.gh-governance-focus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.gh-governance-linked-list {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-governance-linked-row {
+  padding: 6px 8px;
+  border: 1px solid rgba(198, 210, 234, 0.72);
+  border-radius: 8px;
+  background: rgba(250, 252, 255, 0.84);
+  display: grid;
+  gap: 8px;
+}
+
+.gh-governance-glossary-toolbar {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-governance-glossary-tabs {
+  align-self: start;
+}
+
+.gh-governance-glossary-list {
+  gap: 8px;
+}
+
+@media (max-width: 1500px) {  .gh-governance-shell-header-tools,
+.gh-governance-focus-command {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .gh-governance-lane-rail {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .gh-governance-focus-command {
+    width: 100%;
+  }
+}
+
+.gh-governance-reviewer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.gh-governance-reviewer-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--gh-line);
+  border-radius: 14px;
+  background: var(--gh-surface-soft);
+  box-shadow: var(--gh-shadow-soft);
+}
+
+.gh-governance-reviewer-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gh-governance-reviewer-email {
+  min-width: 0;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.gh-governance-reviewer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gh-governance-timeline {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-governance-timeline-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--gh-line);
+  border-radius: 14px;
+  background: var(--gh-surface);
+  box-shadow: var(--gh-shadow-soft);
+}
+
+.gh-governance-timeline-mark {
+  display: flex;
+  align-items: flex-start;
+}
+
+.gh-governance-timeline-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.gh-governance-timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.gh-governance-timeline-title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.gh-governance-glossary-list {
+  gap: 10px;
+}
