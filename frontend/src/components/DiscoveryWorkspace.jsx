@@ -220,13 +220,65 @@ function activeFilters(filters, queryState = null) {
 
 function resultMetaItems(asset) {
   return [
-    `Coverage ${asset.coverageScore == null ? "—" : asset.coverageScore}`,
-    `${asset.owners?.length || 0} owners`,
-    asset.openRequests == null ? "Requests —" : `${asset.openRequests} requests`,
-    asset.domain || "Unassigned domain",
-    asset.tier || "Unassigned tier",
-    asset.certification || "Unassigned certification",
+    { label: "Coverage", value: asset.coverageScore == null ? "—" : `${asset.coverageScore}%` },
+    { label: "Owners", value: `${asset.owners?.length || 0}` },
+    { label: "Requests", value: asset.openRequests == null ? "—" : String(asset.openRequests) },
+    { label: "Domain", value: asset.domain || null, unassigned: !asset.domain || asset.domain === "Unassigned" },
+    { label: "Tier", value: asset.tier || null, unassigned: !asset.tier || asset.tier === "Unassigned" },
+    { label: "Cert", value: asset.certification || null, unassigned: !asset.certification || asset.certification === "Unassigned" },
   ];
+}
+
+function needsWorkMessages(asset) {
+  const msgs = [];
+  if (!asset.description || String(asset.description).trim().length < 10) msgs.push("No description");
+  if (!asset.owners?.length) msgs.push("No owner");
+  if (!asset.domain || asset.domain === "Unassigned") msgs.push("No domain");
+  if (!asset.tier || asset.tier === "Unassigned") msgs.push("No tier");
+  if (!asset.certification || asset.certification === "Unassigned") msgs.push("Not certified");
+  if (typeof asset.failedTests === "number" && asset.failedTests > 0) {
+    msgs.push(`${asset.failedTests} failed test${asset.failedTests > 1 ? "s" : ""}`);
+  }
+  return msgs;
+}
+
+function relativeTime(input) {
+  if (!input) return "—";
+  const ts = new Date(input).getTime();
+  if (Number.isNaN(ts)) return "—";
+  const diffMs = Date.now() - ts;
+  const s = Math.max(1, Math.round(diffMs / 1000));
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 48) return `${h}h ago`;
+  const d = Math.round(h / 24);
+  if (d < 30) return `${d}d ago`;
+  const mo = Math.round(d / 30);
+  if (mo < 24) return `${mo}mo ago`;
+  return `${Math.round(mo / 12)}y ago`;
+}
+
+function readFavoriteSet() {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem("gh-favorite-assets");
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeFavoriteSet(set) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem("gh-favorite-assets", JSON.stringify([...set]));
+  } catch {
+    /* quota — ignore */
+  }
 }
 
 function facetCount(facets, key, value) {
@@ -652,99 +704,245 @@ function DiscoveryResultCard({
   lineageUnavailableReason = "",
   recordOpenable = null,
   recordUnavailableReason = "",
+  isFavorite = false,
+  onToggleFavorite,
+  isBulkSelected = false,
+  onToggleBulkSelect,
+  bulkSelectionActive = false,
 }) {
-  const owners = (asset.owners || []).map((owner) => ownerLabel(owner)).filter(Boolean).slice(0, 2);
-  const metaItems = resultMetaItems(asset);
+  const ownerLabels = (asset.owners || []).map((owner) => ownerLabel(owner)).filter(Boolean);
+  const primaryOwner = ownerLabels[0] || null;
+  const ownerCount = ownerLabels.length;
   const objectType = displayObjectType(asset);
   const recordUnavailable = recordOpenable === false;
+  const gaps = needsWorkMessages(asset);
+  const updatedLabel = relativeTime(asset.updatedAt || asset.lastModified);
+
+  const handleRowClick = (event) => {
+    if (event.target.closest(".gh-row-action") || event.target.closest("input[type='checkbox']")) return;
+    onSelect(asset.fqn);
+    if (!recordUnavailable) onOpenAsset(asset.fqn);
+  };
+  const stop = (fn) => (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    fn?.();
+  };
 
   return (
-    <article
-      className={`gh-discovery-result-row ${selected ? "is-selected" : ""}`}
+    <div
+      aria-label={`Open ${asset.name}`}
+      className={`gh-discovery-row gh-discovery-result-row ${selected ? "is-selected" : ""} ${isBulkSelected ? "is-bulk-selected" : ""}`}
       data-asset-fqn={asset.fqn}
+      onClick={handleRowClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleRowClick(event);
+        }
+      }}
       onMouseEnter={() => onHoverPreview?.(asset.fqn)}
       onMouseLeave={() => onHoverEnd?.()}
+      role="button"
+      tabIndex={0}
     >
-      <button
-        className="gh-discovery-result-hit"
-        onClick={() => onSelect(asset.fqn)}
-        type="button"
-      >
-        <div className="gh-discovery-result-head">
-          <div className="gh-discovery-result-title-block">
-            <div className="gh-discovery-result-title-row">
-              <AssetTypeIcon asset={asset} size="md" />
-              <h3>{asset.name}</h3>
-              {objectType ? <span className="gh-chip gh-chip-soft">{objectType}</span> : null}
-              {asset.sensitivity && asset.sensitivity !== "Unassigned" ? (
-                <span className="gh-chip gh-chip-soft">{asset.sensitivity}</span>
-              ) : null}
-            </div>
-            <div className="gh-discovery-result-fqn">{assetPathLabel(asset)}</div>
-          </div>
-          {asset.governanceStatus ? (
-            <span className={`gh-status-chip tone-${statusTone(asset)}`}>
-              {asset.governanceStatus}
-            </span>
-          ) : null}
-        </div>
-
-        <p className="gh-discovery-result-description">
-          {asset.description || "No description is available for this asset yet."}
-        </p>
-
-        <div className="gh-discovery-result-meta">
-          {metaItems.map((item) => (
-            <span key={item}>{item}</span>
-          ))}
-        </div>
-
-        {owners.length ? (
-          <div className="gh-chip-row gh-discovery-result-owner-row">
-            {owners.map((owner) => (
-              <span className="gh-chip gh-chip-soft" key={owner}>
-                {owner}
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </button>
-
-      <div className="gh-action-grid gh-discovery-action-grid">
+      <div className="gh-discovery-row-cell gh-discovery-row-select">
+        <input
+          aria-label={`Select ${asset.name}`}
+          checked={isBulkSelected}
+          className={`gh-discovery-row-checkbox ${bulkSelectionActive ? "is-visible" : ""}`}
+          onChange={() => onToggleBulkSelect?.(asset.fqn)}
+          onClick={(event) => event.stopPropagation()}
+          type="checkbox"
+        />
         <button
-          className="gh-secondary-button gh-secondary-button-compact"
+          aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+          aria-pressed={isFavorite}
+          className={`gh-discovery-row-star gh-row-action ${isFavorite ? "is-favorite" : ""}`}
+          onClick={stop(() => onToggleFavorite?.(asset.fqn))}
+          type="button"
+          title={isFavorite ? "Unfavorite" : "Favorite"}
+        >
+          {isFavorite ? "★" : "☆"}
+        </button>
+      </div>
+
+      <div className="gh-discovery-row-cell gh-discovery-row-asset">
+        <AssetTypeIcon asset={asset} size="md" />
+        <div className="gh-discovery-row-asset-text">
+          <div className="gh-discovery-row-name" title={asset.name}>{asset.name}</div>
+          <div className="gh-discovery-row-fqn" title={asset.fqn}>{assetPathLabel(asset)}</div>
+        </div>
+      </div>
+
+      <div className="gh-discovery-row-cell gh-discovery-row-type">
+        <span className="gh-chip gh-chip-soft" title={objectType || "Unknown type"}>
+          {objectType || "—"}
+        </span>
+      </div>
+
+      <div className="gh-discovery-row-cell gh-discovery-row-domain">
+        {asset.domain && asset.domain !== "Unassigned" ? (
+          <span className="gh-labeled-pill" title={`Domain: ${asset.domain}`}>
+            <span className="gh-labeled-pill-label">Domain</span>
+            <span className="gh-labeled-pill-value">{asset.domain}</span>
+          </span>
+        ) : (
+          <span className="gh-labeled-pill gh-labeled-pill-unassigned" title="No domain assigned">
+            <span className="gh-labeled-pill-label">Domain</span>
+            <span className="gh-labeled-pill-value">—</span>
+          </span>
+        )}
+      </div>
+
+      <div className="gh-discovery-row-cell gh-discovery-row-tier">
+        {asset.tier && asset.tier !== "Unassigned" ? (
+          <span className={`gh-labeled-pill gh-tier-${String(asset.tier).toLowerCase().replace(/\s+/g, "-")}`} title={`Tier: ${asset.tier}`}>
+            <span className="gh-labeled-pill-label">Tier</span>
+            <span className="gh-labeled-pill-value">{asset.tier}</span>
+          </span>
+        ) : (
+          <span className="gh-labeled-pill gh-labeled-pill-unassigned" title="No tier">
+            <span className="gh-labeled-pill-label">Tier</span>
+            <span className="gh-labeled-pill-value">—</span>
+          </span>
+        )}
+      </div>
+
+      <div className="gh-discovery-row-cell gh-discovery-row-owner">
+        {ownerCount ? (
+          <span className="gh-labeled-pill" title={ownerLabels.join(", ")}>
+            <span className="gh-labeled-pill-label">Owner</span>
+            <span className="gh-labeled-pill-value">
+              {primaryOwner}{ownerCount > 1 ? ` +${ownerCount - 1}` : ""}
+            </span>
+          </span>
+        ) : (
+          <span className="gh-labeled-pill gh-labeled-pill-warn" title="No owner assigned">
+            <span className="gh-labeled-pill-label">Owner</span>
+            <span className="gh-labeled-pill-value">No owner</span>
+          </span>
+        )}
+      </div>
+
+      <div className="gh-discovery-row-cell gh-discovery-row-gaps">
+        {gaps.length ? (
+          <span className="gh-row-gaps" title={gaps.join(" · ")}>
+            <span className="gh-row-gap-count">{gaps.length}</span>
+            <span className="gh-row-gap-text">{gaps[0]}</span>
+            {gaps.length > 1 ? <span className="gh-row-gap-more">+{gaps.length - 1}</span> : null}
+          </span>
+        ) : (
+          <span className="gh-row-gaps gh-row-gaps-ok" title="All governance facets populated">
+            <span className="gh-row-gap-text">All set</span>
+          </span>
+        )}
+      </div>
+
+      <div className="gh-discovery-row-cell gh-discovery-row-updated" title={asset.updatedAt || "Unknown"}>
+        {updatedLabel}
+      </div>
+
+      {recordUnavailable && recordUnavailableReason ? (
+        <span className="gh-visually-hidden">{recordUnavailableReason}</span>
+      ) : null}
+      <div className="gh-discovery-row-cell gh-discovery-row-actions">
+        {/* The record open button is the whole row itself (click-row). We
+            keep an a11y-hidden button here so the screen reader + tests
+            have an addressable "Open Record" affordance that mirrors the
+            row's disabled state when the record is unavailable. */}
+        <button
+          aria-label={recordUnavailable ? "Metadata record unavailable" : "Open Record"}
+          className="gh-visually-hidden gh-row-action"
           disabled={recordUnavailable}
-          onClick={() => onOpenAsset(asset.fqn)}
-          title={recordUnavailable ? recordUnavailableReason : undefined}
+          onClick={stop(() => onOpenAsset(asset.fqn))}
           type="button"
         >
           {recordUnavailable ? "Metadata record unavailable" : "Open Record"}
         </button>
         <button
-          className="gh-secondary-button gh-secondary-button-compact"
+          aria-label={lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
+          className="gh-icon-button gh-row-action"
           disabled={!lineageAvailable}
-          onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
-          title={!lineageAvailable ? lineageUnavailableReason : undefined}
+          onClick={stop(() => onOpenLineage(asset.fqn, "Data Lineage"))}
+          title={lineageAvailable ? "Open lineage" : lineageUnavailableReason}
           type="button"
         >
-          {lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
+          ⇄
         </button>
         <button
-          className="gh-secondary-button gh-secondary-button-compact"
+          aria-label="Open Governance"
+          className="gh-icon-button gh-row-action"
           disabled={recordUnavailable}
-          onClick={() => onOpenGovernance(asset.fqn)}
-          title={recordUnavailable ? recordUnavailableReason : undefined}
+          onClick={stop(() => onOpenGovernance(asset.fqn))}
+          title={recordUnavailable ? recordUnavailableReason : "Open governance"}
           type="button"
         >
-          Open Governance
+          ⚙
         </button>
       </div>
-      {recordUnavailable ? (
-        <div className="gh-support-copy gh-discovery-record-state">
-          {recordUnavailableReason}
-        </div>
-      ) : null}
-    </article>
+    </div>
+  );
+}
+
+function DiscoveryResultHeader({ bulkSelectionActive, allSelected, onToggleAll, sortKey, sortDirection, onSortChange }) {
+  const sortCol = (key, label, align = "left") => {
+    const active = sortKey === key;
+    const dir = active ? (sortDirection === "asc" ? "▲" : "▼") : "";
+    return (
+      <button
+        className={`gh-discovery-row-sort gh-discovery-row-sort-${align} ${active ? "is-active" : ""}`}
+        onClick={() => onSortChange?.(key)}
+        type="button"
+      >
+        <span>{label}</span>
+        <span className="gh-discovery-row-sort-arrow">{dir}</span>
+      </button>
+    );
+  };
+  return (
+    <div className="gh-discovery-row gh-discovery-row-head" role="row">
+      <div className="gh-discovery-row-cell gh-discovery-row-select">
+        <input
+          aria-label="Select all"
+          checked={allSelected}
+          className={`gh-discovery-row-checkbox ${bulkSelectionActive ? "is-visible" : ""}`}
+          onChange={onToggleAll}
+          type="checkbox"
+        />
+      </div>
+      <div className="gh-discovery-row-cell gh-discovery-row-asset">{sortCol("name", "Asset")}</div>
+      <div className="gh-discovery-row-cell gh-discovery-row-type">{sortCol("type", "Type")}</div>
+      <div className="gh-discovery-row-cell gh-discovery-row-domain">Domain</div>
+      <div className="gh-discovery-row-cell gh-discovery-row-tier">Tier</div>
+      <div className="gh-discovery-row-cell gh-discovery-row-owner">Owner</div>
+      <div className="gh-discovery-row-cell gh-discovery-row-gaps">Needs work</div>
+      <div className="gh-discovery-row-cell gh-discovery-row-updated">{sortCol("updated", "Updated")}</div>
+      <div className="gh-discovery-row-cell gh-discovery-row-actions" />
+    </div>
+  );
+}
+
+function DiscoveryBulkBar({ count, onClear, onAssignOwner, onAddTag, onAddGlossary, disabled = false }) {
+  if (!count) return null;
+  return (
+    <div className="gh-discovery-bulk-bar" role="toolbar" aria-label="Bulk actions">
+      <span className="gh-discovery-bulk-count">{count} selected</span>
+      <div className="gh-discovery-bulk-actions">
+        <button className="gh-secondary-button gh-secondary-button-compact" disabled={disabled} onClick={onAssignOwner} type="button">
+          Assign owner…
+        </button>
+        <button className="gh-secondary-button gh-secondary-button-compact" disabled={disabled} onClick={onAddTag} type="button">
+          Add tag…
+        </button>
+        <button className="gh-secondary-button gh-secondary-button-compact" disabled={disabled} onClick={onAddGlossary} type="button">
+          Add glossary…
+        </button>
+        <button className="gh-tertiary-button gh-inline-link-button" onClick={onClear} type="button">
+          Clear
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -1069,6 +1267,38 @@ export default function DiscoveryWorkspace({
   const [selectedAssetFqn, setSelectedAssetFqn] = useState("");
   const [visibleResultCount, setVisibleResultCount] = useState(DISCOVERY_RESULT_PAGE_SIZE);
   const [navigationNotice, setNavigationNotice] = useState("");
+  const [favorites, setFavorites] = useState(() => readFavoriteSet());
+  const [bulkSelection, setBulkSelection] = useState(() => new Set());
+  // sortKey="" means "preserve backend ordering" (best-match); user
+  // explicitly opts into a column sort by clicking the header.
+  const [sortKey, setSortKey] = useState("");
+  const [sortDirection, setSortDirection] = useState("asc");
+  const toggleFavorite = (fqn) => {
+    setFavorites((current) => {
+      const next = new Set(current);
+      if (next.has(fqn)) next.delete(fqn); else next.add(fqn);
+      writeFavoriteSet(next);
+      return next;
+    });
+  };
+  const toggleBulkSelect = (fqn) => {
+    setBulkSelection((current) => {
+      const next = new Set(current);
+      if (next.has(fqn)) next.delete(fqn); else next.add(fqn);
+      return next;
+    });
+  };
+  const clearBulkSelection = () => setBulkSelection(new Set());
+  const handleSort = (key) => {
+    setSortKey((currentKey) => {
+      if (currentKey === key) {
+        setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+        return currentKey;
+      }
+      setSortDirection("asc");
+      return key;
+    });
+  };
   const [previewSchemaWarm, setPreviewSchemaWarm] = useState(false);
   const [recordUnavailableOverrides, setRecordUnavailableOverrides] = useState({});
   const [linkedRecordUnavailableOverrides, setLinkedRecordUnavailableOverrides] = useState({});
@@ -1116,9 +1346,37 @@ export default function DiscoveryWorkspace({
     explicitRoutePreviewIndex >= 0
       ? Math.max(visibleResultCount, explicitRoutePreviewIndex + 1)
       : visibleResultCount;
+  const sortedDiscoveryAssets = useMemo(() => {
+    // When no sort is active, preserve backend ordering so load-more
+    // pagination stays predictable. Favorites float to the top only
+    // when there's at least one favorite (keeps the default view stable).
+    if (!sortKey && favorites.size === 0) {
+      return renderableDiscoveryAssets;
+    }
+    const list = [...renderableDiscoveryAssets];
+    const direction = sortDirection === "desc" ? -1 : 1;
+    const accessor = {
+      name: (a) => (a?.name || "").toLowerCase(),
+      type: (a) => String(displayObjectType(a) || "").toLowerCase(),
+      updated: (a) => new Date(a?.updatedAt || a?.lastModified || 0).getTime() || 0,
+    }[sortKey];
+    list.sort((a, b) => {
+      // Keep favorites on top regardless of sort direction (OM does this too).
+      const favA = favorites.has(a?.fqn) ? 1 : 0;
+      const favB = favorites.has(b?.fqn) ? 1 : 0;
+      if (favA !== favB) return favB - favA;
+      if (!accessor) return 0;
+      const va = accessor(a);
+      const vb = accessor(b);
+      if (va < vb) return -1 * direction;
+      if (va > vb) return 1 * direction;
+      return 0;
+    });
+    return list;
+  }, [renderableDiscoveryAssets, sortKey, sortDirection, favorites]);
   const renderedDiscoveryAssets = useMemo(
-    () => renderableDiscoveryAssets.slice(0, effectiveVisibleResultCount),
-    [effectiveVisibleResultCount, renderableDiscoveryAssets],
+    () => sortedDiscoveryAssets.slice(0, effectiveVisibleResultCount),
+    [effectiveVisibleResultCount, sortedDiscoveryAssets],
   );
   const renderedDiscoveryAssetFqns = useMemo(
     () => renderedDiscoveryAssets.map((asset) => asset.fqn).filter(Boolean),
@@ -1808,10 +2066,33 @@ export default function DiscoveryWorkspace({
               tone="bad"
             />
           ) : hasRenderableResults ? (
-            <div className={`gh-result-list gh-discovery-card-list density-${density}`}>
+            <div className={`gh-result-list gh-discovery-card-list density-${density} gh-discovery-table`}>
+              <DiscoveryBulkBar
+                count={bulkSelection.size}
+                onAddGlossary={() => alert("Bulk glossary assignment: queue this operation from the backend bulk endpoint.")}
+                onAddTag={() => alert("Bulk tag assignment: queue this operation from the backend bulk endpoint.")}
+                onAssignOwner={() => alert("Bulk owner assignment: queue this operation from the backend bulk endpoint.")}
+                onClear={clearBulkSelection}
+              />
+              <DiscoveryResultHeader
+                allSelected={bulkSelection.size > 0 && bulkSelection.size === renderedDiscoveryAssets.length}
+                bulkSelectionActive={bulkSelection.size > 0}
+                onSortChange={handleSort}
+                onToggleAll={() => {
+                  setBulkSelection((current) => {
+                    if (current.size === renderedDiscoveryAssets.length) return new Set();
+                    return new Set(renderedDiscoveryAssets.map((a) => a.fqn));
+                  });
+                }}
+                sortDirection={sortDirection}
+                sortKey={sortKey}
+              />
               {renderedDiscoveryAssets.map((asset) => (
                 <DiscoveryResultCard
                   asset={asset}
+                  bulkSelectionActive={bulkSelection.size > 0}
+                  isBulkSelected={bulkSelection.has(asset.fqn)}
+                  isFavorite={favorites.has(asset.fqn)}
                   key={asset.fqn}
                   lineageAvailable={lineageSurfaceAvailable}
                   lineageUnavailableReason={lineageSurfaceUnavailableReason}
@@ -1821,6 +2102,8 @@ export default function DiscoveryWorkspace({
                   onOpenGovernance={openGovernanceWorkbench}
                   onOpenLineage={openLineageWorkspace}
                   onSelect={handleSelectAsset}
+                  onToggleBulkSelect={toggleBulkSelect}
+                  onToggleFavorite={toggleFavorite}
                   recordOpenable={
                     recordUnavailableOverrides[asset.fqn] === true
                       ? false

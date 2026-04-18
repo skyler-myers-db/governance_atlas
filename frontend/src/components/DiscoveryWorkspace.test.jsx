@@ -2351,7 +2351,9 @@ describe("DiscoveryWorkspace", () => {
     expect(within(preview).getByRole("heading", { name: "orders" })).not.toBeNull();
     expect(onRoutePreviewChange).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByText("returns").closest("button"));
+    fireEvent.click(
+      screen.getByText("returns").closest("[role='button'], button"),
+    );
 
     expect(within(preview).getByRole("heading", { name: "returns" })).not.toBeNull();
     expect(onRoutePreviewChange).toHaveBeenCalledWith(secondAsset.fqn);
