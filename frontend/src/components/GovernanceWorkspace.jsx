@@ -28,7 +28,7 @@ import {
   SurfaceWorkbench,
   SurfaceWorkbenchMain,
 } from "./ShellLayoutPrimitives";
-import { EmptyStateBlock, InlineStatusBanner } from "./ShellStatePrimitives";
+import { EmptyStateBlock, InlineStatusBanner, LoadingState } from "./ShellStatePrimitives";
 
 const GLOSSARY_STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
@@ -838,7 +838,7 @@ export default function GovernanceWorkspace({
             {assetSearchQuery.trim().length >= 2 ? (
               <div className="gh-governance-focus-dropdown">
                 {assetSearch.loading ? (
-                  <div className="gh-empty-state">Searching assets…</div>
+                  <LoadingState message="Searching assets…" />
                 ) : assetSearch.assets.length ? (
                   assetSearch.assets.map((asset) => (
                     <button

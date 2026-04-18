@@ -40,7 +40,7 @@ import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
 import LineageStage from "./LineageStage";
 import { SurfaceHeader, SurfacePanelSection, SurfaceTabs } from "./ShellLayoutPrimitives";
-import { EmptyStateBlock, InlineStatusBanner, WorkspaceStateCard } from "./ShellStatePrimitives";
+import { EmptyStateBlock, InlineStatusBanner, LoadingState, WorkspaceStateCard } from "./ShellStatePrimitives";
 
 function statusTone(asset) {
   if (!asset?.governanceStatus) return "neutral";
@@ -1688,7 +1688,7 @@ export default function EntityWorkspace({
                 title="Lineage Context"
               >
                 {lineageAccessPending ? (
-                  <div className="gh-empty-state">Checking lineage access...</div>
+                  <LoadingState message="Checking lineage access..." />
                 ) : lineageSurfaceAvailable ? (
                   <>
                     <SurfaceTabs
@@ -1795,7 +1795,7 @@ export default function EntityWorkspace({
               description="Actor-scoped lineage access is still being resolved for this route."
               title="Lineage"
             >
-              <div className="gh-empty-state">Checking lineage access...</div>
+              <LoadingState message="Checking lineage access..." />
             </EntityRecordSection>
           ) : (
             <LineageStage
@@ -1837,7 +1837,7 @@ export default function EntityWorkspace({
               title="Schema"
             >
               {schemaPending ? (
-                <div className="gh-empty-state">Loading schema metadata...</div>
+                <LoadingState message="Loading schema metadata..." />
               ) : schemaUnavailable ? (
                 <div className="gh-empty-state">
                   {assetDetail.error || "Live schema metadata is unavailable for this asset right now."}
@@ -1945,7 +1945,7 @@ export default function EntityWorkspace({
                     <div className="gh-detail-section">
                       <div className="gh-panel-title">Column Lineage</div>
                       {lineageAccessPending ? (
-                        <div className="gh-empty-state">Checking lineage access...</div>
+                        <LoadingState message="Checking lineage access..." />
                       ) : !lineageSurfaceAvailable ? (
                         <div className="gh-empty-state">{lineageSurfaceUnavailableReason}</div>
                       ) : selectedColumnUpstream.length || selectedColumnDownstream.length ? (
@@ -2061,13 +2061,13 @@ export default function EntityWorkspace({
             description="Sample rows returned from the live asset preview."
           >
             {!workspaceAccessResolved ? (
-              <div className="gh-empty-state">Checking preview access...</div>
+              <LoadingState message="Checking preview access..." />
             ) : !previewSurfaceAvailable ? (
               <div className="gh-empty-state">
                 {previewSurfaceUnavailableReason}
               </div>
             ) : previewPending ? (
-              <div className="gh-empty-state">Loading preview rows...</div>
+              <LoadingState message="Loading preview rows..." />
             ) : previewUnavailable ? (
               <div className="gh-empty-state">
                 {assetDetail.error || "Live preview rows are unavailable for this asset right now."}
@@ -2103,10 +2103,10 @@ export default function EntityWorkspace({
             title="Usage & Workloads"
           >
             {!workspaceAccessResolved ? (
-              <div className="gh-empty-state">Checking workload access...</div>
+              <LoadingState message="Checking workload access..." />
             ) : workloadSurfaceAvailable ? (
               operationalPending ? (
-                <div className="gh-empty-state">Loading workload and operational context...</div>
+                <LoadingState message="Loading workload and operational context..." />
               ) : operationalUnavailable ? (
                 <div className="gh-empty-state">
                   {assetDetail.error ||
@@ -2148,7 +2148,7 @@ export default function EntityWorkspace({
             )}
           >
             {profilerPending ? (
-              <div className="gh-empty-state">Loading profiler and live evidence signals...</div>
+              <LoadingState message="Loading profiler and live evidence signals..." />
             ) : profilerUnavailable ? (
               <div className="gh-empty-state">
                 {assetDetail.error || "Live profiler and evidence signals are unavailable for this asset right now."}
@@ -2166,7 +2166,7 @@ export default function EntityWorkspace({
               description="Custom metadata fields and structural constraints surfaced from the live record."
               title="Custom Properties"
             >
-              <div className="gh-empty-state">Loading custom properties and constraints...</div>
+              <LoadingState message="Loading custom properties and constraints..." />
             </EntityRecordSection>
           ) : propertiesUnavailable ? (
             <EntityRecordSection
