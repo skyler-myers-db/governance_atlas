@@ -434,3 +434,47 @@
   background: var(--gh-accent);
   color: #ffffff;
 }
+
+/* Phase 2-i.4 — density toggle */
+.gh-discovery-density-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--gh-surface-muted);
+  border-radius: 10px;
+  border: 1px solid var(--gh-line);
+}
+.gh-discovery-density-option {
+  padding: 5px 12px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: transparent;
+}
+.gh-discovery-density-option.is-active {
+  background: var(--gh-surface);
+  color: var(--gh-accent);
+  box-shadow: 0 1px 2px rgba(22, 35, 56, 0.08);
+}
+
+/* Compact: tighter rows, smaller description, less padding */
+.gh-discovery-card-list.density-compact .gh-discovery-result-row {
+  padding: 10px 14px;
+}
+.gh-discovery-card-list.density-compact .gh-discovery-result-title-row h3 { font-size: 0.98rem; }
+.gh-discovery-card-list.density-compact .gh-discovery-result-description {
+  font-size: 0.78rem;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+.gh-discovery-card-list.density-compact .gh-discovery-result-description,
+.gh-discovery-card-list.density-compact .gh-discovery-result-meta { margin-top: 4px; }
+
+/* Spacious: more breathing room, fuller description clamp */
+.gh-discovery-card-list.density-spacious .gh-discovery-result-row {
+  padding: 22px 22px;
+}
+.gh-discovery-card-list.density-spacious .gh-discovery-result-description {
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}

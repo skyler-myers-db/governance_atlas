@@ -1,6 +1,7 @@
 import { SurfaceHeader } from "../ShellLayoutPrimitives";
 import { InlineStatusBanner } from "../ShellStatePrimitives";
 import { AssetTypeIcon } from "./AssetTypeIcon";
+import { Breadcrumbs } from "./Breadcrumbs";
 import { OwnerAvatarStack } from "./OwnerAvatarStack";
 
 function statusTone(asset) {
@@ -32,8 +33,24 @@ export function EntityHero({
       <span>{asset.name}</span>
     </span>
   );
+  // Breadcrumbs show the containing path only — the asset name is already the
+  // hero title below. Rendering it here too would duplicate it (and break
+  // getByText queries). End the trail at the schema.
+  const breadcrumbItems = [
+    {
+      key: "discovery",
+      label: "Discovery",
+      onClick: () => {
+        onNavigationStateChange?.(true, "Returning to discovery…");
+        onBack();
+      },
+    },
+    asset?.catalog ? { key: "catalog", label: asset.catalog } : null,
+    asset?.schema ? { key: "schema", label: asset.schema } : null,
+  ].filter(Boolean);
   return (
     <div className="gh-entity-record-header">
+      <Breadcrumbs className="gh-entity-record-breadcrumbs" items={breadcrumbItems} />
       <SurfaceHeader
         className="gh-entity-record-main"
         eyebrow="Metadata Record"

@@ -1032,6 +1032,19 @@ export default function DiscoveryWorkspace({
   workspaceAccess = null,
 }) {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [density, setDensityState] = useState(() => {
+    if (typeof window === "undefined") return "normal";
+    const stored = window.localStorage?.getItem?.("gh-discovery-density");
+    return stored === "compact" || stored === "spacious" ? stored : "normal";
+  });
+  const setDensity = (next) => {
+    setDensityState(next);
+    try {
+      window.localStorage?.setItem?.("gh-discovery-density", next);
+    } catch {
+      /* localStorage may be unavailable in sandboxed contexts */
+    }
+  };
   const [selectedAssetFqn, setSelectedAssetFqn] = useState("");
   const [visibleResultCount, setVisibleResultCount] = useState(DISCOVERY_RESULT_PAGE_SIZE);
   const [navigationNotice, setNavigationNotice] = useState("");
@@ -1654,6 +1667,27 @@ export default function DiscoveryWorkspace({
                   </select>
                 </div>
                 <div className="gh-discovery-toolbar-actions">
+                  <div
+                    aria-label="Result density"
+                    className="gh-discovery-density-toggle"
+                    role="group"
+                  >
+                    {[
+                      { key: "compact", label: "Compact" },
+                      { key: "normal", label: "Normal" },
+                      { key: "spacious", label: "Spacious" },
+                    ].map((option) => (
+                      <button
+                        aria-pressed={density === option.key}
+                        className={`gh-tertiary-button gh-discovery-density-option ${density === option.key ? "is-active" : ""}`.trim()}
+                        key={option.key}
+                        onClick={() => setDensity(option.key)}
+                        type="button"
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
                   <button
                     className={`gh-secondary-button gh-discovery-stack-trigger ${showAdvancedFilters ? "is-active" : ""}`}
                     onClick={() => setShowAdvancedFilters((current) => !current)}
@@ -1753,7 +1787,7 @@ export default function DiscoveryWorkspace({
               tone="bad"
             />
           ) : hasRenderableResults ? (
-            <div className="gh-result-list gh-discovery-card-list">
+            <div className={`gh-result-list gh-discovery-card-list density-${density}`}>
               {renderedDiscoveryAssets.map((asset) => (
                 <DiscoveryResultCard
                   asset={asset}
