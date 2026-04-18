@@ -42,6 +42,7 @@ import LineageStage from "./LineageStage";
 import { SurfacePanelSection, SurfaceTabs } from "./ShellLayoutPrimitives";
 import { EmptyStateBlock, LoadingState, WorkspaceStateCard } from "./ShellStatePrimitives";
 import { EntityHero } from "./primitives/EntityHero";
+import { TabIcon } from "./primitives/TabIcon";
 
 function governanceCoverageSignals(asset) {
   return [
@@ -238,14 +239,14 @@ function detailSectionsForTab(activeTab, previewAvailable = true, workloadAvaila
 
 function entityTabs(previewAvailable = true, lineageAvailable = true, workloadAvailable = true) {
   return [
-    { key: "Overview", label: "Overview" },
-    { key: "Schema", label: "Schema" },
-    { key: "Activity", label: "Activity & Tasks" },
-    ...(previewAvailable ? [{ key: "SampleData", label: "Sample Data" }] : []),
-    ...(workloadAvailable ? [{ key: "Queries", label: "Usage & Workloads" }] : []),
-    { key: "Profiler", label: "Profiler & Evidence" },
-    ...(lineageAvailable ? [{ key: "Lineage", label: "Lineage" }] : []),
-    { key: "CustomProperties", label: "Custom Properties" },
+    { key: "Overview", label: "Overview", iconId: "overview" },
+    { key: "Schema", label: "Schema", iconId: "schema" },
+    { key: "Activity", label: "Activity & Tasks", iconId: "activity" },
+    ...(previewAvailable ? [{ key: "SampleData", label: "Sample Data", iconId: "sample" }] : []),
+    ...(workloadAvailable ? [{ key: "Queries", label: "Usage & Workloads", iconId: "queries" }] : []),
+    { key: "Profiler", label: "Profiler & Evidence", iconId: "profiler" },
+    ...(lineageAvailable ? [{ key: "Lineage", label: "Lineage", iconId: "lineage" }] : []),
+    { key: "CustomProperties", label: "Custom Properties", iconId: "properties" },
   ];
 }
 
@@ -302,11 +303,13 @@ function CoverageSignalRows({ items, onOpenGovernance }) {
   );
 }
 
-function MetricTile({ label, value }) {
+function MetricTile({ label, value, hint = "", tone = "" }) {
+  const toneClass = tone ? ` tone-${tone}` : "";
   return (
-    <div className="gh-preview-stat-card gh-entity-metric-card">
-      <span>{label}</span>
-      <strong>{value}</strong>
+    <div className={`gh-preview-stat-card gh-entity-metric-card${toneClass}`} title={hint || undefined}>
+      <span className="gh-entity-metric-label">{label}</span>
+      <strong className="gh-entity-metric-value">{value}</strong>
+      {hint ? <span className="gh-entity-metric-hint">{hint}</span> : null}
     </div>
   );
 }
@@ -955,10 +958,42 @@ export default function EntityWorkspace({
     [asset?.profiler?.cards, lineageSurfaceAvailable, previewSurfaceAvailable, workloadSurfaceAvailable],
   );
   const profilerSummary = asset?.profiler?.summary || {};
+  const coverageScore = Number(asset?.coverageScore ?? NaN);
+  const coverageTone = Number.isFinite(coverageScore)
+    ? coverageScore >= 75
+      ? "good"
+      : coverageScore >= 40
+        ? "warn"
+        : "bad"
+    : "";
+  const ownersCount = asset?.owners?.length || 0;
+  const ownersTone = ownersCount > 0 ? "good" : "bad";
+  const openRequests = Number(asset?.openRequests ?? NaN);
+  const openRequestsTone = Number.isFinite(openRequests)
+    ? openRequests === 0
+      ? "good"
+      : openRequests > 3
+        ? "warn"
+        : ""
+    : "";
   const metricTiles = [
-    { label: "Coverage", value: asset?.coverageScore == null ? "—" : `${asset.coverageScore}` },
-    { label: "Owners", value: `${asset?.owners?.length || 0}` },
-    { label: "Open Requests", value: asset?.openRequests == null ? "—" : `${asset.openRequests}` },
+    {
+      label: "Coverage",
+      value: asset?.coverageScore == null ? "—" : `${asset.coverageScore}`,
+      tone: coverageTone,
+      hint: Number.isFinite(coverageScore) ? `${coverageScore}/100 governance signals` : "",
+    },
+    {
+      label: "Owners",
+      value: `${ownersCount}`,
+      tone: ownersTone,
+      hint: ownersCount === 0 ? "No owner assigned" : `${ownersCount} owner${ownersCount === 1 ? "" : "s"} on file`,
+    },
+    {
+      label: "Open Requests",
+      value: asset?.openRequests == null ? "—" : `${asset.openRequests}`,
+      tone: openRequestsTone,
+    },
     {
       label: "Workloads",
       value: workloadAccessPending
@@ -1573,7 +1608,13 @@ export default function EntityWorkspace({
 
         <div className="gh-preview-stat-grid gh-entity-record-metrics">
           {metricTiles.map((item) => (
-            <MetricTile key={item.label} label={item.label} value={item.value} />
+            <MetricTile
+              key={item.label}
+              label={item.label}
+              value={item.value}
+              hint={item.hint || ""}
+              tone={item.tone || ""}
+            />
           ))}
         </div>
 
@@ -1581,7 +1622,11 @@ export default function EntityWorkspace({
           activeKey={activeTab}
           ariaLabel="Entity sections"
           className="gh-entity-record-tabs"
-          items={tabs.map((tab) => ({ key: tab.key, label: tab.label }))}
+          items={tabs.map((tab) => ({
+            key: tab.key,
+            label: tab.label,
+            icon: tab.iconId ? <TabIcon id={tab.iconId} /> : null,
+          }))}
           onChange={setActiveTab}
         />
 
