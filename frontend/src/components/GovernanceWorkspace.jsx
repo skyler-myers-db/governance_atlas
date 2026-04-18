@@ -578,14 +578,42 @@ export default function GovernanceWorkspace({
       glossaryCollection === "All terms"
         ? views.glossary
         : views.glossary.filter((item) => item.subtitle === glossaryCollection);
-    if (!query) return scoped;
-    return scoped.filter((item) => {
-      return (
-        item.title.toLowerCase().includes(query) ||
-        item.detail.toLowerCase().includes(query) ||
-        item.subtitle.toLowerCase().includes(query)
-      );
+    const filtered = !query
+      ? scoped
+      : scoped.filter((item) => {
+          return (
+            item.title.toLowerCase().includes(query) ||
+            item.detail.toLowerCase().includes(query) ||
+            item.subtitle.toLowerCase().includes(query)
+          );
+        });
+    // Phase 5 Tranche D — depth-first order so children appear directly beneath
+    // their parent term. Depth drives the left-indent rendering in the list so
+    // stewards see the glossary hierarchy instead of a flat 50-term wall.
+    const byTermId = new Map();
+    filtered.forEach((item) => {
+      const termId = String(item.termId || item.id || "");
+      if (termId) byTermId.set(termId, item);
     });
+    const childrenByParent = new Map();
+    const roots = [];
+    filtered.forEach((item) => {
+      const parentId = String(item.parentTermId || "");
+      if (parentId && byTermId.has(parentId)) {
+        if (!childrenByParent.has(parentId)) childrenByParent.set(parentId, []);
+        childrenByParent.get(parentId).push(item);
+      } else {
+        roots.push(item);
+      }
+    });
+    const ordered = [];
+    const walk = (node, depth) => {
+      ordered.push({ ...node, _depth: depth });
+      const children = childrenByParent.get(String(node.termId || node.id || "")) || [];
+      children.forEach((child) => walk(child, depth + 1));
+    };
+    roots.forEach((root) => walk(root, 0));
+    return ordered;
   }, [glossaryCollection, glossaryQuery, views.glossary]);
   const selectedGlossarySummary = views.glossary.find((item) => item.id === selectedGlossaryId) || null;
   const glossaryTermDetail = useGovernanceGlossaryTerm(selectedGlossarySummary?.termId || "", {
@@ -1577,26 +1605,35 @@ export default function GovernanceWorkspace({
               <div className="gh-support-copy">Terms are grouped by domain and filtered by search.</div>
               {glossaryItems.length ? (
                 <div className="gh-request-list gh-request-list-dense gh-governance-glossary-list">
-                  {glossaryItems.map((item) => (
-                    <button
-                      className={`gh-request-card gh-request-row ${selectedGlossary?.id === item.id ? "is-active" : ""}`}
-                      key={item.id}
-                      onClick={() => setSelectedGlossaryId(item.id)}
-                      type="button"
-                    >
-                      <div className="gh-request-card-topline">
-                        <div>
-                          <div className="gh-request-title">{item.title}</div>
-                          <div className="gh-request-meta">{item.subtitle}</div>
+                  {glossaryItems.map((item) => {
+                    const depth = Math.max(0, Math.min(6, Number(item._depth) || 0));
+                    return (
+                      <button
+                        className={`gh-request-card gh-request-row gh-governance-glossary-item depth-${depth} ${selectedGlossary?.id === item.id ? "is-active" : ""}`.trim()}
+                        key={item.id}
+                        onClick={() => setSelectedGlossaryId(item.id)}
+                        style={depth > 0 ? { marginLeft: `${depth * 14}px` } : undefined}
+                        type="button"
+                      >
+                        <div className="gh-request-card-topline">
+                          <div>
+                            <div className="gh-request-title">{item.title}</div>
+                            <div className="gh-request-meta">{item.subtitle}</div>
+                          </div>
+                          <div className="gh-chip-row">
+                            <span className="gh-chip gh-chip-soft">{item.status}</span>
+                            <span className="gh-chip gh-chip-soft">{item.assetCount} assets</span>
+                            {Number(item.childCount) > 0 ? (
+                              <span className="gh-chip gh-chip-soft" title={`${item.childCount} child terms`}>
+                                {item.childCount} children
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
-                        <div className="gh-chip-row">
-                          <span className="gh-chip gh-chip-soft">{item.status}</span>
-                          <span className="gh-chip gh-chip-soft">{item.assetCount} assets</span>
-                        </div>
-                      </div>
-                      <div className="gh-support-copy">{item.detail}</div>
-                    </button>
-                  ))}
+                        <div className="gh-support-copy">{item.detail}</div>
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 <EmptyStateBlock

@@ -660,6 +660,7 @@ def _glossary_rows_from_frames(
         glossary_rows.append(
             {
                 "termId": term_id,
+                "parentTermId": asset_service.normalize_str(row.get("parent_term_id")) or None,
                 "term": term_name,
                 "definition": asset_service.normalize_str(row.get("definition")) or "No definition",
                 "domain": asset_service.normalize_str(row.get("domain")) or "Unassigned",
