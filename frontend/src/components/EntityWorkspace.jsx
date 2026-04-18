@@ -43,6 +43,10 @@ import { SurfacePanelSection, SurfaceTabs } from "./ShellLayoutPrimitives";
 import { EmptyStateBlock, LoadingState, SkeletonBlock, WorkspaceStateCard } from "./ShellStatePrimitives";
 import { EntityHero } from "./primitives/EntityHero";
 import { TabIcon } from "./primitives/TabIcon";
+import { AccessExplainerBanner } from "./primitives/AccessExplainerBanner";
+import { CustomPropertiesPanel } from "./primitives/CustomPropertiesPanel";
+import { ProfilePanel } from "./primitives/ProfilePanel";
+import { QualityPanel } from "./primitives/QualityPanel";
 
 function governanceCoverageSignals(asset) {
   return [
@@ -245,6 +249,7 @@ function entityTabs(previewAvailable = true, lineageAvailable = true, workloadAv
     ...(previewAvailable ? [{ key: "SampleData", label: "Sample Data", iconId: "sample" }] : []),
     ...(workloadAvailable ? [{ key: "Queries", label: "Usage & Workloads", iconId: "queries" }] : []),
     { key: "Profiler", label: "Profiler & Evidence", iconId: "profiler" },
+    { key: "Quality", label: "Quality", iconId: "profiler" },
     ...(lineageAvailable ? [{ key: "Lineage", label: "Lineage", iconId: "lineage" }] : []),
     { key: "CustomProperties", label: "Custom Properties", iconId: "properties" },
   ];
@@ -1634,6 +1639,7 @@ export default function EntityWorkspace({
         {activeTab === "Overview" ? (
           <div className="gh-entity-record-layout">
             <div className="gh-entity-record-primary">
+              <AccessExplainerBanner assetFqn={asset.fqn} />
               <EntityRecordSection title="Definition">
                 <div className="gh-support-copy">
                   {asset.description || "No description is available for this asset yet."}
@@ -2169,7 +2175,10 @@ export default function EntityWorkspace({
                 {assetDetail.error || "Live profiler and evidence signals are unavailable for this asset right now."}
               </div>
             ) : (
-              <ProfilerCards cards={profilerCards} />
+              <>
+                <ProfilerCards cards={profilerCards} />
+                <ProfilePanel assetFqn={asset.fqn} />
+              </>
             )}
           </EntityRecordSection>
         ) : null}
@@ -2183,26 +2192,38 @@ export default function EntityWorkspace({
             >
               <LoadingState message="Loading custom properties and constraints..." />
             </EntityRecordSection>
-          ) : propertiesUnavailable ? (
-            <EntityRecordSection
-              className="gh-entity-record-properties-section"
-              description="Custom metadata fields and structural constraints surfaced from the live record."
-              title="Custom Properties"
-            >
-              <div className="gh-empty-state">
-                {assetDetail.error || "Live custom properties are unavailable for this asset right now."}
-              </div>
-            </EntityRecordSection>
           ) : (
             <div className="gh-entity-record-layout gh-entity-record-layout-governance">
-              <PropertyList title="Custom Properties" items={asset.customProperties || []} />
-              <PropertyList
+              <EntityRecordSection
+                className="gh-entity-record-properties-section"
+                description="Governed, typed custom properties assigned to this asset by admins."
+                title="Custom Properties"
+              >
+                <CustomPropertiesPanel assetFqn={asset.fqn} fallback={asset.customProperties || []} />
+              </EntityRecordSection>
+              <EntityRecordSection
+                className="gh-entity-record-properties-section"
+                description="UC-surfaced structural constraints (primary/foreign keys, check constraints)."
                 title="Constraints"
-                items={asset.constraints || []}
-                renderValue={(item) => item.columns?.length ? `${item.type} • ${item.columns.join(", ")}` : item.type}
-              />
+              >
+                <PropertyList
+                  title=""
+                  items={asset.constraints || []}
+                  renderValue={(item) => item.columns?.length ? `${item.type} • ${item.columns.join(", ")}` : item.type}
+                />
+              </EntityRecordSection>
             </div>
           )
+        ) : null}
+
+        {activeTab === "Quality" ? (
+          <EntityRecordSection
+            className="gh-entity-record-quality-section"
+            description="Persisted quality runs, per-case outcomes, and redaction-gated evidence."
+            title="Quality"
+          >
+            <QualityPanel assetFqn={asset.fqn} />
+          </EntityRecordSection>
         ) : null}
       </section>
     </section>
