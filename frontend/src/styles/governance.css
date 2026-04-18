@@ -420,3 +420,58 @@
 .gh-taxonomy-name { font-weight: 600; color: var(--gh-text, #14213d); }
 .gh-taxonomy-desc { color: var(--gh-text-muted, #5c6b82); }
 .gh-taxonomy-count { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------
+   Taxonomy drill-down polish
+   ------------------------------------------------------------ */
+.gh-taxonomy-row-interactive {
+  text-align: left;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+.gh-taxonomy-row-interactive:focus-visible {
+  outline: 2px solid var(--gh-accent, #5b3ff2);
+  outline-offset: -2px;
+}
+.gh-taxonomy-detail-field {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: var(--gh-space-2, 8px);
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--gh-border, #d8dee9);
+}
+.gh-taxonomy-detail-field:last-child { border-bottom: 0; }
+.gh-taxonomy-detail-label {
+  color: var(--gh-text-muted, #5c6b82);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.gh-taxonomy-detail-value { color: var(--gh-text, #14213d); word-break: break-word; }
+.gh-taxonomy-terms,
+.gh-taxonomy-members { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--gh-space-3, 12px); }
+.gh-taxonomy-term,
+.gh-taxonomy-member {
+  padding: var(--gh-space-3, 12px);
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: var(--gh-radius-sm, 6px);
+  background: var(--gh-surface, #fff);
+}
+.gh-taxonomy-term-row,
+.gh-taxonomy-member-head { display: flex; align-items: center; gap: var(--gh-space-2, 8px); }
+.gh-taxonomy-term-name { font-weight: 600; color: var(--gh-text, #14213d); }
+.gh-taxonomy-member-fqn { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; font-weight: 600; }
+.gh-taxonomy-conflicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--gh-space-3, 12px); }
+.gh-taxonomy-conflict {
+  padding: var(--gh-space-3, 12px);
+  background: var(--gh-surface-muted, #f3f6fb);
+  border-radius: var(--gh-radius-sm, 6px);
+  border: 1px solid var(--gh-border, #d8dee9);
+}
+.gh-taxonomy-conflict-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gh-text-muted, #5c6b82); }
+.gh-taxonomy-conflict-value { font-size: 24px; font-weight: 700; color: var(--gh-text, #14213d); }
