@@ -646,6 +646,8 @@ function DiscoveryResultCard({
   onOpenGovernance,
   onOpenLineage,
   onSelect,
+  onHoverPreview,
+  onHoverEnd,
   lineageAvailable = true,
   lineageUnavailableReason = "",
   recordOpenable = null,
@@ -660,6 +662,8 @@ function DiscoveryResultCard({
     <article
       className={`gh-discovery-result-row ${selected ? "is-selected" : ""}`}
       data-asset-fqn={asset.fqn}
+      onMouseEnter={() => onHoverPreview?.(asset.fqn)}
+      onMouseLeave={() => onHoverEnd?.()}
     >
       <button
         className="gh-discovery-result-hit"
@@ -1032,6 +1036,23 @@ export default function DiscoveryWorkspace({
   workspaceAccess = null,
 }) {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const hoverPreviewTimerRef = useRef(null);
+  const handleHoverPreview = (fqn) => {
+    if (!fqn) return;
+    if (hoverPreviewTimerRef.current) clearTimeout(hoverPreviewTimerRef.current);
+    hoverPreviewTimerRef.current = setTimeout(() => {
+      setSelectedAssetFqn((current) => (current === fqn ? current : fqn));
+    }, 300);
+  };
+  const handleHoverEnd = () => {
+    if (hoverPreviewTimerRef.current) {
+      clearTimeout(hoverPreviewTimerRef.current);
+      hoverPreviewTimerRef.current = null;
+    }
+  };
+  useEffect(() => () => {
+    if (hoverPreviewTimerRef.current) clearTimeout(hoverPreviewTimerRef.current);
+  }, []);
   const [density, setDensityState] = useState(() => {
     if (typeof window === "undefined") return "normal";
     const stored = window.localStorage?.getItem?.("gh-discovery-density");
@@ -1794,6 +1815,8 @@ export default function DiscoveryWorkspace({
                   key={asset.fqn}
                   lineageAvailable={lineageSurfaceAvailable}
                   lineageUnavailableReason={lineageSurfaceUnavailableReason}
+                  onHoverEnd={handleHoverEnd}
+                  onHoverPreview={handleHoverPreview}
                   onOpenAsset={openAssetRecord}
                   onOpenGovernance={openGovernanceWorkbench}
                   onOpenLineage={openLineageWorkspace}
