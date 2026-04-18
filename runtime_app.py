@@ -1050,18 +1050,6 @@ def _discovery_search_payload(
     )
 
 
-def _related_assets(
-    catalog: str,
-    schema: str,
-    table: str,
-    focus_fqn: str,
-    request: Optional[Request] = None,
-) -> List[str]:
-    return asset_service.related_assets(
-        _uc_for_request(request), catalog, schema, table, focus_fqn
-    )
-
-
 def _asset_detail_payload(
     asset_fqn: str,
     request: Optional[Request] = None,
@@ -1084,86 +1072,6 @@ from govhub.services.metadata_audit import (
     audit_column_snapshot as _metadata_audit_column_snapshot,
     record_audit_log as _record_metadata_audit,
 )
-
-
-def _preview_records(sample_df: pd.DataFrame) -> List[Dict[str, str]]:
-    if sample_df is None or sample_df.empty:
-        return []
-    view = sample_df.head(8).copy()
-    limited_cols = list(view.columns[:8])
-    view = view[limited_cols]
-    rows: List[Dict[str, str]] = []
-    for _, row in view.iterrows():
-        rows.append({str(col): _normalize_str(row.get(col)) for col in limited_cols})
-    return rows
-
-
-def _column_records(columns_df: pd.DataFrame) -> List[Dict[str, str]]:
-    if columns_df is None or columns_df.empty:
-        return []
-    rows: List[Dict[str, str]] = []
-    for _, row in columns_df.head(50).iterrows():
-        rows.append(
-            {
-                "name": _normalize_str(row.get("column_name")),
-                "type": _normalize_str(row.get("data_type")),
-                "description": _normalize_str(row.get("comment")) or "No description",
-            }
-        )
-    return rows
-
-
-def _graph_node_for_asset(
-    asset_fqn: str,
-    role: str,
-    x: int,
-    y: int,
-    *,
-    kicker: str,
-    kind: str = "",
-    foot: Optional[List[str]] = None,
-    depth: int = 1,
-    request: Optional[Request] = None,
-) -> Dict[str, Any]:
-    row = _inventory_row(asset_fqn, request)
-    label = _normalize_str(row.get("table_name")) or asset_fqn.split(".")[-1]
-    subtitle = " / ".join(
-        part
-        for part in [
-            _normalize_str(row.get("table_catalog")),
-            _normalize_str(row.get("table_schema")),
-        ]
-        if part
-    )
-    item_kind = kind or _friendly_table_type(
-        row.get("table_type"), row.get("data_source_format")
-    )
-    footer = foot or [item_kind]
-    return {
-        "id": f"{role}-{asset_fqn}",
-        "assetFqn": asset_fqn,
-        "label": label,
-        "subtitle": subtitle,
-        "kicker": kicker,
-        "kind": item_kind,
-        "role": role,
-        "depth": depth,
-        "x": x,
-        "y": y,
-        "foot": footer,
-    }
-
-
-def _stack_positions(
-    count: int, *, x: int, top: int = 22, bottom: int = 78
-) -> List[Tuple[int, int]]:
-    if count <= 0:
-        return []
-    if count == 1:
-        return [(x, 50)]
-    span = max(bottom - top, 10)
-    step = span / (count - 1)
-    return [(x, round(top + idx * step)) for idx in range(count)]
 
 
 def _build_data_graph(
