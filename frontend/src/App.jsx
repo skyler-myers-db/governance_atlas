@@ -16,6 +16,7 @@ const DiscoveryWorkspace = lazy(() => import("./components/DiscoveryWorkspace"))
 const EntityWorkspace = lazy(() => import("./components/EntityWorkspace"));
 const LineageWorkspace = lazy(() => import("./components/LineageWorkspace"));
 const AuditBrowserWorkspace = lazy(() => import("./components/AuditBrowserWorkspace"));
+const TaxonomyWorkspace = lazy(() => import("./components/TaxonomyWorkspace"));
 
 function visibleAssetSetFromGroups(...groups) {
   const visible = new Set();
@@ -380,6 +381,7 @@ export default function App() {
       lineage: "Opening lineage…",
       governance: "Opening governance…",
       audit: "Opening audit browser…",
+      taxonomy: "Opening taxonomy…",
     };
     handleNavigationStateChange(true, labels[nextModule] || "Opening workspace…");
     onModuleChange(nextModule);
@@ -668,6 +670,17 @@ export default function App() {
           <AuditBrowserWorkspace shell={shell} />
         </Suspense>
       );
+    } else if (surface === "taxonomy") {
+      content = (
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading taxonomy",
+            "Preparing classifications, domains, data products, and column groups.",
+          )}
+        >
+          <TaxonomyWorkspace />
+        </Suspense>
+      );
     } else {
       content = governanceSummaryLoading ? (
         workspaceLoading(
@@ -704,7 +717,7 @@ export default function App() {
       activeModule={
         surface === "entity"
           ? "discovery"
-          : ["discovery", "lineage", "governance", "audit"].includes(surface)
+          : ["discovery", "lineage", "governance", "audit", "taxonomy"].includes(surface)
             ? surface
             : ""
       }

@@ -9,6 +9,7 @@ const MODULES = [
   { key: "discovery", label: "Discovery" },
   { key: "lineage", label: "Lineage" },
   { key: "governance", label: "Governance" },
+  { key: "taxonomy", label: "Taxonomy" },
   { key: "audit", label: "Audit" },
 ];
 

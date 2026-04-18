@@ -382,3 +382,41 @@
   height: 1px;
   background: var(--gh-line-strong);
 }
+
+/* ------------------------------------------------------------
+   Phase 11 — TaxonomyWorkspace
+   ------------------------------------------------------------ */
+.gh-taxonomy-workspace { padding: var(--gh-space-5, 20px); max-width: 1280px; margin: 0 auto; }
+.gh-taxonomy-tabs {
+  display: flex;
+  gap: var(--gh-space-2, 8px);
+  padding-bottom: var(--gh-space-3, 12px);
+  margin-bottom: var(--gh-space-4, 16px);
+  border-bottom: 1px solid var(--gh-border, #d8dee9);
+}
+.gh-taxonomy-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: var(--gh-radius-sm, 6px);
+  overflow: hidden;
+}
+.gh-taxonomy-head {
+  background: var(--gh-surface-muted, #f3f6fb);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--gh-text-muted, #5c6b82);
+}
+.gh-taxonomy-row {
+  display: grid;
+  grid-template-columns: 1.2fr 2fr 0.6fr 0.6fr 0.6fr;
+  gap: var(--gh-space-3, 12px);
+  padding: var(--gh-space-2, 8px) var(--gh-space-3, 12px);
+  align-items: center;
+}
+.gh-taxonomy-row + .gh-taxonomy-row { border-top: 1px solid var(--gh-border, #d8dee9); }
+.gh-taxonomy-name { font-weight: 600; color: var(--gh-text, #14213d); }
+.gh-taxonomy-desc { color: var(--gh-text-muted, #5c6b82); }
+.gh-taxonomy-count { font-variant-numeric: tabular-nums; }
