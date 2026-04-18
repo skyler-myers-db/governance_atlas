@@ -568,16 +568,6 @@
     "/api/access-explain": {
       "get": {
         "operationId": "api_access_explainer_generic_api_access_explain_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "request",
-            "required": true,
-            "schema": {
-              "title": "Request"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "content": {
@@ -586,16 +576,6 @@
               }
             },
             "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
           }
         },
         "summary": "Api Access Explainer Generic",
