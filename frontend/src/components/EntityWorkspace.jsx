@@ -249,7 +249,7 @@ function entityTabs(previewAvailable = true, lineageAvailable = true, workloadAv
     ...(previewAvailable ? [{ key: "SampleData", label: "Sample Data", iconId: "sample" }] : []),
     ...(workloadAvailable ? [{ key: "Queries", label: "Usage & Workloads", iconId: "queries" }] : []),
     { key: "Profiler", label: "Profiler & Evidence", iconId: "profiler" },
-    { key: "Quality", label: "Quality", iconId: "profiler" },
+    { key: "Quality", label: "Quality", iconId: "quality" },
     ...(lineageAvailable ? [{ key: "Lineage", label: "Lineage", iconId: "lineage" }] : []),
     { key: "CustomProperties", label: "Custom Properties", iconId: "properties" },
   ];
