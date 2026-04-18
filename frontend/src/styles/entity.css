@@ -162,3 +162,38 @@
 .gh-entity-record-breadcrumbs {
   margin-bottom: 6px;
 }
+
+/* Phase 2-i.5 — overview live preview card */
+.gh-entity-record-overview-preview { overflow: hidden; }
+.gh-entity-overview-preview-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--gh-line);
+  border-radius: 8px;
+  background: var(--gh-surface);
+  margin-top: 6px;
+}
+.gh-entity-overview-preview-table {
+  width: 100%;
+  font-size: 0.78rem;
+  border-collapse: collapse;
+}
+.gh-entity-overview-preview-table th {
+  text-align: left;
+  padding: 6px 10px;
+  background: var(--gh-surface-muted);
+  color: var(--gh-ink-muted);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--gh-line);
+  white-space: nowrap;
+}
+.gh-entity-overview-preview-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--gh-line);
+  color: var(--gh-ink);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gh-entity-overview-preview-table tr:last-child td { border-bottom: none; }

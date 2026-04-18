@@ -1735,6 +1735,44 @@ export default function EntityWorkspace({
                 <AttributeList items={recordFacts} />
               </EntityRecordSection>
 
+              {livePreview.length ? (
+                <EntityRecordSection
+                  actions={
+                    <button
+                      className="gh-tertiary-button gh-inline-link-button"
+                      onClick={() => setActiveTab("SampleData")}
+                      type="button"
+                    >
+                      See all rows
+                    </button>
+                  }
+                  className="gh-entity-record-overview-preview"
+                  description={`First ${Math.min(livePreview.length, 3)} row${livePreview.length === 1 ? "" : "s"} returned from the live asset preview.`}
+                  title="Live Preview"
+                >
+                  <div className="gh-entity-overview-preview-scroll">
+                    <table className="gh-table gh-entity-overview-preview-table">
+                      <thead>
+                        <tr>
+                          {previewKeys.slice(0, 5).map((key) => (
+                            <th key={key}>{key}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {livePreview.slice(0, 3).map((row, index) => (
+                          <tr key={`${asset.fqn}-overview-preview-${index}`}>
+                            {previewKeys.slice(0, 5).map((key) => (
+                              <td key={key}>{row[key]}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </EntityRecordSection>
+              ) : null}
+
               <EntityRecordSection title="Owners">
                 <OwnerList owners={asset.owners} />
               </EntityRecordSection>
