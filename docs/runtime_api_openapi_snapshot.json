@@ -184,6 +184,24 @@
         "title": "ColumnTagsPatch",
         "type": "object"
       },
+      "ExportAssetsRequest": {
+        "properties": {
+          "assetFqns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Assetfqns",
+            "type": "array"
+          },
+          "format": {
+            "default": "csv",
+            "title": "Format",
+            "type": "string"
+          }
+        },
+        "title": "ExportAssetsRequest",
+        "type": "object"
+      },
       "GlossaryTermUpsert": {
         "properties": {
           "changeNote": {
@@ -1071,6 +1089,86 @@
         "summary": "Api Discovery Search",
         "tags": [
           "discovery"
+        ]
+      }
+    },
+    "/api/export/assets": {
+      "post": {
+        "operationId": "api_export_assets_api_export_assets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportAssetsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Export Assets",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/governance/audit-timeline/{asset_fqn}": {
+      "get": {
+        "description": "Return a reverse-chronological audit timeline for a single asset.\n\nBacks the AuditTimelineDrawer on the Governance page. Purely a read over\nthe existing metadata_audit_log table \u2014 no new schema is required. Entries\ninclude before/after JSON so the UI can diff changes inline.",
+        "operationId": "api_governance_audit_timeline_api_governance_audit_timeline__asset_fqn__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Governance Audit Timeline",
+        "tags": [
+          "governance"
         ]
       }
     },

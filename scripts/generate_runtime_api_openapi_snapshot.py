@@ -30,6 +30,8 @@ RUNTIME_PATHS = (
     "/api/governance/requests/{request_id}",
     "/api/governance/notifications/{notification_id}",
     "/api/governance/owners",
+    "/api/governance/audit-timeline/{asset_fqn}",
+    "/api/export/assets",
 )
 
 if str(ROOT) not in sys.path:

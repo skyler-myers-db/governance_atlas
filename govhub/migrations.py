@@ -330,6 +330,42 @@ DEFAULT_MIGRATIONS: tuple[Migration, ...] = (
             ) USING DELTA""",
         ),
     ),
+    Migration(
+        version=9,
+        name="export_jobs",
+        statements=(
+            # Phase 4 Tranche 2 / Phase 12 — export_jobs tracks every
+            # governed-metadata export so the admin diagnostics surface
+            # can answer "what's been exported, by whom, when, and is it
+            # still downloadable?" No raw OBO tokens are stored;
+            # token_captured_at is a timestamp we compare against the
+            # 55-minute stale-auth threshold before materializing or
+            # re-downloading an export.
+            """CREATE TABLE IF NOT EXISTS {export_jobs_table} (
+                job_id                STRING NOT NULL,
+                actor_email           STRING NOT NULL,
+                actor_role            STRING,
+                asset_fqns            ARRAY<STRING>,
+                filter_snapshot_json  STRING,
+                format                STRING COMMENT 'csv | json',
+                mode                  STRING COMMENT 'sync | async',
+                status                STRING COMMENT 'queued | materializing | ready | stale_auth | failed | expired',
+                requested_at          TIMESTAMP NOT NULL,
+                token_captured_at     TIMESTAMP COMMENT 'UTC when the request OBO token was captured; null for app-principal exports',
+                materialized_at       TIMESTAMP,
+                expires_at            TIMESTAMP,
+                download_url          STRING,
+                row_count             BIGINT,
+                byte_count            BIGINT,
+                checksum              STRING,
+                error_detail          STRING,
+                created_at            TIMESTAMP,
+                created_by            STRING,
+                updated_at            TIMESTAMP,
+                updated_by            STRING
+            ) USING DELTA""",
+        ),
+    ),
 )
 
 
@@ -409,6 +445,7 @@ def apply_migrations(
                 entity_versions_table=_fq_table(catalog, schema, "entity_versions"),
                 entity_relationships_table=_fq_table(catalog, schema, "entity_relationships"),
                 identity_directory_memberships_table=_fq_table(catalog, schema, "identity_directory_memberships"),
+                export_jobs_table=_fq_table(catalog, schema, "export_jobs"),
             ).strip()
             if sql:
                 uc.execute(sql)

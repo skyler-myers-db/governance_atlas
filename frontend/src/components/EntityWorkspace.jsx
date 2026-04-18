@@ -40,7 +40,7 @@ import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
 import LineageStage from "./LineageStage";
 import { SurfacePanelSection, SurfaceTabs } from "./ShellLayoutPrimitives";
-import { EmptyStateBlock, LoadingState, WorkspaceStateCard } from "./ShellStatePrimitives";
+import { EmptyStateBlock, LoadingState, SkeletonBlock, WorkspaceStateCard } from "./ShellStatePrimitives";
 import { EntityHero } from "./primitives/EntityHero";
 import { TabIcon } from "./primitives/TabIcon";
 
@@ -826,6 +826,7 @@ export default function EntityWorkspace({
   const operationalLoaded = loadedSections.has("operational") || loadedSections.has("profiler");
   const propertiesLoaded = loadedSections.has("properties");
   const profilerLoaded = loadedSections.has("profiler");
+  const activityLoaded = loadedSections.has("activity");
   const [overviewLineageWarm, setOverviewLineageWarm] = useState(false);
   const lineageEnabled =
     lineageSurfaceAvailable &&
@@ -1715,11 +1716,15 @@ export default function EntityWorkspace({
                 description="Change requests and review events tied to this record."
                 title="Recent Activity"
               >
-                <ActivityFeed
-                  items={(asset.activity || []).slice(0, 4)}
-                  auditItems={(asset.metadataAudit || []).slice(0, 6)}
-                  onOpenGovernance={() => onOpenGovernance(asset.fqn)}
-                />
+                {!activityLoaded && !asset.activity?.length && !asset.metadataAudit?.length ? (
+                  <SkeletonBlock lines={4} message="Loading activity feed…" />
+                ) : (
+                  <ActivityFeed
+                    items={(asset.activity || []).slice(0, 4)}
+                    auditItems={(asset.metadataAudit || []).slice(0, 6)}
+                    onOpenGovernance={() => onOpenGovernance(asset.fqn)}
+                  />
+                )}
               </EntityRecordSection>
             </div>
 
@@ -2077,7 +2082,7 @@ export default function EntityWorkspace({
                 {previewSurfaceUnavailableReason}
               </div>
             ) : previewPending ? (
-              <LoadingState message="Loading preview rows..." />
+              <SkeletonBlock lines={6} message="Loading preview rows…" />
             ) : previewUnavailable ? (
               <div className="gh-empty-state">
                 {assetDetail.error || "Live preview rows are unavailable for this asset right now."}

@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from govhub.api import (
     build_assets_router,
     build_discovery_router,
+    build_export_router,
     build_governance_router,
     build_lineage_router,
     build_runtime_router,
@@ -1510,6 +1511,7 @@ app.include_router(build_discovery_router())
 app.include_router(build_assets_router())
 app.include_router(build_lineage_router())
 app.include_router(build_governance_router())
+app.include_router(build_export_router())
 
 
 @app.get("/{client_path:path}", response_class=HTMLResponse, include_in_schema=False)

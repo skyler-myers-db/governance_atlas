@@ -3751,3 +3751,45 @@ and single-line
   min-width: 0;
 }
 
+
+/* Phase 2-i.7 — SkeletonBlock primitive */
+.gh-skeleton-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0;
+}
+.gh-skeleton-block.is-compact {
+  gap: 6px;
+}
+.gh-skeleton-bar {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--gh-surface-muted) 0%,
+    #e6ecf4 50%,
+    var(--gh-surface-muted) 100%
+  );
+  background-size: 220% 100%;
+  animation: gh-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.gh-skeleton-block.is-compact .gh-skeleton-bar {
+  height: 10px;
+}
+@keyframes gh-skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.gh-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
