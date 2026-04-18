@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { setWorkspaceIntent } from "../lib/workspaceIntent";
 
-const KNOWN_SURFACES = ["discovery", "entity", "lineage", "governance", "audit"];
+const KNOWN_SURFACES = ["discovery", "entity", "lineage", "governance", "audit", "taxonomy"];
 const DISCOVERY_GROUPED_FILTER_KEYS = [
   "types",
   "catalogs",
@@ -116,6 +116,12 @@ function parsePathRoute(pathname = "/") {
       asset: "",
     };
   }
+  if (root === "taxonomy") {
+    return {
+      surface: "taxonomy",
+      asset: "",
+    };
+  }
   return null;
 }
 
@@ -160,6 +166,7 @@ function canonicalPath(surface, routeAssetFqn) {
   }
   if (surface === "governance") return "/governance";
   if (surface === "audit") return "/audit";
+  if (surface === "taxonomy") return "/taxonomy";
   return "/discovery";
 }
 
