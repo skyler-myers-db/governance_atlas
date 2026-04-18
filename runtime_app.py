@@ -2147,113 +2147,12 @@ def index(request: Request) -> HTMLResponse:
     return _spa_shell_response(request)
 
 
-def _api_bootstrap_response(request: Request) -> JSONResponse:
-    try:
-        # Use the non-blocking fast path so the shell never waits on a cold
-        # warehouse probe. The real probe still runs via /api/runtime/status.
-        runtime_status = _uc_runtime_status_fast()
-        state = (
-            "live"
-            if runtime_status.get("state") == "live"
-            else str(runtime_status.get("state") or "degraded")
-        )
-        message = (
-            ""
-            if state == "live"
-            else runtime_status.get("message")
-            or "Live Databricks metadata runtime is unavailable. Fix the warehouse access or runtime configuration, then retry."
-        )
-        return JSONResponse(
-            _shell_payload(
-                request,
-                mode="route-bootstrap",
-                state=state,
-                message=message,
-                runtime_status=runtime_status,
-            )
-        )
-    except Exception as exc:
-        return JSONResponse(
-            _bootstrap_unavailable_payload(
-                request,
-                f"Workspace bootstrap failed: {_normalize_str(exc) or 'unknown error'}.",
-                state="error",
-            )
-        )
-
-
-def _api_runtime_status_response(request: Request) -> JSONResponse:
-    # Non-blocking probe: on cold-start the serverless warehouse takes 60-120s
-    # to return live, during which the UI used to show *no* diagnostics banner
-    # at all. The auth-mode / workspaceAccess / identity payload is derived from
-    # request headers and is available instantly, so returning "loading" runtime
-    # state immediately lets the OBO / degraded banner surface within seconds.
-    # The warehouse probe continues in the background; clients poll this
-    # endpoint until state transitions away from "loading".
-    runtime_status = _uc_runtime_status_fast()
-    store_status = (
-        _store_status()
-        if runtime_status.get("state") == "live"
-        else {
-            "state": "skipped",
-            "message": "Governance store check skipped until the SQL runtime recovers.",
-        }
-    )
-    summary = (
-        _bootstrap_inventory_summary(_request_cache_scope(request))
-        if runtime_status.get("state") == "live"
-        else {"visibleAssets": 0, "availableCatalogCount": 0, "observedCatalogCount": 0}
-    )
-    boot_message = ""
-    if runtime_status.get("state") == "live":
-        if store_status.get("state") != "live":
-            boot_message = _normalize_str(store_status.get("message"))
-        elif int(summary.get("visibleAssets") or 0) <= 0:
-            boot_message = _empty_inventory_boot_message(summary)
-    capabilities = _capabilities_payload(
-        request,
-        runtime_status=runtime_status,
-        store_status=store_status,
-        summary=summary,
-        boot_message=boot_message,
-    )
-    payload = {
-        "runtime": runtime_status,
-        "store": store_status,
-        "capabilities": capabilities,
-        "config": {
-            "warehouseId": _normalize_str(os.getenv("DATABRICKS_WAREHOUSE_ID")),
-            "govCatalog": _normalize_str(os.getenv("GOVHUB_CATALOG")),
-            "govSchema": _normalize_str(os.getenv("GOVHUB_SCHEMA")),
-            "adminEmailsConfigured": bool(_config().admin_emails),
-        },
-        "identity": {
-            "actorEmail": _user_email(request),
-            "actorRole": _user_role(request),
-            "actorRoleProvisional": False,
-            "authenticatedUserPresent": _user_email(request) != "unknown",
-            "authMode": _request_auth_mode(request),
-            "visibilityScope": _request_read_visibility_scope(request),
-            "source": IDENTITY_SOURCE,
-        },
-        "diagnostics": _runtime_diagnostics_payload(
-            request,
-            runtime_status=runtime_status,
-            store_status=store_status,
-            summary=summary,
-            capabilities=capabilities,
-            boot_message=boot_message,
-        ),
-    }
-    return JSONResponse(payload)
-
-
-app.include_router(
-    build_runtime_router(
-        bootstrap_response=lambda request: _api_bootstrap_response(request),
-        runtime_status_response=lambda request: _api_runtime_status_response(request),
-    )
+from govhub.api.runtime import (  # noqa: E402
+    _api_bootstrap_response,
+    _api_runtime_status_response,
 )
+
+app.include_router(build_runtime_router())
 
 
 @app.on_event("startup")
@@ -2281,84 +2180,7 @@ def _warmup_live_runtime() -> None:
     thread.start()
 
 
-def api_discovery_search(
-    request: Request,
-    query: str = "",
-    query_mode: str = Query(default="plain", alias="queryMode"),
-    view: str = "All assets",
-    asset_type: str = Query(default="All types", alias="type"),
-    views: Optional[List[str]] = Query(default=None),
-    types: Optional[List[str]] = Query(default=None),
-    catalogs: Optional[List[str]] = Query(default=None),
-    domains: Optional[List[str]] = Query(default=None),
-    tiers: Optional[List[str]] = Query(default=None),
-    certifications: Optional[List[str]] = Query(default=None),
-    sensitivities: Optional[List[str]] = Query(default=None),
-    sort_by: str = Query(default="Best match", alias="sortBy"),
-    limit: int = 60,
-    offset: int = 0,
-) -> JSONResponse:
-    _ensure_live_runtime()
-    try:
-        payload = _discovery_search_payload(
-            request=request,
-            query=query,
-            query_mode=query_mode,
-            views=views
-            or ([view] if _normalize_str(view) and view != "All assets" else []),
-            asset_types=types
-            or (
-                [asset_type]
-                if _normalize_str(asset_type) and asset_type != "All types"
-                else []
-            ),
-            catalogs=catalogs,
-            domains=domains,
-            tiers=tiers,
-            certifications=certifications,
-            sensitivities=sensitivities,
-            sort_by=sort_by,
-            limit=limit,
-            offset=offset,
-        )
-    except asset_service.DiscoveryQuerySyntaxError as exc:
-        detail = _normalize_str(exc.message) or "Invalid discovery query."
-        return _error_response(
-            request,
-            status_code=400,
-            source="unity-catalog-inventory",
-            detail=detail,
-            state="degraded",
-            extra={
-                "invalidQuery": asset_service.discovery_invalid_query_payload(
-                    exc.message
-                ),
-            },
-        )
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "Discovery search is unavailable right now. "
-                f"{_normalize_str(exc) or 'Unexpected metadata runtime error.'}"
-            ),
-        ) from exc
-    actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
-    return JSONResponse(
-        _with_meta(
-            payload,
-            request,
-            source="unity-catalog-inventory",
-            state="available" if actor_scoped else "degraded",
-            authoritative=actor_scoped,
-            capabilities={
-                "workspaceScopedInventory": not actor_scoped,
-            },
-            warnings=[],
-        )
-    )
+from govhub.api.discovery import api_discovery_search  # noqa: E402
 
 
 def api_asset_availability(
@@ -2755,108 +2577,7 @@ def api_patch_asset_tags(
     )
 
 
-def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
-    _ensure_live_runtime()
-    actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
-    if not actor_scoped:
-        return JSONResponse(
-            _with_meta(
-                {
-                    "fqn": asset_fqn,
-                    "graphs": {
-                        "data": {"nodes": [], "edges": [], "meta": {}},
-                        "operational": {"nodes": [], "edges": [], "meta": {}},
-                    },
-                    "columnLineage": {"upstream": [], "downstream": [], "meta": {}},
-                    "lineageDepth": {
-                        "oneHop": {"upstream": [], "downstream": []},
-                        "twoHop": {"upstream": {}, "downstream": {}},
-                    },
-                    "edgeDetails": {},
-                    "stats": {},
-                    "unavailableReason": "Lineage is not available for actor-scoped reads in the current runtime mode.",
-                },
-                request,
-                source="unity-catalog-lineage",
-                state="degraded",
-                authoritative=False,
-                entity_fqn=asset_fqn,
-                entity_id=asset_fqn,
-                warnings=[
-                    "Lineage stays degraded until Databricks per-user authorization / OBO is available for actor-scoped reads.",
-                ],
-                unavailable_reason="Lineage is not available for actor-scoped reads in the current runtime mode.",
-            )
-        )
-    payload = _lineage_payload(asset_fqn, request=request)
-    stats = payload.get("stats") or {}
-    column_lineage = payload.get("columnLineage") or {}
-    has_lineage_context = any(
-        _safe_int(stats.get(key)) > 0
-        for key in [
-            "upstreamCount",
-            "downstreamCount",
-            "operationalProducerCount",
-            "operationalConsumerCount",
-        ]
-    ) or bool(column_lineage.get("upstream") or column_lineage.get("downstream"))
-    visibility = _asset_visibility_record(asset_fqn, request)
-    if not visibility.get("openable") and not has_lineage_context:
-        if visibility.get("visibilityState") == "hidden":
-            return _error_response(
-                request,
-                status_code=404,
-                source="unity-catalog-lineage",
-                detail="Asset exists but is not visible in the current workspace scope.",
-                entity_fqn=asset_fqn,
-                entity_id=asset_fqn,
-                capabilities={"visibilityState": "hidden"},
-            )
-        if visibility.get("visibilityState") == "unknown":
-            detail = (
-                visibility.get("reason")
-                or "Asset visibility could not be verified in the current workspace scope."
-            )
-            return _error_response(
-                request,
-                status_code=503,
-                source="unity-catalog-lineage",
-                detail=detail,
-                state="unknown",
-                entity_fqn=asset_fqn,
-                entity_id=asset_fqn,
-                capabilities={"visibilityState": "unknown"},
-                warnings=[detail],
-            )
-        return _error_response(
-            request,
-            status_code=404,
-            source="unity-catalog-lineage",
-            detail="Asset not found.",
-            entity_fqn=asset_fqn,
-            entity_id=asset_fqn,
-            capabilities={
-                "visibilityState": visibility.get("visibilityState") or "missing"
-            },
-        )
-    return JSONResponse(
-        _with_meta(
-            payload,
-            request,
-            source="unity-catalog-lineage",
-            state="available" if actor_scoped else "degraded",
-            authoritative=actor_scoped,
-            entity_fqn=asset_fqn,
-            entity_id=asset_fqn,
-            capabilities={
-                "visibilityState": visibility.get("visibilityState"),
-                "includesOperationalContext": bool(
-                    (payload.get("graphs") or {}).get("operational")
-                ),
-            },
-            warnings=[],
-        )
-    )
+from govhub.api.lineage import api_lineage  # noqa: E402
 
 
 def api_governance_summary(request: Request) -> JSONResponse:
@@ -3128,11 +2849,7 @@ def api_governance_patch_glossary(
     )
 
 
-app.include_router(
-    build_discovery_router(
-        search_endpoint=api_discovery_search,
-    )
-)
+app.include_router(build_discovery_router())
 app.include_router(
     build_assets_router(
         availability_endpoint=api_asset_availability,
@@ -3146,11 +2863,7 @@ app.include_router(
         patch_asset_tags_endpoint=api_patch_asset_tags,
     )
 )
-app.include_router(
-    build_lineage_router(
-        lineage_endpoint=api_lineage,
-    )
-)
+app.include_router(build_lineage_router())
 app.include_router(
     build_governance_router(
         summary_endpoint=api_governance_summary,

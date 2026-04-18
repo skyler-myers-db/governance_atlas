@@ -153,42 +153,9 @@ class RuntimeApiContractsTests(unittest.TestCase):
             "app-principal-only",
         )
 
-    def test_runtime_router_invokes_injected_handlers(self) -> None:
-        calls: list[tuple[str, object]] = []
-
-        def bootstrap_response(request):
-            calls.append(("bootstrap", request))
-            return JSONResponse({"surface": "bootstrap"})
-
-        def runtime_status_response(request):
-            calls.append(("runtime_status", request))
-            return JSONResponse({"surface": "runtime_status"})
-
-        router = build_runtime_router(
-            bootstrap_response=bootstrap_response,
-            runtime_status_response=runtime_status_response,
-        )
-        routes = {route.path: route for route in router.routes}
-        request = object()
-
-        bootstrap_result = routes["/api/bootstrap"].endpoint(request)
-        runtime_status_result = routes["/api/runtime/status"].endpoint(request)
-
-        self.assertEqual(
-            calls,
-            [
-                ("bootstrap", request),
-                ("runtime_status", request),
-            ],
-        )
-        self.assertEqual(bootstrap_result.status_code, 200)
-        self.assertEqual(runtime_status_result.status_code, 200)
-        self.assertEqual(_response_json(bootstrap_result), {"surface": "bootstrap"})
-        self.assertEqual(
-            _response_json(runtime_status_result), {"surface": "runtime_status"}
-        )
-
     def test_runtime_app_routes_delegate_to_runtime_helpers(self) -> None:
+        from govhub.api import runtime as _runtime_api
+
         runtime_app = snapshot_script.runtime_app
         routes = {
             route.path: route
@@ -198,7 +165,7 @@ class RuntimeApiContractsTests(unittest.TestCase):
         request = object()
 
         with patch.object(
-            runtime_app,
+            _runtime_api,
             "_api_bootstrap_response",
             return_value=JSONResponse({"ok": "bootstrap"}),
         ) as bootstrap_patch:
@@ -207,7 +174,7 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertEqual(_response_json(response), {"ok": "bootstrap"})
 
         with patch.object(
-            runtime_app,
+            _runtime_api,
             "_api_runtime_status_response",
             return_value=JSONResponse({"ok": "runtime_status"}),
         ) as runtime_status_patch:
