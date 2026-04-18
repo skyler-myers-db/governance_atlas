@@ -142,12 +142,12 @@ def bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
     normalized_scope = _normalize_str(cache_scope) or "shared"
 
     def load() -> Dict[str, Any]:
-        # NOTE: preserves an existing (buggy but load-bearing) behavior where
-        # the string scope is passed positionally as `request` — the resulting
-        # cache key always degrades to "unknown|app-principal-only". Fixing it
-        # here would silently change cache semantics, so the bug is preserved
-        # verbatim and should be addressed in its own behavior-changing patch.
-        inv = visible_assets(normalized_scope)
+        # Pass the normalized scope as the cache_scope kwarg so the inner
+        # runtime_inventory cache is keyed per auth scope. Previously the
+        # scope was passed positionally as `request`, which always degraded
+        # to "unknown|app-principal-only" and collapsed OBO and
+        # app-principal inventory into one cache bucket.
+        inv = visible_assets(None, cache_scope=normalized_scope)
         available_catalogs = inventory_catalogs()
         observed_catalogs = lineage_observed_catalogs()
         visible_catalogs = inventory_option_values(
