@@ -212,3 +212,4 @@ AGENT*
 frontend/dist/
 frontend/node_modules/
 .claude/
+*mcp*
