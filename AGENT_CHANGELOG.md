@@ -10764,3 +10764,114 @@ history`:
 improvements (scheduled profiler/quality cron, SCIM identity sync,
 column-override governance, concurrency tuning for the drainer) are
 out of scope for the end-to-end plan and explicitly not promised.
+
+---
+
+## 2026-04-18 — OM-parity shell overhaul (post-screenshot critique)
+
+User's screenshot critique was blunt and correct: the shell had
+massive visual breakage nothing like OpenMetadata. The brand band +
+nav band + command-bar stacked to ~400px of chrome before any
+actual content; the right rail was overflowing into the middle
+catalog column; result cards had heavy shadows + purple accent
+bars; the "Metadata Record" title appeared to float on top of asset
+cards. This run: rebuild to OM parity and validate accuracy across
+multiple assets and surfaces.
+
+**Commits on main:**
+- `abf2810 fix(shell): compact OM-style top bar + command bar + three-column discovery`
+- `09a5c5e fix(shell-v4): strip discovery-command-panel shadows + flatten Metadata Catalog card`
+- `bfe64c8 fix(entity): flatten metric tiles + compact tab row + hero chips`
+- `224f74c polish(shell-final): governance + audit + taxonomy compaction`
+
+**Shell rebuild (CSS-only; no component rewrites):**
+- Top bar collapses from ~300px (brand band 148px + nav band 148px
+  + giant pill-style module tabs) to a single **56 px** row with
+  brand + underline-tab nav + identity strip.
+- Search bar collapses from ~180px (title + subtitle + scope +
+  input) to a single **48 px** input+button row on a subtle gray
+  band.
+- Three-column discovery grid (`240 | 1fr | 360`) with proper
+  sticky positioning + max-height + overflow-y:auto so the right
+  rail stops overflowing the catalog column.
+- Result rows flatten from 200px cards to ~40px OM-style rows
+  (no drop-shadows, no purple accent bar, no gradient background,
+  hover = subtle gray fill).
+- Metadata Catalog card's giant chrome (heavy shadow + purple
+  ::before pseudo) is killed; toolbar docks directly under the
+  header in a light gray band; rows follow flush with a shared
+  border so the whole unit reads as one card.
+- Entity hero: 22px title, 10px uppercase eyebrow, 22px hero
+  chips, 30px action buttons. Tab row becomes a 42px underline bar
+  (was pill buttons).
+- Metric tiles (Coverage / Owners / Open Requests / Workloads /
+  Connected Assets): flat neutral white with a 3px left accent
+  border for severity, not the red/amber tinted backgrounds they
+  had before.
+- Governance workbench, Taxonomy, and Audit hero rows compacted
+  with matching padding + typography so every module reads the
+  same.
+- Global chip cap at **22 px** so setup-attention / role /
+  lane chips all match visually.
+
+**UC accuracy — verified against 5 production tables:**
+| Table | UI | UC | Match |
+|---|---|---|---|
+| prod.silver.ap_self_assessed_tax_dist_history | 65,350 | 65,350 | ✅ |
+| prod.silver.ap_self_assessed_taxes | 64,355 | 64,355 | ✅ |
+| prod.silver.ar_cash_receipts | 6,599 | 6,599 | ✅ |
+| prod.silver.ar_cash_receipt_history | 6,818 | 6,818 | ✅ |
+| prod.silver.ar_customer_accounts | 619 | 619 | ✅ |
+| prod.silver.ar_cust_site_uses | 1,077 | 1,077 | ✅ |
+
+UC truth via Databricks Statement Execution API; UI truth via
+the deployed `/api/assets/{fqn:path}/profile/run` endpoint with
+its transitive store write; profile row + column metrics read
+back by the Profiler panel.
+
+**Functional coverage (deployed surfaces, live):**
+- Discovery search with type filter: 60 results for
+  `type:STREAMING_TABLE` query (expected non-zero).
+- Schema section: 50 columns returned for the test asset, first
+  column matches UC schema.
+- Lineage graph: 11 nodes + 10 edges, 1 upstream + 1 downstream
+  against live system.access.table_lineage.
+- Column-lineage trace: `/api/lineage/column-trace` responded
+  with `{nodes, edges, meta}` shape.
+- Quality inline run: 1 case, status=succeeded, passed=1
+  (null_count threshold=0 on PK column).
+- Governance request create: HTTP 200, requestId
+  `b8945403a45d4d14adc72e95a8c1e10b` persisted to
+  change_requests + audit_log + change_events.
+- Audit events endpoint: 5 events returned (from earlier identity
+  directory upserts).
+- Access explainer: authMode=`obo-available`, remediation=0
+  (full session, no remediation needed).
+- Profile + Custom Properties + Quality endpoints all return
+  200 with correct envelope shape.
+
+**Screenshots captured for diff proof:**
+- `docs/screenshots/om_parity_after_shell_overhaul.png` (v1)
+- `docs/screenshots/om_parity_after_shell_overhaul_v2.png`
+- `docs/screenshots/om_parity_v3.png` (sidebar + preview compacted)
+- `docs/screenshots/om_parity_v4.png` (Metadata Catalog flat)
+- `docs/screenshots/om_parity_entity_v4.png` (entity page pre-fix)
+- `docs/screenshots/om_parity_entity_v5.png` (tab row underline)
+- `docs/screenshots/om_parity_entity_v6.png` (metric tiles flat)
+- `docs/screenshots/om_parity_governance.png`
+- `docs/screenshots/om_parity_taxonomy.png`
+- `docs/screenshots/om_parity_audit.png`
+
+**Tests:**
+- Backend: **175 passing** (unchanged — no backend changes).
+- Frontend: typecheck clean, build clean.
+- Live smoke: every API surface listed above returned 200 with
+  expected payload shape.
+
+**No backend regressions** — all CSS changes appended to
+`frontend/src/styles/app.css` as cascade overrides, no
+component rewrites needed.
+
+Result: the UI is no longer structurally broken. Density, type
+ramps, tab affordances, and metric tile styling are now in the
+OpenMetadata visual family.
