@@ -884,6 +884,14 @@ function unwrapEnvelope(payload) {
   return payload;
 }
 
+export function patchAssetDescription(assetFqn, description) {
+  return requestJson(
+    `/assets/${encodeURIComponent(assetFqn)}/description`,
+    "PATCH",
+    { description: description ?? "" },
+  );
+}
+
 export function fetchAssetCustomProperties(assetFqn, options = {}) {
   return request(
     `/assets/${encodeURIComponent(assetFqn)}/custom-properties`,
