@@ -15,6 +15,7 @@ const GovernanceWorkspace = lazy(() => import("./components/GovernanceWorkspace"
 const DiscoveryWorkspace = lazy(() => import("./components/DiscoveryWorkspace"));
 const EntityWorkspace = lazy(() => import("./components/EntityWorkspace"));
 const LineageWorkspace = lazy(() => import("./components/LineageWorkspace"));
+const AuditBrowserWorkspace = lazy(() => import("./components/AuditBrowserWorkspace"));
 
 function visibleAssetSetFromGroups(...groups) {
   const visible = new Set();
@@ -378,6 +379,7 @@ export default function App() {
       discovery: "Opening discovery…",
       lineage: "Opening lineage…",
       governance: "Opening governance…",
+      audit: "Opening audit browser…",
     };
     handleNavigationStateChange(true, labels[nextModule] || "Opening workspace…");
     onModuleChange(nextModule);
@@ -655,6 +657,17 @@ export default function App() {
           />
         </Suspense>
       );
+    } else if (surface === "audit") {
+      content = (
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading audit browser",
+            "Preparing cross-entity audit events and filters.",
+          )}
+        >
+          <AuditBrowserWorkspace shell={shell} />
+        </Suspense>
+      );
     } else {
       content = governanceSummaryLoading ? (
         workspaceLoading(
@@ -691,7 +704,7 @@ export default function App() {
       activeModule={
         surface === "entity"
           ? "discovery"
-          : ["discovery", "lineage", "governance"].includes(surface)
+          : ["discovery", "lineage", "governance", "audit"].includes(surface)
             ? surface
             : ""
       }

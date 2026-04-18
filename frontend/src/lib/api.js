@@ -872,3 +872,114 @@ export async function updateAssetMetadata(assetFqn, payload, config = {}) {
 
   throw lastError || new Error("Metadata editing is not available for this asset.");
 }
+
+// Phase 8/10/11/13/14 fetchers — thin wrappers around the consolidated
+// catalog router. These return raw envelope payloads ({data, meta,
+// errors}); callers pick `.data` as needed.
+
+function unwrapEnvelope(payload) {
+  if (payload && typeof payload === "object" && "data" in payload) {
+    return payload.data;
+  }
+  return payload;
+}
+
+export function fetchAssetCustomProperties(assetFqn, options = {}) {
+  return request(
+    `/assets/${encodeURIComponent(assetFqn)}/custom-properties`,
+    { signal: options.signal },
+  ).then(unwrapEnvelope);
+}
+
+export function fetchAssetProfile(assetFqn, options = {}) {
+  return request(
+    `/assets/${encodeURIComponent(assetFqn)}/profile`,
+    { signal: options.signal },
+  ).then(unwrapEnvelope);
+}
+
+export function fetchAssetQuality(assetFqn, options = {}) {
+  return request(
+    `/assets/${encodeURIComponent(assetFqn)}/quality`,
+    { signal: options.signal },
+  ).then(unwrapEnvelope);
+}
+
+export function fetchAccessExplain(assetFqn = "", options = {}) {
+  const path = assetFqn
+    ? `/assets/${encodeURIComponent(assetFqn)}/access-explain`
+    : "/access-explain";
+  return request(path, { signal: options.signal }).then(unwrapEnvelope);
+}
+
+export function fetchClassifications(options = {}) {
+  return request("/classifications", { signal: options.signal }).then(unwrapEnvelope);
+}
+
+export function fetchClassification(classificationId, options = {}) {
+  return request(
+    `/classifications/${encodeURIComponent(classificationId)}`,
+    { signal: options.signal },
+  ).then(unwrapEnvelope);
+}
+
+export function fetchDomains(options = {}) {
+  return request("/domains", { signal: options.signal }).then(unwrapEnvelope);
+}
+
+export function fetchDataProducts(options = {}) {
+  return request("/data-products", { signal: options.signal }).then(unwrapEnvelope);
+}
+
+export function fetchLogicalColumnGroups(options = {}) {
+  return request("/governance/columns", { signal: options.signal }).then(unwrapEnvelope);
+}
+
+export function fetchLogicalColumnGroup(groupId, options = {}) {
+  return request(
+    `/governance/columns/${encodeURIComponent(groupId)}`,
+    { signal: options.signal },
+  ).then(unwrapEnvelope);
+}
+
+export function fetchAuditEvents(filters = {}, options = {}) {
+  const params = new URLSearchParams();
+  Object.entries(filters || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    params.append(key, value);
+  });
+  const qs = params.toString();
+  return request(`/audit/events${qs ? `?${qs}` : ""}`, { signal: options.signal }).then(unwrapEnvelope);
+}
+
+export function fetchAdminExportJobs(filters = {}, options = {}) {
+  const params = new URLSearchParams();
+  Object.entries(filters || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === "") return;
+    params.append(key, value);
+  });
+  const qs = params.toString();
+  return request(`/admin/export-jobs${qs ? `?${qs}` : ""}`, { signal: options.signal }).then(unwrapEnvelope);
+}
+
+export function fetchColumnLineageTrace(assetFqn, columnName, options = {}) {
+  const direction = options.direction || "upstream";
+  const depth = options.depth != null ? options.depth : 2;
+  const params = new URLSearchParams({ direction, depth: String(depth) });
+  return request(
+    `/lineage/columns/${encodeURIComponent(assetFqn)}/${encodeURIComponent(columnName)}/trace?${params.toString()}`,
+    { signal: options.signal },
+  ).then(unwrapEnvelope);
+}
+
+export function createCustomPropertyDefinition(payload) {
+  return requestJson("/custom-properties/definitions", "POST", payload).then(unwrapEnvelope);
+}
+
+export function upsertCustomPropertyAssignment(payload) {
+  return requestJson("/custom-properties/assignments", "POST", payload).then(unwrapEnvelope);
+}
+
+export function validateQualityCustomSql(payload) {
+  return requestJson("/quality/custom-sql/validate", "POST", payload).then(unwrapEnvelope);
+}

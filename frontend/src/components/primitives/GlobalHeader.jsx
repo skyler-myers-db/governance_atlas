@@ -9,6 +9,7 @@ const MODULES = [
   { key: "discovery", label: "Discovery" },
   { key: "lineage", label: "Lineage" },
   { key: "governance", label: "Governance" },
+  { key: "audit", label: "Audit" },
 ];
 
 export function GlobalHeader({
