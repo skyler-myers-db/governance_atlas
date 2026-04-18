@@ -472,3 +472,92 @@
 .gh-audit-actor { font-weight: 600; }
 .gh-audit-entity { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; }
 .gh-audit-detail { color: var(--gh-text-muted, #5c6b82); }
+
+/* ------------------------------------------------------------
+   OM-parity polish — tighter tables, sharper type hierarchy
+   ------------------------------------------------------------ */
+.gh-cp-panel .gh-cp-row:hover,
+.gh-profile-columns-row:hover,
+.gh-quality-results-row:hover,
+.gh-audit-browser-row:not(.gh-audit-browser-head):hover,
+.gh-taxonomy-row:not(.gh-taxonomy-head):hover {
+  background: var(--gh-surface-muted, #f3f6fb);
+}
+.gh-profile-panel .gh-panel-title,
+.gh-quality-panel .gh-panel-title,
+.gh-profile-columns ~ .gh-panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--gh-text-muted, #5c6b82);
+  margin-bottom: var(--gh-space-2, 8px);
+}
+.gh-quality-summary { gap: var(--gh-space-2, 8px); }
+.gh-quality-bucket {
+  padding: var(--gh-space-3, 12px) var(--gh-space-4, 16px);
+  box-shadow: 0 1px 0 rgba(20, 33, 61, 0.04);
+}
+.gh-quality-bucket-value { line-height: 1; }
+.gh-quality-bucket-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 4px;
+}
+.gh-quality-bucket-pct { margin-top: 2px; }
+.gh-quality-results-head,
+.gh-profile-columns-head,
+.gh-taxonomy-head,
+.gh-audit-browser-head { height: 36px; align-items: center; }
+.gh-quality-results-row,
+.gh-profile-columns-row,
+.gh-taxonomy-row,
+.gh-audit-browser-row:not(.gh-audit-browser-head) { min-height: 40px; align-items: center; }
+.gh-chip.gh-chip-tone-positive,
+.gh-chip.gh-chip-tone-danger,
+.gh-chip.gh-chip-tone-warning,
+.gh-chip.gh-chip-tone-neutral {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+.gh-access-explainer-title::before {
+  content: "⚑";
+  margin-right: var(--gh-space-2, 8px);
+  color: var(--gh-accent, #5b3ff2);
+}
+.gh-access-explainer-links .gh-inline-link {
+  font-weight: 600;
+  color: var(--gh-accent, #5b3ff2);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 1px;
+}
+.gh-access-explainer-links .gh-inline-link:hover {
+  color: #3d23c2;
+}
+
+/* Taxonomy tabs — active state underline */
+.gh-taxonomy-tabs .gh-product-tab {
+  padding: var(--gh-space-2, 8px) var(--gh-space-3, 12px);
+  border: 0;
+  background: transparent;
+  color: var(--gh-text-muted, #5c6b82);
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+.gh-taxonomy-tabs .gh-product-tab.is-active {
+  color: var(--gh-text, #14213d);
+  border-bottom-color: var(--gh-accent, #5b3ff2);
+}
+.gh-taxonomy-tabs .gh-product-tab:hover:not(.is-active) {
+  color: var(--gh-text, #14213d);
+}
