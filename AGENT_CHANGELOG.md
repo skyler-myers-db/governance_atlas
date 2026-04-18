@@ -10294,3 +10294,74 @@ Still pending live verification: the 1-2 min delay fix and OBO banner fix need a
     primitives with truthful `disabledReason` wiring.
   - Additional API routers for quality/diagnostics/setup/export —
     no endpoints currently exist under those namespaces.
+
+## 2026-04-18 — approved-plan sprint (Phase 2-i + 4-T2 + 5 tranches A + D)
+
+Six tranches shipped unattended, each deployed to Azure tristate dev
+and smoke-verified before moving on.
+
+- **Migration v8** (`986611f feat(phase5-tranche-a)`): plan §5
+  Tranche A tables — `change_events`, `change_event_consumers`,
+  `change_event_consumer_offsets`, `entity_versions`,
+  `entity_relationships` (with `authority_source` column for the
+  Relationship Source-of-Truth Matrix), `identity_directory_memberships`.
+  Paired `GovernanceStore.append_change_event()` +
+  `list_change_events()`. Not wired into `record_audit_log` yet —
+  that integration is its own deploy cycle to avoid silent double-writes.
+
+- **Glossary hierarchy** (`6dddd11 feat(phase5-tranche-d)`): Backend
+  now projects `parentTermId` on every glossary term row. Frontend
+  does depth-first ordering with left-indent rendering, "{n} children"
+  chip, and a subtle connector at depth > 0. Caps at depth 6. Closes
+  the Phase 2 governance-audit deferral on hierarchical glossary.
+
+- **Column flow explorer** — scout'd and deferred. Single-hop lives
+  in 2-j.1; multi-hop transitive closure needs a dedicated Phase 9
+  backend slice.
+
+- **SkeletonBlock + entity skeletons** (part of `7d38003`): new
+  `ShellStatePrimitives.SkeletonBlock` with shimmering 3-bar
+  placeholder. Wired into Entity Overview Recent Activity (when
+  `activityLoaded` false) and the Sample Data tab preview-pending
+  branch.
+
+- **EntityHero share/pin** (part of `7d38003`): Clipboard-copy Share
+  button with 1.8s "Link copied" flash + textarea fallback. Pin
+  toggle persisting `asset.fqn` under `gh-pinned-assets` in
+  localStorage with ★/☆ swap + amber fill.
+
+- **Migration v9 + sync export endpoint** (part of `7d38003`):
+  `export_jobs` table (plan:567). `govhub/services/export.py`: pure
+  `evaluate_export_request()` + `build_csv()` +
+  `build_filter_snapshot()` — **10 new unit tests** cover stale-auth
+  (55-min cutoff), non-OBO fail-closed, sync cap, JSON-stable
+  snapshots. `govhub/api/export.py`: `POST /api/export/assets` reusing
+  `_asset_detail_payload` + `_asset_is_openable` so the export can't
+  widen visibility. Non-OBO → 400; stale-auth → 403. Success streams
+  CSV with `Content-Disposition` + `X-GovHub-Export-Job-Id` headers
+  and logs `export_jobs` row best-effort. OpenAPI snapshot regenerated
+  (also added the audit-timeline route from 5-i.1 which had been
+  missing from `RUNTIME_PATHS`).
+
+- **Live smoke — export**: Playwright
+  `fetch('/api/export/assets', {POST, assetFqns:
+  ['prod.silver.ap_self_assessed_tax_dist']})` returned 200 +
+  `text/csv`, job id `ee7ffdb46b7e436f8b93cf619e0551cf`, 1 row,
+  header + data streamed intact.
+
+- **Totals**: 109/109 backend tests (was 99, +10 export service),
+  28/28 frontend test files (223 tests), typecheck + lint + build
+  clean. runtime_app.py unchanged this sprint (all new code in
+  `govhub/api/export.py` + `govhub/services/export.py`).
+
+- **Still deferred**:
+  - Phase 9 multi-hop column lineage (architectural backend).
+  - Phase 4 Tranche 2 remainder: async/large export, admin
+    diagnostics dashboard, `/api/export/{jobId}/download` re-download
+    guard.
+  - Phase 8 custom properties + profiler tables.
+  - Phase 10 quality core.
+  - Phase 11 classifications / domains / data products routes.
+  - Phase 13 product-wide audit browser UI (5-i.1 shipped the
+    per-asset audit timeline drawer).
+  - Phase 14 Databricks-native differentiation surfaces.
