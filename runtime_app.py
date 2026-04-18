@@ -855,14 +855,6 @@ def _friendly_table_type(raw: Any, data_source_format: Any = None) -> str:
     return asset_service.friendly_table_type(raw, data_source_format)
 
 
-def _coalesce(*values: Any) -> str:
-    for value in values:
-        normalized = _normalize_str(value)
-        if normalized:
-            return normalized
-    return ""
-
-
 def _safe_int(value: Any) -> int:
     try:
         if value is None or (isinstance(value, float) and math.isnan(value)):
@@ -870,90 +862,6 @@ def _safe_int(value: Any) -> int:
         return int(float(str(value).replace(",", "")))
     except Exception:
         return 0
-
-
-def _human_bytes(value: Any) -> str:
-    try:
-        size = float(value)
-    except Exception:
-        return "—"
-    if size <= 0:
-        return "—"
-    units = ["B", "KB", "MB", "GB", "TB"]
-    idx = 0
-    while size >= 1024 and idx < len(units) - 1:
-        size /= 1024
-        idx += 1
-    if idx == 0:
-        return f"{int(size)} {units[idx]}"
-    return f"{size:.1f} {units[idx]}"
-
-
-def _detail_map(detail_df: pd.DataFrame) -> Dict[str, Any]:
-    if detail_df is None or detail_df.empty:
-        return {}
-    row = detail_df.iloc[0].to_dict()
-    return {str(key).lower(): value for key, value in row.items()}
-
-
-def _owner_entries(row: pd.Series) -> List[Dict[str, str]]:
-    owners: List[Dict[str, str]] = []
-    owner_fields = [
-        ("business_owner", "Business Owner"),
-        ("technical_owner", "Technical Owner"),
-        ("steward", "Steward"),
-    ]
-    seen: set[Tuple[str, str]] = set()
-    for field_name, title in owner_fields:
-        raw = _normalize_str(row.get(field_name))
-        if not raw:
-            continue
-        for item in [part.strip() for part in raw.split(",") if part.strip()]:
-            key = (item.lower(), title)
-            if key in seen:
-                continue
-            seen.add(key)
-            owners.append({"name": item, "title": title})
-    return owners
-
-
-def _asset_badges(row: pd.Series) -> List[str]:
-    structured_keys = {
-        "domain",
-        "tier",
-        "certification",
-        "sensitivity",
-        "criticality",
-        "glossary_term",
-        "data_product",
-    }
-    badges = [
-        _normalize_str(row.get("domain")),
-        _normalize_str(row.get("tier")),
-        _normalize_str(row.get("certification")),
-        _normalize_str(row.get("sensitivity")),
-        _normalize_str(row.get("criticality")),
-    ]
-    if isinstance(row.get("tags"), dict):
-        for key, value in row.get("tags", {}).items():
-            if key.startswith("__"):
-                continue
-            normalized_key = _normalize_str(key)
-            normalized_value = _normalize_str(value)
-            if normalized_key.lower() in structured_keys:
-                continue
-            label = (
-                f"{normalized_key}={normalized_value}"
-                if normalized_key and normalized_value
-                else normalized_key or normalized_value
-            )
-            if label and label not in badges:
-                badges.append(label)
-    return [badge for badge in badges if badge]
-
-
-def _base_asset_payload(row: pd.Series) -> Dict[str, Any]:
-    return asset_service.base_asset_payload(row)
 
 
 def _discovery_result_haystack(asset: Dict[str, Any]) -> str:
