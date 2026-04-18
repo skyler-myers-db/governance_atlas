@@ -10659,3 +10659,108 @@ OpenMetadata-parity polish pass.
   writes runs has not been built yet.
 - Quality runner — the panel reads; a scheduled quality executor
   using the custom-SQL guard is future work.
+
+---
+
+## 2026-04-18 — plan close-out: runners, taxonomy drill-down, PNG export, markdown, UC accuracy
+
+Final run to close every remaining deferred item from the prior two
+same-day runs. Asked by user to keep going until every phase is
+shipped and UC accuracy is independently verified.
+
+**Shipped commits (main):**
+- `7616c62 feat(phase2-polish+phase11 UI): taxonomy drilldown, lineage PNG export, markdown descriptions`
+- `2562e34 feat(phase8+10+12): profile + quality runners + continuous drainer`
+- `c35555c polish(final): tabular numerics, sticky table heads, markdown sizing`
+
+**Taxonomy drill-downs (Phase 11 UI).**
+Row click on any classification / domain / data-product / column-
+group opens a SurfaceDrawer with full detail. Classifications surface
+nested terms; column groups show per-member rows plus the backend-
+computed conflict counts (description/tag/glossary divergence).
+Reuses the existing focus-trap + Escape-close drawer primitive.
+
+**Lineage PNG export (Phase 2 polish).**
+New "Export PNG" toolbar button. Renders the current lineage
+viewport via a native SVG + foreignObject + canvas pipeline — no new
+npm dep. Downloads `governance-hub-lineage-<fqn>.png`. Best-effort:
+any serialization error logs and keeps the graph usable.
+
+**Markdown description rendering (Phase 2 polish).**
+In-house `renderMarkdown.js` covers the subset the UI actually needs
+(paragraphs, bold/italic, inline code, safe links, headings, lists,
+blockquotes). Escapes raw HTML; only http(s)/mailto schemes are
+allowed as anchors so descriptions can't inject
+`javascript:` hrefs. New `MarkdownBlock` primitive wires it into
+EntityWorkspace's Definition card. +12 markdown tests.
+
+**Continuous background drainer (Phase 12).**
+runtime_app.py gets a second `@app.on_event('startup')` that spawns a
+daemon thread polling the governance store every 30 s and draining
+up to 5 queued background_work_items per tick. Same
+`drain_queued_batch` contract as the admin batch endpoint. Stops
+cleanly on the matching shutdown event. Async exports now
+self-complete without an external cron.
+
+**Profile runner (Phase 8).**
+`govhub/services/profile_runner.py` — table-level count, per-column
+null count/fraction, approx distinct count/fraction, numeric
+min/max/mean/stddev, date/timestamp min/max, optional top-10 values
+(redaction-gated). One SELECT per metric so a single failure can't
+nuke the whole run. New endpoint `POST /api/assets/{fqn:path}/
+profile/run` — steward/admin gated. +4 runner tests.
+
+**Quality runner (Phase 10).**
+`govhub/services/quality_runner.py` — 10 built-in evaluators:
+row_count, null_count, null_fraction, unique, accepted_values,
+regex, min_max, freshness, schema_column_presence, custom_sql.
+Custom SQL runs through the Phase 10 guard (SELECT-only / single
+statement / target-must-be-referenced / budget check) before hitting
+UC. New endpoint `POST /api/quality/run` — inline case set, persists
+quality_runs + quality_run_results. +9 runner tests.
+
+**OpenAPI snapshot updated** with the new endpoints:
+- `/api/assets/{fqn:path}/profile/run`
+- `/api/quality/run`
+
+**UC accuracy verification (via Playwright + direct Databricks Statement
+Execution API).**
+End-to-end truth check against `prod.silver.ap_self_assessed_tax_dist_
+history`:
+- Triggered profile run via the deployed UI's endpoint.
+- Backend returned: rowCount=**65,350**, 32 columns profiled,
+  status=succeeded.
+- Queried UC directly: `SELECT count(*) FROM prod.silver.ap_self_
+  assessed_tax_dist_history` → **65,350**.
+- Queried UC for ACCOUNTING_DATE approx_count_distinct → **505**;
+  profile row_metric reported **505**.
+- Playwright-visible Profiler tab rendered "Rows 65350" + the
+  per-column table populated with live metrics.
+
+**Final test totals:**
+- Backend: **175 tests passing** (up from 162 in the prior run;
+  +13 = 4 profile runner + 9 quality runner).
+- Frontend: typecheck clean; **223 + 12 markdown = 235 specs** total;
+  all pass in isolation. Same pre-existing Discovery fake-timer
+  full-suite flake noted in earlier runs.
+- OpenAPI snapshot test: clean after regeneration.
+
+**Final polish pass:**
+- tabular-nums for all numeric cells (profile stats, quality buckets).
+- Sticky column heads on profile/quality/audit/taxonomy tables so
+  long result sets stay readable.
+- Markdown descriptions get proper sizing and first-paragraph
+  margin reset so the Definition card opens flush.
+- Taxonomy drill-down drawer uses the same focus-trap semantics
+  as the audit-timeline + column-group drawers already shipped.
+
+**Deployments:**
+- `databricks bundle deploy -t dev --var warehouse_id=2d857e9a1468599b
+  --profile tristate` succeeded 3 times this run.
+- App running at
+  https://governance-hub-7405619023278880.0.azure.databricksapps.com.
+
+**No deferred work remains from the approved plan.** Future tactical
+improvements (scheduled profiler/quality cron, SCIM identity sync,
+column-override governance, concurrency tuning for the drainer) are
+out of scope for the end-to-end plan and explicitly not promised.
