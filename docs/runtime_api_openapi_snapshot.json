@@ -757,6 +757,10 @@
         ]
       }
     },
+    "/api/assets/{asset_fqn:path}/access-explain": {},
+    "/api/assets/{asset_fqn:path}/custom-properties": {},
+    "/api/assets/{asset_fqn:path}/profile": {},
+    "/api/assets/{asset_fqn:path}/quality": {},
     "/api/assets/{asset_fqn}": {
       "get": {
         "operationId": "api_asset_detail_api_assets__asset_fqn__get",
@@ -2559,6 +2563,78 @@
         "summary": "Api Governance Summary",
         "tags": [
           "governance"
+        ]
+      }
+    },
+    "/api/lineage/column-trace": {
+      "get": {
+        "description": "Query-param variant so asset_fqn (which contains dots) doesn't\nhave to collide with FastAPI's dot-unfriendly path parameter.",
+        "operationId": "api_column_lineage_trace_query_api_lineage_column_trace_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "asset_fqn",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "column_name",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Column Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "default": "upstream",
+              "title": "Direction",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "depth",
+            "required": false,
+            "schema": {
+              "default": 2,
+              "title": "Depth",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Column Lineage Trace Query",
+        "tags": [
+          "lineage"
         ]
       }
     },

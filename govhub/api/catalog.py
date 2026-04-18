@@ -762,7 +762,7 @@ def build_catalog_router() -> APIRouter:
         name="api_upsert_custom_property_assignment",
     )
     router.add_api_route(
-        "/api/assets/{asset_fqn}/custom-properties",
+        "/api/assets/{asset_fqn:path}/custom-properties",
         api_asset_custom_properties,
         methods=["GET"],
         name="api_asset_custom_properties",
@@ -770,7 +770,7 @@ def build_catalog_router() -> APIRouter:
 
     # Phase 8 — profile
     router.add_api_route(
-        "/api/assets/{asset_fqn}/profile",
+        "/api/assets/{asset_fqn:path}/profile",
         api_asset_profile,
         methods=["GET"],
         name="api_asset_profile",
@@ -784,7 +784,7 @@ def build_catalog_router() -> APIRouter:
         name="api_list_quality_runs",
     )
     router.add_api_route(
-        "/api/assets/{asset_fqn}/quality",
+        "/api/assets/{asset_fqn:path}/quality",
         api_asset_quality,
         methods=["GET"],
         name="api_asset_quality",
@@ -844,7 +844,7 @@ def build_catalog_router() -> APIRouter:
 
     # Phase 14 — access explainer
     router.add_api_route(
-        "/api/assets/{asset_fqn}/access-explain",
+        "/api/assets/{asset_fqn:path}/access-explain",
         api_access_explainer,
         methods=["GET"],
         name="api_access_explainer",

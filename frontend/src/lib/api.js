@@ -965,11 +965,15 @@ export function fetchAdminExportJobs(filters = {}, options = {}) {
 export function fetchColumnLineageTrace(assetFqn, columnName, options = {}) {
   const direction = options.direction || "upstream";
   const depth = options.depth != null ? options.depth : 2;
-  const params = new URLSearchParams({ direction, depth: String(depth) });
-  return request(
-    `/lineage/columns/${encodeURIComponent(assetFqn)}/${encodeURIComponent(columnName)}/trace?${params.toString()}`,
-    { signal: options.signal },
-  ).then(unwrapEnvelope);
+  const params = new URLSearchParams({
+    asset_fqn: assetFqn,
+    column_name: columnName,
+    direction,
+    depth: String(depth),
+  });
+  return request(`/lineage/column-trace?${params.toString()}`, {
+    signal: options.signal,
+  }).then(unwrapEnvelope);
 }
 
 export function createCustomPropertyDefinition(payload) {
