@@ -4,6 +4,7 @@ import GovernanceWorkspace from "./GovernanceWorkspace";
 
 const useAssetDetailMock = vi.fn();
 const useGovernanceGlossaryTermMock = vi.fn();
+const useGovernanceAuditTimelineMock = vi.fn();
 const useAssetSearchMock = vi.fn();
 const useSeededAssetContextMock = vi.fn();
 
@@ -17,6 +18,10 @@ vi.mock("../hooks/useAssetDetail", () => ({
 
 vi.mock("../hooks/useGovernanceGlossaryTerm", () => ({
   useGovernanceGlossaryTerm: (...args) => useGovernanceGlossaryTermMock(...args),
+}));
+
+vi.mock("../hooks/useGovernanceAuditTimeline", () => ({
+  useGovernanceAuditTimeline: (...args) => useGovernanceAuditTimelineMock(...args),
 }));
 
 vi.mock("../hooks/useAssetSearch", () => ({
@@ -65,6 +70,7 @@ describe("GovernanceWorkspace", () => {
   beforeEach(() => {
     useAssetDetailMock.mockReset();
     useGovernanceGlossaryTermMock.mockReset();
+    useGovernanceAuditTimelineMock.mockReset();
     useAssetSearchMock.mockReset();
     useSeededAssetContextMock.mockReset();
 
@@ -80,6 +86,14 @@ describe("GovernanceWorkspace", () => {
       refreshError: "",
       refresh: vi.fn(),
       term: null,
+    });
+    useGovernanceAuditTimelineMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      entries: [],
+      total: 0,
+      refresh: vi.fn(),
     });
     useAssetSearchMock.mockReturnValue({
       loading: false,

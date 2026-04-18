@@ -735,6 +735,14 @@ export function fetchGovernanceGlossary() {
   return request("/governance/glossary").then((payload) => normalizeGovernancePayload(payload));
 }
 
+export function fetchGovernanceAuditTimeline(assetFqn, options = {}) {
+  const normalized = String(assetFqn || "").trim();
+  if (!normalized) return Promise.resolve({ fqn: "", entries: [], total: 0 });
+  return request(`/governance/audit-timeline/${encodeURIComponent(normalized)}`, {
+    signal: options.signal,
+  });
+}
+
 export function fetchGovernanceGlossaryTerm(termId, options = {}) {
   const template = contractPath("governanceGlossaryTerm") || "/governance/glossary/:id";
   return request(routeToken(template, "id", termId), { signal: options.signal }).then((payload) =>

@@ -87,6 +87,60 @@ def api_governance_glossary(request: Request) -> JSONResponse:
     )
 
 
+def api_governance_audit_timeline(asset_fqn: str, request: Request) -> JSONResponse:
+    """Return a reverse-chronological audit timeline for a single asset.
+
+    Backs the AuditTimelineDrawer on the Governance page. Purely a read over
+    the existing metadata_audit_log table — no new schema is required. Entries
+    include before/after JSON so the UI can diff changes inline.
+    """
+    from runtime_app import (
+        _asset_is_openable,
+        _ensure_governance_store,
+        _ensure_live_runtime,
+        _store,
+    )
+
+    _ensure_live_runtime()
+    _ensure_governance_store()
+
+    if not _asset_is_openable(asset_fqn, request):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+
+    store = _store()
+    df = store.list_metadata_audit(entity_fqn=asset_fqn, limit=100)
+
+    entries: list[dict[str, object]] = []
+    if df is not None and not df.empty:
+        for _, row in df.iterrows():
+            entries.append(
+                {
+                    "auditId": _normalize_str(row.get("audit_id")),
+                    "entityType": _normalize_str(row.get("entity_type")),
+                    "entityFqn": _normalize_str(row.get("entity_fqn")),
+                    "entityId": _normalize_str(row.get("entity_id")),
+                    "columnName": _normalize_str(row.get("column_name")) or None,
+                    "action": _normalize_str(row.get("action")),
+                    "source": _normalize_str(row.get("source")),
+                    "status": _normalize_str(row.get("status")) or "success",
+                    "beforeJson": row.get("before_json"),
+                    "afterJson": row.get("after_json"),
+                    "actorEmail": _normalize_str(row.get("actor_email")),
+                    "actorRole": _normalize_str(row.get("actor_role")),
+                    "detail": _normalize_str(row.get("detail")),
+                    "createdAt": _normalize_str(row.get("created_at")),
+                }
+            )
+
+    return JSONResponse(
+        {
+            "fqn": asset_fqn,
+            "entries": entries,
+            "total": len(entries),
+        }
+    )
+
+
 def api_governance_glossary_term(term_id: str, request: Request) -> JSONResponse:
     from runtime_app import (
         _ensure_governance_store,
@@ -409,6 +463,13 @@ def build_governance_router() -> APIRouter:
         methods=["GET"],
         response_class=JSONResponse,
         name="api_governance_summary",
+    )
+    router.add_api_route(
+        "/api/governance/audit-timeline/{asset_fqn:path}",
+        api_governance_audit_timeline,
+        methods=["GET"],
+        response_class=JSONResponse,
+        name="api_governance_audit_timeline",
     )
     router.add_api_route(
         "/api/governance/glossary",

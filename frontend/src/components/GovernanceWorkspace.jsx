@@ -6,6 +6,7 @@ import {
   primeAssetDetail,
   useAssetDetail,
 } from "../hooks/useAssetDetail";
+import { useGovernanceAuditTimeline } from "../hooks/useGovernanceAuditTimeline";
 import { useGovernanceGlossaryTerm } from "../hooks/useGovernanceGlossaryTerm";
 import { clearAssetSearchCache, useAssetSearch } from "../hooks/useAssetSearch";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
@@ -29,6 +30,7 @@ import {
   SurfaceWorkbenchMain,
 } from "./ShellLayoutPrimitives";
 import { EmptyStateBlock, InlineStatusBanner, LoadingState } from "./ShellStatePrimitives";
+import { AuditTimelineDrawer } from "./primitives/AuditTimelineDrawer";
 
 const GLOSSARY_STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
@@ -477,6 +479,10 @@ export default function GovernanceWorkspace({
     seedAssets,
   );
   const focusCommandRef = useRef(null);
+  const [auditDrawerOpen, setAuditDrawerOpen] = useState(false);
+  const auditTimeline = useGovernanceAuditTimeline(focusedAssetFqn, {
+    enabled: auditDrawerOpen,
+  });
 
   useEffect(() => {
     const nextAssetFqn = initialAssetFqn || "";
@@ -803,13 +809,23 @@ export default function GovernanceWorkspace({
       <SurfaceHeader
         actions={
           focusedAssetFqn ? (
-            <button
-              className="gh-secondary-button"
-              onClick={() => focusAsset("", { preserveWork: false, preserveGlossary: false, syncRoute: true })}
-              type="button"
-            >
-              Clear focus
-            </button>
+            <div className="gh-action-row">
+              <button
+                aria-pressed={auditDrawerOpen}
+                className="gh-secondary-button"
+                onClick={() => setAuditDrawerOpen((v) => !v)}
+                type="button"
+              >
+                {auditDrawerOpen ? "Hide audit history" : "View audit history"}
+              </button>
+              <button
+                className="gh-secondary-button"
+                onClick={() => focusAsset("", { preserveWork: false, preserveGlossary: false, syncRoute: true })}
+                type="button"
+              >
+                Clear focus
+              </button>
+            </div>
           ) : null
         }
         className="gh-governance-shell-header"
@@ -1881,6 +1897,17 @@ export default function GovernanceWorkspace({
           </SurfaceRail>
         </SurfaceWorkbench>
       )}
+      <AuditTimelineDrawer
+        assetFqn={focusedAssetFqn}
+        entries={auditTimeline.entries}
+        loading={auditTimeline.loading}
+        refreshing={auditTimeline.refreshing}
+        error={auditTimeline.error}
+        total={auditTimeline.total}
+        isOpen={auditDrawerOpen && Boolean(focusedAssetFqn)}
+        onClose={() => setAuditDrawerOpen(false)}
+        onRefresh={() => auditTimeline.refresh()}
+      />
     </section>
   );
 }

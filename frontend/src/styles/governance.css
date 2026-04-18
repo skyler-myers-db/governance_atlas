@@ -296,3 +296,75 @@
   border-color: var(--gh-accent);
   box-shadow: 0 0 0 3px rgba(15, 92, 192, 0.12);
 }
+
+/* Phase 5-i.1 — Audit timeline drawer */
+.gh-audit-timeline-drawer {
+  --gh-drawer-width: 520px;
+}
+.gh-audit-entry-count {
+  color: var(--gh-ink-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.gh-audit-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.gh-audit-entry {
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(22, 35, 56, 0.04);
+}
+.gh-audit-entry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gh-audit-entry-time {
+  color: var(--gh-ink-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.gh-audit-entry-actor {
+  color: var(--gh-ink);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+.gh-audit-entry-meta {
+  color: var(--gh-ink-muted);
+  font-size: 0.78rem;
+}
+.gh-audit-entry-meta code {
+  background: var(--gh-surface-muted);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: ui-monospace, Menlo, SFMono-Regular, monospace;
+}
+.gh-audit-entry-toggle { align-self: flex-start; }
+.gh-audit-entry-diff {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+.gh-audit-entry-pre {
+  background: var(--gh-surface-muted);
+  border: 1px solid var(--gh-line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  font-family: ui-monospace, Menlo, SFMono-Regular, monospace;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
