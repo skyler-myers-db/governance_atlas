@@ -252,3 +252,47 @@
 .gh-governance-glossary-list {
   gap: 10px;
 }
+
+/* Phase 2-h.4 — richer lane chips with tone + heavier count */
+.gh-governance-lane-chip {
+  align-items: center;
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-line);
+  border-radius: 12px;
+  color: var(--gh-ink);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 10px;
+  min-height: 54px;
+  padding: 10px 16px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.gh-governance-lane-chip:hover {
+  border-color: var(--gh-line-strong);
+}
+.gh-governance-lane-count {
+  font-size: 1.44rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  min-width: 24px;
+  text-align: center;
+}
+.gh-governance-lane-label {
+  color: var(--gh-ink-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.gh-governance-lane-chip.tone-accent { background: #eef2ff; border-color: #c7d2fe; }
+.gh-governance-lane-chip.tone-accent .gh-governance-lane-count { color: #4338ca; }
+.gh-governance-lane-chip.tone-warn { background: #fef3c7; border-color: #fbd38d; }
+.gh-governance-lane-chip.tone-warn .gh-governance-lane-count { color: #b45309; }
+.gh-governance-lane-chip.tone-info { background: #ecfeff; border-color: #a5f3fc; }
+.gh-governance-lane-chip.tone-info .gh-governance-lane-count { color: #0e7490; }
+.gh-governance-lane-chip.tone-bad { background: #fef2f2; border-color: #fecaca; }
+.gh-governance-lane-chip.tone-bad .gh-governance-lane-count { color: #b91c1c; }
+.gh-governance-lane-chip.is-active {
+  border-color: var(--gh-accent);
+  box-shadow: 0 0 0 3px rgba(15, 92, 192, 0.12);
+}
