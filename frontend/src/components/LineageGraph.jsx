@@ -745,6 +745,14 @@ export default function LineageGraph({
   const [flowInstance, setFlowInstance] = useState(null);
   const [allowDefaultSelection, setAllowDefaultSelection] = useState(true);
   const [refocusOpen, setRefocusOpen] = useState(false);
+  // Phase 2-j.1 — hovering a column mapping row inside the edge drawer lights
+  // up the exact edge + source/target nodes so prospects see the column-
+  // level flow, one hop at a time. Single-hop only; multi-hop transitive
+  // paths are still a Phase 3+ backend slice.
+  const [hoveredColumnIndex, setHoveredColumnIndex] = useState(-1);
+  useEffect(() => {
+    setHoveredColumnIndex(-1);
+  }, [selectedEdgeId]);
   const [collapsedBranches, setCollapsedBranches] = useState({});
   const refocusRootRef = useRef(null);
   const canvasRef = useRef(null);
@@ -1289,26 +1297,38 @@ export default function LineageGraph({
         <div className="gh-lineage-flow-shell">
           <div className="gh-lineage-viewport" ref={viewportRef}>
             <ReactFlow
-              edges={transformed.edges.map((edge) => ({
-                ...edge,
-                className: activeEdgeIds.includes(edge.id)
+              edges={transformed.edges.map((edge) => {
+                const isColumnHighlighted =
+                  hoveredColumnIndex >= 0 && selectedEdge && edge.id === selectedEdge.id;
+                const base = activeEdgeIds.includes(edge.id)
                   ? "is-active"
                   : hasActiveGraphSelection
                     ? "is-muted"
-                    : "",
-              }))}
+                    : "";
+                return {
+                  ...edge,
+                  className: `${base}${isColumnHighlighted ? " is-column-highlighted" : ""}`.trim(),
+                };
+              })}
               onInit={setFlowInstance}
               minZoom={0.3}
-              nodes={transformed.nodes.map((node) => ({
-                ...node,
-                data: node.data,
-                className: activeNodeIds.includes(node.id)
+              nodes={transformed.nodes.map((node) => {
+                const isColumnEndpoint =
+                  hoveredColumnIndex >= 0 &&
+                  selectedEdge &&
+                  (node.id === selectedEdge.source || node.id === selectedEdge.target);
+                const base = activeNodeIds.includes(node.id)
                   ? "is-active"
                   : hasActiveGraphSelection
                     ? "is-muted"
-                    : "",
-                type: "assetNode",
-              }))}
+                    : "";
+                return {
+                  ...node,
+                  data: node.data,
+                  className: `${base}${isColumnEndpoint ? " is-column-endpoint" : ""}`.trim(),
+                  type: "assetNode",
+                };
+              })}
               edgeTypes={edgeTypes}
               nodeTypes={nodeTypes}
               onEdgeClick={(_, edge) => {
@@ -1446,12 +1466,22 @@ export default function LineageGraph({
             {edgeDetails?.columnMappings?.length ? (
               <SurfaceDrawerSection title="Column Mappings">
                 <div className="gh-lineage-linked-list">
-                  {edgeDetails.columnMappings.map((mapping, index) => (
-                    <div className="gh-lineage-linked-row is-readonly" key={`${selectedEdge.id}-mapping-${index}`}>
-                      <span>{mapping.sourceColumn}</span>
-                      <span>{mapping.targetColumn}</span>
-                    </div>
-                  ))}
+                  {edgeDetails.columnMappings.map((mapping, index) => {
+                    const isHighlighted = hoveredColumnIndex === index;
+                    return (
+                      <div
+                        className={`gh-lineage-linked-row is-readonly gh-lineage-column-mapping ${isHighlighted ? "is-highlighted" : ""}`.trim()}
+                        key={`${selectedEdge.id}-mapping-${index}`}
+                        onMouseEnter={() => setHoveredColumnIndex(index)}
+                        onMouseLeave={() => setHoveredColumnIndex(-1)}
+                        title={`${mapping.sourceColumn} → ${mapping.targetColumn}`}
+                      >
+                        <span>{mapping.sourceColumn}</span>
+                        <span aria-hidden="true" className="gh-lineage-column-mapping-arrow">→</span>
+                        <span>{mapping.targetColumn}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </SurfaceDrawerSection>
             ) : null}
