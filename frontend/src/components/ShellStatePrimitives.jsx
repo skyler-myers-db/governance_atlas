@@ -76,3 +76,41 @@ export function LoadingState({ message = "Loading…", className = "" }) {
     </div>
   );
 }
+
+/**
+ * SkeletonBlock — shimmering placeholder rows for sections that are
+ * hydrating in the background. Preserves layout shape (Phase 2 UX
+ * requirement) so widgets don't reflow when data lands.
+ *
+ * Pass `lines` to control how many rows render (default 3). Each row is
+ * a subtle bar with a shimmering animation. Purely presentational —
+ * accessible users get aria-busy + aria-live to signal loading.
+ */
+export function SkeletonBlock({
+  lines = 3,
+  className = "",
+  message = "",
+  compact = false,
+}) {
+  const rows = Math.max(1, Math.min(12, Number(lines) || 3));
+  return (
+    <div
+      aria-busy="true"
+      aria-live="polite"
+      className={classes("gh-skeleton-block", compact && "is-compact", className)}
+      role="status"
+    >
+      {message ? <span className="gh-visually-hidden">{message}</span> : null}
+      {Array.from({ length: rows }).map((_, index) => (
+        <span
+          aria-hidden="true"
+          className="gh-skeleton-bar"
+          key={`skeleton-${index}`}
+          style={{
+            width: `${88 - (index % 3) * 9}%`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}

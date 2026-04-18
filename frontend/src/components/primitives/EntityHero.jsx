@@ -1,8 +1,32 @@
+import { useEffect, useState } from "react";
+
 import { SurfaceHeader } from "../ShellLayoutPrimitives";
 import { InlineStatusBanner } from "../ShellStatePrimitives";
 import { AssetTypeIcon } from "./AssetTypeIcon";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { OwnerAvatarStack } from "./OwnerAvatarStack";
+
+function readPinnedSet() {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage?.getItem?.("gh-pinned-assets");
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return new Set(parsed.filter(Boolean));
+  } catch {
+    /* corrupted — start fresh */
+  }
+  return new Set();
+}
+
+function writePinnedSet(set) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage?.setItem?.("gh-pinned-assets", JSON.stringify([...set]));
+  } catch {
+    /* localStorage may be unavailable */
+  }
+}
 
 function statusTone(asset) {
   if (!asset?.governanceStatus) return "neutral";
@@ -27,6 +51,59 @@ export function EntityHero({
   onNavigationStateChange,
   onBack,
 }) {
+  // Phase 2-i.8 — hero share-link + pin toggle.
+  // Share copies the current URL to the clipboard and flashes a short
+  // "Copied" label on the button. Pin persists asset.fqn under a local
+  // "pinned assets" set so stewards can find recently-touched records
+  // without re-searching. Server-side pinning / subscribe notifications
+  // are explicitly deferred — those need a Phase 5 notification hook.
+  const [shareLabel, setShareLabel] = useState("Share link");
+  const [pinned, setPinned] = useState(() => {
+    const set = readPinnedSet();
+    return set.has(asset?.fqn || "");
+  });
+  useEffect(() => {
+    const set = readPinnedSet();
+    setPinned(set.has(asset?.fqn || ""));
+  }, [asset?.fqn]);
+  const handleShare = async () => {
+    if (typeof window === "undefined") return;
+    const url = window.location?.href || "";
+    if (!url) return;
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const el = document.createElement("textarea");
+        el.value = url;
+        el.setAttribute("readonly", "");
+        el.style.position = "absolute";
+        el.style.left = "-9999px";
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand("copy");
+        document.body.removeChild(el);
+      }
+      setShareLabel("Link copied");
+    } catch {
+      setShareLabel("Copy failed");
+    }
+    setTimeout(() => setShareLabel("Share link"), 1800);
+  };
+  const handlePinToggle = () => {
+    const fqn = asset?.fqn || "";
+    if (!fqn) return;
+    const set = readPinnedSet();
+    if (set.has(fqn)) {
+      set.delete(fqn);
+      setPinned(false);
+    } else {
+      set.add(fqn);
+      setPinned(true);
+    }
+    writePinnedSet(set);
+  };
+
   const heroTitle = (
     <span className="gh-entity-hero-title">
       <AssetTypeIcon asset={asset} size="xl" />
@@ -62,6 +139,23 @@ export function EntityHero({
             {Array.isArray(asset.owners) && asset.owners.length ? (
               <OwnerAvatarStack owners={asset.owners} className="gh-entity-owner-stack" />
             ) : null}
+            <button
+              aria-pressed={pinned}
+              className={`gh-tertiary-button gh-entity-hero-utility gh-entity-pin-toggle ${pinned ? "is-pinned" : ""}`.trim()}
+              onClick={handlePinToggle}
+              title={pinned ? "Unpin this asset from your pinned list" : "Pin this asset to your pinned list"}
+              type="button"
+            >
+              {pinned ? "★ Pinned" : "☆ Pin"}
+            </button>
+            <button
+              className="gh-tertiary-button gh-entity-hero-utility"
+              onClick={handleShare}
+              title="Copy a direct link to this record to your clipboard"
+              type="button"
+            >
+              {shareLabel}
+            </button>
             <button
               className="gh-secondary-button"
               disabled={!lineageSurfaceAvailable}
