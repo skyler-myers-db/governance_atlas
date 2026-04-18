@@ -2960,31 +2960,32 @@ button.gh-chip:not(.is-readonly):focus-visible,
 }
 
 .gh-shell-nav-band-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, auto);
-  gap: 18px;
-  align-items: start;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gh-space-4);
+  flex-wrap: wrap;
 }
 
 .gh-shell-identity-inline {
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, auto);
-  gap: 14px;
-  align-items: start;
-  justify-items: stretch;
-  padding: 14px 16px;
-  border: 1px solid rgba(214, 224, 236, 0.88);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gh-space-4);
+  flex-wrap: wrap;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .gh-shell-context-stack {
   min-width: 0;
-  display: grid;
-  gap: 10px;
-  justify-items: end;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gh-space-2);
+  align-items: flex-end;
 }
 
 .gh-shell-context-state,
@@ -6510,3 +6511,50 @@ span.gh-state-pill {
     border-radius: 22px;
   }
 }
+
+/*
+ * Phase 2 Tranche C: visual defect sweep.
+ * Overflow guards for long text inside flex parents, chip max-width so
+ * governance "Unassigned" stops punching past panels, and single-line
+ * ellipsis where the design intends a single row.
+ */
+
+.gh-discovery-result-title-row {
+  min-width: 0;
+}
+
+.gh-request-card-topline > * {
+  min-width: 0;
+}
+
+.gh-request-card-topline > :first-child {
+  flex: 1 1 auto;
+}
+
+.gh-request-title {
+  overflow-wrap: anywhere;
+}
+
+.gh-coverage-row-main {
+  min-width: 0;
+}
+
+.gh-coverage-row-status {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.gh-coverage-row-status .gh-status-chip,
+.gh-coverage-row-status .gh-chip,
+.gh-coverage-row-status .gh-attribute-value {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-attribute-row,
+.gh-coverage-row {
+  min-width: 0;
+}
+

@@ -62,6 +62,24 @@ Use these as the standard minimum verification steps for non-trivial passes:
 
 ## Active Entries
 
+## 2026-04-17 20:13:00 EDT - Phase 2 Tranche C: visual defect sweep
+
+Phase 2 Tranche C fixes the three most visible layout defects the user called out and that the parallel Explore subagent audit confirmed across Discovery, Entity, Governance, and Lineage: shell header squeeze + nested bordered box, Entity record section double-padding stack, and long-text/chip overflow out of frames.
+
+What shipped:
+
+- `frontend/src/styles/app.css` — replaced the `.gh-shell-nav-band-head` / `.gh-shell-identity-inline` / `.gh-shell-context-stack` block (lines 2962-2988). The old layout was `grid-template-columns: minmax(280px,auto) 1fr minmax(280px,auto)` wrapping a second inner grid of `minmax(260px,auto) 1fr minmax(260px,auto)`, which squeezed the nav band and wrapped the identity+inbox pill in a bordered inset card. New layout is a plain `flex`+`justify-content: space-between` with `flex-wrap: wrap`. Stripped the bordered-box styling (`padding`, `border`, `border-radius`, `background`, `box-shadow`) from `.gh-shell-identity-inline`.
+- `frontend/src/components/EntityWorkspace.jsx` (line 330) — removed the `gh-panel` class from `EntityRecordSection`. The container had both `gh-panel` and `gh-record-card`, each contributing its own border + padding + background — a ~36px stacked padding halo around every section on the Entity page. Keeping only `gh-record-card` collapses it to one padding layer.
+- `frontend/src/styles/app.css` (appended at end) — overflow guards for Discovery, Governance, Entity long-text containers: `min-width: 0` on `.gh-discovery-result-title-row`, `.gh-request-card-topline > *`, `.gh-coverage-row-main`, `.gh-coverage-row-status`, `.gh-attribute-row`, `.gh-coverage-row`; `overflow-wrap: anywhere` on `.gh-request-title`; and `max-width: 100%` + `overflow: hidden` + `text-overflow: ellipsis` on the coverage-row chips so long owner strings don't overflow the status column.
+
+Audit approach: two parallel Explore subagents (one on EntityWorkspace, one on Discovery/Governance/Lineage/AppFrame) returned full defect catalogs. Baseline screenshots taken at 1680x1000 before fixes.
+
+Gauntlet: 212/212 frontend tests still pass. `npm run build` succeeds (275 modules, 103.60 kB CSS gzipped to 18.77 kB).
+
+Deploy + live-verify: `databricks bundle deploy` + `databricks apps deploy` both `SUCCEEDED` (deployment_id `01f13abade181282a5d0e80fe9cf2e94`). Playwright on prod `/discovery` + `/entity/test.silver.ap_self_assessed_tax_dist` + `/governance` at 1680x1000 confirms: (1) shell header Identity+Setup attention+Workspace setup links render inline at top-right with no nested bordered box wrapper; nav tabs render full width; (2) Entity hero card + summary row + tabs all sit on a single padding layer, no box-in-box; (3) Discovery cards, Governance work lanes, and Entity coverage chips all stay within frame. Zero console errors. Screenshots at `.playwright-mcp/tranche-c-after-discovery-loaded2.png`, `tranche-c-after-entity-loaded.png`, `tranche-c-after-governance-loaded.png`.
+
+Not yet: Tranche D (remaining primitives — PrimaryNav, EntityHero, DataTable, LoadingSkeleton, DegradedBanner, EmptyState).
+
 ## 2026-04-17 19:11:00 EDT - Phase 2 Tranche B: design tokens module
 
 Phase 2 Tranche B lifts the scattered design values out of `frontend/src/styles/app.css` into a dedicated tokens module at `frontend/src/design/tokens/`. This tranche is deliberately a behavior-free refactor — no visible pixel changes — so the Tranche C defect sweep that follows can refer to a stable token vocabulary instead of planting new magic values.
