@@ -1188,6 +1188,7 @@ export default function LineageGraph({
         }
         className="gh-lineage-drawer"
         isOpen={drawerOpen}
+        onClose={closeDrawer}
         title={drawerTitle}
       >
         {selectedEdge ? (

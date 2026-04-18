@@ -1,5 +1,28 @@
+import { useEffect, useRef } from "react";
+
 function classes(...values) {
   return values.filter(Boolean).join(" ");
+}
+
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "area[href]",
+  "button:not([disabled])",
+  "input:not([disabled]):not([type=hidden])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "iframe",
+  "object",
+  "embed",
+  "[tabindex]:not([tabindex=\"-1\"])",
+  "[contenteditable=true]",
+].join(",");
+
+function getFocusableWithin(root) {
+  if (!root || typeof root.querySelectorAll !== "function") return [];
+  return Array.from(root.querySelectorAll(FOCUSABLE_SELECTOR)).filter(
+    (element) => !element.hasAttribute("disabled") && element.getAttribute("aria-hidden") !== "true",
+  );
 }
 
 function renderMetaItem(item, index) {
@@ -214,11 +237,78 @@ export function SurfaceDrawer({
   className = "",
   bodyClassName = "",
   isOpen = false,
+  onClose = null,
   children = null,
   ...props
 }) {
+  const drawerRef = useRef(null);
+  const previousFocusRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    if (typeof document === "undefined") return undefined;
+
+    previousFocusRef.current = document.activeElement;
+    const drawer = drawerRef.current;
+    if (drawer) {
+      const focusables = getFocusableWithin(drawer);
+      const initialTarget =
+        focusables[0] || (drawer.hasAttribute("tabindex") ? drawer : null);
+      if (initialTarget) {
+        window.requestAnimationFrame(() => initialTarget.focus?.());
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && typeof onClose === "function") {
+        event.stopPropagation();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const drawerNode = drawerRef.current;
+      if (!drawerNode) return;
+      const focusables = getFocusableWithin(drawerNode);
+      if (focusables.length === 0) {
+        event.preventDefault();
+        drawerNode.focus?.();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey) {
+        if (active === first || !drawerNode.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (active === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    const restoreTarget = previousFocusRef.current;
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      if (restoreTarget && typeof restoreTarget.focus === "function") {
+        restoreTarget.focus();
+      }
+    };
+  }, [isOpen, onClose]);
+
   return (
-    <aside className={classes("gh-surface-drawer", isOpen && "is-open", className)} {...props}>
+    <aside
+      aria-modal={isOpen ? "true" : undefined}
+      className={classes("gh-surface-drawer", isOpen && "is-open", className)}
+      ref={drawerRef}
+      role={isOpen ? "dialog" : undefined}
+      tabIndex={isOpen ? -1 : undefined}
+      {...props}
+    >
       <div className="gh-surface-drawer-head">
         <div className="gh-surface-drawer-title-block">
           {eyebrow ? <div className="gh-panel-title">{eyebrow}</div> : null}
