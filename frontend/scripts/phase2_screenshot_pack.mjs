@@ -102,7 +102,9 @@ async function main() {
   await page.setViewportSize(VIEWPORT);
 
   try {
-    await gotoGolden(page, "Discovery", "/discovery");
+    // Wait for at least one result row so the discovery capture shows real
+    // data instead of the "Loading the latest visible assets" skeleton.
+    await gotoGolden(page, "Discovery", "/discovery", 1500, ".gh-discovery-result-row");
     await capture(page, { filename: "01-discovery-viewport.png" });
     await capture(page, { filename: "01-discovery.png", fullPage: true });
 

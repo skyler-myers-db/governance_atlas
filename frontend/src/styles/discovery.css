@@ -400,3 +400,37 @@
     z-index: 80;
   }
 }
+
+/* Phase 2-h.5 — inline facet count badges */
+.gh-filter-check {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.gh-filter-check:hover { background: rgba(15, 92, 192, 0.04); }
+.gh-filter-check.is-active { background: rgba(15, 92, 192, 0.08); }
+.gh-filter-check-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--gh-ink);
+  font-size: 0.9rem;
+}
+.gh-filter-check-count {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: 9999px;
+  background: rgba(15, 92, 192, 0.08);
+  color: var(--gh-accent);
+  font-size: 0.74rem;
+  font-weight: 700;
+  min-width: 22px;
+  text-align: center;
+}
+.gh-filter-check.is-active .gh-filter-check-count {
+  background: var(--gh-accent);
+  color: #ffffff;
+}

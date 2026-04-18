@@ -111,6 +111,16 @@ function facetValues(facets, key, fallbackOptions = [], selected = []) {
   return [...new Set([...(fallbackOptions || []), ...(selected || []), ...resolved])];
 }
 
+function facetCounts(facets, key) {
+  const entries = facets?.[key];
+  if (!Array.isArray(entries)) return {};
+  const out = {};
+  for (const entry of entries) {
+    if (entry && entry.value != null) out[entry.value] = Number(entry.count || 0);
+  }
+  return out;
+}
+
 function toggleMulti(filters, key, value, allLabel, onDiscoveryStateChange) {
   onDiscoveryStateChange((currentFilters) => {
     const current = currentFilters[key] || [];
@@ -275,7 +285,15 @@ function ownerLabel(owner) {
   return owner.name || owner.email || owner.title || "";
 }
 
-function FilterSection({ label, options, selected, allLabel, emptyMessage = "", onToggle }) {
+function FilterSection({
+  label,
+  options,
+  selected,
+  allLabel,
+  emptyMessage = "",
+  counts = {},
+  onToggle,
+}) {
   const hasSelection = selected.length > 0;
   const resolvedOptions = options.filter((option) => option !== allLabel);
   return (
@@ -294,10 +312,14 @@ function FilterSection({ label, options, selected, allLabel, emptyMessage = "", 
         {resolvedOptions.length
           ? resolvedOptions.map((option) => {
             const checked = selected.includes(option);
+            const count = counts[option];
             return (
               <label className={`gh-filter-check ${checked ? "is-active" : ""}`} key={option}>
                 <input checked={checked} onChange={() => onToggle(option, allLabel)} type="checkbox" />
-                <span>{option}</span>
+                <span className="gh-filter-check-label">{option}</span>
+                {Number.isFinite(count) && count >= 0 ? (
+                  <span className="gh-filter-check-count">{count}</span>
+                ) : null}
               </label>
             );
           })
@@ -559,6 +581,7 @@ function FiltersPopover({
         />
         <FilterSection
           allLabel="All catalogs"
+          counts={facetCounts(facets, "catalogs")}
           emptyMessage="Catalog filters populate from live discovery facets."
           label="Catalogs"
           onToggle={(value, allLabel) =>
@@ -569,6 +592,7 @@ function FiltersPopover({
         />
         <FilterSection
           allLabel="All domains"
+          counts={facetCounts(facets, "domains")}
           emptyMessage="Domain filters populate from live discovery facets."
           label="Domains"
           onToggle={(value, allLabel) =>
@@ -579,6 +603,7 @@ function FiltersPopover({
         />
         <FilterSection
           allLabel="All tiers"
+          counts={facetCounts(facets, "tiers")}
           emptyMessage="Tier filters populate from live discovery facets."
           label="Tiers"
           onToggle={(value, allLabel) =>
@@ -589,6 +614,7 @@ function FiltersPopover({
         />
         <FilterSection
           allLabel="All certifications"
+          counts={facetCounts(facets, "certifications")}
           emptyMessage="Certification filters populate from live discovery facets."
           label="Certifications"
           onToggle={(value, allLabel) =>
@@ -599,6 +625,7 @@ function FiltersPopover({
         />
         <FilterSection
           allLabel="All sensitivities"
+          counts={facetCounts(facets, "sensitivities")}
           emptyMessage="Sensitivity filters populate from live discovery facets."
           label="Sensitivities"
           onToggle={(value, allLabel) =>
