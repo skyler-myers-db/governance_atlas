@@ -2,12 +2,14 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchClassifications,
+  fetchClassification,
   fetchDomains,
   fetchDataProducts,
   fetchLogicalColumnGroups,
+  fetchLogicalColumnGroup,
 } from "../lib/api";
 import { EmptyStateBlock, LoadingState } from "./ShellStatePrimitives";
-import { SurfacePanelSection } from "./ShellLayoutPrimitives";
+import { SurfaceDrawer, SurfaceDrawerSection, SurfacePanelSection } from "./ShellLayoutPrimitives";
 
 const TAXONOMY_TABS = [
   { key: "classifications", label: "Classifications" },
@@ -18,6 +20,9 @@ const TAXONOMY_TABS = [
 
 export default function TaxonomyWorkspace() {
   const [active, setActive] = useState("classifications");
+  const [selected, setSelected] = useState(null); // { kind, id, row }
+
+  const closeDrawer = () => setSelected(null);
 
   const classifications = useQuery({
     queryKey: ["taxonomy", "classifications"],
@@ -57,7 +62,10 @@ export default function TaxonomyWorkspace() {
               aria-pressed={active === tab.key}
               className={`gh-product-tab ${active === tab.key ? "is-active" : ""}`}
               key={tab.key}
-              onClick={() => setActive(tab.key)}
+              onClick={() => {
+                setActive(tab.key);
+                closeDrawer();
+              }}
               role="tab"
               type="button"
             >
@@ -70,6 +78,8 @@ export default function TaxonomyWorkspace() {
             query={classifications}
             emptyTitle="No classifications defined"
             emptyMessage="Classifications declare the taxonomy for sensitive/PII/financial tagging. Admins create these in the governance catalog."
+            rowKey={(row) => row.classification_id}
+            onSelect={(row) => setSelected({ kind: "classification", id: row.classification_id, row })}
             columns={[
               { key: "display_name", label: "Name", className: "gh-taxonomy-name" },
               { key: "description", label: "Description", className: "gh-taxonomy-desc" },
@@ -92,6 +102,8 @@ export default function TaxonomyWorkspace() {
             query={domains}
             emptyTitle="No domains defined"
             emptyMessage="Domains let you scope data products and policies to a business area (finance, ops, growth, …)."
+            rowKey={(row) => row.domain_id}
+            onSelect={(row) => setSelected({ kind: "domain", id: row.domain_id, row })}
             columns={[
               { key: "display_name", label: "Name", className: "gh-taxonomy-name" },
               { key: "description", label: "Description", className: "gh-taxonomy-desc" },
@@ -109,6 +121,8 @@ export default function TaxonomyWorkspace() {
             query={dataProducts}
             emptyTitle="No data products defined"
             emptyMessage="Data products bundle one or more physical assets into a governed, consumer-facing unit."
+            rowKey={(row) => row.data_product_id}
+            onSelect={(row) => setSelected({ kind: "dataProduct", id: row.data_product_id, row })}
             columns={[
               { key: "display_name", label: "Name", className: "gh-taxonomy-name" },
               { key: "description", label: "Description", className: "gh-taxonomy-desc" },
@@ -134,6 +148,8 @@ export default function TaxonomyWorkspace() {
             query={columnGroups}
             emptyTitle="No logical column groups defined"
             emptyMessage="Logical column groups bundle related columns across tables for bulk metadata operations."
+            rowKey={(row) => row.group_id}
+            onSelect={(row) => setSelected({ kind: "columnGroup", id: row.group_id, row })}
             columns={[
               { key: "display_name", label: "Name", className: "gh-taxonomy-name" },
               { key: "description", label: "Description", className: "gh-taxonomy-desc" },
@@ -158,11 +174,13 @@ export default function TaxonomyWorkspace() {
           />
         ) : null}
       </SurfacePanelSection>
+
+      <TaxonomyDetailDrawer selected={selected} onClose={closeDrawer} />
     </section>
   );
 }
 
-function TaxonomyList({ query, columns, emptyTitle, emptyMessage }) {
+function TaxonomyList({ query, columns, emptyTitle, emptyMessage, rowKey, onSelect }) {
   if (query.isPending) return <LoadingState message="Loading…" />;
   if (query.isError) {
     return <EmptyStateBlock title="Unavailable" message={query.error?.message || "Failed to load."} />;
@@ -178,15 +196,200 @@ function TaxonomyList({ query, columns, emptyTitle, emptyMessage }) {
           </div>
         ))}
       </div>
-      {rows.map((row, index) => (
-        <div className="gh-taxonomy-row" key={row.classification_id || row.domain_id || row.data_product_id || row.group_id || index}>
-          {columns.map((col) => (
-            <div className={col.className || ""} key={col.key}>
-              {col.render ? col.render(row) : row[col.key] ?? "—"}
-            </div>
-          ))}
-        </div>
-      ))}
+      {rows.map((row, index) => {
+        const key = rowKey ? rowKey(row) ?? index : index;
+        return (
+          <button
+            aria-label={`Open ${row.display_name || "row"}`}
+            className="gh-taxonomy-row gh-taxonomy-row-interactive"
+            key={key}
+            onClick={() => onSelect?.(row)}
+            type="button"
+          >
+            {columns.map((col) => (
+              <div className={col.className || ""} key={col.key}>
+                {col.render ? col.render(row) : row[col.key] ?? "—"}
+              </div>
+            ))}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function TaxonomyDetailDrawer({ selected, onClose }) {
+  const isOpen = Boolean(selected);
+  const kind = selected?.kind;
+  const id = selected?.id;
+  const row = selected?.row;
+
+  const classificationDetail = useQuery({
+    queryKey: ["taxonomy-detail", "classification", id],
+    queryFn: ({ signal }) => fetchClassification(id, { signal }),
+    enabled: isOpen && kind === "classification" && Boolean(id),
+  });
+  const columnGroupDetail = useQuery({
+    queryKey: ["taxonomy-detail", "columnGroup", id],
+    queryFn: ({ signal }) => fetchLogicalColumnGroup(id, { signal }),
+    enabled: isOpen && kind === "columnGroup" && Boolean(id),
+  });
+
+  const title = row?.display_name || "Details";
+  const eyebrow = {
+    classification: "Classification",
+    domain: "Domain",
+    dataProduct: "Data product",
+    columnGroup: "Column group",
+  }[kind] || "";
+
+  return (
+    <SurfaceDrawer
+      eyebrow={eyebrow}
+      title={title}
+      titleMeta={row?.state ? <span className="gh-chip gh-chip-soft">{row.state}</span> : null}
+      isOpen={isOpen}
+      onClose={onClose}
+    >
+      {kind === "classification" ? (
+        <ClassificationDetail row={row} query={classificationDetail} />
+      ) : null}
+      {kind === "domain" ? <DomainDetail row={row} /> : null}
+      {kind === "dataProduct" ? <DataProductDetail row={row} /> : null}
+      {kind === "columnGroup" ? (
+        <ColumnGroupDetail row={row} query={columnGroupDetail} />
+      ) : null}
+    </SurfaceDrawer>
+  );
+}
+
+function ClassificationDetail({ row, query }) {
+  return (
+    <>
+      <SurfaceDrawerSection title="Overview">
+        <DetailField label="Description" value={row?.description || "—"} />
+        <DetailField label="System" value={row?.is_system ? "Yes" : "No"} />
+        <DetailField label="Terms" value={row?.term_count ?? 0} />
+        <DetailField label="Created" value={row?.created_at || "—"} />
+      </SurfaceDrawerSection>
+      <SurfaceDrawerSection title="Terms">
+        {query.isPending ? (
+          <LoadingState message="Loading terms…" />
+        ) : query.isError ? (
+          <EmptyStateBlock title="Unavailable" message={query.error?.message || "Failed to load."} />
+        ) : !(query.data?.terms || []).length ? (
+          <EmptyStateBlock
+            title="No terms in this classification"
+            message="Classification terms form the sensitivity taxonomy leaves (e.g. PII, HIPAA, internal)."
+          />
+        ) : (
+          <ul className="gh-taxonomy-terms">
+            {query.data.terms.map((term) => (
+              <li className="gh-taxonomy-term" key={term.term_id}>
+                <div className="gh-taxonomy-term-row">
+                  <span className="gh-taxonomy-term-name">{term.display_name}</span>
+                  {term.sensitivity_level ? (
+                    <span className="gh-chip gh-chip-soft">{term.sensitivity_level}</span>
+                  ) : null}
+                </div>
+                {term.description ? (
+                  <div className="gh-support-copy">{term.description}</div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+      </SurfaceDrawerSection>
+    </>
+  );
+}
+
+function DomainDetail({ row }) {
+  return (
+    <SurfaceDrawerSection title="Overview">
+      <DetailField label="Description" value={row?.description || "—"} />
+      <DetailField label="Parent" value={row?.parent_domain_id || "—"} />
+      <DetailField label="Owner" value={row?.owner_entry_id || "—"} />
+      <DetailField label="Color" value={row?.color || "—"} />
+      <DetailField label="State" value={row?.state || "—"} />
+      <DetailField label="Created" value={row?.created_at || "—"} />
+    </SurfaceDrawerSection>
+  );
+}
+
+function DataProductDetail({ row }) {
+  return (
+    <SurfaceDrawerSection title="Overview">
+      <DetailField label="Description" value={row?.description || "—"} />
+      <DetailField label="Domain" value={row?.domain_id || "—"} />
+      <DetailField label="Owner" value={row?.owner_entry_id || "—"} />
+      <DetailField label="Contact" value={row?.contact_email || "—"} />
+      <DetailField label="SLO" value={row?.slo_description || "—"} />
+      <DetailField label="State" value={row?.state || "—"} />
+      <DetailField label="Member assets" value={row?.member_count ?? 0} />
+    </SurfaceDrawerSection>
+  );
+}
+
+function ColumnGroupDetail({ row, query }) {
+  const members = query.data?.members || [];
+  const conflictCounts = query.data?.group?.conflictCounts || {};
+  return (
+    <>
+      <SurfaceDrawerSection title="Overview">
+        <DetailField label="Description" value={row?.description || "—"} />
+        <DetailField
+          label="Confidence"
+          value={typeof row?.confidence === "number" ? `${(row.confidence * 100).toFixed(0)}%` : "—"}
+        />
+        <DetailField label="Members" value={row?.member_count ?? 0} />
+        <DetailField label="Last reviewed" value={row?.last_reviewed_at || "—"} />
+      </SurfaceDrawerSection>
+      {Object.keys(conflictCounts).length ? (
+        <SurfaceDrawerSection title="Conflicts across members">
+          <div className="gh-taxonomy-conflicts">
+            {Object.entries(conflictCounts).map(([key, value]) => (
+              <div className="gh-taxonomy-conflict" key={key}>
+                <div className="gh-taxonomy-conflict-label">{key}</div>
+                <div className="gh-taxonomy-conflict-value">{value}</div>
+              </div>
+            ))}
+          </div>
+        </SurfaceDrawerSection>
+      ) : null}
+      <SurfaceDrawerSection title={`Members (${members.length})`}>
+        {query.isPending ? (
+          <LoadingState message="Loading members…" />
+        ) : query.isError ? (
+          <EmptyStateBlock title="Unavailable" message={query.error?.message || "Failed to load."} />
+        ) : !members.length ? (
+          <EmptyStateBlock title="No members yet" message="Members bind concrete columns to this logical group." />
+        ) : (
+          <ul className="gh-taxonomy-members">
+            {members.map((member) => (
+              <li className="gh-taxonomy-member" key={member.membershipId}>
+                <div className="gh-taxonomy-member-head">
+                  <span className="gh-taxonomy-member-fqn">{member.entityFqn}</span>
+                  <span className="gh-support-copy">/ {member.columnName}</span>
+                </div>
+                <div className="gh-support-copy">
+                  {member.dataType || "—"}
+                  {member.currentDescription ? ` • ${member.currentDescription}` : ""}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SurfaceDrawerSection>
+    </>
+  );
+}
+
+function DetailField({ label, value }) {
+  return (
+    <div className="gh-taxonomy-detail-field">
+      <div className="gh-taxonomy-detail-label">{label}</div>
+      <div className="gh-taxonomy-detail-value">{value}</div>
     </div>
   );
 }

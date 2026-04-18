@@ -44,6 +44,7 @@ import { EmptyStateBlock, LoadingState, SkeletonBlock, WorkspaceStateCard } from
 import { EntityHero } from "./primitives/EntityHero";
 import { TabIcon } from "./primitives/TabIcon";
 import { AccessExplainerBanner } from "./primitives/AccessExplainerBanner";
+import { MarkdownBlock } from "./primitives/MarkdownBlock";
 import { CustomPropertiesPanel } from "./primitives/CustomPropertiesPanel";
 import { ProfilePanel } from "./primitives/ProfilePanel";
 import { QualityPanel } from "./primitives/QualityPanel";
@@ -1641,9 +1642,15 @@ export default function EntityWorkspace({
             <div className="gh-entity-record-primary">
               <AccessExplainerBanner assetFqn={asset.fqn} />
               <EntityRecordSection title="Definition">
-                <div className="gh-support-copy">
-                  {asset.description || "No description is available for this asset yet."}
-                </div>
+                <MarkdownBlock
+                  className="gh-entity-description"
+                  source={asset.description}
+                  fallback={
+                    <div className="gh-support-copy">
+                      No description is available for this asset yet.
+                    </div>
+                  }
+                />
               </EntityRecordSection>
 
               <EntityRecordSection

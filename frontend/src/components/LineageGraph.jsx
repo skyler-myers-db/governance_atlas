@@ -14,6 +14,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { assetPathLabel } from "../lib/assetPresentation";
+import { exportLineagePng } from "../lib/exportLineagePng";
 import { SurfaceDrawer, SurfaceDrawerSection } from "./ShellLayoutPrimitives";
 import { AssetTypeIcon } from "./primitives/AssetTypeIcon";
 
@@ -1277,6 +1278,21 @@ export default function LineageGraph({
               type="button"
             >
               Reset view
+            </button>
+            <button
+              className="gh-secondary-button"
+              onClick={async () => {
+                try {
+                  await exportLineagePng(viewportRef.current, asset?.fqn);
+                } catch (err) {
+                  // Silent — PNG export is best-effort; keep the graph usable.
+                  console.error("lineage PNG export failed", err);
+                }
+              }}
+              title="Download a PNG snapshot of the current lineage view"
+              type="button"
+            >
+              Export PNG
             </button>
             {canReturnToFocus ? (
               <button

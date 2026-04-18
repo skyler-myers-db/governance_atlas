@@ -561,3 +561,35 @@
 .gh-taxonomy-tabs .gh-product-tab:hover:not(.is-active) {
   color: var(--gh-text, #14213d);
 }
+
+/* ------------------------------------------------------------
+   Markdown block (asset descriptions, glossary definitions)
+   ------------------------------------------------------------ */
+.gh-md { color: var(--gh-text, #14213d); line-height: 1.55; }
+.gh-md p { margin: 0 0 var(--gh-space-3, 12px); }
+.gh-md p:last-child { margin-bottom: 0; }
+.gh-md .gh-md-h { margin: var(--gh-space-3, 12px) 0 var(--gh-space-2, 8px); line-height: 1.3; color: var(--gh-text, #14213d); }
+.gh-md h1.gh-md-h { font-size: 18px; font-weight: 700; }
+.gh-md h2.gh-md-h { font-size: 16px; font-weight: 700; }
+.gh-md h3.gh-md-h { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gh-text-muted, #5c6b82); }
+.gh-md .gh-md-list { margin: 0 0 var(--gh-space-3, 12px); padding-left: var(--gh-space-4, 16px); }
+.gh-md .gh-md-list li { margin-bottom: 4px; }
+.gh-md .gh-md-code {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+  background: var(--gh-surface-muted, #f3f6fb);
+  color: var(--gh-text, #14213d);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--gh-border, #d8dee9);
+}
+.gh-md .gh-md-quote {
+  margin: 0 0 var(--gh-space-3, 12px);
+  padding: var(--gh-space-2, 8px) var(--gh-space-3, 12px);
+  border-left: 3px solid var(--gh-accent, #5b3ff2);
+  background: var(--gh-accent-soft, #eef0ff);
+  color: var(--gh-text, #14213d);
+  border-radius: 0 var(--gh-radius-sm, 6px) var(--gh-radius-sm, 6px) 0;
+}
+.gh-md a { color: var(--gh-accent, #5b3ff2); text-decoration: none; border-bottom: 1px solid transparent; }
+.gh-md a:hover { border-bottom-color: currentColor; }
