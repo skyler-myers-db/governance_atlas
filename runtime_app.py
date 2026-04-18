@@ -9,7 +9,6 @@ import os
 import threading
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -27,6 +26,32 @@ from govhub.api import (
     build_governance_router,
     build_lineage_router,
     build_runtime_router,
+)
+from govhub.api.cache import (
+    _CACHE_LOCK,
+    _OBO_CLIENT_CACHE,
+    _OBO_CLIENT_MAX_ENTRIES,
+    _OBO_CLIENT_TTL_SECONDS,
+    _TTL_CACHE,
+    _invalidate_cache_prefix,
+    _obo_token_key,
+    _ttl_cache_pop,
+    _ttl_value,
+)
+from govhub.api.identity import (
+    _request_auth_mode,
+    _request_obo_token,
+    _request_read_visibility_scope,
+    _user_email,
+)
+from govhub.api.response import (
+    _error_response,
+    _future_iso,
+    _now_iso,
+    _request_scope_warning,
+    _response_meta,
+    _utc_iso,
+    _with_meta,
 )
 from govhub.config import AppConfig
 from govhub.runtime_contract import validate_frontend_bundle
@@ -285,19 +310,6 @@ _split_uc_name = asset_service.split_uc_name
 _catalog_filter_options = asset_service.catalog_filter_options
 
 
-_TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
-
-
-def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
-    now = time.time()
-    cached = _TTL_CACHE.get(key)
-    if cached and now - cached[0] < ttl_s:
-        return cached[1]
-    value = loader()
-    _TTL_CACHE[key] = (now, value)
-    return value
-
-
 @lru_cache(maxsize=1)
 def _config() -> AppConfig:
     return AppConfig.from_env()
@@ -306,20 +318,6 @@ def _config() -> AppConfig:
 @lru_cache(maxsize=1)
 def _uc() -> UCSQLClient:
     return UCSQLClient(warehouse_id=_config().warehouse_id)
-
-
-# OBO / per-user actor clients are scoped by forwarded access token. The Databricks
-# Apps platform rotates forwarded tokens on the order of minutes, so we memoize by a
-# short hash of the token with a brief TTL to avoid rebuilding a WorkspaceClient on
-# every request while still respecting the token lifecycle.
-_OBO_CLIENT_CACHE: Dict[str, Tuple[float, UCSQLClient]] = {}
-_OBO_CLIENT_TTL_SECONDS = 120
-
-
-def _obo_token_key(token: str) -> str:
-    import hashlib
-
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
 
 
 def _uc_for_token(user_access_token: str) -> UCSQLClient:
@@ -335,26 +333,13 @@ def _uc_for_token(user_access_token: str) -> UCSQLClient:
         warehouse_id=_config().warehouse_id,
         user_access_token=token,
     )
-    _OBO_CLIENT_CACHE[key] = (now, client)
-    # Trim the cache so it cannot grow unbounded across long-running containers.
-    if len(_OBO_CLIENT_CACHE) > 32:
-        cutoff = now - _OBO_CLIENT_TTL_SECONDS
-        for stale_key in [k for k, v in _OBO_CLIENT_CACHE.items() if v[0] < cutoff]:
-            _OBO_CLIENT_CACHE.pop(stale_key, None)
+    with _CACHE_LOCK:
+        _OBO_CLIENT_CACHE[key] = (now, client)
+        if len(_OBO_CLIENT_CACHE) > _OBO_CLIENT_MAX_ENTRIES:
+            cutoff = now - _OBO_CLIENT_TTL_SECONDS
+            for stale_key in [k for k, v in _OBO_CLIENT_CACHE.items() if v[0] < cutoff]:
+                _OBO_CLIENT_CACHE.pop(stale_key, None)
     return client
-
-
-def _request_obo_token(request: Optional[Request]) -> str:
-    if request is None:
-        return ""
-    headers = getattr(request, "headers", None) or {}
-    getter = getattr(headers, "get", None)
-    if not callable(getter):
-        return ""
-    # Databricks Apps forwards the OAuth access token for per-user authorization
-    # via `X-Forwarded-Access-Token`. Be tolerant of header-case variants.
-    raw = getter("x-forwarded-access-token") or getter("X-Forwarded-Access-Token") or ""
-    return raw.strip()
 
 
 def _uc_for_request(request: Optional[Request]) -> UCSQLClient:
@@ -363,8 +348,8 @@ def _uc_for_request(request: Optional[Request]) -> UCSQLClient:
         try:
             return _uc_for_token(token)
         except Exception:
-            # If actor-scoped client construction fails we transparently fall back to
-            # the app-principal client so the read path stays available.
+            # Per-user client construction failed; fall back to the app-principal
+            # client so the read path stays available.
             return _uc()
     return _uc()
 
@@ -505,19 +490,6 @@ def _route_context(request: Request) -> Dict[str, str]:
         "asset": requested_asset,
         "query": discovery_query,
     }
-
-
-def _user_email(request: Optional[Request]) -> str:
-    if request is None:
-        return "unknown"
-    headers = getattr(request, "headers", None) or {}
-    getter = getattr(headers, "get", None)
-    if not callable(getter):
-        return "unknown"
-    email = (
-        getter("x-forwarded-email") or getter("x-forwarded-preferred-username") or ""
-    )
-    return email.strip().lower() or "unknown"
 
 
 def _user_role_slug(request: Optional[Request]) -> str:
@@ -668,151 +640,6 @@ def _request_cache_scope(request: Optional[Request]) -> str:
         else capability_service.NO_IDENTITY_MODE
     )
     return f"{base}|{mode}"
-
-
-def _utc_iso(value: datetime) -> str:
-    return value.replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def _now_iso() -> str:
-    return _utc_iso(datetime.now(timezone.utc))
-
-
-def _future_iso(seconds: int) -> str:
-    return _utc_iso(datetime.now(timezone.utc) + timedelta(seconds=seconds))
-
-
-def _request_auth_mode(request: Optional[Request]) -> str:
-    return capability_service.runtime_auth_mode(
-        authenticated=_user_email(request) != "unknown"
-        if request is not None
-        else False,
-        per_user_authorization=bool(_request_obo_token(request)),
-    )
-
-
-def _request_read_visibility_scope(request: Optional[Request]) -> str:
-    return capability_service.runtime_visibility_scope(_request_auth_mode(request))
-
-
-def _request_scope_warning(request: Optional[Request], source: str) -> str:
-    auth_mode = _request_auth_mode(request)
-    normalized_source = _normalize_str(source).lower()
-    if auth_mode == capability_service.OBO_AVAILABLE_MODE:
-        return ""
-    if normalized_source.startswith("unity-catalog"):
-        return (
-            "This response is sourced from workspace-scoped app-principal metadata. "
-            "Do not treat it as actor-scoped proof until Databricks per-user authorization / OBO is available."
-        )
-    return ""
-
-
-def _response_meta(
-    request: Optional[Request],
-    *,
-    source: str,
-    state: str = "available",
-    authoritative: bool = True,
-    entity_fqn: str | None = None,
-    entity_id: str | None = None,
-    capabilities: Dict[str, Any] | None = None,
-    allowed_actions: Dict[str, Any] | None = None,
-    warnings: List[str] | None = None,
-    unavailable_reason: str = "",
-) -> Dict[str, Any]:
-    scope_warning = _request_scope_warning(request, source)
-    warning_list = [*(warnings or [])]
-    if scope_warning and scope_warning not in warning_list:
-        warning_list.append(scope_warning)
-    auth_mode = _request_auth_mode(request)
-    read_scope = _request_read_visibility_scope(request)
-    normalized_state = _normalize_str(state) or "unknown"
-    resolved_authoritative = bool(authoritative) and not bool(scope_warning)
-    if not resolved_authoritative and normalized_state == "available":
-        normalized_state = "degraded"
-    return {
-        "state": normalized_state,
-        "entityId": entity_id,
-        "entityFqn": entity_fqn,
-        "source": source,
-        "authoritative": resolved_authoritative,
-        "observedAt": _now_iso(),
-        "staleAfter": _future_iso(60),
-        "capabilities": capabilities or {},
-        "allowedActions": allowed_actions or {},
-        "warnings": warning_list,
-        "degraded": normalized_state in {"degraded", "unknown"} or bool(warning_list),
-        "visibilityScope": read_scope,
-        "readScope": read_scope,
-        "authMode": auth_mode,
-        "productMode": auth_mode,
-        "unavailableReason": _normalize_str(unavailable_reason),
-    }
-
-
-def _with_meta(
-    payload: Dict[str, Any],
-    request: Optional[Request],
-    *,
-    source: str,
-    state: str = "available",
-    authoritative: bool = True,
-    entity_fqn: str | None = None,
-    entity_id: str | None = None,
-    capabilities: Dict[str, Any] | None = None,
-    allowed_actions: Dict[str, Any] | None = None,
-    warnings: List[str] | None = None,
-    unavailable_reason: str = "",
-) -> Dict[str, Any]:
-    next_payload = dict(payload or {})
-    resolved_meta = _response_meta(
-        request,
-        source=source,
-        state=state,
-        authoritative=authoritative,
-        entity_fqn=entity_fqn,
-        entity_id=entity_id,
-        capabilities=capabilities,
-        allowed_actions=allowed_actions,
-        warnings=warnings,
-        unavailable_reason=unavailable_reason,
-    )
-    next_payload["authoritative"] = bool(resolved_meta.get("authoritative"))
-    next_payload["meta"] = resolved_meta
-    next_payload["errors"] = list(next_payload.get("errors") or [])
-    return next_payload
-
-
-def _error_response(
-    request: Optional[Request],
-    *,
-    status_code: int,
-    source: str,
-    detail: str,
-    state: str = "unavailable",
-    entity_fqn: str | None = None,
-    entity_id: str | None = None,
-    capabilities: Dict[str, Any] | None = None,
-    warnings: List[str] | None = None,
-    extra: Dict[str, Any] | None = None,
-) -> JSONResponse:
-    payload = dict(extra or {})
-    payload["detail"] = detail
-    payload["errors"] = list(payload.get("errors") or [{"message": detail}])
-    payload["meta"] = _response_meta(
-        request,
-        source=source,
-        state=state,
-        authoritative=False,
-        entity_fqn=entity_fqn,
-        entity_id=entity_id,
-        capabilities=capabilities,
-        warnings=warnings,
-        unavailable_reason=detail,
-    )
-    payload["authoritative"] = False
-    return JSONResponse(status_code=status_code, content=payload)
 
 
 def _capabilities_payload(
@@ -1013,21 +840,15 @@ def _asset_visibility_record(
         }
 
 
-def _invalidate_cache_prefix(prefix: str) -> None:
-    for key in list(_TTL_CACHE.keys()):
-        if key.startswith(prefix):
-            _TTL_CACHE.pop(key, None)
-
-
 def _invalidate_asset_caches(asset_fqn: str) -> None:
     asset_service.invalidate_asset_caches(asset_fqn)
     lineage_service.invalidate_lineage_caches(asset_fqn)
     governance_service.invalidate_governance_caches()
-    _TTL_CACHE.pop(f"runtime_asset:{asset_fqn}", None)
-    _TTL_CACHE.pop(f"runtime_lineage:{asset_fqn}", None)
+    _ttl_cache_pop(f"runtime_asset:{asset_fqn}")
+    _ttl_cache_pop(f"runtime_lineage:{asset_fqn}")
     _invalidate_cache_prefix("runtime_inventory:")
     _invalidate_cache_prefix("runtime_bootstrap_inventory_summary:")
-    _TTL_CACHE.pop("runtime_governance", None)
+    _ttl_cache_pop("runtime_governance")
 
 
 def _friendly_table_type(raw: Any, data_source_format: Any = None) -> str:

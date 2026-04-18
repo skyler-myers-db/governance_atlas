@@ -28,6 +28,7 @@ def _load_snapshot_script():
 snapshot_script = _load_snapshot_script()
 
 from fastapi.responses import JSONResponse  # noqa: E402
+from govhub.api import response as _response_api  # noqa: E402
 from govhub.api.runtime import build_runtime_router  # noqa: E402
 
 
@@ -234,6 +235,10 @@ class RuntimeApiContractsTests(unittest.TestCase):
                 "openable": True,
                 "visibilityState": "visible",
             },
+        ), patch.object(
+            _response_api,
+            "_request_auth_mode",
+            lambda _request: "app-principal-only",
         ):
             payload = runtime_app._asset_availability_payload(
                 ["main.sales.orders"], request
@@ -286,6 +291,10 @@ class RuntimeApiContractsTests(unittest.TestCase):
             _request_auth_mode=lambda _request: "app-principal-only",
             _asset_is_visible=lambda *_args, **_kwargs: False,
             _asset_exists=lambda *_args, **_kwargs: True,
+        ), patch.object(
+            _response_api,
+            "_request_auth_mode",
+            lambda _request: "app-principal-only",
         ):
             payload = runtime_app._asset_availability_payload(
                 ["main.sales.hidden_orders"], request
