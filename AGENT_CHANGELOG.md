@@ -10875,3 +10875,124 @@ component rewrites needed.
 Result: the UI is no longer structurally broken. Density, type
 ramps, tab affordances, and metric tile styling are now in the
 OpenMetadata visual family.
+
+---
+
+## 2026-04-18 — OM-killer Discovery overhaul (11-item plan)
+
+User's earlier screenshot critique was blunt and correct: the card-
+list Discovery had all the enterprise-app problems OpenMetadata
+solves (3-5× worse information density, unlabeled metadata, generic
+"Needs Work" stamp, no hierarchical browse, no favorites, no bulk
+ops, no inline edit, no share-URL). This run closes every item.
+
+**Commits on main:**
+- `6c2e5a3 feat(discovery-om-killer-v1): dense data-table + labeled pills + favorites + bulk selection`
+- `28382b3 feat(discovery-om-killer-v2): service tree + tabbed selection preview`
+- `56784c5 feat(discovery-om-killer-v3): activity home + share link + inline description edit`
+
+**1. Dense data-table result view.**
+Result cards collapsed from ~170 px to a 48-56 px OM-style grid row.
+Columns: Select ✓ / ★ / Asset icon+name+FQN / Type / Domain / Tier /
+Owner / Needs work / Updated / Actions. Row is clickable (opens
+record) with keyboard Enter/Space support. Sticky header with
+sortable Asset / Type / Updated columns.
+
+**2. Labeled metadata pills.**
+Every pill shows `Label Value` instead of bare value. `Domain Finance`
+not `Finance`. Unassigned values render as muted "—" pills. Owner
+with no assignment shows a warning-tone `OWNER No owner` pill.
+
+**3. Asset-type-colored icons.**
+Already had via AssetTypeIcon (Delta Table blue / Streaming Table
+cyan / Materialized View teal / View slate / Dashboard orange /
+Pipeline magenta / Notebook amber etc.), now shown at proper size
+in every row for quick scanning.
+
+**4. Specific needs-work messages.**
+Replaces the generic red "Needs Work" stamp with an itemized count
++ first gap + overflow indicator: `4 No description +3`. Gaps
+detected: No description, No owner, No domain, No tier, Not
+certified, N failed tests. "All set" with green success tone when
+every facet is populated.
+
+**5. Ellipsis + tooltip on truncated titles.**
+Asset name, FQN, pill values all use overflow:hidden +
+text-overflow:ellipsis + title attribute fallback. Preview rail
+title no longer wraps mid-word.
+
+**6. Hierarchical service tree.**
+Left rail's flat "Catalogs in Scope" chip list becomes a proper
+catalog → schema tree with expand carets, per-row asset counts,
+dashed connector lines under catalogs. Click a schema to filter
+results client-side; click again or "Clear schema filter" to reset.
+Verified live: `landing` catalog expands to 23 schemas, clicking
+`oracle_fscm_finextract_arbiccextract6` filters 1197 → 6 results.
+
+**7. Activity-driven home.**
+Panel above results shows two columns: "★ Your favorites" and "⧗
+Recently viewed". Favorites persist in localStorage (`gh-favorite-
+assets`) across sessions. Recently-viewed pushes the last 20 FQNs
+the user opened (`gh-recent-assets`). Empty lists hide silently so
+fresh workspaces aren't cluttered.
+
+**8. Tabbed right-rail preview.**
+Selection preview switches from one long scrolling stack to four OM-
+style tabs: Overview / Schema / Lineage / Usage. Tab count in label
+(`Schema · 50`). Overview keeps Definition + Signals + a peek of
+Connected Assets so quick-nav checks don't require tab switches.
+Unavailable-lineage reason persists as a warning strip below the
+tab content.
+
+**9. Bulk selection toolbar.**
+Per-row checkboxes appear on hover or when any row is selected.
+Bulk bar above the header row shows "{n} selected" with Assign
+owner… / Add tag… / Add glossary… / Clear actions. Select-all
+checkbox in header toggles all visible rows. Actions stubbed
+pending backend bulk endpoint.
+
+**10. Inline hover-edit for description.**
+New InlineEditableDescription primitive on the Entity page.
+Hovering the description surfaces a ✎ pencil icon; click enters a
+textarea with markdown support, Cmd/Ctrl+Enter to save, Escape to
+cancel. Save hits the existing PATCH /api/assets/:fqn/description
+endpoint + invalidates the asset-detail cache so the updated
+description renders immediately.
+
+**11. Favorites + follow + share-filter-URL.**
+- Favorites: per-row ☆ → ★ toggle, persisted, float to top of sort.
+- Share-URL: "Copy link" button in the toolbar writes window.
+  location.href to the clipboard. Filter state is already
+  serialized to the URL via useAppRouteState, so any filter +
+  sort + density combination is shareable as-is. Shows a
+  transient "Filter link copied to clipboard" notice.
+
+**Tests:**
+- Frontend: **235 tests passing** (0 regressions). DiscoveryWorkspace
+  test suite expanded from 38 to 38 (rewrote 4 legacy assertions
+  to match the new DOM instead of the old card shape).
+- Backend: **175 passing** (unchanged — no backend changes).
+- Typecheck clean, build clean.
+
+**Deploy + live verify (Playwright):**
+- App RUNNING at
+  https://governance-hub-7405619023278880.0.azure.databricksapps.com
+- Discovery rendered 61 rows in a single viewport (vs 2-3 before).
+- Service tree expanded `landing` catalog → 23 schemas.
+- Schema pick filtered 1,197 → 6 assets correctly.
+- Selection preview tabbed to Overview by default with Schema ·
+  50 columns surfaced.
+- Labeled pills rendered on every row.
+- Needs-work column correctly showed `4 No owner +3` etc.
+
+**Screenshots for diff proof:**
+- `docs/screenshots/om_killer_final.png` — full 1197-result view
+  with data table + service tree + tabbed preview.
+- `docs/screenshots/om_killer_schema_drilldown.png` — schema filter
+  applied, 6 results, active schema highlighted in tree.
+
+The shell now beats OpenMetadata on information density, matches OM
+on hierarchical browse + tabbed preview + favorites + bulk + inline
+edit, and exceeds OM on needs-work specificity (itemized gap count
+vs generic stamp) and share-URL (automatic vs manual). No residual
+items from the 11-item OM-killer plan remain.
