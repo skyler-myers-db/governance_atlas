@@ -33,7 +33,14 @@ export function InlineEditableDescription({ assetFqn, description, onSaved, canE
       setEditing(false);
       onSaved?.(draft);
     } catch (err) {
-      setError(err?.message || "Failed to save description.");
+      // 403 from the permission-denied path surfaces a user-friendly
+      // message; other 4xx/5xx fall back to the raw detail.
+      const status = err?.status;
+      const msg =
+        status === 403
+          ? err?.message || "You don't have write access to this asset. Ask a steward with MODIFY privilege."
+          : err?.message || "Failed to save description.";
+      setError(msg);
     } finally {
       setBusy(false);
     }

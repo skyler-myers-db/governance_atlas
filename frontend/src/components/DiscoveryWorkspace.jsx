@@ -11,6 +11,7 @@ import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 import { AssetTypeIcon } from "./primitives";
 import { OwnerAvatar, OwnerAvatarStack } from "./primitives/OwnerAvatar";
+import { WithAssetHoverCard } from "./primitives/AssetHoverCard";
 import {
   runtimeFeatureFlagAvailable,
   runtimeFeatureFlagReason,
@@ -791,7 +792,9 @@ function DiscoveryResultCard({
       </div>
 
       <div className="gh-discovery-row-cell gh-discovery-row-asset">
-        <AssetTypeIcon asset={asset} size="md" />
+        <WithAssetHoverCard asset={asset}>
+          <AssetTypeIcon asset={asset} size="md" />
+        </WithAssetHoverCard>
         <div className="gh-discovery-row-asset-text">
           <div className="gh-discovery-row-name" title={asset.name}>{asset.name}</div>
           <div className="gh-discovery-row-fqn" title={asset.fqn}>{assetPathLabel(asset)}</div>
@@ -842,28 +845,47 @@ function DiscoveryResultCard({
         )}
       </div>
 
-      <div className="gh-discovery-row-cell gh-discovery-row-tags" title={(asset.tagEntries || asset.tags || []).join(", ")}>
+      <div className="gh-discovery-row-cell gh-discovery-row-tags">
         {(() => {
           const tagLabels = (asset.tagEntries || []).map((t) => t?.label || t?.name).filter(Boolean);
           if (tagLabels.length === 0 && Array.isArray(asset.tags)) {
             tagLabels.push(...asset.tags.filter(Boolean));
           }
-          if (!tagLabels.length) return <span className="gh-row-tag-more">—</span>;
-          const visible = tagLabels.slice(0, 2);
-          const extra = tagLabels.length - visible.length;
+          const glossaryTerms = Array.isArray(asset.glossaryTerms)
+            ? asset.glossaryTerms.map((t) => t?.label || t?.name || t).filter(Boolean)
+            : [];
+          if (!tagLabels.length && !glossaryTerms.length) {
+            return <span className="gh-row-tag-more" title="No tags or glossary terms">—</span>;
+          }
+          const visibleTags = tagLabels.slice(0, 2);
+          const extraTags = tagLabels.length - visibleTags.length;
+          const visibleTerms = glossaryTerms.slice(0, 1);
+          const extraTerms = glossaryTerms.length - visibleTerms.length;
+          const fullTitle = [
+            tagLabels.length ? `Tags: ${tagLabels.join(", ")}` : "",
+            glossaryTerms.length ? `Glossary: ${glossaryTerms.join(", ")}` : "",
+          ].filter(Boolean).join(" · ");
           return (
-            <>
-              {visible.map((tag) => (
+            <span className="gh-row-tag-stack" title={fullTitle}>
+              {visibleTags.map((tag) => (
                 <span
                   className="gh-row-tag"
                   data-tag={String(tag).toLowerCase()}
-                  key={tag}
+                  key={`tag-${tag}`}
                 >
                   {tag}
                 </span>
               ))}
-              {extra > 0 ? <span className="gh-row-tag-more">+{extra}</span> : null}
-            </>
+              {visibleTerms.map((term) => (
+                <span className="gh-row-glossary-chip" key={`glo-${term}`}>
+                  <span className="gh-row-glossary-ico" aria-hidden="true">☰</span>
+                  {term}
+                </span>
+              ))}
+              {extraTags + extraTerms > 0 ? (
+                <span className="gh-row-tag-more">+{extraTags + extraTerms}</span>
+              ) : null}
+            </span>
           );
         })()}
       </div>
@@ -1681,6 +1703,24 @@ export default function DiscoveryWorkspace({
     !discoveryResults.authoritative &&
     !(discoveryResults.assets || []).length;
   const allDiscoveryAssets = suppressCatalogRows ? [] : discoveryResults.assets;
+  // #16 Live-updating asset-type counts keyed off the *filtered* result
+  // list so sidebar numbers shrink as the user narrows (OM does this).
+  const liveAssetTypeCounts = useMemo(() => {
+    const counts = { "All types": allDiscoveryAssets.length };
+    for (const entry of allDiscoveryAssets) {
+      const t = String(entry?.assetType || entry?.objectType || entry?.type || "").trim();
+      const resolved =
+        t === "Delta Table" || t === "MANAGED_TABLE" || t === "Managed Table" ? "Delta Table"
+        : t === "Materialized View" || t === "MATERIALIZED_VIEW" ? "Materialized View"
+        : t === "View" || t === "VIEW" ? "View"
+        : t === "Streaming Table" || t === "STREAMING_TABLE" ? "Streaming Table"
+        : t === "Metric View" || t === "METRIC_VIEW" ? "Metric View"
+        : t || "Unknown";
+      counts[resolved] = (counts[resolved] || 0) + 1;
+    }
+    return counts;
+  }, [allDiscoveryAssets]);
+
   // #11 Real saved-view counts computed client-side so the numbers
   // actually track state (previously they were either unreachable
   // via facets or hardcoded as 0 / 1197).
@@ -2249,7 +2289,9 @@ export default function DiscoveryWorkspace({
                   >
                     <span>{option}</span>
                     {showLiveFacetCounts ? (
-                      <span className="gh-category-count">{facetCount(resultsFacets, "assetTypes", option)}</span>
+                      <span className="gh-category-count">
+                        {liveAssetTypeCounts[option] ?? facetCount(resultsFacets, "assetTypes", option)}
+                      </span>
                     ) : null}
                   </button>
                 ))}
@@ -2628,13 +2670,22 @@ export default function DiscoveryWorkspace({
               ) : null}
             </div>
           ) : resultsLoading ? (
-            <WorkspaceStateCard
-              className="gh-discovery-empty-state"
-              eyebrow="Refreshing Catalog"
-              loading
-              message="Search, filters, and result counts are being refreshed against the live metadata plane."
-              title="Loading the latest visible assets for this scope."
-            />
+            <div className="gh-result-list gh-discovery-table" aria-busy="true" aria-label="Loading catalog">
+              {[...Array(8)].map((_, idx) => (
+                <div className="gh-skeleton-row" key={`skel-${idx}`}>
+                  <div className="gh-skeleton-cell" style={{ width: 14 }} />
+                  <div className="gh-skeleton-cell" style={{ width: `${60 + ((idx * 7) % 30)}%` }} />
+                  <div className="gh-skeleton-cell" style={{ width: 60 }} />
+                  <div className="gh-skeleton-cell" style={{ width: "70%" }} />
+                  <div className="gh-skeleton-cell" style={{ width: 50 }} />
+                  <div className="gh-skeleton-cell" style={{ width: 60 }} />
+                  <div className="gh-skeleton-cell" style={{ width: 90 }} />
+                  <div className="gh-skeleton-cell" style={{ width: 80 }} />
+                  <div className="gh-skeleton-cell" style={{ width: 50 }} />
+                  <div className="gh-skeleton-cell" style={{ width: 40 }} />
+                </div>
+              ))}
+            </div>
           ) : resultsError ? (
             <WorkspaceStateCard
               actions={(

@@ -6,6 +6,7 @@ import { InlineStatusBanner } from "./ShellStatePrimitives";
 import { GlobalHeader } from "./primitives/GlobalHeader";
 import { GlobalSearch } from "./primitives/GlobalSearch";
 import { InboxPanel } from "./primitives/InboxPanel";
+import { CommandPalette } from "./primitives/CommandPalette";
 import { humanizeStatusLabel } from "./primitives/shellStatusLabels";
 
 export default function AppFrame({
@@ -36,8 +37,43 @@ export default function AppFrame({
   const [searchPanelOpen, setSearchPanelOpen] = useState(false);
   const [searchNotice, setSearchNotice] = useState("");
   const [shellHeaderHeight, setShellHeaderHeight] = useState(0);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === "undefined") return "light";
+    try {
+      return window.localStorage?.getItem?.("gh-theme") || "light";
+    } catch {
+      return "light";
+    }
+  });
   const shellHeaderRef = useRef(null);
   const searchRootRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.setAttribute("data-theme", theme);
+    try {
+      window.localStorage?.setItem?.("gh-theme", theme);
+    } catch {
+      /* ignore */
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const onKey = (event) => {
+      const modKey = event.metaKey || event.ctrlKey;
+      if (modKey && (event.key === "k" || event.key === "K")) {
+        event.preventDefault();
+        setCommandOpen((c) => !c);
+      } else if (event.key === "/" && !(document.activeElement?.tagName === "INPUT" || document.activeElement?.tagName === "TEXTAREA")) {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const hasRenderableLiveCatalog =
     (typeof liveCatalogVisibleCount === "number" && liveCatalogVisibleCount > 0) ||
     visibleAssetSet?.size > 0;
@@ -286,6 +322,44 @@ export default function AppFrame({
       ) : null}
 
       <main className="gh-main">{children}</main>
+
+      {/* #14 Floating theme toggle + #13 ⌘K hint pill in the bottom-right */}
+      <div className="gh-app-footer-controls">
+        <button
+          aria-label="Open command palette"
+          className="gh-cmdk-hint-pill"
+          onClick={() => setCommandOpen(true)}
+          title="Open command palette (⌘K)"
+          type="button"
+        >
+          <kbd>⌘</kbd>
+          <kbd>K</kbd>
+        </button>
+        <button
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          className="gh-theme-toggle"
+          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          type="button"
+        >
+          {theme === "dark" ? "☀" : "☾"}
+        </button>
+      </div>
+
+      {commandOpen ? (
+        <CommandPalette
+          assets={searchSeedAssets}
+          navigate={({ surface, fqn }) => {
+            setCommandOpen(false);
+            if (surface === "entity" && fqn) {
+              onSearchResultSelect?.(fqn);
+              return;
+            }
+            onModuleChange?.(surface);
+          }}
+          onClose={() => setCommandOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

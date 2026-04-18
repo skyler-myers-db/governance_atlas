@@ -5082,3 +5082,375 @@ button[class*="back-to-discovery"] {
   opacity: 0.45 !important;
   cursor: not-allowed !important;
 }
+
+/* ============================================================
+   Dark mode tokens (#14)
+   ============================================================ */
+:root[data-theme="dark"] {
+  --gh-bg: #0c1116;
+  --gh-surface: #151b23;
+  --gh-surface-muted: #1e252e;
+  --gh-border: #2b3440;
+  --gh-border-strong: #3e4a5a;
+  --gh-text: #e2e8f0;
+  --gh-text-muted: #94a3b8;
+  --gh-accent: #7c6bff;
+  --gh-accent-soft: #1f1c3d;
+  color-scheme: dark;
+}
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] .gh-app,
+:root[data-theme="dark"] .gh-workspace,
+:root[data-theme="dark"] .gh-discovery-shell { background: var(--gh-bg) !important; }
+:root[data-theme="dark"] .gh-shell-topbar,
+:root[data-theme="dark"] .gh-shell-commandbar,
+:root[data-theme="dark"] .gh-panel,
+:root[data-theme="dark"] .gh-surface-rail,
+:root[data-theme="dark"] .gh-surface-panel-section,
+:root[data-theme="dark"] .gh-entity-record-section,
+:root[data-theme="dark"] .gh-record-card,
+:root[data-theme="dark"] .gh-discovery-row,
+:root[data-theme="dark"] .gh-discovery-table,
+:root[data-theme="dark"] .gh-panel.gh-discovery-command-panel,
+:root[data-theme="dark"] .gh-shell-header {
+  background: var(--gh-surface) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+:root[data-theme="dark"] .gh-discovery-row-head,
+:root[data-theme="dark"] .gh-discovery-toolbar-shell,
+:root[data-theme="dark"] .gh-discovery-bulk-bar,
+:root[data-theme="dark"] .gh-activity-home,
+:root[data-theme="dark"] .gh-filter-strip,
+:root[data-theme="dark"] .gh-shell-commandbar { background: var(--gh-surface-muted) !important; }
+:root[data-theme="dark"] .gh-input,
+:root[data-theme="dark"] input.gh-input,
+:root[data-theme="dark"] input.gh-global-search-input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  background: var(--gh-surface-muted) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+:root[data-theme="dark"] .gh-labeled-pill,
+:root[data-theme="dark"] .gh-chip.gh-chip-soft,
+:root[data-theme="dark"] .gh-row-tag {
+  background: var(--gh-surface-muted) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+:root[data-theme="dark"] .gh-discovery-row:hover,
+:root[data-theme="dark"] .gh-service-tree-row:hover,
+:root[data-theme="dark"] .gh-discovery-row.is-selected {
+  background: var(--gh-accent-soft) !important;
+}
+:root[data-theme="dark"] .gh-icon-button,
+:root[data-theme="dark"] .gh-secondary-button {
+  background: var(--gh-surface) !important;
+  border-color: var(--gh-border) !important;
+  color: var(--gh-text) !important;
+}
+:root[data-theme="dark"] .gh-discovery-row {
+  border-bottom-color: var(--gh-border) !important;
+}
+
+/* ============================================================
+   Command palette (#13)
+   ============================================================ */
+.gh-cmdk-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 23, 0.55);
+  backdrop-filter: blur(6px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 10vh;
+  animation: gh-cmdk-fade 120ms ease-out;
+}
+@keyframes gh-cmdk-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.gh-cmdk {
+  width: min(640px, 92vw);
+  max-height: 70vh;
+  background: var(--gh-surface, #ffffff);
+  color: var(--gh-text, #14213d);
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: 10px;
+  box-shadow: 0 28px 62px rgba(10, 15, 23, 0.38), 0 1px 0 rgba(255,255,255,0.6) inset;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.gh-cmdk-input-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--gh-border, #d8dee9);
+  gap: 10px;
+}
+.gh-cmdk-prefix { color: var(--gh-text-muted, #5c6b82); font-weight: 700; }
+.gh-cmdk-input {
+  flex: 1 1 auto;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-size: 14px;
+  color: var(--gh-text, #14213d);
+}
+.gh-cmdk-hint {
+  font-size: 11px;
+  color: var(--gh-text-muted, #5c6b82);
+  background: var(--gh-surface-muted, #f3f6fb);
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--gh-border, #d8dee9);
+}
+.gh-cmdk-list { flex: 1 1 auto; overflow-y: auto; padding: 6px 0; }
+.gh-cmdk-group {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--gh-text-muted, #5c6b82);
+  padding: 8px 14px 4px;
+}
+.gh-cmdk-item {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 14px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+.gh-cmdk-item.is-active { background: var(--gh-accent-soft, #eef0ff); }
+.gh-cmdk-item-glyph { color: var(--gh-accent, #5b3ff2); display: inline-flex; align-items: center; justify-content: center; }
+.gh-cmdk-generic-glyph { font-size: 14px; }
+.gh-cmdk-item-text { display: flex; flex-direction: column; min-width: 0; }
+.gh-cmdk-item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gh-text, #14213d);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gh-cmdk-item-subtitle {
+  font-size: 11px;
+  color: var(--gh-text-muted, #5c6b82);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gh-cmdk-empty {
+  padding: 24px;
+  color: var(--gh-text-muted, #5c6b82);
+  text-align: center;
+  font-size: 13px;
+}
+.gh-cmdk-footer {
+  display: flex;
+  gap: 12px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--gh-border, #d8dee9);
+  font-size: 11px;
+  color: var(--gh-text-muted, #5c6b82);
+  background: var(--gh-surface-muted, #f3f6fb);
+}
+.gh-cmdk-footer-hint { display: inline-flex; align-items: center; gap: 4px; }
+.gh-cmdk kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: var(--gh-surface, #fff);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  min-width: 16px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ============================================================
+   Footer controls (theme toggle + ⌘K hint pill)
+   ============================================================ */
+.gh-app-footer-controls {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  z-index: 100;
+}
+.gh-cmdk-hint-pill {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: 20px;
+  background: var(--gh-surface, #fff);
+  font-size: 11px;
+  color: var(--gh-text-muted, #5c6b82);
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(20, 33, 61, 0.12);
+}
+.gh-cmdk-hint-pill:hover {
+  border-color: var(--gh-accent, #5b3ff2);
+  color: var(--gh-accent, #5b3ff2);
+}
+.gh-cmdk-hint-pill kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  font-size: 10px;
+  min-width: 14px;
+  background: var(--gh-surface-muted, #f3f6fb);
+}
+.gh-theme-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--gh-border, #d8dee9);
+  background: var(--gh-surface, #fff);
+  color: var(--gh-text, #14213d);
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(20, 33, 61, 0.12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.gh-theme-toggle:hover {
+  border-color: var(--gh-accent, #5b3ff2);
+  color: var(--gh-accent, #5b3ff2);
+}
+
+/* ============================================================
+   Screenshot-driven follow-up fixes (self-critique after tranche 2)
+   ============================================================ */
+
+/* Kill the Metadata Catalog marketing subtitle definitively — it is
+   rendered inside .gh-surface-header-body as plain copy text */
+.gh-surface-header-body,
+.gh-discovery-command-panel .gh-surface-header-body,
+.gh-surface-header-main + * .gh-surface-header-subtitle,
+.gh-surface-header-subtitle,
+.gh-discovery-command-panel .gh-surface-header-subtitle,
+.gh-discovery-command-panel > p,
+.gh-discovery-command-panel .gh-surface-header-title-block > p { display: none !important; }
+
+/* Force compact Metadata Catalog title (nuclear selectors to win the
+   cascade) */
+.gh-surface-header .gh-surface-header-title,
+.gh-discovery-command-panel .gh-surface-header-title,
+.gh-surface-header-title-block > h1,
+.gh-surface-header-title-block > h2,
+.gh-surface-header-title-block > h3,
+.gh-surface-header-title-block > .gh-surface-header-title {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  margin: 0 !important;
+  letter-spacing: -0.005em !important;
+}
+.gh-surface-header-title-block {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* Kill the SORT BY eyebrow — brute-force */
+.gh-discovery-toolbar-shell label[class*="label"],
+.gh-discovery-toolbar-shell [class*="sort-by"],
+.gh-discovery-toolbar-shell span[class*="sort-label"],
+.gh-discovery-toolbar-shell .gh-panel-title,
+.gh-discovery-toolbar-shell > label,
+.gh-discovery-toolbar-shell .gh-surface-rail-section-head,
+.gh-discovery-toolbar-shell [role="presentation"]:has(+ select),
+.gh-discovery-toolbar-shell [aria-hidden="true"]:has(+ select) { display: none !important; }
+
+/* Nuclear: any uppercase label inside the toolbar is stripped */
+.gh-discovery-toolbar-shell label {
+  display: none !important;
+}
+
+/* Add a prefix "Sort:" to the native select so the label intent still
+   reads. The input wrapper gets a ::before pseudo. */
+.gh-discovery-toolbar-shell select {
+  position: relative !important;
+}
+.gh-discovery-toolbar-shell select,
+.gh-discovery-toolbar-shell input[type="text"],
+.gh-discovery-toolbar-shell input[type="search"] {
+  background-image: none !important;
+}
+
+/* Force rail-action buttons into a single horizontal row */
+.gh-selection-preview .gh-surface-rail-actions,
+.gh-selection-preview .gh-action-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  grid-auto-rows: 28px !important;
+  gap: 6px !important;
+  padding: 8px 14px 10px !important;
+  margin: 0 !important;
+}
+.gh-selection-preview .gh-surface-rail-actions > *,
+.gh-selection-preview .gh-action-grid > * {
+  grid-row: 1 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  height: 28px !important;
+  min-height: 28px !important;
+}
+
+/* Fix asset-type chip wrapping ("Streaming / Table") — prevent wrap */
+.gh-discovery-row-type .gh-chip,
+.gh-discovery-row-type .gh-chip-soft {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100% !important;
+  min-height: 20px !important;
+  max-height: 20px !important;
+  padding: 1px 6px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 3px !important;
+}
+
+/* The header row is sticky; make sure it overlays the first result row
+   with opaque background so the first row isn't half-obscured */
+.gh-discovery-row-head {
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+  box-shadow: 0 1px 0 var(--gh-border, #d8dee9) !important;
+}
+
+/* Bulk bar sticky just under the header; kill any double-top shadow */
+.gh-discovery-bulk-bar { top: 36px !important; }
+
+/* Exact-class follow-up to hide marketing subtitle + sort label */
+.gh-discovery-results-copy,
+.gh-surface-header-extra,
+.gh-discovery-command-head .gh-discovery-results-copy,
+.gh-discovery-command-head .gh-surface-header-extra { display: none !important; }
+.gh-field-label,
+.gh-field-label-inline { display: none !important; }
