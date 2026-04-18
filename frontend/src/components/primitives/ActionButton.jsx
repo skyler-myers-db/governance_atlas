@@ -10,6 +10,20 @@ const VARIANT_CLASS = {
   subtab: "gh-subtab",
 };
 
+/**
+ * @param {{
+ *   variant?: "primary" | "secondary" | "tertiary" | "segment" | "subtab",
+ *   active?: boolean,
+ *   disabled?: boolean,
+ *   disabledReason?: string,
+ *   ariaDescribedBy?: string,
+ *   children?: import("react").ReactNode,
+ *   className?: string,
+ *   type?: "button" | "submit" | "reset",
+ *   title?: string,
+ *   onClick?: (event: import("react").MouseEvent<HTMLButtonElement>) => void,
+ * }} props
+ */
 export function ActionButton({
   variant = "secondary",
   active = false,

@@ -41,6 +41,18 @@ function renderMetaItem(item, index) {
   );
 }
 
+/**
+ * @param {{
+ *   eyebrow?: string,
+ *   title?: import("react").ReactNode,
+ *   identity?: import("react").ReactNode,
+ *   meta?: Array<unknown>,
+ *   actions?: import("react").ReactNode,
+ *   className?: string,
+ *   variant?: "standard" | "featured",
+ *   children?: import("react").ReactNode,
+ * }} props
+ */
 export function SurfaceHeader({
   eyebrow = "",
   title = "",
