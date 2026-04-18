@@ -935,9 +935,37 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 @app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, _exc: Exception):
-    if str(request.url.path).startswith("/api/"):
-        return JSONResponse({"detail": "Internal server error."}, status_code=500)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    # Log the root cause so operators can debug 500s. The response body
+    # surfaces the exception class + first line of the message (no
+    # traceback) so a FE developer can see why the call failed without
+    # needing workspace log access.
+    import logging
+    import traceback
+    logger = logging.getLogger("govhub")
+    logger.error("Unhandled %s on %s: %s", exc.__class__.__name__, request.url.path, exc)
+    logger.debug("Traceback:\n%s", traceback.format_exc())
+
+    # Map UC + SQL permission errors into a clean 403 so the FE can
+    # surface "you don't have MODIFY on this asset" rather than an
+    # opaque 500. The trigger phrase lives in the message.
+    message = str(exc) if exc else ""
+    lowered = message.lower()
+    path_is_api = str(request.url.path).startswith("/api/")
+    if "permission_denied" in lowered or "does not have" in lowered and ("modify" in lowered or "select" in lowered or "use" in lowered):
+        if path_is_api:
+            return JSONResponse(
+                {
+                    "detail": "You don't have write access to this asset. Ask a steward with MODIFY on this table to make the change.",
+                    "errorClass": "PermissionDenied",
+                    "raw": message.splitlines()[0][:400],
+                },
+                status_code=403,
+            )
+        return HTMLResponse("Permission denied.", status_code=403)
+    if path_is_api:
+        detail = f"{exc.__class__.__name__}: {message.splitlines()[0][:300]}" if message else exc.__class__.__name__
+        return JSONResponse({"detail": detail}, status_code=500)
     return HTMLResponse("Internal server error.", status_code=500)
 
 
