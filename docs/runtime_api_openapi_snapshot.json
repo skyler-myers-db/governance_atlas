@@ -370,6 +370,80 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/admin/export-jobs": {
+      "get": {
+        "description": "Admin-only list of recent export jobs for the diagnostics surface.\nUsed by Phase 4 Tranche 2 admin dashboard.",
+        "operationId": "api_admin_export_jobs_api_admin_export_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "actor_email",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actor Email"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Admin Export Jobs",
+        "tags": [
+          "export"
+        ]
+      }
+    },
     "/api/assets/availability": {
       "post": {
         "operationId": "api_asset_availability_api_assets_availability_post",
@@ -1126,6 +1200,47 @@
           }
         },
         "summary": "Api Export Assets",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/export/{job_id}/download": {
+      "get": {
+        "description": "Re-download a previously materialized export. Enforces:\n- actor-scoped auth\n- requester identity match\n- status == ready\n- not expired\n- token capture time not stale (>55 min)\nRe-materializes CSV on demand \u2014 artifact is not persisted, preserving\nthe no-raw-artifact rule and ensuring any intervening visibility\nchanges apply.",
+        "operationId": "api_export_job_download_api_export__job_id__download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Export Job Download",
         "tags": [
           "export"
         ]

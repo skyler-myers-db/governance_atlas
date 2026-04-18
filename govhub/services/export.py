@@ -161,3 +161,64 @@ def new_job_id() -> str:
 
 def expiry_for(requested_at: datetime, hours: int = EXPORT_TTL_HOURS) -> datetime:
     return requested_at + timedelta(hours=hours)
+
+
+def evaluate_download_request(
+    *,
+    actor_scoped: bool,
+    actor_email: str,
+    requester_email: str | None,
+    status: str | None,
+    expires_at: Any,
+    token_captured_at: Any,
+    now: datetime | None = None,
+) -> ExportDecision:
+    """Gate a re-download attempt against the original requester, current
+    status, expiry, and stale-auth clock. Pure function — no I/O."""
+    current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    if not actor_scoped:
+        return ExportDecision(
+            allowed=False,
+            status="failed",
+            reason=(
+                "Downloads require per-user authorization (OBO). Open the "
+                "Governance Hub in a user-authorized session."
+            ),
+        )
+    if not requester_email or (actor_email or "").lower() != requester_email.lower():
+        return ExportDecision(
+            allowed=False,
+            status="forbidden",
+            reason="Only the original requester can re-download this export.",
+        )
+    state = (status or "").lower()
+    if state != "ready":
+        return ExportDecision(
+            allowed=False,
+            status=state or "failed",
+            reason=(
+                "Export is not ready for download."
+                if state in {"", "queued", "materializing"}
+                else "This export is no longer available."
+            ),
+        )
+    expiry = _parse_ts(expires_at)
+    if expiry is not None and expiry <= current:
+        return ExportDecision(
+            allowed=False,
+            status="expired",
+            reason="Export artifact has expired; re-run the export.",
+        )
+    captured = _parse_ts(token_captured_at)
+    if captured is not None:
+        age = current - captured
+        if age.total_seconds() > STALE_AUTH_MINUTES * 60:
+            return ExportDecision(
+                allowed=False,
+                status="stale_auth",
+                reason=(
+                    "Authorization captured with this export has expired. "
+                    "Re-run the export from a fresh session."
+                ),
+            )
+    return ExportDecision(allowed=True, status="ready")
