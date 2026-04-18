@@ -184,6 +184,136 @@
         "title": "ColumnTagsPatch",
         "type": "object"
       },
+      "CustomPropertyAssignmentPayload": {
+        "properties": {
+          "columnName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Columnname"
+          },
+          "definitionId": {
+            "title": "Definitionid",
+            "type": "string"
+          },
+          "entityFqn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entityfqn"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "definitionId"
+        ],
+        "title": "CustomPropertyAssignmentPayload",
+        "type": "object"
+      },
+      "CustomPropertyDefinitionPayload": {
+        "properties": {
+          "changeSummary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changesummary"
+          },
+          "dataType": {
+            "title": "Datatype",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "displayName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Displayname"
+          },
+          "entityKind": {
+            "title": "Entitykind",
+            "type": "string"
+          },
+          "enumValues": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enumvalues"
+          },
+          "isMulti": {
+            "default": false,
+            "title": "Ismulti",
+            "type": "boolean"
+          },
+          "isRequired": {
+            "default": false,
+            "title": "Isrequired",
+            "type": "boolean"
+          },
+          "propertyKey": {
+            "title": "Propertykey",
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          }
+        },
+        "required": [
+          "entityKind",
+          "propertyKey",
+          "dataType"
+        ],
+        "title": "CustomPropertyDefinitionPayload",
+        "type": "object"
+      },
       "ExportAssetsRequest": {
         "properties": {
           "assetFqns": {
@@ -322,6 +452,71 @@
         "title": "OwnerAssignment",
         "type": "object"
       },
+      "QualityCustomSqlRequest": {
+        "properties": {
+          "allowedComparisons": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowedcomparisons"
+          },
+          "byteBudget": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytebudget"
+          },
+          "rowBudget": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rowbudget"
+          },
+          "sql": {
+            "title": "Sql",
+            "type": "string"
+          },
+          "targetEntityFqn": {
+            "title": "Targetentityfqn",
+            "type": "string"
+          },
+          "timeBudgetMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timebudgetms"
+          }
+        },
+        "required": [
+          "targetEntityFqn",
+          "sql"
+        ],
+        "title": "QualityCustomSqlRequest",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -370,6 +565,45 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/access-explain": {
+      "get": {
+        "operationId": "api_access_explainer_generic_api_access_explain_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "title": "Request"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Access Explainer Generic",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/admin/export-jobs": {
       "get": {
         "description": "Admin-only list of recent export jobs for the diagnostics surface.\nUsed by Phase 4 Tranche 2 admin dashboard.",
@@ -533,6 +767,47 @@
         "summary": "Api Asset Detail",
         "tags": [
           "assets"
+        ]
+      }
+    },
+    "/api/assets/{asset_fqn}/access-explain": {
+      "get": {
+        "description": "Phase 14 \u2014 \"Why can't I access this?\" explainer.\nReturns the auth mode, the actor's capability bundle, and a concrete\nremediation list. The asset FQN is optional context \u2014 this is\ndesigned to also work for generic auth diagnostics.",
+        "operationId": "api_access_explainer_api_assets__asset_fqn__access_explain_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Access Explainer",
+        "tags": [
+          "catalog"
         ]
       }
     },
@@ -713,6 +988,46 @@
         ]
       }
     },
+    "/api/assets/{asset_fqn}/custom-properties": {
+      "get": {
+        "operationId": "api_asset_custom_properties_api_assets__asset_fqn__custom_properties_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Asset Custom Properties",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/assets/{asset_fqn}/description": {
       "patch": {
         "operationId": "api_patch_asset_description_api_assets__asset_fqn__description_patch",
@@ -863,6 +1178,86 @@
         ]
       }
     },
+    "/api/assets/{asset_fqn}/profile": {
+      "get": {
+        "operationId": "api_asset_profile_api_assets__asset_fqn__profile_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Asset Profile",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/assets/{asset_fqn}/quality": {
+      "get": {
+        "operationId": "api_asset_quality_api_assets__asset_fqn__quality_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Asset Quality",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/assets/{asset_fqn}/tags": {
       "patch": {
         "operationId": "api_patch_asset_tags_api_assets__asset_fqn__tags_patch",
@@ -913,6 +1308,143 @@
         ]
       }
     },
+    "/api/audit/events": {
+      "get": {
+        "operationId": "api_audit_events_api_audit_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "actorEmail",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actoremail"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityFqn",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entityfqn"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityKind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entitykind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Audit Events",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/bootstrap": {
       "get": {
         "operationId": "api_bootstrap_api_bootstrap_get",
@@ -929,6 +1461,207 @@
         "summary": "Api Bootstrap",
         "tags": [
           "runtime"
+        ]
+      }
+    },
+    "/api/classifications": {
+      "get": {
+        "operationId": "api_list_classifications_api_classifications_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Api List Classifications",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/classifications/{classification_id}": {
+      "get": {
+        "operationId": "api_get_classification_api_classifications__classification_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "classification_id",
+            "required": true,
+            "schema": {
+              "title": "Classification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Get Classification",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/custom-properties/assignments": {
+      "post": {
+        "operationId": "api_upsert_custom_property_assignment_api_custom_properties_assignments_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomPropertyAssignmentPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Upsert Custom Property Assignment",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/custom-properties/definitions": {
+      "get": {
+        "operationId": "api_list_custom_property_definitions_api_custom_properties_definitions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "entityKind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entitykind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api List Custom Property Definitions",
+        "tags": [
+          "catalog"
+        ]
+      },
+      "post": {
+        "operationId": "api_create_custom_property_definition_api_custom_properties_definitions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomPropertyDefinitionPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Create Custom Property Definition",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/data-products": {
+      "get": {
+        "operationId": "api_list_data_products_api_data_products_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Api List Data Products",
+        "tags": [
+          "catalog"
         ]
       }
     },
@@ -1166,6 +1899,25 @@
         ]
       }
     },
+    "/api/domains": {
+      "get": {
+        "operationId": "api_list_domains_api_domains_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Api List Domains",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
     "/api/export/assets": {
       "post": {
         "operationId": "api_export_assets_api_export_assets_post",
@@ -1284,6 +2036,65 @@
         "summary": "Api Governance Audit Timeline",
         "tags": [
           "governance"
+        ]
+      }
+    },
+    "/api/governance/columns": {
+      "get": {
+        "operationId": "api_list_logical_column_groups_api_governance_columns_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Api List Logical Column Groups",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/governance/columns/{group_id}": {
+      "get": {
+        "operationId": "api_get_logical_column_group_api_governance_columns__group_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "title": "Group Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Get Logical Column Group",
+        "tags": [
+          "catalog"
         ]
       }
     },
@@ -1625,6 +2436,118 @@
         "summary": "Api Lineage",
         "tags": [
           "lineage"
+        ]
+      }
+    },
+    "/api/quality/custom-sql/validate": {
+      "post": {
+        "operationId": "api_quality_validate_custom_sql_api_quality_custom_sql_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QualityCustomSqlRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Quality Validate Custom Sql",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/quality/runs": {
+      "get": {
+        "operationId": "api_list_quality_runs_api_quality_runs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "entityFqn",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entityfqn"
+            }
+          },
+          {
+            "in": "query",
+            "name": "suiteId",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Suiteid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api List Quality Runs",
+        "tags": [
+          "catalog"
         ]
       }
     },

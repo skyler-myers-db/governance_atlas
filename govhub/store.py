@@ -2776,3 +2776,564 @@ WHERE request_id = {sql_literal(request_id)}""")
             detail=review_note,
         )
         self.refresh_governance_queue_projection(updated_by=reviewed_by)
+
+    # ------------------------------------------------------------------
+    # Phase 8 — custom properties
+    # ------------------------------------------------------------------
+    def insert_custom_property_definition(
+        self,
+        *,
+        definition_id: str,
+        entity_kind: str,
+        property_key: str,
+        display_name: str,
+        description: str | None,
+        data_type: str,
+        enum_values: list[str] | None,
+        is_required: bool,
+        is_multi: bool,
+        scope: dict | None,
+        created_by: str,
+    ) -> None:
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""INSERT INTO {self._fq('custom_property_definitions')} (
+    definition_id, entity_kind, property_key, display_name, description,
+    data_type, enum_values_json, is_required, is_multi, scope_json, state,
+    created_at, created_by, updated_at, updated_by
+) VALUES (
+    {sql_literal(definition_id)},
+    {sql_literal(entity_kind)},
+    {sql_literal(property_key)},
+    {sql_literal(display_name)},
+    {sql_literal(description)},
+    {sql_literal(data_type)},
+    {sql_literal(_json_text(enum_values)) if enum_values else 'NULL'},
+    {'TRUE' if is_required else 'FALSE'},
+    {'TRUE' if is_multi else 'FALSE'},
+    {sql_literal(_json_text(scope)) if scope else 'NULL'},
+    {sql_literal('active')},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(created_by)},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(created_by)}
+)"""
+        )
+
+    def insert_custom_property_definition_version(
+        self,
+        *,
+        version_id: str,
+        definition_id: str,
+        version_number: int,
+        snapshot_json: str,
+        change_summary: str | None,
+        recorded_by: str,
+    ) -> None:
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""INSERT INTO {self._fq('custom_property_definition_versions')} (
+    version_id, definition_id, version_number, snapshot_json,
+    change_summary, recorded_by, recorded_at
+) VALUES (
+    {sql_literal(version_id)},
+    {sql_literal(definition_id)},
+    {int(version_number)},
+    {sql_literal(snapshot_json)},
+    {sql_literal(change_summary)},
+    {sql_literal(recorded_by)},
+    timestamp({sql_literal(ts)})
+)"""
+        )
+
+    def list_custom_property_definitions(
+        self,
+        *,
+        entity_kind: str | None = None,
+        state: str | None = "active",
+    ) -> pd.DataFrame:
+        clauses: List[str] = []
+        if entity_kind:
+            clauses.append(f"entity_kind = {sql_literal(entity_kind)}")
+        if state:
+            clauses.append(f"state = {sql_literal(state)}")
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        return self.uc.query_df(
+            f"""SELECT definition_id, entity_kind, property_key, display_name, description,
+    data_type, enum_values_json, is_required, is_multi, scope_json, state,
+    created_at, created_by, updated_at, updated_by
+FROM {self._fq('custom_property_definitions')} {where}
+ORDER BY display_name ASC, definition_id ASC"""
+        )
+
+    def upsert_custom_property_assignment(
+        self,
+        *,
+        assignment_id: str,
+        definition_id: str,
+        definition_version: int,
+        entity_kind: str,
+        entity_fqn: str | None,
+        column_name: str | None,
+        value: Any,
+        actor_email: str,
+    ) -> None:
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""DELETE FROM {self._fq('custom_property_assignments')}
+WHERE definition_id = {sql_literal(definition_id)}
+  AND entity_kind = {sql_literal(entity_kind)}
+  AND COALESCE(entity_fqn, '') = {sql_literal(entity_fqn or '')}
+  AND COALESCE(column_name, '') = {sql_literal(column_name or '')}"""
+        )
+        self.uc.execute(
+            f"""INSERT INTO {self._fq('custom_property_assignments')} (
+    assignment_id, definition_id, definition_version, entity_kind,
+    entity_id, entity_fqn, column_name, value_json, source,
+    created_at, created_by, updated_at, updated_by
+) VALUES (
+    {sql_literal(assignment_id)},
+    {sql_literal(definition_id)},
+    {int(definition_version)},
+    {sql_literal(entity_kind)},
+    NULL,
+    {sql_literal(entity_fqn)},
+    {sql_literal(column_name)},
+    {sql_literal(_json_text(value))},
+    {sql_literal('manual')},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(actor_email)},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(actor_email)}
+)"""
+        )
+
+    def list_custom_property_assignments(
+        self,
+        *,
+        entity_fqn: str | None = None,
+        column_name: str | None = None,
+    ) -> pd.DataFrame:
+        clauses: List[str] = ["(a.removed_at IS NULL)"]
+        if entity_fqn:
+            clauses.append(f"a.entity_fqn = {sql_literal(entity_fqn)}")
+        if column_name is not None:
+            clauses.append(f"COALESCE(a.column_name, '') = {sql_literal(column_name)}")
+        where = f"WHERE {' AND '.join(clauses)}"
+        return self.uc.query_df(
+            f"""SELECT a.assignment_id, a.definition_id, a.definition_version,
+    a.entity_kind, a.entity_fqn, a.column_name, a.value_json,
+    a.created_at, a.created_by, a.updated_at, a.updated_by,
+    d.property_key, d.display_name, d.data_type, d.is_multi
+FROM {self._fq('custom_property_assignments')} a
+LEFT JOIN {self._fq('custom_property_definitions')} d
+    ON d.definition_id = a.definition_id
+{where}
+ORDER BY d.display_name ASC"""
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 8 — profile runs and metrics
+    # ------------------------------------------------------------------
+    def insert_profile_run(
+        self,
+        *,
+        profile_run_id: str,
+        entity_kind: str,
+        entity_fqn: str,
+        trigger: str,
+        status: str,
+        sample_strategy: str | None,
+        sample_rows: int | None,
+        created_by: str,
+        notes: str | None = None,
+    ) -> None:
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""INSERT INTO {self._fq('profile_runs')} (
+    profile_run_id, entity_kind, entity_id, entity_fqn, trigger, status,
+    sample_strategy, sample_rows, started_at, finished_at, error_detail,
+    notes, created_at, created_by
+) VALUES (
+    {sql_literal(profile_run_id)},
+    {sql_literal(entity_kind)},
+    NULL,
+    {sql_literal(entity_fqn)},
+    {sql_literal(trigger)},
+    {sql_literal(status)},
+    {sql_literal(sample_strategy)},
+    {'NULL' if sample_rows is None else int(sample_rows)},
+    timestamp({sql_literal(ts)}),
+    NULL,
+    NULL,
+    {sql_literal(notes)},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(created_by)}
+)"""
+        )
+
+    def finalize_profile_run(
+        self,
+        *,
+        profile_run_id: str,
+        status: str,
+        error_detail: str | None = None,
+    ) -> None:
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""UPDATE {self._fq('profile_runs')}
+SET status = {sql_literal(status)},
+    finished_at = timestamp({sql_literal(ts)}),
+    error_detail = {sql_literal(error_detail)}
+WHERE profile_run_id = {sql_literal(profile_run_id)}"""
+        )
+
+    def insert_profile_table_metric(
+        self,
+        *,
+        profile_run_id: str,
+        entity_fqn: str,
+        row_count: int | None,
+        size_bytes: int | None,
+        partition_count: int | None,
+        distinct_keys: int | None,
+        detail: dict | None,
+    ) -> None:
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""INSERT INTO {self._fq('profile_table_metrics')} (
+    metric_id, profile_run_id, entity_fqn, row_count, size_bytes,
+    partition_count, distinct_keys, observed_at, detail_json
+) VALUES (
+    {sql_literal(uuid.uuid4().hex)},
+    {sql_literal(profile_run_id)},
+    {sql_literal(entity_fqn)},
+    {'NULL' if row_count is None else int(row_count)},
+    {'NULL' if size_bytes is None else int(size_bytes)},
+    {'NULL' if partition_count is None else int(partition_count)},
+    {'NULL' if distinct_keys is None else int(distinct_keys)},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(_json_text(detail)) if detail is not None else 'NULL'}
+)"""
+        )
+
+    def insert_profile_column_metric(
+        self,
+        *,
+        profile_run_id: str,
+        entity_fqn: str,
+        column_name: str,
+        data_type: str | None,
+        null_count: int | None,
+        null_fraction: float | None,
+        distinct_count: int | None,
+        distinct_fraction: float | None,
+        min_value: str | None,
+        max_value: str | None,
+        mean_value: float | None,
+        stddev_value: float | None,
+        quantiles: list | None,
+        top_values: list | None,
+        detail: dict | None,
+    ) -> None:
+        def _num(val):
+            return 'NULL' if val is None else str(float(val))
+        def _int(val):
+            return 'NULL' if val is None else str(int(val))
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""INSERT INTO {self._fq('profile_column_metrics')} (
+    metric_id, profile_run_id, entity_fqn, column_name, data_type,
+    null_count, null_fraction, distinct_count, distinct_fraction,
+    min_value, max_value, mean_value, stddev_value,
+    quantiles_json, top_values_json, observed_at, detail_json
+) VALUES (
+    {sql_literal(uuid.uuid4().hex)},
+    {sql_literal(profile_run_id)},
+    {sql_literal(entity_fqn)},
+    {sql_literal(column_name)},
+    {sql_literal(data_type)},
+    {_int(null_count)},
+    {_num(null_fraction)},
+    {_int(distinct_count)},
+    {_num(distinct_fraction)},
+    {sql_literal(min_value)},
+    {sql_literal(max_value)},
+    {_num(mean_value)},
+    {_num(stddev_value)},
+    {sql_literal(_json_text(quantiles)) if quantiles is not None else 'NULL'},
+    {sql_literal(_json_text(top_values)) if top_values is not None else 'NULL'},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(_json_text(detail)) if detail is not None else 'NULL'}
+)"""
+        )
+
+    def latest_profile_run_for_entity(self, entity_fqn: str) -> dict | None:
+        frame = self.uc.query_df(
+            f"""SELECT profile_run_id, entity_kind, entity_fqn, trigger, status,
+    sample_strategy, sample_rows, started_at, finished_at, error_detail,
+    notes, created_by
+FROM {self._fq('profile_runs')}
+WHERE entity_fqn = {sql_literal(entity_fqn)}
+ORDER BY started_at DESC, profile_run_id DESC
+LIMIT 1"""
+        )
+        if frame is None or frame.empty:
+            return None
+        return frame.iloc[0].to_dict()
+
+    def profile_table_metrics_for_run(self, profile_run_id: str) -> pd.DataFrame:
+        return self.uc.query_df(
+            f"""SELECT metric_id, profile_run_id, entity_fqn, row_count, size_bytes,
+    partition_count, distinct_keys, observed_at, detail_json
+FROM {self._fq('profile_table_metrics')}
+WHERE profile_run_id = {sql_literal(profile_run_id)}
+ORDER BY observed_at DESC"""
+        )
+
+    def profile_column_metrics_for_run(self, profile_run_id: str) -> pd.DataFrame:
+        return self.uc.query_df(
+            f"""SELECT metric_id, profile_run_id, entity_fqn, column_name, data_type,
+    null_count, null_fraction, distinct_count, distinct_fraction,
+    min_value, max_value, mean_value, stddev_value,
+    quantiles_json, top_values_json, observed_at, detail_json
+FROM {self._fq('profile_column_metrics')}
+WHERE profile_run_id = {sql_literal(profile_run_id)}
+ORDER BY column_name ASC"""
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 10 — quality core
+    # ------------------------------------------------------------------
+    def insert_quality_run(
+        self,
+        *,
+        run_id: str,
+        suite_id: str | None,
+        trigger: str,
+        status: str,
+        row_budget: int | None,
+        byte_budget: int | None,
+        time_budget_ms: int | None,
+        summary: dict | None,
+        created_by: str,
+    ) -> None:
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""INSERT INTO {self._fq('quality_runs')} (
+    run_id, suite_id, trigger, status, started_at, finished_at,
+    row_budget, byte_budget, time_budget_ms, error_detail, summary_json,
+    created_at, created_by
+) VALUES (
+    {sql_literal(run_id)},
+    {sql_literal(suite_id)},
+    {sql_literal(trigger)},
+    {sql_literal(status)},
+    timestamp({sql_literal(ts)}),
+    NULL,
+    {'NULL' if row_budget is None else int(row_budget)},
+    {'NULL' if byte_budget is None else int(byte_budget)},
+    {'NULL' if time_budget_ms is None else int(time_budget_ms)},
+    NULL,
+    {sql_literal(_json_text(summary)) if summary else 'NULL'},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(created_by)}
+)"""
+        )
+
+    def insert_quality_run_result(
+        self,
+        *,
+        result_id: str,
+        run_id: str,
+        case_id: str,
+        entity_fqn: str | None,
+        column_name: str | None,
+        outcome: str,
+        severity: str | None,
+        metric_value: float | None,
+        threshold_value: float | None,
+        evidence: dict | None,
+        statement_id: str | None,
+        row_bytes_scanned: int | None,
+        detail: str | None,
+    ) -> None:
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""INSERT INTO {self._fq('quality_run_results')} (
+    result_id, run_id, case_id, entity_fqn, column_name, outcome, severity,
+    metric_value, threshold_value, evidence_json, statement_id,
+    row_bytes_scanned, executed_at, detail
+) VALUES (
+    {sql_literal(result_id)},
+    {sql_literal(run_id)},
+    {sql_literal(case_id)},
+    {sql_literal(entity_fqn)},
+    {sql_literal(column_name)},
+    {sql_literal(outcome)},
+    {sql_literal(severity)},
+    {'NULL' if metric_value is None else str(float(metric_value))},
+    {'NULL' if threshold_value is None else str(float(threshold_value))},
+    {sql_literal(_json_text(evidence)) if evidence else 'NULL'},
+    {sql_literal(statement_id)},
+    {'NULL' if row_bytes_scanned is None else int(row_bytes_scanned)},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(detail)}
+)"""
+        )
+
+    def list_quality_runs(
+        self,
+        *,
+        entity_fqn: str | None = None,
+        suite_id: str | None = None,
+        limit: int = 50,
+    ) -> pd.DataFrame:
+        clauses: List[str] = []
+        if suite_id:
+            clauses.append(f"r.suite_id = {sql_literal(suite_id)}")
+        select_from = (
+            f"SELECT r.run_id, r.suite_id, r.trigger, r.status, r.started_at, "
+            f"r.finished_at, r.row_budget, r.summary_json FROM {self._fq('quality_runs')} r"
+        )
+        if entity_fqn:
+            select_from += (
+                f" WHERE EXISTS (SELECT 1 FROM {self._fq('quality_run_results')} rr "
+                f"WHERE rr.run_id = r.run_id AND rr.entity_fqn = {sql_literal(entity_fqn)})"
+            )
+            if clauses:
+                select_from += " AND " + " AND ".join(clauses)
+        elif clauses:
+            select_from += " WHERE " + " AND ".join(clauses)
+        return self.uc.query_df(
+            f"{select_from} ORDER BY r.started_at DESC, r.run_id DESC LIMIT {int(limit)}"
+        )
+
+    def list_quality_run_results(
+        self,
+        *,
+        entity_fqn: str | None = None,
+        run_id: str | None = None,
+        limit: int = 200,
+    ) -> pd.DataFrame:
+        clauses: List[str] = []
+        if run_id:
+            clauses.append(f"run_id = {sql_literal(run_id)}")
+        if entity_fqn:
+            clauses.append(f"entity_fqn = {sql_literal(entity_fqn)}")
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        return self.uc.query_df(
+            f"""SELECT result_id, run_id, case_id, entity_fqn, column_name,
+    outcome, severity, metric_value, threshold_value, evidence_json,
+    statement_id, row_bytes_scanned, executed_at, detail
+FROM {self._fq('quality_run_results')} {where}
+ORDER BY executed_at DESC, result_id ASC
+LIMIT {int(limit)}"""
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 11 — classifications / domains / data products / column groups
+    # ------------------------------------------------------------------
+    def list_classifications(self) -> pd.DataFrame:
+        return self.uc.query_df(
+            f"""SELECT c.classification_id, c.display_name, c.description, c.color,
+    c.is_system, c.state, c.created_at, c.updated_at,
+    (SELECT count(*) FROM {self._fq('classification_terms')} t
+        WHERE t.classification_id = c.classification_id AND COALESCE(t.state, 'active') = 'active') AS term_count
+FROM {self._fq('classifications')} c
+WHERE COALESCE(c.state, 'active') = 'active'
+ORDER BY c.display_name ASC"""
+        )
+
+    def list_classification_terms(self, classification_id: str) -> pd.DataFrame:
+        return self.uc.query_df(
+            f"""SELECT term_id, classification_id, parent_term_id, display_name,
+    description, sensitivity_level, is_system, state, created_at, updated_at
+FROM {self._fq('classification_terms')}
+WHERE classification_id = {sql_literal(classification_id)}
+  AND COALESCE(state, 'active') = 'active'
+ORDER BY display_name ASC"""
+        )
+
+    def list_domains(self) -> pd.DataFrame:
+        return self.uc.query_df(
+            f"""SELECT domain_id, display_name, description, parent_domain_id,
+    owner_entry_id, color, state, created_at, updated_at
+FROM {self._fq('domains')}
+WHERE COALESCE(state, 'active') = 'active'
+ORDER BY display_name ASC"""
+        )
+
+    def list_data_products(self) -> pd.DataFrame:
+        return self.uc.query_df(
+            f"""SELECT dp.data_product_id, dp.display_name, dp.description, dp.domain_id,
+    dp.owner_entry_id, dp.contact_email, dp.slo_description, dp.state,
+    dp.created_at, dp.updated_at,
+    (SELECT count(*) FROM {self._fq('data_product_members')} m
+        WHERE m.data_product_id = dp.data_product_id) AS member_count
+FROM {self._fq('data_products')} dp
+WHERE dp.state IS NULL OR dp.state != 'retired'
+ORDER BY dp.display_name ASC"""
+        )
+
+    def list_logical_column_groups(self) -> pd.DataFrame:
+        return self.uc.query_df(
+            f"""SELECT g.group_id, g.display_name, g.description, g.match_rule_json,
+    g.confidence, g.last_reviewed_at, g.last_reviewed_by, g.state,
+    (SELECT count(*) FROM {self._fq('logical_column_group_members')} m
+        WHERE m.group_id = g.group_id) AS member_count
+FROM {self._fq('logical_column_groups')} g
+WHERE COALESCE(g.state, 'active') = 'active'
+ORDER BY g.display_name ASC"""
+        )
+
+    def get_logical_column_group(self, group_id: str) -> pd.DataFrame:
+        return self.uc.query_df(
+            f"""SELECT g.group_id, g.display_name, g.description, g.match_rule_json,
+    g.confidence, g.last_reviewed_at, g.last_reviewed_by, g.state,
+    m.membership_id, m.entity_fqn, m.column_name, m.column_data_type,
+    m.current_description, m.current_tags_json, m.current_glossary_term_id,
+    m.match_confidence, m.last_seen_at
+FROM {self._fq('logical_column_groups')} g
+LEFT JOIN {self._fq('logical_column_group_members')} m
+    ON m.group_id = g.group_id
+WHERE g.group_id = {sql_literal(group_id)}
+ORDER BY m.entity_fqn ASC, m.column_name ASC"""
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 13 — cross-entity audit browser
+    # ------------------------------------------------------------------
+    def list_audit_events(
+        self,
+        *,
+        actor_email: str | None = None,
+        entity_fqn: str | None = None,
+        entity_kind: str | None = None,
+        action: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
+        limit: int = 200,
+    ) -> pd.DataFrame:
+        clauses: List[str] = []
+        if actor_email:
+            clauses.append(f"actor_email = {sql_literal(actor_email)}")
+        if entity_fqn:
+            clauses.append(f"entity_fqn = {sql_literal(entity_fqn)}")
+        if entity_kind:
+            clauses.append(f"entity_type = {sql_literal(entity_kind)}")
+        if action:
+            clauses.append(f"action = {sql_literal(action)}")
+        if since:
+            clauses.append(f"created_at >= timestamp({sql_literal(since)})")
+        if until:
+            clauses.append(f"created_at <= timestamp({sql_literal(until)})")
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        return self.uc.query_df(
+            f"""SELECT audit_id, entity_type, entity_id, entity_fqn, column_name,
+    action, source, status, before_json, after_json, actor_email, actor_role,
+    detail, created_at
+FROM {self._fq('metadata_audit_log')} {where}
+ORDER BY created_at DESC, audit_id DESC
+LIMIT {int(limit)}"""
+        )
