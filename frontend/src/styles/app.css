@@ -4726,3 +4726,359 @@ button[class*="back-to-discovery"] {
   display: inline-flex !important;
   align-items: center !important;
 }
+
+/* ============================================================
+   OM-killer polish tranche (items 1, 2, 4, 5, 6, 7, 12)
+   ============================================================ */
+
+/* Universal text-truncation helper — ellipsis + tooltip */
+.gh-truncate {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  min-width: 0 !important;
+  max-width: 100%;
+  display: block;
+}
+
+/* #1 Right-rail title — force ellipsis so asset FQNs never wrap mid-word */
+.gh-surface-rail .gh-surface-rail-title,
+.gh-surface-rail .gh-surface-rail-title-row h3,
+.gh-surface-rail h3 {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.005em !important;
+}
+.gh-surface-rail .gh-surface-rail-title-row {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+.gh-surface-rail .gh-surface-rail-title-block {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+.gh-surface-rail-identity,
+.gh-surface-rail .gh-support-copy {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* #2 Replace "Still loading live metadata..." banner with a 2px top bar */
+.gh-shell-progress {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 2px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+  border: 0 !important;
+  z-index: 1000 !important;
+  display: block !important;
+  grid-template-columns: none !important;
+}
+.gh-shell-progress-bar {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  height: 2px !important;
+  width: 40% !important;
+  background: linear-gradient(90deg, transparent 0%, var(--gh-accent, #5b3ff2) 50%, transparent 100%) !important;
+  animation: gh-progress-slide 1.4s linear infinite !important;
+  border-radius: 0 !important;
+}
+.gh-shell-progress-copy {
+  position: absolute !important;
+  top: 2px !important;
+  right: 20px !important;
+  font-size: 10px !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  padding: 2px 8px !important;
+  border-radius: 0 0 4px 4px !important;
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border-top: 0 !important;
+  line-height: 1.2 !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+}
+@keyframes gh-progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+/* #4 Trim Metadata Catalog heading and hide the marketing subtitle */
+.gh-discovery-command-panel .gh-surface-header-title-block h2,
+.gh-surface-header .gh-surface-header-title-block h1,
+.gh-surface-header .gh-surface-header-title-block h2,
+.gh-surface-header-title {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.005em !important;
+  margin: 0 !important;
+}
+.gh-surface-header .gh-eyebrow,
+.gh-discovery-command-head .gh-eyebrow { display: none !important; }
+.gh-discovery-command-panel .gh-surface-header-identity,
+.gh-discovery-command-panel .gh-surface-header-body {
+  display: none !important;
+}
+
+/* #5 Inline "Sort: Best match" — collapse the big SORT BY eyebrow row */
+.gh-discovery-toolbar-shell .gh-toolbar-sort-label,
+.gh-discovery-toolbar-shell [class*="sort-label"],
+.gh-discovery-toolbar-shell .gh-eyebrow,
+.gh-discovery-toolbar-shell label[class*="sort"] {
+  display: none !important;
+}
+.gh-discovery-toolbar-shell {
+  padding: 8px 14px !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+.gh-discovery-toolbar-shell > * { margin: 0 !important; }
+.gh-discovery-toolbar-shell select,
+.gh-discovery-toolbar-shell input[type="text"],
+.gh-discovery-toolbar-shell input[type="search"] {
+  height: 30px !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+  border-radius: 4px !important;
+}
+
+/* #6 Muted OWNER pill when universal (not alarming yellow everywhere) */
+.gh-labeled-pill-warn {
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+  border-color: var(--gh-border, #d8dee9) !important;
+}
+.gh-labeled-pill-warn .gh-labeled-pill-value {
+  color: var(--gh-text-muted, #5c6b82) !important;
+  font-weight: 500 !important;
+}
+/* Only apply warning tone when row has severe needs-work (not when
+   every row is in the same state — which becomes noise) */
+.gh-discovery-row.has-critical-gap .gh-labeled-pill-warn {
+  background: #fdf4e5 !important;
+  border-color: #e8cb9d !important;
+}
+.gh-discovery-row.has-critical-gap .gh-labeled-pill-warn .gh-labeled-pill-value {
+  color: #b54708 !important;
+}
+
+/* #7 Labeled pill hierarchy — tiny uppercase label, normal value */
+.gh-labeled-pill {
+  padding: 2px 6px !important;
+  gap: 6px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+}
+.gh-labeled-pill-label {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  opacity: 0.7 !important;
+  flex: 0 0 auto !important;
+}
+.gh-labeled-pill-value {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: var(--gh-text, #14213d) !important;
+  line-height: 1.2 !important;
+}
+.gh-labeled-pill-unassigned .gh-labeled-pill-value {
+  color: var(--gh-text-muted, #5c6b82) !important;
+  font-weight: 400 !important;
+}
+
+/* Needs-work hierarchy flip: severity-count big, gap-text muted */
+.gh-row-gaps {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+.gh-row-gap-count {
+  width: 18px !important;
+  height: 18px !important;
+  padding: 0 !important;
+  background: #fdeeec !important;
+  color: #b42318 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+}
+.gh-row-gap-text {
+  font-size: 11px !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  font-weight: 500 !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gh-row-gap-more {
+  font-size: 10px !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  opacity: 0.7 !important;
+}
+
+/* #12 Shimmer skeletons on loading rows */
+@keyframes gh-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.gh-skeleton-row {
+  display: grid !important;
+  grid-template-columns: 64px minmax(220px, 2fr) 96px minmax(120px, 1fr) minmax(100px, 0.9fr) minmax(120px, 1fr) minmax(140px, 1fr) minmax(80px, 0.6fr) 72px;
+  gap: 8px;
+  padding: 0 12px;
+  min-height: 48px;
+  align-items: center;
+  border-bottom: 1px solid var(--gh-border, #d8dee9);
+}
+.gh-skeleton-cell {
+  background: linear-gradient(90deg, #eef2f7 0%, #f6f9fc 50%, #eef2f7 100%);
+  background-size: 800px 100%;
+  height: 14px;
+  border-radius: 3px;
+  animation: gh-shimmer 1.4s linear infinite;
+}
+.gh-skeleton-cell-narrow { height: 12px; }
+
+/* Active-filter chip row (#9) */
+.gh-filter-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px 14px;
+  background: #fafbfd;
+  border-bottom: 1px solid var(--gh-border, #d8dee9);
+  min-height: 36px;
+}
+.gh-filter-chip-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gh-text-muted, #5c6b82);
+  font-weight: 700;
+  margin-right: 4px;
+}
+.gh-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 8px;
+  background: var(--gh-accent-soft, #eef0ff);
+  border: 1px solid rgba(91, 67, 238, 0.3);
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gh-accent, #5b3ff2);
+  cursor: pointer;
+}
+.gh-filter-chip:hover {
+  background: rgba(91, 67, 238, 0.14);
+}
+.gh-filter-chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  opacity: 0.6;
+  font-size: 11px;
+}
+.gh-filter-chip:hover .gh-filter-chip-x { opacity: 1; }
+.gh-filter-chip-clear-all {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--gh-text-muted, #5c6b82);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 2px 4px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* #8 Breadcrumb on Discovery */
+.gh-discovery-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 0;
+  font-size: 12px;
+  color: var(--gh-text-muted, #5c6b82);
+}
+.gh-discovery-breadcrumb-sep { color: var(--gh-border-strong, #b8c2d3); }
+.gh-discovery-breadcrumb-home {
+  color: var(--gh-accent, #5b3ff2);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.gh-discovery-breadcrumb-home:hover { text-decoration: underline; }
+.gh-discovery-breadcrumb-seg {
+  color: var(--gh-text, #14213d);
+  font-weight: 500;
+}
+.gh-discovery-breadcrumb-current { font-weight: 700; }
+
+/* #3 Selection-preview action row — compact horizontal buttons, not giant pills */
+.gh-selection-preview .gh-surface-rail-actions,
+.gh-selection-preview .gh-action-grid {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 6px !important;
+  padding: 0 14px 10px !important;
+  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  margin-top: 8px !important;
+  grid-template-columns: none !important;
+}
+.gh-selection-preview .gh-surface-rail-actions .gh-secondary-button,
+.gh-selection-preview .gh-action-grid .gh-secondary-button,
+.gh-selection-preview .gh-surface-rail-actions button,
+.gh-selection-preview .gh-action-grid button {
+  flex: 1 1 auto !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  background: #ffffff !important;
+  color: var(--gh-text, #14213d) !important;
+  box-shadow: none !important;
+  line-height: 1 !important;
+}
+.gh-selection-preview .gh-surface-rail-actions .gh-secondary-button:hover:not(:disabled),
+.gh-selection-preview .gh-action-grid button:hover:not(:disabled) {
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+  border-color: var(--gh-border-strong, #b8c2d3) !important;
+}
+.gh-selection-preview .gh-surface-rail-actions .gh-secondary-button:disabled,
+.gh-selection-preview .gh-action-grid button:disabled {
+  opacity: 0.45 !important;
+  cursor: not-allowed !important;
+}
