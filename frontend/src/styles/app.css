@@ -4051,3 +4051,326 @@ and single-line
 
 /* Page root shouldn't have the heavy pale-blue gradient behind the compact bars */
 body { background: var(--gh-bg, #f7f9fc) !important; }
+
+/* ---- Shell overhaul tranche 2: fix nav order + left-rail eyebrow clipping ---- */
+.gh-shell-nav-band {
+  flex-direction: row !important;
+  justify-content: space-between !important;
+}
+.gh-shell-nav-band-head {
+  order: 2 !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  justify-content: flex-end !important;
+}
+.gh-shell-nav {
+  order: 1 !important;
+  margin-right: auto !important;
+}
+
+/* ---- Sidebar card (Browse Asset Types and Filters) — strip the heavy SurfaceRail chrome ---- */
+.gh-discovery-sidebar.gh-surface-rail {
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
+  padding: 0 !important;
+  max-height: calc(100vh - 140px) !important;
+  overflow: hidden auto !important;
+}
+.gh-discovery-sidebar .gh-surface-rail-header {
+  padding: 14px 14px 10px !important;
+  gap: 4px !important;
+}
+.gh-discovery-sidebar .gh-surface-rail-header-eyebrow {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  display: inline-block !important;
+  align-self: flex-start !important;
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+}
+.gh-discovery-sidebar .gh-surface-rail-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+}
+.gh-discovery-sidebar .gh-surface-rail-identity {
+  font-size: 12px !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  line-height: 1.4 !important;
+}
+
+/* ---- Right rail Preview/Selected Asset card ---- */
+.gh-selection-preview.gh-surface-rail {
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
+  padding: 0 !important;
+}
+.gh-selection-preview .gh-surface-rail-header {
+  padding: 14px 14px 10px !important;
+}
+.gh-selection-preview .gh-surface-rail-header-eyebrow {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+}
+.gh-selection-preview .gh-surface-rail-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+/* ---- Discovery results toolbar — anchor inside the results card ---- */
+.gh-discovery-results-toolbar {
+  padding: 10px 14px !important;
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  margin: 0 !important;
+  border-radius: 6px 6px 0 0 !important;
+}
+
+/* ---- Metadata Catalog card — kill the pop-out shadow + accent bar ---- */
+.gh-discovery-results.gh-surface-panel-section {
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+.gh-discovery-results .gh-surface-panel-section-head,
+.gh-surface-panel-section > .gh-surface-panel-section-head {
+  padding: 14px 16px !important;
+  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  margin: 0 !important;
+  background: #ffffff !important;
+}
+
+/* Workspace background — no big gradient */
+.gh-app, .gh-workspace, body { background: var(--gh-bg, #f7f9fc) !important; }
+
+/* ---- Shell overhaul tranche 3 — correct rail class names + kill purple accent bars ---- */
+.gh-surface-rail,
+.gh-surface-panel-section,
+.gh-record-card,
+.gh-entity-record-section {
+  position: relative;
+}
+.gh-surface-rail::before,
+.gh-surface-panel-section::before,
+.gh-record-card::before,
+.gh-entity-record-section::before,
+.gh-surface-header::before {
+  display: none !important;
+  content: none !important;
+}
+
+/* Rail head (sidebar + preview) */
+.gh-discovery-sidebar .gh-surface-rail-head,
+.gh-selection-preview .gh-surface-rail-head {
+  padding: 12px 14px !important;
+  gap: 4px !important;
+  border-bottom: 1px solid var(--gh-border, #d8dee9);
+}
+.gh-discovery-sidebar .gh-eyebrow,
+.gh-selection-preview .gh-eyebrow {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+.gh-discovery-sidebar h3,
+.gh-selection-preview h3,
+.gh-surface-rail-title-row h3 {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  margin: 0 !important;
+  letter-spacing: -0.005em !important;
+}
+.gh-discovery-sidebar .gh-support-copy,
+.gh-selection-preview .gh-support-copy {
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+}
+
+/* Metadata Catalog (results) header */
+.gh-surface-header {
+  padding: 12px 14px !important;
+  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  background: #ffffff !important;
+  margin: 0 !important;
+  border-radius: 6px 6px 0 0 !important;
+}
+.gh-surface-header-title-block .gh-eyebrow,
+.gh-surface-header .gh-eyebrow {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  background: transparent !important;
+  padding: 0 !important;
+  border: 0 !important;
+}
+.gh-surface-header-title-block h2,
+.gh-surface-header-title-block h1 {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+  letter-spacing: -0.005em !important;
+}
+.gh-surface-header-identity {
+  font-size: 12px !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  line-height: 1.4 !important;
+}
+
+/* Sidebar category rows — compact */
+.gh-discovery-sidebar .gh-category-row,
+.gh-discovery-sidebar .gh-saved-view {
+  padding: 6px 10px !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  border: 0 !important;
+  font-size: 13px !important;
+  min-height: 28px !important;
+}
+.gh-discovery-sidebar .gh-category-row:hover,
+.gh-discovery-sidebar .gh-saved-view:hover {
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+}
+.gh-discovery-sidebar .gh-category-row.is-active,
+.gh-discovery-sidebar .gh-saved-view.is-active {
+  background: var(--gh-accent-soft, #eef0ff) !important;
+  color: var(--gh-accent, #5b3ff2) !important;
+  font-weight: 600 !important;
+}
+
+/* Discovery sub-section titles */
+.gh-discovery-sidebar .gh-panel-title,
+.gh-discovery-sidebar [class*="section-title"],
+.gh-discovery-sidebar .gh-discovery-sidebar-section > h4,
+.gh-discovery-sidebar .gh-surface-rail-section-head {
+  padding: 10px 14px 4px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+}
+.gh-discovery-sidebar .gh-category-list,
+.gh-discovery-sidebar .gh-saved-view-list {
+  padding: 0 6px 6px !important;
+  gap: 2px !important;
+}
+
+/* Empty preview state in right rail */
+.gh-selection-preview .gh-empty-state,
+.gh-selection-preview .gh-empty-state-block {
+  margin: 12px 14px !important;
+  padding: 16px !important;
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+  border: 1px dashed var(--gh-border, #d8dee9) !important;
+  border-radius: 6px !important;
+  text-align: center !important;
+}
+
+/* Catch-all: sever gradients on shell sections so they look flat */
+.gh-shell-brand-band,
+.gh-shell-nav-band,
+.gh-discovery-command-panel,
+.gh-shell-commandbar {
+  background: inherit !important;
+}
+.gh-discovery-command-panel::before,
+.gh-discovery-command-panel::after {
+  display: none !important;
+  content: none !important;
+}
+.gh-shell-commandbar::before,
+.gh-shell-commandbar::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* Global gradient background off */
+body, .gh-app, .gh-workspace, .gh-discovery-shell {
+  background: var(--gh-bg, #f7f9fc) !important;
+  background-image: none !important;
+}
+
+/* ---- Shell overhaul tranche 4: kill discovery-command-panel chrome + featured header accents ---- */
+.gh-panel.gh-discovery-command-panel {
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
+  padding: 0 !important;
+}
+.gh-panel.gh-discovery-command-panel::before,
+.gh-panel.gh-discovery-command-panel::after,
+.gh-surface-header.is-featured::before,
+.gh-surface-header.is-featured::after,
+.gh-surface-header-main::before,
+.gh-surface-header-main::after {
+  display: none !important;
+  content: none !important;
+}
+.gh-surface-header.is-featured,
+.gh-discovery-command-head {
+  background: #ffffff !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  border-radius: 6px 6px 0 0 !important;
+  padding: 12px 16px !important;
+}
+/* Move the toolbar inside the card visually by attaching directly underneath */
+.gh-discovery-toolbar-shell {
+  padding: 10px 14px !important;
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+  border-top: 1px solid var(--gh-border, #d8dee9) !important;
+  border-radius: 0 0 6px 6px !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}
+/* Result list container */
+.gh-result-list.gh-discovery-card-list {
+  padding: 8px 14px !important;
+  gap: 6px !important;
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border-top: 0 !important;
+  border-radius: 0 0 6px 6px !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
+  margin-top: -1px !important;
+}
+/* Main content column stacks with no gap so panels feel contiguous */
+.gh-results-column {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+}
+/* Loading strip inside command panel — don't float */
+.gh-surface-header-title-block + * { margin-top: 0 !important; }
+.gh-discovery-loading-strip,
+.gh-discovery-state-strip {
+  padding: 8px 16px !important;
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+  border-top: 1px solid var(--gh-border, #d8dee9) !important;
+  font-size: 12px !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+}
