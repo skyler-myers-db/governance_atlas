@@ -15,12 +15,37 @@ import {
 import "@xyflow/react/dist/style.css";
 import { assetPathLabel } from "../lib/assetPresentation";
 import { SurfaceDrawer, SurfaceDrawerSection } from "./ShellLayoutPrimitives";
+import { AssetTypeIcon } from "./primitives/AssetTypeIcon";
 
 function nodeColor(kind) {
   if (kind === "View") return "#5b6af7";
   if (kind === "Notebook") return "#44b2ff";
   if (kind === "Pipeline") return "#8e67ff";
   return "#1d2a44";
+}
+
+function edgeKindFor(data) {
+  const raw = String(data?.edgeKind || data?.kind || "").trim().toLowerCase();
+  if (raw.includes("stream") || raw.includes("kafka") || raw.includes("kinesis")) return "streaming";
+  if (raw.includes("pipeline") || raw.includes("job") || raw.includes("workflow")) return "operational";
+  if (raw.includes("schema") || raw.includes("ddl")) return "schema";
+  return "data";
+}
+
+function edgeStroke({ selected, data }) {
+  if (selected) return "#3a2ce0";
+  const kind = edgeKindFor(data);
+  if (kind === "streaming") return "#0891b2";
+  if (kind === "operational") return "#a21caf";
+  if (kind === "schema") return "#b45309";
+  return "#4453db";
+}
+
+function edgeDashArray(data) {
+  const kind = edgeKindFor(data);
+  if (kind === "streaming") return "6 4";
+  if (kind === "schema") return "2 3";
+  return undefined;
 }
 
 function normalizeNodeSortValue(value) {
@@ -443,11 +468,16 @@ function upstreamSelection(edges, startId) {
 function NodeLabel({ data }) {
   const branchToggleVisible =
     typeof data?.onToggleBranchCollapse === "function" && Number(data?.branchDescendantCount || 0) > 0;
+  const iconSize = data.role === "focus" ? "lg" : "md";
 
   return (
     <div className="gh-graph-node-card">
       <div className="gh-graph-node-head">
-        <div className="gh-graph-node-kicker">{data.kicker || data.kind}</div>
+        <AssetTypeIcon type={data.kind} size={iconSize} className="gh-graph-node-icon" />
+        <div className="gh-graph-node-head-copy">
+          <div className="gh-graph-node-kicker">{data.kicker || data.kind}</div>
+          <div className="gh-graph-node-title">{data.label}</div>
+        </div>
         {branchToggleVisible ? (
           <button
             className={`gh-graph-branch-toggle ${data.branchCollapsed ? "is-collapsed" : ""}`}
@@ -461,13 +491,8 @@ function NodeLabel({ data }) {
           </button>
         ) : null}
       </div>
-      <div className="gh-graph-node-title">{data.label}</div>
       <div className="gh-graph-node-subtitle">{data.subtitle}</div>
       <div className="gh-graph-node-foot">
-        <span
-          className="gh-graph-kind-dot"
-          style={{ backgroundColor: nodeColor(data.kind) }}
-        />
         <span>{data.kind}</span>
         {data.layout?.side ? <span className="gh-graph-node-pill">{data.layout.side}</span> : null}
         {typeof data.layout?.depth === "number" && data.layout.depth > 0 ? (
@@ -514,9 +539,10 @@ function AssetEdge({
         markerEnd={markerEnd}
         path={path}
         style={{
-          stroke: selected ? "#3a2ce0" : "#4453db",
+          stroke: edgeStroke({ selected, data }),
           strokeWidth: data?.depth === 1 ? (selected ? 5.2 : 4.2) : selected ? 4.4 : 3.6,
           opacity: selected ? 1 : 0.96,
+          strokeDasharray: edgeDashArray(data),
         }}
       />
       {branchToggleVisible ? (
@@ -891,7 +917,7 @@ export default function LineageGraph({
   const edgeDetails = selectedEdge ? lineagePayload?.edgeDetails?.[selectedEdge.id] || null : null;
   const selectedSource = selectedEdge ? nodesById[selectedEdge.source] || null : null;
   const selectedTarget = selectedEdge ? nodesById[selectedEdge.target] || null : null;
-  const showMiniMap = false;
+  const showMiniMap = (transformed?.nodes?.length || 0) >= 5;
   const showControls = true;
   const canReturnToFocus =
     defaultFocusNodeId && (Boolean(selectedEdge) || Boolean(selectedNode && selectedNode.id !== defaultFocusNodeId));

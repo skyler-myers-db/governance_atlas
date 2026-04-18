@@ -76,10 +76,13 @@ async function waitForMainReady(page) {
   await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {});
 }
 
-async function gotoGolden(page, title, relativeUrl, extraWait) {
+async function gotoGolden(page, title, relativeUrl, extraWait, settleSelector) {
   console.log(`→ ${title}  (${relativeUrl})`);
   await page.goto(urlFor(relativeUrl), { waitUntil: "domcontentloaded" });
   await waitForMainReady(page);
+  if (settleSelector) {
+    await page.waitForSelector(settleSelector, { state: "visible", timeout: 20_000 }).catch(() => {});
+  }
   if (extraWait) {
     await page.waitForTimeout(extraWait);
   }
@@ -107,7 +110,9 @@ async function main() {
     await capture(page, { filename: "02-entity-viewport.png" });
     await capture(page, { filename: "02-entity-fullpage.png", fullPage: true });
 
-    await gotoGolden(page, "Lineage", `/lineage/${ENTITY_FQN}`, 2500);
+    // Wait for at least one rendered lineage node before snapshotting so the
+    // graph shape is captured instead of the "Loading lineage graph" skeleton.
+    await gotoGolden(page, "Lineage", `/lineage/${ENTITY_FQN}`, 1500, ".gh-graph-node-card");
     await capture(page, { filename: "03-lineage-viewport.png" });
     await capture(page, { filename: "03-lineage-fullpage.png", fullPage: true });
 
