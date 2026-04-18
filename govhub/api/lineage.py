@@ -184,17 +184,19 @@ def api_column_lineage_trace(
 
 def build_lineage_router() -> APIRouter:
     router = APIRouter(tags=["lineage"])
+    # Register the more-specific column trace route FIRST so the generic
+    # catch-all below doesn't swallow /api/lineage/columns/... paths.
+    router.add_api_route(
+        "/api/lineage/columns/{asset_fqn}/{column_name}/trace",
+        api_column_lineage_trace,
+        methods=["GET"],
+        name="api_column_lineage_trace",
+    )
     router.add_api_route(
         "/api/lineage/{asset_fqn:path}",
         api_lineage,
         methods=["GET"],
         response_class=JSONResponse,
         name="api_lineage",
-    )
-    router.add_api_route(
-        "/api/lineage/columns/{asset_fqn}/{column_name}/trace",
-        api_column_lineage_trace,
-        methods=["GET"],
-        name="api_column_lineage_trace",
     )
     return router

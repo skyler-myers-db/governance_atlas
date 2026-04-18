@@ -849,9 +849,12 @@ def build_catalog_router() -> APIRouter:
         methods=["GET"],
         name="api_access_explainer",
     )
+    def _access_explainer_generic(request: Request) -> JSONResponse:
+        return api_access_explainer("", request)
+
     router.add_api_route(
         "/api/access-explain",
-        lambda request: api_access_explainer("", request),
+        _access_explainer_generic,
         methods=["GET"],
         name="api_access_explainer_generic",
     )
