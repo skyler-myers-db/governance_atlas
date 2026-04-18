@@ -205,6 +205,83 @@ class GovernanceStore:
         )
         return audit_id
 
+    def append_change_event(
+        self,
+        *,
+        event_type: str,
+        entity_kind: str,
+        actor_email: str,
+        actor_role: str,
+        entity_fqn: str | None = None,
+        entity_id: str | None = None,
+        column_name: str | None = None,
+        request_id: str | None = None,
+        before: Any = None,
+        after: Any = None,
+        detail: str | None = None,
+        source: str = "api",
+        status: str = "emitted",
+    ) -> str:
+        """Phase 5 Tranche A hook — append-only governance event stream.
+
+        Writes to change_events which the Phase 13 audit surface and
+        projection builders consume. Migration v8 owns the schema.
+        Raises only at the SQL layer — callers that treat this as
+        best-effort should wrap in try/except.
+        """
+        event_id = uuid.uuid4().hex
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""INSERT INTO {self._fq("change_events")} (
+    event_id, event_type, entity_kind, entity_id, entity_fqn, column_name,
+    actor_email, actor_role, before_json, after_json, detail, source, status,
+    request_id, occurred_at, recorded_at
+) VALUES (
+    {sql_literal(event_id)},
+    {sql_literal(event_type)},
+    {sql_literal(entity_kind)},
+    {sql_literal(entity_id)},
+    {sql_literal(entity_fqn)},
+    {sql_literal(column_name)},
+    {sql_literal(actor_email)},
+    {sql_literal(actor_role)},
+    {sql_literal(_json_text(before)) if before is not None else "NULL"},
+    {sql_literal(_json_text(after)) if after is not None else "NULL"},
+    {sql_literal(detail)},
+    {sql_literal(source)},
+    {sql_literal(status)},
+    {sql_literal(request_id)},
+    timestamp({sql_literal(ts)}),
+    timestamp({sql_literal(ts)})
+)"""
+        )
+        return event_id
+
+    def list_change_events(
+        self,
+        *,
+        entity_fqn: str | None = None,
+        entity_id: str | None = None,
+        entity_kind: str | None = None,
+        limit: int = 100,
+    ) -> pd.DataFrame:
+        clauses: List[str] = []
+        if entity_fqn:
+            clauses.append(f"entity_fqn = {sql_literal(entity_fqn)}")
+        if entity_id:
+            clauses.append(f"entity_id = {sql_literal(entity_id)}")
+        if entity_kind:
+            clauses.append(f"entity_kind = {sql_literal(entity_kind)}")
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        return self.uc.query_df(
+            f"""SELECT event_id, event_type, entity_kind, entity_id, entity_fqn,
+    column_name, actor_email, actor_role, before_json, after_json,
+    detail, source, status, request_id, occurred_at, recorded_at
+FROM {self._fq("change_events")} {where}
+ORDER BY occurred_at DESC, event_id DESC
+LIMIT {int(limit)}"""
+        )
+
     def list_metadata_audit(
         self,
         *,
