@@ -4645,3 +4645,84 @@ button[class*="back-to-discovery"] {
   color: #067647 !important;
   border-color: #a9d8b8 !important;
 }
+
+/* ---- Governance workspace hero compaction ---- */
+[class*="gh-governance"] [class*="workbench-header"],
+[class*="governance-workbench-hero"],
+.gh-governance-header {
+  padding: 14px 20px !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+}
+[class*="workbench-title"],
+[class*="governance-workbench-title"] {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+}
+[class*="workbench-subtitle"] {
+  font-size: 12px !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+}
+
+/* ---- Audit browser row compaction ---- */
+.gh-audit-browser-row { min-height: 36px !important; padding: 6px 12px !important; }
+.gh-audit-browser-row .gh-chip {
+  height: 20px !important;
+  padding: 0 8px !important;
+  font-size: 10px !important;
+  white-space: nowrap !important;
+  max-width: 240px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+.gh-audit-ts { font-size: 11px !important; white-space: nowrap !important; }
+.gh-audit-actor { font-size: 12px !important; font-weight: 600 !important; }
+.gh-audit-entity { font-size: 11px !important; }
+.gh-audit-browser-row .gh-support-copy { font-size: 10px !important; }
+
+/* ---- Taxonomy empty-state card: kill the purple accent bar ---- */
+.gh-taxonomy-workspace .gh-empty-state,
+.gh-taxonomy-workspace .gh-empty-state-block {
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  background: #ffffff !important;
+  border-radius: 6px !important;
+  padding: 40px 20px !important;
+  box-shadow: none !important;
+}
+.gh-taxonomy-workspace .gh-empty-state::before,
+.gh-taxonomy-workspace .gh-empty-state::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* ---- Hide "Setup attention" inline pill in the identity strip (it competes with the module nav) ---- */
+.gh-shell-setup-status {
+  padding: 2px 6px !important;
+  font-size: 11px !important;
+  background: transparent !important;
+  border: 0 !important;
+  flex-wrap: nowrap !important;
+}
+.gh-shell-setup-status .gh-chip {
+  height: 20px !important;
+  padding: 0 8px !important;
+  font-size: 10px !important;
+}
+.gh-shell-status-note { font-size: 11px !important; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Generic catch — any tall chip squishes to 22px max */
+.gh-chip {
+  min-height: 22px !important;
+  max-height: 22px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  border-radius: 11px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
