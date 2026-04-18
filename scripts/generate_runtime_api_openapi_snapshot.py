@@ -52,6 +52,8 @@ RUNTIME_PATHS = (
     "/api/assets/{asset_fqn:path}/access-explain",
     "/api/quality/runs",
     "/api/quality/custom-sql/validate",
+    "/api/quality/run",
+    "/api/assets/{asset_fqn:path}/profile/run",
     "/api/classifications",
     "/api/classifications/{classification_id}",
     "/api/domains",
