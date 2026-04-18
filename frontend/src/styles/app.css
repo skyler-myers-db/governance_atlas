@@ -4374,3 +4374,274 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
   font-size: 12px !important;
   color: var(--gh-text-muted, #5c6b82) !important;
 }
+
+/* ---- Entity page OM-parity pass ---- */
+.gh-entity-hero {
+  padding: 14px 20px !important;
+  background: #ffffff !important;
+}
+.gh-entity-hero-title,
+.gh-entity-hero [class*="entity-hero-title"] h1,
+.gh-entity-hero h1,
+.gh-entity-hero [class*="entity-hero-title"] {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.2 !important;
+}
+.gh-entity-hero [class*="eyebrow"],
+.gh-entity-hero [class*="hero-eyebrow"] {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin-bottom: 2px !important;
+  display: block !important;
+}
+.gh-entity-hero [class*="hero-breadcrumb"],
+.gh-entity-hero [class*="hero-path"] {
+  font-size: 12px !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  line-height: 1.4 !important;
+}
+.gh-entity-hero [class*="entity-hero-icon"] svg,
+.gh-entity-hero .gh-asset-type-icon svg {
+  width: 22px !important;
+  height: 22px !important;
+}
+.gh-entity-hero [class*="entity-action-row"] { gap: 8px !important; }
+.gh-entity-hero .gh-primary-button,
+.gh-entity-hero .gh-secondary-button {
+  padding: 6px 12px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  min-height: 32px !important;
+  height: 32px !important;
+}
+
+/* Entity record tabs — underline style, not pills */
+.gh-entity-record-tabs {
+  display: flex !important;
+  gap: 0 !important;
+  padding: 0 20px !important;
+  height: 42px !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+}
+.gh-entity-record-tabs button {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  height: 100% !important;
+  padding: 0 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  box-shadow: none !important;
+  min-height: 0 !important;
+}
+.gh-entity-record-tabs button:hover:not(.is-active) {
+  color: var(--gh-text, #14213d) !important;
+}
+.gh-entity-record-tabs button.is-active,
+.gh-entity-record-tabs button[aria-selected="true"] {
+  color: var(--gh-text, #14213d) !important;
+  border-bottom-color: var(--gh-accent, #5b3ff2) !important;
+  background: transparent !important;
+}
+.gh-entity-record-tabs button svg { width: 14px !important; height: 14px !important; opacity: 0.8; }
+
+/* Metric tiles — flatten to neutral cards */
+[class*="hero-metric"],
+[class*="entity-hero-metric"],
+[class*="summary-tile"],
+.gh-entity-hero [class*="metric-tile"] {
+  background: #ffffff !important;
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border-radius: 6px !important;
+  box-shadow: none !important;
+  padding: 10px 14px !important;
+}
+[class*="metric-tile-label"],
+[class*="hero-metric-label"] {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+}
+[class*="metric-tile-value"],
+[class*="hero-metric-value"] {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: var(--gh-text, #14213d) !important;
+}
+
+/* Entity record section cards — match catalog style */
+.gh-entity-record-section {
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+  box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
+  padding: 14px 16px !important;
+}
+.gh-entity-record-section h3,
+.gh-entity-record-section .gh-panel-title {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  margin-bottom: 8px !important;
+}
+
+/* Sub-tabs inside sections (e.g. Data Lineage / Operational Context) */
+.gh-lineage-context-toggle button {
+  border-radius: 4px !important;
+  font-size: 12px !important;
+  padding: 4px 10px !important;
+  min-height: 28px !important;
+}
+
+/* Trim the "Back to Discovery" + eyebrow stack */
+.gh-entity-hero [class*="back-to-discovery"] {
+  font-size: 12px !important;
+  color: var(--gh-accent, #5b3ff2) !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+
+/* ---- Entity metric tiles: flatten every tone variant ---- */
+.gh-preview-stat-grid.gh-entity-record-metrics {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important;
+  gap: 8px !important;
+  margin-top: 10px !important;
+}
+.gh-preview-stat-card.gh-entity-metric-card,
+.gh-preview-stat-card.gh-entity-metric-card.tone-bad,
+.gh-preview-stat-card.gh-entity-metric-card.tone-warning,
+.gh-preview-stat-card.gh-entity-metric-card.tone-good,
+.gh-preview-stat-card.gh-entity-metric-card.tone-neutral,
+.gh-preview-stat-card.gh-entity-metric-card.tone-info {
+  background: #ffffff !important;
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
+  padding: 10px 14px !important;
+  min-height: 60px !important;
+  height: auto !important;
+}
+.gh-entity-metric-label {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  margin-bottom: 2px !important;
+}
+.gh-entity-metric-value {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: var(--gh-text, #14213d) !important;
+  font-variant-numeric: tabular-nums !important;
+  line-height: 1.2 !important;
+}
+.gh-entity-metric-hint {
+  font-size: 11px !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  margin-top: 2px !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 500 !important;
+}
+/* Tone-specific accent via a left 3px border, not the background */
+.gh-preview-stat-card.gh-entity-metric-card.tone-bad { border-left: 3px solid #b42318 !important; }
+.gh-preview-stat-card.gh-entity-metric-card.tone-warning { border-left: 3px solid #b54708 !important; }
+.gh-preview-stat-card.gh-entity-metric-card.tone-good { border-left: 3px solid #067647 !important; }
+.gh-preview-stat-card.gh-entity-metric-card.tone-info { border-left: 3px solid var(--gh-accent, #5b3ff2) !important; }
+
+/* "Back to Discovery" — compact text link, not a big button */
+[class*="back-to-discovery"],
+button[class*="back-to-discovery"] {
+  font-size: 12px !important;
+  color: var(--gh-accent, #5b3ff2) !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  box-shadow: none !important;
+  font-weight: 500 !important;
+}
+
+/* Pin / Share link / Open Lineage / Open Governance — compact button row */
+.gh-entity-hero [class*="entity-action-row"] {
+  display: flex !important;
+  gap: 6px !important;
+  flex-wrap: wrap !important;
+}
+.gh-entity-hero [class*="entity-action-row"] button,
+.gh-entity-hero [class*="entity-action-row"] .gh-primary-button,
+.gh-entity-hero [class*="entity-action-row"] .gh-secondary-button {
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 12px !important;
+  font-size: 12px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  background: #ffffff !important;
+  color: var(--gh-text, #14213d) !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+.gh-entity-hero [class*="entity-action-row"] button:hover {
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+  border-color: var(--gh-border-strong, #b8c2d3) !important;
+}
+.gh-entity-hero [class*="entity-action-row"] button.is-primary,
+.gh-entity-hero .gh-primary-button.is-primary {
+  background: var(--gh-accent, #5b3ff2) !important;
+  color: #ffffff !important;
+  border-color: var(--gh-accent, #5b3ff2) !important;
+}
+
+/* Streaming Table + Needs Work hero chips — smaller pills */
+.gh-entity-hero .gh-chip,
+.gh-entity-hero [class*="asset-type-chip"],
+.gh-entity-hero [class*="governance-status"] {
+  height: 22px !important;
+  padding: 0 8px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 11px !important;
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+.gh-entity-hero .tone-bad,
+.gh-entity-hero [class*="governance-status"].tone-bad,
+.gh-entity-hero .gh-status-chip.tone-bad {
+  background: #fdeeec !important;
+  color: #b42318 !important;
+  border-color: #f2b5ab !important;
+}
+.gh-entity-hero .tone-good,
+.gh-entity-hero .gh-status-chip.tone-good {
+  background: #ebf8ef !important;
+  color: #067647 !important;
+  border-color: #a9d8b8 !important;
+}
