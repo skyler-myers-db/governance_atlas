@@ -50,7 +50,7 @@ class MigrationTests(unittest.TestCase):
 
         applied = migrations.apply_migrations(uc, "main", "governance_hub")
 
-        self.assertEqual(applied, [1, 2, 3, 4, 5, 6, 7, 8, 9])
+        self.assertEqual(applied, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
         self.assertTrue(
             any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`schema_migrations`" in sql for sql in uc.executed)
         )
@@ -113,7 +113,60 @@ class MigrationTests(unittest.TestCase):
         self.assertTrue(
             any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`export_jobs`" in sql for sql in uc.executed)
         )
-        self.assertEqual(uc._applied_versions, {1, 2, 3, 4, 5, 6, 7, 8, 9})
+        # Phase 12 — background_work queue + dead letters landed in migration v10.
+        for table in (
+            "background_work_items",
+            "background_work_runs",
+            "background_dead_letters",
+        ):
+            self.assertTrue(
+                any(f"CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`{table}`" in sql for sql in uc.executed),
+                f"expected {table} create statement",
+            )
+        # Phase 8 — custom properties + profile tables landed in migration v11.
+        for table in (
+            "custom_property_definitions",
+            "custom_property_definition_versions",
+            "custom_property_assignments",
+            "profile_runs",
+            "profile_table_metrics",
+            "profile_column_metrics",
+        ):
+            self.assertTrue(
+                any(f"CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`{table}`" in sql for sql in uc.executed),
+                f"expected {table} create statement",
+            )
+        # Phase 10 — quality core tables landed in migration v12.
+        for table in (
+            "quality_test_definitions",
+            "quality_test_definition_versions",
+            "quality_suites",
+            "quality_test_cases",
+            "quality_runs",
+            "quality_run_results",
+            "quality_alerts",
+        ):
+            self.assertTrue(
+                any(f"CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`{table}`" in sql for sql in uc.executed),
+                f"expected {table} create statement",
+            )
+        # Phase 11 — breadth + scale tables landed in migration v13.
+        for table in (
+            "classifications",
+            "classification_terms",
+            "domains",
+            "data_products",
+            "data_product_members",
+            "logical_column_groups",
+            "logical_column_group_members",
+            "metrics",
+            "contracts",
+        ):
+            self.assertTrue(
+                any(f"CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`{table}`" in sql for sql in uc.executed),
+                f"expected {table} create statement",
+            )
+        self.assertEqual(uc._applied_versions, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13})
 
     def test_apply_migrations_is_idempotent(self) -> None:
         uc = FakeUC()
@@ -123,7 +176,9 @@ class MigrationTests(unittest.TestCase):
         applied = migrations.apply_migrations(uc, "main", "governance_hub")
 
         self.assertEqual(applied, [])
-        # v8 added 6 CREATE TABLE statements; idempotent run should skip all.
+        # Idempotent replay re-runs `ensure_schema_migrations_table`
+        # (CREATE SCHEMA + CREATE TABLE) twice (from apply_migrations +
+        # applied_versions), which is the only execute() traffic.
         self.assertEqual(executed_after_first_run + 4, len(uc.executed))
 
 

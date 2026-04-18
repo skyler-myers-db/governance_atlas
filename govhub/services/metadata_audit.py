@@ -84,6 +84,10 @@ def record_audit_log(
 
     try:
         store = _store()
+    except Exception:
+        return
+
+    try:
         if hasattr(store, "append_metadata_audit_log"):
             store.append_metadata_audit_log(
                 entity_type=entity_type,
@@ -115,4 +119,28 @@ def record_audit_log(
                 detail=detail,
             )
     except Exception:
-        return
+        # Keep calling into change_events even if the audit row failed —
+        # audit_log is the primary record but change_events powers the
+        # Phase 13 audit browser and projection builders, so emitting
+        # both is useful for observability.
+        pass
+
+    if hasattr(store, "append_change_event"):
+        try:
+            store.append_change_event(
+                event_type=f"{entity_type}.{action}",
+                entity_kind=entity_type,
+                actor_email=actor_email,
+                actor_role=actor_role,
+                entity_fqn=entity_fqn,
+                entity_id=entity_id,
+                column_name=column_name,
+                request_id=request_id,
+                before=before,
+                after=after,
+                detail=detail,
+                source=source,
+                status="emitted",
+            )
+        except Exception:
+            return
