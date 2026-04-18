@@ -106,7 +106,9 @@ async function main() {
     await capture(page, { filename: "01-discovery-viewport.png" });
     await capture(page, { filename: "01-discovery.png", fullPage: true });
 
-    await gotoGolden(page, "Entity", `/entity/${ENTITY_FQN}`, 1500);
+    // Settle on the EntityHero title so the loading skeleton is past before
+    // the screenshot fires.
+    await gotoGolden(page, "Entity", `/entity/${ENTITY_FQN}`, 1500, ".gh-entity-hero-title");
     await capture(page, { filename: "02-entity-viewport.png" });
     await capture(page, { filename: "02-entity-fullpage.png", fullPage: true });
 

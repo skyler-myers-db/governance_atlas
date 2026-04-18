@@ -1,6 +1,7 @@
 import { SurfaceHeader } from "../ShellLayoutPrimitives";
 import { InlineStatusBanner } from "../ShellStatePrimitives";
 import { AssetTypeIcon } from "./AssetTypeIcon";
+import { OwnerAvatarStack } from "./OwnerAvatarStack";
 
 function statusTone(asset) {
   if (!asset?.governanceStatus) return "neutral";
@@ -41,6 +42,9 @@ export function EntityHero({
         variant="featured"
         actions={(
           <div className="gh-action-row gh-entity-action-row">
+            {Array.isArray(asset.owners) && asset.owners.length ? (
+              <OwnerAvatarStack owners={asset.owners} className="gh-entity-owner-stack" />
+            ) : null}
             <button
               className="gh-secondary-button"
               disabled={!lineageSurfaceAvailable}

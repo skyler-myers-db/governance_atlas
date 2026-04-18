@@ -111,7 +111,8 @@ export function SurfaceTabs({
             title={item.title}
             type="button"
           >
-            {item.label}
+            {item.icon ? <span className="gh-surface-tab-icon">{item.icon}</span> : null}
+            <span>{item.label}</span>
           </button>
         ))}
     </div>

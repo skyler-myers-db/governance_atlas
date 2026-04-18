@@ -105,3 +105,55 @@
   gap: 14px;
 }
 
+
+/* Phase 2-h.3 — richer metric tiles + owner avatars in hero */
+.gh-entity-metric-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--gh-line);
+  background: var(--gh-surface);
+  box-shadow: 0 1px 2px rgba(22, 35, 56, 0.04);
+  min-height: 78px;
+}
+.gh-entity-metric-label {
+  color: var(--gh-ink-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.gh-entity-metric-value {
+  color: var(--gh-ink);
+  font-size: 1.68rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.gh-entity-metric-hint {
+  color: var(--gh-ink-muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+.gh-entity-metric-card.tone-good { border-color: #bde5d5; background: #f4fbf8; }
+.gh-entity-metric-card.tone-good .gh-entity-metric-value { color: var(--gh-good); }
+.gh-entity-metric-card.tone-warn { border-color: #eecb94; background: #fdf8ee; }
+.gh-entity-metric-card.tone-warn .gh-entity-metric-value { color: var(--gh-warn); }
+.gh-entity-metric-card.tone-bad { border-color: #e6b9bd; background: #fdf4f4; }
+.gh-entity-metric-card.tone-bad .gh-entity-metric-value { color: var(--gh-bad); }
+
+.gh-entity-owner-stack {
+  margin-right: 6px;
+}
+
+/* Tab icon alignment inside SurfaceTabs */
+.gh-surface-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  color: currentColor;
+}
+.gh-surface-tab .gh-surface-tab-icon svg { display: block; }
