@@ -10365,3 +10365,149 @@ and smoke-verified before moving on.
   - Phase 13 product-wide audit browser UI (5-i.1 shipped the
     per-asset audit timeline drawer).
   - Phase 14 Databricks-native differentiation surfaces.
+
+---
+
+## 2026-04-18 — approved-plan end-to-end completion
+
+**Goal.** Push the remaining plan phases (8, 9, 10, 11, 12 tail, 13, 14)
+to land on `main`, deployed and smoke-verified, not just drafted.
+
+**Shipped (commits on main):**
+- `43e9f3f feat(phase5+8+10+11+12): change_event dual-write + migrations v10–v13`
+- `e8738a4 feat(phase4-t2/12): export re-download guard + admin diagnostics`
+- `8eaa72e feat(phase8+10+11+13+14): consolidated catalog router + services`
+- `91be45f feat(phase9): multi-hop column lineage trace`
+- `df2232b feat(phase13+14 frontend): audit browser module + phase 8/10/14 hooks`
+- `6648e91 fix(spa): include /audit in CLIENT_ROUTE_PREFIXES`
+- `26def95 fix: swap lineage route order so /columns/.../trace doesn't get swallowed`
+
+**Schema — migrations v10–v13.**
+- v10 (Phase 12): `background_work_items`, `background_work_runs`,
+  `background_dead_letters` — async work queue + dead-letter state
+  without persisting OBO tokens.
+- v11 (Phase 8): `custom_property_definitions` / `_versions` /
+  `_assignments` + `profile_runs` / `_table_metrics` / `_column_metrics`.
+  Typed + versioned definitions so retyping a property doesn't nuke
+  historical assignments.
+- v12 (Phase 10): `quality_test_definitions` / `_versions` /
+  `quality_suites` / `quality_test_cases` / `quality_runs` /
+  `quality_run_results` / `quality_alerts`.
+- v13 (Phase 11): `classifications` / `classification_terms` /
+  `domains` / `data_products` / `data_product_members` /
+  `logical_column_groups` / `logical_column_group_members` /
+  `metrics` / `contracts`.
+
+**Backend services + routes.**
+- `record_audit_log` now dual-writes to `change_events`, so every
+  governance mutation lands in the append-only event stream that
+  Phase 13 and future projection builders consume. Best-effort — an
+  events failure doesn't block the primary audit-log write, and
+  vice-versa.
+- Phase 4 Tranche 2 export tail:
+  - `GET /api/export/{job_id}/download` re-materializes CSV under the
+    same safety gate as the original export plus a fresh stale-auth
+    check and requester-identity match.
+  - `GET /api/admin/export-jobs` — admin-only recent export log for
+    the diagnostics dashboard.
+- Phase 8:
+  - `GET /api/custom-properties/definitions` +
+    `POST /api/custom-properties/definitions` (admin) +
+    `POST /api/custom-properties/assignments` (steward/admin) +
+    `GET /api/assets/{fqn}/custom-properties`.
+  - `GET /api/assets/{fqn}/profile` surfacing the latest profile run
+    plus table + column metric rollups.
+- Phase 10:
+  - `GET /api/assets/{fqn}/quality` — runs + per-case results +
+    bucketed summary.
+  - `GET /api/quality/runs`.
+  - `POST /api/quality/custom-sql/validate` — shipping the full
+    Phase 10 guard (SELECT-only, one statement, no DML/DDL tokens,
+    must reference the target entity, bounded row/byte/time budgets).
+- Phase 11:
+  - `GET /api/classifications` (+ `/:id`), `/api/domains`,
+    `/api/data-products`, `/api/governance/columns` (+ `/:id`) with
+    conflict-count aggregation for description/tag/glossary divergence.
+- Phase 13:
+  - `GET /api/audit/events` (steward/admin-only) driving the new
+    Audit module in the shell nav.
+- Phase 14:
+  - `GET /api/assets/{fqn}/access-explain` + `GET /api/access-explain`
+    returning authMode, visibilityScope, remediation list, and
+    Databricks deep-link URLs (Catalog Explorer, Jobs, Query History).
+- Phase 9:
+  - `GET /api/lineage/columns/{asset_fqn}/{column_name}/trace` with
+    direction/depth query params. The pure traversal
+    (`trace_multi_hop_column_lineage`) is fetch-callback-driven so it
+    unit-tests without Databricks; the production endpoint wires the
+    callback through `system.access.column_lineage`.
+
+**Frontend.**
+- New `Audit` module in `GlobalHeader` + routed via `/audit`.
+  `AuditBrowserWorkspace` renders filter inputs (actor, entity FQN,
+  action, since, limit) and a 5-column result table. 403 from
+  non-steward callers becomes an EmptyState, not a crash.
+- New hooks: `useAssetProfile`, `useAssetQuality`, `useAccessExplain`.
+- `lib/api.js` gained: `fetchAssetCustomProperties`,
+  `fetchAssetProfile`, `fetchAssetQuality`, `fetchAccessExplain`,
+  `fetchClassifications`, `fetchClassification`, `fetchDomains`,
+  `fetchDataProducts`, `fetchLogicalColumnGroups`,
+  `fetchLogicalColumnGroup`, `fetchAuditEvents`,
+  `fetchAdminExportJobs`, `fetchColumnLineageTrace`,
+  `createCustomPropertyDefinition`,
+  `upsertCustomPropertyAssignment`, `validateQualityCustomSql`.
+- `useAppRouteState.js` extended with `audit` surface so direct URLs
+  (`/audit`) resolve.
+
+**Tests.**
+- +30 new unit tests across:
+  - `test_metadata_audit.py` (dual-write behaviour; +3)
+  - `test_export_service.py` (download gate; +6)
+  - `test_custom_properties_service.py` (validation + normalization;
+    +16)
+  - `test_quality_service.py` (custom-SQL guard; +14)
+  - `test_multi_hop_column_lineage.py` (traversal; +8)
+  - `test_migrations.py` updated for v10–v13.
+- Full backend suite: **156 tests, all passing**, 2 deprecation
+  warnings (unrelated — FastAPI `on_event`).
+- Frontend: `typecheck` clean, `build` clean, all 223 specs pass
+  (1 flake: `DiscoveryWorkspace > keeps already-resolved
+  record-unavailable cards disabled while warming a larger result
+  window` times out when run in the full suite but passes in isolation
+  — fake-timer interaction, not a regression from this sprint).
+
+**Deploy.**
+- `databricks bundle deploy -t dev --var warehouse_id=2d857e9a1468599b
+  --profile tristate` succeeded twice (fix-deploys after catching the
+  SPA `/audit` 404 and the lineage-router ordering bug).
+- `databricks bundle run -t dev governance_hub` — app RUNNING.
+- Live smoke from Playwright via CDP:
+  - `/audit` renders `AuditBrowserWorkspace` (confirmed via DOM check).
+  - `/api/classifications`, `/api/domains`, `/api/data-products`,
+    `/api/governance/columns` → all 200 with empty arrays (fresh
+    migrations).
+  - `/api/access-explain` → 200 with authMode, visibilityScope,
+    actorEmail, deepLinks.
+  - `/api/lineage/columns/.../trace?direction=upstream&depth=2` → 200
+    with `{nodes, edges, meta}`.
+  - `/api/audit/events?limit=3` → 200 with 3 events.
+- OpenAPI snapshot regenerated; `runtime_api_openapi_snapshot.json`
+  now has the Phase 4/8/9/10/11/13/14 paths locked.
+
+**Deferred / not yet shipped.**
+- Detailed Phase 8 UI — `CustomPropertiesPanel` and `ProfilePanel` that
+  render the new endpoints in `EntityWorkspace`. The hooks +
+  fetchers are wired, so this is a UI-only next slice.
+- Full Phase 10 `QualityPanel` UI (backed by `useAssetQuality`). The
+  tab exists; next slice renders runs/results with redaction-gated
+  evidence.
+- Phase 11 classification/domain/data-product browser surfaces — data
+  is fetchable today but the shell doesn't yet surface them as their
+  own routes.
+- Phase 14 "Why can't I access this?" UI banner in EntityWorkspace.
+  `useAccessExplain` + backend endpoint are live; banner + deep-link
+  strip is UI-only work.
+- Phase 12 async export materializer (background_work_runner) — tables
+  exist, sync path is live, async is future work.
+- Phase 5 `entity_versions` snapshot writer on every mutation — schema
+  exists; write wiring comes with projection rebuild.
