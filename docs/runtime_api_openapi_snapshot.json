@@ -2399,6 +2399,76 @@
         ]
       }
     },
+    "/api/lineage/columns/{asset_fqn}/{column_name}/trace": {
+      "get": {
+        "description": "Phase 9 \u2014 multi-hop column lineage. Walks system.access.column_lineage\nrecursively, bounded by depth/node/fanout caps to fail closed against\nrunaway fan-out.",
+        "operationId": "api_column_lineage_trace_api_lineage_columns__asset_fqn___column_name__trace_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_fqn",
+            "required": true,
+            "schema": {
+              "title": "Asset Fqn",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "column_name",
+            "required": true,
+            "schema": {
+              "title": "Column Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "default": "upstream",
+              "title": "Direction",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "depth",
+            "required": false,
+            "schema": {
+              "default": 2,
+              "title": "Depth",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Column Lineage Trace",
+        "tags": [
+          "lineage"
+        ]
+      }
+    },
     "/api/lineage/{asset_fqn}": {
       "get": {
         "operationId": "api_lineage_api_lineage__asset_fqn__get",

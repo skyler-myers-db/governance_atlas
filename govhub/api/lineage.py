@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from datetime import datetime, timezone
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from govhub.api.identity import _request_auth_mode
 from govhub.api.response import _error_response, _with_meta
 from govhub.services import capabilities as capability_service
+from govhub.services import lineage as lineage_service
 
 
 def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
@@ -119,6 +123,65 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
     )
 
 
+def api_column_lineage_trace(
+    asset_fqn: str,
+    column_name: str,
+    request: Request,
+    direction: str = "upstream",
+    depth: int = 2,
+) -> JSONResponse:
+    """Phase 9 — multi-hop column lineage. Walks system.access.column_lineage
+    recursively, bounded by depth/node/fanout caps to fail closed against
+    runaway fan-out."""
+    from runtime_app import _ensure_live_runtime, _uc
+
+    _ensure_live_runtime()
+    actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
+    if not actor_scoped:
+        raise HTTPException(
+            status_code=403,
+            detail="Column lineage requires per-user authorization (OBO).",
+        )
+    try:
+        system_uc = _uc()
+    except Exception:
+        system_uc = None
+    if system_uc is None:
+        raise HTTPException(
+            status_code=503,
+            detail="System lineage tables are not reachable in the current runtime mode.",
+        )
+    direction_norm = (direction or "upstream").strip().lower()
+    if direction_norm == "upstream":
+        fetcher = lineage_service.build_upstream_column_fetcher(system_uc)
+    elif direction_norm == "downstream":
+        fetcher = lineage_service.build_downstream_column_fetcher(system_uc)
+    else:
+        raise HTTPException(status_code=400, detail="direction must be 'upstream' or 'downstream'")
+    try:
+        payload = lineage_service.trace_multi_hop_column_lineage(
+            asset_fqn=asset_fqn,
+            column_name=column_name,
+            direction=direction_norm,
+            depth=depth,
+            fetch_neighbors=fetcher,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return JSONResponse(
+        status_code=200,
+        content={
+            "data": payload,
+            "meta": {
+                "authoritative": True,
+                "source": "system.access.column_lineage",
+                "observedAt": datetime.now(timezone.utc).isoformat(),
+            },
+            "errors": [],
+        },
+    )
+
+
 def build_lineage_router() -> APIRouter:
     router = APIRouter(tags=["lineage"])
     router.add_api_route(
@@ -127,5 +190,11 @@ def build_lineage_router() -> APIRouter:
         methods=["GET"],
         response_class=JSONResponse,
         name="api_lineage",
+    )
+    router.add_api_route(
+        "/api/lineage/columns/{asset_fqn}/{column_name}/trace",
+        api_column_lineage_trace,
+        methods=["GET"],
+        name="api_column_lineage_trace",
     )
     return router
