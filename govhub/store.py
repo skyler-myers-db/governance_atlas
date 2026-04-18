@@ -282,6 +282,45 @@ ORDER BY occurred_at DESC, event_id DESC
 LIMIT {int(limit)}"""
         )
 
+    def get_export_job(self, job_id: str) -> dict | None:
+        if not job_id:
+            return None
+        frame = self.uc.query_df(
+            f"""SELECT job_id, actor_email, actor_role, asset_fqns, filter_snapshot_json,
+    format, mode, status, requested_at, token_captured_at, materialized_at,
+    expires_at, download_url, row_count, byte_count, checksum, error_detail,
+    created_at, created_by, updated_at, updated_by
+FROM {self._fq('export_jobs')}
+WHERE job_id = {sql_literal(job_id)}
+LIMIT 1"""
+        )
+        if frame is None or frame.empty:
+            return None
+        row = frame.iloc[0].to_dict()
+        return row
+
+    def list_export_jobs(
+        self,
+        *,
+        actor_email: str | None = None,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> pd.DataFrame:
+        clauses: List[str] = []
+        if actor_email:
+            clauses.append(f"actor_email = {sql_literal(actor_email)}")
+        if status:
+            clauses.append(f"status = {sql_literal(status)}")
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        return self.uc.query_df(
+            f"""SELECT job_id, actor_email, actor_role, status, mode, format,
+    requested_at, materialized_at, expires_at, row_count, byte_count,
+    token_captured_at, error_detail
+FROM {self._fq('export_jobs')} {where}
+ORDER BY requested_at DESC, job_id DESC
+LIMIT {int(limit)}"""
+        )
+
     def list_metadata_audit(
         self,
         *,

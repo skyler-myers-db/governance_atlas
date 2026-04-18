@@ -133,5 +133,88 @@ class SnapshotTests(unittest.TestCase):
         self.assertIn('"visibilityScope": "obo-available"', snapshot)
 
 
+class EvaluateDownloadRequestTests(unittest.TestCase):
+    def _now(self) -> datetime:
+        return datetime(2026, 4, 18, 12, 0, 0, tzinfo=timezone.utc)
+
+    def test_blocks_non_obo_download(self) -> None:
+        decision = export_service.evaluate_download_request(
+            actor_scoped=False,
+            actor_email="a@b",
+            requester_email="a@b",
+            status="ready",
+            expires_at=None,
+            token_captured_at=None,
+            now=self._now(),
+        )
+        self.assertFalse(decision.allowed)
+        self.assertEqual(decision.status, "failed")
+
+    def test_blocks_wrong_requester(self) -> None:
+        decision = export_service.evaluate_download_request(
+            actor_scoped=True,
+            actor_email="alice@b",
+            requester_email="bob@b",
+            status="ready",
+            expires_at=None,
+            token_captured_at=None,
+            now=self._now(),
+        )
+        self.assertFalse(decision.allowed)
+        self.assertEqual(decision.status, "forbidden")
+
+    def test_blocks_not_ready_status(self) -> None:
+        decision = export_service.evaluate_download_request(
+            actor_scoped=True,
+            actor_email="a@b",
+            requester_email="a@b",
+            status="materializing",
+            expires_at=None,
+            token_captured_at=None,
+            now=self._now(),
+        )
+        self.assertFalse(decision.allowed)
+        self.assertEqual(decision.status, "materializing")
+
+    def test_blocks_expired_artifact(self) -> None:
+        decision = export_service.evaluate_download_request(
+            actor_scoped=True,
+            actor_email="a@b",
+            requester_email="a@b",
+            status="ready",
+            expires_at=self._now() - timedelta(minutes=1),
+            token_captured_at=None,
+            now=self._now(),
+        )
+        self.assertFalse(decision.allowed)
+        self.assertEqual(decision.status, "expired")
+
+    def test_blocks_stale_auth_on_download(self) -> None:
+        decision = export_service.evaluate_download_request(
+            actor_scoped=True,
+            actor_email="a@b",
+            requester_email="a@b",
+            status="ready",
+            expires_at=self._now() + timedelta(hours=1),
+            token_captured_at=self._now() - timedelta(minutes=56),
+            now=self._now(),
+        )
+        self.assertFalse(decision.allowed)
+        self.assertEqual(decision.status, "stale_auth")
+
+    def test_allows_fresh_ready_same_requester(self) -> None:
+        decision = export_service.evaluate_download_request(
+            actor_scoped=True,
+            actor_email="a@b",
+            requester_email="A@B",  # email match is case-insensitive
+            status="ready",
+            expires_at=self._now() + timedelta(hours=1),
+            token_captured_at=self._now() - timedelta(minutes=10),
+            now=self._now(),
+        )
+        self.assertTrue(decision.allowed)
+        self.assertEqual(decision.status, "ready")
+
+
 if __name__ == "__main__":
     unittest.main()
