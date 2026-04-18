@@ -281,6 +281,28 @@ function writeFavoriteSet(set) {
   }
 }
 
+function readRecentlyViewed() {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem("gh-recent-assets");
+    const arr = JSON.parse(raw || "[]");
+    return Array.isArray(arr) ? arr.filter((v) => typeof v === "string").slice(0, 20) : [];
+  } catch {
+    return [];
+  }
+}
+
+function pushRecentlyViewed(fqn) {
+  if (typeof window === "undefined" || !fqn) return;
+  try {
+    const current = readRecentlyViewed();
+    const next = [fqn, ...current.filter((f) => f !== fqn)].slice(0, 20);
+    window.localStorage.setItem("gh-recent-assets", JSON.stringify(next));
+  } catch {
+    /* quota — ignore */
+  }
+}
+
 function facetCount(facets, key, value) {
   const entries = facets?.[key] || [];
   return entries.find((entry) => entry.value === value)?.count || 0;
@@ -417,7 +439,7 @@ function SidebarSection({ title, children, empty = "" }) {
   );
 }
 
-function PreviewSection({ title = "", children, empty = "" }) {
+function PreviewSection({ title = "", children = null, empty = "" }) {
   return (
     <SurfaceRailSection className="gh-preview-section" empty={empty} title={title}>
       {children}
@@ -923,6 +945,55 @@ function DiscoveryResultHeader({ bulkSelectionActive, allSelected, onToggleAll, 
   );
 }
 
+function DiscoveryActivityHome({ favorites, recentlyViewed, assetsByFqn, onOpen }) {
+  const pickAssets = (fqns) => fqns.map((fqn) => assetsByFqn.get(fqn)).filter(Boolean).slice(0, 6);
+  const favoriteAssets = pickAssets([...favorites]);
+  const recentAssets = pickAssets(recentlyViewed);
+  if (!favoriteAssets.length && !recentAssets.length) return null;
+  return (
+    <div className="gh-activity-home">
+      {favoriteAssets.length ? (
+        <div className="gh-activity-column">
+          <div className="gh-activity-title">★ Your favorites</div>
+          <div className="gh-activity-list">
+            {favoriteAssets.map((asset) => (
+              <button
+                className="gh-activity-chip"
+                key={asset.fqn}
+                onClick={() => onOpen(asset.fqn)}
+                type="button"
+                title={asset.fqn}
+              >
+                <AssetTypeIcon asset={asset} size="sm" />
+                <span className="gh-activity-chip-name">{asset.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {recentAssets.length ? (
+        <div className="gh-activity-column">
+          <div className="gh-activity-title">⧗ Recently viewed</div>
+          <div className="gh-activity-list">
+            {recentAssets.map((asset) => (
+              <button
+                className="gh-activity-chip"
+                key={asset.fqn}
+                onClick={() => onOpen(asset.fqn)}
+                type="button"
+                title={asset.fqn}
+              >
+                <AssetTypeIcon asset={asset} size="sm" />
+                <span className="gh-activity-chip-name">{asset.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function DiscoveryBulkBar({ count, onClear, onAssignOwner, onAddTag, onAddGlossary, disabled = false }) {
   if (!count) return null;
   return (
@@ -1381,6 +1452,7 @@ export default function DiscoveryWorkspace({
   const [visibleResultCount, setVisibleResultCount] = useState(DISCOVERY_RESULT_PAGE_SIZE);
   const [navigationNotice, setNavigationNotice] = useState("");
   const [favorites, setFavorites] = useState(() => readFavoriteSet());
+  const [recentlyViewed, setRecentlyViewed] = useState(() => readRecentlyViewed());
   const [bulkSelection, setBulkSelection] = useState(() => new Set());
   // sortKey="" means "preserve backend ordering" (best-match); user
   // explicitly opts into a column sort by clicking the header.
@@ -1463,6 +1535,14 @@ export default function DiscoveryWorkspace({
     !discoveryResults.authoritative &&
     !(discoveryResults.assets || []).length;
   const allDiscoveryAssets = suppressCatalogRows ? [] : discoveryResults.assets;
+  // Index by FQN for O(1) lookups from Activity Home panel.
+  const assetsByFqnMap = useMemo(() => {
+    const map = new Map();
+    for (const entry of allDiscoveryAssets) {
+      if (entry?.fqn) map.set(entry.fqn, entry);
+    }
+    return map;
+  }, [allDiscoveryAssets]);
   // Build the catalog/schema tree from the full visible inventory so
   // the left rail is stable regardless of which schema is picked.
   const catalogSchemaTree = useMemo(() => {
@@ -1796,6 +1876,11 @@ export default function DiscoveryWorkspace({
   const openAssetRecord = (assetFqn) => {
     if (!assetFqn) return;
     setNavigationNotice("");
+    // Track that this asset was recently viewed (for the Activity home
+    // panel) regardless of whether the record actually opens — the intent
+    // is to record that the user engaged with this FQN.
+    pushRecentlyViewed(assetFqn);
+    setRecentlyViewed(readRecentlyViewed());
     void openAssetRecordSafely(assetFqn, {
       onNavigationStateChange,
       onOpen: () => {
@@ -2172,6 +2257,24 @@ export default function DiscoveryWorkspace({
                   >
                     Stack Filters {directFilterCount ? `(${directFilterCount})` : ""}
                   </button>
+                  <button
+                    aria-label="Copy a shareable link to this filtered view"
+                    className="gh-secondary-button gh-secondary-button-compact"
+                    onClick={async () => {
+                      if (typeof window === "undefined") return;
+                      try {
+                        await navigator.clipboard.writeText(window.location.href);
+                        setNavigationNotice("Filter link copied to clipboard.");
+                        window.setTimeout(() => setNavigationNotice(""), 2200);
+                      } catch {
+                        setNavigationNotice("Copy not permitted by browser.");
+                      }
+                    }}
+                    title="Copy link to this filter view"
+                    type="button"
+                  >
+                    Copy link
+                  </button>
                 </div>
               </div>
               {showAdvancedFilters ? (
@@ -2262,6 +2365,15 @@ export default function DiscoveryWorkspace({
             />
           ) : hasRenderableResults ? (
             <div className={`gh-result-list gh-discovery-card-list density-${density} gh-discovery-table`}>
+              <DiscoveryActivityHome
+                assetsByFqn={assetsByFqnMap}
+                favorites={favorites}
+                onOpen={(fqn) => {
+                  handleSelectAsset(fqn);
+                  openAssetRecord(fqn);
+                }}
+                recentlyViewed={recentlyViewed}
+              />
               <DiscoveryBulkBar
                 count={bulkSelection.size}
                 onAddGlossary={() => alert("Bulk glossary assignment: queue this operation from the backend bulk endpoint.")}

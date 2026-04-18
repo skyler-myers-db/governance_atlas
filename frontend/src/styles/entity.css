@@ -615,3 +615,73 @@
 /* Empty-state body spacing */
 .gh-empty-state-block { padding: var(--gh-space-5, 20px); text-align: center; }
 .gh-empty-state-block .gh-empty-state-title { font-size: 15px; font-weight: 600; margin-bottom: var(--gh-space-2, 8px); }
+
+/* ============================================================
+   Inline edit (description)
+   ============================================================ */
+.gh-inline-edit-view {
+  position: relative;
+  padding-right: 32px;
+}
+.gh-inline-edit-pencil {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 4px;
+  color: var(--gh-text-muted, #5c6b82);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease;
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.gh-inline-edit-view:hover .gh-inline-edit-pencil,
+.gh-inline-edit-pencil:focus-visible {
+  opacity: 1;
+  background: var(--gh-surface-muted, #f3f6fb);
+  border-color: var(--gh-border, #d8dee9);
+  color: var(--gh-accent, #5b3ff2);
+}
+.gh-inline-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gh-inline-edit-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 10px 12px;
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: 6px;
+  background: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  color: var(--gh-text, #14213d);
+  resize: vertical;
+}
+.gh-inline-edit-textarea:focus {
+  outline: 2px solid var(--gh-accent, #5b3ff2);
+  outline-offset: 0;
+  border-color: var(--gh-accent, #5b3ff2);
+}
+.gh-inline-edit-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.gh-inline-edit-hint { font-size: 11px; color: var(--gh-text-muted, #5c6b82); margin-left: 4px; }
+.gh-inline-edit-error {
+  padding: 6px 10px;
+  background: #fdeeec;
+  color: #b42318;
+  border: 1px solid #f2b5ab;
+  border-radius: 4px;
+  font-size: 12px;
+}

@@ -920,3 +920,47 @@
   letter-spacing: 0.04em;
   font-size: 10px;
 }
+
+/* ============================================================
+   Activity home (Favorites + Recently viewed)
+   ============================================================ */
+.gh-activity-home {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 12px;
+  padding: 10px 14px;
+  background: #fafbfd;
+  border-bottom: 1px solid var(--gh-border, #d8dee9);
+}
+.gh-activity-column { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.gh-activity-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gh-text-muted, #5c6b82);
+}
+.gh-activity-list { display: flex; gap: 6px; flex-wrap: wrap; }
+.gh-activity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--gh-text, #14213d);
+  cursor: pointer;
+  max-width: 240px;
+}
+.gh-activity-chip:hover {
+  background: var(--gh-surface-muted, #f3f6fb);
+  border-color: var(--gh-border-strong, #b8c2d3);
+}
+.gh-activity-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
