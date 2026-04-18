@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchLineage } from "../lib/api";
 import { govhubQueryClient } from "../lib/queryClient";
@@ -9,7 +9,6 @@ const LINEAGE_CACHE_TTL_MS = 300_000;
 // before the user can click them, causing a full refetch on refocus.
 const LINEAGE_GC_TIME_MS = 15 * 60 * 1000;
 const LINEAGE_QUERY_PREFIX = "lineage";
-const LINEAGE_NEIGHBOR_PREFETCH_LIMIT = 8;
 
 function lineageQueryKey(assetFqn) {
   return [LINEAGE_QUERY_PREFIX, assetFqn];
@@ -64,34 +63,6 @@ export function invalidateLineage(assetFqn) {
   });
 }
 
-function collectFirstHopNeighbors(payload, focusFqn) {
-  const graph = payload?.graphs?.data;
-  if (!graph) return [];
-  const nodesById = new Map();
-  for (const node of graph.nodes || []) {
-    if (node?.id) nodesById.set(node.id, node);
-  }
-  const focusId = (graph.nodes || []).find((node) => node?.role === "focus")?.id;
-  const seen = new Set();
-  const neighbors = [];
-  for (const edge of graph.edges || []) {
-    const source = edge?.source;
-    const target = edge?.target;
-    const depth = Number(edge?.depth ?? 1);
-    if (depth !== 1) continue;
-    let neighborId = "";
-    if (source === focusId) neighborId = target;
-    else if (target === focusId) neighborId = source;
-    else continue;
-    const neighbor = nodesById.get(neighborId);
-    const fqn = neighbor?.assetFqn;
-    if (!fqn || fqn === focusFqn || seen.has(fqn)) continue;
-    seen.add(fqn);
-    neighbors.push(fqn);
-  }
-  return neighbors;
-}
-
 export function prefetchLineage(assetFqn, options = {}) {
   if (!assetFqn) return Promise.resolve(null);
   const force = options.force === true;
@@ -121,27 +92,11 @@ export function useLineage(assetFqn, enabled = true) {
     gcTime: LINEAGE_GC_TIME_MS,
     queryFn: ({ signal }) => fetchLineage(assetFqn, { signal }),
   });
-
-  useEffect(() => {
-    if (!enabled) return;
-    const payload = query.data;
-    if (!payload || !payload.authoritative) return;
-    const neighbors = collectFirstHopNeighbors(payload, assetFqn);
-    if (!neighbors.length) return;
-    const handles = [];
-    neighbors.slice(0, LINEAGE_NEIGHBOR_PREFETCH_LIMIT).forEach((neighborFqn, index) => {
-      // Stagger prefetches so the focus asset's in-flight queries aren't
-      // starved. 150 ms spacing still lets all 8 kick off within ~1.2 s,
-      // which is much faster than the user can click through them.
-      const handle = setTimeout(() => {
-        prefetchLineage(neighborFqn);
-      }, index * 150);
-      handles.push(handle);
-    });
-    return () => {
-      handles.forEach((handle) => clearTimeout(handle));
-    };
-  }, [assetFqn, enabled, query.data?.fqn, query.data?.authoritative]);
+  // Neighbor prefetch is intentionally *not* auto-triggered here. Eager
+  // stampedes (8 parallel lineage queries) starved the SQL warehouse and
+  // turned every focus load into a 2+ minute wait. Callers that actually
+  // need a warm neighbor (e.g. hover dwell > 600 ms) must call
+  // `prefetchLineage()` explicitly, one neighbor at a time.
 
   if (!assetFqn) {
     return {

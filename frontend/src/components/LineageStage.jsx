@@ -64,9 +64,9 @@ export default function LineageStage({
   assetSearchResults,
   assetSearchResolvedQuery,
   assetSearchLoading,
-  onOpenFullGraph,
   embedded = false,
   allowRefocus = true,
+  userEmail = "",
 }) {
   const graph = selectGraph(graphBundle, context);
   const stats = {
@@ -118,11 +118,6 @@ export default function LineageStage({
                   onChange={(nextContext) => onContextChange?.(nextContext)}
                   variant="segment"
                 />
-                {embedded && onOpenFullGraph ? (
-                  <button className="gh-secondary-button" onClick={() => onOpenFullGraph(context)} type="button">
-                    Open Full Graph
-                  </button>
-                ) : null}
               </div>
             )}
           />
@@ -165,6 +160,7 @@ export default function LineageStage({
                 onOpenGovernance={onOpenGovernance}
                 overlay={overlay}
                 onSelectAsset={onSelectAsset}
+                userEmail={userEmail}
               />
             </>
           ) : error ? (

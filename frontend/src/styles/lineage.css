@@ -925,3 +925,171 @@
   transform: scale(1.015);
   transition: box-shadow 160ms ease, transform 160ms ease;
 }
+
+/* ─────────────────────────────────────────────────────────────
+ * T3 — graph canvas makeover: node badges, filter rail,
+ * impact overlay, share link affordance
+ * ──────────────────────────────────────────────────────────── */
+
+.gh-graph-node-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0 2px;
+}
+.gh-graph-node-badge {
+  align-items: center;
+  background: var(--gh-surface-muted, #f3f6fb);
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: 999px;
+  color: var(--gh-text, #14213d);
+  display: inline-flex;
+  font-size: 0.7rem;
+  font-weight: 600;
+  gap: 4px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  padding: 3px 8px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: help;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gh-graph-node-badge.tone-gov {
+  background: rgba(91, 63, 242, 0.12);
+  border-color: rgba(91, 63, 242, 0.3);
+  color: #3c27b5;
+}
+.gh-graph-node-badge.tone-cert {
+  background: rgba(6, 118, 71, 0.12);
+  border-color: rgba(6, 118, 71, 0.3);
+  color: #046b40;
+}
+.gh-graph-node-badge.tone-pii {
+  background: rgba(180, 35, 24, 0.14);
+  border-color: rgba(180, 35, 24, 0.35);
+  color: #a52014;
+}
+.gh-graph-node-badge.tone-domain {
+  background: rgba(22, 101, 168, 0.1);
+  border-color: rgba(22, 101, 168, 0.3);
+  color: #0b4d80;
+}
+.gh-graph-node-badge.tone-tier {
+  background: rgba(181, 71, 8, 0.12);
+  border-color: rgba(181, 71, 8, 0.3);
+  color: #9a3b05;
+}
+
+.gh-lineage-filter-badge {
+  align-items: center;
+  background: var(--gh-accent, #5b3ff2);
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 700;
+  height: 18px;
+  justify-content: center;
+  line-height: 1;
+  margin-left: 6px;
+  min-width: 18px;
+  padding: 0 5px;
+}
+
+.gh-lineage-filter-panel {
+  background: var(--gh-surface, #fff);
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: var(--gh-radius-md, 8px);
+  box-shadow: 0 12px 32px -20px rgba(20, 33, 61, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 10px;
+  padding: 14px 16px;
+  max-width: 640px;
+}
+.gh-lineage-filter-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.gh-lineage-filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.gh-filter-label {
+  color: var(--gh-text-muted, #5c6b82);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.gh-chip-muted {
+  background: transparent;
+  border: 1px dashed var(--gh-border, #d8dee9);
+  color: var(--gh-text-muted, #5c6b82);
+}
+.gh-range {
+  accent-color: var(--gh-accent, #5b3ff2);
+  width: 100%;
+}
+
+.gh-lineage-mode-overlay {
+  align-items: center;
+  background: rgba(20, 33, 61, 0.94);
+  border-radius: 999px;
+  box-shadow: 0 10px 30px -18px rgba(20, 33, 61, 0.75);
+  color: #fff;
+  display: inline-flex;
+  gap: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px 8px 12px;
+  pointer-events: none;
+  position: absolute;
+  top: 18px;
+  z-index: 40;
+}
+.gh-lineage-mode-dot {
+  background: #ffd02e;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(255, 208, 46, 0.25);
+  height: 10px;
+  width: 10px;
+  animation: gh-mode-pulse 1.6s ease-in-out infinite;
+}
+.gh-lineage-mode-copy {
+  align-items: baseline;
+  display: flex;
+  gap: 6px;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+.gh-lineage-mode-copy strong {
+  color: #ffe08a;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-size: 0.74rem;
+}
+@keyframes gh-mode-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(255, 208, 46, 0.2); }
+  50% { box-shadow: 0 0 0 8px rgba(255, 208, 46, 0.05); }
+}
+
+/* Ensure minimap renders with a reasonable footprint even on
+   small graphs (the old <5 node gate left users guessing). */
+.react-flow__minimap {
+  background: var(--gh-surface, #fff);
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: var(--gh-radius-sm, 6px);
+  box-shadow: 0 6px 18px -14px rgba(20, 33, 61, 0.45);
+  max-height: 160px;
+  max-width: 220px;
+  min-height: 110px;
+  min-width: 150px;
+}

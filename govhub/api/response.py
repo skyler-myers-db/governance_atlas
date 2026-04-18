@@ -7,15 +7,64 @@ identity helpers and capability metadata.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from govhub.api.identity import _request_auth_mode
 from govhub.services import capabilities as capability_service
 from govhub.services.assets import normalize_str as _normalize_str
+
+
+def _compute_etag(payload: Dict[str, Any]) -> str:
+    # Hash only the business payload (strip meta.observedAt, which changes
+    # every call) so an unchanged lineage graph produces a stable ETag and
+    # the browser can serve from its HTTP cache via 304.
+    try:
+        stripped = dict(payload or {})
+        if isinstance(stripped.get("meta"), dict):
+            stripped_meta = dict(stripped["meta"])
+            stripped_meta.pop("observedAt", None)
+            stripped_meta.pop("staleAfter", None)
+            stripped["meta"] = stripped_meta
+        body = json.dumps(stripped, default=str, sort_keys=True).encode("utf-8")
+    except Exception:
+        body = json.dumps({"fqn": payload.get("fqn")}, default=str).encode("utf-8")
+    digest = hashlib.sha1(body).hexdigest()[:20]
+    return f'W/"{digest}"'
+
+
+def _cacheable_json_response(
+    payload: Dict[str, Any],
+    request: Optional[Request],
+    *,
+    max_age: int = 60,
+    stale_while_revalidate: int = 240,
+) -> Response:
+    etag = _compute_etag(payload)
+    if_none_match = ""
+    try:
+        if request is not None:
+            if_none_match = (request.headers.get("if-none-match") or "").strip()
+    except Exception:
+        if_none_match = ""
+    cache_control = (
+        f"private, max-age={max_age}, stale-while-revalidate={stale_while_revalidate}"
+    )
+    if if_none_match and if_none_match == etag:
+        return Response(
+            status_code=304,
+            headers={"Cache-Control": cache_control, "ETag": etag},
+        )
+    response = JSONResponse(payload)
+    response.headers["Cache-Control"] = cache_control
+    response.headers["ETag"] = etag
+    response.headers["Vary"] = "Accept-Encoding, X-Forwarded-User"
+    return response
 
 
 def _utc_iso(value: datetime) -> str:

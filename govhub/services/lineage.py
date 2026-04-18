@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
@@ -14,6 +15,24 @@ from govhub.services import live_metadata as metadata_service
 
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
+# Per-key locks serialize concurrent loaders so a burst of 8 parallel
+# requests for the same lineage asset turns into one SQL round-trip, not
+# eight. The outer dict is guarded by _TTL_CACHE_LOCKS_GUARD so lock
+# creation is itself thread-safe.
+_TTL_CACHE_LOCKS: Dict[str, threading.Lock] = {}
+_TTL_CACHE_LOCKS_GUARD = threading.Lock()
+
+
+def _ttl_cache_lock(key: str) -> threading.Lock:
+    existing = _TTL_CACHE_LOCKS.get(key)
+    if existing is not None:
+        return existing
+    with _TTL_CACHE_LOCKS_GUARD:
+        existing = _TTL_CACHE_LOCKS.get(key)
+        if existing is None:
+            existing = threading.Lock()
+            _TTL_CACHE_LOCKS[key] = existing
+        return existing
 TABLE_LINEAGE_LIMIT = 50
 COLUMN_LINEAGE_LIMIT = 500
 OPERATIONAL_CONTEXT_LIMIT = 200
@@ -30,9 +49,14 @@ def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
     cached = _TTL_CACHE.get(key)
     if cached and now - cached[0] < ttl_s:
         return cached[1]
-    value = loader()
-    _TTL_CACHE[key] = (now, value)
-    return value
+    lock = _ttl_cache_lock(key)
+    with lock:
+        cached = _TTL_CACHE.get(key)
+        if cached and time.time() - cached[0] < ttl_s:
+            return cached[1]
+        value = loader()
+        _TTL_CACHE[key] = (time.time(), value)
+        return value
 
 
 def _warehouse_key(uc: UCSQLClient) -> str:
