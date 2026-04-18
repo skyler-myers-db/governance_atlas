@@ -3793,3 +3793,261 @@ and single-line
   white-space: nowrap;
   border: 0;
 }
+
+/* ========================================================================
+   OM-parity shell overhaul (2026-04-18, tranche 4)
+   — collapses the brand band + nav band + command bar from ~400px of
+     chrome into a single compact 56px top row + 48px search row.
+   — fixes the three-column discovery grid so the right rail stops
+     overflowing into the catalog.
+   — compacts the result rows into OM-style dense rows.
+   These rules are appended last so they win the cascade.
+   ======================================================================== */
+
+/* ---- Compact top bar + nav ---- */
+.gh-shell-topbar {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  border-bottom: 1px solid var(--gh-border, #d8dee9);
+  background: #ffffff !important;
+  box-shadow: 0 1px 0 rgba(20, 33, 61, 0.04) !important;
+  align-items: center !important;
+}
+.gh-shell-spine {
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 0 !important;
+  min-height: 56px;
+  padding: 0 20px;
+}
+.gh-shell-brand-band {
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  flex: 0 0 auto !important;
+}
+.gh-shell-brand {
+  padding: 0 !important;
+  background: transparent !important;
+  min-height: 0 !important;
+  gap: 10px !important;
+}
+.gh-shell-brand-mark {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 8px !important;
+  min-width: 30px !important;
+}
+.gh-shell-brand-mark::before { display: none !important; }
+.gh-shell-brand-glyph {
+  font-size: 12px !important;
+  letter-spacing: 0 !important;
+}
+.gh-shell-brand-copy { gap: 0 !important; }
+.gh-shell-brand-title {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.2 !important;
+}
+.gh-shell-brand-subtitle { display: none !important; }
+
+.gh-shell-nav-band {
+  min-height: 0 !important;
+  padding: 0 0 0 24px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  gap: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex: 1 1 auto !important;
+  min-width: 0;
+}
+.gh-shell-nav-band-head {
+  flex: 0 1 auto !important;
+  flex-direction: row-reverse !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+.gh-shell-module-label { display: none !important; }
+.gh-shell-identity-inline {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 14px !important;
+}
+.gh-shell-identity-block { gap: 0 !important; line-height: 1.2; }
+.gh-shell-identity {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+}
+.gh-shell-user {
+  font-size: 12px !important;
+  color: var(--gh-text, #14213d) !important;
+  font-weight: 500 !important;
+}
+.gh-shell-context-stack { flex-direction: row !important; align-items: center !important; gap: 8px !important; }
+.gh-shell-context-state,
+.gh-shell-setup-status {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+.gh-shell-status-note { font-size: 11px !important; }
+.gh-shell-status-actions { gap: 8px !important; }
+
+/* Module nav row — compact underline tabs */
+.gh-shell-nav {
+  grid-template-columns: repeat(var(--gh-module-count, 5), auto) !important;
+  gap: 2px !important;
+  width: auto !important;
+  height: 56px;
+  align-items: stretch !important;
+}
+.gh-product-tab {
+  min-height: 0 !important;
+  width: auto !important;
+  padding: 0 14px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-bottom: 2px solid transparent !important;
+  color: var(--gh-text-muted, #5c6b82) !important;
+  font-weight: 600 !important;
+  height: 100%;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+.gh-product-tab span {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+.gh-product-tab:hover:not(.is-active) { color: var(--gh-text, #14213d) !important; }
+.gh-product-tab.is-active {
+  background: transparent !important;
+  border-bottom-color: var(--gh-accent, #5b3ff2) !important;
+  color: var(--gh-text, #14213d) !important;
+  box-shadow: none !important;
+}
+
+/* ---- Compact command bar (search row) ---- */
+.gh-shell-commandbar {
+  margin: 0 !important;
+  padding: 10px 20px !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  border-radius: 0 !important;
+  background: #fafbfd !important;
+  box-shadow: none !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0 !important;
+}
+.gh-shell-commandbar-copy { display: none !important; }
+.gh-shell-commandbar-title,
+.gh-shell-commandbar-subtitle,
+.gh-shell-commandbar-scope { display: none !important; }
+.gh-global-search-shell { margin: 0 !important; }
+.gh-global-search-frame { padding: 0 !important; }
+.gh-global-search-label { display: none !important; }
+.gh-global-search-input {
+  height: 36px !important;
+  padding: 0 12px !important;
+  border-radius: 6px !important;
+  background: #ffffff !important;
+}
+
+/* ---- Discovery three-column layout, properly bounded ---- */
+.gh-discovery-main-grid {
+  grid-template-columns: 240px minmax(0, 1fr) 360px !important;
+  gap: 16px !important;
+  padding: 16px 20px !important;
+  max-width: none !important;
+  align-items: start !important;
+}
+.gh-discovery-sidebar {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  min-width: 0;
+}
+.gh-discovery-rail,
+.gh-discovery-preview {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  min-width: 0;
+}
+/* Catch-all right rail classes */
+.gh-surface-rail {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  min-width: 0;
+}
+
+/* ---- Compact asset result rows (OM-style) ---- */
+.gh-discovery-result-row {
+  padding: 10px 14px !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  background: #ffffff !important;
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  transition: border-color 120ms ease, background 120ms ease !important;
+}
+.gh-discovery-result-row::before { display: none !important; }
+.gh-discovery-result-row:hover {
+  transform: none !important;
+  background: var(--gh-surface-muted, #f3f6fb) !important;
+  border-color: var(--gh-border-strong, #b8c2d3) !important;
+  box-shadow: none !important;
+}
+.gh-discovery-result-row.is-selected {
+  border-color: var(--gh-accent, #5b3ff2) !important;
+  background: var(--gh-accent-soft, #eef0ff) !important;
+  box-shadow: inset 0 0 0 1px var(--gh-accent, #5b3ff2) !important;
+}
+
+/* ---- Entity hero — keep tight ---- */
+.gh-entity-hero {
+  padding: 16px 20px !important;
+  min-height: 0 !important;
+  border-radius: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+.gh-entity-record-tabs {
+  padding: 0 20px !important;
+  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  background: #ffffff !important;
+  gap: 0 !important;
+}
+
+/* ---- Surface panel sections: remove the shadow-heavy card look ---- */
+.gh-surface-panel-section,
+.gh-entity-record-section,
+.gh-record-card {
+  box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
+  border-radius: 6px !important;
+}
+
+/* ---- Inbox panel sizing ---- */
+.gh-shell-inbox-panel { max-width: 480px; }
+
+/* Page root shouldn't have the heavy pale-blue gradient behind the compact bars */
+body { background: var(--gh-bg, #f7f9fc) !important; }
