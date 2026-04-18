@@ -123,6 +123,23 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
     )
 
 
+def api_column_lineage_trace_query(
+    request: Request,
+    asset_fqn: str = "",
+    column_name: str = "",
+    direction: str = "upstream",
+    depth: int = 2,
+) -> JSONResponse:
+    """Query-param variant so asset_fqn (which contains dots) doesn't
+    have to collide with FastAPI's dot-unfriendly path parameter."""
+    if not asset_fqn or not column_name:
+        raise HTTPException(
+            status_code=400,
+            detail="asset_fqn and column_name query parameters are required.",
+        )
+    return api_column_lineage_trace(asset_fqn, column_name, request, direction, depth)
+
+
 def api_column_lineage_trace(
     asset_fqn: str,
     column_name: str,
@@ -186,6 +203,13 @@ def build_lineage_router() -> APIRouter:
     router = APIRouter(tags=["lineage"])
     # Register the more-specific column trace route FIRST so the generic
     # catch-all below doesn't swallow /api/lineage/columns/... paths.
+    router.add_api_route(
+        "/api/lineage/column-trace",
+        api_column_lineage_trace_query,
+        methods=["GET"],
+        name="api_column_lineage_trace_query",
+    )
+    # Back-compat alias — path style for asset_fqns without dots.
     router.add_api_route(
         "/api/lineage/columns/{asset_fqn}/{column_name}/trace",
         api_column_lineage_trace,
