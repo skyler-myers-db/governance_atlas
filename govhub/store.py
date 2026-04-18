@@ -205,6 +205,39 @@ class GovernanceStore:
         )
         return audit_id
 
+    def append_entity_version(
+        self,
+        *,
+        entity_kind: str,
+        snapshot: Any,
+        entity_id: str | None = None,
+        entity_fqn: str | None = None,
+        change_event_id: str | None = None,
+        recorded_by: str | None = None,
+    ) -> str:
+        """Phase 5 Tranche A — append a point-in-time entity snapshot so
+        the audit surface can answer 'what did this record look like on
+        <date>?' without replaying the full change_events stream."""
+        version_id = uuid.uuid4().hex
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""INSERT INTO {self._fq('entity_versions')} (
+    version_id, entity_kind, entity_id, entity_fqn, version_number,
+    snapshot_json, change_event_id, recorded_by, recorded_at
+) VALUES (
+    {sql_literal(version_id)},
+    {sql_literal(entity_kind)},
+    {sql_literal(entity_id)},
+    {sql_literal(entity_fqn)},
+    NULL,
+    {sql_literal(_json_text(snapshot)) if snapshot is not None else 'NULL'},
+    {sql_literal(change_event_id)},
+    {sql_literal(recorded_by)},
+    timestamp({sql_literal(ts)})
+)"""
+        )
+        return version_id
+
     def append_change_event(
         self,
         *,

@@ -125,9 +125,10 @@ def record_audit_log(
         # both is useful for observability.
         pass
 
+    change_event_id: str | None = None
     if hasattr(store, "append_change_event"):
         try:
-            store.append_change_event(
+            change_event_id = store.append_change_event(
                 event_type=f"{entity_type}.{action}",
                 entity_kind=entity_type,
                 actor_email=actor_email,
@@ -141,6 +142,22 @@ def record_audit_log(
                 detail=detail,
                 source=source,
                 status="emitted",
+            )
+        except Exception:
+            change_event_id = None
+
+    # Phase 5 Tranche A — also snapshot the "after" state into
+    # entity_versions so the history tab can answer point-in-time
+    # questions without replaying the change_events stream.
+    if after is not None and hasattr(store, "append_entity_version"):
+        try:
+            store.append_entity_version(
+                entity_kind=entity_type,
+                entity_id=entity_id,
+                entity_fqn=entity_fqn,
+                snapshot=after,
+                change_event_id=change_event_id,
+                recorded_by=actor_email,
             )
         except Exception:
             return

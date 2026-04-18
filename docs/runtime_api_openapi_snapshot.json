@@ -314,6 +314,24 @@
         "title": "CustomPropertyDefinitionPayload",
         "type": "object"
       },
+      "EnqueueExportRequest": {
+        "properties": {
+          "assetFqns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Assetfqns",
+            "type": "array"
+          },
+          "format": {
+            "default": "csv",
+            "title": "Format",
+            "type": "string"
+          }
+        },
+        "title": "EnqueueExportRequest",
+        "type": "object"
+      },
       "ExportAssetsRequest": {
         "properties": {
           "assetFqns": {
@@ -581,6 +599,48 @@
         "summary": "Api Access Explainer Generic",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/api/admin/background/run-batch": {
+      "post": {
+        "description": "Phase 12 \u2014 admin-triggered batch runner. Drains up to `limit`\nqueued work items. Designed to let admins manually flush the queue\nor be called from a Databricks Job on a schedule.",
+        "operationId": "api_admin_run_background_batch_api_admin_background_run_batch_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Admin Run Background Batch",
+        "tags": [
+          "export"
         ]
       }
     },
@@ -1937,6 +1997,88 @@
         ]
       }
     },
+    "/api/export/enqueue": {
+      "post": {
+        "description": "Phase 12 \u2014 enqueue an async export. Writes a queued row to\nexport_jobs + background_work_items and returns the job_id so the\nbrowser can poll `/api/export/{job_id}/status`.\n\nLarge exports exceed SYNC_EXPORT_MAX_ROWS so the sync endpoint\nrefuses them; this is the async path. A separate runner\n(Phase 12 extension) materializes queued jobs under app-principal\nauth subject to the token_captured_at freshness window.",
+        "operationId": "api_export_enqueue_api_export_enqueue_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnqueueExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Export Enqueue",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/export/jobs": {
+      "get": {
+        "description": "Phase 12 \u2014 list recent export jobs for the current actor.",
+        "operationId": "api_list_my_export_jobs_api_export_jobs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 25,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api List My Export Jobs",
+        "tags": [
+          "export"
+        ]
+      }
+    },
     "/api/export/{job_id}/download": {
       "get": {
         "description": "Re-download a previously materialized export. Enforces:\n- actor-scoped auth\n- requester identity match\n- status == ready\n- not expired\n- token capture time not stale (>55 min)\nRe-materializes CSV on demand \u2014 artifact is not persisted, preserving\nthe no-raw-artifact rule and ensuring any intervening visibility\nchanges apply.",
@@ -1973,6 +2115,47 @@
           }
         },
         "summary": "Api Export Job Download",
+        "tags": [
+          "export"
+        ]
+      }
+    },
+    "/api/export/{job_id}/status": {
+      "get": {
+        "description": "Phase 12 \u2014 poll endpoint. Returns current status + timestamps for\nthe export job. Requester-identity gated so an actor can't read\nanother user's queued jobs.",
+        "operationId": "api_export_job_status_api_export__job_id__status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Export Job Status",
         "tags": [
           "export"
         ]
