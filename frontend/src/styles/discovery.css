@@ -493,15 +493,16 @@
 .gh-discovery-row {
   display: grid;
   grid-template-columns:
-    64px                              /* select + star */
-    minmax(220px, 2fr)                /* asset */
+    56px                              /* select + star */
+    minmax(200px, 2.2fr)              /* asset */
     minmax(96px, 0.8fr)               /* type */
-    minmax(120px, 1fr)                /* domain */
-    minmax(100px, 0.9fr)              /* tier */
-    minmax(120px, 1fr)                /* owner */
-    minmax(140px, 1fr)                /* needs work */
-    minmax(80px, 0.6fr)               /* updated */
-    72px;                             /* actions */
+    minmax(100px, 0.9fr)              /* domain */
+    minmax(90px, 0.8fr)               /* tier */
+    minmax(88px, 0.7fr)               /* owner avatars */
+    minmax(120px, 1fr)                /* tags */
+    minmax(130px, 1fr)                /* needs work */
+    minmax(70px, 0.5fr)               /* updated */
+    64px;                             /* actions */
   gap: 8px;
   align-items: center;
   padding: 0 12px;
@@ -963,4 +964,76 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 500;
+}
+
+.gh-owner-avatar {
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 0 1px rgba(20, 33, 61, 0.06);
+}
+.gh-owner-avatar-stack {
+  display: inline-flex;
+  align-items: center;
+}
+.gh-owner-avatar-overlap { margin-left: -6px; }
+.gh-owner-avatar-overflow {
+  background: var(--gh-surface-muted, #f3f6fb);
+  color: var(--gh-text-muted, #5c6b82);
+  margin-left: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.6);
+  box-shadow: 0 0 0 1px rgba(20, 33, 61, 0.06);
+}
+
+/* Tag column (inline color-coded) */
+.gh-discovery-row-tags {
+  display: inline-flex;
+  gap: 3px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  min-width: 0;
+}
+.gh-row-tag {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: #f3efff;
+  color: #5b3ff2;
+  border: 1px solid rgba(91, 67, 238, 0.2);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.gh-row-tag-more {
+  color: var(--gh-text-muted, #5c6b82);
+  font-size: 10px;
+  padding: 1px 4px;
+}
+/* Known tag semantics */
+.gh-row-tag[data-tag^="pii"],
+.gh-row-tag[data-tag*="sensitive"] {
+  background: #fdeeec;
+  color: #b42318;
+  border-color: #f2b5ab;
+}
+.gh-row-tag[data-tag*="gold"],
+.gh-row-tag[data-tag*="tier-1"] {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fbbf24;
+}
+.gh-row-tag[data-tag*="certif"],
+.gh-row-tag[data-tag*="verified"] {
+  background: #ebf8ef;
+  color: #067647;
+  border-color: #a9d8b8;
 }

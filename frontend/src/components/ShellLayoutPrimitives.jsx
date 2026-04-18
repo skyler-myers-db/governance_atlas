@@ -137,7 +137,11 @@ export function SurfaceRail({
           {eyebrow ? <div className="gh-eyebrow">{eyebrow}</div> : null}
           {title || titleMeta ? (
             <div className="gh-surface-rail-title-row">
-              {title ? <h3>{title}</h3> : null}
+              {title ? (
+                <h3 className="gh-surface-rail-title gh-truncate" title={typeof title === "string" ? title : undefined}>
+                  {title}
+                </h3>
+              ) : null}
               {titleMeta ? <div className="gh-surface-rail-title-meta">{titleMeta}</div> : null}
             </div>
           ) : null}

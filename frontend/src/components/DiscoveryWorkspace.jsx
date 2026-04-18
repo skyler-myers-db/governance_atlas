@@ -10,6 +10,7 @@ import { useLineage } from "../hooks/useLineage";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 import { AssetTypeIcon } from "./primitives";
+import { OwnerAvatar, OwnerAvatarStack } from "./primitives/OwnerAvatar";
 import {
   runtimeFeatureFlagAvailable,
   runtimeFeatureFlagReason,
@@ -754,7 +755,7 @@ function DiscoveryResultCard({
   return (
     <div
       aria-label={`Open ${asset.name}`}
-      className={`gh-discovery-row gh-discovery-result-row ${selected ? "is-selected" : ""} ${isBulkSelected ? "is-bulk-selected" : ""}`}
+      className={`gh-discovery-row gh-discovery-result-row ${selected ? "is-selected" : ""} ${isBulkSelected ? "is-bulk-selected" : ""} ${gaps.length >= 3 ? "has-critical-gap" : ""}`}
       data-asset-fqn={asset.fqn}
       onClick={handleRowClick}
       onKeyDown={(event) => {
@@ -833,18 +834,38 @@ function DiscoveryResultCard({
 
       <div className="gh-discovery-row-cell gh-discovery-row-owner">
         {ownerCount ? (
-          <span className="gh-labeled-pill" title={ownerLabels.join(", ")}>
-            <span className="gh-labeled-pill-label">Owner</span>
-            <span className="gh-labeled-pill-value">
-              {primaryOwner}{ownerCount > 1 ? ` +${ownerCount - 1}` : ""}
-            </span>
-          </span>
+          <OwnerAvatarStack owners={ownerLabels} limit={3} size={22} />
         ) : (
-          <span className="gh-labeled-pill gh-labeled-pill-warn" title="No owner assigned">
-            <span className="gh-labeled-pill-label">Owner</span>
-            <span className="gh-labeled-pill-value">No owner</span>
+          <span className="gh-labeled-pill gh-labeled-pill-unassigned" title="No owner assigned">
+            <span className="gh-labeled-pill-value">—</span>
           </span>
         )}
+      </div>
+
+      <div className="gh-discovery-row-cell gh-discovery-row-tags" title={(asset.tagEntries || asset.tags || []).join(", ")}>
+        {(() => {
+          const tagLabels = (asset.tagEntries || []).map((t) => t?.label || t?.name).filter(Boolean);
+          if (tagLabels.length === 0 && Array.isArray(asset.tags)) {
+            tagLabels.push(...asset.tags.filter(Boolean));
+          }
+          if (!tagLabels.length) return <span className="gh-row-tag-more">—</span>;
+          const visible = tagLabels.slice(0, 2);
+          const extra = tagLabels.length - visible.length;
+          return (
+            <>
+              {visible.map((tag) => (
+                <span
+                  className="gh-row-tag"
+                  data-tag={String(tag).toLowerCase()}
+                  key={tag}
+                >
+                  {tag}
+                </span>
+              ))}
+              {extra > 0 ? <span className="gh-row-tag-more">+{extra}</span> : null}
+            </>
+          );
+        })()}
       </div>
 
       <div className="gh-discovery-row-cell gh-discovery-row-gaps">
@@ -938,9 +959,134 @@ function DiscoveryResultHeader({ bulkSelectionActive, allSelected, onToggleAll, 
       <div className="gh-discovery-row-cell gh-discovery-row-domain">Domain</div>
       <div className="gh-discovery-row-cell gh-discovery-row-tier">Tier</div>
       <div className="gh-discovery-row-cell gh-discovery-row-owner">Owner</div>
+      <div className="gh-discovery-row-cell gh-discovery-row-tags">Tags</div>
       <div className="gh-discovery-row-cell gh-discovery-row-gaps">Needs work</div>
       <div className="gh-discovery-row-cell gh-discovery-row-updated">{sortCol("updated", "Updated")}</div>
       <div className="gh-discovery-row-cell gh-discovery-row-actions" />
+    </div>
+  );
+}
+
+function DiscoveryBreadcrumb({ schemaFilter, onClear }) {
+  return (
+    <div className="gh-discovery-breadcrumb" aria-label="Discovery breadcrumb">
+      <button className="gh-discovery-breadcrumb-home" onClick={onClear} type="button">
+        Discovery
+      </button>
+      {schemaFilter?.catalog ? (
+        <>
+          <span className="gh-discovery-breadcrumb-sep">/</span>
+          <span className="gh-discovery-breadcrumb-seg">{schemaFilter.catalog}</span>
+        </>
+      ) : null}
+      {schemaFilter?.schema ? (
+        <>
+          <span className="gh-discovery-breadcrumb-sep">/</span>
+          <span className="gh-discovery-breadcrumb-seg gh-discovery-breadcrumb-current">{schemaFilter.schema}</span>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function ActiveFilterStrip({ filters, schemaFilter, onDiscoveryStateChange, onClearSchemaFilter }) {
+  const chips = [];
+  if (schemaFilter?.schema) {
+    chips.push({
+      id: "schema",
+      label: `Schema: ${schemaFilter.catalog}.${schemaFilter.schema}`,
+      clear: onClearSchemaFilter,
+    });
+  }
+  for (const type of filters.types || []) {
+    chips.push({
+      id: `type-${type}`,
+      label: `Type: ${type}`,
+      clear: () => onDiscoveryStateChange((current) => ({
+        ...current,
+        types: (current.types || []).filter((t) => t !== type),
+      })),
+    });
+  }
+  for (const catalog of filters.catalogs || []) {
+    chips.push({
+      id: `catalog-${catalog}`,
+      label: `Catalog: ${catalog}`,
+      clear: () => onDiscoveryStateChange((current) => ({
+        ...current,
+        catalogs: (current.catalogs || []).filter((c) => c !== catalog),
+      })),
+    });
+  }
+  for (const domain of filters.domains || []) {
+    chips.push({
+      id: `domain-${domain}`,
+      label: `Domain: ${domain}`,
+      clear: () => onDiscoveryStateChange((current) => ({
+        ...current,
+        domains: (current.domains || []).filter((d) => d !== domain),
+      })),
+    });
+  }
+  for (const tier of filters.tiers || []) {
+    chips.push({
+      id: `tier-${tier}`,
+      label: `Tier: ${tier}`,
+      clear: () => onDiscoveryStateChange((current) => ({
+        ...current,
+        tiers: (current.tiers || []).filter((t) => t !== tier),
+      })),
+    });
+  }
+  for (const cert of filters.certifications || []) {
+    chips.push({
+      id: `cert-${cert}`,
+      label: `Cert: ${cert}`,
+      clear: () => onDiscoveryStateChange((current) => ({
+        ...current,
+        certifications: (current.certifications || []).filter((c) => c !== cert),
+      })),
+    });
+  }
+  if (filters.query) {
+    chips.push({
+      id: "query",
+      label: `Search: "${filters.query}"`,
+      clear: () => onDiscoveryStateChange((current) => ({ ...current, query: "" })),
+    });
+  }
+  if (!chips.length) return null;
+  const clearAll = () => {
+    onClearSchemaFilter?.();
+    onDiscoveryStateChange((current) => ({
+      ...current,
+      query: "",
+      types: [],
+      catalogs: [],
+      domains: [],
+      tiers: [],
+      certifications: [],
+      sensitivities: [],
+    }));
+  };
+  return (
+    <div className="gh-filter-strip" role="status" aria-live="polite">
+      <span className="gh-filter-chip-label">Filtered by</span>
+      {chips.map((chip) => (
+        <button
+          aria-label={`Clear ${chip.label}`}
+          className="gh-filter-chip"
+          key={chip.id}
+          onClick={chip.clear}
+          type="button"
+        >
+          <span>{chip.label}</span>
+          <span className="gh-filter-chip-x" aria-hidden="true">×</span>
+        </button>
+      ))}
+      <button className="gh-filter-chip-clear-all" onClick={clearAll} type="button">
+        Clear all
+      </button>
     </div>
   );
 }
@@ -1535,6 +1681,31 @@ export default function DiscoveryWorkspace({
     !discoveryResults.authoritative &&
     !(discoveryResults.assets || []).length;
   const allDiscoveryAssets = suppressCatalogRows ? [] : discoveryResults.assets;
+  // #11 Real saved-view counts computed client-side so the numbers
+  // actually track state (previously they were either unreachable
+  // via facets or hardcoded as 0 / 1197).
+  const savedViewCounts = useMemo(() => {
+    const counts = {
+      "All assets": allDiscoveryAssets.length,
+      "Needs attention": 0,
+      "Needs owner": 0,
+      "Needs certification": 0,
+      "Certified": 0,
+      "High coverage": 0,
+    };
+    for (const entry of allDiscoveryAssets) {
+      const noOwner = !(entry?.owners?.length);
+      const noCert = !entry?.certification || entry.certification === "Unassigned";
+      const isCertified = !noCert;
+      const score = Number(entry?.coverageScore || 0);
+      if (noOwner) counts["Needs owner"] += 1;
+      if (noCert) counts["Needs certification"] += 1;
+      if (isCertified) counts["Certified"] += 1;
+      if (score >= 80) counts["High coverage"] += 1;
+      if (noOwner || noCert || score < 50) counts["Needs attention"] += 1;
+    }
+    return counts;
+  }, [allDiscoveryAssets]);
   // Index by FQN for O(1) lookups from Activity Home panel.
   const assetsByFqnMap = useMemo(() => {
     const map = new Map();
@@ -2101,7 +2272,9 @@ export default function DiscoveryWorkspace({
                 >
                   <span>{view}</span>
                   <span className="gh-category-count">
-                    {showLiveFacetCounts ? facetCount(resultsFacets, "views", view) : "—"}
+                    {showLiveFacetCounts
+                      ? (savedViewCounts[view] ?? facetCount(resultsFacets, "views", view))
+                      : "—"}
                   </span>
                 </button>
               ))}
@@ -2168,6 +2341,16 @@ export default function DiscoveryWorkspace({
         </SurfaceRail>
 
         <section className="gh-results-column">
+          <DiscoveryBreadcrumb
+            onClear={() => setSelectedSchema(null)}
+            schemaFilter={selectedSchema}
+          />
+          <ActiveFilterStrip
+            filters={filters}
+            onClearSchemaFilter={() => setSelectedSchema(null)}
+            onDiscoveryStateChange={onDiscoveryStateChange}
+            schemaFilter={selectedSchema}
+          />
           <div className="gh-panel gh-discovery-command-panel" ref={filterCommandRef}>
             <SurfaceHeader
               actions={(
