@@ -9,6 +9,7 @@ import {
 import { useLineage } from "../hooks/useLineage";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
+import { AssetTypeIcon } from "./primitives";
 import {
   runtimeFeatureFlagAvailable,
   runtimeFeatureFlagReason,
@@ -641,6 +642,7 @@ function DiscoveryResultCard({
         <div className="gh-discovery-result-head">
           <div className="gh-discovery-result-title-block">
             <div className="gh-discovery-result-title-row">
+              <AssetTypeIcon asset={asset} size="md" />
               <h3>{asset.name}</h3>
               {objectType ? <span className="gh-chip gh-chip-soft">{objectType}</span> : null}
               {asset.sensitivity && asset.sensitivity !== "Unassigned" ? (

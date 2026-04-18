@@ -1,5 +1,6 @@
 import { SurfaceHeader } from "../ShellLayoutPrimitives";
 import { InlineStatusBanner } from "../ShellStatePrimitives";
+import { AssetTypeIcon } from "./AssetTypeIcon";
 
 function statusTone(asset) {
   if (!asset?.governanceStatus) return "neutral";
@@ -24,13 +25,19 @@ export function EntityHero({
   onNavigationStateChange,
   onBack,
 }) {
+  const heroTitle = (
+    <span className="gh-entity-hero-title">
+      <AssetTypeIcon asset={asset} size="xl" />
+      <span>{asset.name}</span>
+    </span>
+  );
   return (
     <div className="gh-entity-record-header">
       <SurfaceHeader
         className="gh-entity-record-main"
         eyebrow="Metadata Record"
         identity={identityLine}
-        title={asset.name}
+        title={heroTitle}
         variant="featured"
         actions={(
           <div className="gh-action-row gh-entity-action-row">
