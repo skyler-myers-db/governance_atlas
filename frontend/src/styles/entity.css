@@ -593,3 +593,25 @@
 }
 .gh-md a { color: var(--gh-accent, #5b3ff2); text-decoration: none; border-bottom: 1px solid transparent; }
 .gh-md a:hover { border-bottom-color: currentColor; }
+
+/* ------------------------------------------------------------
+   Final polish — OM-class typography + spacing
+   ------------------------------------------------------------ */
+.gh-entity-description { font-size: 14px; }
+.gh-entity-description p:first-child { margin-top: 0; }
+.gh-profile-panel .gh-profile-stat-value { font-variant-numeric: tabular-nums; }
+.gh-quality-bucket-value { font-variant-numeric: tabular-nums; }
+/* Sticky table heads so long result tables stay readable */
+.gh-profile-columns-head,
+.gh-quality-results-head,
+.gh-audit-browser-head,
+.gh-taxonomy-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+/* Inline code inside descriptions — match the hero breadcrumb font */
+.gh-entity-description .gh-md-code { font-size: 12px; }
+/* Empty-state body spacing */
+.gh-empty-state-block { padding: var(--gh-space-5, 20px); text-align: center; }
+.gh-empty-state-block .gh-empty-state-title { font-size: 15px; font-weight: 600; margin-bottom: var(--gh-space-2, 8px); }
