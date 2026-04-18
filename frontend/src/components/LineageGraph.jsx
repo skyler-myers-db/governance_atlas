@@ -944,6 +944,119 @@ export default function LineageGraph({
     return { upstream, downstream };
   }, [nodesById, selectedNode, transformed.edges]);
 
+  // Phase 2-i.2 — arrow-key navigation between connected nodes.
+  //   ArrowLeft  → move upstream (neighbor with an edge terminating at the
+  //                 currently selected node); cycles through siblings.
+  //   ArrowRight → move downstream.
+  //   ArrowUp/Down → cycle through same-direction siblings when there are
+  //                  multiple upstream or multiple downstream neighbors.
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const viewport = viewportRef.current;
+    if (!viewport) return undefined;
+
+    const isEditable = (el) => {
+      if (!el || !(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+      return el.isContentEditable;
+    };
+
+    const pickNeighbor = (node, direction) => {
+      if (!node) return null;
+      const ids =
+        direction === "upstream"
+          ? transformed.edges.filter((e) => e.target === node.id).map((e) => e.source)
+          : transformed.edges.filter((e) => e.source === node.id).map((e) => e.target);
+      const unique = [...new Set(ids)]
+        .map((id) => nodesById[id])
+        .filter(Boolean);
+      if (!unique.length) return null;
+      return unique[0];
+    };
+
+    const pickSibling = (node, offset) => {
+      if (!node) return null;
+      // Find other nodes that share a neighbor with the current one (siblings
+      // under the same upstream or downstream pivot).
+      const upstreamIds = transformed.edges
+        .filter((e) => e.target === node.id)
+        .map((e) => e.source);
+      const siblingSet = new Set();
+      for (const upId of upstreamIds) {
+        for (const e of transformed.edges) {
+          if (e.source === upId && e.target !== node.id) siblingSet.add(e.target);
+        }
+      }
+      const downstreamIds = transformed.edges
+        .filter((e) => e.source === node.id)
+        .map((e) => e.target);
+      for (const downId of downstreamIds) {
+        for (const e of transformed.edges) {
+          if (e.target === downId && e.source !== node.id) siblingSet.add(e.source);
+        }
+      }
+      const siblings = [...siblingSet]
+        .map((id) => nodesById[id])
+        .filter(Boolean)
+        .sort((a, b) =>
+          String(a?.data?.label || a?.id || "").localeCompare(
+            String(b?.data?.label || b?.id || ""),
+          ),
+        );
+      if (!siblings.length) return null;
+      // Keep a stable index by hashing current node; simple cycle.
+      const current = siblings.findIndex((s) => s.id === node.id);
+      const idx = current >= 0 ? (current + offset + siblings.length) % siblings.length : 0;
+      return siblings[idx] || null;
+    };
+
+    const onKeyDown = (event) => {
+      if (event.defaultPrevented) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isEditable(document.activeElement)) return;
+      if (refocusOpen) return;
+      if (!viewport.isConnected) return;
+      const rect = viewport.getBoundingClientRect?.();
+      if (!rect || rect.width === 0 || rect.height === 0) return;
+      const currentNode = selectedNodeId
+        ? nodesById[selectedNodeId]
+        : defaultFocusNodeId
+          ? nodesById[defaultFocusNodeId]
+          : null;
+      if (!currentNode) return;
+
+      let next = null;
+      if (event.key === "ArrowRight") {
+        next = pickNeighbor(currentNode, "downstream");
+      } else if (event.key === "ArrowLeft") {
+        next = pickNeighbor(currentNode, "upstream");
+      } else if (event.key === "ArrowDown") {
+        next = pickSibling(currentNode, 1);
+      } else if (event.key === "ArrowUp") {
+        next = pickSibling(currentNode, -1);
+      } else {
+        return;
+      }
+      if (!next) return;
+      event.preventDefault();
+      setAllowDefaultSelection(false);
+      setSelectedEdgeId("");
+      setSelectedNodeId(next.id);
+      setGraphMode("explore");
+      setDrawerOpen(true);
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [
+    defaultFocusNodeId,
+    nodesById,
+    refocusOpen,
+    selectedNodeId,
+    transformed.edges,
+  ]);
+
   const activeSelection = useMemo(() => {
     if (!allowDefaultSelection && !selectedEdge && !selectedNode) {
       return { nodeIds: [], edgeIds: [] };
@@ -1018,6 +1131,34 @@ export default function LineageGraph({
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [onAssetSearchQueryChange, refocusOpen]);
+
+  // Phase 2-i.3 — Cmd+F / Ctrl+F / Cmd+K opens the refocus (node search)
+  // overlay from anywhere on the lineage page. Escape closes it via the
+  // existing refocusOpen effect above.
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const viewport = viewportRef.current;
+    if (!viewport) return undefined;
+    const onKeyDown = (event) => {
+      if (!viewport.isConnected) return;
+      const rect = viewport.getBoundingClientRect?.();
+      if (!rect || rect.width === 0 || rect.height === 0) return;
+      const modifier = event.metaKey || event.ctrlKey;
+      if (!modifier) return;
+      const key = (event.key || "").toLowerCase();
+      if (key !== "f" && key !== "k") return;
+      event.preventDefault();
+      setRefocusOpen(true);
+      // Focus the search input on the next tick once the overlay renders.
+      requestAnimationFrame(() => {
+        const input = refocusRootRef.current?.querySelector?.("input[type='search'], input[type='text'], input");
+        input?.focus?.();
+        input?.select?.();
+      });
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const autoFitKey = `${asset?.fqn || "none"}:${context}:${transformed.nodes.length}:${transformed.edges.length}`;
 

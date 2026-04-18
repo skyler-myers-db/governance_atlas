@@ -157,3 +157,8 @@
   color: currentColor;
 }
 .gh-surface-tab .gh-surface-tab-icon svg { display: block; }
+
+/* Phase 2-i.1 — breadcrumb above hero */
+.gh-entity-record-breadcrumbs {
+  margin-bottom: 6px;
+}
