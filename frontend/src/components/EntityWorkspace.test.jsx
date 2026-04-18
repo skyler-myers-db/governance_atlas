@@ -47,6 +47,39 @@ vi.mock("../hooks/useSeededAssetContext", () => ({
   useSeededAssetContext: (...args) => useSeededAssetContextMock(...args),
 }));
 
+vi.mock("../hooks/useAccessExplain", () => ({
+  useAccessExplain: () => ({ loading: false, error: "", data: null }),
+}));
+
+vi.mock("../hooks/useAssetCustomProperties", () => ({
+  useAssetCustomProperties: () => ({
+    loading: false,
+    refreshing: false,
+    error: "",
+    assignments: [],
+  }),
+}));
+
+vi.mock("../hooks/useAssetProfile", () => ({
+  useAssetProfile: () => ({
+    loading: false,
+    error: "",
+    run: null,
+    tableMetric: null,
+    columnMetrics: [],
+  }),
+}));
+
+vi.mock("../hooks/useAssetQuality", () => ({
+  useAssetQuality: () => ({
+    loading: false,
+    error: "",
+    runs: [],
+    results: [],
+    summary: { passed: 0, failed: 0, errored: 0, skipped: 0 },
+  }),
+}));
+
 vi.mock("../lib/assetRecordNavigation", () => ({
   openAssetRecordSafely: (...args) => openAssetRecordSafelyMock(...args),
 }));
@@ -1890,12 +1923,17 @@ describe("EntityWorkspace", () => {
       expect(screen.getAllByText("Custom Properties").length).toBeGreaterThan(1);
     });
 
-    const sections = container.querySelectorAll(".gh-entity-record-property-section");
-    expect(sections.length).toBe(2);
-    expect(within(sections[0]).getByText("retention_policy")).not.toBeNull();
-    expect(within(sections[0]).getByText("90 days")).not.toBeNull();
-    expect(within(sections[1]).getByText("pk_orders")).not.toBeNull();
-    expect(within(sections[1]).getByText("PRIMARY KEY • order_id")).not.toBeNull();
+    // Post-Phase 8: UC-derived custom properties land inside the
+    // CustomPropertiesPanel fallback surface, structural constraints
+    // stay in the PropertyList shell. We assert the values survive,
+    // not the exact section count.
+    expect(screen.getByText("retention_policy")).not.toBeNull();
+    expect(screen.getByText("90 days")).not.toBeNull();
+    const constraintSections = container.querySelectorAll(".gh-entity-record-property-section");
+    expect(constraintSections.length).toBeGreaterThanOrEqual(1);
+    const lastConstraintSection = constraintSections[constraintSections.length - 1];
+    expect(within(lastConstraintSection).getByText("pk_orders")).not.toBeNull();
+    expect(within(lastConstraintSection).getByText("PRIMARY KEY • order_id")).not.toBeNull();
   });
 
   it("uses the shared section shell for custom properties loading state", async () => {
