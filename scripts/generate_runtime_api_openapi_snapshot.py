@@ -34,6 +34,22 @@ RUNTIME_PATHS = (
     "/api/export/assets",
     "/api/export/{job_id}/download",
     "/api/admin/export-jobs",
+    "/api/custom-properties/definitions",
+    "/api/custom-properties/assignments",
+    "/api/assets/{asset_fqn}/custom-properties",
+    "/api/assets/{asset_fqn}/profile",
+    "/api/assets/{asset_fqn}/quality",
+    "/api/assets/{asset_fqn}/access-explain",
+    "/api/quality/runs",
+    "/api/quality/custom-sql/validate",
+    "/api/classifications",
+    "/api/classifications/{classification_id}",
+    "/api/domains",
+    "/api/data-products",
+    "/api/governance/columns",
+    "/api/governance/columns/{group_id}",
+    "/api/audit/events",
+    "/api/access-explain",
 )
 
 if str(ROOT) not in sys.path:
