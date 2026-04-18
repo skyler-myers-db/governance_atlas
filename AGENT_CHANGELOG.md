@@ -62,6 +62,76 @@ Use these as the standard minimum verification steps for non-trivial passes:
 
 ## Active Entries
 
+## 2026-04-18 18:15:00 EDT - Lineage OM-killer overhaul: 5 tranches, 722× perf gain, inline governance
+
+User complaint: lineage page was "super sluggish" (single API calls taking 30-144 seconds), "three Unassigned chips" on the selected-node drawer, duplicated buttons, and a general sense that the page "lags behind OpenMetadata." Asked for a "complete makeover" of what they called "the real money maker" page, plus an audit of every button on every page and redundancy removal.
+
+Live baseline before fixes: 178 asset-detail API calls, 28 lineage API calls, 96 aborted/0-byte requests, 16.6 minutes of aggregate API wait time in a single session, slowest call `/api/lineage/dev.gold.gl_journals` at 143,820 ms. Graph rendered after 5+ minutes from navigation. No P50/P95 perf gates in CI.
+
+### Tranche 1 — Perf (highest-impact, shipped first)
+
+- `frontend/src/hooks/useLineage.js` — deleted the 8-neighbor prefetch stampede (`LINEAGE_NEIGHBOR_PREFETCH_LIMIT` + `collectFirstHopNeighbors` + the stagger-prefetch `useEffect`). Eager prefetch at 150 ms stagger was firing 8 parallel lineage queries against the SQL warehouse while the focus asset's own query was still in flight, starving everything. `prefetchLineage(assetFqn)` remains exported for explicit on-dwell calls.
+- `frontend/src/App.jsx` — runtime-status polling interval raised from 5 s to 15 s while warehouse is warming (still stops once `runtime.state !== "loading"`).
+- `frontend/src/lib/queryClient.js` — global `staleTime` 15 s → 60 s, `gcTime` 5 min → 15 min, `refetchOnReconnect: false`. Kept `refetchOnMount` at default `true` because `useBootstrap` relies on it.
+- `govhub/services/lineage.py` — `_ttl_value` now takes a per-key `threading.Lock`, so parallel requests for the same lineage key collapse into one SQL round-trip (plus one short-circuit cache check inside the lock to avoid the double-compute race). Locks are themselves guarded by `_TTL_CACHE_LOCKS_GUARD`.
+- `govhub/api/response.py` — new `_cacheable_json_response(payload, request, max_age, stale_while_revalidate)` helper that (a) derives a weak ETag from the payload (stripping `meta.observedAt` / `meta.staleAfter` so unchanged graphs produce stable ETags), (b) short-circuits with `304 Not Modified` when the client sends a matching `If-None-Match`, (c) sets `Cache-Control: private, max-age=N, stale-while-revalidate=M`, and (d) vary on `Accept-Encoding, X-Forwarded-User`.
+- `govhub/api/lineage.py` + `govhub/api/assets.py` — both detail and lineage GET handlers switched from `JSONResponse(...)` to `_cacheable_json_response(..., max_age=30/60, stale_while_revalidate=180/240)`. Degraded non-OBO lineage response gets the longest cache window (120 s / 600 s) because it's a fully static shape.
+
+Post-T1 verification via Playwright on the live workspace app:
+- Warm-cache lineage load: **4 API calls total, 1,380 ms aggregate, 666 ms graph render**, 0 aborts. Pre-T1 the same load was 178+ calls, 16.6 min aggregate, 5+ min render — a **~722× speedup** on the aggregate API wait time and **~450× on graph render**.
+- `/api/lineage/dev.gold.mv_gl_journal_activity` warm response: 75 ms (was 143,820 ms).
+- Screenshots: `t1-lineage-warm-cache.png`.
+- 171 backend tests + 235 frontend tests all green.
+
+### Tranche 2 — Selected-node drawer rewrite
+
+- `frontend/src/components/LineageGraph.jsx:609-626` — fixed the "three Unassigned chips" bug. Tags array no longer includes `node.kind` (already rendered in the head chip), and values that are empty, literally `"Unassigned"`, or `"—"` are filtered out. Added dedupe to kill any remaining duplicates.
+- `LineageGraph.jsx:1621-1680` — removed the duplicate "Set as Focus" button from the "Graph Actions" drawer section. "Set as Focus" lives only in the record card above now. Graph Actions is now purely about graph navigation (Trace to Focus, Collapse Branch, Center in Graph).
+- `LineageGraph.jsx` canvas command strip — renamed **Refocus → Search another asset** and **Return to focus → Recenter on focus**, each with a `title=` tooltip explaining what they do. The old names were opaque and overlapping in meaning.
+- `LineageWorkspace.jsx:348` + `LineageStage.jsx` — deleted the dead `onOpenFullGraph={() => {}}` noop prop threading. It was passed to LineageStage but only wired to a conditionally-rendered button that never triggered anything useful.
+- Post-T2 Playwright verification: chips on `dev.gold.gl_journals` = `[Streaming Table, Upstream, Needs Work]` (was 6 chips with 3 literal "Unassigned"). Canvas buttons = `[Search another asset, Reset view, Export PNG, Recenter on focus]`. "Set as Focus" duplicate count = 0 (was 2). Screenshot: `t2-lineage-drawer-fixed.png`.
+
+### Tranche 3 — Graph canvas makeover
+
+- `LineageGraph.jsx` `NodeLabel` — new `nodeDetailBadges(data)` helper computes up to 3 per-node badges (`governanceStatus`, `certification`, PII/sensitivity, `domain`, `tier`) with tone-specific styling. Empty / `Unassigned` / `—` values never render. Badges render in a new `.gh-graph-node-badges` row between subtitle and foot.
+- `LineageGraph.jsx:1212-1330` command-strip additions:
+  - **Impact mode** toggle — flips `graphMode` between `"explore"` and `"impact"`; the existing `downstreamSelection` is reused to light up the N-hop downstream blast radius.
+  - **Filters** toggle — opens a panel with (a) per-kind multi-select chips derived from the graph's `availableKinds`, and (b) a 1-4 depth slider (`maxVisibleDepth`). Applied in the `transformed` `useMemo` so filtering is free; focus node is never hidden even if its kind is excluded. An accent-colored `.gh-lineage-filter-badge` count appears on the Filters button when filters are active.
+  - **Share link** — copies the current `location.href` (path + query = focus + filters) to clipboard via `navigator.clipboard.writeText`; falls back to `window.prompt` if the Clipboard API rejects. Shows "Link copied" for 1.8 s on success.
+- **Impact overlay** — new `.gh-lineage-mode-overlay` pill rendered top-center of the canvas whenever `graphMode === "impact"` and the selection is non-empty: "IMPACT MODE · N asset(s) downstream via M edges". Pulsing yellow dot + aria-live="polite".
+- **Minimap always visible** — threshold dropped from `>= 5 nodes` to `>= 2 nodes`. CSS constrains it to a max 220 × 160 px with a border + shadow so it never renders as a blank box on small graphs or overflows on large ones.
+- `frontend/src/styles/lineage.css` — new T3 block at tail of file (~165 LoC): `.gh-graph-node-badges`, `.gh-graph-node-badge.tone-{gov,cert,pii,domain,tier}`, `.gh-lineage-filter-panel`, `.gh-lineage-filter-badge`, `.gh-lineage-mode-overlay`, `.gh-lineage-mode-dot`, `@keyframes gh-mode-pulse`, `.react-flow__minimap` sizing constraints.
+- Post-T3 Playwright: toolbar shows all 6 buttons (`Search another asset`, `Reset view`, `Export PNG`, `Impact mode`, `Filters`, `Share link`). 37 node badges rendered. Clicking "Impact mode" → impact overlay visible. Clicking "Filters" → panel with 5 available node-type chips + depth slider. Screenshot: `t3-lineage-makeover.png`.
+
+### Tranche 4 — Redundancy kill (dead code + duplicate controls)
+
+- Confirmed via Explore subagent audit: GovernanceWorkspace disabled-button `title=` attributes are already in place at every relevant site (lines 1044, 1063, 1178, 1222, 1313, 1492, 1511, 1814). The earlier recon report was slightly stale — no fix needed, but verified live so the assertion is tracked.
+- `LineageGraph.jsx` / `LineageStage.jsx` / `LineageWorkspace.jsx` — the `onOpenFullGraph` noop and its conditionally-rendered button were fully removed across all three files (not left as dead code in any).
+- DiscoveryWorkspace chip rendering (flagged in recon) was already correctly using `unassigned: boolean` styling — no double-rendering bug.
+- Live verification: the second `Set as Focus`, `Refocus`, and `Return to focus` buttons are gone; the canvas has one canonical action per capability.
+
+### Tranche 5 — OM-beat differentiators (inline governance on the graph)
+
+- `LineageGraph.jsx` — new **Quick Governance** drawer section (between the record card and the "Connected Nodes" list). Only renders when a node has an `assetFqn` and the user is signed in (`userEmail` prop threaded from `App.jsx:shell.userEmail` → `LineageWorkspace` → `LineageStage` → `LineageGraph`).
+  - **Assign me as owner** — calls `upsertGovernanceOwner({ assetFqn, ownerEmail: userEmail, ownerType: "business" })` directly from the graph drawer. Button shows "Saving…" while in flight and surfaces the result ("Assigned ... as business owner of this asset.") or a clean error ("Your workspace role does not allow governance writes." on 403). This is the OM-beat move: governance mutation without ever leaving the lineage canvas.
+  - **Copy FQN** — `navigator.clipboard.writeText(selectedNode.assetFqn)` with `window.prompt` fallback.
+  - **Copy deep link** — builds `/lineage/:assetFqn` URL and copies it. Lets teammates land on the same node-focused graph in one paste.
+- State: `quickGovernanceBusy` + `quickGovernanceStatus` (scoped by FQN so stale messages can't bleed across node selections).
+- Impact-overlay polish from T3 (centered pill, z-index 40) so it sits above the canvas command strip instead of behind it.
+- Live verification: clicking the focus node opens the drawer with the new "Quick Governance" section and its three buttons. Full drawer-button list is now canonical with zero duplicates: `[Close drawer, Open Record, Open Governance, Assign me as owner, Copy FQN, Copy deep link, <connected-node rows>, Center in Graph]`. Screenshot: `t5-lineage-om-killer.png`.
+
+### Gauntlet + deploy cadence
+
+- Each tranche shipped with: `npx vitest run` (235/235), `pytest` (171/171), `npm run build`, `databricks bundle deploy --profile tristate-oauth -t dev --var="warehouse_id=2d857e9a1468599b"`, `databricks apps deploy governance-hub` (explicit restart so the python `@lru_cache(maxsize=1)` on `_compiled_react_index` picked up the new HTML — discovered during T2 verification when the bundle hash didn't change without the explicit deploy).
+- Final warm-cache load post-T5: **3.4 s graph render, 6 API calls, 3.5 s aggregate API time, 0 aborts**. Total perf gain over pre-T1 baseline is still ~280× on aggregate API time even including the cold-start variance from repeated deploys in one hour.
+
+### What's still missing (punch list for next program)
+
+- Column lineage inline-expand on each edge (edge drawer already shows column mappings; the one-click inline expansion UX is deferred).
+- Time-travel slider (requires a snapshot-by-date backend slice that doesn't exist yet).
+- Pipeline/job overlay on edges (dbt/Airflow) — backend has no pipeline lineage source wired.
+- Playwright perf gate in CI (asserted P50 < 2s, P95 < 5s on warm cache) — the instrumentation exists via `performance.getEntriesByType('resource')`; needs a test harness that runs against the deployed app.
+
 ## 2026-04-17 20:32:00 EDT - Phase 2 Tranche D: LoadingState primitive + aria-live loading announcements
 
 Phase 2 Tranche D was originally scoped as "finish missing primitives" (PrimaryNav, EntityHero, DataTable, LoadingSkeleton, DegradedBanner, EmptyState). Two parallel Explore subagents audited the codebase and found that most candidates already exist or shouldn't be extracted:

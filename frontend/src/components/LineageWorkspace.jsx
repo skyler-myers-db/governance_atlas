@@ -47,6 +47,7 @@ export default function LineageWorkspace({
   onOpenAsset,
   runtimeFeatureFlags = [],
   workspaceAccess = null,
+  userEmail = "",
 }) {
   const focusAssetFqn = initialAssetFqn || "";
   const [linkedRecordUnavailableOverrides, setLinkedRecordUnavailableOverrides] = useState({});
@@ -345,7 +346,6 @@ export default function LineageWorkspace({
         onContextChange={(nextContext) => {
           setLocalContext(nextContext);
         }}
-        onOpenFullGraph={() => {}}
         onOpenGovernance={onOpenGovernance}
         onOpenAsset={openLineageAsset}
         onSelectAsset={(assetFqn) => {
@@ -353,6 +353,7 @@ export default function LineageWorkspace({
           setLinkFeedback("");
           onRouteAssetChange?.(assetFqn, localContext);
         }}
+        userEmail={userEmail}
       />
     </section>
   );

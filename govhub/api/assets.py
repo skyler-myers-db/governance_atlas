@@ -7,7 +7,11 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from govhub.api.identity import _request_auth_mode
-from govhub.api.response import _error_response, _with_meta
+from govhub.api.response import (
+    _cacheable_json_response,
+    _error_response,
+    _with_meta,
+)
 from govhub.services import capabilities as capability_service
 from govhub.services import governance as governance_service
 from govhub.services.assets import normalize_str as _normalize_str
@@ -145,7 +149,7 @@ def api_asset_detail(
         payload["restrictedSections"] = sorted(
             set(requested_sections) - set(resolved_sections)
         )
-    return JSONResponse(
+    return _cacheable_json_response(
         _with_meta(
             payload,
             request,
@@ -160,7 +164,10 @@ def api_asset_detail(
                 "visibilityState": visibility.get("visibilityState"),
             },
             warnings=warnings,
-        )
+        ),
+        request,
+        max_age=30,
+        stale_while_revalidate=180,
     )
 
 

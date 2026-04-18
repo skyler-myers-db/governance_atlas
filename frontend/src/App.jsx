@@ -241,7 +241,7 @@ export default function App() {
     // real probe resolves so capability / summary data hydrates without forcing
     // the user to refresh the tab. Stops polling once state is not "loading".
     refetchInterval: (query) =>
-      query?.state?.data?.runtime?.state === "loading" ? 5000 : false,
+      query?.state?.data?.runtime?.state === "loading" ? 15000 : false,
   });
   const runtimeStatusRefresh = runtimeStatus.refresh;
   const resolvedIdentity = runtimeStatus.data?.identity || data?.identity || {};
@@ -656,6 +656,7 @@ export default function App() {
             onOpenAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
             runtimeFeatureFlags={runtimeRolloutFlags}
             workspaceAccess={workspaceAccess}
+            userEmail={shell?.userEmail || ""}
           />
         </Suspense>
       );

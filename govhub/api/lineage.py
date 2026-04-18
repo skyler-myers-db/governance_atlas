@@ -7,7 +7,11 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from govhub.api.identity import _request_auth_mode
-from govhub.api.response import _error_response, _with_meta
+from govhub.api.response import (
+    _cacheable_json_response,
+    _error_response,
+    _with_meta,
+)
 from govhub.services import capabilities as capability_service
 from govhub.services import lineage as lineage_service
 
@@ -23,7 +27,7 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
     _ensure_live_runtime()
     actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
     if not actor_scoped:
-        return JSONResponse(
+        return _cacheable_json_response(
             _with_meta(
                 {
                     "fqn": asset_fqn,
@@ -50,7 +54,10 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
                     "Lineage stays degraded until Databricks per-user authorization / OBO is available for actor-scoped reads.",
                 ],
                 unavailable_reason="Lineage is not available for actor-scoped reads in the current runtime mode.",
-            )
+            ),
+            request,
+            max_age=120,
+            stale_while_revalidate=600,
         )
     payload = _lineage_payload(asset_fqn, request=request)
     stats = payload.get("stats") or {}
@@ -103,7 +110,7 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
                 "visibilityState": visibility.get("visibilityState") or "missing"
             },
         )
-    return JSONResponse(
+    return _cacheable_json_response(
         _with_meta(
             payload,
             request,
@@ -119,7 +126,10 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
                 ),
             },
             warnings=[],
-        )
+        ),
+        request,
+        max_age=60,
+        stale_while_revalidate=240,
     )
 
 

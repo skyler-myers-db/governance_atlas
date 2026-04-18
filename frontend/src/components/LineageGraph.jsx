@@ -14,6 +14,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { assetPathLabel } from "../lib/assetPresentation";
+import { upsertGovernanceOwner } from "../lib/api";
 import { exportLineagePng } from "../lib/exportLineagePng";
 import { SurfaceDrawer, SurfaceDrawerSection } from "./ShellLayoutPrimitives";
 import { AssetTypeIcon } from "./primitives/AssetTypeIcon";
@@ -466,10 +467,29 @@ function upstreamSelection(edges, startId) {
   return { nodeIds: [...seen], edgeIds };
 }
 
+function nodeDetailBadges(data) {
+  const detail = Array.isArray(data?.details) ? data.details[0] || {} : data?.details || {};
+  const badges = [];
+  const push = (tone, label, title = "") => {
+    const clean = String(label || "").trim();
+    if (!clean || clean.toLowerCase() === "unassigned" || clean === "—") return;
+    badges.push({ tone, label: clean, title: title || clean });
+  };
+  push("gov", detail.governanceStatus, `Governance status: ${detail.governanceStatus}`);
+  push("cert", detail.certification, `Certification: ${detail.certification}`);
+  if (detail.sensitivity && /pii|phi|sensitive|restricted/i.test(detail.sensitivity)) {
+    push("pii", detail.sensitivity, `Sensitivity classification: ${detail.sensitivity}`);
+  }
+  push("domain", detail.domain, `Domain: ${detail.domain}`);
+  push("tier", detail.tier, `Tier: ${detail.tier}`);
+  return badges.slice(0, 3);
+}
+
 function NodeLabel({ data }) {
   const branchToggleVisible =
     typeof data?.onToggleBranchCollapse === "function" && Number(data?.branchDescendantCount || 0) > 0;
   const iconSize = data.role === "focus" ? "lg" : "md";
+  const badges = nodeDetailBadges(data);
 
   return (
     <div className="gh-graph-node-card">
@@ -493,6 +513,19 @@ function NodeLabel({ data }) {
         ) : null}
       </div>
       <div className="gh-graph-node-subtitle">{data.subtitle}</div>
+      {badges.length ? (
+        <div className="gh-graph-node-badges">
+          {badges.map((badge, index) => (
+            <span
+              className={`gh-graph-node-badge tone-${badge.tone}`}
+              key={`${data.id}-badge-${index}`}
+              title={badge.title}
+            >
+              {badge.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="gh-graph-node-foot">
         <span>{data.kind}</span>
         {data.layout?.side ? <span className="gh-graph-node-pill">{data.layout.side}</span> : null}
@@ -606,9 +639,20 @@ function LineageRecordCard({
       ? "This asset has no governed metadata record yet. It only appears as a lineage reference."
       : "This node is a lineage-only reference with no governed metadata record in the visible catalog."
     : undefined;
+  // Role + lineage status are always meaningful; governance attributes only
+  // render if the backend returned a real value. "Unassigned" is the
+  // placeholder the governance store emits for empty slots — render it as
+  // nothing instead of stamping three identical chips on the card.
+  const roleChip =
+    node?.role === "focus"
+      ? "Focus"
+      : node?.role === "source"
+        ? "Upstream"
+        : node?.role === "target"
+          ? "Downstream"
+          : "";
   const tags = [
-    node?.kind,
-    node?.role === "focus" ? "Focus" : node?.role === "source" ? "Upstream" : node?.role === "target" ? "Downstream" : "",
+    roleChip,
     detail?.governanceStatus,
     detail?.domain,
     detail?.tier,
@@ -617,7 +661,14 @@ function LineageRecordCard({
     !forcedUnavailable && !isOpenable ? "Lineage only" : "",
   ]
     .map((value) => String(value || "").trim())
-    .filter(Boolean)
+    .filter((value) => {
+      if (!value) return false;
+      if (value === String(node?.kind || "").trim()) return false;
+      if (value.toLowerCase() === "unassigned") return false;
+      if (value === "—") return false;
+      return true;
+    })
+    .filter((value, index, arr) => arr.indexOf(value) === index)
     .slice(0, 5);
   const identifier = detail?.statementId || detail?.entityId || node?.assetFqn || node?.subtitle || "";
   const description = detail?.description || node?.subtitle || "";
@@ -735,6 +786,7 @@ export default function LineageGraph({
   onOpenAsset,
   onOpenGovernance,
   onSelectAsset,
+  userEmail = "",
 }) {
   const nodeTypes = useMemo(() => ({ assetNode: AssetNode }), []);
   const edgeTypes = useMemo(() => ({ assetEdge: AssetEdge }), []);
@@ -755,6 +807,15 @@ export default function LineageGraph({
     setHoveredColumnIndex(-1);
   }, [selectedEdgeId]);
   const [collapsedBranches, setCollapsedBranches] = useState({});
+  // Filter rail — type exclusions + max depth. State lives locally so
+  // filters reset when you re-root the graph (which the user usually
+  // wants, because type availability differs per asset).
+  const [filterRailOpen, setFilterRailOpen] = useState(false);
+  const [excludedKinds, setExcludedKinds] = useState(() => new Set());
+  const [maxVisibleDepth, setMaxVisibleDepth] = useState(4);
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
+  const [quickGovernanceBusy, setQuickGovernanceBusy] = useState("");
+  const [quickGovernanceStatus, setQuickGovernanceStatus] = useState({ fqn: "", message: "" });
   const refocusRootRef = useRef(null);
   const canvasRef = useRef(null);
   const viewportRef = useRef(null);
@@ -763,6 +824,14 @@ export default function LineageGraph({
   const focusNode = transformedBase.nodes.find((node) => node.data.role === "focus")?.data || null;
   const defaultFocusNodeId = focusNode?.id || transformedBase.nodes[0]?.id || "";
   const graphHasEdges = hasEdges ?? transformedBase.edges.length > 0;
+  const availableKinds = useMemo(() => {
+    const kinds = new Set();
+    for (const node of transformedBase.nodes) {
+      const kind = String(node.data?.kind || "").trim();
+      if (kind) kinds.add(kind);
+    }
+    return [...kinds].sort();
+  }, [transformedBase.nodes]);
 
   const toggleBranchCollapse = (branchRootId) => {
     if (!branchRootId) return;
@@ -799,6 +868,17 @@ export default function LineageGraph({
           if (!branchRootId || branchRootId === defaultFocusNodeId) return true;
           if (!collapsedBranches[branchRootId]) return true;
           return node.id === branchRootId;
+        })
+        .filter((node) => {
+          // Hide excluded kinds unless they are the focus — never hide
+          // the asset the user is focused on, even if its kind is
+          // filtered out.
+          if (node.data?.role === "focus") return true;
+          const kind = String(node.data?.kind || "").trim();
+          if (excludedKinds.has(kind)) return false;
+          const depth = Number(node.data?.layout?.depth || 0);
+          if (depth > maxVisibleDepth) return false;
+          return true;
         })
         .map((node) => node.id),
     );
@@ -926,7 +1006,12 @@ export default function LineageGraph({
   const edgeDetails = selectedEdge ? lineagePayload?.edgeDetails?.[selectedEdge.id] || null : null;
   const selectedSource = selectedEdge ? nodesById[selectedEdge.source] || null : null;
   const selectedTarget = selectedEdge ? nodesById[selectedEdge.target] || null : null;
-  const showMiniMap = (transformed?.nodes?.length || 0) >= 5;
+  // Minimap is always useful — even a 2-hop graph benefits from the
+  // viewport rectangle because the DAG layout frequently overflows the
+  // stage height. The old `>= 5` gate was rendering an empty box on
+  // small graphs and an unreachable minimap on larger ones (the
+  // legacy CSS was stuck at min-height: 0).
+  const showMiniMap = (transformed?.nodes?.length || 0) >= 2;
   const showControls = true;
   const canReturnToFocus =
     defaultFocusNodeId && (Boolean(selectedEdge) || Boolean(selectedNode && selectedNode.id !== defaultFocusNodeId));
@@ -1220,9 +1305,10 @@ export default function LineageGraph({
                       return !open;
                     });
                   }}
+                  title="Search the catalog and re-root the lineage graph on a different asset"
                   type="button"
                 >
-                  Refocus
+                  Search another asset
                 </button>
                 {refocusOpen ? (
                   <div className="gh-lineage-command-popover">
@@ -1303,12 +1389,120 @@ export default function LineageGraph({
                   setGraphMode("explore");
                   flowInstance?.fitView?.({ padding: 0.18 });
                 }}
+                title="Clear the current node/edge selection and re-center on the focus asset"
                 type="button"
               >
-                Return to focus
+                Recenter on focus
               </button>
             ) : null}
+            <button
+              className={`gh-secondary-button ${graphMode === "impact" ? "is-active" : ""}`}
+              onClick={() => {
+                setGraphMode((mode) => (mode === "impact" ? "explore" : "impact"));
+              }}
+              title={
+                graphMode === "impact"
+                  ? "Exit impact mode"
+                  : "Highlight every asset downstream of the focus to preview the blast radius of a change"
+              }
+              type="button"
+            >
+              {graphMode === "impact" ? "Exit impact" : "Impact mode"}
+            </button>
+            <button
+              className={`gh-secondary-button ${filterRailOpen ? "is-active" : ""}`}
+              onClick={() => setFilterRailOpen((open) => !open)}
+              title="Filter the graph by node type and lineage depth"
+              type="button"
+            >
+              Filters
+              {excludedKinds.size > 0 || maxVisibleDepth < 4 ? (
+                <span className="gh-lineage-filter-badge">
+                  {excludedKinds.size + (maxVisibleDepth < 4 ? 1 : 0)}
+                </span>
+              ) : null}
+            </button>
+            <button
+              className="gh-secondary-button"
+              onClick={async () => {
+                try {
+                  const url = new URL(window.location.href);
+                  await navigator.clipboard.writeText(url.toString());
+                  setShareLinkCopied(true);
+                  setTimeout(() => setShareLinkCopied(false), 1800);
+                } catch {
+                  // Fallback: let the user see the URL so they can copy manually
+                  window.prompt("Copy lineage link", window.location.href);
+                }
+              }}
+              title="Copy a link to this lineage view so a teammate lands on the exact same focus + filters"
+              type="button"
+            >
+              {shareLinkCopied ? "Link copied" : "Share link"}
+            </button>
           </div>
+          {filterRailOpen ? (
+            <div className="gh-lineage-filter-panel" role="region" aria-label="Lineage filters">
+              <div className="gh-lineage-filter-head">
+                <div className="gh-filter-title">Filter graph</div>
+                <button
+                  className="gh-secondary-button gh-secondary-button-compact"
+                  onClick={() => {
+                    setExcludedKinds(new Set());
+                    setMaxVisibleDepth(4);
+                  }}
+                  type="button"
+                >
+                  Clear
+                </button>
+              </div>
+              <div className="gh-lineage-filter-section">
+                <div className="gh-filter-label">Node types</div>
+                <div className="gh-chip-row">
+                  {availableKinds.map((kind) => {
+                    const isExcluded = excludedKinds.has(kind);
+                    return (
+                      <button
+                        className={`gh-chip ${isExcluded ? "gh-chip-muted" : "gh-chip-soft"}`}
+                        key={kind}
+                        onClick={() => {
+                          setExcludedKinds((current) => {
+                            const next = new Set(current);
+                            if (next.has(kind)) next.delete(kind);
+                            else next.add(kind);
+                            return next;
+                          });
+                        }}
+                        title={
+                          isExcluded
+                            ? `Show ${kind} nodes`
+                            : `Hide ${kind} nodes from the graph`
+                        }
+                        type="button"
+                      >
+                        {isExcluded ? "◻" : "◼"} {kind}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="gh-lineage-filter-section">
+                <div className="gh-filter-label">
+                  Max depth from focus: <strong>{maxVisibleDepth}</strong>
+                </div>
+                <input
+                  aria-label="Maximum lineage hops visible from focus"
+                  className="gh-range"
+                  max={4}
+                  min={1}
+                  onChange={(event) => setMaxVisibleDepth(Number(event.target.value))}
+                  step={1}
+                  type="range"
+                  value={maxVisibleDepth}
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="gh-lineage-flow-shell">
           <div className="gh-lineage-viewport" ref={viewportRef}>
@@ -1378,6 +1572,21 @@ export default function LineageGraph({
               {showControls ? <Controls showInteractive={false} /> : null}
               <Background color="#d9e2ff" gap={22} />
             </ReactFlow>
+            {graphMode === "impact" && activeNodeIds.length > 0 ? (
+              <div className="gh-lineage-mode-overlay" role="status" aria-live="polite">
+                <span className="gh-lineage-mode-dot" aria-hidden="true" />
+                <div className="gh-lineage-mode-copy">
+                  <strong>Impact mode</strong>
+                  <span>
+                    {Math.max(0, activeNodeIds.length - 1)} asset
+                    {activeNodeIds.length === 2 ? "" : "s"} downstream
+                    {activeEdgeIds.length
+                      ? ` via ${activeEdgeIds.length} edge${activeEdgeIds.length === 1 ? "" : "s"}`
+                      : ""}
+                  </span>
+                </div>
+              </div>
+            ) : null}
             {overlay ? <div className="gh-lineage-overlay">{overlay}</div> : null}
           </div>
         </div>
@@ -1565,6 +1774,97 @@ export default function LineageGraph({
                     : "This node depends on the current focus."}
               </div>
             </SurfaceDrawerSection>
+            {selectedNode.assetFqn && userEmail ? (
+              <SurfaceDrawerSection title="Quick Governance">
+                <div className="gh-support-copy">
+                  Take governance action on <strong>{selectedNode.label}</strong> without
+                  leaving the lineage graph.
+                </div>
+                <div className="gh-action-grid gh-lineage-drawer-actions">
+                  <button
+                    className="gh-secondary-button"
+                    disabled={quickGovernanceBusy === selectedNode.assetFqn}
+                    onClick={async () => {
+                      if (!selectedNode.assetFqn || !userEmail) return;
+                      setQuickGovernanceStatus({ fqn: selectedNode.assetFqn, message: "" });
+                      setQuickGovernanceBusy(selectedNode.assetFqn);
+                      try {
+                        await upsertGovernanceOwner({
+                          assetFqn: selectedNode.assetFqn,
+                          ownerEmail: userEmail,
+                          ownerType: "business",
+                        });
+                        setQuickGovernanceStatus({
+                          fqn: selectedNode.assetFqn,
+                          message: `Assigned ${userEmail} as business owner of this asset.`,
+                        });
+                      } catch (err) {
+                        setQuickGovernanceStatus({
+                          fqn: selectedNode.assetFqn,
+                          message:
+                            err?.message?.includes("403")
+                              ? "Your workspace role does not allow governance writes."
+                              : "Owner assignment failed. Check the governance store, then retry.",
+                        });
+                      } finally {
+                        setQuickGovernanceBusy("");
+                      }
+                    }}
+                    title="Claim ownership of this asset as the currently signed-in user"
+                    type="button"
+                  >
+                    {quickGovernanceBusy === selectedNode.assetFqn
+                      ? "Saving…"
+                      : "Assign me as owner"}
+                  </button>
+                  <button
+                    className="gh-secondary-button"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(selectedNode.assetFqn);
+                        setQuickGovernanceStatus({
+                          fqn: selectedNode.assetFqn,
+                          message: `Copied ${selectedNode.assetFqn} to clipboard.`,
+                        });
+                      } catch {
+                        window.prompt("Copy asset FQN", selectedNode.assetFqn);
+                      }
+                    }}
+                    title="Copy the fully-qualified asset name to paste into another tool"
+                    type="button"
+                  >
+                    Copy FQN
+                  </button>
+                  <button
+                    className="gh-secondary-button"
+                    onClick={async () => {
+                      try {
+                        const url = new URL(window.location.href);
+                        url.pathname = `/lineage/${selectedNode.assetFqn}`;
+                        url.search = "";
+                        await navigator.clipboard.writeText(url.toString());
+                        setQuickGovernanceStatus({
+                          fqn: selectedNode.assetFqn,
+                          message: "Deep link copied. Paste to re-root on this node.",
+                        });
+                      } catch {
+                        // Silently ignore — not worth blocking the UI
+                      }
+                    }}
+                    title="Copy a lineage link that opens the graph rooted on this node"
+                    type="button"
+                  >
+                    Copy deep link
+                  </button>
+                </div>
+                {quickGovernanceStatus.fqn === selectedNode.assetFqn
+                  && quickGovernanceStatus.message ? (
+                  <div className="gh-support-copy gh-success-copy">
+                    {quickGovernanceStatus.message}
+                  </div>
+                ) : null}
+              </SurfaceDrawerSection>
+            ) : null}
             {neighborBuckets.upstream.length || neighborBuckets.downstream.length ? (
               <SurfaceDrawerSection title="Connected Nodes">
                 <div className="gh-lineage-linked-list">
@@ -1620,18 +1920,11 @@ export default function LineageGraph({
             {selectedNode.assetFqn ? (
               <SurfaceDrawerSection title="Graph Actions">
                 <div className="gh-action-grid gh-lineage-drawer-actions">
-                  {selectedNode.role !== "focus" ? (
-                    <button
-                      className="gh-primary-button"
-                      onClick={() => {
-                        setAllowDefaultSelection(true);
-                        onSelectAsset(selectedNode.assetFqn);
-                      }}
-                      type="button"
-                    >
-                      Set as Focus
-                    </button>
-                  ) : null}
+                  {/* "Set as Focus" lives in the record card above — do not
+                      re-render it here. The Graph Actions panel is now
+                      exclusively about how the selected node relates to the
+                      visible graph (path tracing, branch collapse, centering),
+                      not how to open its metadata. */}
                   {selectedNode.role !== "focus" ? (
                     <button
                       className="gh-secondary-button"
