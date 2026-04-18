@@ -236,6 +236,100 @@ DEFAULT_MIGRATIONS: tuple[Migration, ...] = (
             ) USING DELTA""",
         ),
     ),
+    Migration(
+        version=8,
+        name="change_events_and_entity_versions",
+        statements=(
+            # Phase 5 Tranche A: change_events — append-only event stream
+            # capturing every governance-relevant mutation for projections,
+            # notifications, and compliance audit consumers.
+            """CREATE TABLE IF NOT EXISTS {change_events_table} (
+                event_id       STRING NOT NULL,
+                event_type     STRING NOT NULL COMMENT 'asset.metadata.updated | column.tags.updated | glossary.term.upserted | request.approved | owner.assigned | ...',
+                entity_kind    STRING COMMENT 'asset | column | glossary_term | change_request | owner_assignment',
+                entity_id      STRING,
+                entity_fqn     STRING,
+                column_name    STRING,
+                actor_email    STRING,
+                actor_role     STRING,
+                before_json    STRING,
+                after_json     STRING,
+                detail         STRING,
+                source         STRING COMMENT 'api | store | uc | system',
+                status         STRING COMMENT 'emitted | suppressed | failed',
+                request_id     STRING,
+                occurred_at    TIMESTAMP NOT NULL,
+                recorded_at    TIMESTAMP
+            ) USING DELTA""",
+            # change_event_consumers + offsets: lets projection builders and
+            # notification fan-out resume from a known watermark.
+            """CREATE TABLE IF NOT EXISTS {change_event_consumers_table} (
+                consumer_id       STRING NOT NULL,
+                consumer_kind     STRING NOT NULL COMMENT 'projection | notification | audit',
+                display_name      STRING,
+                is_active         BOOLEAN,
+                created_at        TIMESTAMP,
+                updated_at        TIMESTAMP
+            ) USING DELTA""",
+            """CREATE TABLE IF NOT EXISTS {change_event_consumer_offsets_table} (
+                consumer_id       STRING NOT NULL,
+                last_event_id     STRING,
+                last_occurred_at  TIMESTAMP,
+                lag_seconds       BIGINT,
+                updated_at        TIMESTAMP
+            ) USING DELTA""",
+            # entity_versions: point-in-time snapshots of governed metadata so
+            # the audit surface + entity history tab can answer "what did this
+            # record look like on <date>?" without replaying change_events.
+            """CREATE TABLE IF NOT EXISTS {entity_versions_table} (
+                version_id      STRING NOT NULL,
+                entity_kind     STRING NOT NULL,
+                entity_id       STRING,
+                entity_fqn      STRING,
+                version_number  BIGINT,
+                snapshot_json   STRING,
+                change_event_id STRING,
+                recorded_by     STRING,
+                recorded_at     TIMESTAMP NOT NULL
+            ) USING DELTA""",
+            # entity_relationships: catch-all for relationship kinds that
+            # don't yet have a specialized table. Paired with the
+            # Relationship Source-of-Truth Matrix in code (Phase 5 Tranche A
+            # authority-column rule) — see govhub/services/registry.py.
+            """CREATE TABLE IF NOT EXISTS {entity_relationships_table} (
+                relationship_id       STRING NOT NULL,
+                relationship_kind     STRING NOT NULL,
+                source_entity_id      STRING NOT NULL,
+                source_entity_kind    STRING,
+                target_entity_id      STRING NOT NULL,
+                target_entity_kind    STRING,
+                authority_source      STRING COMMENT 'registry | uc | audit_log | override',
+                evidence_json         STRING,
+                state                 STRING COMMENT 'active | superseded | suppressed',
+                created_at            TIMESTAMP,
+                created_by            STRING,
+                updated_at            TIMESTAMP,
+                updated_by            STRING,
+                superseded_at         TIMESTAMP,
+                superseded_by         STRING
+            ) USING DELTA""",
+            # identity_directory_memberships: group membership for the
+            # identity directory. Enables role/group-aware visibility checks
+            # once SCIM sync lands.
+            """CREATE TABLE IF NOT EXISTS {identity_directory_memberships_table} (
+                membership_id   STRING NOT NULL,
+                member_entry_id STRING NOT NULL COMMENT 'identity_directory_entries.entry_id',
+                group_entry_id  STRING NOT NULL COMMENT 'identity_directory_entries.entry_id',
+                role            STRING,
+                source          STRING,
+                synced_at       TIMESTAMP,
+                created_at      TIMESTAMP,
+                created_by      STRING,
+                updated_at      TIMESTAMP,
+                updated_by      STRING
+            ) USING DELTA""",
+        ),
+    ),
 )
 
 
@@ -309,6 +403,12 @@ def apply_migrations(
                 notification_preferences_table=_fq_table(catalog, schema, "notification_preferences"),
                 governance_queue_projection_table=_fq_table(catalog, schema, "governance_queue_projection"),
                 glossary_summary_projection_table=_fq_table(catalog, schema, "glossary_summary_projection"),
+                change_events_table=_fq_table(catalog, schema, "change_events"),
+                change_event_consumers_table=_fq_table(catalog, schema, "change_event_consumers"),
+                change_event_consumer_offsets_table=_fq_table(catalog, schema, "change_event_consumer_offsets"),
+                entity_versions_table=_fq_table(catalog, schema, "entity_versions"),
+                entity_relationships_table=_fq_table(catalog, schema, "entity_relationships"),
+                identity_directory_memberships_table=_fq_table(catalog, schema, "identity_directory_memberships"),
             ).strip()
             if sql:
                 uc.execute(sql)

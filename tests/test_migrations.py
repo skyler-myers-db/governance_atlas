@@ -50,7 +50,7 @@ class MigrationTests(unittest.TestCase):
 
         applied = migrations.apply_migrations(uc, "main", "governance_hub")
 
-        self.assertEqual(applied, [1, 2, 3, 4, 5, 6, 7])
+        self.assertEqual(applied, [1, 2, 3, 4, 5, 6, 7, 8])
         self.assertTrue(
             any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`schema_migrations`" in sql for sql in uc.executed)
         )
@@ -96,7 +96,20 @@ class MigrationTests(unittest.TestCase):
         self.assertTrue(
             any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`glossary_summary_projection`" in sql for sql in uc.executed)
         )
-        self.assertEqual(uc._applied_versions, {1, 2, 3, 4, 5, 6, 7})
+        # Phase 5 Tranche A tables landed in migration v8.
+        self.assertTrue(
+            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`change_events`" in sql for sql in uc.executed)
+        )
+        self.assertTrue(
+            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`entity_versions`" in sql for sql in uc.executed)
+        )
+        self.assertTrue(
+            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`entity_relationships`" in sql for sql in uc.executed)
+        )
+        self.assertTrue(
+            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`identity_directory_memberships`" in sql for sql in uc.executed)
+        )
+        self.assertEqual(uc._applied_versions, {1, 2, 3, 4, 5, 6, 7, 8})
 
     def test_apply_migrations_is_idempotent(self) -> None:
         uc = FakeUC()
@@ -106,6 +119,7 @@ class MigrationTests(unittest.TestCase):
         applied = migrations.apply_migrations(uc, "main", "governance_hub")
 
         self.assertEqual(applied, [])
+        # v8 added 6 CREATE TABLE statements; idempotent run should skip all.
         self.assertEqual(executed_after_first_run + 4, len(uc.executed))
 
 
