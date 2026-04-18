@@ -7,15 +7,18 @@ from typing import Any, Dict, List
 
 
 class FakeStore:
-    """Minimal store double exposing both append_metadata_audit_log and
-    append_change_event so we can verify that record_audit_log dual-writes
-    to the audit_log table AND the change_events stream."""
+    """Minimal store double exposing append_metadata_audit_log,
+    append_change_event, and append_entity_version so we can verify
+    that record_audit_log triple-writes to metadata_audit_log + the
+    change_events stream + entity_versions."""
 
     def __init__(self) -> None:
         self.audit_calls: List[Dict[str, Any]] = []
         self.event_calls: List[Dict[str, Any]] = []
+        self.version_calls: List[Dict[str, Any]] = []
         self.raise_on_audit = False
         self.raise_on_event = False
+        self.raise_on_version = False
 
     def append_metadata_audit_log(self, **kwargs) -> str:
         if self.raise_on_audit:
@@ -28,6 +31,12 @@ class FakeStore:
             raise RuntimeError("event store down")
         self.event_calls.append(kwargs)
         return "event-id-1"
+
+    def append_entity_version(self, **kwargs) -> str:
+        if self.raise_on_version:
+            raise RuntimeError("version store down")
+        self.version_calls.append(kwargs)
+        return "version-id-1"
 
 
 def _install_fake_runtime_app(store: FakeStore) -> None:
@@ -67,6 +76,31 @@ class RecordAuditLogChangeEventTests(unittest.TestCase):
         self.assertEqual(event["entity_kind"], "asset")
         self.assertEqual(event["entity_fqn"], "main.gov.orders")
         self.assertEqual(event["status"], "emitted")
+        # Phase 5 entity_versions writer also fired
+        self.assertEqual(len(store.version_calls), 1)
+        version = store.version_calls[0]
+        self.assertEqual(version["entity_kind"], "asset")
+        self.assertEqual(version["entity_fqn"], "main.gov.orders")
+        self.assertEqual(version["snapshot"], {"description": "new"})
+        self.assertEqual(version["change_event_id"], "event-id-1")
+
+    def test_entity_version_skipped_when_after_is_none(self) -> None:
+        store = FakeStore()
+        _install_fake_runtime_app(store)
+        from govhub.services.metadata_audit import record_audit_log
+
+        record_audit_log(
+            entity_type="asset",
+            action="deleted",
+            actor_email="skyler@entrada.ai",
+            actor_role="admin",
+            entity_fqn="main.gov.gone",
+            before={"description": "had one"},
+            after=None,
+        )
+        self.assertEqual(len(store.audit_calls), 1)
+        self.assertEqual(len(store.event_calls), 1)
+        self.assertEqual(len(store.version_calls), 0)
 
     def test_change_event_emitted_even_if_audit_write_fails(self) -> None:
         store = FakeStore()
