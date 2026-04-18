@@ -1134,75 +1134,188 @@ function SelectionPreview({
         </div>
       ) : null}
 
-      <PreviewSection title="Definition">
-        <div className="gh-support-copy">
-          {asset.description || "No description is available for this asset yet."}
-        </div>
-      </PreviewSection>
-
-      <PreviewSection>
-        <PreviewProfileList items={signalItems} />
-      </PreviewSection>
-
-      <PreviewSection
-        title="Schema"
-        empty={
-          detailLoading
-            ? "Loading live schema metadata..."
-            : "No schema metadata is available for this asset yet."
-        }
-      >
-        {columns.length ? (
-          <div className="gh-preview-column-list">
-            {columns.map((column) => (
-              <div className="gh-preview-column-row" key={column.name}>
-                <div>
-                  <strong>{column.name}</strong>
-                  <span>{column.type}</span>
-                </div>
-                <p>{column.description}</p>
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </PreviewSection>
-
-      <PreviewSection
-        title="Connected Assets"
-        empty={
-          !lineageAvailable
-            ? lineageUnavailableReason
-            : lineage.loading || lineageProvisional
-              ? "Refreshing live lineage context..."
-              : "No connected lineage edges are surfaced for this asset yet."
-        }
-      >
-        {previewRelatedAssets.length ? (
-          <div className="gh-lineage-linked-list">
-            {previewRelatedAssets.map((item) => {
-              const linkedRecordAvailability =
-                linkedRecordUnavailableOverrides[item] === true ? false : relatedAssetAvailability[item];
-              return linkedRecordAvailability === false ? (
-                <div className="gh-lineage-linked-row is-readonly" key={item}>
-                  <span>{item}</span>
-                  <span>Metadata record unavailable</span>
-                </div>
-              ) : (
-                <button
-                  className="gh-lineage-linked-row is-asset-link"
-                  key={item}
-                  onClick={() => onOpenLinkedAsset(item)}
-                  type="button"
-                >
-                  <span>{item}</span>
-                  <span>{linkedRecordAvailability === true ? "Open Record" : "Checking access..."}</span>
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
-      </PreviewSection>
+      <SelectionPreviewTabs
+        asset={asset}
+        columns={columns}
+        signalItems={signalItems}
+        detailLoading={detailLoading}
+        lineageAvailable={lineageAvailable}
+        lineageUnavailableReason={lineageUnavailableReason}
+        lineageLoading={lineage.loading}
+        lineageProvisional={lineageProvisional}
+        previewRelatedAssets={previewRelatedAssets}
+        relatedAssetAvailability={relatedAssetAvailability}
+        linkedRecordUnavailableOverrides={linkedRecordUnavailableOverrides}
+        onOpenLinkedAsset={onOpenLinkedAsset}
+      />
     </SurfaceRail>
+  );
+}
+
+function SelectionPreviewTabs({
+  asset,
+  columns,
+  signalItems,
+  detailLoading,
+  lineageAvailable,
+  lineageUnavailableReason,
+  lineageLoading,
+  lineageProvisional,
+  previewRelatedAssets,
+  relatedAssetAvailability,
+  linkedRecordUnavailableOverrides,
+  onOpenLinkedAsset,
+}) {
+  const [active, setActive] = useState("overview");
+  const tabs = [
+    { key: "overview", label: "Overview" },
+    { key: "schema", label: `Schema${asset?.columns?.length ? ` · ${asset.columns.length}` : ""}` },
+    { key: "lineage", label: "Lineage" },
+    { key: "usage", label: "Usage" },
+  ];
+  return (
+    <div className="gh-selection-preview-tabs">
+      <nav className="gh-selection-preview-tabrow" role="tablist" aria-label="Selected asset tabs">
+        {tabs.map((tab) => (
+          <button
+            aria-pressed={active === tab.key}
+            className={`gh-selection-preview-tab ${active === tab.key ? "is-active" : ""}`}
+            key={tab.key}
+            onClick={() => setActive(tab.key)}
+            role="tab"
+            type="button"
+          >
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      {active === "overview" ? (
+        <>
+          <PreviewSection title="Definition">
+            <div className="gh-support-copy">
+              {asset.description || "No description is available for this asset yet."}
+            </div>
+          </PreviewSection>
+          <PreviewSection title="Signals">
+            <PreviewProfileList items={signalItems} />
+          </PreviewSection>
+          {/* Peek at connected assets on the Overview tab so stewards
+              don't need to switch tabs just to see the linked-asset
+              list for a quick nav check. Full list lives on Lineage. */}
+          {previewRelatedAssets.length ? (
+            <PreviewSection title="Connected Assets">
+              <div className="gh-lineage-linked-list">
+                {previewRelatedAssets.map((item) => {
+                  const linkedRecordAvailability =
+                    linkedRecordUnavailableOverrides[item] === true ? false : relatedAssetAvailability[item];
+                  return linkedRecordAvailability === false ? (
+                    <div className="gh-lineage-linked-row is-readonly" key={item}>
+                      <span>{item}</span>
+                      <span>Metadata record unavailable</span>
+                    </div>
+                  ) : (
+                    <button
+                      className="gh-lineage-linked-row is-asset-link"
+                      key={item}
+                      onClick={() => onOpenLinkedAsset(item)}
+                      type="button"
+                    >
+                      <span>{item}</span>
+                      <span>{linkedRecordAvailability === true ? "Open Record" : "Checking access..."}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </PreviewSection>
+          ) : null}
+        </>
+      ) : null}
+
+      {active === "schema" ? (
+        <PreviewSection
+          title="Schema"
+          empty={
+            detailLoading
+              ? "Loading live schema metadata..."
+              : "No schema metadata is available for this asset yet."
+          }
+        >
+          {columns.length ? (
+            <div className="gh-preview-column-list">
+              {columns.map((column) => (
+                <div className="gh-preview-column-row" key={column.name}>
+                  <div>
+                    <strong>{column.name}</strong>
+                    <span>{column.type}</span>
+                  </div>
+                  <p>{column.description}</p>
+                </div>
+              ))}
+              {asset.columns?.length > columns.length ? (
+                <div className="gh-support-copy gh-preview-column-overflow">
+                  +{asset.columns.length - columns.length} more columns — open the record for the full schema.
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </PreviewSection>
+      ) : null}
+
+      {active === "lineage" ? (
+        <PreviewSection
+          title="Connected Assets"
+          empty={
+            !lineageAvailable
+              ? lineageUnavailableReason
+              : lineageLoading || lineageProvisional
+                ? "Refreshing live lineage context..."
+                : "No connected lineage edges are surfaced for this asset yet."
+          }
+        >
+          {previewRelatedAssets.length ? (
+            <div className="gh-lineage-linked-list">
+              {previewRelatedAssets.map((item) => {
+                const linkedRecordAvailability =
+                  linkedRecordUnavailableOverrides[item] === true ? false : relatedAssetAvailability[item];
+                return linkedRecordAvailability === false ? (
+                  <div className="gh-lineage-linked-row is-readonly" key={item}>
+                    <span>{item}</span>
+                    <span>Metadata record unavailable</span>
+                  </div>
+                ) : (
+                  <button
+                    className="gh-lineage-linked-row is-asset-link"
+                    key={item}
+                    onClick={() => onOpenLinkedAsset(item)}
+                    type="button"
+                  >
+                    <span>{item}</span>
+                    <span>{linkedRecordAvailability === true ? "Open Record" : "Checking access..."}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </PreviewSection>
+      ) : null}
+
+      {active === "usage" ? (
+        <PreviewSection
+          title="Usage"
+          empty="Usage signals (recent queries, top consumers, workload impact) are available on the full asset record."
+        />
+      ) : null}
+
+      {/* Always-visible strip for unavailable lineage so stewards don't
+          have to dig into the Lineage tab to see the gating reason. */}
+      {!lineageAvailable && lineageUnavailableReason ? (
+        <div className="gh-selection-preview-alert">
+          <span className="gh-selection-preview-alert-label">Lineage</span>
+          <span className="gh-selection-preview-alert-body">{lineageUnavailableReason}</span>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -1273,6 +1386,24 @@ export default function DiscoveryWorkspace({
   // explicitly opts into a column sort by clicking the header.
   const [sortKey, setSortKey] = useState("");
   const [sortDirection, setSortDirection] = useState("asc");
+  // Hierarchical service-tree state: which catalogs are expanded and
+  // which (catalog, schema) leaf is currently selected for client-side
+  // filtering. Selecting the same leaf again clears the pick.
+  const [expandedCatalogs, setExpandedCatalogs] = useState(() => new Set());
+  const [selectedSchema, setSelectedSchema] = useState(null);
+  const toggleCatalogExpanded = (catalog) => {
+    setExpandedCatalogs((current) => {
+      const next = new Set(current);
+      if (next.has(catalog)) next.delete(catalog); else next.add(catalog);
+      return next;
+    });
+  };
+  const pickSchema = (catalog, schema) => {
+    setSelectedSchema((current) => {
+      if (current?.catalog === catalog && current?.schema === schema) return null;
+      return { catalog, schema };
+    });
+  };
   const toggleFavorite = (fqn) => {
     setFavorites((current) => {
       const next = new Set(current);
@@ -1331,7 +1462,38 @@ export default function DiscoveryWorkspace({
     effectiveBootState !== "live" &&
     !discoveryResults.authoritative &&
     !(discoveryResults.assets || []).length;
-  const renderableDiscoveryAssets = suppressCatalogRows ? [] : discoveryResults.assets;
+  const allDiscoveryAssets = suppressCatalogRows ? [] : discoveryResults.assets;
+  // Build the catalog/schema tree from the full visible inventory so
+  // the left rail is stable regardless of which schema is picked.
+  const catalogSchemaTree = useMemo(() => {
+    const counts = new Map();
+    for (const entry of allDiscoveryAssets) {
+      const catalog = entry?.catalog || "unknown";
+      const schema = entry?.schema || "unknown";
+      if (!counts.has(catalog)) counts.set(catalog, new Map());
+      const schemaMap = counts.get(catalog);
+      schemaMap.set(schema, (schemaMap.get(schema) || 0) + 1);
+    }
+    return [...counts.entries()]
+      .map(([catalog, schemaMap]) => ({
+        catalog,
+        count: [...schemaMap.values()].reduce((a, b) => a + b, 0),
+        schemas: [...schemaMap.entries()]
+          .map(([schema, count]) => ({ schema, count }))
+          .sort((a, b) => a.schema.localeCompare(b.schema)),
+      }))
+      .sort((a, b) => a.catalog.localeCompare(b.catalog));
+  }, [allDiscoveryAssets]);
+  // Apply the (catalog,schema) pick as a client-side filter so the
+  // tree acts as a drill-down scope on the result list without
+  // round-tripping through the discovery search contract.
+  const renderableDiscoveryAssets = useMemo(() => {
+    if (!selectedSchema) return allDiscoveryAssets;
+    const { catalog, schema } = selectedSchema;
+    return allDiscoveryAssets.filter(
+      (entry) => entry?.catalog === catalog && entry?.schema === schema,
+    );
+  }, [allDiscoveryAssets, selectedSchema]);
   const explicitRoutePreviewIndex = useMemo(
     () =>
       routePreviewAssetFqn
@@ -1861,28 +2023,61 @@ export default function DiscoveryWorkspace({
             </div>
           </SidebarSection>
 
-          <SidebarSection title="Catalogs in Scope">
-            {catalogOptions.length ? (
-              <div className="gh-chip-stack">
-                {catalogOptions.map((catalog) => (
+          <SidebarSection title="Service Tree">
+            {catalogSchemaTree.length ? (
+              <div className="gh-service-tree" role="tree" aria-label="Service tree">
+                {catalogSchemaTree.map((entry) => {
+                  const expanded = expandedCatalogs.has(entry.catalog);
+                  return (
+                    <div className="gh-service-tree-catalog" key={entry.catalog}>
+                      <button
+                        aria-expanded={expanded}
+                        className={`gh-service-tree-row gh-service-tree-catalog-row ${expanded ? "is-expanded" : ""}`}
+                        onClick={() => toggleCatalogExpanded(entry.catalog)}
+                        type="button"
+                      >
+                        <span className="gh-service-tree-caret" aria-hidden="true">{expanded ? "▾" : "▸"}</span>
+                        <span className="gh-service-tree-label">{entry.catalog}</span>
+                        <span className="gh-service-tree-count">{entry.count}</span>
+                      </button>
+                      {expanded ? (
+                        <div className="gh-service-tree-schemas">
+                          {entry.schemas.map((schemaEntry) => {
+                            const active =
+                              selectedSchema?.catalog === entry.catalog &&
+                              selectedSchema?.schema === schemaEntry.schema;
+                            return (
+                              <button
+                                aria-pressed={active}
+                                className={`gh-service-tree-row gh-service-tree-schema-row ${active ? "is-active" : ""}`}
+                                key={schemaEntry.schema}
+                                onClick={() => pickSchema(entry.catalog, schemaEntry.schema)}
+                                type="button"
+                                title={`Filter to ${entry.catalog}.${schemaEntry.schema}`}
+                              >
+                                <span className="gh-service-tree-bullet" aria-hidden="true">·</span>
+                                <span className="gh-service-tree-label">{schemaEntry.schema}</span>
+                                <span className="gh-service-tree-count">{schemaEntry.count}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+                {selectedSchema ? (
                   <button
-                    className={`gh-chip gh-chip-soft ${
-                      filters.catalogs.includes(catalog) ? "gh-chip-selected" : ""
-                    }`}
-                    key={catalog}
-                    onClick={() => toggleMulti(filters, "catalogs", catalog, "All catalogs", onDiscoveryStateChange)}
+                    className="gh-tertiary-button gh-service-tree-clear"
+                    onClick={() => setSelectedSchema(null)}
                     type="button"
-                    title={`Filter to ${catalog}`}
                   >
-                    {catalog}
-                    {showLiveFacetCounts ? (
-                      <span className="gh-chip-count-inline">{facetCount(resultsFacets, "catalogs", catalog)}</span>
-                    ) : null}
+                    Clear schema filter
                   </button>
-                ))}
+                ) : null}
               </div>
             ) : (
-              <div className="gh-support-copy">Catalog scope will populate from visible inventory.</div>
+              <div className="gh-support-copy">Service tree will populate from visible inventory.</div>
             )}
           </SidebarSection>
         </SurfaceRail>
