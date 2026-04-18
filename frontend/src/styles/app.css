@@ -787,24 +787,6 @@ button.gh-chip:not(.is-readonly):focus-visible,
 .gh-entity-workspace {
   gap: 12px;
 }
-.gh-discovery-sidebar {
-  position: sticky;
-  top: 14px;
-  align-self: start;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  gap: 8px;
-}
-
-.gh-discovery-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  align-items: start;
-  max-width: 1280px;
-}
 .gh-results-inline-state {
   color: var(--gh-ink-soft);
   font-size: 0.8rem;
@@ -824,32 +806,11 @@ button.gh-chip:not(.is-readonly):focus-visible,
   gap: 8px;
 }
 
-.gh-discovery-active-row {
-  margin-top: 6px;
-  gap: 6px;
-}
-
-.gh-discovery-results-copy {
-  color: var(--gh-ink-soft);
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-.gh-discovery-view-row .gh-saved-view {
-  width: auto;
-  padding-inline: 0.72rem;
-  white-space: nowrap;
-}
-
 .gh-category-list,
 .gh-saved-view-list,
 .gh-request-list {
   display: grid;
   gap: 8px;
-}
-
-.gh-discovery-sidebar .gh-category-list,
-.gh-discovery-sidebar .gh-saved-view-list {
-  gap: 4px;
 }
 
 .gh-filter-section {
@@ -1083,153 +1044,6 @@ button.gh-chip:not(.is-readonly):focus-visible,
   flex-wrap: wrap;
   gap: 8px;
 }
-.gh-lineage-shell {
-  display: grid;
-  gap: 10px;
-}
-.gh-lineage-empty-stage .gh-lineage-stage-canvas {
-  display: grid;
-  place-items: center;
-}
-.gh-lineage-empty-search .gh-chip-stack {
-  justify-content: center;
-}
-
-.gh-lineage-search-list {
-  max-height: 320px;
-}
-
-.gh-lineage-search-list {
-  display: grid;
-  gap: 6px;
-  border: 1px solid var(--gh-line);
-  border-radius: 14px;
-  background: var(--gh-surface-muted);
-  padding: 8px;
-  max-height: 228px;
-  overflow: auto;
-}
-
-.gh-lineage-search-row {
-  width: 100%;
-  padding: 0.72rem 0.8rem;
-  border-radius: 12px;
-  border: 1px solid transparent;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  font: inherit;
-  cursor: pointer;
-  color: var(--gh-ink);
-}
-
-.gh-lineage-search-row span:last-child {
-  color: var(--gh-ink-soft);
-  font-size: 0.84rem;
-}
-
-.gh-lineage-search-row.is-active {
-  border-color: rgba(91, 67, 238, 0.28);
-  box-shadow: 0 0 0 2px rgba(111, 105, 255, 0.08);
-}
-
-.gh-lineage-search-empty {
-  padding: 0.7rem 0.3rem;
-  color: var(--gh-ink-soft);
-  font-size: 0.9rem;
-}
-.gh-lineage-stage-shell {
-  display: grid;
-  gap: 0;
-}
-.gh-lineage-graph-stage {
-  position: relative;
-  display: grid;
-  gap: 0;
-}
-
-.gh-lineage-canvas {
-  position: relative;
-  height: 78vh;
-  min-height: 660px;
-}
-
-.gh-lineage-stage-canvas {
-  position: relative;
-  min-height: 660px;
-}
-
-.gh-lineage-graph-panel {
-  padding: 0;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid rgba(198, 210, 234, 0.72);
-  background: #ffffff;
-}
-
-.gh-lineage-canvas-controls {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 3;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 2px;
-  border: 1px solid rgba(198, 210, 234, 0.95);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 2px 6px rgba(19, 31, 65, 0.025);
-  pointer-events: none;
-}
-
-.gh-lineage-canvas-controls > * {
-  pointer-events: auto;
-}
-
-.gh-lineage-command-strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-}
-
-.gh-lineage-stage-topbar {
-  padding: 6px 10px;
-  border-bottom: 1px solid rgba(198, 210, 234, 0.72);
-  background: rgba(255, 255, 255, 0.94);
-}
-
-.gh-lineage-stage-topbar-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-  align-items: flex-start;
-}
-
-.gh-lineage-drawer {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: min(360px, calc(100% - 24px));
-  max-height: calc(100% - 24px);
-  overflow: auto;
-  padding: 12px;
-  border: 1px solid rgba(198, 210, 234, 0.95);
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 6px 14px rgba(19, 31, 65, 0.06);
-  display: none;
-  gap: 14px;
-  z-index: 2;
-}
-
-.gh-lineage-drawer.is-open {
-  display: grid;
-}
 
 .gh-search-dropdown-foot {
   display: flex;
@@ -1259,21 +1073,6 @@ button.gh-chip:not(.is-readonly):focus-visible,
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-}
-.gh-governance-linked-list {
-  display: grid;
-  gap: 8px;
-}
-
-.gh-governance-linked-row {
-  padding: 8px 10px;
-  border: 1px solid rgba(198, 210, 234, 0.72);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px;
-  align-items: center;
 }
 
 .gh-graph-node-card {
@@ -1316,192 +1115,6 @@ button.gh-chip:not(.is-readonly):focus-visible,
   border-radius: 999px;
 }
 
-.gh-lineage-canvas .react-flow__node.is-active {
-  filter: drop-shadow(0 12px 20px rgba(43, 57, 93, 0.16));
-}
-
-.gh-lineage-canvas .react-flow__node.is-active .gh-graph-node-card {
-  transform: translateY(-1px);
-}
-
-.gh-lineage-canvas .react-flow__node.is-muted {
-  opacity: 0.6;
-}
-
-.gh-lineage-canvas .react-flow__edge.is-active path {
-  stroke: #3a2ce0;
-  stroke-width: 5.2px;
-}
-
-.gh-lineage-canvas .react-flow__edge-path {
-  stroke: #4453db;
-  stroke-width: 3.8px;
-  stroke-linecap: round;
-  opacity: 0.98;
-}
-
-.gh-lineage-canvas .react-flow__edge.is-active .react-flow__edge-path {
-  stroke: #3a2ce0;
-  stroke-width: 5.2px;
-  opacity: 1;
-}
-
-.gh-lineage-canvas .react-flow__handle {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.gh-lineage-canvas .react-flow__edge.is-muted .react-flow__edge-path {
-  opacity: 0.16;
-  stroke-width: 2.2px;
-}
-
-.gh-lineage-canvas .react-flow__controls {
-  border: 1px solid rgba(198, 210, 234, 0.9);
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 4px 10px rgba(19, 31, 65, 0.05);
-  background: rgba(255, 255, 255, 0.96);
-}
-
-.gh-lineage-canvas .react-flow__minimap {
-  display: none !important;
-}
-
-.gh-lineage-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  padding: 28px;
-  pointer-events: none;
-}
-
-.gh-lineage-overlay-card {
-  width: min(460px, 100%);
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid rgba(198, 210, 234, 0.88);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 10px 20px rgba(19, 31, 65, 0.08);
-  pointer-events: auto;
-}
-
-.gh-lineage-drawer-actions {
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.gh-lineage-linked-list {
-  display: grid;
-  gap: 6px;
-}
-
-.gh-lineage-context-groups {
-  display: grid;
-  gap: 14px;
-}
-
-.gh-lineage-context-group {
-  display: grid;
-  gap: 8px;
-}
-
-.gh-lineage-context-label {
-  color: #60748e;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.gh-lineage-linked-row {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid rgba(198, 210, 234, 0.72);
-  border-radius: 12px;
-  background: rgba(247, 250, 255, 0.94);
-  display: grid;
-  gap: 2px;
-  text-align: left;
-}
-
-.gh-lineage-linked-row span:last-child {
-  color: var(--gh-ink-soft);
-  font-size: 0.8rem;
-}
-
-.gh-lineage-canvas .react-flow__background {
-  opacity: 0.55;
-}
-
-.gh-lineage-stage-shell.is-embedded .gh-lineage-stage-canvas {
-  min-height: 560px;
-}
-.gh-lineage-command {
-  position: relative;
-}
-
-.gh-lineage-command-popover {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  right: auto;
-  width: min(420px, calc(100vw - 48px), calc(100% - 8px));
-  max-height: min(60vh, 560px);
-  overflow: auto;
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--gh-line);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 16px 26px rgba(19, 31, 65, 0.1);
-  z-index: 6;
-}
-.gh-governance-shell {
-  display: grid;
-  gap: 10px;
-}
-
-.gh-governance-shell-header {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.gh-governance-shell-header-tools {
-  display: grid;
-  gap: 10px;
-  justify-items: end;
-}
-.gh-governance-focus-command {
-  position: relative;
-  width: min(300px, 30vw);
-}
-
-.gh-governance-status-banner {
-  margin-top: 2px;
-}
-.gh-governance-focus-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  width: 100%;
-  display: grid;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid var(--gh-line);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 16px 26px rgba(19, 31, 65, 0.1);
-  z-index: 6;
-}
-
 .gh-surface-workbench {
   display: grid;
   grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
@@ -1534,82 +1147,6 @@ button.gh-chip:not(.is-readonly):focus-visible,
 }
 
 .gh-surface-workbench-side .gh-surface-rail-section {
-  gap: 10px;
-}
-.gh-governance-workbench,
-.gh-governance-workbench-single {
-  display: grid;
-  gap: 10px;
-  align-items: start;
-}
-
-.gh-governance-workbench,
-.gh-governance-workbench-single {
-  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
-}
-.gh-governance-main-pane,
-.gh-governance-side-pane {
-  display: grid;
-  gap: 6px;
-  align-content: start;
-}
-.gh-governance-side-pane-dense {
-  gap: 8px;
-}
-
-.gh-governance-side-pane .gh-surface-rail-body {
-  gap: 14px;
-}
-
-.gh-governance-side-pane .gh-surface-rail-actions {
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-}
-
-.gh-governance-side-pane .gh-surface-rail-section {
-  gap: 10px;
-}
-
-.gh-governance-section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.gh-governance-lane-rail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.gh-governance-lane-chip {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 10px;
-  border: 1px solid rgba(198, 210, 234, 0.85);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.94);
-  color: var(--gh-ink);
-  font-weight: 800;
-}
-
-.gh-governance-lane-chip strong {
-  font-size: 0.86rem;
-}
-
-.gh-governance-lane-chip.is-active {
-  border-color: rgba(103, 79, 236, 0.4);
-  background: rgba(238, 235, 255, 0.9);
-  box-shadow: none;
-}
-
-.gh-governance-focus-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
   gap: 10px;
 }
 
@@ -1656,11 +1193,6 @@ button.gh-chip:not(.is-readonly):focus-visible,
   grid-template-columns: 1fr;
 }
 
-.gh-governance-linked-list {
-  display: grid;
-  gap: 10px;
-}
-
 .gh-form-stack {
   display: grid;
   gap: 12px;
@@ -1702,15 +1234,6 @@ button.gh-chip:not(.is-readonly):focus-visible,
   font-weight: 700;
 }
 
-.gh-governance-linked-row {
-  padding: 6px 8px;
-  border: 1px solid rgba(198, 210, 234, 0.72);
-  border-radius: 8px;
-  background: rgba(250, 252, 255, 0.84);
-  display: grid;
-  gap: 8px;
-}
-
 .gh-task-card {
   display: grid;
   gap: 6px;
@@ -1718,19 +1241,6 @@ button.gh-chip:not(.is-readonly):focus-visible,
   border-radius: 12px;
   border: 1px solid var(--gh-line);
   background: var(--gh-surface-soft);
-}
-
-.gh-governance-glossary-toolbar {
-  display: grid;
-  gap: 10px;
-}
-
-.gh-governance-glossary-tabs {
-  align-self: start;
-}
-
-.gh-governance-glossary-list {
-  gap: 8px;
 }
 .gh-task-card.is-complete {
   background: linear-gradient(180deg, rgba(240, 248, 245, 0.92), rgba(255, 255, 255, 0.96));
@@ -1937,43 +1447,6 @@ button.gh-chip:not(.is-readonly):focus-visible,
 .gh-governance-workbench {
     grid-template-columns: 1fr;
   }
-
-  .gh-discovery-sidebar {
-    position: static;
-  }
-
-  .gh-lineage-stage-topbar-actions {
-    justify-content: flex-start;
-  }
-  .gh-governance-shell-header-tools,
-.gh-governance-focus-command {
-    width: 100%;
-    justify-items: stretch;
-  }
-
-  .gh-lineage-stage-topbar {
-    justify-content: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .gh-governance-lane-rail {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 1320px) {
-  .gh-lineage-drawer {
-    position: static;
-    width: 100%;
-    max-height: none;
-    box-shadow: none;
-    backdrop-filter: none;
-  }
-
-  .gh-lineage-canvas,
-.gh-lineage-stage-canvas {
-    min-height: 680px;
-  }
 }
 
 @media (max-width: 1100px) {
@@ -2006,19 +1479,10 @@ button.gh-chip:not(.is-readonly):focus-visible,
     grid-template-columns: 1fr;
   }
 
-  .gh-governance-focus-command {
-    width: 100%;
-  }
-
   .gh-governance-focus-dropdown,
 .gh-lineage-command-popover {
     position: static;
     width: 100%;
-  }
-
-  .gh-lineage-canvas,
-.gh-lineage-stage-canvas {
-    min-height: 560px;
   }
 }
 
@@ -2668,30 +2132,8 @@ button:focus-visible,
   padding: 18px;
 }
 
-.gh-discovery-main-grid {
-  display: grid;
-  grid-template-columns: minmax(250px, 0.42fr) minmax(0, 1.26fr) minmax(390px, 0.82fr);
-  gap: 16px;
-  align-items: start;
-  max-width: none;
-}
-
 .gh-results-column.is-expanded {
   grid-column: 1 / -1;
-}
-.gh-discovery-sidebar-section {
-  display: grid;
-  gap: 10px;
-}
-
-.gh-discovery-command-panel {
-  display: grid;
-  gap: 10px;
-  padding-bottom: 12px;
-  background:
-    radial-gradient(circle at top right, rgba(91, 67, 238, 0.07), transparent 38%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.988) 0%, rgba(247, 250, 255, 0.968) 100%);
-  box-shadow: 0 16px 34px rgba(18, 35, 58, 0.08);
 }
 .gh-select-sort {
   min-width: 0;
@@ -2703,13 +2145,6 @@ button:focus-visible,
   white-space: nowrap;
   line-height: 1;
   padding-left: 2px;
-}
-
-.gh-discovery-sidebar .gh-category-row,
-.gh-discovery-sidebar .gh-saved-view {
-  padding: 0.72rem 0.84rem;
-  border-radius: 14px;
-  background: rgba(246, 249, 254, 0.92);
 }
 
 .gh-chip-selected {
@@ -2724,130 +2159,6 @@ button:focus-visible,
   border-radius: 0;
   background: transparent;
   overflow: hidden;
-}
-
-.gh-discovery-result-row {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  padding: 16px 18px;
-  border: 1px solid rgba(182, 198, 216, 0.86);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.98);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(248, 251, 255, 0.97) 100%);
-  box-shadow: 0 16px 34px rgba(18, 35, 58, 0.08);
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-  transition:
-    transform 130ms ease,
-    box-shadow 130ms ease,
-    border-color 130ms ease,
-    background 130ms ease;
-}
-
-.gh-discovery-result-row::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-  border-radius: 14px 0 0 14px;
-  background: linear-gradient(180deg, rgba(91, 67, 238, 0.84) 0%, rgba(15, 92, 192, 0.72) 100%);
-  opacity: 0.68;
-}
-
-.gh-discovery-result-row.is-selected {
-  border-color: rgba(15, 92, 192, 0.42);
-  box-shadow: 0 0 0 1px rgba(15, 92, 192, 0.06);
-  background: rgba(246, 250, 255, 0.98);
-}
-
-.gh-discovery-result-row:hover {
-  transform: translateY(-1px);
-  border-color: rgba(15, 92, 192, 0.28);
-  box-shadow: 0 16px 34px rgba(18, 35, 58, 0.075);
-}
-
-.gh-discovery-result-hit {
-  width: 100%;
-  min-width: 0;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-
-.gh-discovery-result-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.gh-discovery-result-title-block {
-  min-width: 0;
-  flex: 1 1 auto;
-  display: grid;
-  gap: 4px;
-}
-
-.gh-discovery-result-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.gh-discovery-result-title-row h3 {
-  margin: 0;
-  font-size: 1.06rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  overflow-wrap: anywhere;
-}
-
-.gh-discovery-result-fqn {
-  color: #60748e;
-  font-size: 0.78rem;
-  line-height: 1.42;
-  word-break: break-word;
-}
-
-.gh-discovery-result-description {
-  margin: 0;
-  color: var(--gh-ink-soft);
-  font-size: 0.88rem;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.gh-discovery-result-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  color: #60748e;
-  font-size: 0.86rem;
-  font-weight: 700;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.gh-discovery-result-meta span {
-  min-width: 0;
-}
-
-.gh-discovery-result-meta span + span::before {
-  content: "•";
-  margin-right: 10px;
-  color: var(--gh-line-strong);
 }
 
 .gh-preview-stat-grid {
@@ -2882,14 +2193,6 @@ button:focus-visible,
   font-weight: 800;
   letter-spacing: -0.03em;
 }
-.gh-discovery-result-owner-row {
-  gap: 6px;
-}
-
-.gh-discovery-empty-state {
-  display: grid;
-  gap: 12px;
-}
 
 .gh-record-card,
 .gh-discovery-command-panel {
@@ -2898,10 +2201,6 @@ button:focus-visible,
 
 .gh-record-card {
   overflow: hidden;
-}
-
-.gh-discovery-command-panel {
-  overflow: visible;
 }
 
 .gh-record-card::before,
@@ -2919,19 +2218,6 @@ button:focus-visible,
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-}
-.gh-entity-record-main {
-  min-width: 0;
-  display: grid;
-  gap: 8px;
-}
-
-.gh-entity-record-main h2 {
-  margin: 0;
-  font-size: clamp(1.24rem, 1.04rem + 0.64vw, 1.68rem);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  overflow-wrap: anywhere;
 }
 
 .gh-preview-profile-list {
@@ -3019,38 +2305,6 @@ button:focus-visible,
 .gh-discovery-result-title-block {
   min-width: 0;
 }
-.gh-entity-record-shell {
-  gap: 20px;
-}
-
-.gh-entity-record-header {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-  align-items: start;
-  padding-bottom: 18px;
-  border-bottom: 1px solid rgba(214, 224, 236, 0.92);
-}
-
-.gh-entity-record-main {
-  gap: 10px;
-}
-.gh-entity-record-backlink {
-  justify-self: start;
-}
-.gh-entity-action-row {
-  justify-content: flex-start;
-  align-self: flex-start;
-}
-
-.gh-entity-record-metrics {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-}
-
-.gh-entity-record-tabs {
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(214, 224, 236, 0.92);
-}
 
 .gh-subtab {
   min-height: 42px;
@@ -3071,23 +2325,6 @@ button:focus-visible,
   box-shadow: inset 0 0 0 1px rgba(15, 92, 192, 0.08);
 }
 
-.gh-entity-record-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
-  gap: 16px;
-  align-items: start;
-}
-
-.gh-entity-record-layout-governance {
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.82fr);
-}
-
-.gh-entity-record-primary,
-.gh-entity-record-secondary {
-  display: grid;
-  gap: 16px;
-}
-
 .gh-record-card {
   padding: 18px;
   border: 1px solid rgba(214, 224, 236, 0.92);
@@ -3100,21 +2337,6 @@ button:focus-visible,
 
 .gh-record-card-head {
   margin-bottom: 12px;
-}
-
-.gh-entity-record-section,
-.gh-entity-record-section:first-child {
-  padding-top: 18px;
-  border-top: 1px solid rgba(214, 224, 236, 0.92);
-}
-
-.gh-entity-record-section .gh-surface-panel-section-head {
-  margin-bottom: 2px;
-}
-
-.gh-entity-metric-card {
-  min-height: 94px;
-  background: linear-gradient(180deg, rgba(245, 248, 252, 0.96) 0%, rgba(255, 255, 255, 0.98) 100%);
 }
 
 .gh-metadata-edit-field {
@@ -3155,21 +2377,6 @@ button:focus-visible,
   gap: 12px;
 }
 
-.gh-lineage-linked-row {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.gh-lineage-linked-row span:first-child {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
 .gh-shell-brand-band,
 .gh-shell-nav-band,
 .gh-discovery-command-panel,
@@ -3191,12 +2398,6 @@ button:focus-visible,
 .gh-workspace {
   overflow: visible;
   min-width: 0;
-}
-
-.gh-discovery-main-grid,
-.gh-discovery-command-panel,
-.gh-discovery-toolbar-shell {
-  overflow: visible;
 }
 
 .gh-select {
@@ -3251,10 +2452,6 @@ button:focus-visible,
   .gh-search-submit {
     width: 100%;
   }
-
-  .gh-discovery-result-row {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 860px) {
@@ -3302,12 +2499,6 @@ button:focus-visible,
   overflow: visible !important;
 }
 
-.gh-discovery-main-grid,
-.gh-discovery-command-panel,
-.gh-discovery-toolbar-shell {
-  overflow: visible !important;
-}
-
 .gh-shell-header {
   background:
     radial-gradient(circle at top left, rgba(120, 88, 255, 0.1), transparent 28%),
@@ -3345,11 +2536,6 @@ button:focus-visible,
   letter-spacing: -0.025em;
 }
 
-.gh-discovery-main-grid {
-  align-items: start;
-  grid-template-columns: minmax(250px, 292px) minmax(0, 1fr) minmax(320px, 364px);
-}
-
 .gh-discovery-command-panel,
 .gh-discovery-sidebar,
 .gh-selection-preview {
@@ -3366,27 +2552,6 @@ button:focus-visible,
   border-color: rgba(201, 212, 232, 0.9);
 }
 
-.gh-discovery-command-panel {
-  display: grid;
-  gap: 12px;
-  padding-bottom: 16px;
-  isolation: isolate;
-  z-index: 8;
-}
-
-.gh-discovery-command-head .gh-surface-header-main {
-  align-items: start;
-  gap: 12px;
-}
-
-.gh-discovery-command-head .gh-surface-header-title {
-  font-size: clamp(1.16rem, 0.5vw + 1.08rem, 1.42rem);
-}
-
-.gh-discovery-command-head .gh-surface-header-extra {
-  gap: 6px;
-}
-
 .gh-discovery-command-panel::before,
 .gh-discovery-sidebar::before,
 .gh-selection-preview::before,
@@ -3397,59 +2562,6 @@ button:focus-visible,
   height: 4px;
   background: linear-gradient(90deg, rgba(91, 67, 238, 0.92) 0%, rgba(15, 92, 192, 0.74) 100%);
   opacity: 0.88;
-}
-
-.gh-discovery-toolbar-shell {
-  position: relative;
-  display: grid;
-  gap: 12px;
-  overflow: visible;
-  z-index: 30;
-}
-
-.gh-discovery-toolbar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 236px) minmax(176px, max-content);
-  gap: 14px;
-  align-items: end;
-}
-
-.gh-discovery-toolbar > * {
-  min-width: 0;
-}
-
-.gh-discovery-sort {
-  display: grid;
-  gap: 6px;
-}
-
-.gh-discovery-toolbar-actions {
-  display: flex;
-  align-items: end;
-  justify-content: flex-end;
-}
-
-.gh-discovery-stack-trigger {
-  min-width: 176px;
-  min-height: 48px;
-  white-space: nowrap;
-}
-
-.gh-discovery-stack-trigger.is-active {
-  border-color: rgba(91, 67, 238, 0.34);
-  box-shadow:
-    inset 0 0 0 1px rgba(91, 67, 238, 0.12),
-    0 10px 26px rgba(91, 67, 238, 0.12);
-}
-
-.gh-discovery-filter-shell {
-  position: absolute;
-  top: calc(100% + 14px);
-  right: 0;
-  width: min(880px, calc(100vw - 140px));
-  min-width: 640px;
-  max-width: calc(100vw - 140px);
-  z-index: 40;
 }
 
 .gh-filters-popover {
@@ -3524,11 +2636,6 @@ button:focus-visible,
   align-self: start;
   height: fit-content;
 }
-.gh-discovery-results-copy {
-  max-width: 72ch;
-  font-size: 0.94rem;
-  line-height: 1.58;
-}
 
 .gh-surface-rail-head,
 .gh-surface-rail-title-block {
@@ -3547,10 +2654,6 @@ button:focus-visible,
 .gh-surface-rail-title-row h3 {
   margin: 0;
   font-size: clamp(1.1rem, 0.5vw + 1rem, 1.28rem);
-}
-
-.gh-discovery-action-grid {
-  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
 }
 
 .gh-discovery-record-state,
@@ -3600,22 +2703,6 @@ button.gh-chip-soft:not(.is-readonly):focus-visible {
   background: rgba(230, 240, 255, 0.96);
 }
 
-.gh-discovery-active-row {
-  row-gap: 10px;
-}
-
-.gh-discovery-result-row {
-  box-shadow:
-    0 14px 32px rgba(20, 32, 62, 0.08),
-    0 1px 0 rgba(255, 255, 255, 0.92) inset;
-}
-
-.gh-discovery-result-row:hover {
-  box-shadow:
-    0 18px 38px rgba(21, 34, 67, 0.1),
-    0 1px 0 rgba(255, 255, 255, 0.92) inset;
-}
-
 .gh-selection-preview .gh-lineage-linked-row,
 .gh-lineage-context-groups .gh-lineage-linked-row {
   transition:
@@ -3638,63 +2725,9 @@ button.gh-lineage-linked-row:not(.is-readonly):hover {
   transform: translateY(-1px);
 }
 
-.gh-lineage-context-toggle {
-  margin-bottom: 18px;
-}
-
-.gh-entity-record-header {
-  padding-bottom: 18px;
-}
-
-.gh-entity-record-main {
-  display: grid;
-  gap: 12px;
-}
-.gh-entity-action-row {
-  justify-content: flex-end;
-  align-self: start;
-}
-.gh-entity-record-layout {
-  align-items: start;
-}
-
 .gh-result-list.gh-discovery-card-list {
   width: 100%;
   max-width: none;
-}
-
-.gh-discovery-results-more {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-}
-.gh-lineage-drawer {
-  position: relative;
-  top: auto;
-  right: auto;
-  width: 100%;
-  padding: 16px;
-  gap: 16px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.985);
-  box-shadow:
-    0 24px 52px rgba(20, 34, 66, 0.14),
-    0 1px 0 rgba(255, 255, 255, 0.94) inset;
-  max-height: clamp(560px, 72vh, 980px);
-  overflow: auto;
-  overscroll-behavior: contain;
-  align-self: start;
-}
-.gh-lineage-drawer,
-.gh-lineage-edge-summary,
-.gh-lineage-edge-summary-copy,
-.gh-lineage-record-card-copy,
-.gh-lineage-linked-row,
-.gh-lineage-record-actions,
-.gh-lineage-drawer-actions {
-  min-width: 0;
 }
 
 .gh-lineage-edge-summary h2,
@@ -3704,125 +2737,6 @@ button.gh-lineage-linked-row:not(.is-readonly):hover {
 .gh-lineage-record-card-copy h3 {
   overflow-wrap: anywhere;
   word-break: break-word;
-}
-
-.gh-lineage-drawer-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.gh-lineage-drawer-actions > * {
-  flex: 1 1 100%;
-}
-
-.gh-lineage-linked-row {
-  padding: 10px 12px;
-  border: 1px solid var(--gh-line);
-  border-radius: 14px;
-  background: var(--gh-surface-soft);
-  align-items: start;
-}
-
-.gh-lineage-linked-row.is-readonly {
-  background: rgba(249, 251, 255, 0.96);
-}
-
-.gh-lineage-edge-summary {
-  display: grid;
-  gap: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(198, 210, 234, 0.72);
-}
-
-.gh-lineage-edge-summary h2 {
-  margin: 0;
-  font-size: clamp(1rem, 0.22vw + 0.96rem, 1.24rem);
-  line-height: 1.2;
-}
-
-.gh-lineage-edge-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-}
-
-.gh-lineage-record-card {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--gh-line);
-  border-radius: 16px;
-  background: var(--gh-surface);
-  box-shadow: var(--gh-shadow-soft);
-}
-
-.gh-lineage-record-card.tone-source {
-  border-left: 4px solid rgba(84, 117, 255, 0.92);
-}
-
-.gh-lineage-record-card.tone-target {
-  border-right: 4px solid rgba(126, 79, 238, 0.92);
-}
-
-.gh-lineage-record-card.tone-focus {
-  border-color: rgba(91, 67, 238, 0.28);
-}
-
-.gh-lineage-record-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.gh-lineage-stage-canvas {
-  min-height: clamp(520px, 68vh, 900px);
-  background:
-    radial-gradient(circle at top left, rgba(84, 117, 255, 0.08), transparent 26%),
-    radial-gradient(circle at bottom right, rgba(126, 79, 238, 0.08), transparent 28%),
-    linear-gradient(180deg, rgba(252, 253, 255, 0.98), rgba(244, 248, 255, 0.96));
-}
-
-.gh-lineage-canvas {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  min-height: clamp(560px, 72vh, 980px);
-  gap: 16px;
-  background:
-    radial-gradient(circle at top left, rgba(84, 117, 255, 0.08), transparent 24%),
-    radial-gradient(circle at bottom right, rgba(126, 79, 238, 0.08), transparent 26%),
-    linear-gradient(180deg, rgba(252, 253, 255, 0.98), rgba(244, 248, 255, 0.96));
-}
-
-.gh-lineage-canvas.has-drawer {
-  grid-template-columns: minmax(0, 1fr) minmax(380px, 32vw);
-  align-items: start;
-}
-
-.gh-lineage-main-stage {
-  min-width: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.gh-lineage-flow-shell {
-  position: relative;
-  min-width: 0;
-  min-height: inherit;
-}
-
-.gh-lineage-flow-shell > .react-flow {
-  min-height: inherit;
-}
-
-.gh-lineage-canvas.has-drawer .gh-lineage-flow-shell {
-  min-height: clamp(560px, 72vh, 980px);
-}
-
-.gh-lineage-stage-topbar-actions {
-  gap: 10px;
 }
 
 .gh-graph-node-card {
@@ -3853,21 +2767,6 @@ button.gh-lineage-linked-row:not(.is-readonly):hover {
   font-size: 0.78rem;
 }
 
-.gh-lineage-record-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.gh-lineage-record-actions > * {
-  flex: 1 1 100%;
-}
-
-.gh-lineage-linked-row span:last-child {
-  text-align: right;
-  justify-self: end;
-}
-
 button.gh-lineage-linked-row {
   cursor: pointer;
   transition:
@@ -3885,48 +2784,6 @@ button.gh-lineage-linked-row:focus-visible {
   box-shadow: 0 12px 24px rgba(31, 52, 109, 0.08);
 }
 
-.gh-lineage-record-card-copy {
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-}
-
-.gh-lineage-record-card-copy h3 {
-  margin: 0;
-  font-size: 0.96rem;
-  letter-spacing: -0.02em;
-  line-height: 1.24;
-}
-
-.gh-lineage-record-tags {
-  gap: 6px;
-}
-
-.gh-lineage-record-meta {
-  gap: 8px;
-}
-
-.gh-lineage-record-meta .gh-attribute-row,
-.gh-lineage-edge-attributes .gh-attribute-row {
-  grid-template-columns: minmax(88px, 0.34fr) minmax(0, 1fr);
-}
-
-.gh-lineage-record-meta .gh-attribute-value,
-.gh-lineage-edge-attributes .gh-attribute-value {
-  text-align: left;
-  justify-self: start;
-}
-
-.gh-lineage-record-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.gh-lineage-edge-attributes {
-  padding-top: 2px;
-}
-
 .gh-graph-node-pill {
   padding: 2px 6px;
   border-radius: 999px;
@@ -3936,84 +2793,6 @@ button.gh-lineage-linked-row:focus-visible {
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.gh-governance-reviewer-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.gh-governance-reviewer-card {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--gh-line);
-  border-radius: 14px;
-  background: var(--gh-surface-soft);
-  box-shadow: var(--gh-shadow-soft);
-}
-
-.gh-governance-reviewer-card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.gh-governance-reviewer-email {
-  min-width: 0;
-  font-weight: 800;
-  overflow-wrap: anywhere;
-}
-
-.gh-governance-reviewer-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.gh-governance-timeline {
-  display: grid;
-  gap: 10px;
-}
-
-.gh-governance-timeline-row {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid var(--gh-line);
-  border-radius: 14px;
-  background: var(--gh-surface);
-  box-shadow: var(--gh-shadow-soft);
-}
-
-.gh-governance-timeline-mark {
-  display: flex;
-  align-items: flex-start;
-}
-
-.gh-governance-timeline-copy {
-  display: grid;
-  gap: 6px;
-}
-
-.gh-governance-timeline-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.gh-governance-timeline-title {
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-
-.gh-governance-glossary-list {
-  gap: 10px;
 }
 @media (max-width: 1180px) {
   .gh-shell-spine,
@@ -4085,10 +2864,6 @@ button.gh-lineage-linked-row:focus-visible {
   .gh-shell-spine {
     grid-template-columns: minmax(380px, 0.84fr) minmax(0, 1.16fr);
   }
-
-  .gh-discovery-main-grid {
-    grid-template-columns: minmax(268px, 310px) minmax(0, 1fr) minmax(332px, 380px);
-  }
   .gh-shell-brand-mark {
     width: 104px;
     height: 104px;
@@ -4119,10 +2894,6 @@ button.gh-lineage-linked-row:focus-visible {
 
   .gh-shell-spine {
     grid-template-columns: minmax(400px, 0.84fr) minmax(0, 1.16fr);
-  }
-
-  .gh-discovery-main-grid {
-    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) minmax(348px, 400px);
   }
 
   .gh-shell-brand-band,
@@ -4159,10 +2930,6 @@ button.gh-lineage-linked-row:focus-visible {
 
   .gh-shell-spine {
     grid-template-columns: minmax(620px, 0.98fr) minmax(0, 1.02fr);
-  }
-
-  .gh-discovery-main-grid {
-    grid-template-columns: minmax(380px, 0.4fr) minmax(0, 1.42fr) minmax(470px, 0.78fr);
   }
 
   .gh-shell-brand-title {
@@ -4208,48 +2975,9 @@ button.gh-lineage-linked-row:focus-visible {
     width: 100%;
   }
 
-  .gh-discovery-toolbar-actions,
-.gh-discovery-stack-trigger,
-.gh-discovery-filter-shell {
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-  }
-
-  .gh-discovery-filter-shell {
-    position: relative;
-    top: auto;
-    left: auto;
-    right: auto;
-  }
-
   .gh-discovery-action-grid,
 .gh-lineage-drawer-actions {
     grid-template-columns: 1fr;
-  }
-  .gh-entity-action-row {
-    justify-content: flex-start;
-  }
-
-  .gh-lineage-canvas.has-drawer {
-    grid-template-columns: 1fr;
-  }
-
-  .gh-lineage-viewport {
-    height: clamp(520px, 66vh, 780px);
-  }
-
-  .gh-lineage-canvas,
-.gh-lineage-canvas.has-drawer {
-    grid-template-columns: 1fr;
-  }
-
-  .gh-lineage-main-stage {
-    order: 1;
-  }
-
-  .gh-lineage-drawer {
-    order: 2;
   }
 }
 
@@ -4258,21 +2986,8 @@ button.gh-lineage-linked-row:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .gh-lineage-record-actions {
-    grid-template-columns: 1fr;
-  }
-
   .gh-shell-brand-title {
     font-size: clamp(1.5rem, 5vw, 2.1rem);
-  }
-
-  .gh-lineage-linked-row {
-    grid-template-columns: 1fr;
-    align-items: start;
-  }
-
-  .gh-lineage-linked-row span:last-child {
-    justify-self: start;
   }
 }
 
@@ -4396,20 +3111,6 @@ body::after {
   font-size: 0.74rem;
 }
 
-.gh-discovery-main-grid {
-  position: relative;
-  isolation: isolate;
-}
-
-.gh-discovery-command-panel {
-  position: relative;
-  z-index: 4;
-}
-
-.gh-discovery-filter-shell {
-  z-index: 120;
-}
-
 .gh-results-column {
   position: relative;
   z-index: 1;
@@ -4425,17 +3126,6 @@ body::after {
   padding-inline: 0.82rem;
   font-size: 0.78rem;
   letter-spacing: -0.01em;
-}
-
-.gh-lineage-linked-row {
-  position: relative;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px 14px;
-  border: 1px solid rgba(182, 198, 216, 0.86);
-  border-radius: 14px;
-  background: rgba(247, 250, 255, 0.95);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.92) inset;
 }
 
 button.gh-lineage-linked-row {
@@ -4502,143 +3192,8 @@ div.gh-lineage-linked-row.is-readonly {
   box-shadow: none;
 }
 
-.gh-lineage-linked-row.is-readonly span:last-child {
-  color: #7588a0;
-}
-
-.gh-lineage-linked-row span:last-child {
-  color: #62768f;
-  font-size: 0.8rem;
-  text-align: right;
-}
-
-.gh-lineage-linked-row.is-asset-link span:last-child {
-  position: relative;
-  z-index: 1;
-  padding: 0.26rem 0.7rem;
-  border: 1px solid rgba(205, 214, 230, 0.96);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.94);
-  color: #536982;
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  text-align: center;
-  white-space: nowrap;
-}
-
 button.gh-lineage-linked-row.is-asset-link span:first-child {
   padding-right: 28px;
-}
-
-.gh-lineage-command-popover {
-  left: 0;
-  right: auto;
-  width: min(360px, calc(100vw - 48px));
-  max-width: calc(100vw - 48px);
-  transform-origin: top left;
-  z-index: 32;
-}
-
-.gh-lineage-canvas {
-  min-height: auto;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
-  align-items: stretch;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-  overflow: visible;
-}
-
-.gh-lineage-stage-canvas {
-  background:
-    radial-gradient(circle at 18% 18%, rgba(91, 67, 238, 0.12), transparent 28%),
-    radial-gradient(circle at 82% 12%, rgba(15, 92, 192, 0.1), transparent 26%),
-    linear-gradient(180deg, rgba(248, 251, 255, 0.92), rgba(237, 244, 255, 0.98));
-}
-
-.gh-lineage-canvas::before,
-.gh-lineage-canvas::after {
-  content: none;
-}
-
-.gh-lineage-canvas.has-drawer {
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.4fr);
-}
-
-.gh-lineage-viewport {
-  position: relative;
-  min-width: 0;
-  height: clamp(620px, 74vh, 1040px);
-  border: 1px solid rgba(201, 212, 232, 0.86);
-  border-radius: 22px;
-  background:
-    radial-gradient(circle at 14% 16%, rgba(91, 67, 238, 0.13), transparent 24%),
-    radial-gradient(circle at 82% 12%, rgba(15, 92, 192, 0.12), transparent 22%),
-    linear-gradient(180deg, rgba(248, 251, 255, 0.78) 0%, rgba(239, 245, 255, 0.94) 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 16px 36px rgba(18, 35, 58, 0.06);
-  overflow: hidden;
-}
-
-.gh-lineage-viewport .react-flow {
-  height: 100%;
-  min-height: 100%;
-}
-
-.gh-lineage-viewport::before,
-.gh-lineage-viewport::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.gh-lineage-viewport::before {
-  background:
-    radial-gradient(circle at 18% 26%, rgba(91, 67, 238, 0.14), transparent 18%),
-    radial-gradient(circle at 78% 18%, rgba(15, 92, 192, 0.12), transparent 16%),
-    radial-gradient(circle at 62% 78%, rgba(68, 178, 255, 0.12), transparent 24%);
-  filter: blur(16px);
-  opacity: 0.94;
-}
-
-.gh-lineage-viewport::after {
-  background-image:
-    linear-gradient(rgba(133, 150, 200, 0.13) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(133, 150, 200, 0.13) 1px, transparent 1px);
-  background-size: 48px 48px;
-  opacity: 0.52;
-}
-
-.gh-lineage-viewport .react-flow__background {
-  opacity: 0.22;
-}
-
-.gh-lineage-viewport .react-flow__controls {
-  background: rgba(255, 255, 255, 0.98);
-}
-
-.gh-lineage-drawer {
-  position: relative;
-  top: auto;
-  right: auto;
-  width: 100%;
-  max-height: none;
-  height: 100%;
-  padding: 18px;
-  border: 1px solid rgba(198, 210, 234, 0.92);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.985);
-  box-shadow:
-    0 20px 42px rgba(18, 32, 62, 0.09),
-    0 1px 0 rgba(255, 255, 255, 0.92) inset;
-  overflow: auto;
-  align-content: start;
 }
 
 .gh-state-pill {
@@ -4655,26 +3210,6 @@ button.gh-lineage-linked-row.is-asset-link span:first-child {
   font-weight: 850;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-.gh-lineage-edge-grid {
-  gap: 12px;
-}
-
-.gh-lineage-record-actions,
-.gh-lineage-drawer-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.gh-lineage-record-actions > *,
-.gh-lineage-drawer-actions > * {
-  width: 100%;
-}
-
-.gh-lineage-record-card,
-.gh-lineage-overlay-card {
-  border-color: rgba(198, 210, 234, 0.92);
 }
 
 .gh-shell-brand-mark {
@@ -4760,18 +3295,6 @@ button.gh-lineage-linked-row.is-asset-link span:first-child {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   white-space: nowrap;
-}
-
-.gh-lineage-edge-toggle {
-  position: absolute;
-  z-index: 8;
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  font-size: 0.92rem;
-  font-weight: 900;
 }
 
 .gh-graph-branch-toggle:hover,
@@ -4935,11 +3458,6 @@ body::after {
   font-size: clamp(1.34rem, 0.34vw + 1.24rem, 1.68rem);
 }
 
-.gh-discovery-main-grid {
-  grid-template-columns: minmax(300px, 0.32fr) minmax(0, 1.22fr) minmax(420px, 0.44fr);
-  gap: 18px;
-}
-
 .gh-discovery-sidebar,
 .gh-selection-preview,
 .gh-results-column,
@@ -5043,98 +3561,11 @@ body::after {
   color: #fff;
 }
 
-.gh-lineage-canvas {
-  min-height: clamp(620px, 74vh, 1080px);
-  gap: 18px;
-}
-
-.gh-lineage-canvas.has-drawer {
-  grid-template-columns: minmax(0, 1fr) clamp(460px, 31vw, 580px);
-}
-
-.gh-lineage-main-stage,
-.gh-lineage-flow-shell,
-.gh-lineage-viewport,
-.gh-lineage-viewport .react-flow {
-  min-width: 0;
-  min-height: clamp(620px, 74vh, 1080px);
-}
-
-.gh-lineage-viewport {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(201, 212, 232, 0.86);
-  border-radius: 24px;
-  background:
-    radial-gradient(circle at 14% 16%, rgba(91, 67, 238, 0.16), transparent 26%),
-    radial-gradient(circle at 82% 12%, rgba(15, 92, 192, 0.14), transparent 24%),
-    radial-gradient(circle at 54% 82%, rgba(95, 195, 255, 0.1), transparent 28%),
-    linear-gradient(180deg, rgba(249, 252, 255, 0.82) 0%, rgba(236, 243, 255, 0.96) 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 18px 38px rgba(18, 35, 58, 0.06);
-}
-
-.gh-lineage-viewport::before {
-  opacity: 0.74;
-}
-
-.gh-lineage-viewport::after {
-  opacity: 0.34;
-  background-size: 42px 42px;
-}
-
-.gh-lineage-overlay {
-  position: absolute;
-  inset: 18px;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
-
-.gh-lineage-overlay > * {
-  pointer-events: auto;
-}
-
-.gh-lineage-drawer {
-  max-height: clamp(620px, 74vh, 1080px);
-  min-width: 0;
-  width: 100%;
-  padding: 18px;
-  overflow-y: auto;
-}
-.gh-lineage-edge-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.gh-lineage-record-actions,
-.gh-lineage-drawer-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.gh-lineage-record-actions > *,
-.gh-lineage-drawer-actions > * {
-  width: 100%;
-}
-
-.gh-lineage-linked-row {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 8px 12px;
-}
-
 .gh-lineage-linked-row span:first-child,
 .gh-lineage-linked-row span:last-child,
 .gh-attribute-value {
   overflow-wrap: anywhere;
   word-break: break-word;
-}
-
-.gh-lineage-linked-row span:last-child {
-  justify-self: end;
 }
 
 button.gh-lineage-linked-row {
@@ -5158,14 +3589,6 @@ span.gh-state-pill {
   cursor: default;
 }
 
-.gh-lineage-inline-warning {
-  position: absolute;
-  top: 18px;
-  left: 18px;
-  right: 18px;
-  z-index: 4;
-}
-
 @media (min-width: 981px) {
   .gh-shell-header {
     position: sticky;
@@ -5180,10 +3603,6 @@ span.gh-state-pill {
 .gh-selection-preview {
     position: sticky;
     top: var(--gh-shell-sticky-offset);
-  }
-
-  .gh-discovery-command-panel {
-    z-index: 80;
   }
 
   .gh-discovery-sidebar,
@@ -5262,10 +3681,6 @@ span.gh-state-pill {
   .gh-lineage-linked-row,
 .gh-preview-profile-row {
     grid-template-columns: 1fr;
-  }
-
-  .gh-lineage-linked-row span:last-child {
-    justify-self: start;
   }
 }
 

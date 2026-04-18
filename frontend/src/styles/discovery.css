@@ -1,0 +1,402 @@
+/* Extracted from app.css by Phase 2-g.2 — selectors exclusive to the discovery feature. */
+
+.gh-discovery-sidebar {
+  position: sticky;
+  top: 14px;
+  align-self: start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  gap: 8px;
+}
+
+.gh-discovery-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  max-width: 1280px;
+}
+
+.gh-discovery-active-row {
+  margin-top: 6px;
+  gap: 6px;
+}
+
+.gh-discovery-results-copy {
+  color: var(--gh-ink-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.gh-discovery-view-row .gh-saved-view {
+  width: auto;
+  padding-inline: 0.72rem;
+  white-space: nowrap;
+}
+
+.gh-discovery-sidebar .gh-category-list,
+.gh-discovery-sidebar .gh-saved-view-list {
+  gap: 4px;
+}
+
+@media (max-width: 1500px) {
+  .gh-discovery-sidebar {
+    position: static;
+  }
+}
+
+.gh-discovery-main-grid {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.42fr) minmax(0, 1.26fr) minmax(390px, 0.82fr);
+  gap: 16px;
+  align-items: start;
+  max-width: none;
+}
+.gh-discovery-sidebar-section {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-discovery-command-panel {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 12px;
+  background:
+    radial-gradient(circle at top right, rgba(91, 67, 238, 0.07), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.988) 0%, rgba(247, 250, 255, 0.968) 100%);
+  box-shadow: 0 16px 34px rgba(18, 35, 58, 0.08);
+}
+
+.gh-discovery-sidebar .gh-category-row,
+.gh-discovery-sidebar .gh-saved-view {
+  padding: 0.72rem 0.84rem;
+  border-radius: 14px;
+  background: rgba(246, 249, 254, 0.92);
+}
+
+.gh-discovery-result-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding: 16px 18px;
+  border: 1px solid rgba(182, 198, 216, 0.86);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.98);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99) 0%, rgba(248, 251, 255, 0.97) 100%);
+  box-shadow: 0 16px 34px rgba(18, 35, 58, 0.08);
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  transition:
+    transform 130ms ease,
+    box-shadow 130ms ease,
+    border-color 130ms ease,
+    background 130ms ease;
+}
+
+.gh-discovery-result-row::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 14px 0 0 14px;
+  background: linear-gradient(180deg, rgba(91, 67, 238, 0.84) 0%, rgba(15, 92, 192, 0.72) 100%);
+  opacity: 0.68;
+}
+
+.gh-discovery-result-row.is-selected {
+  border-color: rgba(15, 92, 192, 0.42);
+  box-shadow: 0 0 0 1px rgba(15, 92, 192, 0.06);
+  background: rgba(246, 250, 255, 0.98);
+}
+
+.gh-discovery-result-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(15, 92, 192, 0.28);
+  box-shadow: 0 16px 34px rgba(18, 35, 58, 0.075);
+}
+
+.gh-discovery-result-hit {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gh-discovery-result-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gh-discovery-result-title-block {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: grid;
+  gap: 4px;
+}
+
+.gh-discovery-result-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gh-discovery-result-title-row h3 {
+  margin: 0;
+  font-size: 1.06rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+
+.gh-discovery-result-fqn {
+  color: #60748e;
+  font-size: 0.78rem;
+  line-height: 1.42;
+  word-break: break-word;
+}
+
+.gh-discovery-result-description {
+  margin: 0;
+  color: var(--gh-ink-soft);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.gh-discovery-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #60748e;
+  font-size: 0.86rem;
+  font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.gh-discovery-result-meta span {
+  min-width: 0;
+}
+
+.gh-discovery-result-meta span + span::before {
+  content: "•";
+  margin-right: 10px;
+  color: var(--gh-line-strong);
+}
+.gh-discovery-result-owner-row {
+  gap: 6px;
+}
+
+.gh-discovery-empty-state {
+  display: grid;
+  gap: 12px;
+}
+
+.gh-discovery-command-panel {
+  overflow: visible;
+}
+
+.gh-discovery-main-grid,
+.gh-discovery-command-panel,
+.gh-discovery-toolbar-shell {
+  overflow: visible;
+}
+
+@media (max-width: 980px) {
+  .gh-discovery-result-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gh-discovery-main-grid,
+.gh-discovery-command-panel,
+.gh-discovery-toolbar-shell {
+  overflow: visible !important;
+}
+
+.gh-discovery-main-grid {
+  align-items: start;
+  grid-template-columns: minmax(250px, 292px) minmax(0, 1fr) minmax(320px, 364px);
+}
+
+.gh-discovery-command-panel {
+  display: grid;
+  gap: 12px;
+  padding-bottom: 16px;
+  isolation: isolate;
+  z-index: 8;
+}
+
+.gh-discovery-command-head .gh-surface-header-main {
+  align-items: start;
+  gap: 12px;
+}
+
+.gh-discovery-command-head .gh-surface-header-title {
+  font-size: clamp(1.16rem, 0.5vw + 1.08rem, 1.42rem);
+}
+
+.gh-discovery-command-head .gh-surface-header-extra {
+  gap: 6px;
+}
+
+.gh-discovery-toolbar-shell {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  overflow: visible;
+  z-index: 30;
+}
+
+.gh-discovery-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 236px) minmax(176px, max-content);
+  gap: 14px;
+  align-items: end;
+}
+
+.gh-discovery-toolbar > * {
+  min-width: 0;
+}
+
+.gh-discovery-sort {
+  display: grid;
+  gap: 6px;
+}
+
+.gh-discovery-toolbar-actions {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+}
+
+.gh-discovery-stack-trigger {
+  min-width: 176px;
+  min-height: 48px;
+  white-space: nowrap;
+}
+
+.gh-discovery-stack-trigger.is-active {
+  border-color: rgba(91, 67, 238, 0.34);
+  box-shadow:
+    inset 0 0 0 1px rgba(91, 67, 238, 0.12),
+    0 10px 26px rgba(91, 67, 238, 0.12);
+}
+
+.gh-discovery-filter-shell {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  width: min(880px, calc(100vw - 140px));
+  min-width: 640px;
+  max-width: calc(100vw - 140px);
+  z-index: 40;
+}
+.gh-discovery-results-copy {
+  max-width: 72ch;
+  font-size: 0.94rem;
+  line-height: 1.58;
+}
+
+.gh-discovery-action-grid {
+  grid-template-columns: repeat(auto-fit, minmax(142px, 1fr));
+}
+
+.gh-discovery-active-row {
+  row-gap: 10px;
+}
+
+.gh-discovery-result-row {
+  box-shadow:
+    0 14px 32px rgba(20, 32, 62, 0.08),
+    0 1px 0 rgba(255, 255, 255, 0.92) inset;
+}
+
+.gh-discovery-result-row:hover {
+  box-shadow:
+    0 18px 38px rgba(21, 34, 67, 0.1),
+    0 1px 0 rgba(255, 255, 255, 0.92) inset;
+}
+
+.gh-discovery-results-more {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+@media (min-width: 1680px) {
+  .gh-discovery-main-grid {
+    grid-template-columns: minmax(268px, 310px) minmax(0, 1fr) minmax(332px, 380px);
+  }
+}
+
+@media (min-width: 1920px) {
+  .gh-discovery-main-grid {
+    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) minmax(348px, 400px);
+  }
+}
+
+@media (min-width: 2400px) {
+  .gh-discovery-main-grid {
+    grid-template-columns: minmax(380px, 0.4fr) minmax(0, 1.42fr) minmax(470px, 0.78fr);
+  }
+}
+
+@media (max-width: 980px) {
+  .gh-discovery-toolbar-actions,
+.gh-discovery-stack-trigger,
+.gh-discovery-filter-shell {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .gh-discovery-filter-shell {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+  }
+}
+
+.gh-discovery-main-grid {
+  position: relative;
+  isolation: isolate;
+}
+
+.gh-discovery-command-panel {
+  position: relative;
+  z-index: 4;
+}
+
+.gh-discovery-filter-shell {
+  z-index: 120;
+}
+
+.gh-discovery-main-grid {
+  grid-template-columns: minmax(300px, 0.32fr) minmax(0, 1.22fr) minmax(420px, 0.44fr);
+  gap: 18px;
+}
+
+@media (min-width: 1441px) {
+  .gh-discovery-command-panel {
+    z-index: 80;
+  }
+}
