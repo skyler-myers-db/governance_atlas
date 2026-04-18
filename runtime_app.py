@@ -1509,11 +1509,14 @@ from govhub.api.governance import (  # noqa: E402
 )
 
 app.include_router(build_discovery_router())
+# catalog MUST register before assets so the more-specific
+# /api/assets/{asset_fqn:path}/(profile|quality|custom-properties|access-explain)
+# routes win over the generic /api/assets/{asset_fqn:path} catch-all.
+app.include_router(build_catalog_router())
 app.include_router(build_assets_router())
 app.include_router(build_lineage_router())
 app.include_router(build_governance_router())
 app.include_router(build_export_router())
-app.include_router(build_catalog_router())
 
 
 @app.get("/{client_path:path}", response_class=HTMLResponse, include_in_schema=False)
