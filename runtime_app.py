@@ -1479,6 +1479,54 @@ def _warmup_live_runtime() -> None:
     thread.start()
 
 
+_BACKGROUND_DRAINER_STOPPED = False
+_BACKGROUND_DRAINER_INTERVAL_S = 30
+
+
+@app.on_event("startup")
+def _start_background_drainer() -> None:
+    """Phase 12 — continuous background work runner.
+
+    Polls the governance store on a fixed interval and drains up to 5
+    queued work items per tick. Same drain_queued_batch contract as
+    the admin-triggered batch endpoint; running inside the app lets
+    async exports complete without any external cron wiring.
+
+    Runs as a daemon thread so it doesn't block interpreter shutdown.
+    Gracefully stops when `_BACKGROUND_DRAINER_STOPPED` is set during
+    teardown.
+    """
+    import time
+    from govhub.services.background_runner import drain_queued_batch
+    from govhub.api.export import _handle_export_work
+
+    def _drain_loop() -> None:
+        while not _BACKGROUND_DRAINER_STOPPED:
+            try:
+                _ensure_governance_store()
+                store = _store()
+                drain_queued_batch(store=store, handler=_handle_export_work, max_items=5)
+            except Exception:
+                # Don't let a transient store failure kill the drainer —
+                # we want it to keep retrying on the next tick.
+                pass
+            # Sleep in short chunks so shutdown doesn't wait a full
+            # interval to observe the stop flag.
+            for _ in range(_BACKGROUND_DRAINER_INTERVAL_S):
+                if _BACKGROUND_DRAINER_STOPPED:
+                    return
+                time.sleep(1)
+
+    thread = threading.Thread(target=_drain_loop, name="govhub-bg-drainer", daemon=True)
+    thread.start()
+
+
+@app.on_event("shutdown")
+def _stop_background_drainer() -> None:
+    global _BACKGROUND_DRAINER_STOPPED
+    _BACKGROUND_DRAINER_STOPPED = True
+
+
 from govhub.api.assets import (  # noqa: E402
     api_asset_availability,
     api_asset_detail,

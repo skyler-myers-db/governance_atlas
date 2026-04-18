@@ -293,6 +293,49 @@ def api_asset_custom_properties(
 # -----------------------------------------------------------------------------
 
 
+def api_run_asset_profile(asset_fqn: str, request: Request) -> JSONResponse:
+    """Phase 8 — trigger a profile run for an asset.
+    Steward/admin gated. Runs synchronously (no background queue) so
+    the caller gets the new profile_run_id back in the response.
+    Large/expensive tables should use the background runner via the
+    profile work item type."""
+    from runtime_app import _ensure_governance_store, _ensure_live_runtime, _asset_detail_payload, _store, _uc_for_request
+    from govhub.services import profile_runner
+
+    _steward_or_admin(request)
+    _ensure_live_runtime()
+    try:
+        _ensure_governance_store()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Governance store not ready: {exc}")
+    actor = _user_email(request) or "unknown"
+    try:
+        detail = _asset_detail_payload(asset_fqn, request=request, sections=["schema"])
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail=f"Asset not available: {exc}")
+    columns = detail.get("columns") or []
+    uc_client = _uc_for_request(request)
+    result = profile_runner.run_profile(
+        store=_store(),
+        uc_client=uc_client,
+        asset_fqn=asset_fqn,
+        columns=columns,
+        actor_email=actor,
+        trigger="manual",
+        include_top_values=False,
+    )
+    return JSONResponse(
+        status_code=200,
+        content=_envelope({
+            "profileRunId": result.profile_run_id,
+            "status": result.status,
+            "rowCount": result.row_count,
+            "columnMetricsWritten": result.column_metrics_written,
+            "error": result.error or None,
+        }),
+    )
+
+
 def api_asset_profile(asset_fqn: str, request: Request) -> JSONResponse:
     store = _store_read()
     import json
@@ -421,6 +464,67 @@ def api_asset_quality(asset_fqn: str, request: Request) -> JSONResponse:
     return JSONResponse(
         status_code=200,
         content=_envelope({"runs": runs, "results": results, "summary": summary}),
+    )
+
+
+class QualityRunInlineRequest(BaseModel):
+    """Ad-hoc quality run — caller supplies the test cases inline.
+    Used by admins + stewards to validate a case set against an asset
+    before persisting a quality_suites row."""
+    assetFqn: str
+    cases: List[Dict[str, Any]] = Field(default_factory=list)
+    severity: str = "warn"
+
+
+def api_run_asset_quality(payload: QualityRunInlineRequest, request: Request) -> JSONResponse:
+    """Phase 10 — execute a set of quality test cases inline and
+    persist the results. Steward/admin gated because custom_sql
+    cases touch arbitrary data."""
+    from runtime_app import _ensure_governance_store, _ensure_live_runtime, _store, _uc_for_request
+    from govhub.services import quality_runner
+
+    role = _steward_or_admin(request)
+    _ensure_live_runtime()
+    try:
+        _ensure_governance_store()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Governance store not ready: {exc}")
+    actor = _user_email(request) or "unknown"
+    cases: List[quality_runner.TestCaseSpec] = []
+    for raw in payload.cases or []:
+        if not isinstance(raw, dict):
+            continue
+        cases.append(
+            quality_runner.TestCaseSpec(
+                case_id=str(raw.get("caseId") or uuid.uuid4().hex),
+                test_key=str(raw.get("testKey") or "").strip(),
+                entity_fqn=_normalize_str(payload.assetFqn),
+                parameters=dict(raw.get("parameters") or {}),
+                severity=str(raw.get("severity") or payload.severity),
+                column_name=_normalize_str(raw.get("columnName")) or None,
+            )
+        )
+    if not cases:
+        raise HTTPException(status_code=400, detail="At least one test case is required.")
+    uc_client = _uc_for_request(request)
+    result = quality_runner.run_quality_suite(
+        store=_store(),
+        uc_client=uc_client,
+        cases=cases,
+        suite_id=None,
+        trigger="manual",
+        actor_email=actor,
+    )
+    return JSONResponse(
+        status_code=200,
+        content=_envelope({
+            "runId": result.run_id,
+            "status": result.status,
+            "passed": result.passed,
+            "failed": result.failed,
+            "errored": result.errored,
+            "skipped": result.skipped,
+        }),
     )
 
 
@@ -770,6 +874,12 @@ def build_catalog_router() -> APIRouter:
 
     # Phase 8 — profile
     router.add_api_route(
+        "/api/assets/{asset_fqn:path}/profile/run",
+        api_run_asset_profile,
+        methods=["POST"],
+        name="api_run_asset_profile",
+    )
+    router.add_api_route(
         "/api/assets/{asset_fqn:path}/profile",
         api_asset_profile,
         methods=["GET"],
@@ -794,6 +904,12 @@ def build_catalog_router() -> APIRouter:
         api_quality_validate_custom_sql,
         methods=["POST"],
         name="api_quality_validate_custom_sql",
+    )
+    router.add_api_route(
+        "/api/quality/run",
+        api_run_asset_quality,
+        methods=["POST"],
+        name="api_run_asset_quality",
     )
 
     # Phase 11 — classifications / domains / products / column groups

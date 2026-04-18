@@ -535,6 +535,33 @@
         "title": "QualityCustomSqlRequest",
         "type": "object"
       },
+      "QualityRunInlineRequest": {
+        "description": "Ad-hoc quality run \u2014 caller supplies the test cases inline.\nUsed by admins + stewards to validate a case set against an asset\nbefore persisting a quality_suites row.",
+        "properties": {
+          "assetFqn": {
+            "title": "Assetfqn",
+            "type": "string"
+          },
+          "cases": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Cases",
+            "type": "array"
+          },
+          "severity": {
+            "default": "warn",
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "assetFqn"
+        ],
+        "title": "QualityRunInlineRequest",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -760,6 +787,7 @@
     "/api/assets/{asset_fqn:path}/access-explain": {},
     "/api/assets/{asset_fqn:path}/custom-properties": {},
     "/api/assets/{asset_fqn:path}/profile": {},
+    "/api/assets/{asset_fqn:path}/profile/run": {},
     "/api/assets/{asset_fqn:path}/quality": {},
     "/api/assets/{asset_fqn}": {
       "get": {
@@ -2782,6 +2810,46 @@
           }
         },
         "summary": "Api Quality Validate Custom Sql",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/quality/run": {
+      "post": {
+        "description": "Phase 10 \u2014 execute a set of quality test cases inline and\npersist the results. Steward/admin gated because custom_sql\ncases touch arbitrary data.",
+        "operationId": "api_run_asset_quality_api_quality_run_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QualityRunInlineRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Run Asset Quality",
         "tags": [
           "catalog"
         ]
