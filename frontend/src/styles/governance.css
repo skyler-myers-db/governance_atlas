@@ -368,3 +368,17 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Phase 5 Tranche D — glossary hierarchy tree rendering */
+.gh-governance-glossary-item {
+  position: relative;
+}
+.gh-governance-glossary-item[class*="depth-"]:not(.depth-0)::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 14px;
+  width: 6px;
+  height: 1px;
+  background: var(--gh-line-strong);
+}
