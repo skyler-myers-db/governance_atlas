@@ -440,10 +440,6 @@ def _store_status() -> Dict[str, str]:
     return _ttl_value("runtime_store_status", 60, _loader)
 
 
-def _live_runtime_available() -> bool:
-    return _uc_runtime_status()["state"] == "live"
-
-
 def _store_for_read() -> GovernanceStore | _NullGovernanceStore:
     status = _store_status()
     if status["state"] == "live":
@@ -851,10 +847,6 @@ def _invalidate_asset_caches(asset_fqn: str) -> None:
     _ttl_cache_pop("runtime_governance")
 
 
-def _friendly_table_type(raw: Any, data_source_format: Any = None) -> str:
-    return asset_service.friendly_table_type(raw, data_source_format)
-
-
 def _safe_int(value: Any) -> int:
     try:
         if value is None or (isinstance(value, float) and math.isnan(value)):
@@ -937,35 +929,6 @@ from govhub.services.metadata_audit import (
 )
 
 
-def _build_data_graph(
-    asset_fqn: str,
-    request: Optional[Request] = None,
-) -> Dict[str, Any]:
-    # `system.access.table_lineage` / `column_lineage` apply row-level filtering
-    # to match the querying principal's SELECT grants on the source and target
-    # tables. When the actor has OBO but lacks SELECT on some upstream tier
-    # (e.g., bronze / raw), those edges are filtered out and the UI shows an
-    # empty graph even though lineage exists. Route `system.access.*` reads
-    # through the app-principal client (broader SELECT granted at install time)
-    # so the lineage topology reflects the actual crawler view. OBO continues
-    # to gate the API endpoint and to drive asset metadata / visibility reads.
-    return lineage_service.build_data_graph(
-        _uc_for_request(request), _store_for_read(), asset_fqn, system_uc=_uc()
-    )
-
-
-def _build_operational_graph(
-    asset_fqn: str,
-    request: Optional[Request] = None,
-) -> Dict[str, Any]:
-    return lineage_service.build_operational_graph(
-        _uc_for_request(request),
-        _store_for_read(),
-        asset_fqn,
-        system_uc=_uc(),
-    )
-
-
 def _lineage_payload(
     asset_fqn: str,
     request: Optional[Request] = None,
@@ -977,28 +940,6 @@ def _lineage_payload(
         cache_scope=_request_cache_scope(request),
         system_uc=_uc(),
     )
-
-
-def _degraded_governance_payload(message: str) -> Dict[str, Any]:
-    return {
-        "metrics": [],
-        "backlog": [],
-        "glossary": [],
-        "inbox": {
-            "state": "degraded",
-            "message": _normalize_str(message)
-            or "Governance inbox is unavailable while the control plane is degraded.",
-            "unreadCount": 0,
-            "items": [],
-        },
-        "authoritative": False,
-        "provenance": {
-            "source": "delta_control_plane",
-            "authoritative": False,
-            "state": "degraded",
-            "warnings": [message] if _normalize_str(message) else [],
-        },
-    }
 
 
 def _governance_summary(request: Optional[Request] = None) -> Dict[str, Any]:
@@ -1638,10 +1579,6 @@ def _inject_bootstrap(html_text: str, payload: Optional[Dict[str, Any]]) -> str:
 
 def _render_index(live_payload: Optional[Dict[str, Any]] = None) -> str:
     return _inject_bootstrap(_compiled_react_index(), live_payload)
-
-
-def _render_unavailable_index(message: str) -> str:
-    return _render_index(_bootstrap_unavailable_payload(None, message))
 
 
 def _spa_shell_response(request: Request) -> HTMLResponse:
