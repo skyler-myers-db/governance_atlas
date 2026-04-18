@@ -10511,3 +10511,151 @@ to land on `main`, deployed and smoke-verified, not just drafted.
   exist, sync path is live, async is future work.
 - Phase 5 `entity_versions` snapshot writer on every mutation — schema
   exists; write wiring comes with projection rebuild.
+
+---
+
+## 2026-04-18 — continuation run: UI panels, taxonomy, async export, entity_versions, OM polish
+
+**Goal (resumed from earlier same-day run).** Wire every Phase-8/10/11/13/14
+surface into the actual UI, not just the API; ship the Phase 12 async
+export runner; close Phase 5 by snapshotting every mutation into
+entity_versions; deploy and smoke-verify all of it; pass a final
+OpenMetadata-parity polish pass.
+
+**Shipped commits (main):**
+- `0dafbcb feat(phase8+10+14 UI): CustomPropertiesPanel, ProfilePanel, QualityPanel, AccessExplainerBanner`
+- `f282513 feat(phase11 UI): TaxonomyWorkspace module — classifications, domains, data products, column groups`
+- `ef0b263 feat(phase5+12): entity_versions writer + async export runner`
+- `15c7789 fix: use path-style FQN matching for phase 8/10/14 asset routes`
+- `41491bd fix: register catalog router before assets router`
+- `2c1a567 polish(UI): OM-parity sharpening + distinct Quality tab icon`
+
+**Phase 8 UI — `frontend/src/components/primitives/`:**
+- `CustomPropertiesPanel.jsx` + `useAssetCustomProperties.js` — lists
+  persisted custom_property_assignments with a chip-coded data_type
+  label. When no persisted assignments exist, surfaces the
+  UC-derived `asset.customProperties` as fallback rows so the
+  original test contract still holds.
+- `ProfilePanel.jsx` — stat grid (rows, bytes, partitions, distinct
+  keys, status, started) + a column-metrics table (null %, distinct %,
+  min-max range). Renders an empty state with explanatory copy
+  until a profile_run has landed.
+- Plumbs into `EntityWorkspace.jsx` under the existing Profiler and
+  CustomProperties tabs so Phase 8 is reachable by default.
+
+**Phase 10 UI:**
+- New `Quality` tab in EntityWorkspace (with a distinct tab icon).
+- `QualityPanel.jsx` — 4-bucket summary (passed/failed/errored/skipped)
+  with tone-coded chips, latest-results table (executed_at, case,
+  column, outcome chip, severity, metric), recent runs list.
+- Wired via `useAssetQuality.js` + `fetchAssetQuality`.
+
+**Phase 11 UI — `frontend/src/components/TaxonomyWorkspace.jsx`:**
+- Brand-new `/taxonomy` module in GlobalHeader.
+- Four nested tabs (Classifications / Domains / Data Products /
+  Column Groups) each lazily fetching the Phase 11 endpoint.
+- Reusable `TaxonomyList` table with per-column `render` fallbacks.
+- Concept-level empty-state copy for each facet so a fresh workspace
+  surfaces what the module will contain once admins populate it.
+- Routed end-to-end: `App.jsx` surface switch, `useAppRouteState.js`
+  KNOWN_SURFACES + canonicalPath + parsePathRoute,
+  `runtime_app.py` CLIENT_ROUTE_PREFIXES.
+
+**Phase 14 UI:**
+- `AccessExplainerBanner.jsx` renders the `/api/assets/:fqn/
+  access-explain` output as a purple-accent inline banner above
+  the Overview Definition. Shows authMode + visibilityScope chips,
+  a bulleted remediation list, and Catalog Explorer / Jobs / Query
+  History deep-link anchors. Collapses silently when remediation
+  is empty (fully-authorized sessions don't see it).
+
+**Phase 12 — async export runner.**
+- `govhub/services/background_runner.py` drains up to N queued
+  `background_work_items` in a bounded batch, optimistically claims
+  each row, hands it to the caller-supplied handler, then records
+  succeeded / failed (with retry-to-queued until max_attempts) and
+  dead-letter-routes terminal failures.
+- Export handler marks the matching `export_jobs` row `ready`.
+- New endpoints (added to `govhub/api/export.py`):
+  - `POST /api/export/enqueue` — queue an async export; 202.
+  - `GET  /api/export/jobs` — caller's own recent jobs.
+  - `GET  /api/export/{jobId}/status` — requester-scoped poll.
+  - `POST /api/admin/background/run-batch` — admin batch drain.
+- +5 runner tests cover success, retry, dead-letter routing,
+  handler-exception mapping, empty queue.
+
+**Phase 5 — entity_versions snapshot writer.**
+- `store.append_entity_version` writes the `after` state of each
+  governance mutation into `entity_versions` (schema v8), threaded
+  with the originating `change_event_id`.
+- `record_audit_log` now triple-writes: metadata_audit_log +
+  change_events + entity_versions. Skipped when `after` is None
+  (delete events don't fabricate snapshots).
+- +1 audit test covers dual-plus-snapshot path and the skip branch.
+
+**FQN path fixes (production bugs caught via Playwright smoke).**
+- FastAPI path parameters don't match dots by default, so Phase
+  8/10/14 routes like `/api/assets/{asset_fqn}/quality` returned
+  404 for real 3-segment FQNs. Switched to `{asset_fqn:path}`.
+- Even with `:path`, the broader `/api/assets/{asset_fqn:path}` in
+  the assets router was greedy-matching before the catalog router's
+  more-specific routes. Registered `build_catalog_router()` BEFORE
+  `build_assets_router()` in `runtime_app.py`.
+- Column-lineage trace moved to a query-parameter variant
+  `/api/lineage/column-trace?asset_fqn=…&column_name=…` since chaining
+  `:path` with another segment is ambiguous. Old path-style route
+  kept as a back-compat alias.
+
+**OM-parity polish pass.**
+- Distinct Quality tab icon (shield-check glyph) so Quality stops
+  sharing the Profiler bar-chart.
+- Hover highlights across every table-style row (custom props,
+  profile columns, quality results, audit events, taxonomy rows).
+- Tighter column-head heights (36px) and row mins (40px),
+  uppercased small-caps panel titles to match OpenMetadata density.
+- Tone-coded quality-outcome chips rendered as 999px uppercase pills.
+- AccessExplainerBanner gains a flag glyph and underlined hover
+  state on deep-link anchors.
+- Taxonomy tabs use an OM-style underline for active state.
+
+**Tests.**
+- Backend: **162 tests, all passing** (up from 156). +5 new tests in
+  `test_background_runner.py`, +1 in `test_metadata_audit.py`.
+- Frontend: **223/223 passing in isolation**; same Discovery fake-timer
+  flake continues to flip 0/2 red in the full suite only — pre-
+  existing, not introduced by this run.
+- Typecheck + build clean.
+
+**Deploy.**
+- `databricks bundle deploy -t dev --var warehouse_id=2d857e9a1468599b
+  --profile tristate` succeeded four times across the fix-deploys.
+- App running at
+  https://governance-hub-7405619023278880.0.azure.databricksapps.com.
+- Live smoke from Playwright MCP verified:
+  - `/taxonomy` renders all 4 sub-tabs + the correct empty states.
+  - `/entity/prod.silver.ap_self_assessed_tax_dist_history` loads
+    the full 8-tab entity page including the new Quality tab.
+  - Quality tab renders "No quality runs recorded" empty state
+    (no seed data yet) — exactly the designed behavior.
+  - Custom Properties tab shows the UC-derived cluster/delta
+    property hints via the CustomPropertiesPanel fallback when
+    there are no persisted assignments.
+  - Profiler tab shows the existing ProfilerCards chained with a
+    "No profile runs recorded" empty state from ProfilePanel.
+  - Four asset API endpoints confirmed 200 live:
+    `access-explain`, `custom-properties`, `profile`, `quality`.
+
+**Remaining (deferred, honest list).**
+- A continuous background thread that drains queued work items on a
+  timer (instead of admin-triggered batch). The batch endpoint
+  exists and a Databricks Job can be pointed at it, but native
+  self-draining is future work.
+- Deep detail pages per classification/domain/data-product/column-
+  group (Taxonomy currently surfaces the list view; row-click drill-
+  down is a next slice).
+- Markdown description editor + Lineage PNG export (needs
+  react-markdown + html-to-image npm deps).
+- Profile run writer — the panel reads; a scheduled profiler that
+  writes runs has not been built yet.
+- Quality runner — the panel reads; a scheduled quality executor
+  using the custom-SQL guard is future work.
