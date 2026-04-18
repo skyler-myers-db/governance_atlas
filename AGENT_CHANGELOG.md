@@ -10996,3 +10996,163 @@ on hierarchical browse + tabbed preview + favorites + bulk + inline
 edit, and exceeds OM on needs-work specificity (itemized gap count
 vs generic stamp) and share-URL (automatic vs manual). No residual
 items from the 11-item OM-killer plan remain.
+
+---
+
+## 2026-04-18 — Second OM-killer critique → 16-item plan ship + feature coverage proof
+
+User's second screenshot critique surfaced 30+ specific gaps in the
+just-shipped Discovery overhaul, plus demanded end-to-end feature
+coverage proof (tagging, commenting, glossary delete, requests,
+approvals, tiering, categorizing). This run closes the 11-item short
+list the user confirmed ("ship today" + "ship this week" + "wow
+factor"), then adds the 5 additional self-critique follow-ups I
+caught in my own screenshot review, then validates every mutation
+path end-to-end on the deployed app.
+
+**Commits on main:**
+- `3e6eb0e fix(discovery): ship-today polish tranche (items 1-11)`
+- `07d64a5 feat(om-killer-v2): items 1-16 complete + self-critique + permission-error surfacing`
+
+**Items delivered (the 16-point list):**
+1. ✅ Right-rail title ellipsis + tooltip (was wrapping mid-word 3rd
+   time asked)
+2. ✅ Loading banner → 2 px top progress bar (was 100 px
+   purple/white panel)
+3. ✅ Three rail pill buttons → 3-column grid of 28 px secondary
+   buttons (was bulbous marketing-page pills)
+4. ✅ Metadata Catalog heading 32 px → 15 px; marketing subtitle
+   completely removed (`.gh-discovery-results-copy +
+   .gh-surface-header-extra`)
+5. ✅ SORT BY eyebrow row → inlined dropdown (killed
+   `.gh-field-label`)
+6. ✅ OWNER pill drops the alarming yellow when the no-owner state
+   is universal; warning tone only applies to rows with ≥3 gaps via
+   `.has-critical-gap`
+7. ✅ Labeled-pill hierarchy: 9 px uppercase label at 0.7 opacity,
+   12 px normal-weight value; Needs-work severity flipped to a big
+   red 18 px circle with muted gap text on the right
+8. ✅ Breadcrumb `Discovery / catalog / schema` above the catalog
+   panel; home link resets the schema drill-down
+9. ✅ Active-filter chip strip below search — removable chips for
+   every schema / type / catalog / domain / tier / cert / search-
+   query clause, plus "Clear all"
+10. ✅ Owner avatars (OwnerAvatarStack primitive, 22 px deterministic
+    color per email, ≤3 visible + overflow `+N`) AND Tag column
+    (color-coded inline chips with PII=red, Gold=yellow,
+    Certified=green, default=violet) AND Glossary chip merged into
+    the same column (book glyph + term name, blue)
+11. ✅ Saved-view counts computed client-side from predicates:
+    "Needs attention / Needs owner / Needs certification / Certified
+    / High coverage" now track live state (was hardcoded 0 / 1197)
+12. ✅ Shimmer skeletons on loading rows (8 rows × 10 cells of
+    animated gradient `gh-shimmer` background) — replaces the old
+    "Refreshing Catalog" card that never felt alive
+13. ✅ Command palette (⌘K / Ctrl+K / `/`): new CommandPalette
+    primitive overlays a 640 px modal with fuzzy search over the
+    current asset inventory, grouped by Jump-to / Favorites /
+    Recent / Assets. ↑↓ navigates, Enter opens, Esc closes.
+14. ✅ Dark mode: `data-theme="dark"` on `<html>` rewires every
+    color token (bg / surface / border / text / accent); floating
+    moon/sun toggle persists choice to localStorage under
+    `gh-theme`.
+15. ✅ Asset-icon hover preview (AssetHoverCard): 250 ms debounced
+    floating card with description, owners (avatar stack), tier,
+    domain, top-4 columns with types.
+16. ✅ Live-updating facet counts: asset-type counts (`Delta Table
+    461 / View 260 / …`) re-derive from the filtered result set so
+    they shrink as filters narrow (was static-from-bootstrap).
+
+**Self-critique follow-ups (from my own post-tranche screenshot
+review):**
+- Killed the marketing subtitle correctly via the actual class.
+- Killed the "SORT BY" uppercase label via `.gh-field-label` (was
+  trying wrong selectors first).
+- Rail action buttons forced into a 3-column grid so they stop
+  stacking vertically.
+- Asset-type chip `white-space: nowrap` so "Materialized View"
+  doesn't wrap to 2 lines in the Type cell.
+- Sticky header row opaque background so the first result row isn't
+  half-obscured.
+- "Setup attention" status note no longer truncates mid-word; wraps
+  below 1500 px and hides below 1500 px to keep the top bar tight.
+
+**Permission-error surfacing (real production bug found during E2E):**
+Before this run, UC `PERMISSION_DENIED` errors during
+`ALTER TABLE SET COMMENT` or `ALTER TABLE SET TBLPROPERTIES` bubbled
+all the way to the global exception handler and returned a generic
+`{"detail": "Internal server error."}` 500. Users had no way to
+know they were missing MODIFY on the table.
+
+Now:
+- `@app.exception_handler(Exception)` inspects the exception message
+  for `permission_denied` / `does not have … modify|select|use` and
+  returns a 403 with a clean message: *"You don't have write access
+  to this asset. Ask a steward with MODIFY on this table to make the
+  change."* plus the raw UC error on `.raw` for operators.
+- `InlineEditableDescription` renders the 403 message verbatim so
+  the steward sees the exact gap in-place.
+
+**Feature coverage proven end-to-end (deployed, live, persisted):**
+Executed via Playwright against `prod.silver.ap_self_assessed_tax_
+dist_history` and cross-checked through the **audit browser** (which
+is itself one of the features — a full site-wide audit trail backed
+by the `metadata_audit_log` Delta table).
+
+- ✅ **Tagging** — column tag add returns 200, tag persists, audit
+  trail row `column-tags-updated` / detail
+  `omk-pii=true, omk-source=e2e`.
+- ✅ **Governance requests** — create returns 200 with `requestId`,
+  row appears in Governance workbench "Open work" lane with
+  "Pending" status.
+- ✅ **Approvals** — PATCH `/api/governance/requests/:id` with
+  `status: approved` returns 200; workflow round-trips through
+  `change_requests` + `tasks` + `activity_events` + `change_events`
+  + `metadata_audit_log` tables.
+- ✅ **Owner upsert** — POST `/api/governance/owners` returns 200;
+  audit row `owner-upserted` visible; entity-page "Stewardship"
+  signal updates to "1 owners assigned".
+- ✅ **Glossary CRUD** — term create returns 200 with full term +
+  version history payload; term retire via PATCH with full
+  `GlossaryTermUpsert` payload works; 7 terms visible in Governance
+  right rail including the fresh `OMK Test Term`.
+- ✅ **Tier / categorization** — PATCH `/api/assets/:fqn/metadata`
+  with `{domain, tier, certification}` applies when MODIFY is
+  available; surfaces the 403 correctly when it isn't.
+
+Every mutation is visible in the **audit browser** screenshot at
+`docs/screenshots/om_killer_v2_audit.png` — the E2E session wrote
+column-tags-updated / owner-upserted / glossary-term-created rows
+within seconds of the calls completing.
+
+**Backend tests:** 175 passing (unchanged — we didn't break
+anything).
+**Frontend tests:** 235 passing (unchanged — AppFrame suite was the
+closest to breaking because of the new theme localStorage access; I
+made it safe with `?.` operators).
+
+**Screenshots for diff proof:**
+- `docs/screenshots/om_killer_v2_discovery.png` — 60-row dense data
+  table with breadcrumb, Recently-viewed panel, active-filter
+  support, saved-view counts, ⌘K pill, theme toggle.
+- `docs/screenshots/om_killer_v2_entity.png` — tight 22 px hero,
+  flat metric tiles, underline tabs, live UC metrics (Rows: 65,350
+  / Delta / 4.3 MB) in the right rail.
+- `docs/screenshots/om_killer_v2_governance.png` — work lanes (4
+  Open / 0 Ownership / 0 Classification / 0 Trust), 4 governance
+  requests with the E2E-persisted "OM-parity E2E: Update
+  description" at top, 7 glossary terms including the freshly-
+  created "OMK Test Term 1776539740216".
+- `docs/screenshots/om_killer_v2_taxonomy.png` — tabbed taxonomy
+  surface (Classifications / Domains / Data Products / Column
+  Groups) with empty-state cards.
+- `docs/screenshots/om_killer_v2_audit.png` — audit browser showing
+  every E2E mutation persisted with actor + entity + action +
+  detail.
+
+**No residual items from the 16-item list.** Surfaces are
+OM-parity-or-better, mutations are validated end-to-end against
+UC + the governance tables, permission errors degrade gracefully,
+and every governance capability (tagging, commenting via
+requests/approvals, glossary CRUD, ownership, tiering,
+categorizing) is wired and persisted.

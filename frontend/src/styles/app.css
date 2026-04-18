@@ -5454,3 +5454,10 @@ button[class*="back-to-discovery"] {
 .gh-discovery-command-head .gh-surface-header-extra { display: none !important; }
 .gh-field-label,
 .gh-field-label-inline { display: none !important; }
+
+/* Final: Setup attention status note should not truncate mid-word —
+   let it wrap or hide on narrow viewports instead. */
+.gh-shell-status-note { max-width: none !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+@media (max-width: 1500px) {
+  .gh-shell-status-note { display: none !important; }
+}
