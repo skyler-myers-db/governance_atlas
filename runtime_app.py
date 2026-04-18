@@ -726,81 +726,16 @@ def _runtime_diagnostics_payload(
     }
 
 
-def _inventory(request: Optional[Request] = None) -> pd.DataFrame:
-    return asset_service.inventory(
-        _uc_for_request(request),
-        _store_for_read(),
-        hidden_catalogs=HIDDEN_CATALOGS,
-    )
-
-
-def _visible_assets(
-    request: Optional[Request] = None,
-    *,
-    cache_scope: str = "",
-) -> pd.DataFrame:
-    scope = cache_scope or _request_cache_scope(request)
-    normalized_scope = _normalize_str(scope) or "shared"
-    return _ttl_value(
-        f"runtime_inventory:{normalized_scope}",
-        300,
-        lambda: asset_service.visible_assets(
-            _uc_for_request(request),
-            _store_for_read(),
-            hidden_catalogs=HIDDEN_CATALOGS,
-        ),
-    )
-
-
-def _inventory_catalogs(request: Optional[Request] = None) -> List[str]:
-    return asset_service.inventory_catalogs(
-        _uc_for_request(request),
-        hidden_catalogs=HIDDEN_CATALOGS,
-    )
-
-
-def _lineage_observed_catalogs(request: Optional[Request] = None) -> List[str]:
-    return asset_service.lineage_observed_catalogs(
-        _uc_for_request(request),
-        hidden_catalogs=HIDDEN_CATALOGS,
-    )
-
-
-def _inventory_row(
-    asset_fqn: str,
-    request: Optional[Request] = None,
-) -> pd.Series:
-    return asset_service.inventory_row(
-        _uc_for_request(request),
-        _store_for_read(),
-        asset_fqn,
-        hidden_catalogs=HIDDEN_CATALOGS,
-    )
-
-
-def _asset_exists(asset_fqn: str, request: Optional[Request] = None) -> bool:
-    return asset_service.asset_exists(
-        _uc_for_request(request),
-        _store_for_read(),
-        asset_fqn,
-        hidden_catalogs=HIDDEN_CATALOGS,
-    )
-
-
-def _asset_is_visible(asset_fqn: str, request: Optional[Request] = None) -> bool:
-    if request is not None:
-        inventory = _visible_assets(request)
-        return asset_service.asset_is_visible(inventory, asset_fqn)
-    return asset_service.asset_is_visible(
-        _uc_for_request(request),
-        _store_for_read(),
-        asset_fqn,
-        hidden_catalogs=HIDDEN_CATALOGS,
-    )
-
-
-def _asset_is_openable(asset_fqn: str, request: Optional[Request] = None) -> bool:
-    return _asset_is_visible(asset_fqn, request)
+from govhub.services.inventory import (
+    asset_exists as _asset_exists,
+    asset_is_openable as _asset_is_openable,
+    asset_is_visible as _asset_is_visible,
+    inventory as _inventory,
+    inventory_catalogs as _inventory_catalogs,
+    inventory_row as _inventory_row,
+    lineage_observed_catalogs as _lineage_observed_catalogs,
+    visible_assets as _visible_assets,
+)
 
 
 def _asset_visibility_record(
@@ -856,19 +791,9 @@ def _safe_int(value: Any) -> int:
         return 0
 
 
-def _inventory_option_counts(
-    inventory: pd.DataFrame,
-    extractor: Callable[[pd.Series], str],
-) -> Dict[str, int]:
-    if inventory is None or inventory.empty:
-        return {}
-    counts: Dict[str, int] = {}
-    for _, row in inventory.iterrows():
-        value = _normalize_str(extractor(row))
-        if not value or value == "Unassigned":
-            continue
-        counts[value] = counts.get(value, 0) + 1
-    return dict(sorted(counts.items()))
+from govhub.services.inventory import (
+    inventory_option_counts as _inventory_option_counts,
+)
 
 
 def _discovery_search_payload(
@@ -959,81 +884,9 @@ def _governance_summary(request: Optional[Request] = None) -> Dict[str, Any]:
     return payload
 
 
-def _bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
-    normalized_scope = _normalize_str(cache_scope) or "shared"
-
-    def load() -> Dict[str, Any]:
-        inventory = _visible_assets(normalized_scope)
-        available_catalogs = _inventory_catalogs()
-        observed_catalogs = _lineage_observed_catalogs()
-        visible_catalogs = _inventory_option_values(
-            inventory,
-            lambda row: row.get("table_catalog"),
-        )
-        asset_types = _inventory_option_values(
-            inventory,
-            lambda row: asset_service.friendly_table_type(
-                row.get("table_type"),
-                row.get("data_source_format"),
-            ),
-        )
-        asset_type_counts = _inventory_option_counts(
-            inventory,
-            lambda row: asset_service.friendly_table_type(
-                row.get("table_type"),
-                row.get("data_source_format"),
-            ),
-        )
-        catalog_counts = _inventory_option_counts(
-            inventory,
-            lambda row: row.get("table_catalog"),
-        )
-        domains = _inventory_option_values(inventory, lambda row: row.get("domain"))
-        tiers = _inventory_option_values(inventory, lambda row: row.get("tier"))
-        certifications = _inventory_option_values(
-            inventory, lambda row: row.get("certification")
-        )
-        sensitivities = _inventory_option_values(
-            inventory, lambda row: row.get("sensitivity")
-        )
-        governance_gaps = sum(
-            1
-            for _, row in inventory.iterrows()
-            if _normalize_str(row.get("governance_status")) == "Needs Work"
-        )
-        certified_assets = sum(
-            1
-            for _, row in inventory.iterrows()
-            if _normalize_str(row.get("certification"))
-            and _normalize_str(row.get("certification")) != "Unassigned"
-        )
-        owned_assets = sum(
-            1 for _, row in inventory.iterrows() if asset_service.owner_entries(row)
-        )
-        return {
-            "catalogs": visible_catalogs,
-            "assetTypes": asset_types,
-            "domains": domains,
-            "tiers": tiers,
-            "certifications": certifications,
-            "sensitivities": sensitivities,
-            "visibleAssets": len(inventory.index) if inventory is not None else 0,
-            "catalogCount": len(visible_catalogs),
-            "availableCatalogCount": len(available_catalogs),
-            "observedCatalogCount": len(observed_catalogs),
-            "governanceGaps": governance_gaps,
-            "certifiedAssets": certified_assets,
-            "ownedAssets": owned_assets,
-            "assetTypeCounts": asset_type_counts,
-            "catalogCounts": catalog_counts,
-            "catalogSnapshot": visible_catalogs[:8],
-        }
-
-    return _ttl_value(
-        f"runtime_bootstrap_inventory_summary:{normalized_scope}",
-        60,
-        load,
-    )
+from govhub.services.inventory import (
+    bootstrap_inventory_summary as _bootstrap_inventory_summary,
+)
 
 
 def _empty_inventory_boot_message(summary: Dict[str, Any]) -> str:
@@ -1058,18 +911,9 @@ def _empty_inventory_boot_message(summary: Dict[str, Any]) -> str:
     )
 
 
-def _inventory_option_values(
-    inventory: pd.DataFrame,
-    extractor: Callable[[pd.Series], str],
-) -> List[str]:
-    if inventory is None or inventory.empty:
-        return []
-    values: set[str] = set()
-    for _, row in inventory.iterrows():
-        value = _normalize_str(extractor(row))
-        if value and value != "Unassigned":
-            values.add(value)
-    return sorted(values)
+from govhub.services.inventory import (
+    inventory_option_values as _inventory_option_values,
+)
 
 
 def _ensure_live_runtime() -> None:
