@@ -744,8 +744,14 @@ function DiscoveryResultCard({
 
   const handleRowClick = (event) => {
     if (event.target.closest(".gh-row-action") || event.target.closest("input[type='checkbox']")) return;
+    // Single-click on a card only selects it (shows the right-rail preview).
+    // Double-click or the explicit "View Details" button in the preview
+    // opens the metadata record — this matches the OpenMetadata / Databricks
+    // Catalog UX and keeps the user from losing their place in the grid.
     onSelect(asset.fqn);
-    if (!recordUnavailable) onOpenAsset(asset.fqn);
+    if (event.detail >= 2 && !recordUnavailable) {
+      onOpenAsset(asset.fqn);
+    }
   };
   const stop = (fn) => (event) => {
     event.stopPropagation();
@@ -1188,6 +1194,9 @@ function SelectionPreview({
   onOpenGovernance,
   onOpenLinkedAsset,
   onOpenLineage,
+  onToggleFavorite,
+  onClearSelection,
+  isFavorite = false,
   visibleAssetSet,
   previewAvailable = true,
   previewUnavailableReason = "",
@@ -1330,6 +1339,26 @@ function SelectionPreview({
     );
   }
 
+  const shortDescription = String(asset.description || "").trim();
+  const glossaryLabels = Array.isArray(asset.glossaryTerms)
+    ? asset.glossaryTerms.map((t) => t?.label || t?.name || t).filter(Boolean)
+    : [];
+  const schemaChipColumns = (asset.columns || []).slice(0, 6);
+  const totalColumnCount = asset.columns?.length || 0;
+  const viewCount = Number(asset.viewCount || asset.usage?.views || 0);
+  const notebookUsage = Number(
+    asset.usage?.notebooks
+      ?? asset.usage?.notebookUsage
+      ?? asset.notebookUsage
+      ?? 0,
+  );
+  const upstreamLabel = previewRelatedAssets[0]
+    ? String(previewRelatedAssets[0]).split(".").pop()
+    : "upstream";
+  const currentLabel = asset.name;
+  const needsWorkList = needsWorkMessages(asset);
+  const associatedTask = needsWorkList[0] || "Review stewardship posture for this asset";
+
   return (
     <SurfaceRail
       className="gh-selection-preview"
@@ -1354,20 +1383,214 @@ function SelectionPreview({
         </div>
       ) : null}
 
-      <SelectionPreviewTabs
-        asset={asset}
-        columns={columns}
-        signalItems={signalItems}
-        detailLoading={detailLoading}
-        lineageAvailable={lineageAvailable}
-        lineageUnavailableReason={lineageUnavailableReason}
-        lineageLoading={lineage.loading}
-        lineageProvisional={lineageProvisional}
-        previewRelatedAssets={previewRelatedAssets}
-        relatedAssetAvailability={relatedAssetAvailability}
-        linkedRecordUnavailableOverrides={linkedRecordUnavailableOverrides}
-        onOpenLinkedAsset={onOpenLinkedAsset}
-      />
+      <div className="gh-asset-preview">
+        {/* 1 — Header row: small square icon + asset name + close X */}
+        <div className="gh-asset-preview-header">
+          <div className="gh-asset-preview-header-icon">
+            <AssetTypeIcon asset={asset} size="sm" />
+          </div>
+          <div className="gh-asset-preview-header-name gh-truncate" title={asset.name}>
+            {asset.name}
+          </div>
+          {onClearSelection ? (
+            <button
+              aria-label="Close preview"
+              className="gh-asset-preview-header-close"
+              onClick={() => onClearSelection()}
+              title="Close"
+              type="button"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+
+        {/* 2 — Description block (2-line clamp) */}
+        <div className="gh-asset-preview-description gh-support-copy">
+          {shortDescription || "No description is available for this asset yet."}
+        </div>
+
+        {/* 3 — 2×2 action grid */}
+        <div className="gh-asset-preview-action-grid">
+          <button
+            className="gh-primary-button"
+            disabled={recordUnavailable}
+            onClick={() => onOpenAsset(asset.fqn, "Overview")}
+            title={recordUnavailable ? recordUnavailableReason : undefined}
+            type="button"
+          >
+            View Details
+          </button>
+          <button
+            className="gh-secondary-button"
+            disabled={recordUnavailable}
+            onClick={() => onOpenGovernance(asset.fqn)}
+            title={recordUnavailable ? recordUnavailableReason : undefined}
+            type="button"
+          >
+            Request Access
+          </button>
+          <button
+            className="gh-secondary-button"
+            disabled={!lineageAvailable}
+            onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
+            title={!lineageAvailable ? lineageUnavailableReason : undefined}
+            type="button"
+          >
+            Add to Lineage
+          </button>
+          <button
+            aria-pressed={isFavorite}
+            className={`gh-secondary-button ${isFavorite ? "is-favorite" : ""}`}
+            onClick={() => onToggleFavorite?.(asset.fqn)}
+            type="button"
+          >
+            {isFavorite ? "★ Favorited" : "Mark as Favorite"}
+          </button>
+        </div>
+
+        {/* 4 — Metadata label/value rows */}
+        <section className="gh-asset-preview-section">
+          <div className="gh-panel-title">Metadata</div>
+          <dl className="gh-asset-preview-metadata">
+            <div className="gh-asset-preview-metadata-row">
+              <dt>Asset name</dt>
+              <dd className="gh-truncate" title={asset.name}>{asset.name}</dd>
+            </div>
+            <div className="gh-asset-preview-metadata-row">
+              <dt>Domain type</dt>
+              <dd>
+                {asset.domain && asset.domain !== "Unassigned" ? (
+                  <span className="gh-labeled-pill">{asset.domain}</span>
+                ) : (
+                  <span className="gh-support-copy">Unassigned</span>
+                )}
+              </dd>
+            </div>
+            <div className="gh-asset-preview-metadata-row">
+              <dt>Glossary term</dt>
+              <dd>
+                {glossaryLabels.length ? (
+                  <span className="gh-labeled-pill">{glossaryLabels[0]}</span>
+                ) : (
+                  <span className="gh-support-copy">No term linked</span>
+                )}
+              </dd>
+            </div>
+            <div className="gh-asset-preview-metadata-row">
+              <dt>Description</dt>
+              <dd className="gh-asset-preview-metadata-description">
+                {shortDescription || "—"}
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        {/* 5 — Schema overview (first 4-6 column name chips) */}
+        <section className="gh-asset-preview-section">
+          <div className="gh-panel-title">Schema overview</div>
+          {schemaChipColumns.length ? (
+            <div className="gh-asset-preview-schema-chips">
+              {schemaChipColumns.map((column) => (
+                <span className="gh-chip gh-chip-soft" key={column.name} title={column.type || ""}>
+                  {column.name}
+                </span>
+              ))}
+              {totalColumnCount > schemaChipColumns.length ? (
+                <span className="gh-chip gh-chip-soft gh-asset-preview-schema-more">
+                  +{totalColumnCount - schemaChipColumns.length}
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <div className="gh-support-copy">
+              {detailLoading ? "Loading live schema metadata..." : "No schema metadata surfaced."}
+            </div>
+          )}
+        </section>
+
+        {/* 6 — Simplified lineage preview (upstream → current) */}
+        <section className="gh-asset-preview-section">
+          <div className="gh-panel-title">Lineage preview</div>
+          {lineageAvailable ? (
+            <div className="gh-lineage-mini-preview">
+              <span className="gh-lineage-mini-pill" title={previewRelatedAssets[0] || "upstream"}>
+                {upstreamLabel}
+              </span>
+              <span aria-hidden="true" className="gh-lineage-mini-arrow">→</span>
+              <span className="gh-lineage-mini-pill is-current" title={asset.fqn}>
+                {currentLabel}
+              </span>
+            </div>
+          ) : (
+            <div className="gh-support-copy">Lineage preview not available for this asset.</div>
+          )}
+        </section>
+
+        {/* 7 — Usage metrics (two numbers side-by-side) */}
+        <section className="gh-asset-preview-section">
+          <div className="gh-panel-title">Usage metrics</div>
+          <div className="gh-asset-preview-usage-grid">
+            <div className="gh-asset-preview-usage-cell">
+              <div className="gh-asset-preview-usage-number">{viewCount}</div>
+              <div className="gh-asset-preview-usage-label">Views</div>
+            </div>
+            <div className="gh-asset-preview-usage-cell">
+              <div className="gh-asset-preview-usage-number">{notebookUsage}</div>
+              <div className="gh-asset-preview-usage-label">Notebook usage</div>
+            </div>
+          </div>
+        </section>
+
+        {/* Connected assets — stewardship navigation. Keeps the
+            historical .gh-lineage-linked-row button/div markup so
+            existing linked-open integration tests stay green. */}
+        {previewRelatedAssets.length ? (
+          <section className="gh-asset-preview-section">
+            <div className="gh-panel-title">Connected assets</div>
+            <div className="gh-lineage-linked-list">
+              {previewRelatedAssets.map((item) => {
+                const linkedRecordAvailability =
+                  linkedRecordUnavailableOverrides[item] === true ? false : relatedAssetAvailability[item];
+                return linkedRecordAvailability === false ? (
+                  <div className="gh-lineage-linked-row is-readonly" key={item}>
+                    <span>{item}</span>
+                    <span>Metadata record unavailable</span>
+                  </div>
+                ) : (
+                  <button
+                    className="gh-lineage-linked-row is-asset-link"
+                    key={item}
+                    onClick={() => onOpenLinkedAsset(item)}
+                    type="button"
+                  >
+                    <span>{item}</span>
+                    <span>{linkedRecordAvailability === true ? "Open Record" : "Checking access..."}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
+        {/* 8 — Associated tasks (single checkbox row) */}
+        <section className="gh-asset-preview-section">
+          <div className="gh-panel-title">Associated tasks</div>
+          <label className="gh-asset-preview-task-row">
+            <input type="checkbox" readOnly />
+            <span>{associatedTask}</span>
+          </label>
+        </section>
+
+        {/* Always-visible strip for unavailable lineage so stewards don't
+            have to go hunting for the gating reason. */}
+        {!lineageAvailable && lineageUnavailableReason ? (
+          <div className="gh-selection-preview-alert">
+            <span className="gh-selection-preview-alert-label">Lineage</span>
+            <span className="gh-selection-preview-alert-body">{lineageUnavailableReason}</span>
+          </div>
+        ) : null}
+      </div>
     </SurfaceRail>
   );
 }
@@ -2375,45 +2598,25 @@ export default function DiscoveryWorkspace({
             schemaFilter={selectedSchema}
           />
           <div className="gh-panel gh-discovery-command-panel" ref={filterCommandRef}>
-            <SurfaceHeader
-              actions={(
-                <span className="gh-results-inline-state gh-results-inline-state-bar">
+            <div className="gh-discovery-command-head-v2">
+              <div className="gh-discovery-command-heading">
+                <h2 className="gh-discovery-command-title">Discovery</h2>
+                <div className="gh-discovery-command-subline">
                   {showLiveFacetCounts ? (
                     <>
-                      {resultsCount} {resultsCount === 1 ? "result" : "results"}
+                      Showing <strong>{Math.min(renderedDiscoveryAssets.length, resultsCount)}</strong>
+                      {" "}of <strong>{resultsCount.toLocaleString()}</strong> assets
                     </>
                   ) : (
-                    <span className="gh-results-inline-loading">Loading…</span>
+                    <span className="gh-results-inline-loading">Loading catalog…</span>
                   )}
                   {resultsLoading && showLiveFacetCounts ? (
-                    <span className="gh-inline-updating">Updating…</span>
+                    <span className="gh-inline-updating"> · Updating…</span>
                   ) : null}
-                </span>
-              )}
-              className="gh-discovery-command-head"
-              eyebrow="Discovery"
-              variant="featured"
-              title="Metadata Catalog"
-            >
-              <div className="gh-discovery-results-copy">
-                Filter visible assets with stacked search, saved views, and facet filters.
+                </div>
               </div>
-            </SurfaceHeader>
-
-            <div className="gh-discovery-toolbar-shell">
-              <div className="gh-discovery-toolbar">
-                <input
-                  className="gh-input"
-                  onChange={(event) =>
-                    onDiscoveryStateChange((current) => ({
-                      ...current,
-                      query: event.target.value,
-                    }))
-                  }
-                  placeholder="Filter visible assets by name, schema, owner, domain, or tag"
-                  value={filters.query}
-                />
-                <div className="gh-discovery-sort">
+              <div className="gh-discovery-command-controls">
+                <label className="gh-discovery-sort-inline" htmlFor="gh-discovery-sort">
                   <span className="gh-field-label gh-field-label-inline">Sort by</span>
                   <select
                     className="gh-select gh-select-sort"
@@ -2430,58 +2633,74 @@ export default function DiscoveryWorkspace({
                       </option>
                     ))}
                   </select>
+                </label>
+                <button
+                  aria-label={directFilterCount ? `Stack Filters (${directFilterCount})` : "Stack Filters"}
+                  className={`gh-secondary-button gh-discovery-stack-trigger ${showAdvancedFilters ? "is-active" : ""}`}
+                  onClick={() => setShowAdvancedFilters((current) => !current)}
+                  aria-controls="gh-discovery-filter-popover"
+                  aria-expanded={showAdvancedFilters}
+                  aria-haspopup="dialog"
+                  type="button"
+                >
+                  <span aria-hidden="true">⚲ </span>
+                  Stack Filters {directFilterCount ? `(${directFilterCount})` : ""}
+                </button>
+              </div>
+            </div>
+
+            <div className="gh-discovery-toolbar-shell">
+              <div className="gh-discovery-toolbar gh-discovery-toolbar-simple">
+                <input
+                  className="gh-input gh-discovery-toolbar-search"
+                  onChange={(event) =>
+                    onDiscoveryStateChange((current) => ({
+                      ...current,
+                      query: event.target.value,
+                    }))
+                  }
+                  placeholder="Filter visible assets by name, schema, owner, domain, or tag"
+                  value={filters.query}
+                />
+                <div
+                  aria-label="Result density"
+                  className="gh-discovery-density-toggle"
+                  role="group"
+                >
+                  {[
+                    { key: "compact", label: "Compact" },
+                    { key: "normal", label: "Normal" },
+                    { key: "spacious", label: "Spacious" },
+                  ].map((option) => (
+                    <button
+                      aria-pressed={density === option.key}
+                      className={`gh-tertiary-button gh-discovery-density-option ${density === option.key ? "is-active" : ""}`.trim()}
+                      key={option.key}
+                      onClick={() => setDensity(option.key)}
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                 </div>
-                <div className="gh-discovery-toolbar-actions">
-                  <div
-                    aria-label="Result density"
-                    className="gh-discovery-density-toggle"
-                    role="group"
-                  >
-                    {[
-                      { key: "compact", label: "Compact" },
-                      { key: "normal", label: "Normal" },
-                      { key: "spacious", label: "Spacious" },
-                    ].map((option) => (
-                      <button
-                        aria-pressed={density === option.key}
-                        className={`gh-tertiary-button gh-discovery-density-option ${density === option.key ? "is-active" : ""}`.trim()}
-                        key={option.key}
-                        onClick={() => setDensity(option.key)}
-                        type="button"
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                  <button
-                    className={`gh-secondary-button gh-discovery-stack-trigger ${showAdvancedFilters ? "is-active" : ""}`}
-                    onClick={() => setShowAdvancedFilters((current) => !current)}
-                    aria-controls="gh-discovery-filter-popover"
-                    aria-expanded={showAdvancedFilters}
-                    aria-haspopup="dialog"
-                    type="button"
-                  >
-                    Stack Filters {directFilterCount ? `(${directFilterCount})` : ""}
-                  </button>
-                  <button
-                    aria-label="Copy a shareable link to this filtered view"
-                    className="gh-secondary-button gh-secondary-button-compact"
-                    onClick={async () => {
-                      if (typeof window === "undefined") return;
-                      try {
-                        await navigator.clipboard.writeText(window.location.href);
-                        setNavigationNotice("Filter link copied to clipboard.");
-                        window.setTimeout(() => setNavigationNotice(""), 2200);
-                      } catch {
-                        setNavigationNotice("Copy not permitted by browser.");
-                      }
-                    }}
-                    title="Copy link to this filter view"
-                    type="button"
-                  >
-                    Copy link
-                  </button>
-                </div>
+                <button
+                  aria-label="Copy a shareable link to this filtered view"
+                  className="gh-secondary-button gh-secondary-button-compact"
+                  onClick={async () => {
+                    if (typeof window === "undefined") return;
+                    try {
+                      await navigator.clipboard.writeText(window.location.href);
+                      setNavigationNotice("Filter link copied to clipboard.");
+                      window.setTimeout(() => setNavigationNotice(""), 2200);
+                    } catch {
+                      setNavigationNotice("Copy not permitted by browser.");
+                    }
+                  }}
+                  title="Copy link to this filter view"
+                  type="button"
+                >
+                  Copy link
+                </button>
               </div>
               {showAdvancedFilters ? (
                 <div className="gh-discovery-filter-shell" id="gh-discovery-filter-popover">
@@ -2722,15 +2941,18 @@ export default function DiscoveryWorkspace({
               ? previewDetail.loading || (previewSchemaDetail.loading && !previewSchemaDetail.detail?.columns?.length)
               : false
           }
+          isFavorite={previewAsset ? favorites.has(previewAsset.fqn) : false}
           linkedRecordUnavailableOverrides={linkedRecordUnavailableOverrides}
           previewAvailable={previewSurfaceAvailable}
           previewUnavailableReason={previewSurfaceUnavailableReason}
           lineageAvailable={lineageSurfaceAvailable}
           lineageUnavailableReason={lineageSurfaceUnavailableReason}
+          onClearSelection={() => setSelectedAssetFqn("")}
           onOpenAsset={openAssetRecord}
           onOpenGovernance={openGovernanceWorkbench}
           onOpenLinkedAsset={openLinkedAsset}
           onOpenLineage={openLineageWorkspace}
+          onToggleFavorite={toggleFavorite}
           recordOpenable={selectedPreviewRecordOpenable}
           recordUnavailableReason={DISCOVERY_RECORD_UNAVAILABLE_REASON}
           visibleAssetSet={visibleAssetSet}
