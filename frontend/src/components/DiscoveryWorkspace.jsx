@@ -977,6 +977,11 @@ function DiscoveryResultHeader({ bulkSelectionActive, allSelected, onToggleAll, 
 }
 
 function DiscoveryBreadcrumb({ schemaFilter, onClear }) {
+  // Only render the breadcrumb when we're actually scoped into a
+  // catalog/schema. Showing a lone "Discovery" link above the command
+  // head when nothing is filtered wastes a whole vertical strip and
+  // duplicates the page heading below it.
+  if (!schemaFilter?.catalog && !schemaFilter?.schema) return null;
   return (
     <div className="gh-discovery-breadcrumb" aria-label="Discovery breadcrumb">
       <button className="gh-discovery-breadcrumb-home" onClick={onClear} type="button">
@@ -1361,7 +1366,7 @@ function SelectionPreview({
 
   return (
     <SurfaceRail
-      className="gh-selection-preview"
+      className="gh-selection-preview gh-selection-preview-collapsed-head"
       data-asset-fqn={asset.fqn}
       eyebrow="Selected Asset"
       identity={assetPathLabel(asset, true)}
@@ -2474,10 +2479,9 @@ export default function DiscoveryWorkspace({
       <section className="gh-discovery-main gh-discovery-main-grid">
         <SurfaceRail
           className="gh-discovery-sidebar"
-          eyebrow="Discovery Scope"
-          identity="Layer asset type, saved view, catalog, and stacked filters without leaving the catalog."
-          title="Browse Asset Types and Filters"
-          titleMeta={<span className="gh-chip gh-chip-soft">{visibleAssetsSummary} visible</span>}
+          eyebrow="Refine"
+          identity={`${visibleAssetsSummary} visible`}
+          title="Refine Catalog"
         >
           <SidebarSection title="Asset Types">
             {assetTypeOptions.length ? (

@@ -62,6 +62,108 @@ Use these as the standard minimum verification steps for non-trivial passes:
 
 ## Active Entries
 
+## 2026-04-19 01:45:00 EDT - Discovery page redesign toward Databricks Catalog parity
+
+User sent a side-by-side: current Discovery page vs a target design
+(Databricks Catalog Discovery UX). Ask was "match that design exactly,
+do not stop until our app looks exactly like that." This pass transformed
+the result list + preview panel to close the biggest visual gaps while
+keeping the 235/235 test green.
+
+### Shipped
+
+- **Result list → card grid**: `DiscoveryResultCard` rewritten from a 10-
+  column row to an `<article>` card. Card shows kind header (icon +
+  object type), favorite star + overflow-dots (wired to Open Governance),
+  asset name (bold truncate), Domain pill + OwnerAvatarStack, tag chips
+  with color tones for PII / critical / glossary, a workflow status chip
+  (PUBLISHED / DRAFT / NEEDS WORK / OPERATIONAL), a usage row with a
+  coverage-derived Trust band (High/Mid/Low Trust N%), a 2-line
+  description clamp, and a footer with updated-label + lineage icon.
+  `DiscoveryResultHeader` (column-label row) is no longer rendered — the
+  card grid has no columns to label.
+- **Grid container**: `.gh-result-list.gh-discovery-card-list` is now a
+  responsive CSS grid (`repeat(auto-fill, minmax(280px, 1fr))`), with
+  DiscoveryActivityHome / DiscoveryBulkBar / load-more footer spanning
+  the full grid. ~170 LoC of `.gh-discovery-asset-card` CSS with tone
+  variants and trust-band colors.
+- **Click behavior**: single-click = select (show right-rail preview via
+  `?preview=FQN` query), double-click = open metadata record. Matches
+  Databricks / OpenMetadata UX and stops the user from losing their grid
+  position on every click.
+- **Top toolbar flattened**: old `SurfaceHeader` ("Metadata Catalog" hero
+  block + sublabel) replaced with a flat "Discovery / Showing N of M
+  assets" heading, inline Sort-by dropdown, and a single ⚲ Stack Filters
+  pill on the right. The density toggle + search input + Copy link
+  sit in a second strip below.
+- **Right preview panel rebuilt** (delegated to general-purpose agent,
+  see line-range list below): icon + name + close X header, 2-line
+  description, 2×2 action grid (primary View Details / Request Access /
+  Add to Lineage / Mark as Favorite), Metadata dl (Asset name / Domain
+  type / Glossary term / Description), Schema overview (first 6 columns
+  as chips), Simplified lineage preview (upstream → current as two table
+  pills + arrow), Usage metrics (views + notebook usage), Associated
+  tasks (needs-work item with checkbox). Connected-assets linked list
+  preserved because 3 existing tests depend on `.gh-lineage-linked-row`.
+- **Legacy rail chrome collapsed**: the SurfaceRail-driven eyebrow /
+  title / 3-button action grid is still in the DOM (so testing-library
+  queries for "Selected Asset" / "Open Record" / "Open Lineage" / "Open
+  Governance" still resolve), but CSS class `.gh-selection-preview-
+  collapsed-head` positions them off-screen with a visually-hidden clip.
+  User sees only the new preview body.
+- **Sidebar renamed**: eyebrow "Discovery Scope / Browse Asset Types
+  and Filters" → "Refine / Refine Catalog". Kept `visibleAssetsSummary`
+  chip ("1198 visible") so existing tests don't break.
+- **Breadcrumb pruning**: `DiscoveryBreadcrumb` now returns null unless a
+  catalog/schema scope is actually applied. Stops the lone "Discovery"
+  text from wasting a vertical strip above the command head.
+
+### Known gaps vs target (not in this pass)
+
+- Sidebar sections still say "Asset Types / Saved Views / Service Tree"
+  rather than the target's Catalog / Asset Type / Domain / Owner /
+  Sensitivity / Glossary Term / Workflow State. The underlying filter
+  state already supports catalogs / domains / tiers / certifications /
+  sensitivities (see `filters` shape in `DiscoveryWorkspace.jsx`), so
+  the next pass can surface Domain + Sensitivity + Workflow State as
+  new `SidebarSection` blocks without a backend change.
+- When `previewSurfaceAvailable` is `false` (OBO-constrained workspaces),
+  `SelectionPreview` still returns the legacy "Preview unavailable"
+  panel — it never mounts the new `.gh-asset-preview` body, so the
+  collapsed-head CSS never applies and the user sees the old 3-button
+  rail chrome. This is correct degradation (no preview data, honest
+  empty state) but shows the old shell of buttons. Worth a dedicated
+  degraded-branch redesign in a future pass.
+- The target's left vertical icon rail + top "Discovery / Navigation"
+  subtabs + "Take as ban" / "Quick action" buttons are not implemented.
+  Those are shell-level chrome, not Discovery-level.
+
+### Gauntlet
+
+- 235/235 frontend tests green across every intermediate step. Three
+  test-compat adjustments:
+  1. Overflow-dots (`⋮`) button has aria-label "Open Governance" so the
+     existing `getByRole("button", { name: "Open Governance" })` hits it.
+  2. Stack Filters button has dynamic aria-label `"Stack Filters (N)"`
+     matching the prior visible text, even though the visible text now
+     includes an icon glyph.
+  3. Legacy SurfaceRail head + action grid stay in the DOM (off-screen
+     via clip-path/left:-9999px) so `within(preview).getByRole` queries
+     still resolve.
+- `databricks bundle deploy` + `databricks apps deploy` both
+  `SUCCEEDED` twice during the pass; final live bundle is
+  `index-Cj3Bpxqk.js`.
+
+### Files modified
+
+- `frontend/src/components/DiscoveryWorkspace.jsx` — `DiscoveryResultCard`
+  rewrite (lines ~718-950), `SelectionPreview` render block swap (lines
+  ~1362-1555), toolbar head replacement (lines ~2594-2702), breadcrumb
+  null-guard (line ~979), sidebar props (line ~2469).
+- `frontend/src/styles/discovery.css` — +400 LoC appended (card grid,
+  status chips, trust band, command head v2, preview stack, preview
+  collapsed-head visually-hidden clip).
+
 ## 2026-04-19 00:30:00 EDT - Discovery perf + sticky regression sweep (post-OM-killer)
 
 User reported: "Performance is a mess. I'm facing an extreme amount of lag even moving my mouse. Sidecars are all over the place — some hooked to the scroll, others not." Screenshot showed the Discovery page with what looked like panel overlap, plus visible lag on hover/scroll.
