@@ -1164,3 +1164,349 @@
   white-space: nowrap;
 }
 .gh-asset-hover-col-type { font-size: 11px; color: var(--gh-text-muted, #5c6b82); }
+
+/* ====================================================================
+ * Discovery card grid — target design parity
+ * (replaces the legacy table-row result list with a 3-column card grid
+ * reminiscent of the OpenMetadata / Databricks Catalog Discovery UX)
+ * =================================================================== */
+
+.gh-result-list.gh-discovery-card-list {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  gap: 14px !important;
+  padding: 16px !important;
+  background: #ffffff !important;
+  border: 1px solid var(--gh-border, #d8dee9) !important;
+  border-top: 0 !important;
+  border-radius: 0 0 12px 12px !important;
+  overflow: clip;
+}
+/* Narrow right-preview-open layouts fall back to 2 columns,
+   and below 900px single column. */
+@media (max-width: 1599px) {
+  .gh-result-list.gh-discovery-card-list {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important;
+  }
+}
+@media (max-width: 960px) {
+  .gh-result-list.gh-discovery-card-list {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* The DiscoveryActivityHome row and DiscoveryBulkBar span the whole grid */
+.gh-result-list.gh-discovery-card-list > .gh-activity-home,
+.gh-result-list.gh-discovery-card-list > .gh-discovery-bulk-bar,
+.gh-result-list.gh-discovery-card-list > .gh-panel.gh-discovery-results-more,
+.gh-result-list.gh-discovery-card-list > .gh-discovery-row-head {
+  grid-column: 1 / -1;
+}
+
+.gh-discovery-asset-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 12px;
+  background: var(--gh-surface, #fff);
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+  min-width: 0;
+}
+.gh-discovery-asset-card:hover {
+  border-color: var(--gh-accent, #5b3ff2);
+  box-shadow: 0 10px 24px -18px rgba(20, 33, 61, 0.35);
+  transform: translateY(-1px);
+}
+.gh-discovery-asset-card:focus-visible {
+  outline: 2px solid var(--gh-accent, #5b3ff2);
+  outline-offset: 2px;
+}
+.gh-discovery-asset-card.is-selected {
+  border-color: var(--gh-accent, #5b3ff2);
+  box-shadow:
+    0 0 0 2px rgba(91, 63, 242, 0.18),
+    0 14px 30px -20px rgba(20, 33, 61, 0.4);
+}
+.gh-discovery-asset-card.is-bulk-selected {
+  background: rgba(91, 63, 242, 0.04);
+}
+.gh-discovery-asset-card.has-critical-gap {
+  border-color: rgba(180, 35, 24, 0.45);
+}
+
+.gh-discovery-asset-card-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+.gh-discovery-asset-card-kind {
+  align-items: center;
+  color: var(--gh-text-muted, #5c6b82);
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 600;
+  gap: 6px;
+  letter-spacing: 0.01em;
+  min-width: 0;
+}
+.gh-discovery-asset-card-kind > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gh-discovery-asset-card-head-actions {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+}
+.gh-discovery-asset-card-checkbox {
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.gh-discovery-asset-card-checkbox.is-visible,
+.gh-discovery-asset-card:hover .gh-discovery-asset-card-checkbox,
+.gh-discovery-asset-card.is-bulk-selected .gh-discovery-asset-card-checkbox {
+  opacity: 1;
+}
+.gh-discovery-asset-card-star,
+.gh-discovery-asset-card-more {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--gh-text-muted, #5c6b82);
+  cursor: pointer;
+  font-size: 0.95rem;
+  height: 24px;
+  padding: 0;
+  width: 24px;
+}
+.gh-discovery-asset-card-star.is-favorite {
+  color: #e8a500;
+}
+.gh-discovery-asset-card-star:hover,
+.gh-discovery-asset-card-more:hover {
+  background: var(--gh-surface-muted, #f3f6fb);
+  color: var(--gh-text, #14213d);
+}
+
+.gh-discovery-asset-card-title {
+  color: var(--gh-text, #14213d);
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.002em;
+  line-height: 1.28;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-discovery-asset-card-primary-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.gh-discovery-asset-pill {
+  align-items: center;
+  background: rgba(22, 101, 168, 0.1);
+  border: 1px solid rgba(22, 101, 168, 0.28);
+  border-radius: 999px;
+  color: #0b4d80;
+  display: inline-flex;
+  font-size: 0.7rem;
+  font-weight: 700;
+  height: 22px;
+  letter-spacing: 0.06em;
+  padding: 0 10px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.gh-discovery-asset-pill-domain {
+  background: rgba(30, 68, 115, 0.08);
+  border-color: rgba(30, 68, 115, 0.22);
+  color: #1e4473;
+}
+
+.gh-discovery-asset-card-chips {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.gh-discovery-asset-tag {
+  align-items: center;
+  background: var(--gh-surface-muted, #f3f6fb);
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: 4px;
+  color: var(--gh-text-muted, #5c6b82);
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 600;
+  gap: 4px;
+  height: 22px;
+  line-height: 1;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+.gh-discovery-asset-tag[data-tag*="pii"],
+.gh-discovery-asset-tag[data-tag*="phi"],
+.gh-discovery-asset-tag[data-tag*="sensitive"],
+.gh-discovery-asset-tag[data-tag*="restricted"] {
+  background: rgba(180, 35, 24, 0.1);
+  border-color: rgba(180, 35, 24, 0.3);
+  color: #a52014;
+}
+.gh-discovery-asset-tag[data-tag*="critical"],
+.gh-discovery-asset-tag[data-tag*="tier 1"],
+.gh-discovery-asset-tag[data-tag*="tier_1"],
+.gh-discovery-asset-tag[data-tag*="gold"] {
+  background: rgba(181, 71, 8, 0.1);
+  border-color: rgba(181, 71, 8, 0.3);
+  color: #9a3b05;
+}
+.gh-discovery-asset-tag.is-glossary {
+  background: rgba(91, 63, 242, 0.08);
+  border-color: rgba(91, 63, 242, 0.24);
+  color: #3c27b5;
+}
+.gh-discovery-asset-tag.is-overflow {
+  background: transparent;
+  color: var(--gh-text-muted, #5c6b82);
+  font-weight: 500;
+}
+
+.gh-discovery-asset-status {
+  align-items: center;
+  background: rgba(6, 118, 71, 0.12);
+  border: 1px solid rgba(6, 118, 71, 0.3);
+  border-radius: 4px;
+  color: #046b40;
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 700;
+  height: 22px;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  margin-left: auto;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+.gh-discovery-asset-status-draft {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #a15600;
+}
+.gh-discovery-asset-status-needs-work {
+  background: rgba(180, 35, 24, 0.1);
+  border-color: rgba(180, 35, 24, 0.3);
+  color: #a52014;
+}
+.gh-discovery-asset-status-neutral {
+  background: var(--gh-surface-muted, #f3f6fb);
+  border-color: var(--gh-border, #d8dee9);
+  color: var(--gh-text-muted, #5c6b82);
+}
+
+.gh-discovery-asset-card-usage {
+  align-items: center;
+  color: var(--gh-text-muted, #5c6b82);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.77rem;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+.gh-discovery-asset-usage-item {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+  min-width: 0;
+}
+.gh-discovery-asset-trust {
+  align-items: center;
+  background: rgba(6, 118, 71, 0.08);
+  border: 1px solid rgba(6, 118, 71, 0.22);
+  border-radius: 4px;
+  color: #046b40;
+  display: inline-flex;
+  font-size: 0.7rem;
+  font-weight: 600;
+  height: 20px;
+  padding: 0 8px;
+}
+.gh-discovery-asset-trust.is-mid {
+  background: rgba(181, 71, 8, 0.1);
+  border-color: rgba(181, 71, 8, 0.28);
+  color: #9a3b05;
+}
+.gh-discovery-asset-trust.is-low {
+  background: rgba(180, 35, 24, 0.1);
+  border-color: rgba(180, 35, 24, 0.28);
+  color: #a52014;
+}
+
+.gh-discovery-asset-card-description {
+  color: var(--gh-text, #14213d);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-size: 0.82rem;
+  line-height: 1.42;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gh-discovery-asset-card-foot {
+  align-items: center;
+  border-top: 1px solid var(--gh-surface-muted, #f3f6fb);
+  color: var(--gh-text-muted, #5c6b82);
+  display: flex;
+  font-size: 0.72rem;
+  gap: 8px;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 10px;
+}
+.gh-discovery-asset-foot-updated {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gh-discovery-asset-card-foot-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+.gh-discovery-asset-foot-icon {
+  background: transparent;
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: 6px;
+  color: var(--gh-text-muted, #5c6b82);
+  cursor: pointer;
+  font-size: 0.85rem;
+  height: 24px;
+  line-height: 1;
+  padding: 0;
+  width: 24px;
+}
+.gh-discovery-asset-foot-icon:hover:not(:disabled) {
+  background: var(--gh-surface-muted, #f3f6fb);
+  color: var(--gh-accent, #5b3ff2);
+  border-color: var(--gh-accent, #5b3ff2);
+}
+.gh-discovery-asset-foot-icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

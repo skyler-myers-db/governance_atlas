@@ -753,10 +753,36 @@ function DiscoveryResultCard({
     fn?.();
   };
 
+  // ── Card data ────────────────────────────────────────────────
+  const tagLabels = (asset.tagEntries || [])
+    .map((t) => t?.label || t?.name)
+    .filter(Boolean);
+  if (!tagLabels.length && Array.isArray(asset.tags)) {
+    tagLabels.push(...asset.tags.filter(Boolean));
+  }
+  const glossaryTerms = Array.isArray(asset.glossaryTerms)
+    ? asset.glossaryTerms.map((t) => t?.label || t?.name || t).filter(Boolean)
+    : [];
+  const visibleTags = tagLabels.slice(0, 3);
+  const extraTagCount = Math.max(0, tagLabels.length - visibleTags.length);
+  const workflowState = asset.governanceStatus || (gaps.length ? "DRAFT" : "PUBLISHED");
+  const workflowVariant = /publish|enterpri|certified/i.test(workflowState)
+    ? "published"
+    : /review|pending|draft/i.test(workflowState)
+      ? "draft"
+      : /work|miss|gap|retire/i.test(workflowState)
+        ? "needs-work"
+        : "neutral";
+  const coverageScore = Number(asset.coverageScore || 0);
+  const trustLabel = coverageScore > 0 ? `${Math.round(coverageScore)}% coverage` : null;
+  const viewCount = Number(asset.viewCount || asset.usage?.views || 0);
+  const usageLabel = viewCount > 0 ? `${viewCount} view${viewCount === 1 ? "" : "s"}` : null;
+  const description = String(asset.description || "").trim();
+
   return (
-    <div
+    <article
       aria-label={`Open ${asset.name}`}
-      className={`gh-discovery-row gh-discovery-result-row ${selected ? "is-selected" : ""} ${isBulkSelected ? "is-bulk-selected" : ""} ${gaps.length >= 3 ? "has-critical-gap" : ""}`}
+      className={`gh-discovery-asset-card ${selected ? "is-selected" : ""} ${isBulkSelected ? "is-bulk-selected" : ""} ${gaps.length >= 3 ? "has-critical-gap" : ""}`}
       data-asset-fqn={asset.fqn}
       onClick={handleRowClick}
       onKeyDown={(event) => {
@@ -770,183 +796,138 @@ function DiscoveryResultCard({
       role="button"
       tabIndex={0}
     >
-      <div className="gh-discovery-row-cell gh-discovery-row-select">
-        <input
-          aria-label={`Select ${asset.name}`}
-          checked={isBulkSelected}
-          className={`gh-discovery-row-checkbox ${bulkSelectionActive ? "is-visible" : ""}`}
-          onChange={() => onToggleBulkSelect?.(asset.fqn)}
-          onClick={(event) => event.stopPropagation()}
-          type="checkbox"
-        />
-        <button
-          aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-          aria-pressed={isFavorite}
-          className={`gh-discovery-row-star gh-row-action ${isFavorite ? "is-favorite" : ""}`}
-          onClick={stop(() => onToggleFavorite?.(asset.fqn))}
-          type="button"
-          title={isFavorite ? "Unfavorite" : "Favorite"}
-        >
-          {isFavorite ? "★" : "☆"}
-        </button>
-      </div>
-
-      <div className="gh-discovery-row-cell gh-discovery-row-asset">
-        <WithAssetHoverCard asset={asset}>
-          <AssetTypeIcon asset={asset} size="md" />
-        </WithAssetHoverCard>
-        <div className="gh-discovery-row-asset-text">
-          <div className="gh-discovery-row-name" title={asset.name}>{asset.name}</div>
-          <div className="gh-discovery-row-fqn" title={asset.fqn}>{assetPathLabel(asset)}</div>
+      <header className="gh-discovery-asset-card-head">
+        <div className="gh-discovery-asset-card-kind">
+          <AssetTypeIcon asset={asset} size="sm" />
+          <span>{objectType || "Asset"}</span>
         </div>
-      </div>
+        <div className="gh-discovery-asset-card-head-actions">
+          <input
+            aria-label={`Select ${asset.name}`}
+            checked={isBulkSelected}
+            className={`gh-discovery-asset-card-checkbox ${bulkSelectionActive ? "is-visible" : ""}`}
+            onChange={() => onToggleBulkSelect?.(asset.fqn)}
+            onClick={(event) => event.stopPropagation()}
+            type="checkbox"
+          />
+          <button
+            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            aria-pressed={isFavorite}
+            className={`gh-discovery-asset-card-star gh-row-action ${isFavorite ? "is-favorite" : ""}`}
+            onClick={stop(() => onToggleFavorite?.(asset.fqn))}
+            title={isFavorite ? "Unfavorite" : "Favorite"}
+            type="button"
+          >
+            {isFavorite ? "★" : "☆"}
+          </button>
+          <button
+            aria-label="Open Governance"
+            className="gh-discovery-asset-card-more gh-row-action"
+            disabled={recordUnavailable}
+            onClick={stop(() => onOpenGovernance(asset.fqn))}
+            title={recordUnavailable ? recordUnavailableReason : "Open governance"}
+            type="button"
+          >
+            ⋮
+          </button>
+        </div>
+      </header>
 
-      <div className="gh-discovery-row-cell gh-discovery-row-type">
-        <span className="gh-chip gh-chip-soft" title={objectType || "Unknown type"}>
-          {objectType || "—"}
-        </span>
-      </div>
+      <h3 className="gh-discovery-asset-card-title" title={asset.name}>
+        {asset.name}
+      </h3>
 
-      <div className="gh-discovery-row-cell gh-discovery-row-domain">
+      <div className="gh-discovery-asset-card-primary-meta">
         {asset.domain && asset.domain !== "Unassigned" ? (
-          <span className="gh-labeled-pill" title={`Domain: ${asset.domain}`}>
-            <span className="gh-labeled-pill-label">Domain</span>
-            <span className="gh-labeled-pill-value">{asset.domain}</span>
+          <span className="gh-discovery-asset-pill gh-discovery-asset-pill-domain" title={`Domain: ${asset.domain}`}>
+            {String(asset.domain).toUpperCase()} DATA
           </span>
-        ) : (
-          <span className="gh-labeled-pill gh-labeled-pill-unassigned" title="No domain assigned">
-            <span className="gh-labeled-pill-label">Domain</span>
-            <span className="gh-labeled-pill-value">—</span>
-          </span>
-        )}
-      </div>
-
-      <div className="gh-discovery-row-cell gh-discovery-row-tier">
-        {asset.tier && asset.tier !== "Unassigned" ? (
-          <span className={`gh-labeled-pill gh-tier-${String(asset.tier).toLowerCase().replace(/\s+/g, "-")}`} title={`Tier: ${asset.tier}`}>
-            <span className="gh-labeled-pill-label">Tier</span>
-            <span className="gh-labeled-pill-value">{asset.tier}</span>
-          </span>
-        ) : (
-          <span className="gh-labeled-pill gh-labeled-pill-unassigned" title="No tier">
-            <span className="gh-labeled-pill-label">Tier</span>
-            <span className="gh-labeled-pill-value">—</span>
-          </span>
-        )}
-      </div>
-
-      <div className="gh-discovery-row-cell gh-discovery-row-owner">
+        ) : null}
         {ownerCount ? (
           <OwnerAvatarStack owners={ownerLabels} limit={3} size={22} />
-        ) : (
-          <span className="gh-labeled-pill gh-labeled-pill-unassigned" title="No owner assigned">
-            <span className="gh-labeled-pill-value">—</span>
-          </span>
-        )}
+        ) : null}
       </div>
 
-      <div className="gh-discovery-row-cell gh-discovery-row-tags">
-        {(() => {
-          const tagLabels = (asset.tagEntries || []).map((t) => t?.label || t?.name).filter(Boolean);
-          if (tagLabels.length === 0 && Array.isArray(asset.tags)) {
-            tagLabels.push(...asset.tags.filter(Boolean));
-          }
-          const glossaryTerms = Array.isArray(asset.glossaryTerms)
-            ? asset.glossaryTerms.map((t) => t?.label || t?.name || t).filter(Boolean)
-            : [];
-          if (!tagLabels.length && !glossaryTerms.length) {
-            return <span className="gh-row-tag-more" title="No tags or glossary terms">—</span>;
-          }
-          const visibleTags = tagLabels.slice(0, 2);
-          const extraTags = tagLabels.length - visibleTags.length;
-          const visibleTerms = glossaryTerms.slice(0, 1);
-          const extraTerms = glossaryTerms.length - visibleTerms.length;
-          const fullTitle = [
-            tagLabels.length ? `Tags: ${tagLabels.join(", ")}` : "",
-            glossaryTerms.length ? `Glossary: ${glossaryTerms.join(", ")}` : "",
-          ].filter(Boolean).join(" · ");
-          return (
-            <span className="gh-row-tag-stack" title={fullTitle}>
-              {visibleTags.map((tag) => (
-                <span
-                  className="gh-row-tag"
-                  data-tag={String(tag).toLowerCase()}
-                  key={`tag-${tag}`}
-                >
-                  {tag}
-                </span>
-              ))}
-              {visibleTerms.map((term) => (
-                <span className="gh-row-glossary-chip" key={`glo-${term}`}>
-                  <span className="gh-row-glossary-ico" aria-hidden="true">☰</span>
-                  {term}
-                </span>
-              ))}
-              {extraTags + extraTerms > 0 ? (
-                <span className="gh-row-tag-more">+{extraTags + extraTerms}</span>
-              ) : null}
+      {(visibleTags.length || workflowState) ? (
+        <div className="gh-discovery-asset-card-chips">
+          {visibleTags.map((tag) => (
+            <span
+              className="gh-discovery-asset-tag"
+              data-tag={String(tag).toLowerCase()}
+              key={`tag-${tag}`}
+            >
+              {tag}
             </span>
-          );
-        })()}
+          ))}
+          {glossaryTerms.slice(0, 1).map((term) => (
+            <span className="gh-discovery-asset-tag is-glossary" key={`glo-${term}`}>
+              <span aria-hidden="true">☰</span> {term}
+            </span>
+          ))}
+          {extraTagCount > 0 ? (
+            <span className="gh-discovery-asset-tag is-overflow">+{extraTagCount}</span>
+          ) : null}
+          {workflowState && workflowState !== "Unassigned" ? (
+            <span
+              className={`gh-discovery-asset-status gh-discovery-asset-status-${workflowVariant}`}
+              title={`Workflow state: ${workflowState}`}
+            >
+              {String(workflowState).toUpperCase()}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="gh-discovery-asset-card-usage">
+        <span className="gh-discovery-asset-usage-item" title={usageLabel || "No recent views"}>
+          <span aria-hidden="true">⊙</span>
+          {usageLabel || "No recent usage"}
+        </span>
+        {trustLabel ? (
+          <span
+            className={`gh-discovery-asset-trust ${coverageScore >= 80 ? "is-high" : coverageScore >= 50 ? "is-mid" : "is-low"}`}
+            title={`Governance coverage: ${coverageScore}%`}
+          >
+            {coverageScore >= 80 ? "High Trust" : coverageScore >= 50 ? "Mid Trust" : "Low Trust"} {Math.round(coverageScore)}%
+          </span>
+        ) : null}
       </div>
 
-      <div className="gh-discovery-row-cell gh-discovery-row-gaps">
-        {gaps.length ? (
-          <span className="gh-row-gaps" title={gaps.join(" · ")}>
-            <span className="gh-row-gap-count">{gaps.length}</span>
-            <span className="gh-row-gap-text">{gaps[0]}</span>
-            {gaps.length > 1 ? <span className="gh-row-gap-more">+{gaps.length - 1}</span> : null}
-          </span>
-        ) : (
-          <span className="gh-row-gaps gh-row-gaps-ok" title="All governance facets populated">
-            <span className="gh-row-gap-text">All set</span>
-          </span>
-        )}
-      </div>
+      <p className="gh-discovery-asset-card-description">
+        {description || "No description has been captured for this asset yet."}
+      </p>
 
-      <div className="gh-discovery-row-cell gh-discovery-row-updated" title={asset.updatedAt || "Unknown"}>
-        {updatedLabel}
-      </div>
+      <footer className="gh-discovery-asset-card-foot">
+        <span className="gh-discovery-asset-foot-updated" title={asset.updatedAt || "Unknown"}>
+          {updatedLabel ? `Updated ${updatedLabel}` : "No recent updates"}
+        </span>
+        <div className="gh-discovery-asset-card-foot-actions">
+          <button
+            aria-label={lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
+            className="gh-discovery-asset-foot-icon gh-row-action"
+            disabled={!lineageAvailable}
+            onClick={stop(() => onOpenLineage(asset.fqn, "Data Lineage"))}
+            title={lineageAvailable ? "Open lineage" : lineageUnavailableReason}
+            type="button"
+          >
+            ⇄
+          </button>
+          <button
+            aria-label={recordUnavailable ? "Metadata record unavailable" : "Open Record"}
+            className="gh-visually-hidden gh-row-action"
+            disabled={recordUnavailable}
+            onClick={stop(() => onOpenAsset(asset.fqn))}
+            type="button"
+          >
+            {recordUnavailable ? "Metadata record unavailable" : "Open Record"}
+          </button>
+        </div>
+      </footer>
 
       {recordUnavailable && recordUnavailableReason ? (
         <span className="gh-visually-hidden">{recordUnavailableReason}</span>
       ) : null}
-      <div className="gh-discovery-row-cell gh-discovery-row-actions">
-        {/* The record open button is the whole row itself (click-row). We
-            keep an a11y-hidden button here so the screen reader + tests
-            have an addressable "Open Record" affordance that mirrors the
-            row's disabled state when the record is unavailable. */}
-        <button
-          aria-label={recordUnavailable ? "Metadata record unavailable" : "Open Record"}
-          className="gh-visually-hidden gh-row-action"
-          disabled={recordUnavailable}
-          onClick={stop(() => onOpenAsset(asset.fqn))}
-          type="button"
-        >
-          {recordUnavailable ? "Metadata record unavailable" : "Open Record"}
-        </button>
-        <button
-          aria-label={lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
-          className="gh-icon-button gh-row-action"
-          disabled={!lineageAvailable}
-          onClick={stop(() => onOpenLineage(asset.fqn, "Data Lineage"))}
-          title={lineageAvailable ? "Open lineage" : lineageUnavailableReason}
-          type="button"
-        >
-          ⇄
-        </button>
-        <button
-          aria-label="Open Governance"
-          className="gh-icon-button gh-row-action"
-          disabled={recordUnavailable}
-          onClick={stop(() => onOpenGovernance(asset.fqn))}
-          title={recordUnavailable ? recordUnavailableReason : "Open governance"}
-          type="button"
-        >
-          ⚙
-        </button>
-      </div>
-    </div>
+    </article>
   );
 }
 
@@ -2606,19 +2587,11 @@ export default function DiscoveryWorkspace({
                 onAssignOwner={() => alert("Bulk owner assignment: queue this operation from the backend bulk endpoint.")}
                 onClear={clearBulkSelection}
               />
-              <DiscoveryResultHeader
-                allSelected={bulkSelection.size > 0 && bulkSelection.size === renderedDiscoveryAssets.length}
-                bulkSelectionActive={bulkSelection.size > 0}
-                onSortChange={handleSort}
-                onToggleAll={() => {
-                  setBulkSelection((current) => {
-                    if (current.size === renderedDiscoveryAssets.length) return new Set();
-                    return new Set(renderedDiscoveryAssets.map((a) => a.fqn));
-                  });
-                }}
-                sortDirection={sortDirection}
-                sortKey={sortKey}
-              />
+              {/* DiscoveryResultHeader (column labels) intentionally removed:
+                  we render the catalog as a card grid, not a table, so the
+                  ASSET/TYPE/DOMAIN/TIER/OWNER column headers no longer apply.
+                  Sort is handled by the toolbar dropdown and by bulk-select
+                  actions in the DiscoveryBulkBar. */}
               {renderedDiscoveryAssets.map((asset) => (
                 <DiscoveryResultCard
                   asset={asset}
