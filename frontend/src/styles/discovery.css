@@ -1809,3 +1809,19 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Chip row for Sensitivity filter in the sidebar */
+.gh-discovery-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.gh-discovery-chip-row .gh-chip {
+  cursor: pointer;
+  user-select: none;
+}
+.gh-discovery-chip-row .gh-chip-accent {
+  background: var(--gh-accent, #5b3ff2);
+  border-color: var(--gh-accent, #5b3ff2);
+  color: #fff;
+}

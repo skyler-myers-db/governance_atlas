@@ -2509,6 +2509,97 @@ export default function DiscoveryWorkspace({
             )}
           </SidebarSection>
 
+          {(() => {
+            const domainOptions = facetValues(resultsFacets, "domains", [], filters.domains || []);
+            if (!domainOptions.length) return null;
+            return (
+              <SidebarSection title="Domain">
+                <div className="gh-category-list">
+                  {domainOptions.slice(0, 8).map((option) => (
+                    <button
+                      className={`gh-category-row ${(filters.domains || []).includes(option) ? "is-active" : ""}`}
+                      key={option}
+                      onClick={() => toggleMulti(filters, "domains", option, null, onDiscoveryStateChange)}
+                      type="button"
+                    >
+                      <span>{option}</span>
+                      {showLiveFacetCounts ? (
+                        <span className="gh-category-count">
+                          {facetCount(resultsFacets, "domains", option)}
+                        </span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </SidebarSection>
+            );
+          })()}
+
+          {(() => {
+            const sensitivityOptions = facetValues(
+              resultsFacets,
+              "sensitivities",
+              ["PII", "Confidential", "Internal"],
+              filters.sensitivities || [],
+            );
+            if (!sensitivityOptions.length) return null;
+            return (
+              <SidebarSection title="Sensitivity">
+                <div className="gh-discovery-chip-row">
+                  {sensitivityOptions.slice(0, 6).map((option) => {
+                    const active = (filters.sensitivities || []).includes(option);
+                    return (
+                      <button
+                        aria-pressed={active}
+                        className={`gh-chip ${active ? "gh-chip-accent" : "gh-chip-soft"}`}
+                        key={option}
+                        onClick={() => toggleMulti(filters, "sensitivities", option, null, onDiscoveryStateChange)}
+                        title={`Toggle ${option} sensitivity filter`}
+                        type="button"
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              </SidebarSection>
+            );
+          })()}
+
+          {(() => {
+            const certOptions = facetValues(
+              resultsFacets,
+              "certifications",
+              ["Certified", "Pending", "Deprecated"],
+              filters.certifications || [],
+            );
+            if (!certOptions.length) return null;
+            return (
+              <SidebarSection title="Workflow State">
+                <div className="gh-category-list">
+                  {certOptions.slice(0, 6).map((option) => {
+                    const active = (filters.certifications || []).includes(option);
+                    return (
+                      <button
+                        className={`gh-category-row ${active ? "is-active" : ""}`}
+                        key={option}
+                        onClick={() => toggleMulti(filters, "certifications", option, null, onDiscoveryStateChange)}
+                        type="button"
+                      >
+                        <span>{option}</span>
+                        {showLiveFacetCounts ? (
+                          <span className="gh-category-count">
+                            {facetCount(resultsFacets, "certifications", option)}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </SidebarSection>
+            );
+          })()}
+
           <SidebarSection title="Saved Views">
             <div className="gh-saved-view-list">
               {bootstrap.discovery.views.map((view) => (

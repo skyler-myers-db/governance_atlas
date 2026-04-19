@@ -62,6 +62,58 @@ Use these as the standard minimum verification steps for non-trivial passes:
 
 ## Active Entries
 
+## 2026-04-19 02:05:00 EDT - Discovery layout regression fix + filter sidebar expansion
+
+Follow-up to the card-grid + preview-panel redesign. User reported the
+layout was still broken ("can't even get text to fit inside its boxes")
+and the sidebar still lacked the target's Domain / Sensitivity /
+Workflow State sections.
+
+### Root cause of the cards-above-toolbar visual glitch
+
+`.gh-discovery-command-panel` picked up a stale `top: 181.26 px` from
+an `@media (min-width: 1441px)` rule in `app.css` that set the panel
+`position: sticky; top: var(--gh-shell-sticky-offset)`. A later rule
+in `discovery.css` overrode `position: relative; z-index: 4` but did
+NOT reset `top`, so the panel was being pushed 181 px DOWN from its
+natural flow position — the card grid started at y=358 but the
+command panel was at y=385, so cards rendered above the filter
+toolbar.
+
+Fix: `top: auto !important` on the discovery.css override. Live check:
+cmdTop now `0px`, command panel at y=190, first card at y=482 (clean
+stack). Users see toolbar → Recently Viewed → cards in natural order.
+
+### Sidebar filter sections added
+
+- **Domain** — checkbox list from `resultsFacets.domains` with live
+  counts via `facetCount`. Only renders when facet data is present.
+- **Sensitivity** — inline chip row (PII / Confidential / Internal)
+  with accent-tinted active state. Seeded with the three common values;
+  picks up any additional facets returned by the live search.
+- **Workflow State** — checkbox list from `resultsFacets.certifications`
+  (Certified / Pending / Deprecated), live counts via `facetCount`.
+
+All three sections filter the result set through existing `toggleMulti`
++ `filters.domains` / `filters.sensitivities` / `filters.certifications`
+wiring — no backend change needed, the state was already plumbed through
+the Stack Filters popover.
+
+### Toolbar wrapping
+
+`.gh-discovery-toolbar.gh-discovery-toolbar-simple` now `flex-wrap: wrap`
+with `flex: 1 1 260px` on the search input so Copy link wraps to a
+second line on viewports where the density toggle + Copy link would
+otherwise collide.
+
+### Live verification
+
+`databricks bundle deploy` + `databricks apps deploy` → bundle
+`index-Dia1CArl.js`. Playwright on the live URL confirms six sidebar
+sections rendering in order: Asset Types, **Domain**, **Sensitivity**,
+**Workflow State**, Saved Views, Service Tree. 235/235 frontend tests
+pass. Screenshot: `discovery-with-filter-sections.png`.
+
 ## 2026-04-19 01:45:00 EDT - Discovery page redesign toward Databricks Catalog parity
 
 User sent a side-by-side: current Discovery page vs a target design
