@@ -528,7 +528,11 @@
   background: var(--gh-surface-muted, #f3f6fb) !important;
   cursor: default;
   position: sticky;
-  top: 0;
+  /* Stick below the full-page shell header (nav + search bar), not at
+     viewport y=0. Without this offset the column header row scrolled
+     behind the 156 px sticky shell header and the user lost the
+     sort affordance as soon as they scrolled a few rows. */
+  top: var(--gh-shell-sticky-offset, 0px);
   z-index: 2;
   border-bottom: 1px solid var(--gh-border, #d8dee9);
   font-weight: 600;
