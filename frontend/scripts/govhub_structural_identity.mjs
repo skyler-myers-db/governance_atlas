@@ -649,8 +649,18 @@ async function main() {
     const page = context.pages()[0] || (await context.newPage());
     await page.setViewportSize({ width: 1680, height: 1050 });
     await page.goto(urlFor("/discovery"), { waitUntil: "domcontentloaded" });
-    // Give the live catalog a chance to hydrate so card/preview traits light up.
-    await page.waitForTimeout(12000);
+    // Wait for the live catalog to hydrate so card/preview traits light up.
+    // The deployed app is slower on cold start, so we allow a generous cap
+    // and key off the first asset card rendering rather than a fixed delay.
+    try {
+      await page.waitForSelector(".gh-discovery-asset-card", { timeout: 30000 });
+      // Tiny extra settling time for preview + sidebar to hydrate from the card.
+      await page.waitForTimeout(3000);
+    } catch {
+      // Fall through: the trait checks will still run and report which
+      // cohorts aren't live. This avoids hanging CI forever.
+      await page.waitForTimeout(4000);
+    }
 
     const results = await runTraits(page);
     const pass = results.filter((r) => r.ok).length;
@@ -669,6 +679,27 @@ async function main() {
       scale: "css",
       type: "png",
     });
+
+    // L2: region screenshots for topbar / rail / first card / preview.
+    // These are the human-reviewable baselines for future gap detection.
+    const regions = [
+      { name: "topbar", selector: ".gh-shell-header" },
+      { name: "rail", selector: ".gh-side-rail" },
+      { name: "card", selector: ".gh-discovery-asset-card" },
+      { name: "preview", selector: ".gh-selection-preview" },
+      { name: "sidebar", selector: ".gh-discovery-sidebar" },
+      { name: "chip-row", selector: ".gh-primary-facet-row" },
+    ];
+    for (const region of regions) {
+      try {
+        const el = page.locator(region.selector).first();
+        if (!(await el.count())) continue;
+        const target = path.join(OUT_DIR, `region-${region.name}.png`);
+        await el.screenshot({ path: target, scale: "css", type: "png" });
+      } catch (err) {
+        console.warn(`[region ${region.name}] capture failed: ${err?.message}`);
+      }
+    }
 
     const report = {
       generatedAt: new Date().toISOString(),

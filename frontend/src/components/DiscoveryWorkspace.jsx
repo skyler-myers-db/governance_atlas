@@ -23,6 +23,7 @@ import {
   workspaceAccessReason,
 } from "../lib/capabilities";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
+import { applyTargetMockupFixtureToAll, isFixtureMode } from "../lib/discoveryFixture";
 import { SurfaceHeader, SurfaceRail, SurfaceRailSection } from "./ShellLayoutPrimitives";
 import { EmptyStateBlock, InlineStatusBanner, WorkspaceStateCard } from "./ShellStatePrimitives";
 
@@ -2170,7 +2171,15 @@ export default function DiscoveryWorkspace({
     effectiveBootState !== "live" &&
     !discoveryResults.authoritative &&
     !(discoveryResults.assets || []).length;
-  const allDiscoveryAssets = suppressCatalogRows ? [] : discoveryResults.assets;
+  const rawDiscoveryAssets = suppressCatalogRows ? [] : discoveryResults.assets;
+  // L3 fixture hook: when the URL carries `?fixture=target-mockup`, overlay
+  // synthetic golden metadata on every asset so the UI renders deterministic
+  // state regardless of the live catalog's metadata quality. Opt-in only.
+  const allDiscoveryAssets = useMemo(() => {
+    if (typeof window === "undefined") return rawDiscoveryAssets;
+    if (!isFixtureMode(window.location?.search || "")) return rawDiscoveryAssets;
+    return applyTargetMockupFixtureToAll(rawDiscoveryAssets || []);
+  }, [rawDiscoveryAssets]);
   // Asset type counts: prefer backend facet counts (which aggregate over the
   // FULL match set, matching Domain/Sensitivity/Workflow) over client-side
   // counts of the visible page. Falls back to per-page counts only when
@@ -3148,9 +3157,6 @@ export default function DiscoveryWorkspace({
                     }
                     value={filters.sortBy}
                   >
-                    {/* Target shows a "Relevance" option as the visible default.
-                        Inject it at the top if the backend-provided sort list
-                        doesn't already include something like it. */}
                     {(() => {
                       const opts = Array.isArray(bootstrap.discovery.sortOptions)
                         ? bootstrap.discovery.sortOptions
