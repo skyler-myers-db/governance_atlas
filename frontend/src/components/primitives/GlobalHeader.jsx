@@ -13,6 +13,19 @@ const MODULES = [
   { key: "audit", label: "Audit" },
 ];
 
+const ClockIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </svg>
+);
+
+const BoltIcon = () => (
+  <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m13 3-8 11h6l-1 7 8-11h-6l1-7Z" />
+  </svg>
+);
+
 export function GlobalHeader({
   shell,
   shellDisabled,
@@ -33,6 +46,7 @@ export function GlobalHeader({
   inboxOpen,
   inboxUnreadCount,
   onToggleInbox,
+  onOpenCommandPalette,
 }) {
   const shellRoleLabel = shell?.role
     ? shell?.roleProvisional
@@ -66,6 +80,27 @@ export function GlobalHeader({
           <div className="gh-shell-nav-band-head">
             <div className="gh-shell-module-label">Modules</div>
             <div className="gh-shell-identity-inline">
+              <div className="gh-shell-header-actions">
+                <button
+                  className="gh-secondary-button gh-header-action-button gh-header-action-button-ghost"
+                  onClick={onToggleInbox || onToggleDiagnostics}
+                  title="Recent activity"
+                  type="button"
+                  disabled={shellDisabled && !onToggleDiagnostics}
+                >
+                  <ClockIcon />
+                  <span>Recent activity</span>
+                </button>
+                <button
+                  className="gh-primary-button gh-header-action-button gh-header-action-button-primary"
+                  onClick={onOpenCommandPalette}
+                  title="Quick action (⌘K)"
+                  type="button"
+                >
+                  <BoltIcon />
+                  <span>Quick action</span>
+                </button>
+              </div>
               <div className="gh-shell-identity-block">
                 <div className="gh-shell-identity">{shellRoleLabel}</div>
                 <div className="gh-shell-user">{shell?.userEmail || "unknown"}</div>
