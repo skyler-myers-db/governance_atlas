@@ -1,145 +1,352 @@
 {
-  "generatedAt": "2026-04-19T10:21:17.698Z",
+  "generatedAt": "2026-04-19T11:18:47.302Z",
   "baseUrl": "https://governance-hub-7405619023278880.0.azure.databricksapps.com",
-  "total": 34,
-  "pass": 34,
+  "total": 57,
+  "pass": 57,
   "fail": 0,
+  "criticalFail": 0,
   "results": [
     {
-      "name": "shell: left icon rail present",
-      "ok": true
+      "id": "topbar.brand-mark-sigma",
+      "name": "Top bar: sigma/magenta brand mark (not GH block)",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "shell: rail has Discovery + Lineage + Governance + Taxonomy + Audit buttons",
-      "ok": true
+      "id": "topbar.no-metadata-workspace-subtitle",
+      "name": "Top bar: 'Metadata Workspace' subtitle is absent",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "shell: rail Settings button present",
-      "ok": true
+      "id": "topbar.no-take-a-ban-button",
+      "name": "Top bar: 'Take a ban' / 'Take as ban' header button absent",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "topbar: brand (GH / Governance Hub)",
-      "ok": true
+      "id": "topbar.no-quick-action-button",
+      "name": "Top bar: 'Quick action' header button absent",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "topbar: compact global search with Unity-Catalog placeholder",
-      "ok": true
+      "id": "topbar.bell-visible",
+      "name": "Top bar: bell icon always visible with unread dot",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "topbar: 'Take a ban' header button",
-      "ok": true
+      "id": "topbar.search-wide",
+      "name": "Top bar: search field is hero-wide (>= 400px)",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "topbar: 'Quick action' header button",
-      "ok": true
+      "id": "topbar.search-placeholder",
+      "name": "Top bar: search placeholder matches target copy",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "topbar: user chip with name + role + avatar",
-      "ok": true
+      "id": "topbar.no-setup-attention-banner",
+      "name": "Top bar: 'Setup attention' banner not rendered inline",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "topbar: top module tabs NOT visible (rail is primary nav)",
-      "ok": true
+      "id": "topbar.user-chip",
+      "name": "Top bar: user chip with name + role + avatar",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "discovery: Discovery/Navigation sub-tabs",
-      "ok": true
+      "id": "rail.present",
+      "name": "Rail: left icon rail present",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "discovery: primary facet chip row with Tables/Views counts + Filters launcher",
-      "ok": true
+      "id": "rail.core-icons",
+      "name": "Rail: core target set (Home + Discovery + Activity + Team)",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "discovery: heading 'Discovery' + 'Showing N of M assets'",
-      "ok": true
+      "id": "rail.settings-logout",
+      "name": "Rail: footer has Settings + Sign out",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "discovery: Best match / sort dropdown",
-      "ok": true
+      "id": "rail.active-magenta",
+      "name": "Rail: active indicator uses magenta accent",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "discovery: Stack Filters button",
-      "ok": true
+      "id": "chips.tables-views-columns-banonns",
+      "name": "Chip row: Tables / Views / Columns / Banonns chips all visible",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "discovery: Compact/Normal/Spacious density row",
-      "ok": true
+      "id": "chips.filters-launcher",
+      "name": "Chip row: 'Filters' launcher button (Stack Filters aria-label)",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "discovery: Copy link button",
-      "ok": true
+      "id": "chips.filter-glyph",
+      "name": "Chip row: Filters launcher uses two-column-bar glyph",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "sidebar: title 'Filters'",
-      "ok": true
+      "id": "subtabs.underline-style",
+      "name": "Sub-tabs: underline style (not pill track)",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "sidebar: Catalog section with checkbox + schema rows",
-      "ok": true
+      "id": "subtabs.discovery-and-navigation",
+      "name": "Sub-tabs: Discovery + Navigation tabs present",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "sidebar: Asset Types section with counts",
-      "ok": true
+      "id": "header.sort-by-label",
+      "name": "Header: 'Sort by' label next to dropdown",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "sidebar: Domain section",
-      "ok": true
+      "id": "header.relevance-option",
+      "name": "Header: sort dropdown contains 'Relevance' option",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "sidebar: Sensitivity section with PII/Confidential/Internal chips",
-      "ok": true
+      "id": "header.no-stack-filters-button",
+      "name": "Header: no inline 'Stack Filters' button in the command toolbar (launcher moved to chip row)",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "sidebar: Workflow State section with Published/In Review/Obsolete labels",
-      "ok": true
+      "id": "header.no-density-toggle",
+      "name": "Header: Compact/Normal/Spacious density toggle removed",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "sidebar: Owner free-text input",
-      "ok": true
+      "id": "header.no-copy-link-button",
+      "name": "Header: inline Copy link button removed",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "sidebar: Glossary Term free-text input",
-      "ok": true
+      "id": "cards.grid-3-columns",
+      "name": "Cards: 3-column grid at >= 1440px",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "cards: at least one asset card rendered",
-      "ok": true
+      "id": "cards.generic-kind-label",
+      "name": "Cards: kind label reads 'Table/View' (generic)",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "cards: kind label + icon in header",
-      "ok": true
+      "id": "cards.domain-pill-always",
+      "name": "Cards: domain pill always rendered",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "cards: favorite star button",
-      "ok": true
+      "id": "cards.owner-chip-always",
+      "name": "Cards: owner chip with avatar + name always rendered",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "cards: more/menu button (⋮)",
-      "ok": true
+      "id": "cards.three-tag-row",
+      "name": "Cards: three-tag row (PII/Transaction/Critical or equivalents)",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "cards: owner chip (avatar + name) visible",
-      "ok": true
+      "id": "cards.workflow-badge-visible",
+      "name": "Cards: workflow state badge (PUBLISHED/IN REVIEW/OBSOLETE)",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "cards: workflow state badge (PUBLISHED / IN REVIEW / OBSOLETE)",
-      "ok": true
+      "id": "cards.high-trust-label",
+      "name": "Cards: trust pill uses 'High Trust / Mid Trust / Low Trust' copy",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "cards: dual usage metrics (notebook usage + views)",
-      "ok": true
+      "id": "cards.usage-notebook-and-views",
+      "name": "Cards: usage row has both notebook usage + views",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "cards: coverage / trust pill with percentage",
-      "ok": true
+      "id": "cards.no-footer",
+      "name": "Cards: no 'Updated …' footer",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "cards: 2-line description paragraph",
-      "ok": true
+      "id": "sidebar.title-filters-only",
+      "name": "Sidebar: heading is plain 'Filters'",
+      "ok": true,
+      "severity": "critical"
     },
     {
-      "name": "preview: rail present (SurfaceRail with gh-selection-preview class)",
-      "ok": true
+      "id": "sidebar.section-chevrons",
+      "name": "Sidebar: every section header has a collapse chevron",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "sidebar.catalog-at-top",
+      "name": "Sidebar: Catalog section is the first section",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "sidebar.catalog-auto-expand",
+      "name": "Sidebar: first catalog row auto-expanded (schema rows visible)",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "sidebar.asset-type-checkboxes",
+      "name": "Sidebar: Asset Type rows rendered as checkboxes with (count)",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "sidebar.asset-type-singular",
+      "name": "Sidebar: section title is singular 'Asset Type' (not 'Asset Types')",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "sidebar.domain-checkboxes",
+      "name": "Sidebar: Domain rows rendered as checkboxes",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "sidebar.owner-user-team-checkbox",
+      "name": "Sidebar: Owner section is a single User/Team checkbox",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "sidebar.workflow-checkboxes",
+      "name": "Sidebar: Workflow State rendered as checkboxes with Published/In Review/Obsolete",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "sidebar.no-saved-views",
+      "name": "Sidebar: Saved Views section removed",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "sidebar.single-catalog-tree",
+      "name": "Sidebar: only one catalog tree (no duplicate Service Tree)",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "sidebar.glossary-term-input",
+      "name": "Sidebar: Glossary Term free-text input",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "sidebar.sensitivity-chips",
+      "name": "Sidebar: Sensitivity chips (PII / Conf / Internal)",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "preview.asset-preview-eyebrow",
+      "name": "Preview: 'Asset preview' eyebrow",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "preview.close-button",
+      "name": "Preview: X close button present",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "preview.action-grid-4-buttons",
+      "name": "Preview: 2×2 action grid with 4 buttons",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "preview.metadata-pills",
+      "name": "Preview: domain + glossary rendered as pills",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "preview.schema-scope-chips",
+      "name": "Preview: schema overview = catalog/schema scope chips",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "preview.lineage-icon-nodes",
+      "name": "Preview: simplified lineage preview uses icon nodes",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "preview.usage-2cell-with-caption",
+      "name": "Preview: usage metrics = 2-cell grid with stat + secondary caption",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "preview.associated-tasks-nested",
+      "name": "Preview: associated tasks renders ⓘ info + nested child row",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "framing.flat-background",
+      "name": "Framing: page background flattened (no gradient)",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "framing.thin-panel-borders",
+      "name": "Framing: panel borders use thin charcoal stroke",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "framing.no-soft-shadow",
+      "name": "Framing: panel drop shadow is none/flat",
+      "ok": true,
+      "severity": "critical"
+    },
+    {
+      "id": "topbar.secondary-nav-clipped",
+      "name": "Hidden top-nav alias tabs stay clipped (a11y-only)",
+      "ok": true,
+      "severity": "critical"
     }
   ]
 }

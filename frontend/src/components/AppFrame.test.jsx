@@ -73,22 +73,51 @@ function FrameHarness({
 }
 
 describe("AppFrame", () => {
-  it("shows a shell-owned workspace setup trigger when diagnostics are available", () => {
-    render(<FrameHarness diagnosticsAvailable />);
+  it("opens workspace setup via the rail Settings button when diagnostics are available", () => {
+    const onToggle = vi.fn();
+    render(
+      <AppFrame
+        activeModule="discovery"
+        bootMessage=""
+        bootState="live"
+        diagnosticsAvailable
+        diagnosticsStatus={null}
+        diagnosticsOpen={false}
+        liveCatalogVisibleCount={3}
+        navigationState={{ pending: false, label: "" }}
+        onBrowseCatalog={() => { }}
+        onInboxItemAction={() => { }}
+        onModuleChange={() => { }}
+        onNavigationStateChange={() => { }}
+        onSearchResultSelect={() => { }}
+        onToggleDiagnostics={onToggle}
+        onToggleInbox={() => { }}
+        searchSeedAssets={[]}
+        shell={{ role: "Admin", userEmail: "admin@example.com" }}
+        visibleAssetSet={new Set()}
+      >
+        <div>Workspace body</div>
+      </AppFrame>,
+    );
 
-    const trigger = screen.getByRole("button", { name: "Workspace setup" });
-    fireEvent.click(trigger);
-
-    expect(screen.getByRole("button", { name: "Hide workspace setup" })).not.toBeNull();
+    // Diagnostics live behind the rail Settings icon now — the topbar
+    // "Workspace setup" trigger was removed to match the target mockup.
+    const settings = screen.getByRole("button", { name: "Settings" });
+    fireEvent.click(settings);
+    expect(onToggle).toHaveBeenCalled();
   });
 
-  it("hides the workspace setup trigger when diagnostics are unavailable", () => {
+  it("keeps the rail Settings button available regardless of diagnostics state", () => {
     render(<FrameHarness diagnosticsAvailable={false} />);
 
+    // The rail's Settings button is the unified entry point for diagnostics
+    // / preferences and always renders. The old topbar "Workspace setup"
+    // trigger that was conditional on diagnostics availability is gone.
+    expect(screen.getByRole("button", { name: "Settings" })).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Workspace setup" })).toBeNull();
   });
 
-  it("shows a compact setup status hint when readiness needs attention", () => {
+  it("does not surface 'Setup attention' copy in the topbar", () => {
     render(
       <FrameHarness
         diagnosticsAvailable
@@ -99,9 +128,10 @@ describe("AppFrame", () => {
       />,
     );
 
-    expect(screen.getByText("Setup attention")).not.toBeNull();
-    expect(screen.getByText("Next step: Per User Authorization.")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Workspace setup" })).not.toBeNull();
+    // Setup attention copy moved into the diagnostics drawer (not rendered in
+    // this harness). The topbar must be clean to match the target mockup.
+    expect(screen.queryByText("Setup attention")).toBeNull();
+    expect(screen.queryByText(/Next step: Per User Authorization/i)).toBeNull();
   });
 
   it("renders the topbar search input with the discovery-wide placeholder", () => {
@@ -174,7 +204,7 @@ describe("AppFrame", () => {
     expect(onModuleChange).toHaveBeenNthCalledWith(3, "lineage");
   });
 
-  it("keeps a generic setup status hint visible when the diagnostics trigger is unavailable", () => {
+  it("keeps diagnostics reachable via the rail Settings button even without a 'Workspace setup' trigger", () => {
     render(
       <FrameHarness
         diagnosticsAvailable={false}
@@ -185,9 +215,13 @@ describe("AppFrame", () => {
       />,
     );
 
-    expect(screen.getByText("Setup attention")).not.toBeNull();
-    expect(screen.getByText("Setup diagnostics have not loaded yet.")).not.toBeNull();
+    // The topbar no longer surfaces "Setup attention" copy or a dedicated
+    // "Workspace setup" button — those moved behind the rail Settings icon
+    // to match the target mockup. What we still guarantee is that the rail
+    // Settings entry point is present so stewards can still reach diagnostics.
+    expect(screen.queryByText("Setup attention")).toBeNull();
     expect(screen.queryByRole("button", { name: "Workspace setup" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Settings" })).not.toBeNull();
   });
 
   it("shows a shell-owned inbox trigger and panel for unread notifications", () => {
