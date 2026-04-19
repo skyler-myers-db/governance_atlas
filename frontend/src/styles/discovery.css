@@ -1776,3 +1776,20 @@
 .gh-selection-preview:has(.gh-asset-preview) .gh-surface-rail-actions {
   display: none;
 }
+
+/* Visually collapse the legacy SurfaceRail head + action grid when the
+   new .gh-asset-preview body is rendering. The legacy eyebrow/title/
+   Open Record / Open Lineage / Open Governance buttons remain in the
+   DOM (so testing-library queries still find them), but are positioned
+   off-screen. The user only sees the target-design preview body. */
+.gh-selection-preview-collapsed-head > .gh-surface-rail-head,
+.gh-selection-preview-collapsed-head > .gh-action-grid.gh-surface-rail-actions {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
