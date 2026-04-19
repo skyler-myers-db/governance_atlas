@@ -383,6 +383,14 @@
 
 .gh-discovery-command-panel {
   position: relative;
+  /* `top: auto` is critical. app.css has an @media (min-width: 1441px)
+     block that sets position: sticky; top: var(--gh-shell-sticky-offset)
+     on this same selector. discovery.css (loaded after) overrides the
+     position back to relative, but without resetting `top` the inherited
+     181px value keeps pushing the command panel 181 px down its natural
+     position — so cards render ABOVE the panel. Reset the offset so the
+     panel sits cleanly at the top of the results column. */
+  top: auto !important;
   z-index: 4;
 }
 
@@ -1756,13 +1764,21 @@
 }
 .gh-discovery-toolbar.gh-discovery-toolbar-simple {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 0 18px 12px;
   align-items: center;
 }
 .gh-discovery-toolbar-search {
-  flex: 1 1 auto;
+  flex: 1 1 260px;
   min-width: 0;
+}
+.gh-discovery-toolbar-simple .gh-discovery-density-toggle {
+  flex: 0 0 auto;
+}
+.gh-discovery-toolbar-simple > button.gh-secondary-button-compact {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 /* Redundant-header suppression:
