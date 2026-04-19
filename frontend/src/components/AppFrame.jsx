@@ -4,7 +4,7 @@ import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { workspaceAccessBanner } from "../lib/capabilities";
 import { InlineStatusBanner } from "./ShellStatePrimitives";
 import { GlobalHeader } from "./primitives/GlobalHeader";
-import { GlobalSearch } from "./primitives/GlobalSearch";
+import { TopbarSearch } from "./primitives/TopbarSearch";
 import { InboxPanel } from "./primitives/InboxPanel";
 import { CommandPalette } from "./primitives/CommandPalette";
 import { SideIconRail } from "./primitives/SideIconRail";
@@ -290,31 +290,28 @@ export default function AppFrame({
           inboxUnreadCount={inboxUnreadCount}
           onToggleInbox={onToggleInbox}
           onOpenCommandPalette={() => setCommandOpen(true)}
-        />
-
-        <GlobalSearch
-          searchRootRef={searchRootRef}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          searchPanelOpen={searchPanelOpen}
-          onSearchPanelOpenChange={setSearchPanelOpen}
-          onSubmit={submitSearch}
-          searchScopeSubject={searchScopeSubject}
-          searchScopeHint={searchScopeHint}
-          searchScopeLabel={searchScopeLabel}
-          shellDisabled={shellDisabled}
-          shellDisabledReason={shellDisabledReason}
-          searchEnabled={searchEnabled}
-          searchAssets={shellSearch.assets || []}
-          searchError={shellSearch.error}
-          searchLoading={shellSearch.loading}
-          searchNotice={searchNotice}
-          onSearchNoticeReset={() => setSearchNotice("")}
-          onSelectAsset={(assetFqn) => {
-            void openSearchResult(assetFqn);
-          }}
-          topDirectResult={topDirectResult}
-          navigationState={navigationState}
+          topbarSearchSlot={(
+            <TopbarSearch
+              searchRootRef={searchRootRef}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              searchPanelOpen={searchPanelOpen}
+              onSearchPanelOpenChange={setSearchPanelOpen}
+              onSubmit={submitSearch}
+              shellDisabled={shellDisabled}
+              shellDisabledReason={shellDisabledReason}
+              searchEnabled={searchEnabled}
+              searchAssets={shellSearch.assets || []}
+              searchError={shellSearch.error}
+              searchLoading={shellSearch.loading}
+              searchNotice={searchNotice}
+              onSearchNoticeReset={() => setSearchNotice("")}
+              onSelectAsset={(assetFqn) => {
+                void openSearchResult(assetFqn);
+              }}
+              topDirectResult={topDirectResult}
+            />
+          )}
         />
         {accessBanner ? (
           <InlineStatusBanner

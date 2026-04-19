@@ -1,0 +1,145 @@
+{
+  "generatedAt": "2026-04-19T10:21:17.698Z",
+  "baseUrl": "https://governance-hub-7405619023278880.0.azure.databricksapps.com",
+  "total": 34,
+  "pass": 34,
+  "fail": 0,
+  "results": [
+    {
+      "name": "shell: left icon rail present",
+      "ok": true
+    },
+    {
+      "name": "shell: rail has Discovery + Lineage + Governance + Taxonomy + Audit buttons",
+      "ok": true
+    },
+    {
+      "name": "shell: rail Settings button present",
+      "ok": true
+    },
+    {
+      "name": "topbar: brand (GH / Governance Hub)",
+      "ok": true
+    },
+    {
+      "name": "topbar: compact global search with Unity-Catalog placeholder",
+      "ok": true
+    },
+    {
+      "name": "topbar: 'Take a ban' header button",
+      "ok": true
+    },
+    {
+      "name": "topbar: 'Quick action' header button",
+      "ok": true
+    },
+    {
+      "name": "topbar: user chip with name + role + avatar",
+      "ok": true
+    },
+    {
+      "name": "topbar: top module tabs NOT visible (rail is primary nav)",
+      "ok": true
+    },
+    {
+      "name": "discovery: Discovery/Navigation sub-tabs",
+      "ok": true
+    },
+    {
+      "name": "discovery: primary facet chip row with Tables/Views counts + Filters launcher",
+      "ok": true
+    },
+    {
+      "name": "discovery: heading 'Discovery' + 'Showing N of M assets'",
+      "ok": true
+    },
+    {
+      "name": "discovery: Best match / sort dropdown",
+      "ok": true
+    },
+    {
+      "name": "discovery: Stack Filters button",
+      "ok": true
+    },
+    {
+      "name": "discovery: Compact/Normal/Spacious density row",
+      "ok": true
+    },
+    {
+      "name": "discovery: Copy link button",
+      "ok": true
+    },
+    {
+      "name": "sidebar: title 'Filters'",
+      "ok": true
+    },
+    {
+      "name": "sidebar: Catalog section with checkbox + schema rows",
+      "ok": true
+    },
+    {
+      "name": "sidebar: Asset Types section with counts",
+      "ok": true
+    },
+    {
+      "name": "sidebar: Domain section",
+      "ok": true
+    },
+    {
+      "name": "sidebar: Sensitivity section with PII/Confidential/Internal chips",
+      "ok": true
+    },
+    {
+      "name": "sidebar: Workflow State section with Published/In Review/Obsolete labels",
+      "ok": true
+    },
+    {
+      "name": "sidebar: Owner free-text input",
+      "ok": true
+    },
+    {
+      "name": "sidebar: Glossary Term free-text input",
+      "ok": true
+    },
+    {
+      "name": "cards: at least one asset card rendered",
+      "ok": true
+    },
+    {
+      "name": "cards: kind label + icon in header",
+      "ok": true
+    },
+    {
+      "name": "cards: favorite star button",
+      "ok": true
+    },
+    {
+      "name": "cards: more/menu button (⋮)",
+      "ok": true
+    },
+    {
+      "name": "cards: owner chip (avatar + name) visible",
+      "ok": true
+    },
+    {
+      "name": "cards: workflow state badge (PUBLISHED / IN REVIEW / OBSOLETE)",
+      "ok": true
+    },
+    {
+      "name": "cards: dual usage metrics (notebook usage + views)",
+      "ok": true
+    },
+    {
+      "name": "cards: coverage / trust pill with percentage",
+      "ok": true
+    },
+    {
+      "name": "cards: 2-line description paragraph",
+      "ok": true
+    },
+    {
+      "name": "preview: rail present (SurfaceRail with gh-selection-preview class)",
+      "ok": true
+    }
+  ]
+}

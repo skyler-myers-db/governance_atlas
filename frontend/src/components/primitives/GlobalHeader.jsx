@@ -4,6 +4,7 @@ import {
   statusLabel,
   statusTone,
 } from "./shellStatusLabels";
+import { UserChip } from "./UserChip";
 
 const MODULES = [
   { key: "discovery", label: "Discovery" },
@@ -47,12 +48,8 @@ export function GlobalHeader({
   inboxUnreadCount,
   onToggleInbox,
   onOpenCommandPalette,
+  topbarSearchSlot,
 }) {
-  const shellRoleLabel = shell?.role
-    ? shell?.roleProvisional
-      ? `${shell.role} (verifying)`
-      : shell.role
-    : "workspace user";
   const setupStatusToneValue = setupStatusTone(setupStatusState);
 
   return (
@@ -74,103 +71,94 @@ export function GlobalHeader({
               <div className="gh-shell-brand-subtitle">Metadata Workspace</div>
             </div>
           </button>
-        </div>
-
-        <div className="gh-shell-nav-band">
-          <div className="gh-shell-nav-band-head">
-            <div className="gh-shell-module-label">Modules</div>
-            <div className="gh-shell-identity-inline">
-              <div className="gh-shell-header-actions">
-                <button
-                  className="gh-secondary-button gh-header-action-button gh-header-action-button-ghost"
-                  onClick={onToggleInbox || onToggleDiagnostics}
-                  title="Recent activity"
-                  type="button"
-                  disabled={shellDisabled && !onToggleDiagnostics}
-                >
-                  <ClockIcon />
-                  <span>Recent activity</span>
-                </button>
-                <button
-                  className="gh-primary-button gh-header-action-button gh-header-action-button-primary"
-                  onClick={onOpenCommandPalette}
-                  title="Quick action (⌘K)"
-                  type="button"
-                >
-                  <BoltIcon />
-                  <span>Quick action</span>
-                </button>
-              </div>
-              <div className="gh-shell-identity-block">
-                <div className="gh-shell-identity">{shellRoleLabel}</div>
-                <div className="gh-shell-user">{shell?.userEmail || "unknown"}</div>
-              </div>
-              <div className="gh-shell-context-stack">
-                {showRuntimeStatus ? (
-                  <div className="gh-shell-context-state">
-                    <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
-                      {statusLabel(bootState)}
-                    </span>
-                    {bootMessage ? (
-                      <div className={`gh-shell-status-note tone-${statusTone(bootState)}`}>{bootMessage}</div>
-                    ) : null}
-                  </div>
-                ) : null}
-                {showSetupStatus ? (
-                  <div className="gh-shell-setup-status">
-                    <span className={`gh-chip gh-chip-status tone-${setupStatusToneValue}`}>
-                      {setupStatusLabel(setupStatusState)}
-                    </span>
-                    <div className={`gh-shell-status-note tone-${setupStatusToneValue}`}>
-                      {setupStatusNextStep}
-                    </div>
-                  </div>
-                ) : null}
-                <div className="gh-shell-status-actions">
-                  {diagnosticsAvailable ? (
-                    <button
-                      aria-pressed={diagnosticsOpen}
-                      className="gh-tertiary-button gh-inline-link-button"
-                      onClick={onToggleDiagnostics}
-                      type="button"
-                    >
-                      {diagnosticsOpen ? "Hide workspace setup" : "Workspace setup"}
-                    </button>
-                  ) : null}
-                  {showInbox ? (
-                    <button
-                      aria-pressed={inboxOpen}
-                      className="gh-tertiary-button gh-inline-link-button gh-shell-inbox-trigger"
-                      onClick={onToggleInbox}
-                      type="button"
-                    >
-                      <span>Inbox</span>
-                      {inboxUnreadCount > 0 ? (
-                        <span aria-hidden="true" className="gh-shell-inbox-badge">
-                          {inboxUnreadCount}
-                        </span>
-                      ) : null}
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          </div>
-          <nav className="gh-shell-nav" aria-label="Primary modules">
-            {MODULES.map((module) => (
+          {topbarSearchSlot ? (
+            <div className="gh-shell-brand-search-slot">{topbarSearchSlot}</div>
+          ) : null}
+          <div className="gh-shell-brand-tail">
+            <div className="gh-shell-header-actions">
               <button
-                className={`gh-product-tab ${activeModule === module.key ? "is-active" : ""}`}
-                disabled={shellDisabled}
-                key={module.key}
-                onClick={module.key === "discovery" ? onOpenDiscovery : () => onModuleChange(module.key)}
-                title={shellDisabledReason}
+                className="gh-secondary-button gh-header-action-button gh-header-action-button-ghost"
+                onClick={onToggleInbox || onToggleDiagnostics}
+                title="Open the activity / task tray"
+                type="button"
+                disabled={shellDisabled && !onToggleDiagnostics}
+              >
+                <ClockIcon />
+                <span>Take a ban</span>
+              </button>
+              <button
+                className="gh-primary-button gh-header-action-button gh-header-action-button-primary"
+                onClick={onOpenCommandPalette}
+                title="Quick action (⌘K)"
                 type="button"
               >
-                <span>{module.label}</span>
+                <BoltIcon />
+                <span>Quick action</span>
               </button>
-            ))}
-          </nav>
+            </div>
+            <UserChip
+              userEmail={shell?.userEmail || ""}
+              role={shell?.role || ""}
+              roleProvisional={Boolean(shell?.roleProvisional)}
+              inboxUnreadCount={inboxUnreadCount}
+              inboxOpen={inboxOpen}
+              onToggleInbox={onToggleInbox}
+              showInbox={showInbox}
+            />
+          </div>
         </div>
+
+        {(showRuntimeStatus || showSetupStatus || diagnosticsAvailable) ? (
+          <div className="gh-shell-status-band">
+            {showRuntimeStatus ? (
+              <div className="gh-shell-context-state">
+                <span className={`gh-chip gh-chip-status tone-${statusTone(bootState)}`}>
+                  {statusLabel(bootState)}
+                </span>
+                {bootMessage ? (
+                  <div className={`gh-shell-status-note tone-${statusTone(bootState)}`}>{bootMessage}</div>
+                ) : null}
+              </div>
+            ) : null}
+            {showSetupStatus ? (
+              <div className="gh-shell-setup-status">
+                <span className={`gh-chip gh-chip-status tone-${setupStatusToneValue}`}>
+                  {setupStatusLabel(setupStatusState)}
+                </span>
+                <div className={`gh-shell-status-note tone-${setupStatusToneValue}`}>
+                  {setupStatusNextStep}
+                </div>
+              </div>
+            ) : null}
+            {diagnosticsAvailable ? (
+              <button
+                aria-pressed={diagnosticsOpen}
+                className="gh-tertiary-button gh-inline-link-button"
+                onClick={onToggleDiagnostics}
+                type="button"
+              >
+                {diagnosticsOpen ? "Hide workspace setup" : "Workspace setup"}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        {/* Secondary module tabs kept mostly as an accessibility alias for the
+            left icon rail; visually hidden by default (see shell-rail.css).
+            The rail is the primary modal navigation in this layout. */}
+        <nav className="gh-shell-nav gh-shell-nav-secondary" aria-label="Primary modules">
+          {MODULES.map((module) => (
+            <button
+              className={`gh-product-tab ${activeModule === module.key ? "is-active" : ""}`}
+              disabled={shellDisabled}
+              key={module.key}
+              onClick={module.key === "discovery" ? onOpenDiscovery : () => onModuleChange(module.key)}
+              title={shellDisabledReason}
+              type="button"
+            >
+              <span>{module.label}</span>
+            </button>
+          ))}
+        </nav>
       </div>
     </div>
   );

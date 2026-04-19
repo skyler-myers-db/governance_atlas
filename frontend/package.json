@@ -12,6 +12,7 @@
     "smoke:deployed": "node scripts/govhub_deployed_smoke.mjs",
     "screenshots:phase2": "node scripts/phase2_screenshot_pack.mjs",
     "qa:deployed": "node scripts/govhub_comprehensive_qa.mjs",
+    "identity:deployed": "node scripts/govhub_structural_identity.mjs",
     "preview": "vite preview --host 0.0.0.0 --port 4173"
   },
   "dependencies": {

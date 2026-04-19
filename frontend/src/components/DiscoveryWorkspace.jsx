@@ -361,6 +361,21 @@ function ownerLabel(owner) {
   return owner.name || owner.email || owner.title || "";
 }
 
+// Render an owner label (email or name) as "First Last" so it reads like a
+// human avatar target label (Target uses "Namer Avatar" / "Anner Avatar"
+// formatting, which is basically local-part titlecased + a trailing descriptor).
+function prettyOwnerName(label = "") {
+  const raw = String(label || "").trim();
+  if (!raw) return "";
+  const local = raw.includes("@") ? raw.split("@")[0] : raw;
+  const parts = local.split(/[\s._+-]+/).filter(Boolean);
+  if (!parts.length) return raw;
+  return parts
+    .slice(0, 2)
+    .map((part) => (part[0] ? part[0].toUpperCase() + part.slice(1) : part))
+    .join(" ");
+}
+
 function FilterSection({
   label,
   options,
@@ -771,18 +786,36 @@ function DiscoveryResultCard({
     : [];
   const visibleTags = tagLabels.slice(0, 3);
   const extraTagCount = Math.max(0, tagLabels.length - visibleTags.length);
-  const workflowState = asset.governanceStatus || (gaps.length ? "DRAFT" : "PUBLISHED");
-  const workflowVariant = /publish|enterpri|certified/i.test(workflowState)
+  // Workflow state mapped to target copy (Published / In Review / Obsolete).
+  // Certification signals map as follows:
+  //   - "Certified" / explicit "Published" / "Enterprise" → PUBLISHED (green)
+  //   - "Pending" / "In Review" / "Draft" → IN REVIEW (yellow)
+  //   - "Deprecated" / "Retired" → OBSOLETE (red)
+  //   - everything else falls through to a neutral "PUBLISHED" optimistic
+  //     default so a freshly-discovered asset doesn't read as broken just
+  //     because the governance workflow hasn't moved it yet.
+  const rawWorkflowState = asset.governanceStatus || (gaps.length >= 3 ? "In Review" : "Published");
+  const workflowLabel = /publish|enterpri|certified/i.test(rawWorkflowState)
+    ? "PUBLISHED"
+    : /review|pending|draft/i.test(rawWorkflowState)
+      ? "IN REVIEW"
+      : /deprecated|retired|obsolete/i.test(rawWorkflowState)
+        ? "OBSOLETE"
+        : /work|miss|gap/i.test(rawWorkflowState)
+          ? "IN REVIEW"
+          : "PUBLISHED";
+  const workflowVariant = workflowLabel === "PUBLISHED"
     ? "published"
-    : /review|pending|draft/i.test(workflowState)
-      ? "draft"
-      : /work|miss|gap|retire/i.test(workflowState)
-        ? "needs-work"
-        : "neutral";
-  const coverageScore = Number(asset.coverageScore || 0);
-  const trustLabel = coverageScore > 0 ? `${Math.round(coverageScore)}% coverage` : null;
+    : workflowLabel === "OBSOLETE"
+      ? "obsolete"
+      : "in-review";
+  // Coverage / trust score: softer language so low-metadata catalogs don't
+  // read as broken. We show "Coverage X%" with three tiered tones.
+  const coverageScore = Math.round(Number(asset.coverageScore || 0));
+  const coverageTone = coverageScore >= 75 ? "is-high" : coverageScore >= 40 ? "is-mid" : "is-low";
+  const coverageLabel = coverageScore > 0 ? `Coverage ${coverageScore}%` : "Coverage pending";
   const viewCount = Number(asset.viewCount || asset.usage?.views || 0);
-  const usageLabel = viewCount > 0 ? `${viewCount} view${viewCount === 1 ? "" : "s"}` : null;
+  const notebookUsage = Number(asset.notebookUsage || asset.usage?.notebooks || 0);
   const description = String(asset.description || "").trim();
 
   return (
@@ -849,54 +882,65 @@ function DiscoveryResultCard({
             {String(asset.domain).toUpperCase()} DATA
           </span>
         ) : null}
-        {ownerCount ? (
-          <OwnerAvatarStack owners={ownerLabels} limit={3} size={22} />
-        ) : null}
+        {primaryOwner ? (
+          <span className="gh-discovery-asset-owner-chip" title={ownerLabels.join(", ")}>
+            <OwnerAvatar owner={primaryOwner} size={22} />
+            <span className="gh-discovery-asset-owner-name">{prettyOwnerName(primaryOwner)}</span>
+            {ownerCount > 1 ? (
+              <span className="gh-discovery-asset-owner-extra">+{ownerCount - 1}</span>
+            ) : null}
+          </span>
+        ) : (
+          <span className="gh-discovery-asset-owner-chip gh-discovery-asset-owner-chip-empty">
+            <span aria-hidden="true" className="gh-discovery-asset-owner-placeholder">?</span>
+            <span className="gh-discovery-asset-owner-name">No owner</span>
+          </span>
+        )}
       </div>
 
-      {(visibleTags.length || workflowState) ? (
-        <div className="gh-discovery-asset-card-chips">
-          {visibleTags.map((tag) => (
-            <span
-              className="gh-discovery-asset-tag"
-              data-tag={String(tag).toLowerCase()}
-              key={`tag-${tag}`}
-            >
-              {tag}
-            </span>
-          ))}
-          {glossaryTerms.slice(0, 1).map((term) => (
-            <span className="gh-discovery-asset-tag is-glossary" key={`glo-${term}`}>
-              <span aria-hidden="true">☰</span> {term}
-            </span>
-          ))}
-          {extraTagCount > 0 ? (
-            <span className="gh-discovery-asset-tag is-overflow">+{extraTagCount}</span>
-          ) : null}
-          {workflowState && workflowState !== "Unassigned" ? (
-            <span
-              className={`gh-discovery-asset-status gh-discovery-asset-status-${workflowVariant}`}
-              title={`Workflow state: ${workflowState}`}
-            >
-              {String(workflowState).toUpperCase()}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="gh-discovery-asset-card-chips">
+        {visibleTags.map((tag) => (
+          <span
+            className="gh-discovery-asset-tag"
+            data-tag={String(tag).toLowerCase()}
+            key={`tag-${tag}`}
+          >
+            {tag}
+          </span>
+        ))}
+        {glossaryTerms.slice(0, 1).map((term) => (
+          <span className="gh-discovery-asset-tag is-glossary" key={`glo-${term}`}>
+            <span aria-hidden="true">☰</span> {term}
+          </span>
+        ))}
+        {extraTagCount > 0 ? (
+          <span className="gh-discovery-asset-tag is-overflow">+{extraTagCount}</span>
+        ) : null}
+        <span className="gh-discovery-asset-chip-spacer" aria-hidden="true" />
+        <span
+          className={`gh-discovery-asset-status gh-discovery-asset-status-${workflowVariant}`}
+          title={`Workflow state: ${workflowLabel}`}
+        >
+          {workflowLabel}
+        </span>
+      </div>
 
       <div className="gh-discovery-asset-card-usage">
-        <span className="gh-discovery-asset-usage-item" title={usageLabel || "No recent views"}>
-          <span aria-hidden="true">⊙</span>
-          {usageLabel || "No recent usage"}
+        <span className="gh-discovery-asset-usage-item" title={`${notebookUsage} notebook usage`}>
+          <span aria-hidden="true" className="gh-discovery-asset-usage-icon">▤</span>
+          {notebookUsage} notebook usage
         </span>
-        {trustLabel ? (
-          <span
-            className={`gh-discovery-asset-trust ${coverageScore >= 80 ? "is-high" : coverageScore >= 50 ? "is-mid" : "is-low"}`}
-            title={`Governance coverage: ${coverageScore}%`}
-          >
-            {coverageScore >= 80 ? "High Trust" : coverageScore >= 50 ? "Mid Trust" : "Low Trust"} {Math.round(coverageScore)}%
-          </span>
-        ) : null}
+        <span className="gh-discovery-asset-usage-item" title={`${viewCount} view${viewCount === 1 ? "" : "s"}`}>
+          <span aria-hidden="true" className="gh-discovery-asset-usage-icon">⊙</span>
+          {viewCount} view{viewCount === 1 ? "" : "s"}
+        </span>
+        <span className="gh-discovery-asset-chip-spacer" aria-hidden="true" />
+        <span
+          className={`gh-discovery-asset-trust ${coverageTone}`}
+          title={`Metadata coverage: ${coverageScore}%`}
+        >
+          {coverageLabel}
+        </span>
       </div>
 
       <p className="gh-discovery-asset-card-description">
@@ -999,6 +1043,96 @@ function DiscoveryBreadcrumb({ schemaFilter, onClear }) {
           <span className="gh-discovery-breadcrumb-seg gh-discovery-breadcrumb-current">{schemaFilter.schema}</span>
         </>
       ) : null}
+    </div>
+  );
+}
+
+function PrimaryFacetChips({
+  assetTypeCounts,
+  filters,
+  onDiscoveryStateChange,
+  onOpenFilters,
+  showFiltersBadge = 0,
+  obsoleteCount = 0,
+}) {
+  // Curated primary facets that mirror the target mockup: a small row of
+  // asset-type-shaped pills with counts, always visible above the results.
+  const primary = [
+    { key: "Delta Table", label: "Tables" },
+    { key: "View", label: "Views" },
+    { key: "Materialized View", label: "Materialized" },
+    { key: "Streaming Table", label: "Streaming" },
+  ];
+  const entries = primary
+    .map((entry) => ({
+      ...entry,
+      count: Number(assetTypeCounts[entry.key] || 0),
+    }))
+    .filter((entry) => entry.count > 0);
+  const typeFilters = Array.isArray(filters.types) ? filters.types : [];
+
+  return (
+    <div className="gh-primary-facet-row" role="group" aria-label="Quick asset-type filters">
+      {entries.map((entry) => {
+        const active = typeFilters.includes(entry.key);
+        return (
+          <button
+            aria-pressed={active}
+            className={`gh-primary-facet-chip ${active ? "is-active" : ""}`.trim()}
+            key={entry.key}
+            onClick={() =>
+              onDiscoveryStateChange((current) => {
+                const currentTypes = Array.isArray(current.types) ? current.types : [];
+                const nextTypes = currentTypes.includes(entry.key)
+                  ? currentTypes.filter((t) => t !== entry.key)
+                  : [...currentTypes, entry.key];
+                return { ...current, types: nextTypes };
+              })
+            }
+            type="button"
+          >
+            <span className="gh-primary-facet-chip-label">{entry.label}</span>
+            <span className="gh-primary-facet-chip-count">
+              ({entry.count.toLocaleString()})
+            </span>
+            {active ? (
+              <span className="gh-primary-facet-chip-x" aria-hidden="true">×</span>
+            ) : null}
+          </button>
+        );
+      })}
+      {obsoleteCount > 0 ? (
+        <button
+          className="gh-primary-facet-chip is-ghost"
+          onClick={() =>
+            onDiscoveryStateChange((current) => ({
+              ...current,
+              certifications: ["Deprecated"],
+            }))
+          }
+          type="button"
+        >
+          <span className="gh-primary-facet-chip-label">Obsolete</span>
+          <span className="gh-primary-facet-chip-count">
+            ({Number(obsoleteCount).toLocaleString()})
+          </span>
+        </button>
+      ) : null}
+      <div className="gh-primary-facet-spacer" />
+      <button
+        className="gh-primary-facet-launch"
+        onClick={onOpenFilters}
+        title="Open detailed filters"
+        type="button"
+      >
+        <span aria-hidden="true" className="gh-primary-facet-launch-icon">⚲</span>
+        <span>Filters</span>
+        {showFiltersBadge ? (
+          <span className="gh-primary-facet-launch-badge" aria-hidden="true">
+            {showFiltersBadge}
+          </span>
+        ) : null}
+      </button>
     </div>
   );
 }
@@ -2532,9 +2666,9 @@ export default function DiscoveryWorkspace({
       <section className="gh-discovery-main gh-discovery-main-grid">
         <SurfaceRail
           className="gh-discovery-sidebar"
-          eyebrow="Refine"
+          eyebrow="Filters"
           identity={`${visibleAssetsSummary} visible`}
-          title="Refine Catalog"
+          title="Filters"
         >
           <SidebarSection title="Asset Types">
             {assetTypeOptions.length ? (
@@ -2627,6 +2761,14 @@ export default function DiscoveryWorkspace({
               filters.certifications || [],
             );
             if (!certOptions.length) return null;
+            const workflowLabelFor = (option) =>
+              /publish|certified|enterpri/i.test(option)
+                ? "Published"
+                : /pending|review|draft/i.test(option)
+                  ? "In Review"
+                  : /deprecated|retired|obsolete/i.test(option)
+                    ? "Obsolete"
+                    : option;
             return (
               <SidebarSection title="Workflow State">
                 <div className="gh-category-list">
@@ -2639,7 +2781,7 @@ export default function DiscoveryWorkspace({
                         onClick={() => toggleMulti(filters, "certifications", option, null, onDiscoveryStateChange)}
                         type="button"
                       >
-                        <span>{option}</span>
+                        <span>{workflowLabelFor(option)}</span>
                         {showLiveFacetCounts ? (
                           <span className="gh-category-count">
                             {facetCount(resultsFacets, "certifications", option)}
@@ -2697,41 +2839,58 @@ export default function DiscoveryWorkspace({
             </div>
           </SidebarSection>
 
-          <SidebarSection title="Service Tree">
+          <SidebarSection title="Catalog">
             {catalogSchemaTree.length ? (
-              <div className="gh-service-tree" role="tree" aria-label="Service tree">
-                {catalogSchemaTree.map((entry) => {
-                  const expanded = expandedCatalogs.has(entry.catalog);
+              <div className="gh-catalog-tree" role="tree" aria-label="Catalog navigation">
+                {catalogSchemaTree.slice(0, 6).map((entry) => {
+                  const catalogActive =
+                    (filters.catalogs || []).includes(entry.catalog) ||
+                    selectedSchema?.catalog === entry.catalog;
+                  const expanded = expandedCatalogs.has(entry.catalog) || catalogActive;
                   return (
-                    <div className="gh-service-tree-catalog" key={entry.catalog}>
-                      <button
-                        aria-expanded={expanded}
-                        className={`gh-service-tree-row gh-service-tree-catalog-row ${expanded ? "is-expanded" : ""}`}
-                        onClick={() => toggleCatalogExpanded(entry.catalog)}
-                        type="button"
+                    <div className="gh-catalog-tree-entry" key={entry.catalog}>
+                      <label
+                        className={`gh-catalog-tree-row gh-catalog-tree-catalog-row ${catalogActive ? "is-active" : ""}`.trim()}
                       >
-                        <span className="gh-service-tree-caret" aria-hidden="true">{expanded ? "▾" : "▸"}</span>
-                        <span className="gh-service-tree-label">{entry.catalog}</span>
-                        <span className="gh-service-tree-count">{entry.count}</span>
-                      </button>
+                        <input
+                          aria-label={`Filter to catalog ${entry.catalog}`}
+                          checked={catalogActive}
+                          className="gh-catalog-tree-checkbox"
+                          onChange={() => {
+                            toggleCatalogExpanded(entry.catalog);
+                            toggleMulti(
+                              filters,
+                              "catalogs",
+                              entry.catalog,
+                              null,
+                              onDiscoveryStateChange,
+                            );
+                          }}
+                          type="checkbox"
+                        />
+                        <span className="gh-catalog-tree-label">{entry.catalog}</span>
+                        <span className="gh-catalog-tree-count">({entry.count.toLocaleString()})</span>
+                      </label>
                       {expanded ? (
-                        <div className="gh-service-tree-schemas">
-                          {entry.schemas.map((schemaEntry) => {
+                        <div className="gh-catalog-tree-schemas">
+                          {entry.schemas.slice(0, 8).map((schemaEntry) => {
                             const active =
                               selectedSchema?.catalog === entry.catalog &&
                               selectedSchema?.schema === schemaEntry.schema;
                             return (
                               <button
                                 aria-pressed={active}
-                                className={`gh-service-tree-row gh-service-tree-schema-row ${active ? "is-active" : ""}`}
+                                className={`gh-catalog-tree-row gh-catalog-tree-schema-row ${active ? "is-active" : ""}`.trim()}
                                 key={schemaEntry.schema}
                                 onClick={() => pickSchema(entry.catalog, schemaEntry.schema)}
                                 type="button"
                                 title={`Filter to ${entry.catalog}.${schemaEntry.schema}`}
                               >
-                                <span className="gh-service-tree-bullet" aria-hidden="true">·</span>
-                                <span className="gh-service-tree-label">{schemaEntry.schema}</span>
-                                <span className="gh-service-tree-count">{schemaEntry.count}</span>
+                                <span className="gh-catalog-tree-schema-indent" aria-hidden="true" />
+                                <span className="gh-catalog-tree-label">{schemaEntry.schema}</span>
+                                <span className="gh-catalog-tree-count">
+                                  ({schemaEntry.count.toLocaleString()})
+                                </span>
                               </button>
                             );
                           })}
@@ -2742,7 +2901,7 @@ export default function DiscoveryWorkspace({
                 })}
                 {selectedSchema ? (
                   <button
-                    className="gh-tertiary-button gh-service-tree-clear"
+                    className="gh-tertiary-button gh-catalog-tree-clear"
                     onClick={() => setSelectedSchema(null)}
                     type="button"
                   >
@@ -2751,7 +2910,7 @@ export default function DiscoveryWorkspace({
                 ) : null}
               </div>
             ) : (
-              <div className="gh-support-copy">Service tree will populate from visible inventory.</div>
+              <div className="gh-support-copy">Catalog tree will populate from visible inventory.</div>
             )}
           </SidebarSection>
         </SurfaceRail>
@@ -2760,6 +2919,14 @@ export default function DiscoveryWorkspace({
           <DiscoveryBreadcrumb
             onClear={() => setSelectedSchema(null)}
             schemaFilter={selectedSchema}
+          />
+          <PrimaryFacetChips
+            assetTypeCounts={liveAssetTypeCounts}
+            filters={filters}
+            obsoleteCount={facetCount(resultsFacets, "certifications", "Deprecated")}
+            onDiscoveryStateChange={onDiscoveryStateChange}
+            onOpenFilters={() => setShowAdvancedFilters((current) => !current)}
+            showFiltersBadge={directFilterCount}
           />
           <ActiveFilterStrip
             filters={filters}
