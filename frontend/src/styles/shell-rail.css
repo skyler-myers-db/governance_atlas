@@ -152,7 +152,224 @@
   border: 0;
 }
 
-/* --- header action buttons (Recent activity / Quick action) --- */
+/* --- brand band: brand | search | actions | user chip --- */
+.gh-shell-brand-band {
+  display: grid !important;
+  grid-template-columns: minmax(200px, auto) minmax(0, 1fr) auto !important;
+  align-items: center !important;
+  gap: 16px !important;
+  padding: 10px 16px !important;
+  min-height: 64px !important;
+}
+
+.gh-shell-brand-search-slot {
+  min-width: 0;
+  width: 100%;
+}
+
+.gh-shell-brand-tail {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+
+/* --- topbar search --- */
+.gh-topbar-search {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.gh-topbar-search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid rgba(182, 198, 216, 0.85);
+  border-radius: 999px;
+  background: rgba(247, 250, 255, 0.88);
+  min-height: 40px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.gh-topbar-search-field:hover {
+  border-color: rgba(91, 67, 238, 0.35);
+  background: #fff;
+}
+
+.gh-topbar-search-field:focus-within,
+.gh-topbar-search-field.is-open {
+  border-color: rgba(91, 67, 238, 0.55);
+  background: #fff;
+  box-shadow: var(--gh-focus-ring, 0 0 0 3px rgba(91, 67, 238, 0.22));
+}
+
+.gh-topbar-search-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #60748e;
+  flex: 0 0 auto;
+}
+
+.gh-topbar-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 0.88rem;
+  color: var(--gh-ink, #14213d);
+  outline: none;
+}
+
+.gh-topbar-search-input::placeholder {
+  color: #8794af;
+}
+
+.gh-topbar-search-input:disabled {
+  color: #b0b8c7;
+}
+
+.gh-topbar-search-field .gh-search-dropdown {
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  z-index: 240;
+}
+
+/* --- user chip: avatar + name + role --- */
+.gh-user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.gh-user-chip-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.gh-user-chip-name {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--gh-ink, #14213d);
+  letter-spacing: -0.01em;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gh-user-chip-role {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #60748e;
+  letter-spacing: 0.02em;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gh-user-chip-avatar {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(182, 198, 216, 0.7);
+}
+
+.gh-user-chip-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(182, 198, 216, 0.85);
+  background: rgba(247, 250, 255, 0.88);
+  color: #2f3b55;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.gh-user-chip-bell:hover {
+  background: #fff;
+  border-color: rgba(91, 67, 238, 0.35);
+  color: #2a2f6b;
+}
+
+.gh-user-chip-bell:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring);
+}
+
+.gh-user-chip-bell-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #cf5c66;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+/* --- status band (runtime + setup hints) moved out of the nav band --- */
+.gh-shell-status-band {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 16px 10px;
+  border-top: 1px dashed rgba(182, 198, 216, 0.5);
+}
+
+.gh-shell-status-band .gh-shell-context-state,
+.gh-shell-status-band .gh-shell-setup-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.gh-shell-status-band .gh-shell-status-note {
+  color: #60748e;
+  font-size: 0.8rem;
+}
+
+/* The top module-tab row duplicates the left icon rail. Hide it visually but
+   keep it in the DOM so accessibility tests can still resolve it. */
+.gh-shell-nav.gh-shell-nav-secondary {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- header action buttons (Take a ban / Quick action) --- */
 .gh-shell-header-actions {
   display: inline-flex;
   align-items: center;
@@ -205,6 +422,124 @@
 .gh-header-action-button:focus-visible {
   outline: none;
   box-shadow: var(--gh-focus-ring);
+}
+
+/* --- primary facet chip row (always-visible quick filters + Filters launcher) --- */
+.gh-primary-facet-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
+  border: 1px solid rgba(182, 198, 216, 0.65);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(18, 35, 58, 0.04);
+  margin-bottom: 10px;
+}
+
+.gh-primary-facet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #2f3b55;
+  background: rgba(236, 240, 248, 0.85);
+  border: 1px solid rgba(182, 198, 216, 0.85);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  line-height: 1.2;
+}
+
+.gh-primary-facet-chip:hover {
+  background: #fff;
+  border-color: rgba(91, 67, 238, 0.4);
+  color: #2a2f6b;
+}
+
+.gh-primary-facet-chip.is-active {
+  background: linear-gradient(135deg, rgba(91, 67, 238, 0.12), rgba(91, 67, 238, 0.04));
+  border-color: rgba(91, 67, 238, 0.55);
+  color: #2a2f6b;
+}
+
+.gh-primary-facet-chip.is-ghost {
+  background: transparent;
+  border-style: dashed;
+  color: #60748e;
+}
+
+.gh-primary-facet-chip-count {
+  color: #60748e;
+  font-weight: 700;
+}
+
+.gh-primary-facet-chip.is-active .gh-primary-facet-chip-count {
+  color: #2a2f6b;
+}
+
+.gh-primary-facet-chip-x {
+  margin-left: 2px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: #6b7793;
+}
+
+.gh-primary-facet-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring);
+}
+
+.gh-primary-facet-spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+
+.gh-primary-facet-launch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #2f3b55;
+  background: #fff;
+  border: 1px solid rgba(182, 198, 216, 0.85);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.gh-primary-facet-launch:hover {
+  background: rgba(236, 240, 248, 0.85);
+  border-color: rgba(91, 67, 238, 0.4);
+}
+
+.gh-primary-facet-launch:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring);
+}
+
+.gh-primary-facet-launch-icon {
+  font-size: 0.92rem;
+}
+
+.gh-primary-facet-launch-badge {
+  margin-left: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(91, 67, 238, 0.12);
+  color: #3a28c5;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* --- Discovery / Navigation sub-tabs --- */
@@ -344,6 +679,101 @@
   text-align: center;
 }
 
+/* --- Catalog tree (target-style checkbox hierarchy) --- */
+.gh-catalog-tree {
+  display: grid;
+  gap: 4px;
+}
+
+.gh-catalog-tree-entry {
+  display: grid;
+  gap: 2px;
+}
+
+.gh-catalog-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  color: var(--gh-ink, #14213d);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  line-height: 1.3;
+  text-align: left;
+  width: 100%;
+  min-width: 0;
+}
+
+.gh-catalog-tree-row:hover {
+  background: rgba(236, 240, 248, 0.82);
+}
+
+.gh-catalog-tree-catalog-row.is-active {
+  background: rgba(91, 67, 238, 0.08);
+  color: #2a2f6b;
+  font-weight: 700;
+}
+
+.gh-catalog-tree-schema-row.is-active {
+  background: rgba(91, 67, 238, 0.06);
+  color: #2a2f6b;
+  font-weight: 700;
+}
+
+.gh-catalog-tree-checkbox {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  accent-color: #5b43ee;
+}
+
+.gh-catalog-tree-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.gh-catalog-tree-catalog-row .gh-catalog-tree-label {
+  font-weight: 700;
+}
+
+.gh-catalog-tree-count {
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  color: #60748e;
+  font-weight: 700;
+}
+
+.gh-catalog-tree-schemas {
+  display: grid;
+  gap: 1px;
+  padding-left: 22px;
+}
+
+.gh-catalog-tree-schema-indent {
+  width: 2px;
+  align-self: stretch;
+  background: rgba(182, 198, 216, 0.6);
+  border-radius: 1px;
+  margin-right: 6px;
+}
+
+.gh-catalog-tree-schema-row {
+  padding: 4px 10px 4px 0;
+}
+
+.gh-catalog-tree-clear {
+  margin-top: 4px;
+  align-self: start;
+  font-size: 0.78rem;
+}
+
 /* --- Sidebar free-text inputs (Owner + Glossary) --- */
 .gh-sidebar-input {
   width: 100%;
@@ -369,6 +799,158 @@
   outline: none;
   border-color: rgba(91, 67, 238, 0.55);
   box-shadow: var(--gh-focus-ring);
+}
+
+/* --- Asset card: owner chip with avatar + name inline --- */
+.gh-discovery-asset-owner-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 3px;
+  font-size: 0.82rem;
+  color: var(--gh-ink, #14213d);
+  background: rgba(247, 250, 255, 0.92);
+  border: 1px solid rgba(182, 198, 216, 0.6);
+  border-radius: 999px;
+  font-weight: 700;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.gh-discovery-asset-owner-chip-empty {
+  color: #8794af;
+  font-weight: 600;
+}
+
+.gh-discovery-asset-owner-placeholder {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(182, 198, 216, 0.35);
+  font-size: 0.82rem;
+  color: #8794af;
+}
+
+.gh-discovery-asset-owner-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 140px;
+}
+
+.gh-discovery-asset-owner-extra {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(182, 198, 216, 0.35);
+  color: #4c5c78;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+/* Card chip row: flex layout with end-aligned workflow state via spacer */
+.gh-discovery-asset-card-chips {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.gh-discovery-asset-chip-spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Workflow state badges — target parity: PUBLISHED (green), IN REVIEW (amber), OBSOLETE (red) */
+.gh-discovery-asset-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+
+.gh-discovery-asset-status-published {
+  background: rgba(45, 138, 116, 0.12);
+  border-color: rgba(45, 138, 116, 0.35);
+  color: #1f7057;
+}
+
+.gh-discovery-asset-status-in-review {
+  background: rgba(201, 135, 45, 0.12);
+  border-color: rgba(201, 135, 45, 0.35);
+  color: #9a5b0f;
+}
+
+.gh-discovery-asset-status-obsolete {
+  background: rgba(180, 35, 24, 0.1);
+  border-color: rgba(180, 35, 24, 0.35);
+  color: #a52014;
+}
+
+.gh-discovery-asset-status-neutral {
+  background: rgba(182, 198, 216, 0.35);
+  border-color: rgba(182, 198, 216, 0.55);
+  color: #4c5c78;
+}
+
+/* Usage row: icons + metrics + right-aligned coverage */
+.gh-discovery-asset-card-usage {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #60748e;
+}
+
+.gh-discovery-asset-usage-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.gh-discovery-asset-usage-icon {
+  color: #8794af;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+/* Coverage / trust pill */
+.gh-discovery-asset-trust {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+
+.gh-discovery-asset-trust.is-high {
+  background: rgba(45, 138, 116, 0.12);
+  border-color: rgba(45, 138, 116, 0.32);
+  color: #1f7057;
+}
+
+.gh-discovery-asset-trust.is-mid {
+  background: rgba(201, 135, 45, 0.1);
+  border-color: rgba(201, 135, 45, 0.3);
+  color: #9a5b0f;
+}
+
+.gh-discovery-asset-trust.is-low {
+  background: rgba(100, 116, 139, 0.12);
+  border-color: rgba(100, 116, 139, 0.32);
+  color: #4c5c78;
 }
 
 /* --- Density rules that target the current card grid --- */

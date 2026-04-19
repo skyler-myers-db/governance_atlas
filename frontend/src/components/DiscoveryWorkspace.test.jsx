@@ -1797,12 +1797,14 @@ describe("DiscoveryWorkspace", () => {
         ([updater]) => typeof updater === "function" && updater(discoveryFilters()).sortBy === "Best match",
       ),
     ).toBe(true);
-    expect(screen.getByText("Filters")).not.toBeNull();
+    // "Filters" now appears in the sidebar title, the quick-filter launcher,
+    // and the popover heading. Assert via the popover's stable DOM id.
+    expect(document.querySelector(".gh-filters-popover")).not.toBeNull();
     expect(screen.getByText("Structured Search Helper")).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
-    expect(screen.queryByText("Filters")).toBeNull();
+    expect(document.querySelector(".gh-filters-popover")).toBeNull();
   });
 
   it("does not hydrate dynamic filter options from bootstrap when live facets are empty", () => {
@@ -1858,7 +1860,9 @@ describe("DiscoveryWorkspace", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Stack Filters" }));
 
-    const filtersPopover = screen.getByText("Filters").closest(".gh-filters-popover");
+    // The sidebar now also carries the word "Filters" as its section title,
+    // so locate the popover by its stable DOM id instead of by text match.
+    const filtersPopover = document.querySelector(".gh-filters-popover");
     if (!filtersPopover) throw new Error("Expected filters popover");
 
     expect(within(filtersPopover).getByRole("button", { name: "All assets" })).not.toBeNull();

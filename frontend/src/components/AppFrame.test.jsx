@@ -104,11 +104,19 @@ describe("AppFrame", () => {
     expect(screen.getByRole("button", { name: "Workspace setup" })).not.toBeNull();
   });
 
-  it("shows command bar guidance and visible catalog scope copy", () => {
+  it("renders the topbar search input with the discovery-wide placeholder", () => {
     render(<FrameHarness />);
 
-    expect(screen.getByText("Command bar")).not.toBeNull();
-    expect(screen.getByText("3 visible assets in scope")).not.toBeNull();
+    // The topbar search is the global entry point for catalog lookup. The
+    // placeholder guidance used to live in a separate command-bar block; it
+    // now reads from the input's placeholder attribute instead.
+    const searchInput = screen.getByLabelText(
+      /Search Databricks Unity Catalog/i,
+    );
+    expect(searchInput).not.toBeNull();
+    expect(searchInput.getAttribute("placeholder")).toMatch(
+      /Search across Databricks Unity Catalog/i,
+    );
   });
 
   it("publishes a measured shell header height for sticky workspace offsets", async () => {
@@ -215,7 +223,11 @@ describe("AppFrame", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Inbox" }));
+    // The inbox trigger moved from a text "Inbox" button into the bell icon
+    // inside the user chip. Its accessible name includes the unread count.
+    fireEvent.click(
+      screen.getByRole("button", { name: /Notifications \(2 unread\)/i }),
+    );
 
     expect(screen.getByText("Inbox ready")).not.toBeNull();
     expect(screen.getByText("2 unread")).not.toBeNull();
