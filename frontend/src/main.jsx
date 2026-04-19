@@ -11,6 +11,7 @@ import "./styles/lineage.css";
 import "./styles/discovery.css";
 import "./styles/entity.css";
 import "./styles/governance.css";
+import "./styles/shell-rail.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

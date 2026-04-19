@@ -144,14 +144,23 @@ function parseRouteState(pathname = "/", search = "") {
     "discovery";
   const pathAsset = pathRoute?.asset || "";
   const queryAsset = params.get("asset") || "";
-  const initialAsset = pathAsset || queryAsset;
+  const previewAsset = params.get("preview") || "";
+  // Lineage and Entity surfaces may be deep-linked via legacy `?preview=fqn`
+  // URLs produced elsewhere (Discovery preview sharing). Treat preview as a
+  // last-resort asset identity so the surface auto-focuses rather than
+  // landing on an empty state.
+  const lineageOrEntityFallback =
+    (initialSurface === "lineage" || initialSurface === "entity") && !pathAsset && !queryAsset
+      ? previewAsset
+      : "";
+  const initialAsset = pathAsset || queryAsset || lineageOrEntityFallback;
 
   return {
     surface: initialSurface,
     asset: initialSurface === "discovery" ? "" : initialAsset,
     discoveryQuery: params.get("q") || "",
     discoverySort: params.get("sort") || "",
-    discoveryPreview: params.get("preview") || "",
+    discoveryPreview: previewAsset,
     discoveryViews,
     discoveryFilterGroups: parseDiscoveryFilterGroups(params.get("filters") || ""),
   };

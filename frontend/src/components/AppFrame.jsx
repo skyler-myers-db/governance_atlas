@@ -7,6 +7,7 @@ import { GlobalHeader } from "./primitives/GlobalHeader";
 import { GlobalSearch } from "./primitives/GlobalSearch";
 import { InboxPanel } from "./primitives/InboxPanel";
 import { CommandPalette } from "./primitives/CommandPalette";
+import { SideIconRail } from "./primitives/SideIconRail";
 import { humanizeStatusLabel } from "./primitives/shellStatusLabels";
 
 export default function AppFrame({
@@ -254,12 +255,19 @@ export default function AppFrame({
 
   return (
     <div
-      className="gh-app"
+      className="gh-app gh-app-with-rail"
       data-shell-sticky-ready={shellHeaderHeight > 0 ? "true" : "false"}
       style={/** @type {import("react").CSSProperties} */ ({
         "--gh-shell-header-height": `${shellHeaderHeight}px`,
       })}
     >
+      <SideIconRail
+        activeModule={activeModule}
+        onModuleChange={onModuleChange}
+        onOpenSettings={onToggleDiagnostics}
+        shellDisabled={shellDisabled}
+        shellDisabledReason={shellDisabledReason}
+      />
       <header className="gh-shell-header" ref={shellHeaderRef}>
         <GlobalHeader
           shell={shell}
@@ -281,6 +289,7 @@ export default function AppFrame({
           inboxOpen={inboxOpen}
           inboxUnreadCount={inboxUnreadCount}
           onToggleInbox={onToggleInbox}
+          onOpenCommandPalette={() => setCommandOpen(true)}
         />
 
         <GlobalSearch

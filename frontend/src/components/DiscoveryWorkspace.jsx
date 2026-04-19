@@ -1840,6 +1840,9 @@ export default function DiscoveryWorkspace({
   // filtering. Selecting the same leaf again clears the pick.
   const [expandedCatalogs, setExpandedCatalogs] = useState(() => new Set());
   const [selectedSchema, setSelectedSchema] = useState(null);
+  const [ownerFilterText, setOwnerFilterText] = useState("");
+  const [glossaryFilterText, setGlossaryFilterText] = useState("");
+  const [discoverySubView, setDiscoverySubView] = useState("discovery"); // "discovery" | "navigation"
   const toggleCatalogExpanded = (catalog) => {
     setExpandedCatalogs((current) => {
       const next = new Set(current);
@@ -1912,10 +1915,24 @@ export default function DiscoveryWorkspace({
     !discoveryResults.authoritative &&
     !(discoveryResults.assets || []).length;
   const allDiscoveryAssets = suppressCatalogRows ? [] : discoveryResults.assets;
-  // #16 Live-updating asset-type counts keyed off the *filtered* result
-  // list so sidebar numbers shrink as the user narrows (OM does this).
+  // Asset type counts: prefer backend facet counts (which aggregate over the
+  // FULL match set, matching Domain/Sensitivity/Workflow) over client-side
+  // counts of the visible page. Falls back to per-page counts only when
+  // facets haven't been returned yet.
   const liveAssetTypeCounts = useMemo(() => {
-    const counts = { "All types": allDiscoveryAssets.length };
+    const facetTypeEntries = Array.isArray(discoveryResults.facets?.assetTypes)
+      ? discoveryResults.facets.assetTypes
+      : [];
+    const facetMap = {};
+    for (const entry of facetTypeEntries) {
+      if (entry && entry.value != null) facetMap[entry.value] = Number(entry.count || 0);
+    }
+    const totalFromFacets = facetTypeEntries.reduce(
+      (sum, entry) => sum + Number(entry?.count || 0),
+      0,
+    );
+    // Client-side per-visible-page tally (fallback + merge)
+    const clientCounts = {};
     for (const entry of allDiscoveryAssets) {
       const t = String(entry?.assetType || entry?.objectType || entry?.type || "").trim();
       const resolved =
@@ -1925,10 +1942,18 @@ export default function DiscoveryWorkspace({
         : t === "Streaming Table" || t === "STREAMING_TABLE" ? "Streaming Table"
         : t === "Metric View" || t === "METRIC_VIEW" ? "Metric View"
         : t || "Unknown";
-      counts[resolved] = (counts[resolved] || 0) + 1;
+      clientCounts[resolved] = (clientCounts[resolved] || 0) + 1;
     }
+    const counts = { ...clientCounts, ...facetMap };
+    // "All types" should reflect the full result-set count, aligning with
+    // "All domains" (which reads facet totals). Fall back to facet sum or
+    // visible-page length if resultsCount isn't yet known.
+    counts["All types"] =
+      (Number.isFinite(Number(discoveryResults.count)) && Number(discoveryResults.count) > 0)
+        ? Number(discoveryResults.count)
+        : totalFromFacets || allDiscoveryAssets.length;
     return counts;
-  }, [allDiscoveryAssets]);
+  }, [allDiscoveryAssets, discoveryResults.count, discoveryResults.facets]);
 
   // #11 Real saved-view counts computed client-side so the numbers
   // actually track state (previously they were either unreachable
@@ -1984,16 +2009,44 @@ export default function DiscoveryWorkspace({
       }))
       .sort((a, b) => a.catalog.localeCompare(b.catalog));
   }, [allDiscoveryAssets]);
-  // Apply the (catalog,schema) pick as a client-side filter so the
-  // tree acts as a drill-down scope on the result list without
-  // round-tripping through the discovery search contract.
+  // Apply the (catalog,schema) pick + owner/glossary free-text filters as
+  // client-side scopes on the result list without round-tripping through
+  // the discovery search contract.
   const renderableDiscoveryAssets = useMemo(() => {
-    if (!selectedSchema) return allDiscoveryAssets;
-    const { catalog, schema } = selectedSchema;
-    return allDiscoveryAssets.filter(
-      (entry) => entry?.catalog === catalog && entry?.schema === schema,
-    );
-  }, [allDiscoveryAssets, selectedSchema]);
+    let list = allDiscoveryAssets;
+    if (selectedSchema) {
+      const { catalog, schema } = selectedSchema;
+      list = list.filter((entry) => entry?.catalog === catalog && entry?.schema === schema);
+    }
+    const ownerNeedle = ownerFilterText.trim().toLowerCase();
+    if (ownerNeedle) {
+      list = list.filter((entry) => {
+        const owners = Array.isArray(entry?.owners) ? entry.owners : [];
+        return owners.some((owner) => {
+          const label = typeof owner === "string" ? owner : owner?.name || owner?.email || owner?.label || "";
+          return String(label).toLowerCase().includes(ownerNeedle);
+        });
+      });
+    }
+    const glossaryNeedle = glossaryFilterText.trim().toLowerCase();
+    if (glossaryNeedle) {
+      list = list.filter((entry) => {
+        const terms = Array.isArray(entry?.glossaryTerms) ? entry.glossaryTerms : [];
+        if (terms.some((term) => {
+          const label = typeof term === "string" ? term : term?.name || term?.label || "";
+          return String(label).toLowerCase().includes(glossaryNeedle);
+        })) {
+          return true;
+        }
+        const tags = Array.isArray(entry?.tags) ? entry.tags : [];
+        return tags.some((tag) => {
+          const label = typeof tag === "string" ? tag : tag?.name || tag?.label || "";
+          return String(label).toLowerCase().includes(glossaryNeedle);
+        });
+      });
+    }
+    return list;
+  }, [allDiscoveryAssets, selectedSchema, ownerFilterText, glossaryFilterText]);
   const explicitRoutePreviewIndex = useMemo(
     () =>
       routePreviewAssetFqn
@@ -2600,6 +2653,28 @@ export default function DiscoveryWorkspace({
             );
           })()}
 
+          <SidebarSection title="Owner">
+            <input
+              aria-label="Filter by owner email or name"
+              className="gh-sidebar-input"
+              onChange={(event) => setOwnerFilterText(event.target.value)}
+              placeholder="User / team email"
+              type="text"
+              value={ownerFilterText}
+            />
+          </SidebarSection>
+
+          <SidebarSection title="Glossary Term">
+            <input
+              aria-label="Filter by glossary term or tag"
+              className="gh-sidebar-input"
+              onChange={(event) => setGlossaryFilterText(event.target.value)}
+              placeholder="Glossary Term"
+              type="text"
+              value={glossaryFilterText}
+            />
+          </SidebarSection>
+
           <SidebarSection title="Saved Views">
             <div className="gh-saved-view-list">
               {bootstrap.discovery.views.map((view) => (
@@ -2693,9 +2768,33 @@ export default function DiscoveryWorkspace({
             schemaFilter={selectedSchema}
           />
           <div className="gh-panel gh-discovery-command-panel" ref={filterCommandRef}>
+            <div className="gh-discovery-subtabs-row" role="tablist" aria-label="Discovery view">
+              <div className="gh-sub-tab-row">
+                <button
+                  aria-selected={discoverySubView === "discovery"}
+                  className={`gh-sub-tab ${discoverySubView === "discovery" ? "is-active" : ""}`}
+                  onClick={() => setDiscoverySubView("discovery")}
+                  role="tab"
+                  type="button"
+                >
+                  Discovery
+                </button>
+                <button
+                  aria-selected={discoverySubView === "navigation"}
+                  className={`gh-sub-tab ${discoverySubView === "navigation" ? "is-active" : ""}`}
+                  onClick={() => setDiscoverySubView("navigation")}
+                  role="tab"
+                  type="button"
+                >
+                  Navigation
+                </button>
+              </div>
+            </div>
             <div className="gh-discovery-command-head-v2">
               <div className="gh-discovery-command-heading">
-                <h2 className="gh-discovery-command-title">Discovery</h2>
+                <h2 className="gh-discovery-command-title">
+                  {discoverySubView === "navigation" ? "Navigation" : "Discovery"}
+                </h2>
                 <div className="gh-discovery-command-subline">
                   {showLiveFacetCounts ? (
                     <>
@@ -2883,6 +2982,46 @@ export default function DiscoveryWorkspace({
               title={invalidQuery.message || "Invalid discovery query."}
               tone="bad"
             />
+          ) : discoverySubView === "navigation" ? (
+            <div className="gh-navigation-grid" role="region" aria-label="Catalog navigation">
+              {catalogSchemaTree.length ? (
+                catalogSchemaTree.map((entry) => (
+                  <div className="gh-navigation-catalog" key={entry.catalog}>
+                    <div className="gh-navigation-catalog-head">
+                      <span className="gh-navigation-catalog-name">{entry.catalog}</span>
+                      <span className="gh-navigation-catalog-count">{entry.count} assets</span>
+                    </div>
+                    <div className="gh-navigation-schema-grid">
+                      {entry.schemas.map((schemaEntry) => {
+                        const active =
+                          selectedSchema?.catalog === entry.catalog &&
+                          selectedSchema?.schema === schemaEntry.schema;
+                        return (
+                          <button
+                            aria-pressed={active}
+                            className={`gh-navigation-schema-card ${active ? "is-active" : ""}`.trim()}
+                            key={schemaEntry.schema}
+                            onClick={() => {
+                              pickSchema(entry.catalog, schemaEntry.schema);
+                              setDiscoverySubView("discovery");
+                            }}
+                            title={`Open ${entry.catalog}.${schemaEntry.schema} in Discovery`}
+                            type="button"
+                          >
+                            <span className="gh-navigation-schema-name">{schemaEntry.schema}</span>
+                            <span className="gh-navigation-schema-count">{schemaEntry.count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="gh-support-copy">
+                  Navigation will populate once the catalog is live.
+                </div>
+              )}
+            </div>
           ) : hasRenderableResults ? (
             <div className={`gh-result-list gh-discovery-card-list density-${density} gh-discovery-table`}>
               <DiscoveryActivityHome
