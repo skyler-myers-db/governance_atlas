@@ -123,10 +123,10 @@
 }
 
 .gh-side-rail-button.is-active {
-  background: linear-gradient(135deg, rgba(91, 67, 238, 0.12), rgba(91, 67, 238, 0.04));
-  color: #3a28c5;
-  border-color: rgba(91, 67, 238, 0.32);
-  box-shadow: inset 2px 0 0 #5b43ee;
+  background: rgba(225, 29, 116, 0.06);
+  color: #b0195f;
+  border-color: transparent;
+  box-shadow: inset 2px 0 0 #e11d74;
 }
 
 .gh-side-rail-button:disabled {
@@ -152,19 +152,63 @@
   border: 0;
 }
 
-/* --- brand band: brand | search | actions | user chip --- */
+/* --- brand band: brand | search | user chip (target layout) --- */
 .gh-shell-brand-band {
   display: grid !important;
-  grid-template-columns: minmax(200px, auto) minmax(0, 1fr) auto !important;
+  grid-template-columns: minmax(220px, auto) minmax(0, 1fr) auto !important;
   align-items: center !important;
-  gap: 16px !important;
+  gap: clamp(12px, 1.4vw, 28px) !important;
   padding: 10px 16px !important;
-  min-height: 64px !important;
+  min-height: 56px !important;
+}
+
+.gh-shell-brand {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  color: var(--gh-ink, #14213d);
+  white-space: nowrap;
+}
+
+.gh-shell-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: #e11d74; /* sigma pink — matches target mark */
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.gh-shell-brand-title {
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--gh-ink, #14213d);
+}
+
+/* Kill any legacy brand-copy block (subtitle) */
+.gh-shell-brand-copy,
+.gh-shell-brand-subtitle,
+.gh-shell-brand-glyph {
+  display: none !important;
 }
 
 .gh-shell-brand-search-slot {
   min-width: 0;
   width: 100%;
+  display: flex;
+  justify-content: center;
+  flex: 1 1 auto;
 }
 
 .gh-shell-brand-tail {
@@ -175,10 +219,12 @@
   flex-wrap: nowrap;
 }
 
-/* --- topbar search --- */
+/* --- topbar search (wider, centered) --- */
 .gh-topbar-search {
+  flex: 1 1 auto;
   width: 100%;
-  max-width: 720px;
+  min-width: clamp(320px, 36vw, 640px);
+  max-width: clamp(420px, 45vw, 720px);
   margin: 0 auto;
 }
 
@@ -316,13 +362,13 @@
 
 .gh-user-chip-bell-dot {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
+  top: 4px;
+  right: 4px;
+  min-width: 8px;
+  height: 8px;
+  padding: 0 3px;
   border-radius: 999px;
-  background: #cf5c66;
+  background: #e11d74; /* same pink accent as brand */
   color: #fff;
   font-size: 10px;
   font-weight: 800;
@@ -330,6 +376,14 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 0 0 2px #fff;
+}
+
+/* When there's an unread count, swell the dot to a pill */
+.gh-user-chip-bell-dot:not(:empty) {
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
 }
 
 /* --- status band (runtime + setup hints) moved out of the nav band --- */
@@ -542,39 +596,49 @@
   justify-content: center;
 }
 
-/* --- Discovery / Navigation sub-tabs --- */
+/* --- Discovery / Navigation sub-tabs (underline style, target parity) --- */
 .gh-sub-tab-row {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 10px;
-  background: rgba(236, 240, 248, 0.78);
-  border: 1px solid rgba(182, 198, 216, 0.72);
+  gap: 24px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(182, 198, 216, 0.4);
+  width: 100%;
 }
 
 .gh-sub-tab {
-  padding: 6px 14px;
-  font-size: 0.84rem;
+  position: relative;
+  padding: 10px 2px;
+  font-size: 0.86rem;
   font-weight: 700;
-  color: #5c6b82;
+  color: #60748e;
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: 0;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
-  min-height: 30px;
+  transition: color 120ms ease;
+  min-height: 32px;
 }
 
 .gh-sub-tab:hover {
-  background: rgba(255, 255, 255, 0.72);
-  color: #2f3b55;
+  color: #14213d;
 }
 
 .gh-sub-tab.is-active {
-  background: #fff;
   color: #14213d;
-  box-shadow: 0 2px 6px rgba(18, 35, 58, 0.1);
+}
+
+.gh-sub-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: #5b43ee;
 }
 
 .gh-sub-tab:focus-visible {
@@ -677,6 +741,128 @@
   padding: 2px 8px;
   min-width: 28px;
   text-align: center;
+}
+
+/* --- Filters rail header + checkbox-style rows (target parity) --- */
+.gh-filters-rail {
+  position: sticky;
+  top: 14px;
+  align-self: start;
+  padding: 14px 0 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: none;
+  display: grid;
+  gap: 6px;
+}
+
+.gh-filters-rail-head {
+  padding: 0 16px 8px;
+}
+
+.gh-filters-rail-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #14213d;
+}
+
+/* Collapse chevrons on each section */
+.gh-sidebar-section-toggle {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 16px;
+  border: 0;
+  background: transparent;
+  color: #14213d;
+  text-align: left;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.gh-sidebar-section-toggle:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.gh-sidebar-section-toggle .gh-panel-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #14213d;
+  text-transform: none;
+}
+
+.gh-sidebar-section-chevron {
+  display: inline-flex;
+  align-items: center;
+  color: #60748e;
+  transition: transform 140ms ease;
+}
+
+.gh-sidebar-section-chevron.is-collapsed {
+  transform: rotate(-90deg);
+}
+
+.gh-sidebar-section-body {
+  padding: 2px 16px 10px;
+}
+
+/* Checkbox-row filter items (asset type, domain, workflow) */
+.gh-checkbox-list {
+  display: grid;
+  gap: 2px;
+}
+
+.gh-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  color: #14213d;
+  cursor: pointer;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.gh-checkbox-row:hover {
+  background: rgba(236, 240, 248, 0.72);
+}
+
+.gh-checkbox-row.is-active {
+  background: rgba(91, 67, 238, 0.06);
+  color: #2a2f6b;
+  font-weight: 700;
+}
+
+.gh-checkbox-row .gh-checkbox {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  accent-color: #5b43ee;
+  margin: 0;
+}
+
+.gh-checkbox-row .gh-checkbox-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.gh-checkbox-row .gh-checkbox-count {
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #60748e;
 }
 
 /* --- Catalog tree (target-style checkbox hierarchy) --- */
@@ -953,6 +1139,80 @@
   color: #4c5c78;
 }
 
+/* --- Force 3-column grid at common viewports (target parity) --- */
+.gh-discovery-card-list.gh-result-list {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+  padding: 0;
+}
+
+@media (max-width: 1040px) {
+  .gh-discovery-card-list.gh-result-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .gh-discovery-card-list.gh-result-list {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* Recently Viewed chip row + any full-width children should span all three columns */
+.gh-discovery-card-list.gh-result-list > .gh-activity-home,
+.gh-discovery-card-list.gh-result-list > .gh-discovery-bulk-bar,
+.gh-discovery-card-list.gh-result-list > .gh-discovery-results-more {
+  grid-column: 1 / -1;
+}
+
+/* Flatten the card border to a thin charcoal stroke — no gradient background,
+   no purple left accent bar, no soft drop shadow. */
+.gh-discovery-asset-card {
+  background: #fff !important;
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
+  box-shadow: none !important;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.gh-discovery-asset-card::before {
+  display: none !important;
+}
+
+.gh-discovery-asset-card:hover {
+  border-color: rgba(91, 67, 238, 0.28) !important;
+  transform: none;
+  box-shadow: 0 4px 12px rgba(18, 35, 58, 0.04) !important;
+}
+
+.gh-discovery-asset-card.is-selected {
+  border-color: rgba(91, 67, 238, 0.55) !important;
+  background: rgba(246, 244, 255, 0.7) !important;
+  box-shadow: none !important;
+}
+
+/* Domain pill fallback tone */
+.gh-discovery-asset-pill-domain.is-fallback {
+  background: rgba(100, 116, 139, 0.08);
+  border-color: rgba(100, 116, 139, 0.22);
+  color: #4c5c78;
+  letter-spacing: 0.08em;
+}
+
+/* Usage row dots */
+.gh-discovery-asset-usage-dot {
+  color: #8794af;
+  font-size: 0.9rem;
+}
+
+/* Hide card-level Updated footer block in favor of sr-only helpers */
+.gh-discovery-asset-card-foot {
+  display: none !important;
+}
+
 /* --- Density rules that target the current card grid --- */
 .gh-discovery-card-list.density-compact .gh-discovery-asset-card {
   padding: 10px 12px;
@@ -1139,6 +1399,253 @@ input:focus-visible {
   max-width: 200px !important;
   font-size: 11px !important;
   padding: 3px 8px !important;
+}
+
+/* --- Preview panel (Asset preview rail) --- */
+.gh-selection-preview .gh-surface-rail-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: #5c6b82;
+}
+
+.gh-asset-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 4px;
+}
+
+.gh-asset-preview-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(91, 67, 238, 0.08);
+  flex: 0 0 auto;
+}
+
+.gh-asset-preview-header-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #14213d;
+}
+
+.gh-asset-preview-header-close {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  color: #60748e;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gh-asset-preview-header-close:hover {
+  background: rgba(15, 23, 42, 0.08);
+  color: #14213d;
+}
+
+.gh-asset-preview-description {
+  font-size: 0.84rem;
+  color: #4c5c78;
+  line-height: 1.4;
+  padding-bottom: 6px;
+}
+
+.gh-asset-preview-action-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+}
+
+.gh-asset-preview-action-glyph {
+  color: #e2a000;
+  margin-right: 4px;
+}
+
+.gh-labeled-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+}
+
+.gh-labeled-pill-domain {
+  background: rgba(225, 29, 116, 0.1);
+  border-color: rgba(225, 29, 116, 0.32);
+  color: #b0195f;
+}
+
+.gh-labeled-pill-glossary {
+  background: rgba(91, 67, 238, 0.08);
+  border-color: rgba(91, 67, 238, 0.3);
+  color: #3a28c5;
+}
+
+/* Lineage mini preview with icon nodes */
+.gh-lineage-mini-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: rgba(247, 250, 255, 0.6);
+}
+
+.gh-lineage-mini-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #fff;
+}
+
+.gh-lineage-mini-node-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2f3b55;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-lineage-mini-node.is-current {
+  border-color: rgba(91, 67, 238, 0.4);
+  background: rgba(91, 67, 238, 0.04);
+}
+
+.gh-lineage-mini-arrow {
+  flex: 0 0 auto;
+  color: #60748e;
+}
+
+/* Usage metrics 2-cell */
+.gh-asset-preview-usage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.gh-asset-preview-usage-cell {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: rgba(247, 250, 255, 0.5);
+}
+
+.gh-asset-preview-usage-label {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #4c5c78;
+  letter-spacing: 0.02em;
+}
+
+.gh-asset-preview-usage-subcell {
+  font-size: 0.82rem;
+  color: #60748e;
+  font-weight: 600;
+}
+
+/* Associated tasks tree */
+.gh-asset-preview-tasks-title {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+}
+
+.gh-info-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: #8794af;
+}
+
+.gh-asset-preview-task-tree {
+  display: grid;
+  gap: 4px;
+}
+
+.gh-asset-preview-task-row.is-parent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(91, 67, 238, 0.05);
+  font-size: 0.84rem;
+  color: #2f3b55;
+}
+
+.gh-asset-preview-task-title {
+  font-weight: 800;
+}
+
+.gh-asset-preview-task-detail {
+  color: #60748e;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-asset-preview-task-child {
+  padding: 4px 28px;
+  font-size: 0.82rem;
+  color: #60748e;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- M7: Global framing (flat bg, thin charcoal borders, no soft shadow) --- */
+body {
+  background: #fafbfd !important;
+}
+
+.gh-panel,
+.gh-panel.gh-discovery-command-panel,
+.gh-shell-header,
+.gh-filters-rail,
+.gh-selection-preview {
+  border: 1px solid rgba(15, 23, 42, 0.09) !important;
+  box-shadow: none !important;
+  background: #fff !important;
+}
+
+.gh-shell-header {
+  background: #fff !important;
+}
+
+/* Side rail panel: thin charcoal stroke to match */
+.gh-side-rail {
+  border: 1px solid rgba(15, 23, 42, 0.09) !important;
+  box-shadow: none !important;
+  background: #fff !important;
 }
 
 /* Prevent horizontal overflow from long FQNs / badges */

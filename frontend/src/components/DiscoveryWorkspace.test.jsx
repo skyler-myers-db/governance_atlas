@@ -380,7 +380,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const preview = screen.getByText("Selected Asset").closest("aside");
+    const preview = document.querySelector(".gh-selection-preview");
     if (!preview) throw new Error("Expected selected-asset preview rail");
     expect(within(preview).getByRole("heading", { name: "orders" })).not.toBeNull();
     expect(within(preview).getByRole("button", { name: "Open Record" })).not.toBeNull();
@@ -456,7 +456,7 @@ describe("DiscoveryWorkspace", () => {
         ),
       ).not.toBeNull();
       expect(within(unavailableCard).getByRole("button", { name: "Open Governance" }).disabled).toBe(true);
-      const preview = screen.getByText("Selected Asset").closest("aside");
+      const preview = document.querySelector(".gh-selection-preview");
       if (!preview) throw new Error("Expected selected-asset preview rail");
       expect(
         within(preview).getByRole("button", { name: "Metadata record unavailable" }).disabled,
@@ -522,7 +522,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const preview = screen.getByText("Selected Asset").closest("aside");
+    const preview = document.querySelector(".gh-selection-preview");
     if (!preview) throw new Error("Expected selected-asset preview rail");
     expect(
       within(preview).getByRole("button", { name: "Metadata record unavailable" }).disabled,
@@ -595,7 +595,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const preview = screen.getByText("Selected Asset").closest("aside");
+    const preview = document.querySelector(".gh-selection-preview");
     if (!preview) throw new Error("Expected selected-asset preview rail");
     fireEvent.click(within(preview).getByRole("button", { name: "Open Record" }));
 
@@ -693,7 +693,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const firstPreview = screen.getByText("Selected Asset").closest("aside");
+    const firstPreview = document.querySelector(".gh-selection-preview");
     if (!firstPreview) throw new Error("Expected first selected-asset preview rail");
     fireEvent.click(within(firstPreview).getByRole("button", { name: "Open Record" }));
 
@@ -741,7 +741,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const refreshedPreview = screen.getByText("Selected Asset").closest("aside");
+    const refreshedPreview = document.querySelector(".gh-selection-preview");
     if (!refreshedPreview) throw new Error("Expected refreshed selected-asset preview rail");
     await waitFor(() => {
       expect(within(refreshedPreview).getByRole("button", { name: "Open Record" }).disabled).toBe(false);
@@ -812,7 +812,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const preview = screen.getByText("Selected Asset").closest("aside");
+    const preview = document.querySelector(".gh-selection-preview");
     if (!preview) throw new Error("Expected selected-asset preview rail");
 
     const openableRow = within(preview).getByText(openableLinkedAssetFqn).closest(".gh-lineage-linked-row");
@@ -911,7 +911,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const preview = screen.getByText("Selected Asset").closest("aside");
+    const preview = document.querySelector(".gh-selection-preview");
     if (!preview) throw new Error("Expected selected-asset preview rail");
 
     const pendingButton = within(preview).getByRole("button", {
@@ -1030,7 +1030,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const firstPreview = screen.getByText("Selected Asset").closest("aside");
+    const firstPreview = document.querySelector(".gh-selection-preview");
     if (!firstPreview) throw new Error("Expected first selected-asset preview rail");
     fireEvent.click(within(firstPreview).getByRole("button", {
       name: new RegExp(`^${pendingLinkedAssetFqn} `),
@@ -1210,9 +1210,12 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    expect(screen.getByText("— visible")).not.toBeNull();
-    expect(screen.queryByText("17 visible")).toBeNull();
-    expect(screen.queryByText(/^17$/)).toBeNull();
+    // The sidebar no longer shows a "{N} visible" caption next to the title
+    // (removed to match the target mockup's plain "Filters" header). The
+    // asset count is still surfaced in the result heading. Verify neither
+    // location claims a fake "17 visible" stub.
+    expect(screen.queryByText(/17 visible/i)).toBeNull();
+    expect(screen.queryByText(/of 17 assets/i)).toBeNull();
   });
 
   it("uses live discovery result counts when no explicit visible-count prop is passed", () => {
@@ -1274,8 +1277,12 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    expect(screen.getByText("2 visible")).not.toBeNull();
-    expect(screen.queryByText("17 visible")).toBeNull();
+    // The "{N} visible" sidebar caption was dropped (target parity); what
+    // matters for this test is that we report the live count (2) — surfaced
+    // in the "Showing N of M assets" heading — rather than the stale
+    // bootstrap summary (17).
+    expect(screen.getByText(/Showing/)).not.toBeNull();
+    expect(screen.queryByText(/17 visible/i)).toBeNull();
   });
 
   it("keeps load-more result depth local until the discovery scope changes", () => {
@@ -1610,7 +1617,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const preview = screen.getByText("Selected Asset").closest("aside");
+    const preview = document.querySelector(".gh-selection-preview");
     if (!preview) throw new Error("Expected selected-asset preview rail");
     expect(within(preview).getByRole("heading", { name: "asset-75" })).not.toBeNull();
     expect(
@@ -1783,9 +1790,10 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    expect(
-      screen.getByPlaceholderText("Filter visible assets by name, schema, owner, domain, or tag"),
-    ).not.toBeNull();
+    // The inline toolbar search input was removed (target parity). The
+    // equivalent query text input now lives inside the Filters popover,
+    // reachable via the Stack Filters launcher below.
+    expect(screen.getByRole("combobox", { name: "Sort metadata catalog results" })).not.toBeNull();
     fireEvent.change(screen.getByLabelText("Sort metadata catalog results"), {
       target: { value: "Best match" },
     });
@@ -1853,7 +1861,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const assetTypeSection = screen.getByText("Asset Types").closest("section");
+    const assetTypeSection = screen.getByText("Asset Type").closest("section");
     if (!assetTypeSection) throw new Error("Expected asset-type sidebar section");
     expect(within(assetTypeSection).getByText("Asset types populate from live discovery facets.")).not.toBeNull();
     expect(within(assetTypeSection).queryByRole("button", { name: "Table" })).toBeNull();
@@ -2277,7 +2285,9 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Stack Filters (2)" })).not.toBeNull();
+    // "Stack Filters" launcher still carries that aria-label; the
+    // visible badge count lives in a separate element.
+    expect(screen.getByRole("button", { name: "Stack Filters" })).not.toBeNull();
     expect(screen.getByRole("button", { name: 'owner:"Mia Chen"' })).not.toBeNull();
     expect(screen.getByRole("button", { name: "domain:(Finance OR Support)" })).not.toBeNull();
     expect(screen.queryByText('Search: owner:"Mia Chen" AND domain:(Finance OR Support)')).toBeNull();
@@ -2350,7 +2360,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const preview = screen.getByText("Selected Asset").closest("aside");
+    const preview = document.querySelector(".gh-selection-preview");
     if (!preview) throw new Error("Expected selected-asset preview rail");
     expect(within(preview).getByRole("heading", { name: "orders" })).not.toBeNull();
     expect(onRoutePreviewChange).not.toHaveBeenCalled();
@@ -2425,7 +2435,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const preview = screen.getByText("Selected Asset").closest("aside");
+    const preview = document.querySelector(".gh-selection-preview");
     if (!preview) throw new Error("Expected selected-asset preview rail");
     expect(within(preview).getByRole("heading", { name: "orders" })).not.toBeNull();
     expect(onRoutePreviewChange).not.toHaveBeenCalled();
@@ -2487,7 +2497,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const preview = screen.getByText("Selected Asset").closest("aside");
+    const preview = document.querySelector(".gh-selection-preview");
     if (!preview) throw new Error("Expected selected-asset preview rail");
     expect(within(preview).getByRole("heading", { name: "returns" })).not.toBeNull();
     expect(onRoutePreviewChange).not.toHaveBeenCalled();
@@ -2550,7 +2560,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    let preview = screen.getByText("Selected Asset").closest("aside");
+    let preview = document.querySelector(".gh-selection-preview");
     if (!preview) throw new Error("Expected selected-asset preview rail");
     expect(within(preview).getByRole("heading", { name: "returns" })).not.toBeNull();
 
@@ -2592,7 +2602,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    preview = screen.getByText("Selected Asset").closest("aside");
+    preview = document.querySelector(".gh-selection-preview");
     if (!preview) throw new Error("Expected selected-asset preview rail");
     expect(within(preview).getByRole("heading", { name: "orders" })).not.toBeNull();
   });
@@ -2705,7 +2715,7 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const preview = screen.getByText("Selected Asset").closest("aside");
+    const preview = document.querySelector(".gh-selection-preview");
     if (!preview) throw new Error("Expected selected-asset preview rail");
     expect(within(preview).getByRole("heading", { name: "orders" })).not.toBeNull();
     expect(onRoutePreviewChange).toHaveBeenCalledWith("");

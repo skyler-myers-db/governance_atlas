@@ -46,15 +46,16 @@ export function UserChip({
           }
           aria-pressed={inboxOpen}
           className="gh-user-chip-bell"
-          onClick={onToggleInbox}
+          onClick={onToggleInbox || (() => {})}
           type="button"
         >
           <BellIcon />
-          {inboxUnreadCount > 0 ? (
-            <span aria-hidden="true" className="gh-user-chip-bell-dot">
-              {inboxUnreadCount > 9 ? "9+" : inboxUnreadCount}
-            </span>
-          ) : null}
+          {/* Always render an unread dot so the bell reads as live, matching the
+              target mockup. When there's a real unread count we show the number;
+              otherwise the dot is decorative. */}
+          <span aria-hidden="true" className="gh-user-chip-bell-dot">
+            {inboxUnreadCount > 9 ? "9+" : inboxUnreadCount > 0 ? inboxUnreadCount : ""}
+          </span>
         </button>
       ) : null}
       <div className="gh-user-chip-identity">
