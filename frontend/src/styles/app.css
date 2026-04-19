@@ -2158,7 +2158,15 @@ button:focus-visible,
   border: 0;
   border-radius: 0;
   background: transparent;
-  overflow: hidden;
+  /* `overflow: clip` here — NOT `hidden`. An ancestor with
+     `overflow: hidden` silently breaks `position: sticky` on
+     descendants in Chromium (the ancestor becomes a non-scrolling
+     scroll container and the sticky element un-sticks past the
+     ancestor). `overflow: clip` clips overflow *without* creating a
+     scroll container, so the sticky column header keeps working
+     when the user scrolls deep into the 1,198-row result list.
+     See: https://developer.mozilla.org/en-US/docs/Web/CSS/overflow-clip */
+  overflow: clip;
 }
 
 .gh-preview-stat-grid {
@@ -5444,8 +5452,11 @@ button[class*="back-to-discovery"] {
   box-shadow: 0 1px 0 var(--gh-border, #d8dee9) !important;
 }
 
-/* Bulk bar sticky just under the header; kill any double-top shadow */
-.gh-discovery-bulk-bar { top: 36px !important; }
+/* Bulk bar sticky just under the shell header + column header stack; kill
+   any double-top shadow. 36px is the column header row height. */
+.gh-discovery-bulk-bar {
+  top: calc(var(--gh-shell-sticky-offset, 0px) + 36px) !important;
+}
 
 /* Exact-class follow-up to hide marketing subtitle + sort label */
 .gh-discovery-results-copy,

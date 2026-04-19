@@ -62,6 +62,51 @@ Use these as the standard minimum verification steps for non-trivial passes:
 
 ## Active Entries
 
+## 2026-04-19 00:30:00 EDT - Discovery perf + sticky regression sweep (post-OM-killer)
+
+User reported: "Performance is a mess. I'm facing an extreme amount of lag even moving my mouse. Sidecars are all over the place — some hooked to the scroll, others not." Screenshot showed the Discovery page with what looked like panel overlap, plus visible lag on hover/scroll.
+
+The lineage OM-killer program from 2026-04-18 only fixed the lineage prefetch stampede; the Discovery mount-time stampede was a separate site I missed.
+
+### Root causes found via Playwright + DOM profiling on the live app
+
+1. **Asset-detail prefetch stampede on Discovery mount** — `ensureAssetAvailability` at [useAssetDetail.js:327](frontend/src/hooks/useAssetDetail.js#L327) ran `Promise.all(renderableTargets.map(prefetchAssetDetail))` with no concurrency cap. The first Playwright trace showed **65 concurrent HTTP requests** at t≈865 ms, 60 of which were `/api/assets/:fqn?sections=header` each taking 15–30 seconds because the serverless SQL warehouse was queueing them. That's the mouse-lag the user felt — every interaction had to wait behind 60 pending fetches.
+
+2. **Sticky column header hidden behind the shell header** — `.gh-discovery-row-head` used `position: sticky; top: 0` at [discovery.css:531](frontend/src/styles/discovery.css#L531) but the `.gh-shell-header` is sticky at `top: ~10 px` with height 156 px, occupying viewport y: 0 → 166. So when the user scrolled down, the column headers disappeared behind the shell header. The sticky offset design token `--gh-shell-sticky-offset` already existed for sidebars but wasn't applied to the row head.
+
+3. **`overflow: hidden` on `.gh-result-list` silently broke sticky at deep scroll** — [app.css:2161](frontend/src/styles/app.css#L2161). Chromium treats an ancestor with `overflow: hidden` as a non-scrolling scroll container for sticky purposes, so past a certain scroll depth the column header un-stuck and went off-screen (rowHead.y = -694 at scroll=1200). `overflow: clip` fixes the clipping intent without the sticky side effect.
+
+### Fixes
+
+- `frontend/src/hooks/useAssetDetail.js:322-356` — replaced `Promise.all(renderableTargets.map(prefetchAssetDetail))` with a 4-worker pool that shifts from a shared queue and aborts cleanly on `signal.aborted`. Best-effort try/catch per asset so one 404 can't stall the rest.
+- `frontend/src/styles/discovery.css:530` — `.gh-discovery-row-head` now uses `top: var(--gh-shell-sticky-offset, 0px)` so it sticks below the shell header.
+- `frontend/src/styles/app.css:5447-5450` — `.gh-discovery-bulk-bar` top offset moved from `36px` to `calc(var(--gh-shell-sticky-offset) + 36px)` so it sits below the sticky column header stack instead of at viewport y=36.
+- `frontend/src/styles/app.css:2156-2162` — `.gh-result-list.gh-discovery-card-list` overflow changed from `hidden` to `clip`.
+
+### Live Playwright verification
+
+Before (pre-fix snapshot on live deploy):
+- 65 concurrent API requests at mount
+- 60+ `/api/assets/:fqn?sections=header` each 15–30 s
+- Aggregate API time 71 s in the first 10 seconds of mount
+- Column header disappears behind shell header when scrolled (rowHeadHiddenBehindShell: true)
+- Column header un-sticks entirely at scroll ≥ 1200 px (rowHead.y = -694, off-screen)
+
+After (current live deploy):
+- **3 API calls total on initial page mount** (bootstrap + runtime/status + discovery/search); max concurrent = 1.
+- Background `renderedRecordAvailability` warming fires via `requestIdleCallback`, then churns through the rest of the catalog at **≤ 4 in flight**. Per-request time dropped from 15–30 s to 3–4 s because the warehouse is no longer being hammered.
+- Column header stays pinned at y=166 (just below the shell header's bottom at y=152) at scroll depth 1600 px. Playwright: `stickyWorking: true`.
+- Screenshot `discovery-sticky-fix-scrolled.png` shows the column header (ASSET / TYPE / DOMAIN / TIER / OWNER / TAGS / NEEDS WORK / UPDATE) visible at the top of the scrolled viewport.
+
+### Known follow-up (not fixed this pass)
+
+- 52 HTTP 404s in console from `/api/assets/landing.oracle_fscm_*?sections=header` — these assets register as `openable: true` in `/api/assets/availability` but return 404 "not visible in the current workspace scope" from `/api/assets/:fqn`. The two endpoints have inconsistent visibility checks. Not a regression from this pass; logged as backend visibility-scope cleanup.
+- `.gh-discovery-bulk-bar` top stacking was adjusted but bulk-bar only renders when selection is non-empty, so live-verified interaction is deferred until the next Discovery walkthrough.
+
+### Gauntlet
+
+235/235 frontend tests pass. 171/171 backend tests unchanged (no backend diff). Two deploys: one for the stampede + sticky-offset fix, one for the overflow:clip fix, each `databricks bundle deploy` + `databricks apps deploy` `SUCCEEDED`.
+
 ## 2026-04-18 18:15:00 EDT - Lineage OM-killer overhaul: 5 tranches, 722× perf gain, inline governance
 
 User complaint: lineage page was "super sluggish" (single API calls taking 30-144 seconds), "three Unassigned chips" on the selected-node drawer, duplicated buttons, and a general sense that the page "lags behind OpenMetadata." Asked for a "complete makeover" of what they called "the real money maker" page, plus an audit of every button on every page and redundancy removal.

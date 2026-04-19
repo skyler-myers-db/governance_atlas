@@ -324,13 +324,33 @@ async function ensureAssetAvailability(assetFqns = [], options = {}) {
       const availability = readCanonicalAvailability(assetFqn, { maxAgeMs: null });
       return availabilityOpenableValue(availability) === true;
     });
-    await Promise.all(
-      renderableTargets.map((assetFqn) =>
-        prefetchAssetDetail(assetFqn, {
-          sections: ["header"],
-          signal: options.signal,
-        }).catch(() => null)),
-    );
+    // Concurrency cap: Promise.all(60 fetches) used to fire every
+    // renderable candidate at once on page mount, each blocking a
+    // serverless warehouse slot for 15–30 s. The user saw it as
+    // mouse lag / unresponsive UI because every click had to wait
+    // behind a queue of 60 in-flight requests. 4 at a time still
+    // warms the first visible result rows quickly but lets the
+    // browser + warehouse stay responsive.
+    const RENDERABLE_PREFETCH_CONCURRENCY = 4;
+    const queue = renderableTargets.slice();
+    const runWorker = async () => {
+      while (queue.length) {
+        const assetFqn = queue.shift();
+        if (!assetFqn) return;
+        if (options.signal?.aborted) return;
+        try {
+          await prefetchAssetDetail(assetFqn, {
+            sections: ["header"],
+            signal: options.signal,
+          });
+        } catch {
+          // Best-effort: missing detail for one asset should not
+          // stall the rest of the availability resolution.
+        }
+      }
+    };
+    const workerCount = Math.min(RENDERABLE_PREFETCH_CONCURRENCY, renderableTargets.length);
+    await Promise.all(Array.from({ length: workerCount }, runWorker));
   }
 
   return buildAvailabilityStateMap(targets, options.knownVisibleAssetSet, {
