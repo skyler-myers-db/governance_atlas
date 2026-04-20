@@ -19,11 +19,11 @@
   --gh-surface-soft: #fcf8ee;
   --gh-surface-muted: #f4eedf;
 
-  /* Border lines are a warm beige — slightly darker than previous
-     so the card silhouettes actually read against the cream body.
-     Operator 2026-04-19 round 2 flagged borders as too faint. */
-  --gh-line: #d8cfb9;
-  --gh-line-strong: #b8ac8c;
+  /* Border lines are a warm beige — round 3 darkened them another
+     notch so card silhouettes read crisply against the cream body.
+     Operator 2026-04-19 rounds 2+3 flagged borders as too faint. */
+  --gh-line: #c9bf9e;
+  --gh-line-strong: #a99a70;
 
   --gh-ink: #1a2236;
   --gh-ink-soft: #525e74;

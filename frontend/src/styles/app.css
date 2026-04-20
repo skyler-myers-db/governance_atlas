@@ -2171,15 +2171,19 @@ button:focus-visible,
   font-size: 0.95rem;
 }
 
-.gh-field-label-inline {
+/* Compound selector beats the downstream .gh-field-label rule at line
+   ~3518 which clamps font-size to 0.56-0.66rem. Operator 2026-04-19
+   round 3 asked for "Sort by" to be a tad bigger — we need higher
+   specificity than the generic .gh-field-label to actually ship it. */
+.gh-field-label.gh-field-label-inline {
   white-space: nowrap;
   line-height: 1;
   padding-left: 2px;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--gh-ink, #1a2236);
-  text-transform: none;
-  letter-spacing: 0;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: var(--gh-ink, #1a2236) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
   margin-right: 10px;
 }
 
@@ -3958,10 +3962,10 @@ and single-line
   align-items: center !important;
   gap: 0 !important;
   min-height: 56px;
-  /* Tighter left padding so the brand mark + "Governance Hub"
-     wordmark sit closer to the side icon rail. Operator 2026-04-19
-     round 3 asked for a left-aligned brand. */
-  padding: 0 20px 0 4px;
+  /* Tight left padding so the brand mark + "Governance Hub" wordmark
+     sit right up against the side icon rail. Operator 2026-04-19
+     rounds 3 + 4 asked for the logo to be more left-aligned. */
+  padding: 0 20px 0 0;
 }
 .gh-shell-brand-band {
   min-height: 0 !important;
@@ -5698,8 +5702,8 @@ button[class*="back-to-discovery"] {
   gap: 24px;
   align-items: flex-start;
   justify-content: space-between;
-  background: var(--gh-surface, #fff);
-  border: 1px solid var(--gh-line-strong, #c3c8d4);
+  background: #fbf6e9;
+  border: 1px solid var(--gh-line, #c9bf9e);
   border-radius: 16px;
   padding: 24px 28px;
   box-shadow: 0 10px 22px rgba(18, 35, 58, 0.05);
@@ -5752,8 +5756,8 @@ button[class*="back-to-discovery"] {
   gap: 20px;
 }
 .gh-help-page-section {
-  background: var(--gh-surface, #fff);
-  border: 1px solid var(--gh-line, #e2e4ec);
+  background: #fbf6e9;
+  border: 1px solid var(--gh-line, #c9bf9e);
   border-radius: 16px;
   padding: 22px 26px;
 }
@@ -5804,11 +5808,18 @@ button[class*="back-to-discovery"] {
   gap: 24px;
   align-items: flex-start;
   justify-content: space-between;
-  background: var(--gh-surface, #fff);
-  border: 1px solid var(--gh-line-strong, #b8ac8c);
+  background: #fbf6e9;
+  border: 1px solid var(--gh-line, #c9bf9e);
   border-radius: 16px;
   padding: 24px 28px;
   box-shadow: 0 10px 22px rgba(18, 35, 58, 0.04);
+}
+/* The InboxPanel used inside /inbox also gets a cream tint. The
+   panel renders via the governance shell InboxPanel component
+   (.gh-shell-inbox-panel). */
+.gh-inbox-page .gh-shell-inbox-panel {
+  background: #fbf6e9 !important;
+  border: 1px solid var(--gh-line, #c9bf9e) !important;
 }
 .gh-inbox-page-title {
   margin: 6px 0 8px;
