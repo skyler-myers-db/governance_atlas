@@ -20,9 +20,13 @@
   --gh-surface-muted: #f7f1e3;
 
   /* Border lines in warm beige. Round 11 lightens a shade — operator
-     asked for "all borders a shade lighter" after round 10's bump. */
+     asked for "all borders a shade lighter" after round 10's bump.
+     Round 12: --gh-line-strong folded onto --gh-line so side-rail,
+     subtab, filter-rail borders all paint the same uniform shade
+     (operator: "are you sure all the borders are the same darkness
+     now? the left vertical looks slightly darker"). */
   --gh-line: #b9ac82;
-  --gh-line-strong: #a89a73;
+  --gh-line-strong: #b9ac82;
 
   --gh-ink: #1a2236;
   --gh-ink-soft: #525e74;
