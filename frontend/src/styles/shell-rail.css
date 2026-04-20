@@ -26,12 +26,9 @@
 
 .gh-app.gh-app-with-rail > .gh-shell-header {
   grid-area: header;
-  /* Round 11: margin-bottom 8 → 0 so the subtab row's top border
-     sits flush with the header bottom and the quick-action button
-     reads as equidistant from the top + bottom borders (operator:
-     "the very top border above + Quick Actions needs to be moved
-     up slightly"). */
-  margin-top: 4px;
+  /* Round 14: header sits closer to the viewport top so the top-left
+     corner of the side rail reads as a ~64×64 square. */
+  margin-top: 2px;
   margin-bottom: 0;
   /* Padding-left 0 so the brand-band's own 32px padding-left is the
      single source of alignment. */
@@ -50,7 +47,9 @@
      +Quick action row) is the only separator. Two stacked lines
      read as noise. */
   border-bottom: 0;
-  padding-bottom: 4px;
+  /* Round 14: padding-bottom 4→0 to help the top-left corner land at a
+     clean 64-high square. */
+  padding-bottom: 0;
 }
 
 .gh-app.gh-app-with-rail > .gh-main {
@@ -235,11 +234,13 @@
   flex-wrap: nowrap !important;
   align-items: center !important;
   gap: clamp(14px, 1.5vw, 30px) !important;
-  /* Round 11: 32px left padding so the Governance Hub brand mark
-     aligns vertically with the Discovery / Filters / CATALOG column
-     at x ≈ 106 (sub-tab padding-left + rail-content-left). */
-  padding: 14px 20px 14px 32px !important;
-  min-height: 72px !important;
+  /* Round 14: tighter vertical padding so the whole header shrinks
+     from ~86px to ~64px tall. That pulls the top horizontal border
+     up to y≈64 and makes the top-left side-rail segment a 64×64
+     square instead of a 64×86 rectangle (operator: "that top-left
+     corner box should be a square, not a rectangle"). */
+  padding: 8px 20px 8px 32px !important;
+  min-height: 56px !important;
 }
 
 .gh-shell-brand {
@@ -311,7 +312,9 @@
 
 .gh-shell-brand-band {
   align-items: center !important;
-  min-height: 56px;
+  /* Round 14: min-height 56→48 for the redundant override block so it
+     doesn't fight the primary 56px minimum up above. */
+  min-height: 48px;
 }
 
 .gh-shell-brand-band > * {
@@ -1117,10 +1120,9 @@
 }
 
 .gh-filters-rail-head {
-  /* Round 13: revert round-12 centering — operator clarified they
-     want filter labels LEFT-aligned with counts RIGHT-aligned, using
-     the full width between the two vertical borders. */
-  padding: 14px 16px 4px;
+  /* Round 14: matching 10px gap so "Filters" title sits on the same
+     left-edge column as section titles + checkbox rows below. */
+  padding: 14px 10px 4px;
   border: 0 !important;
   text-align: left;
 }
@@ -1145,18 +1147,16 @@
 }
 
 /* Collapse chevrons on each section.
-   Round 13: labels LEFT, chevron RIGHT — operator rescinded the
-   round-12 centering request ("I misspoke, I meant left-aligned
-   labels and right-aligned counts that use the full width").
-   Section padding matches the filters-rail head (16px) so every
-   section label hugs the left vertical border. */
+   Round 14: tighter horizontal padding (16px → 10px) so section
+   titles hug the left rail border and chevrons hug the right,
+   mirrored with equal gaps. */
 .gh-sidebar-section-toggle {
   display: flex !important;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 6px 16px;
+  padding: 6px 10px;
   border: 0;
   background: transparent;
   color: #14213d;
@@ -1192,9 +1192,11 @@
 }
 
 .gh-sidebar-section-body {
-  /* Round 10: narrower horizontal padding so filter-rail items feel
-     centered between the left and right vertical borders. */
-  padding: 2px 12px 10px;
+  /* Round 14: tighter horizontal inset so checkbox rows reach closer
+     to both vertical borders — labels hug the left, counts hug the
+     right, with matching ~6px gaps on each side (operator: "more
+     left aligned... more right aligned... even spacing"). */
+  padding: 2px 4px 10px;
 }
 
 /* Checkbox-row filter items (asset type, domain, workflow) */
@@ -1204,14 +1206,16 @@
 }
 
 .gh-checkbox-row {
-  /* Round 13: row padding-x matches the section-toggle (16px) so the
-     label sits flush with the left vertical border and the count
-     sits flush with the right — "using up all the space between both
-     vertical borders" per operator. */
+  /* Round 14: tighter padding so label hugs the left rail border and
+     count hugs the right, with matching ~6px gaps from each vertical
+     line. Combined with .gh-sidebar-section-body's 4px inset, the
+     checkbox lands at rail_left+8, label at rail_left+30, and the
+     count at rail_right-10 (operator: "more left aligned... more
+     right aligned... even spacing on both borders"). */
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 16px;
+  padding: 6px 6px;
   border-radius: 6px;
   font-size: 0.92rem;
   color: #14213d;
