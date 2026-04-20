@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, List, Optional
 import pandas as pd
 from fastapi import Request
 
-from govhub.api.cache import _ttl_value
+from govhub.api.cache import _TTL_CACHE, _CACHE_LOCK, _ttl_cache_pop, _ttl_value
 from govhub.services import assets as asset_service
 from govhub.services.assets import normalize_str as _normalize_str
 
@@ -37,20 +37,61 @@ def visible_assets(
     *,
     cache_scope: str = "",
 ) -> pd.DataFrame:
+    """Return the visible-assets inventory for this request, memoized for 5 min
+    per cache scope ({actor}|{auth-mode}).
+
+    **OBO fallback guard (round 14):** when the request's OBO client silently
+    latches to the app-principal fallback (e.g. the user's token is missing
+    the `sql` scope), the resulting DataFrame reflects the SP's narrower
+    catalog visibility — NOT the user's actor-scoped view. Caching that
+    under the OBO scope key would then serve SP-only results to the
+    OBO-authenticated user for the full 5-minute TTL, which is exactly
+    the regression reported when landing/test catalogs disappeared after
+    a deploy cold-start. We now build the UC client BEFORE delegating to
+    the cache and, if the client reports `obo_scope_fallback=True` after
+    the load, evict the cache entry so the next request attempts OBO
+    again instead of serving the degraded result for 5 minutes.
+    """
+    import time
+
     hidden_catalogs, request_cache_scope, store_for_read, uc_for_request = (
         _runtime_deps()
     )
     scope = cache_scope or request_cache_scope(request)
     normalized_scope = _normalize_str(scope) or "shared"
-    return _ttl_value(
-        f"runtime_inventory:{normalized_scope}",
-        300,
-        lambda: asset_service.visible_assets(
-            uc_for_request(request),
-            store_for_read(),
-            hidden_catalogs=hidden_catalogs,
-        ),
+    cache_key = f"runtime_inventory:{normalized_scope}"
+
+    now = time.time()
+    cached = _TTL_CACHE.get(cache_key)
+    if cached and now - cached[0] < 300:
+        return cached[1]
+
+    uc_client = uc_for_request(request)
+    result = asset_service.visible_assets(
+        uc_client,
+        store_for_read(),
+        hidden_catalogs=hidden_catalogs,
     )
+
+    fallback_triggered = False
+    runtime_context_fn = getattr(uc_client, "runtime_context", None)
+    if callable(runtime_context_fn):
+        try:
+            ctx = runtime_context_fn() or {}
+            fallback_triggered = bool(ctx.get("obo_scope_fallback"))
+        except Exception:
+            fallback_triggered = False
+
+    if fallback_triggered:
+        # Don't poison the OBO cache key with SP-scoped data. Evict so the
+        # next request re-tries OBO; user's landing/test catalogs return as
+        # soon as the underlying primary client succeeds.
+        _ttl_cache_pop(cache_key)
+    else:
+        with _CACHE_LOCK:
+            _TTL_CACHE[cache_key] = (now, result)
+
+    return result
 
 
 def inventory_catalogs(request: Optional[Request] = None) -> List[str]:
@@ -142,12 +183,18 @@ def bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
     normalized_scope = _normalize_str(cache_scope) or "shared"
 
     def load() -> Dict[str, Any]:
-        # Pass the normalized scope as the cache_scope kwarg so the inner
-        # runtime_inventory cache is keyed per auth scope. Previously the
-        # scope was passed positionally as `request`, which always degraded
-        # to "unknown|app-principal-only" and collapsed OBO and
-        # app-principal inventory into one cache bucket.
-        inv = visible_assets(None, cache_scope=normalized_scope)
+        # Round 14 OBO fix: bootstrap is called without a FastAPI Request
+        # so `visible_assets(None, ...)` would route through the
+        # app-principal UC client. Using `cache_scope=normalized_scope`
+        # here (the per-actor OBO scope) previously poisoned the shared
+        # `runtime_inventory:<scope>` cache key with SP-only rows,
+        # causing later OBO-authenticated requests to get SP results
+        # for the full 5-minute TTL. Scope this bootstrap-only load
+        # under a distinct suffix so the boot-time SP snapshot never
+        # collides with the discovery-search cache.
+        inv = visible_assets(
+            None, cache_scope=f"{normalized_scope}|bootstrap-app-principal"
+        )
         available_catalogs = inventory_catalogs()
         observed_catalogs = lineage_observed_catalogs()
         visible_catalogs = inventory_option_values(

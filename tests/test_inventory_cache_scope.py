@@ -86,18 +86,40 @@ class BootstrapInventoryCacheScopeTests(unittest.TestCase):
         with api_cache._CACHE_LOCK:
             cache_keys = sorted(api_cache._TTL_CACHE.keys())
 
-        alice_key = "runtime_inventory:alice@example.com|obo-available"
-        bob_key = "runtime_inventory:bob@example.com|app-principal-only"
+        # Round 14 OBO cache isolation: the bootstrap path runs with
+        # request=None (no OBO token) so it always loads SP-only data.
+        # Keying that data under the raw OBO scope used to poison the
+        # discovery cache; the fix suffixes the bootstrap key so the
+        # SP snapshot lives on its own bucket. Both alice (OBO) and
+        # bob (app-principal) must land under the suffixed key and
+        # must never share a bucket with a live OBO discovery query.
+        alice_boot_key = (
+            "runtime_inventory:alice@example.com|obo-available|bootstrap-app-principal"
+        )
+        bob_boot_key = (
+            "runtime_inventory:bob@example.com|app-principal-only|bootstrap-app-principal"
+        )
         regression_key = "runtime_inventory:REGRESSION:request_cache_scope_was_called"
+        poisoning_key = "runtime_inventory:alice@example.com|obo-available"
 
-        self.assertIn(alice_key, cache_keys)
-        self.assertIn(bob_key, cache_keys)
+        self.assertIn(alice_boot_key, cache_keys)
+        self.assertIn(bob_boot_key, cache_keys)
         self.assertNotIn(
             regression_key,
             cache_keys,
             msg=(
                 "bootstrap_inventory_summary still routes its scope through "
                 "request_cache_scope — OBO and app-principal reads would share a bucket."
+            ),
+        )
+        self.assertNotIn(
+            poisoning_key,
+            cache_keys,
+            msg=(
+                "bootstrap_inventory_summary wrote SP-only data under the raw "
+                "OBO discovery cache key. Discovery search would serve SP-narrowed "
+                "results to OBO-authenticated users for a full TTL window. "
+                "Suffix the bootstrap cache key with |bootstrap-app-principal."
             ),
         )
 
