@@ -40,26 +40,16 @@ export default function AppFrame({
   const [shellHeaderHeight, setShellHeaderHeight] = useState(0);
   const [commandOpen, setCommandOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
-  const [theme, setTheme] = useState(() => {
-    if (typeof window === "undefined") return "light";
-    try {
-      return window.localStorage?.getItem?.("gh-theme") || "light";
-    } catch {
-      return "light";
-    }
-  });
   const shellHeaderRef = useRef(null);
   const searchRootRef = useRef(null);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    document.documentElement.setAttribute("data-theme", theme);
-    try {
-      window.localStorage?.setItem?.("gh-theme", theme);
-    } catch {
-      /* ignore */
-    }
-  }, [theme]);
+    // Light cream theme is the only supported theme for now — operator
+    // 2026-04-19 round 3 removed the dark-mode toggle. Pin the
+    // data-theme attribute so any remaining dark-mode CSS stays inert.
+    document.documentElement.setAttribute("data-theme", "light");
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -383,7 +373,11 @@ export default function AppFrame({
 
       <main className="gh-main">{children}</main>
 
-      {/* #14 Floating theme toggle + #13 ⌘K hint pill in the bottom-right */}
+      {/* ⌘K hint pill in the bottom-right. The floating dark-mode
+          toggle was removed 2026-04-19 round 3 — operator asked for
+          the light cream theme to persist across all pages, and the
+          moon icon was getting flagged as visual noise on an
+          otherwise cream-only surface. */}
       <div className="gh-app-footer-controls">
         <button
           aria-label="Open command palette"
@@ -394,15 +388,6 @@ export default function AppFrame({
         >
           <kbd>⌘</kbd>
           <kbd>K</kbd>
-        </button>
-        <button
-          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          className="gh-theme-toggle"
-          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          type="button"
-        >
-          {theme === "dark" ? "☀" : "☾"}
         </button>
       </div>
 

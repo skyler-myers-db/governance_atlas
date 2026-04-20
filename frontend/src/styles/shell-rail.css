@@ -176,10 +176,10 @@
   flex-wrap: nowrap !important;
   align-items: center !important;
   gap: clamp(12px, 1.4vw, 28px) !important;
-  /* Tighter left padding so the Governance Hub logo + wordmark
-     sit closer to the side rail. Operator 2026-04-19 round 3
-     asked for the brand to be more left-aligned. */
-  padding: 10px 20px 10px 6px !important;
+  /* Zero left padding so the Governance Hub logo + wordmark sit
+     immediately right of the side icon rail. Operator 2026-04-19
+     rounds 3+4 asked for the brand to be "slightly more left aligned". */
+  padding: 10px 20px 10px 0 !important;
   min-height: 56px !important;
 }
 
