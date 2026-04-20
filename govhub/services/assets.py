@@ -100,6 +100,7 @@ cached_table_row_count = metadata_service.cached_table_row_count
 cached_sample_rows = metadata_service.cached_sample_rows
 cached_lineage_up = metadata_service.cached_lineage_up
 cached_lineage_down = metadata_service.cached_lineage_down
+cached_table_constraints = metadata_service.cached_table_constraints
 
 normalize_str = metadata_service.normalize_str
 filter_asset_rows = metadata_service.filter_asset_rows
@@ -2295,17 +2296,68 @@ def _glossary_terms_for_subject(
     return list(link_lookup.get(key, []))
 
 
+def _column_constraint_lookup(
+    constraints_df: Optional[pd.DataFrame],
+) -> Dict[str, List[Dict[str, str]]]:
+    """Group constraint rows by column_name.
+
+    Returns a {column_name: [{"name", "type"}]} lookup. Safe against missing/empty frames.
+    Each constraint is deduplicated per column (name + type).
+    """
+
+    if constraints_df is None or constraints_df.empty:
+        return {}
+    lookup: Dict[str, List[Dict[str, str]]] = {}
+    seen: Dict[str, set] = {}
+    for _, row in constraints_df.iterrows():
+        column_name = normalize_str(row.get("column_name"))
+        if not column_name:
+            continue
+        constraint_name = normalize_str(row.get("constraint_name")) or "constraint"
+        constraint_type = (
+            normalize_str(row.get("constraint_type")) or "Constraint"
+        )
+        key = f"{constraint_type.upper()}::{constraint_name}"
+        column_seen = seen.setdefault(column_name, set())
+        if key in column_seen:
+            continue
+        column_seen.add(key)
+        lookup.setdefault(column_name, []).append(
+            {"name": constraint_name, "type": constraint_type}
+        )
+    return lookup
+
+
+def _normalize_nullable_flag(value: Any) -> Optional[bool]:
+    """Convert information_schema.is_nullable-style values into a tri-state bool.
+
+    Returns True / False for recognised affirmative / negative values, and None when
+    the upstream metadata is missing or unrecognised so the UI can render a placeholder.
+    """
+
+    text = normalize_str(value).upper()
+    if not text:
+        return None
+    if text in {"YES", "Y", "TRUE", "T", "1"}:
+        return True
+    if text in {"NO", "N", "FALSE", "F", "0"}:
+        return False
+    return None
+
+
 def column_records(
     columns_df: pd.DataFrame,
     column_tags_df: Optional[pd.DataFrame] = None,
     column_links_df: Optional[pd.DataFrame] = None,
     term_lookup: Optional[Dict[str, Dict[str, Any]]] = None,
     subject_fqn: str = "",
+    constraints_df: Optional[pd.DataFrame] = None,
 ) -> List[Dict[str, Any]]:
     if columns_df is None or columns_df.empty:
         return []
     tag_lookup = column_tag_lookup(column_tags_df)
     link_lookup = glossary_link_lookup(column_links_df, term_lookup)
+    constraint_lookup = _column_constraint_lookup(constraints_df)
     rows: List[Dict[str, Any]] = []
     for _, row in columns_df.head(50).iterrows():
         column_name = normalize_str(row.get("column_name"))
@@ -2333,6 +2385,9 @@ def column_records(
                 "",
             )
         )
+        nullable_flag = _normalize_nullable_flag(row.get("is_nullable"))
+        default_value = normalize_str(row.get("column_default"))
+        column_constraints = list(constraint_lookup.get(column_name, []))
         rows.append(
             {
                 "name": column_name,
@@ -2349,6 +2404,9 @@ def column_records(
                 "glossaryLinks": glossary_links,
                 "glossaryTerms": glossary_terms,
                 "glossaryTerm": glossary_term,
+                "nullable": nullable_flag,
+                "defaultValue": default_value,
+                "constraints": column_constraints,
             }
         )
     return rows
@@ -3039,6 +3097,15 @@ def asset_detail_payload(
                 column_tags_df = uc.get_table_column_tags(catalog, schema, table)
             except Exception:
                 column_tags_df = pd.DataFrame()
+            # Constraints live under the "properties" section in the public payload,
+            # but the schema tab needs per-column PK/FK/NOT NULL chips, so fetch them
+            # here too (cheap — cached at the UC layer) and surface via column_records.
+            try:
+                schema_constraints_df = cached_table_constraints(
+                    uc, catalog, schema, table
+                )
+            except Exception:
+                schema_constraints_df = pd.DataFrame()
             column_links_df = pd.DataFrame()
             if not glossary_links_df.empty:
                 column_links_df = glossary_links_df[
@@ -3058,6 +3125,7 @@ def asset_detail_payload(
                 column_links_df=column_links_df,
                 term_lookup=glossary_term_index,
                 subject_fqn=base["fqn"],
+                constraints_df=schema_constraints_df,
             )
             base["columnCount"] = len(base["columns"])
 

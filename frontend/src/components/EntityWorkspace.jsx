@@ -792,6 +792,7 @@ export default function EntityWorkspace({
   const [metadataDraft, setMetadataDraft] = useState(metadataDraftFromAsset(null));
   const [metadataDirty, setMetadataDirty] = useState(false);
   const [selectedColumnName, setSelectedColumnName] = useState("");
+  const [schemaColumnFilter, setSchemaColumnFilter] = useState("");
   const [columnDraft, setColumnDraft] = useState({ description: "", tags: "" });
   const [columnMutation, setColumnMutation] = useState({
     loading: false,
@@ -887,6 +888,15 @@ export default function EntityWorkspace({
     editor.config?.message ||
     "Column metadata editing is not available for this asset type right now.";
   const liveColumns = detailReady && schemaLoaded ? columns : [];
+  const filteredLiveColumns = useMemo(() => {
+    const term = schemaColumnFilter.trim().toLowerCase();
+    if (!term) return liveColumns;
+    return liveColumns.filter((column) => {
+      const name = (column?.name || "").toLowerCase();
+      const description = (column?.description || "").toLowerCase();
+      return name.includes(term) || description.includes(term);
+    });
+  }, [liveColumns, schemaColumnFilter]);
   const livePreview = detailReady && previewSurfaceAvailable && previewLoaded ? preview : [];
   const upstreamAssets = useMemo(
     () => dedupeLinkedAssets(lineageNeighbors.upstream, focusAssetFqn),
@@ -1048,6 +1058,7 @@ export default function EntityWorkspace({
     setLocalOverrides({});
     setMetadataDirty(false);
     setSelectedColumnName("");
+    setSchemaColumnFilter("");
     setColumnDraft({ description: "", tags: "" });
     setColumnMutation({ loading: false, error: "", success: "" });
   }, [
@@ -1868,30 +1879,107 @@ export default function EntityWorkspace({
                   {assetDetail.error || "Live schema metadata is unavailable for this asset right now."}
                 </div>
               ) : liveColumns.length ? (
-                <table className="gh-table">
-                  <thead>
-                    <tr>
-                      <th>Column</th>
-                      <th>Type</th>
-                      <th>Description</th>
-                      <th>Tags</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {liveColumns.map((column) => (
-                      <tr
-                        className={selectedColumn?.name === column.name ? "is-active" : ""}
-                        key={column.name}
-                        onClick={() => setSelectedColumnName(column.name)}
-                      >
-                        <td>{column.name}</td>
-                        <td>{column.type}</td>
-                        <td>{column.description}</td>
-                        <td>{column.tagLabels?.join(", ") || "—"}</td>
+                <>
+                  <div className="gh-schema-toolbar">
+                    <input
+                      aria-label="Filter columns"
+                      className="gh-schema-column-search"
+                      onChange={(event) => setSchemaColumnFilter(event.target.value)}
+                      placeholder="Filter columns by name or description..."
+                      type="search"
+                      value={schemaColumnFilter}
+                    />
+                    {schemaColumnFilter ? (
+                      <span className="gh-schema-toolbar-count">
+                        {filteredLiveColumns.length} of {liveColumns.length}
+                      </span>
+                    ) : null}
+                  </div>
+                  <table className="gh-table gh-schema-table">
+                    <thead>
+                      <tr>
+                        <th>Column</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Tags</th>
+                        <th>Nullable</th>
+                        <th>Default</th>
+                        <th>Constraints</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {filteredLiveColumns.length === 0 ? (
+                        <tr className="gh-schema-empty-row">
+                          <td colSpan={7}>
+                            No columns match &ldquo;{schemaColumnFilter}&rdquo;
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredLiveColumns.map((column) => {
+                          const nullableLabel =
+                            column.nullable === true
+                              ? "Yes"
+                              : column.nullable === false
+                                ? "No"
+                                : "—";
+                          const nullableToneClass =
+                            column.nullable === true
+                              ? "gh-chip-tone-neutral"
+                              : column.nullable === false
+                                ? "gh-chip-tone-warning"
+                                : "gh-chip-tone-neutral";
+                          const defaultValue = column.defaultValue || "";
+                          const constraintChips = column.constraints || [];
+                          return (
+                            <tr
+                              className={selectedColumn?.name === column.name ? "is-active" : ""}
+                              key={column.name}
+                              onClick={() => setSelectedColumnName(column.name)}
+                            >
+                              <td>{column.name}</td>
+                              <td>{column.type}</td>
+                              <td>{column.description}</td>
+                              <td>{column.tagLabels?.join(", ") || "—"}</td>
+                              <td>
+                                {column.nullable === null || column.nullable === undefined ? (
+                                  <span className="gh-schema-placeholder">—</span>
+                                ) : (
+                                  <span className={`gh-chip gh-chip-soft ${nullableToneClass}`}>
+                                    {nullableLabel}
+                                  </span>
+                                )}
+                              </td>
+                              <td>
+                                {defaultValue ? (
+                                  <code className="gh-schema-default">{defaultValue}</code>
+                                ) : (
+                                  <span className="gh-schema-placeholder">—</span>
+                                )}
+                              </td>
+                              <td>
+                                {constraintChips.length ? (
+                                  <div className="gh-schema-constraint-chips">
+                                    {constraintChips.map((constraint) => (
+                                      <span
+                                        className="gh-chip gh-chip-soft gh-schema-constraint-chip"
+                                        key={`${column.name}-${constraint.type}-${constraint.name}`}
+                                        title={constraint.name}
+                                      >
+                                        {constraint.type}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="gh-schema-placeholder">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </>
               ) : (
                 <div className="gh-empty-state">No schema metadata is available for this asset.</div>
               )}

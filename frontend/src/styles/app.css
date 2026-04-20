@@ -4175,9 +4175,9 @@ and single-line
    sit flush against the sub-tab row's border-bottom (borders meet
    at right angles). Horizontal padding kept for breathing room. */
 .gh-discovery-main-grid {
-  grid-template-columns: 240px minmax(0, 1fr) 360px !important;
+  grid-template-columns: var(--gh-left-panel-w) minmax(0, 1fr) var(--gh-right-panel-w) !important;
   gap: 0 16px !important;
-  padding: 0 20px !important;
+  padding: 0 var(--gh-content-gutter) !important;
   max-width: none !important;
   align-items: start !important;
 }

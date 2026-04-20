@@ -1,14 +1,15 @@
 /* Phase 2-k shell redesign: left icon rail, header action buttons, density rules, global focus. */
 
 :root {
-  --gh-side-rail-width: 64px;
+  /* --gh-side-rail-w lives in design/tokens/layout.css (canonical).
+     Do not re-declare the raw pixel value here. */
   --gh-focus-ring: 0 0 0 3px rgba(91, 67, 238, 0.28);
   --gh-focus-ring-inset: inset 0 0 0 2px rgba(91, 67, 238, 0.55);
 }
 
 /* --- app shell grid: rail + content column --- */
 .gh-app.gh-app-with-rail {
-  grid-template-columns: var(--gh-side-rail-width) minmax(0, 1fr);
+  grid-template-columns: var(--gh-side-rail-w) minmax(0, 1fr);
   grid-template-areas:
     "rail header"
     "rail main"
@@ -326,7 +327,7 @@
 .gh-shell-spine {
   grid-template-columns: minmax(0, 1fr) !important;
   gap: 0 !important;
-  min-height: 72px;
+  min-height: var(--gh-topbar-h);
 }
 
 /* --- topbar search (wider, centered) --- */
@@ -1788,7 +1789,7 @@ input:focus-visible {
 
 @media (max-width: 1040px) {
   :root {
-    --gh-side-rail-width: 56px;
+    --gh-side-rail-w: 56px;
   }
   .gh-discovery-main-grid {
     grid-template-columns: minmax(200px, 0.36fr) minmax(0, 1.4fr) !important;

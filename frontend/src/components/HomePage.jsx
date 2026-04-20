@@ -40,6 +40,15 @@ const QUICK_CARDS = [
     cta: "Open Taxonomy",
     tone: "magenta",
   },
+  {
+    key: "insights",
+    eyebrow: "Close the gaps",
+    title: "Governance insights",
+    body:
+      "Cross-estate gap analysis in one pane — ownership, policy, freshness, and data-quality incidents — each row deep-links to the Governance workbench for remediation.",
+    cta: "See all insights",
+    tone: "amber",
+  },
 ];
 
 function formatCount(value) {

@@ -62,6 +62,12 @@ RUNTIME_PATHS = (
     "/api/governance/columns/{group_id}",
     "/api/audit/events",
     "/api/access-explain",
+    "/api/admin/background/status",
+    "/api/classification-recommendations",
+    "/api/classification-recommendations/{recommendation_id}",
+    "/api/classification-recommendations/{recommendation_id}/review",
+    "/api/classification-recommendations/scan/{asset_fqn:path}",
+    "/api/insights/gap-analysis",
 )
 
 if str(ROOT) not in sys.path:

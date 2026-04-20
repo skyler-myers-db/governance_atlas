@@ -77,6 +77,53 @@ def invalidate_lineage_caches(asset_fqn: str | None = None) -> None:
             _TTL_CACHE.pop(key, None)
 
 
+FOCUS_COLUMN_PREVIEW_LIMIT = 20
+
+
+def _focus_columns_payload(
+    uc: UCSQLClient,
+    asset_fqn: str,
+    *,
+    limit: int = FOCUS_COLUMN_PREVIEW_LIMIT,
+) -> List[Dict[str, Any]]:
+    """Return a compact column-preview list for the focus node.
+
+    Defect 6 + 8 — the lineage payload previously omitted `columns` on
+    every node, which meant the front-end's "Include Columns" toggle had
+    nothing to surface on the focused card and the Details tab could not
+    render a schema preview. We fetch the column list via the cached
+    `uc.get_table_columns` path (same source the entity workspace uses),
+    clamp to `limit` rows to keep the payload cheap, and emit the minimal
+    shape the UI expects (`name`, `type`, optional `qualityTone`).
+
+    Any failure is swallowed silently — missing columns degrade the
+    focus card gracefully (it falls back to the non-column layout) but
+    must never break the lineage graph itself.
+    """
+    try:
+        catalog, schema, table = asset_service.split_uc_name(asset_fqn)
+    except ValueError:
+        return []
+    try:
+        columns_df = uc.get_table_columns(catalog, schema, table)
+    except Exception:
+        return []
+    if columns_df is None or columns_df.empty:
+        return []
+    rows: List[Dict[str, Any]] = []
+    for _, row in columns_df.head(limit).iterrows():
+        name = asset_service.normalize_str(row.get("column_name"))
+        if not name:
+            continue
+        rows.append(
+            {
+                "name": name,
+                "type": asset_service.normalize_str(row.get("data_type")),
+            }
+        )
+    return rows
+
+
 def graph_node_for_asset(
     uc: UCSQLClient,
     store: Any,
@@ -90,6 +137,7 @@ def graph_node_for_asset(
     foot: Optional[List[str]] = None,
     depth: int = 1,
     visible_inventory: Optional[pd.DataFrame] = None,
+    include_columns: bool = False,
 ) -> Dict[str, Any]:
     row = asset_service.inventory_row(uc, store, asset_fqn)
     identity_resolved = bool(asset_service.normalize_str(row.get("table_type")))
@@ -117,6 +165,15 @@ def graph_node_for_asset(
     footer = foot or [item_kind]
     if not is_openable and "Metadata record unavailable" not in footer:
         footer = [*footer, "Metadata record unavailable"]
+    # Defect 6 + 8 — only the focus node receives a column preview so the
+    # payload stays cheap (non-focus nodes render as compact icon + name
+    # cards per round-18 design). `include_columns=False` skips the
+    # column fetch entirely so this helper stays cheap for peer nodes.
+    columns_payload = (
+        _focus_columns_payload(uc, asset_fqn)
+        if include_columns and is_openable
+        else []
+    )
     return {
         "id": f"{role}-{asset_fqn}",
         "assetFqn": asset_fqn,
@@ -129,6 +186,7 @@ def graph_node_for_asset(
         "x": x,
         "y": y,
         "foot": footer,
+        "columns": columns_payload,
         "details": {
             "fqn": asset_fqn,
             "description": asset_service.normalize_str(row.get("comment"))
@@ -302,6 +360,13 @@ def _data_edge_details(
             "targetAssetFqn": target_fqn,
             "mappingCount": len(mappings),
             "columnMappings": mappings[:20],
+            # A5.2 — reserved slot for the SQL snippet that produced the
+            # relationship (view definition, job SQL, etc). Unity Catalog
+            # system tables do not expose this uniformly yet, so we emit
+            # None and let the frontend render a muted placeholder. When a
+            # downstream crawler starts populating this field it flows
+            # through to the edge drawer without frontend changes.
+            "sqlSnippet": None,
             "summary": (
                 f"{len(mappings)} column mapping{'s' if len(mappings) != 1 else ''}"
                 if mappings
@@ -573,8 +638,42 @@ def _lineage_depth_payload(
     data_graph: Dict[str, Any],
     *,
     system_uc: Optional[UCSQLClient] = None,
+    include_second_hop: bool = False,
 ) -> Dict[str, Any]:
+    """Compute first-hop asset lists (cheap — derived from the already-built
+    data_graph) plus optionally the second-hop neighbor expansion.
+
+    The two-hop expansion costs 2×SECOND_HOP_SEED_LIMIT system.access
+    queries (6 upstream + 6 downstream by default), which on cold loads
+    adds seconds to the primary lineage fetch. Neither the frontend nor
+    any current test consumes the `lineageDepth.twoHop` payload, so we
+    default to ``include_second_hop=False`` on the main build and expose
+    the full expansion via a separate `/api/lineage/{fqn}/depth` endpoint
+    for clients that want the richer summary.
+    """
+
     first_hop = _first_hop_assets(data_graph)
+    if not include_second_hop:
+        deferred = {
+            "seedCount": 0,
+            "processedSeedCount": 0,
+            "uniqueNeighborCount": 0,
+            "neighborSamples": [],
+            "seedSummaries": [],
+            "deferred": True,
+            "limit": {
+                "seedAssets": SECOND_HOP_SEED_LIMIT,
+                "neighborsPerSeed": SECOND_HOP_NEIGHBOR_LIMIT,
+            },
+        }
+        return {
+            "oneHop": first_hop,
+            "twoHop": {
+                "upstream": deferred,
+                "downstream": dict(deferred),
+            },
+        }
+
     upstream_second_hop = _second_hop_payload(
         uc,
         focus_fqn,
@@ -625,6 +724,7 @@ def build_data_graph(
         foot=[asset_service.normalize_str(row.get("certification")) or "Unassigned"],
         depth=0,
         visible_inventory=visible_inventory,
+        include_columns=True,
     )
     per_branch_limit = max(8, LINEAGE_GRAPH_NODE_LIMIT // 2)
     upstream_branch = _recursive_branch_graph(
@@ -697,6 +797,7 @@ def build_operational_graph(
         foot=["Operational center"],
         depth=0,
         visible_inventory=visible_inventory,
+        include_columns=True,
     )
     try:
         upstream_df = metadata_service.enrich_operational_context_names(

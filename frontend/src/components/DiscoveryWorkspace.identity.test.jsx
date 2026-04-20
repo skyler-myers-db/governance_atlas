@@ -332,13 +332,15 @@ describe("DiscoveryWorkspace — mockup parity lock (2026-04-19 audit)", () => {
     // wrapper carries the min-width-0 safeguard class.
     if (grid) {
       // Grid is present — verify buttons count. Four actions per the
-      // mockup (View Details / Request Access / Add to Lineage / Favorite).
+      // mockup: View Details / Request Access / Go to Lineage / Favorite.
+      // ("Go to Lineage" was "Add to Lineage" before round 17 — the old
+      // name implied a manual-edit affordance the screen doesn't have.)
       const buttons = grid.querySelectorAll("button");
       expect(buttons.length).toBe(4);
       const labels = Array.from(buttons).map((b) => b.textContent.trim());
       expect(labels[0]).toMatch(/View Details/);
       expect(labels[1]).toMatch(/Request Access/);
-      expect(labels[2]).toMatch(/Add to Lineage/);
+      expect(labels[2]).toMatch(/Go to Lineage/);
       // Label must NOT be "Mark as Favorite" (too long for narrow rail) —
       // the audit loop trimmed it to "Favorite" / "Favorited".
       expect(labels[3]).not.toMatch(/Mark as Favorite/);

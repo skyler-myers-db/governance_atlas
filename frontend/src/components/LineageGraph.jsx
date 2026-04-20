@@ -14,10 +14,28 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { assetPathLabel } from "../lib/assetPresentation";
-import { upsertGovernanceOwner } from "../lib/api";
 import { exportLineagePng } from "../lib/exportLineagePng";
 import { SurfaceDrawer, SurfaceDrawerSection } from "./ShellLayoutPrimitives";
 import { AssetTypeIcon } from "./primitives/AssetTypeIcon";
+
+// Defect 1 — turn a three-part UC fqn (catalog.schema.table) + a workspace
+// host into the canonical Unity Catalog explorer URL. Returns "" when
+// either piece is missing so callers can disable the deep-link button
+// gracefully. We do NOT URL-encode the path segments here because the
+// explorer accepts raw UC identifiers (which are already restricted to
+// a narrow charset); re-encoding would double-encode dots and dashes
+// and break the catalog route.
+function databricksCatalogUrl(assetFqn, workspaceHost) {
+  const host = String(workspaceHost || "").trim();
+  if (!host) return "";
+  const parts = String(assetFqn || "")
+    .split(".")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length !== 3) return "";
+  const [catalog, schema, table] = parts;
+  return `https://${host}/explore/data/${catalog}/${schema}/${table}`;
+}
 
 function nodeColor(kind) {
   if (kind === "View") return "#5b6af7";
@@ -64,15 +82,26 @@ function estimateNodeWidth(node) {
   const labelLength = String(node?.label || "").trim().length;
   const subtitleLength = String(node?.subtitle || "").trim().length;
   const longest = Math.max(labelLength, Math.min(subtitleLength, 52));
-  const base = node?.role === "focus" ? 316 : 252;
-  return Math.max(base, Math.min(408, 196 + longest * 3.05));
+  // Round 20 defect #1: peer nodes are thin horizontal rectangles per
+  // the mockup (wider than tall). Previous round shrank them to ~134px
+  // wide which forced the name to truncate with "..." and the type
+  // line to wrap off-card. New target: 190-240px wide, 44-52px tall.
+  if (node?.role === "focus") {
+    return Math.max(248, Math.min(348, 180 + longest * 3.0));
+  }
+  return Math.max(190, Math.min(240, 148 + longest * 2.6));
 }
 
 function estimateNodeHeight(node) {
-  const labelLines = Math.max(1, Math.ceil(String(node?.label || "").trim().length / 22));
-  const subtitleLines = Math.max(1, Math.ceil(String(node?.subtitle || "").trim().length / 28));
-  const footLines = Math.max(1, Math.ceil(((node?.foot || []).join(" • ").length || 0) / 24));
-  return 82 + labelLines * 19 + subtitleLines * 17 + footLines * 13;
+  if (node?.role === "focus") {
+    const labelLines = Math.max(1, Math.ceil(String(node?.label || "").trim().length / 22));
+    const subtitleLines = Math.max(1, Math.ceil(String(node?.subtitle || "").trim().length / 28));
+    return 88 + labelLines * 19 + subtitleLines * 17;
+  }
+  // Round 20 defect #1: flat peer height so the card reads as a thin
+  // rectangle (icon + name + single type line + optional depth chip).
+  // ~48px lets the schema-typography fit without empty padding.
+  return 52;
 }
 
 function buildAdjacencyMaps(nodes, edges) {
@@ -315,7 +344,7 @@ function transformGraph(graph) {
       data: node,
       style: {
         width: node.width || estimateNodeWidth(node),
-        borderRadius: 14,
+        borderRadius: node.role === "focus" ? 14 : 10,
         border:
           node.role === "focus"
             ? "2px solid #5b43ee"
@@ -324,8 +353,12 @@ function transformGraph(graph) {
               : node.layout?.side === "downstream"
                 ? "1px solid rgba(126, 79, 238, 0.35)"
                 : "1px solid #c9d6ee",
-        borderLeftWidth: node.layout?.side === "upstream" ? 4 : 1,
-        borderRightWidth: node.layout?.side === "downstream" ? 4 : 1,
+        // Round 19 defect #10: drop the thick left/right indicator stripe
+        // on peer nodes — it was adding ~4px of chrome on every card and
+        // reinforcing the upstream/downstream distinction that the graph
+        // position already communicates.
+        borderLeftWidth: 1,
+        borderRightWidth: 1,
         background:
           node.role === "focus"
             ? "linear-gradient(180deg, #ffffff 0%, #f7f5ff 100%)"
@@ -336,9 +369,9 @@ function transformGraph(graph) {
                 : "#ffffff",
         boxShadow:
           node.role === "focus"
-            ? "0 14px 24px rgba(74,95,206,0.10)"
+            ? "0 10px 20px rgba(74,95,206,0.10)"
             : "0 1px 2px rgba(19,31,65,0.03)",
-        padding: 8,
+        padding: node.role === "focus" ? 10 : 6,
       },
       type: "assetNode",
       sourcePosition: "right",
@@ -351,15 +384,19 @@ function transformGraph(graph) {
       type: "assetEdge",
       data: edge,
       animated: false,
+      // Round 20 defect #3: bring the arrowhead back to a readable
+      // size — round 19's 10x10 got lost against the thin 1.3-1.6 px
+      // stroke. 14x14 closed arrow is still delicate but clearly
+      // directional, matching the mockup.
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        width: 20,
-        height: 20,
+        width: 14,
+        height: 14,
         color: "#3f34d8",
       },
       style: {
         stroke: "#4453db",
-        strokeWidth: edge.depth === 1 ? 4.1 : 3.5,
+        strokeWidth: edge.depth === 1 ? 1.6 : 1.3,
       },
     })),
   };
@@ -488,16 +525,38 @@ function nodeDetailBadges(data) {
 function NodeLabel({ data }) {
   const branchToggleVisible =
     typeof data?.onToggleBranchCollapse === "function" && Number(data?.branchDescendantCount || 0) > 0;
-  const iconSize = data.role === "focus" ? "lg" : "md";
-  const badges = nodeDetailBadges(data);
+  const isFocus = data.role === "focus";
+  const iconSize = isFocus ? "lg" : "md";
+  const badges = isFocus ? nodeDetailBadges(data) : [];
+
+  // Round 20 defect #4: peer nodes now carry a depth label ("Upstream 1",
+  // "Downstream 2") so the direction + hop count are obvious at a glance.
+  // Focus node keeps its "Focus" eyebrow via `kicker`.
+  const side = String(data?.layout?.side || "").toLowerCase();
+  const depth = Number(data?.layout?.depth || 0);
+  let depthLabel = "";
+  if (!isFocus && side && depth > 0) {
+    const prefix = side === "upstream" ? "Upstream" : side === "downstream" ? "Downstream" : "";
+    if (prefix) depthLabel = `${prefix} ${depth}`;
+  }
 
   return (
-    <div className="gh-graph-node-card">
+    <div className={`gh-graph-node-card ${isFocus ? "is-focus" : "is-peer"}`.trim()}>
       <div className="gh-graph-node-head">
         <AssetTypeIcon type={data.kind} size={iconSize} className="gh-graph-node-icon" />
         <div className="gh-graph-node-head-copy">
-          <div className="gh-graph-node-kicker">{data.kicker || data.kind}</div>
+          {isFocus ? (
+            <div className="gh-graph-node-kicker">{data.kicker || data.kind}</div>
+          ) : null}
           <div className="gh-graph-node-title">{data.label}</div>
+          {!isFocus ? (
+            <div className="gh-graph-node-peer-meta">
+              <span className="gh-graph-node-type-line">{data.kind}</span>
+              {depthLabel ? (
+                <span className="gh-graph-node-depth-chip">{depthLabel}</span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         {branchToggleVisible ? (
           <button
@@ -512,27 +571,63 @@ function NodeLabel({ data }) {
           </button>
         ) : null}
       </div>
-      <div className="gh-graph-node-subtitle">{data.subtitle}</div>
-      {badges.length ? (
-        <div className="gh-graph-node-badges">
-          {badges.map((badge, index) => (
-            <span
-              className={`gh-graph-node-badge tone-${badge.tone}`}
-              key={`${data.id}-badge-${index}`}
-              title={badge.title}
-            >
-              {badge.label}
-            </span>
-          ))}
-        </div>
+      {isFocus ? (
+        <>
+          <div className="gh-graph-node-subtitle">{data.subtitle}</div>
+          {badges.length ? (
+            <div className="gh-graph-node-badges">
+              {badges.map((badge, index) => (
+                <span
+                  className={`gh-graph-node-badge tone-${badge.tone}`}
+                  key={`${data.id}-badge-${index}`}
+                  title={badge.title}
+                >
+                  {badge.label}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {/* Round 20 defect #2: the focus node ALWAYS shows its schema
+              preview (up to 4 rows) when the backend supplies columns —
+              no more waiting for "Include Columns" to be toggled on. The
+              toggle now expands the preview from 4 rows to 8 rows. This
+              matches the mockup where customer_churn_model shows its
+              columns inline directly on the focus card. */}
+          {Array.isArray(data.columns) && data.columns.length > 0 ? (
+            <ul className="gh-graph-node-columns" aria-label="Asset columns">
+              {/* Round 20 defect #2: cap at 4 rows by default, expand to
+                  8 when Include Columns is on so the toggle stays
+                  meaningful. */}
+              {data.columns.slice(0, data.__showInlineColumns ? 8 : 4).map((column) => {
+                const name = typeof column === "string" ? column : column?.name || "";
+                const type =
+                  typeof column === "object"
+                    ? column?.type || column?.dataType || ""
+                    : "";
+                if (!name) return null;
+                return (
+                  <li className="gh-graph-node-columns-row" key={name}>
+                    <span className="gh-graph-node-columns-name" title={name}>{name}</span>
+                    {type ? <span className="gh-graph-node-columns-type">{type}</span> : null}
+                  </li>
+                );
+              })}
+              {data.columns.length > (data.__showInlineColumns ? 8 : 4) ? (
+                <li className="gh-graph-node-columns-more">
+                  +{data.columns.length - (data.__showInlineColumns ? 8 : 4)} more
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
+          <div className="gh-graph-node-foot">
+            <span>{data.kind}</span>
+            {data.layout?.side ? <span className="gh-graph-node-pill">{data.layout.side}</span> : null}
+            {typeof data.layout?.depth === "number" && data.layout.depth > 0 ? (
+              <span className="gh-graph-node-pill">{`d${data.layout.depth}`}</span>
+            ) : null}
+          </div>
+        </>
       ) : null}
-      <div className="gh-graph-node-foot">
-        <span>{data.kind}</span>
-        {data.layout?.side ? <span className="gh-graph-node-pill">{data.layout.side}</span> : null}
-        {typeof data.layout?.depth === "number" && data.layout.depth > 0 ? (
-          <span className="gh-graph-node-pill">{`d${data.layout.depth}`}</span>
-        ) : null}
-      </div>
     </div>
   );
 }
@@ -574,8 +669,10 @@ function AssetEdge({
         path={path}
         style={{
           stroke: edgeStroke({ selected, data }),
-          strokeWidth: data?.depth === 1 ? (selected ? 5.2 : 4.2) : selected ? 4.4 : 3.6,
-          opacity: selected ? 1 : 0.96,
+          // Round 18 defect #2: scale widths down from 3.6-5.2px to 1.4-2.2px
+          // so the graph reads with delicate strokes per the mockup.
+          strokeWidth: data?.depth === 1 ? (selected ? 2.2 : 1.8) : selected ? 2.0 : 1.4,
+          opacity: selected ? 1 : 0.9,
           strokeDasharray: edgeDashArray(data),
         }}
       />
@@ -768,6 +865,482 @@ function LineageRecordCard({
   );
 }
 
+// Selected-node drawer body — dense, tabbed, with a sticky action footer.
+// Mirrors the lineage mockup: icon + FQN header, 5-tab row, per-tab panel
+// scrolling inside a flex column, and `View in Databricks Catalog` +
+// `Add Steward` locked to the bottom.
+//
+// Row-level rule: when the backing value is missing or equals "Unassigned" /
+// "—", the row is omitted entirely rather than stamped as an empty label.
+function LineageNodeDrawerBody({
+  node,
+  tab,
+  onTabChange,
+  neighbors,
+  isRecordUnavailable,
+  onOpenInCatalog,
+  catalogUrl,
+  onAddSteward,
+  onNeighborSelect,
+}) {
+  const detail = Array.isArray(node?.details) ? node.details[0] || {} : node?.details || {};
+  const record = node?.record || detail || {};
+  const objectType = node?.kind || record?.objectType || detail?.objectType || "Asset";
+  const fqn = node?.assetFqn || node?.subtitle || node?.label || "";
+
+  const TAB_ORDER = ["details", "columns", "quality", "stewardship", "dependencies"];
+  // Defect 9 — the last tab now reads "Neighbors" (clearer than "Depend."
+  // about what it enumerates: immediate upstream/downstream assets).
+  const TAB_LABELS = [
+    { key: "details", label: "Details" },
+    { key: "columns", label: "Columns" },
+    { key: "quality", label: "Quality" },
+    { key: "stewardship", label: "Stewardship" },
+    { key: "dependencies", label: "Neighbors" },
+  ];
+
+  const handleTabKey = (event) => {
+    const current = TAB_ORDER.indexOf(tab);
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      onTabChange(TAB_ORDER[(current + 1) % TAB_ORDER.length]);
+    } else if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      onTabChange(TAB_ORDER[(current - 1 + TAB_ORDER.length) % TAB_ORDER.length]);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      onTabChange(TAB_ORDER[0]);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      onTabChange(TAB_ORDER[TAB_ORDER.length - 1]);
+    }
+  };
+
+  return (
+    <div className="gh-lineage-node-body-root">
+      {/* Header: icon + FQN + object-type chip. The SurfaceDrawer's own
+          close control is rendered via its `actions` slot, so nothing
+          to duplicate here. */}
+      <header className="gh-lineage-node-header">
+        <AssetTypeIcon type={objectType} size="md" />
+        <div className="gh-lineage-node-header-copy">
+          <div className="gh-lineage-node-header-fqn" title={fqn}>
+            {fqn || node?.label || "Selected node"}
+          </div>
+          <div className="gh-chip-row gh-lineage-node-header-chips">
+            <span className="gh-chip gh-chip-soft">{objectType}</span>
+            {isRecordUnavailable ? (
+              <span className="gh-chip gh-chip-soft" title="Metadata record unavailable">
+                Metadata record unavailable
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </header>
+
+      {/* Tab row — 5 tabs, keyboard navigable. */}
+      <div
+        aria-label="Selected node details"
+        className="gh-lineage-node-tabs"
+        data-testid="lineage-node-tabs"
+        role="tablist"
+      >
+        {TAB_LABELS.map((t) => (
+          <button
+            aria-controls={`lineage-node-panel-${t.key}`}
+            aria-selected={tab === t.key}
+            className={`gh-lineage-node-tab ${tab === t.key ? "is-active" : ""}`}
+            data-testid={`lineage-node-tab-${t.key}`}
+            id={`lineage-node-tab-${t.key}`}
+            key={t.key}
+            onClick={() => onTabChange(t.key)}
+            onKeyDown={handleTabKey}
+            role="tab"
+            tabIndex={tab === t.key ? 0 : -1}
+            type="button"
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Scrollable tab panel. The footer below sits outside so it stays
+          pinned to the bottom of the drawer regardless of panel height. */}
+      <div className="gh-lineage-node-scroll">
+        {tab === "details" ? (
+          <LineageNodeDetailsPanel node={node} detail={detail} record={record} objectType={objectType} />
+        ) : null}
+        {tab === "columns" ? (
+          <LineageNodeColumnsPanel node={node} detail={detail} />
+        ) : null}
+        {tab === "quality" ? (
+          <LineageNodeQualityPanel node={node} detail={detail} />
+        ) : null}
+        {tab === "stewardship" ? (
+          <LineageNodeStewardshipPanel node={node} detail={detail} />
+        ) : null}
+        {tab === "dependencies" ? (
+          <LineageNodeDependenciesPanel neighbors={neighbors} onNeighborSelect={onNeighborSelect} />
+        ) : null}
+      </div>
+
+      {/* Sticky action footer — always rendered, irrespective of active
+          tab, per the mockup. Defect 1: the "View in Databricks Catalog"
+          button now deep-links into the Unity Catalog explorer in a new
+          tab instead of routing through the in-app entity page. When the
+          workspace host isn't known yet (bootstrap hasn't hydrated), we
+          fall back to disabling the button with a tooltip so stewards
+          aren't clicking a dead action. */}
+      <footer className="gh-lineage-node-footer" data-testid="lineage-node-footer">
+        <button
+          className="gh-primary-button gh-secondary-button-compact"
+          disabled={!node?.assetFqn || !catalogUrl || isRecordUnavailable}
+          onClick={onOpenInCatalog}
+          title={
+            catalogUrl
+              ? `Open ${node?.assetFqn || "asset"} in the Databricks Unity Catalog explorer`
+              : "Workspace URL unavailable"
+          }
+          type="button"
+        >
+          View in Databricks Catalog
+        </button>
+        <button
+          className="gh-secondary-button gh-secondary-button-compact"
+          disabled={!node?.assetFqn}
+          onClick={onAddSteward}
+          type="button"
+        >
+          Add Steward
+        </button>
+      </footer>
+    </div>
+  );
+}
+
+function isMeaningful(value) {
+  const clean = String(value ?? "").trim();
+  if (!clean) return false;
+  if (clean === "—") return false;
+  if (clean.toLowerCase() === "unassigned") return false;
+  return true;
+}
+
+// Defect 9 — humanize a byte count into KB / MB / GB / TB. Accepts a
+// number, a numeric string, or pre-formatted text ("1.2 GB"); pre-formatted
+// input passes through unchanged so a backend that decides to emit
+// "Partitioned · 800 MB" still renders cleanly.
+function formatSizeBytes(value) {
+  if (value == null) return "";
+  if (typeof value === "string" && Number.isNaN(Number(value))) {
+    const trimmed = value.trim();
+    return trimmed;
+  }
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes < 0) return "";
+  if (bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  const exp = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  const scaled = bytes / 1024 ** exp;
+  const precision = scaled >= 100 || exp === 0 ? 0 : scaled >= 10 ? 1 : 2;
+  return `${scaled.toFixed(precision)} ${units[exp]}`;
+}
+
+// Defect 9 — humanize a row count with thousands separators. Pre-formatted
+// strings fall through unchanged so a backend that emits "≈ 12M" stays
+// intact; pure numbers get locale-grouped (e.g. 1_234_567 → "1,234,567").
+function formatRowCount(value) {
+  if (value == null) return "";
+  if (typeof value === "string" && Number.isNaN(Number(value))) {
+    return value.trim();
+  }
+  const rows = Number(value);
+  if (!Number.isFinite(rows) || rows < 0) return "";
+  return rows.toLocaleString("en-US");
+}
+
+function LineageNodeDetailsPanel({ node, detail, record, objectType }) {
+  // Defect 9 — derive Schema/Catalog from the FQN when the payload
+  // doesn't split them out. Most lineage nodes only carry `assetFqn`
+  // ("catalog.schema.table"), so relying on `node.schema` / `node.catalog`
+  // alone caused both rows to disappear even when the data was obviously
+  // available. Splitting the FQN as a last resort keeps the grid dense
+  // without fabricating values — the split produces real identifiers,
+  // not placeholders.
+  const fqnParts = String(node?.assetFqn || "")
+    .split(".")
+    .map((part) => part.trim());
+  const [fqnCatalog, fqnSchema] = fqnParts.length === 3 ? fqnParts : ["", ""];
+
+  // Size / rows — the backend may emit raw numbers (`sizeBytes`,
+  // `rowCount`) or pre-formatted strings. Humanize the numeric form so
+  // the operator reads "1.2 GB" / "12,345" instead of "1288490188" /
+  // "12345". If the field is absent, the row is hidden via the
+  // `isMeaningful` filter below.
+  const sizeValue =
+    formatSizeBytes(detail?.sizeBytes ?? record?.sizeBytes) ||
+    String(detail?.size ?? record?.size ?? "").trim();
+  const rowValue =
+    formatRowCount(detail?.rowCount ?? record?.rowCount) ||
+    String(detail?.rows ?? record?.rows ?? "").trim();
+
+  const rows = [
+    { label: "Type", value: objectType },
+    { label: "Schema", value: node?.schema || record?.schema || detail?.schema || fqnSchema },
+    { label: "Catalog", value: node?.catalog || record?.catalog || detail?.catalog || fqnCatalog },
+    { label: "Owner", value: detail?.owner || record?.owner || node?.owner },
+    { label: "Created", value: detail?.createdAt || record?.createdAt },
+    { label: "Last Updated", value: detail?.updatedAt || record?.updatedAt || detail?.lastUpdatedAt },
+    { label: "Databricks Object ID", value: detail?.objectId || record?.objectId || detail?.statementId },
+    { label: "Size", value: sizeValue },
+    { label: "Rows", value: rowValue },
+  ].filter((row) => isMeaningful(row.value));
+
+  const description = detail?.description || record?.description || node?.subtitle || "";
+
+  // Column preview — first 4 rows, with a "+N more" link when truncated.
+  const columns =
+    (Array.isArray(node?.columns) && node.columns) ||
+    (Array.isArray(detail?.columns) && detail.columns) ||
+    [];
+  const previewColumns = columns.slice(0, 4);
+  const overflow = columns.length - previewColumns.length;
+
+  return (
+    <div
+      className="gh-lineage-node-panel"
+      data-testid="lineage-node-panel-details"
+      id="lineage-node-panel-details"
+      role="tabpanel"
+    >
+      {rows.length ? (
+        <div className="gh-attribute-list gh-lineage-node-details">
+          {rows.map((row) => (
+            <div className="gh-attribute-row" key={row.label}>
+              <span className="gh-attribute-label">{row.label}</span>
+              <span className="gh-attribute-value">{row.value}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {description ? (
+        <div className="gh-lineage-node-description">
+          <div className="gh-attribute-label">Description</div>
+          <div className="gh-support-copy">{description}</div>
+        </div>
+      ) : null}
+
+      {previewColumns.length ? (
+        <div className="gh-lineage-node-column-preview">
+          <div className="gh-attribute-label">Columns</div>
+          <LineageNodeColumnTable columns={previewColumns} nodeId={node?.id} />
+          {overflow > 0 ? (
+            <div className="gh-support-copy gh-lineage-node-more">
+              +{overflow} more — open <strong>Columns</strong> tab for the full schema.
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function LineageNodeColumnsPanel({ node, detail }) {
+  const columns =
+    (Array.isArray(node?.columns) && node.columns) ||
+    (Array.isArray(detail?.columns) && detail.columns) ||
+    [];
+  return (
+    <div
+      className="gh-lineage-node-panel"
+      data-testid="lineage-node-panel-columns"
+      id="lineage-node-panel-columns"
+      role="tabpanel"
+    >
+      {columns.length ? (
+        <LineageNodeColumnTable columns={columns} nodeId={node?.id} />
+      ) : (
+        <div className="gh-support-copy gh-lineage-node-empty">
+          No column metadata is exposed for this node yet.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LineageNodeColumnTable({ columns, nodeId }) {
+  return (
+    <table className="gh-lineage-node-columns">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Quality</th>
+        </tr>
+      </thead>
+      <tbody>
+        {columns.map((column, index) => {
+          const name =
+            typeof column === "string"
+              ? column
+              : column?.name || column?.columnName || "";
+          const type =
+            typeof column === "string"
+              ? ""
+              : column?.dataType || column?.type || "";
+          const tone = typeof column === "object" ? column?.qualityTone : "";
+          return (
+            <tr key={`${nodeId || "node"}-column-${index}`}>
+              <td className="gh-lineage-node-columns-name">{name}</td>
+              <td className="gh-lineage-node-columns-type">{type}</td>
+              <td>
+                {tone ? (
+                  <span
+                    aria-label={`Column quality ${tone}`}
+                    className={`gh-lineage-column-quality-dot tone-${tone}`}
+                    title={column?.qualityLabel || tone}
+                  />
+                ) : (
+                  <span className="gh-support-copy">—</span>
+                )}
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function LineageNodeQualityPanel({ node, detail }) {
+  const qualityRuns =
+    (Array.isArray(node?.qualityRuns) && node.qualityRuns) ||
+    (Array.isArray(detail?.qualityRuns) && detail.qualityRuns) ||
+    [];
+  return (
+    <div
+      className="gh-lineage-node-panel"
+      data-testid="lineage-node-panel-quality"
+      id="lineage-node-panel-quality"
+      role="tabpanel"
+    >
+      {qualityRuns.length ? (
+        <div className="gh-lineage-linked-list">
+          {qualityRuns.map((run, index) => (
+            <div
+              className="gh-lineage-linked-row is-readonly"
+              key={`${node?.id || "node"}-quality-${index}`}
+            >
+              <span>{run.ruleName || run.name || "Quality rule"}</span>
+              <span>{run.status || run.outcome || "—"}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="gh-support-copy gh-lineage-node-empty">
+          No quality runs linked.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LineageNodeStewardshipPanel({ node, detail }) {
+  const owner = detail?.owner || node?.owner || "";
+  const steward = detail?.steward || node?.steward || "";
+  const governanceStatus = detail?.governanceStatus || "";
+  const certification = detail?.certification || "";
+  const rows = [
+    { label: "Business Owner", value: owner },
+    { label: "Data Steward", value: steward },
+    { label: "Certification", value: certification },
+    { label: "Governance State", value: governanceStatus },
+  ].filter((row) => isMeaningful(row.value));
+
+  return (
+    <div
+      className="gh-lineage-node-panel"
+      data-testid="lineage-node-panel-stewardship"
+      id="lineage-node-panel-stewardship"
+      role="tabpanel"
+    >
+      {rows.length ? (
+        <div className="gh-attribute-list gh-lineage-node-details">
+          {rows.map((row) => (
+            <div className="gh-attribute-row" key={row.label}>
+              <span className="gh-attribute-label">{row.label}</span>
+              <span className="gh-attribute-value">{row.value}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="gh-support-copy gh-lineage-node-empty">
+          No stewardship signals.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LineageNodeDependenciesPanel({ neighbors, onNeighborSelect }) {
+  const upstream = neighbors?.upstream || [];
+  const downstream = neighbors?.downstream || [];
+  const hasAny = upstream.length > 0 || downstream.length > 0;
+
+  return (
+    <div
+      className="gh-lineage-node-panel"
+      data-testid="lineage-node-panel-dependencies"
+      id="lineage-node-panel-dependencies"
+      role="tabpanel"
+    >
+      {hasAny ? (
+        <div className="gh-lineage-linked-list">
+          {upstream.length ? (
+            <div className="gh-lineage-node-deps-group">
+              <div className="gh-attribute-label">Upstream</div>
+              {upstream.map((n) => (
+                <button
+                  className="gh-lineage-linked-row is-node-link"
+                  data-testid="lineage-node-dependency"
+                  key={`dep-up-${n.id}`}
+                  onClick={() => onNeighborSelect(n)}
+                  type="button"
+                >
+                  <span>↑ {n.label}</span>
+                  <span>{n.subtitle || n.kind || ""}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {downstream.length ? (
+            <div className="gh-lineage-node-deps-group">
+              <div className="gh-attribute-label">Downstream</div>
+              {downstream.map((n) => (
+                <button
+                  className="gh-lineage-linked-row is-node-link"
+                  data-testid="lineage-node-dependency"
+                  key={`dep-down-${n.id}`}
+                  onClick={() => onNeighborSelect(n)}
+                  type="button"
+                >
+                  <span>↓ {n.label}</span>
+                  <span>{n.subtitle || n.kind || ""}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="gh-support-copy gh-lineage-node-empty">
+          No adjacent assets on this lineage graph.
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LineageGraph({
   asset,
   assetSearchLoading,
@@ -781,12 +1354,23 @@ export default function LineageGraph({
   hasEdges,
   linkedRecordUnavailableOverrides = {},
   overlay = null,
+  // Workspace-level stepper props — when these are provided the control
+  // bar above the canvas owns the clamp knobs; the legacy in-canvas
+  // filter rail still works on its own when the parent doesn't wire
+  // them (tests, embeds).
+  upstreamLevels = null,
+  downstreamLevels = null,
+  maxDepth = null,
+  nodesPerLayer = null,
+  includeColumns = null,
+  onRegisterGraphActions = null,
   onAssetSearchQueryChange,
   onContextChange,
   onOpenAsset,
   onOpenGovernance,
   onSelectAsset,
   userEmail = "",
+  workspaceHost = "",
 }) {
   const nodeTypes = useMemo(() => ({ assetNode: AssetNode }), []);
   const edgeTypes = useMemo(() => ({ assetEdge: AssetEdge }), []);
@@ -813,9 +1397,18 @@ export default function LineageGraph({
   const [filterRailOpen, setFilterRailOpen] = useState(false);
   const [excludedKinds, setExcludedKinds] = useState(() => new Set());
   const [maxVisibleDepth, setMaxVisibleDepth] = useState(4);
+  // A5.1 — "Include column lineage" toggle. When off, column-level nodes
+  // (kind === "Column") are filtered out so the graph reads as table/view
+  // lineage only. The toggle persists locally via useState — a graph-wide
+  // lineage store is not yet present, so we do not push this across the
+  // app boundary. When the backend starts emitting column nodes, enabling
+  // the toggle reveals them without further frontend work.
+  const [includeColumnLineage, setIncludeColumnLineage] = useState(false);
+  // Node drawer tab — the mockup groups node context into Details /
+  // Columns / Quality / Stewardship / Dependencies. We default to
+  // Details and reset whenever the selected node flips over.
+  const [nodeDrawerTab, setNodeDrawerTab] = useState("details");
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
-  const [quickGovernanceBusy, setQuickGovernanceBusy] = useState("");
-  const [quickGovernanceStatus, setQuickGovernanceStatus] = useState({ fqn: "", message: "" });
   const refocusRootRef = useRef(null);
   const canvasRef = useRef(null);
   const viewportRef = useRef(null);
@@ -860,28 +1453,73 @@ export default function LineageGraph({
     }, {});
   }, [defaultFocusNodeId, transformedBase.nodes]);
 
+  // Effective clamp values — workspace control bar wins when it provides
+  // them, otherwise fall back to the legacy filter-rail state so existing
+  // tests and embeds keep working.
+  const effectiveIncludeColumns = includeColumns == null ? includeColumnLineage : Boolean(includeColumns);
+  const effectiveMaxDepth = maxDepth == null ? maxVisibleDepth : Math.max(1, Number(maxDepth) || 1);
+  const effectiveUpstreamLevels = upstreamLevels == null ? null : Math.max(0, Number(upstreamLevels) || 0);
+  const effectiveDownstreamLevels = downstreamLevels == null ? null : Math.max(0, Number(downstreamLevels) || 0);
+  const effectiveNodesPerLayer = nodesPerLayer == null ? null : Math.max(1, Number(nodesPerLayer) || 0);
+
   const transformed = useMemo(() => {
-    const visibleNodeIds = new Set(
-      transformedBase.nodes
-        .filter((node) => {
-          const branchRootId = node.data?.layout?.branchRoot;
-          if (!branchRootId || branchRootId === defaultFocusNodeId) return true;
-          if (!collapsedBranches[branchRootId]) return true;
-          return node.id === branchRootId;
-        })
-        .filter((node) => {
-          // Hide excluded kinds unless they are the focus — never hide
-          // the asset the user is focused on, even if its kind is
-          // filtered out.
-          if (node.data?.role === "focus") return true;
-          const kind = String(node.data?.kind || "").trim();
-          if (excludedKinds.has(kind)) return false;
-          const depth = Number(node.data?.layout?.depth || 0);
-          if (depth > maxVisibleDepth) return false;
-          return true;
-        })
-        .map((node) => node.id),
-    );
+    // First pass — base visibility (branch collapse, kind exclusion,
+    // column toggle, per-side depth budget, global max-depth clamp).
+    const baseVisible = transformedBase.nodes.filter((node) => {
+      const branchRootId = node.data?.layout?.branchRoot;
+      if (branchRootId && branchRootId !== defaultFocusNodeId && collapsedBranches[branchRootId] && node.id !== branchRootId) {
+        return false;
+      }
+      if (node.data?.role === "focus") return true;
+      const kind = String(node.data?.kind || "").trim();
+      if (excludedKinds.has(kind)) return false;
+      if (!effectiveIncludeColumns && /^column$/i.test(kind)) return false;
+      const depth = Number(node.data?.layout?.depth || 0);
+      if (depth > effectiveMaxDepth) return false;
+      // Per-direction caps from the workspace-level steppers. When the
+      // backend doesn't honor these caps in the payload, we clamp the
+      // rendered graph here so the user sees the depth they asked for.
+      const side = node.data?.layout?.side;
+      if (effectiveUpstreamLevels != null && side === "upstream" && depth > effectiveUpstreamLevels) {
+        return false;
+      }
+      if (effectiveDownstreamLevels != null && side === "downstream" && depth > effectiveDownstreamLevels) {
+        return false;
+      }
+      return true;
+    });
+
+    // Second pass — per-layer node budget. Bucket nodes by (side, depth)
+    // and trim each bucket to `effectiveNodesPerLayer` after the focus is
+    // always kept. We sort by branchRoot label to get a deterministic
+    // slice; preserving the same nodes between renders.
+    let layerLimited = baseVisible;
+    if (effectiveNodesPerLayer != null) {
+      const buckets = new Map();
+      for (const node of baseVisible) {
+        if (node.data?.role === "focus") continue;
+        const side = node.data?.layout?.side || "other";
+        const depth = Number(node.data?.layout?.depth || 0);
+        const key = `${side}:${depth}`;
+        const bucket = buckets.get(key) || [];
+        bucket.push(node);
+        buckets.set(key, bucket);
+      }
+      const kept = new Set(
+        baseVisible.filter((node) => node.data?.role === "focus").map((node) => node.id),
+      );
+      for (const [, bucket] of buckets) {
+        bucket.sort((left, right) => {
+          const leftSort = String(left.data?.layout?.branchRoot || left.data?.label || left.id);
+          const rightSort = String(right.data?.layout?.branchRoot || right.data?.label || right.id);
+          return leftSort.localeCompare(rightSort);
+        });
+        bucket.slice(0, effectiveNodesPerLayer).forEach((node) => kept.add(node.id));
+      }
+      layerLimited = baseVisible.filter((node) => kept.has(node.id));
+    }
+
+    const visibleNodeIds = new Set(layerLimited.map((node) => node.id));
 
     return {
       nodes: transformedBase.nodes
@@ -898,6 +1536,13 @@ export default function LineageGraph({
                 branch && branch.descendantCount
                   ? () => toggleBranchCollapse(node.id)
                   : null,
+              // Round 18 defect #8: the focused node renders an inline
+              // column list when Include Columns is on — matches the
+              // mockup's expanded customer_churn_model card. Non-focus
+              // nodes never get column stamping.
+              __showInlineColumns: Boolean(
+                effectiveIncludeColumns && node.data?.role === "focus",
+              ),
             },
           };
         }),
@@ -932,7 +1577,19 @@ export default function LineageGraph({
           };
         }),
     };
-  }, [branchMetadata, collapsedBranches, defaultFocusNodeId, transformedBase.edges, transformedBase.nodes]);
+  }, [
+    branchMetadata,
+    collapsedBranches,
+    defaultFocusNodeId,
+    effectiveDownstreamLevels,
+    effectiveIncludeColumns,
+    effectiveMaxDepth,
+    effectiveNodesPerLayer,
+    effectiveUpstreamLevels,
+    excludedKinds,
+    transformedBase.edges,
+    transformedBase.nodes,
+  ]);
 
   const clearSelection = (options = {}) => {
     const { keepDrawer = false, keepFocusNode = true } = options;
@@ -963,8 +1620,14 @@ export default function LineageGraph({
     setAllowDefaultSelection(true);
     setRefocusOpen(false);
     setCollapsedBranches({});
+    setNodeDrawerTab("details");
     onAssetSearchQueryChange?.("");
   }, [asset?.fqn, defaultFocusNodeId]);
+
+  useEffect(() => {
+    // Reset back to Details whenever the focused node switches.
+    setNodeDrawerTab("details");
+  }, [selectedNodeId]);
 
   useEffect(() => {
     setSelectedEdgeId("");
@@ -1274,6 +1937,36 @@ export default function LineageGraph({
     return () => cancelAnimationFrame(frame);
   }, [drawerOpen, flowInstance, transformed.nodes.length]);
 
+  // Expose focus-view / reset-zoom handlers to the workspace control bar
+  // so the top-row "Focus View" and "Reset Zoom" buttons drive the same
+  // ReactFlow instance we already manage locally. Registering null on
+  // unmount keeps dangling callbacks from firing after teardown.
+  useEffect(() => {
+    if (typeof onRegisterGraphActions !== "function") return undefined;
+    onRegisterGraphActions({
+      focusView: () => {
+        if (!flowInstance) return;
+        const targetId = selectedNodeId || defaultFocusNodeId;
+        const node = targetId ? flowInstance.getNode?.(targetId) : null;
+        if (node?.position) {
+          const width = node.width || node.measured?.width || 240;
+          const height = node.height || node.measured?.height || 120;
+          flowInstance.setCenter?.(
+            node.position.x + width / 2,
+            node.position.y + height / 2,
+            { zoom: 1.15, duration: 240 },
+          );
+        } else {
+          flowInstance.fitView?.({ padding: 0.2, duration: 240 });
+        }
+      },
+      resetZoom: () => {
+        flowInstance?.fitView?.({ padding: 0.2, duration: 220 });
+      },
+    });
+    return () => onRegisterGraphActions(null);
+  }, [defaultFocusNodeId, flowInstance, onRegisterGraphActions, selectedNodeId]);
+
   useEffect(() => {
     if (!flowInstance || !viewportRef.current || typeof ResizeObserver === "undefined") return undefined;
     let frame = 0;
@@ -1356,23 +2049,46 @@ export default function LineageGraph({
                 ) : null}
               </div>
             ) : null}
+            {/* Round 19 defect #5: removed the redundant in-canvas
+                "Reset view" button — the workspace control bar's
+                "Reset Zoom" action already drives `flowInstance.fitView`
+                via the registered graphActions callback. Having two
+                buttons that do the same thing just cluttered the
+                top-strip overlay. */}
             <button
               className="gh-secondary-button"
-              onClick={() => {
-                flowInstance?.fitView?.({ padding: 0.18 });
-              }}
-              type="button"
-            >
-              Reset view
-            </button>
-            <button
-              className="gh-secondary-button"
+              data-testid="lineage-export-png"
               onClick={async () => {
+                // Defect 4 — the button used to swallow every failure so a
+                // user who clicked it got no feedback at all. We now:
+                //   1. Attempt the SVG/foreignObject export (works in most
+                //      modern browsers for DOM trees without cross-origin
+                //      images).
+                //   2. On failure, surface a visible fallback via
+                //      `window.alert` so the user knows the click
+                //      registered. Calling window.print is the
+                //      documented escape hatch — the user can print-to-PDF
+                //      from the OS dialog if PNG rasterization blows up.
+                if (!viewportRef.current) {
+                  if (typeof window !== "undefined") {
+                    window.alert(
+                      "Lineage view isn't ready for export yet. Try again after the graph finishes loading.",
+                    );
+                  }
+                  return;
+                }
                 try {
                   await exportLineagePng(viewportRef.current, asset?.fqn);
                 } catch (err) {
-                  // Silent — PNG export is best-effort; keep the graph usable.
                   console.error("lineage PNG export failed", err);
+                  if (typeof window !== "undefined") {
+                    const useFallback = window.confirm(
+                      "PNG export isn't supported in this browser. Use the system print dialog as a fallback? (You can 'Save as PDF'.)",
+                    );
+                    if (useFallback && typeof window.print === "function") {
+                      window.print();
+                    }
+                  }
                 }
               }}
               title="Download a PNG snapshot of the current lineage view"
@@ -1501,6 +2217,23 @@ export default function LineageGraph({
                   value={maxVisibleDepth}
                 />
               </div>
+              <div className="gh-lineage-filter-section">
+                <label className="gh-lineage-filter-toggle">
+                  <input
+                    aria-label="Include column lineage"
+                    checked={includeColumnLineage}
+                    data-testid="lineage-include-columns-toggle"
+                    onChange={(event) => setIncludeColumnLineage(event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>
+                    Include column lineage
+                  </span>
+                </label>
+                <div className="gh-filter-hint">
+                  Reveals column-level nodes and edges when the backend exposes them.
+                </div>
+              </div>
             </div>
           ) : null}
         </div>
@@ -1564,11 +2297,79 @@ export default function LineageGraph({
               nodesDraggable={false}
               nodesConnectable={false}
               selectionOnDrag={false}
-              zoomOnDoubleClick={false}
+              /* Round 20 defects #5-6: correct scroll + zoom semantics.
+                 - `zoomOnDoubleClick` is explicit true so empty-pane
+                   double-click steps in one zoom level.
+                 - `zoomOnScroll` is BACK ON so the mouse wheel zooms
+                   (the previous round disabled it entirely to make
+                   trackpad pan, which also broke wheel zoom).
+                 - Trackpad pan is now enforced via a custom wheel
+                   handler (`onWheel` below) that detects pixel-mode
+                   scroll with small deltas and redirects it to pan
+                   translation via the ReactFlow instance. Mouse-wheel
+                   (`deltaMode === 1` line-mode, or pixel-mode with
+                   integer coarse deltas) falls through to ReactFlow's
+                   native zoomOnScroll. */
+              zoomOnDoubleClick={true}
+              zoomOnScroll={true}
+              panOnScroll={false}
+              zoomOnPinch
+              panOnDrag
+              onWheel={(event) => {
+                // Detect mouse-wheel vs trackpad:
+                //   deltaMode === 1 (lines) → classic mouse wheel
+                //   deltaMode === 0 with ctrlKey → trackpad pinch
+                //   deltaMode === 0 without ctrl + large int delta ≥ 100 → likely wheel
+                //   otherwise → trackpad scroll → pan
+                const isMouseWheel =
+                  event.deltaMode === 1 ||
+                  event.ctrlKey ||
+                  (Math.abs(event.deltaY) >= 100 &&
+                    Number.isInteger(event.deltaY) &&
+                    event.deltaX === 0);
+                if (isMouseWheel) {
+                  // Let ReactFlow's zoomOnScroll handle it.
+                  return;
+                }
+                if (!flowInstance) return;
+                // Trackpad scroll → pan. Cancel ReactFlow's zoom and
+                // translate the viewport by the scroll delta.
+                event.preventDefault();
+                event.stopPropagation();
+                try {
+                  const vp = flowInstance.getViewport?.() || { x: 0, y: 0, zoom: 1 };
+                  flowInstance.setViewport?.(
+                    {
+                      x: vp.x - event.deltaX,
+                      y: vp.y - event.deltaY,
+                      zoom: vp.zoom,
+                    },
+                    { duration: 0 },
+                  );
+                } catch (_) {
+                  /* older ReactFlow — fail open */
+                }
+              }}
               proOptions={{ hideAttribution: true }}
               defaultEdgeOptions={{ type: "assetEdge" }}
             >
-              {showMiniMap ? <MiniMap pannable zoomable maskColor="rgba(16, 24, 40, 0.06)" nodeColor="#d7dff4" /> : null}
+              {showMiniMap ? (
+                <MiniMap
+                  pannable
+                  zoomable
+                  position="bottom-right"
+                  maskColor="rgba(61, 43, 196, 0.08)"
+                  /* Round 19 fix #3: the previous nodeColor ("#d7dff4") was
+                     near-invisible on the white minimap background, making
+                     the map look completely blank. Use the indigo brand
+                     accent with a darker border so the node rectangles
+                     actually read. */
+                  nodeColor={(node) => (node?.data?.role === "focus" ? "#3d2bc4" : "#a6a0f5")}
+                  nodeStrokeColor="#2d1f93"
+                  nodeStrokeWidth={1.5}
+                  nodeBorderRadius={3}
+                />
+              ) : null}
               {showControls ? <Controls showInteractive={false} /> : null}
               <Background color="#d9e2ff" gap={22} />
             </ReactFlow>
@@ -1588,6 +2389,26 @@ export default function LineageGraph({
               </div>
             ) : null}
             {overlay ? <div className="gh-lineage-overlay">{overlay}</div> : null}
+            {transformed?.nodes?.length ? (
+              <div className="gh-lineage-stats-strip" data-testid="lineage-stats-strip">
+                {(() => {
+                  const focusId = defaultFocusNodeId;
+                  const upstreamCount = transformed.edges.filter((edge) => edge.target === focusId).length;
+                  const downstreamCount = transformed.edges.filter((edge) => edge.source === focusId).length;
+                  const columnsCount = Array.isArray(focusNode?.columns)
+                    ? focusNode.columns.length
+                    : Array.isArray(asset?.columns)
+                      ? asset.columns.length
+                      : 0;
+                  return (
+                    <span className="gh-lineage-stats-strip-copy">
+                      {upstreamCount} upstream · {downstreamCount} downstream
+                      {columnsCount ? ` · ${columnsCount} columns` : ""}
+                    </span>
+                  );
+                })()}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -1598,6 +2419,7 @@ export default function LineageGraph({
             Close drawer
           </button>
         }
+        bodyClassName={selectedNode && !selectedEdge ? "gh-lineage-node-drawer-body" : ""}
         className="gh-lineage-drawer"
         isOpen={drawerOpen}
         onClose={closeDrawer}
@@ -1711,6 +2533,8 @@ export default function LineageGraph({
               </SurfaceDrawerSection>
             ) : null}
 
+            <LineageEdgeSqlEvidence edge={selectedEdge} details={edgeDetails} />
+
             <SurfaceDrawerSection title="Edge Details">
               <div className="gh-attribute-list gh-lineage-edge-attributes">
                 <div className="gh-attribute-row">
@@ -1754,228 +2578,96 @@ export default function LineageGraph({
 
           </>
         ) : selectedNode ? (
-          <>
-            <LineageRecordCard
-              title="Selected Node"
-              node={selectedNode}
-              tone={selectedNode.role === "focus" ? "focus" : selectedNode.role || "neutral"}
-              availabilityOverride={linkedRecordUnavailableOverrides?.[selectedNode?.assetFqn] === true ? false : null}
-              onOpenAsset={onOpenAsset}
-              onOpenGovernance={onOpenGovernance}
-              includeFocusAction={false}
-              includeTraceActions={false}
-            />
-            <SurfaceDrawerSection>
-              <div className="gh-support-copy">
-                {selectedNode.role === "focus"
-                  ? "This asset anchors the current lineage view."
-                  : selectedNode.role === "source"
-                    ? "This node flows into the current focus."
-                    : "This node depends on the current focus."}
-              </div>
-            </SurfaceDrawerSection>
-            {selectedNode.assetFqn && userEmail ? (
-              <SurfaceDrawerSection title="Quick Governance">
-                <div className="gh-support-copy">
-                  Take governance action on <strong>{selectedNode.label}</strong> without
-                  leaving the lineage graph.
-                </div>
-                <div className="gh-action-grid gh-lineage-drawer-actions">
-                  <button
-                    className="gh-secondary-button"
-                    disabled={quickGovernanceBusy === selectedNode.assetFqn}
-                    onClick={async () => {
-                      if (!selectedNode.assetFqn || !userEmail) return;
-                      setQuickGovernanceStatus({ fqn: selectedNode.assetFqn, message: "" });
-                      setQuickGovernanceBusy(selectedNode.assetFqn);
-                      try {
-                        await upsertGovernanceOwner({
-                          assetFqn: selectedNode.assetFqn,
-                          ownerEmail: userEmail,
-                          ownerType: "business",
-                        });
-                        setQuickGovernanceStatus({
-                          fqn: selectedNode.assetFqn,
-                          message: `Assigned ${userEmail} as business owner of this asset.`,
-                        });
-                      } catch (err) {
-                        setQuickGovernanceStatus({
-                          fqn: selectedNode.assetFqn,
-                          message:
-                            err?.message?.includes("403")
-                              ? "Your workspace role does not allow governance writes."
-                              : "Owner assignment failed. Check the governance store, then retry.",
-                        });
-                      } finally {
-                        setQuickGovernanceBusy("");
-                      }
-                    }}
-                    title="Claim ownership of this asset as the currently signed-in user"
-                    type="button"
-                  >
-                    {quickGovernanceBusy === selectedNode.assetFqn
-                      ? "Saving…"
-                      : "Assign me as owner"}
-                  </button>
-                  <button
-                    className="gh-secondary-button"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(selectedNode.assetFqn);
-                        setQuickGovernanceStatus({
-                          fqn: selectedNode.assetFqn,
-                          message: `Copied ${selectedNode.assetFqn} to clipboard.`,
-                        });
-                      } catch {
-                        window.prompt("Copy asset FQN", selectedNode.assetFqn);
-                      }
-                    }}
-                    title="Copy the fully-qualified asset name to paste into another tool"
-                    type="button"
-                  >
-                    Copy FQN
-                  </button>
-                  <button
-                    className="gh-secondary-button"
-                    onClick={async () => {
-                      try {
-                        const url = new URL(window.location.href);
-                        url.pathname = `/lineage/${selectedNode.assetFqn}`;
-                        url.search = "";
-                        await navigator.clipboard.writeText(url.toString());
-                        setQuickGovernanceStatus({
-                          fqn: selectedNode.assetFqn,
-                          message: "Deep link copied. Paste to re-root on this node.",
-                        });
-                      } catch {
-                        // Silently ignore — not worth blocking the UI
-                      }
-                    }}
-                    title="Copy a lineage link that opens the graph rooted on this node"
-                    type="button"
-                  >
-                    Copy deep link
-                  </button>
-                </div>
-                {quickGovernanceStatus.fqn === selectedNode.assetFqn
-                  && quickGovernanceStatus.message ? (
-                  <div className="gh-support-copy gh-success-copy">
-                    {quickGovernanceStatus.message}
-                  </div>
-                ) : null}
-              </SurfaceDrawerSection>
-            ) : null}
-            {neighborBuckets.upstream.length || neighborBuckets.downstream.length ? (
-              <SurfaceDrawerSection title="Connected Nodes">
-                <div className="gh-lineage-linked-list">
-                  {neighborBuckets.upstream.slice(0, 3).map((node) => (
-                    <button
-                      className="gh-lineage-linked-row is-node-link"
-                      key={`up-${node.id}`}
-                      onClick={() => {
-                        setAllowDefaultSelection(false);
-                        setSelectedNodeId(node.id);
-                        setSelectedEdgeId("");
-                        setDrawerOpen(true);
-                        setGraphMode("explore");
-                      }}
-                      type="button"
-                    >
-                      <span>↑ {node.label}</span>
-                      <span>{node.subtitle}</span>
-                    </button>
-                  ))}
-                  {neighborBuckets.downstream.slice(0, 3).map((node) => (
-                    <button
-                      className="gh-lineage-linked-row is-node-link"
-                      key={`down-${node.id}`}
-                      onClick={() => {
-                        setAllowDefaultSelection(false);
-                        setSelectedNodeId(node.id);
-                        setSelectedEdgeId("");
-                        setDrawerOpen(true);
-                        setGraphMode("explore");
-                      }}
-                      type="button"
-                    >
-                      <span>↓ {node.label}</span>
-                      <span>{node.subtitle}</span>
-                    </button>
-                  ))}
-                </div>
-              </SurfaceDrawerSection>
-            ) : null}
-            {Array.isArray(selectedNode.details) && selectedNode.details.length ? (
-              <SurfaceDrawerSection title="Entity Details">
-                <div className="gh-lineage-linked-list">
-                  {selectedNode.details.map((item) => (
-                    <div className="gh-lineage-linked-row is-readonly" key={item.key}>
-                      <span>{item.name}</span>
-                      <span>{item.entityLabel}</span>
-                    </div>
-                  ))}
-                </div>
-              </SurfaceDrawerSection>
-            ) : null}
-            {selectedNode.assetFqn ? (
-              <SurfaceDrawerSection title="Graph Actions">
-                <div className="gh-action-grid gh-lineage-drawer-actions">
-                  {/* "Set as Focus" lives in the record card above — do not
-                      re-render it here. The Graph Actions panel is now
-                      exclusively about how the selected node relates to the
-                      visible graph (path tracing, branch collapse, centering),
-                      not how to open its metadata. */}
-                  {selectedNode.role !== "focus" ? (
-                    <button
-                      className="gh-secondary-button"
-                      onClick={() => {
-                        setGraphMode("path");
-                        setDrawerOpen(true);
-                      }}
-                      type="button"
-                    >
-                      Trace to Focus
-                    </button>
-                  ) : null}
-                  {selectedNode.branchDescendantCount ? (
-                    <button
-                      className="gh-secondary-button"
-                      onClick={() => {
-                        selectedNode.onToggleBranchCollapse?.();
-                      }}
-                      type="button"
-                    >
-                      {selectedNode.branchCollapsed ? "Expand Branch" : "Collapse Branch"}
-                    </button>
-                  ) : null}
-                  <button
-                    className="gh-secondary-button"
-                    onClick={() => {
-                      const node = flowInstance?.getNode?.(selectedNode.id);
-                      if (node?.position) {
-                        const width = node.width || node.measured?.width || 220;
-                        const height = node.height || node.measured?.height || 120;
-                        flowInstance?.setCenter?.(
-                          node.position.x + width / 2,
-                          node.position.y + height / 2,
-                          { zoom: 1.1, duration: 240 },
-                        );
-                      } else {
-                        flowInstance?.fitView?.({ padding: 0.2, duration: 240 });
-                      }
-                    }}
-                    type="button"
-                  >
-                    Center in Graph
-                  </button>
-                </div>
-              </SurfaceDrawerSection>
-            ) : null}
-          </>
+          <LineageNodeDrawerBody
+            node={selectedNode}
+            tab={nodeDrawerTab}
+            onTabChange={setNodeDrawerTab}
+            neighbors={neighborBuckets}
+            isRecordUnavailable={
+              linkedRecordUnavailableOverrides?.[selectedNode?.assetFqn] === true
+            }
+            catalogUrl={databricksCatalogUrl(selectedNode.assetFqn, workspaceHost)}
+            onOpenInCatalog={() => {
+              // Defect 1: open the Unity Catalog explorer in a new tab
+              // rather than routing through the in-app entity page.
+              // `databricksCatalogUrl` returns "" when either the
+              // workspace host or the three-part FQN is missing, which
+              // already disables the button via the `catalogUrl` prop.
+              const url = databricksCatalogUrl(selectedNode.assetFqn, workspaceHost);
+              if (!url || typeof window === "undefined") return;
+              window.open(url, "_blank", "noopener,noreferrer");
+            }}
+            onAddSteward={() => {
+              if (selectedNode.assetFqn && onOpenGovernance) {
+                onOpenGovernance(selectedNode.assetFqn);
+              }
+            }}
+            onNeighborSelect={(neighbor) => {
+              if (neighbor.assetFqn && onSelectAsset) {
+                onSelectAsset(neighbor.assetFqn);
+              } else {
+                setAllowDefaultSelection(false);
+                setSelectedNodeId(neighbor.id);
+                setSelectedEdgeId("");
+                setDrawerOpen(true);
+                setGraphMode("explore");
+              }
+            }}
+          />
         ) : (
           <div className="gh-empty-state">Select a node or edge to inspect the graph.</div>
         )}
       </SurfaceDrawer>
     </div>
+  );
+}
+
+// A5.2 — collapsible "SQL evidence" section for the edge drawer. Renders
+// whichever SQL-ish derivation field the backend populated for the edge —
+// today the backend does not emit a SQL snippet (see govhub/services/
+// lineage.py edge details), so most edges fall through to the muted
+// placeholder. When the backend starts emitting sqlSnippet (or producerSql
+// / derivation / viewDefinition as common aliases), the drawer will pick
+// it up automatically.
+export function LineageEdgeSqlEvidence({ edge, details }) {
+  const snippet =
+    edge?.data?.sqlSnippet ||
+    edge?.data?.producerSql ||
+    edge?.data?.derivation ||
+    edge?.data?.viewDefinition ||
+    details?.sqlSnippet ||
+    details?.producerSql ||
+    details?.derivation ||
+    details?.viewDefinition ||
+    "";
+  const [open, setOpen] = useState(Boolean(snippet));
+  const trimmed = typeof snippet === "string" ? snippet.trim() : "";
+
+  return (
+    <SurfaceDrawerSection
+      title="SQL evidence"
+      actions={
+        <button
+          aria-expanded={open}
+          className="gh-tertiary-button gh-inline-link-button"
+          onClick={() => setOpen((value) => !value)}
+          type="button"
+        >
+          {open ? "Hide" : "Show"}
+        </button>
+      }
+    >
+      {open ? (
+        trimmed ? (
+          <pre className="gh-lineage-sql-evidence" data-testid="lineage-sql-evidence">
+            <code>{trimmed}</code>
+          </pre>
+        ) : (
+          <div className="gh-support-copy gh-lineage-sql-evidence-empty">
+            No SQL evidence recorded for this edge.
+          </div>
+        )
+      ) : null}
+    </SurfaceDrawerSection>
   );
 }

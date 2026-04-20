@@ -20,6 +20,8 @@ const TaxonomyWorkspace = lazy(() => import("./components/TaxonomyWorkspace"));
 const HelpPage = lazy(() => import("./components/HelpPage"));
 const InboxPage = lazy(() => import("./components/InboxPage"));
 const HomePage = lazy(() => import("./components/HomePage"));
+const CapabilityDashboard = lazy(() => import("./components/CapabilityDashboard"));
+const InsightsWorkspace = lazy(() => import("./components/InsightsWorkspace"));
 
 function visibleAssetSetFromGroups(...groups) {
   const visible = new Set();
@@ -388,6 +390,8 @@ export default function App() {
       help: "Opening help…",
       inbox: "Opening inbox…",
       home: "Opening home…",
+      capabilities: "Opening capability dashboard…",
+      insights: "Opening governance insights…",
     };
     handleNavigationStateChange(true, labels[nextModule] || "Opening workspace…");
     onModuleChange(nextModule);
@@ -706,6 +710,33 @@ export default function App() {
           />
         </Suspense>
       );
+    } else if (surface === "capabilities") {
+      content = (
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading capabilities",
+            "Preparing the operator capability snapshot.",
+          )}
+        >
+          <CapabilityDashboard
+            onBack={() => openDiscoveryWorkspace("", { fresh: false })}
+          />
+        </Suspense>
+      );
+    } else if (surface === "insights") {
+      content = (
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading insights",
+            "Computing cross-estate gap analysis and tile counts.",
+          )}
+        >
+          <InsightsWorkspace
+            onNavigate={(nextKey) => handleModuleSurfaceChange(nextKey)}
+            onSurfaceReady={handleSurfaceReady}
+          />
+        </Suspense>
+      );
     } else if (surface === "inbox") {
       content = (
         <Suspense
@@ -826,7 +857,7 @@ export default function App() {
       activeModule={
         surface === "entity"
           ? "discovery"
-          : ["home", "discovery", "lineage", "governance", "audit", "taxonomy", "help", "inbox"].includes(surface)
+          : ["home", "discovery", "lineage", "governance", "audit", "taxonomy", "help", "inbox", "capabilities", "insights"].includes(surface)
             ? surface
             : ""
       }
@@ -848,6 +879,7 @@ export default function App() {
       diagnosticsStatus={setupReadiness}
       diagnosticsOpen={shellDiagnosticsOpen}
       onToggleDiagnostics={handleToggleDiagnostics}
+      onOpenCapabilities={() => handleModuleSurfaceChange("capabilities")}
       onToggleInbox={handleToggleInbox}
       onInboxItemAction={handleInboxItemAction}
       searchSeedAssets={searchSeedAssets}

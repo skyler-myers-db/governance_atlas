@@ -8,6 +8,28 @@ function formatErrorMessage(error) {
   return error.name || "Unknown frontend error.";
 }
 
+/** Detect the "stale chunk after redeploy" failure.
+ *
+ * When we ship a new bundle, the old index.js held by an open tab keeps its
+ * pre-built references to chunk file names whose hashes no longer exist on
+ * the CDN. The next lazy `import()` resolves to a 404, which React surfaces
+ * as either "Failed to fetch dynamically imported module" (Chromium/Safari)
+ * or a ChunkLoadError (Webpack-era terminology, but some bundles still
+ * throw it). Both mean the same thing: the user's tab is simply out of
+ * date. We render a gentle "Reload to load the latest workspace" card with
+ * a one-click reload button instead of the generic "unexpected rendering
+ * failure" page.
+ */
+function isStaleChunkError(error) {
+  if (!error) return false;
+  const message = typeof error === "string" ? error : error.message || "";
+  const name = (error && error.name) || "";
+  if (name === "ChunkLoadError") return true;
+  return /Failed to fetch dynamically imported module/i.test(message)
+    || /Importing a module script failed/i.test(message)
+    || /error loading dynamically imported module/i.test(message);
+}
+
 export default class AppErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -47,6 +69,45 @@ export default class AppErrorBoundary extends Component {
   render() {
     const activeError = this.state.error || this.state.eventError;
     if (!activeError) return this.props.children;
+
+    // Stale-chunk failure after a redeploy. This is not a bug — the user's
+    // browser is just holding an old index.js that references chunk names
+    // the CDN no longer serves. Render a one-click-reload card instead of
+    // the generic "rendering failure" message so users don't think the
+    // app itself broke.
+    if (isStaleChunkError(activeError)) {
+      return (
+        <section className="gh-workspace gh-unavailable-workspace">
+          <WorkspaceStateCard
+            eyebrow="New version available"
+            message="Governance Hub has been redeployed since you opened this tab. Reload to load the newest workspace bundle."
+            title="Reload to pick up the latest build"
+            tone="neutral"
+          >
+            <div className="gh-support-copy">
+              Your session will be preserved — the reload only refreshes the
+              client-side bundle.
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <button
+                className="gh-primary-button"
+                onClick={() => {
+                  try {
+                    window.location.reload();
+                  } catch (_) {
+                    /* ignore */
+                  }
+                }}
+                type="button"
+              >
+                Reload now
+              </button>
+            </div>
+          </WorkspaceStateCard>
+        </section>
+      );
+    }
+
     return (
       <section className="gh-workspace gh-unavailable-workspace">
         <WorkspaceStateCard

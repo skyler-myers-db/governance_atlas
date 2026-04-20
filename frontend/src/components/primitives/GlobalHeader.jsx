@@ -85,6 +85,7 @@ export function GlobalHeader({
   onToggleAlerts,
   onOpenCommandPalette,
   onOpenSettings,
+  onOpenCapabilities,
   onSignOut,
   topbarSearchSlot,
 }) {
@@ -162,6 +163,7 @@ export function GlobalHeader({
               inboxOpen={inboxOpen}
               onToggleInbox={onToggleInbox}
               onOpenSettings={onOpenSettings}
+              onOpenCapabilities={onOpenCapabilities}
               onSignOut={onSignOut}
             />
           </div>

@@ -8,6 +8,7 @@ from fastapi import Request
 from govhub.api.cache import _TTL_CACHE, _CACHE_LOCK, _ttl_cache_pop, _ttl_value
 from govhub.services import assets as asset_service
 from govhub.services.assets import normalize_str as _normalize_str
+from govhub.services import insights as insights_service
 
 
 def _runtime_deps():
@@ -241,6 +242,19 @@ def bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
         owned_assets = sum(
             1 for _, row in inv.iterrows() if asset_service.owner_entries(row)
         )
+        # A9.5 Insights tiles — gap-analysis counts over the same
+        # visible-assets frame we already have in hand. No new data
+        # collection; only what `compute_gap_analysis` derives from the
+        # inventory + the quality-runner ledger (ledger intentionally
+        # None here — the bootstrap path can't cheaply read the store,
+        # and the dedicated /api/insights/gap-analysis endpoint pulls
+        # the quality frame itself).
+        gap_analysis = insights_service.compute_gap_analysis(
+            inv,
+            None,
+            limit=0,
+        )
+        gap_tiles = gap_analysis.get("tiles", {}) if isinstance(gap_analysis, dict) else {}
         return {
             "catalogs": visible_catalogs,
             "assetTypes": asset_types,
@@ -258,6 +272,10 @@ def bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
             "assetTypeCounts": asset_type_counts,
             "catalogCounts": catalog_counts,
             "catalogSnapshot": visible_catalogs[:8],
+            "ownershipGaps": int(gap_tiles.get("ownershipGaps", 0)),
+            "policyGaps": int(gap_tiles.get("policyGaps", 0)),
+            "freshnessGaps": int(gap_tiles.get("freshnessGaps", 0)),
+            "qualityIncidents": int(gap_tiles.get("qualityIncidents", 0)),
         }
 
     return _ttl_value(

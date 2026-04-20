@@ -21,11 +21,14 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from govhub.api import (
+    build_admin_router,
     build_assets_router,
     build_catalog_router,
+    build_classification_router,
     build_discovery_router,
     build_export_router,
     build_governance_router,
+    build_insights_router,
     build_lineage_router,
     build_runtime_router,
 )
@@ -70,7 +73,7 @@ ROOT = Path(__file__).resolve().parent
 REACT_DIST_DIR = ROOT / "frontend" / "dist"
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
 KNOWN_SURFACES = {"discovery", "entity", "lineage", "governance"}
-CLIENT_ROUTE_PREFIXES = {"discovery", "entity", "lineage", "governance", "glossary", "audit", "taxonomy", "help", "inbox", "home"}
+CLIENT_ROUTE_PREFIXES = {"discovery", "entity", "lineage", "governance", "glossary", "audit", "taxonomy", "help", "inbox", "home", "capabilities", "insights"}
 MUTATION_ROLES = {"writer", "steward", "admin"}
 APP_VERSION = "governance-hub-runtime-6"
 REQUEST_ID_HEADER = "X-Request-ID"
@@ -139,6 +142,7 @@ SHELL_API_CONTRACT = {
     "governanceNotification": "/api/governance/notifications/:id",
     "governanceGlossaryTerm": "/api/governance/glossary/:id",
     "runtimeStatus": "/api/runtime/status",
+    "adminBackgroundStatus": "/api/admin/background/status",
 }
 
 
@@ -1591,6 +1595,26 @@ def _warmup_live_runtime() -> None:
 
 _BACKGROUND_DRAINER_STOPPED = False
 _BACKGROUND_DRAINER_INTERVAL_S = 30
+# Minimal truth snapshot for the background drainer so operators can see
+# whether it is alive, how many items it has drained, when it last ran,
+# and any latched error without having to read app logs. Updated in
+# place by the drainer loop; read by GET /api/admin/background/status.
+_DRAINER_STATE: Dict[str, Any] = {
+    "running": False,
+    "lastDrainAt": None,
+    "processedTotal": 0,
+    "lastError": None,
+}
+
+
+def _background_drainer_snapshot() -> Dict[str, Any]:
+    """Return a defensive copy of the drainer state for external consumers."""
+    return {
+        "running": bool(_DRAINER_STATE.get("running", False)),
+        "lastDrainAt": _DRAINER_STATE.get("lastDrainAt"),
+        "processedTotal": int(_DRAINER_STATE.get("processedTotal") or 0),
+        "lastError": _DRAINER_STATE.get("lastError"),
+    }
 
 
 @app.on_event("startup")
@@ -1611,21 +1635,31 @@ def _start_background_drainer() -> None:
     from govhub.api.export import _handle_export_work
 
     def _drain_loop() -> None:
+        _DRAINER_STATE["running"] = True
         while not _BACKGROUND_DRAINER_STOPPED:
             try:
                 _ensure_governance_store()
                 store = _store()
-                drain_queued_batch(store=store, handler=_handle_export_work, max_items=5)
-            except Exception:
+                results = drain_queued_batch(
+                    store=store, handler=_handle_export_work, max_items=5
+                )
+                _DRAINER_STATE["lastDrainAt"] = _utc_iso()
+                _DRAINER_STATE["processedTotal"] = int(
+                    _DRAINER_STATE.get("processedTotal") or 0
+                ) + len(results or [])
+                _DRAINER_STATE["lastError"] = None
+            except Exception as exc:
                 # Don't let a transient store failure kill the drainer —
                 # we want it to keep retrying on the next tick.
-                pass
+                _DRAINER_STATE["lastError"] = _format_runtime_message(exc)
             # Sleep in short chunks so shutdown doesn't wait a full
             # interval to observe the stop flag.
             for _ in range(_BACKGROUND_DRAINER_INTERVAL_S):
                 if _BACKGROUND_DRAINER_STOPPED:
+                    _DRAINER_STATE["running"] = False
                     return
                 time.sleep(1)
+        _DRAINER_STATE["running"] = False
 
     thread = threading.Thread(target=_drain_loop, name="govhub-bg-drainer", daemon=True)
     thread.start()
@@ -1674,7 +1708,10 @@ app.include_router(build_catalog_router())
 app.include_router(build_assets_router())
 app.include_router(build_lineage_router())
 app.include_router(build_governance_router())
+app.include_router(build_classification_router())
 app.include_router(build_export_router())
+app.include_router(build_admin_router())
+app.include_router(build_insights_router())
 
 
 @app.get("/{client_path:path}", response_class=HTMLResponse, include_in_schema=False)

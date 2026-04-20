@@ -23,6 +23,7 @@ export default function AppFrame({
   inboxOpen = false,
   onModuleChange,
   onToggleDiagnostics,
+  onOpenCapabilities,
   onToggleInbox,
   onInboxItemAction,
   bootState,
@@ -309,6 +310,7 @@ export default function AppFrame({
           alertsUnreadCount={0}
           onToggleAlerts={() => setAlertsOpen((current) => !current)}
           onOpenSettings={onToggleDiagnostics}
+          onOpenCapabilities={onOpenCapabilities}
           onSignOut={handleSignOut}
           onOpenCommandPalette={() => setCommandOpen(true)}
           topbarSearchSlot={(

@@ -33,6 +33,31 @@ vi.mock("../hooks/useSeededAssetContext", () => ({
   useSeededAssetContext: (...args) => useSeededAssetContextMock(...args),
 }));
 
+vi.mock("../hooks/useClassificationRecommendations", () => ({
+  useClassificationRecommendations: () => ({
+    loading: false,
+    refreshing: false,
+    error: "",
+    data: { recommendations: [], count: 0, pendingCount: 0 },
+    empty: { recommendations: [], count: 0, pendingCount: 0 },
+    refresh: vi.fn(),
+  }),
+  useClassificationRecommendation: () => ({
+    loading: false,
+    refreshing: false,
+    error: "",
+    data: null,
+    refresh: vi.fn(),
+  }),
+  useClassificationReview: () => ({
+    review: vi.fn().mockResolvedValue({}),
+    submitting: false,
+    error: "",
+    lastRecord: null,
+    reset: vi.fn(),
+  }),
+}));
+
 vi.mock("../lib/assetRecordNavigation", () => ({
   openAssetRecordSafely: vi.fn(),
 }));
