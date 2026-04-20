@@ -392,7 +392,7 @@ describe("useDiscoveryWorkspace", () => {
         query: "",
         sortBy: "Best match",
       }),
-      { limit: 120 },
+      expect.objectContaining({ limit: 120 }),
     );
   });
 

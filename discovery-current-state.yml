@@ -1,0 +1,2273 @@
+- generic [ref=e3]:
+  - complementary "Module rail" [ref=e4]:
+    - navigation "Primary modules" [ref=e5]:
+      - button "Go to Home" [ref=e6] [cursor=pointer]:
+        - img [ref=e8]
+        - generic [ref=e10]: Go to Home
+      - button "Go to Discovery" [ref=e11] [cursor=pointer]:
+        - img [ref=e13]
+        - generic [ref=e16]: Go to Discovery
+      - button "Go to Activity" [ref=e17] [cursor=pointer]:
+        - img [ref=e19]
+        - generic [ref=e22]: Go to Activity
+      - button "Go to Team" [ref=e23] [cursor=pointer]:
+        - img [ref=e25]
+        - generic [ref=e30]: Go to Team
+    - generic [ref=e31]:
+      - button "Settings" [ref=e32] [cursor=pointer]:
+        - img [ref=e34]
+        - generic [ref=e37]: Settings
+      - button "Sign out" [ref=e38] [cursor=pointer]:
+        - img [ref=e40]
+        - generic [ref=e43]: Sign out
+  - banner [ref=e44]:
+    - generic [ref=e46]:
+      - generic [ref=e47]:
+        - button "Governance Hub" [ref=e48] [cursor=pointer]:
+          - img [ref=e50]
+          - generic [ref=e52]: Governance Hub
+        - generic [ref=e55]:
+          - img [ref=e57]
+          - searchbox "Search Databricks Unity Catalog, tables, views, and metrics" [ref=e60]
+        - generic [ref=e62]:
+          - button "Notifications" [ref=e63] [cursor=pointer]:
+            - img [ref=e64]
+          - generic [ref=e68]:
+            - generic [ref=e69]: Skyler Myers
+            - generic [ref=e70]: Admin
+          - img "skyler.myers@tristategt.org" [ref=e71]: SM
+      - navigation "Primary modules" [ref=e72]:
+        - button "Discovery" [ref=e73] [cursor=pointer]:
+          - generic [ref=e74]: Discovery
+        - button "Lineage" [ref=e75] [cursor=pointer]:
+          - generic [ref=e76]: Lineage
+        - button "Governance" [ref=e77] [cursor=pointer]:
+          - generic [ref=e78]: Governance
+        - button "Taxonomy" [ref=e79] [cursor=pointer]:
+          - generic [ref=e80]: Taxonomy
+        - button "Audit" [ref=e81] [cursor=pointer]:
+          - generic [ref=e82]: Audit
+  - main [ref=e83]:
+    - generic [ref=e99]:
+      - complementary "Filters" [ref=e100]:
+        - heading "Filters" [level=2] [ref=e102]
+        - generic [ref=e103]:
+          - button "Catalog" [expanded] [ref=e104] [cursor=pointer]:
+            - generic [ref=e105]: Catalog
+            - img [ref=e107]
+          - tree "Catalog navigation" [ref=e110]:
+            - generic [ref=e111]:
+              - generic [ref=e112] [cursor=pointer]:
+                - checkbox "Filter to catalog bronze" [ref=e113]
+                - generic [ref=e114]: bronze
+                - generic [ref=e115]: (65)
+              - button "wacs (65)" [ref=e117] [cursor=pointer]:
+                - generic [ref=e119]: wacs
+                - generic [ref=e120]: (65)
+            - generic [ref=e122] [cursor=pointer]:
+              - checkbox "Filter to catalog dev" [ref=e123]
+              - generic [ref=e124]: dev
+              - generic [ref=e125]: (13)
+            - generic [ref=e127] [cursor=pointer]:
+              - checkbox "Filter to catalog prod" [ref=e128]
+              - generic [ref=e129]: prod
+              - generic [ref=e130]: (2)
+        - generic [ref=e131]:
+          - button "Asset Type" [expanded] [ref=e132] [cursor=pointer]:
+            - generic [ref=e133]: Asset Type
+            - img [ref=e135]
+          - generic [ref=e138]:
+            - generic [ref=e139] [cursor=pointer]:
+              - checkbox "Filter by Delta Table" [ref=e140]
+              - generic [ref=e141]: Delta Table
+              - generic [ref=e142]: (252)
+            - generic [ref=e143] [cursor=pointer]:
+              - checkbox "Filter by Materialized View" [ref=e144]
+              - generic [ref=e145]: Materialized View
+              - generic [ref=e146]: (106)
+            - generic [ref=e147] [cursor=pointer]:
+              - checkbox "Filter by Metric View" [ref=e148]
+              - generic [ref=e149]: Metric View
+              - generic [ref=e150]: (8)
+            - generic [ref=e151] [cursor=pointer]:
+              - checkbox "Filter by Streaming Table" [ref=e152]
+              - generic [ref=e153]: Streaming Table
+              - generic [ref=e154]: (234)
+            - generic [ref=e155] [cursor=pointer]:
+              - checkbox "Filter by View" [ref=e156]
+              - generic [ref=e157]: View
+              - generic [ref=e158]: (260)
+        - generic [ref=e159]:
+          - button "Domain" [expanded] [ref=e160] [cursor=pointer]:
+            - generic [ref=e161]: Domain
+            - img [ref=e163]
+          - generic [ref=e167] [cursor=pointer]:
+            - checkbox "Filter by domain All domains" [ref=e168]
+            - generic [ref=e169]: All domains
+            - generic [ref=e170]: (860)
+        - generic [ref=e171]:
+          - button "Owner" [expanded] [ref=e172] [cursor=pointer]:
+            - generic [ref=e173]: Owner
+            - img [ref=e175]
+          - generic [ref=e179] [cursor=pointer]:
+            - checkbox "Filter by user/team" [ref=e180]
+            - generic [ref=e181]: User/Team
+        - generic [ref=e182]:
+          - button "Sensitivity" [expanded] [ref=e183] [cursor=pointer]:
+            - generic [ref=e184]: Sensitivity
+            - img [ref=e186]
+          - generic [ref=e189]:
+            - button "PII" [ref=e190] [cursor=pointer]
+            - button "Conf" [ref=e191] [cursor=pointer]
+            - button "Internal" [ref=e192] [cursor=pointer]
+            - button "All sensitivities" [ref=e193] [cursor=pointer]
+        - generic [ref=e194]:
+          - button "Glossary Term" [expanded] [ref=e195] [cursor=pointer]:
+            - generic [ref=e196]: Glossary Term
+            - img [ref=e198]
+          - textbox "Filter by glossary term or tag" [ref=e201]:
+            - /placeholder: Glossary Term
+        - generic [ref=e202]:
+          - button "Workflow State" [expanded] [ref=e203] [cursor=pointer]:
+            - generic [ref=e204]: Workflow State
+            - img [ref=e206]
+          - generic [ref=e209]:
+            - generic [ref=e210] [cursor=pointer]:
+              - checkbox "Filter by workflow Published" [ref=e211]
+              - generic [ref=e212]: Published
+              - generic [ref=e213]: (0)
+            - generic [ref=e214] [cursor=pointer]:
+              - checkbox "Filter by workflow In Review" [ref=e215]
+              - generic [ref=e216]: In Review
+              - generic [ref=e217]: (0)
+            - generic [ref=e218] [cursor=pointer]:
+              - checkbox "Filter by workflow Obsolete" [ref=e219]
+              - generic [ref=e220]: Obsolete
+              - generic [ref=e221]: (0)
+            - generic [ref=e222] [cursor=pointer]:
+              - checkbox "Filter by workflow All certifications" [ref=e223]
+              - generic [ref=e224]: All certifications
+              - generic [ref=e225]: (860)
+      - generic [ref=e226]:
+        - group "Quick asset-type filters" [ref=e227]:
+          - button "Tables (252)" [ref=e228] [cursor=pointer]:
+            - generic [ref=e229]: Tables
+            - generic [ref=e230]: (252)
+          - button "Views (260)" [ref=e231] [cursor=pointer]:
+            - generic [ref=e232]: Views
+            - generic [ref=e233]: (260)
+          - button "Columns (1)" [ref=e234] [cursor=pointer]:
+            - generic [ref=e235]: Columns
+            - generic [ref=e236]: (1)
+          - button "Banonns (4)" [ref=e237] [cursor=pointer]:
+            - generic [ref=e238]: Banonns
+            - generic [ref=e239]: (4)
+          - button "Stack Filters" [ref=e240] [cursor=pointer]:
+            - img [ref=e242]
+            - generic [ref=e244]: Filters
+        - generic [ref=e245]:
+          - tablist "Discovery view" [ref=e246]:
+            - generic [ref=e247]:
+              - tab "Discovery" [selected] [ref=e248] [cursor=pointer]
+              - tab "Navigation" [ref=e249] [cursor=pointer]
+          - generic [ref=e250]:
+            - generic [ref=e251]:
+              - heading "Discovery" [level=2] [ref=e252]
+              - generic [ref=e253]:
+                - text: Showing
+                - strong [ref=e254]: "60"
+                - text: of
+                - strong [ref=e255]: "860"
+                - text: assets
+            - combobox "Sort metadata catalog results" [ref=e258]:
+              - option "Relevance"
+              - option "Best match" [selected]
+              - option "Coverage score"
+              - option "Name (A-Z)"
+              - option "Open requests"
+        - generic [ref=e260]:
+          - generic [ref=e261]:
+            - generic [ref=e262]:
+              - generic [ref=e263]: ★ Your favorites
+              - button "Streaming Table ap_self_assessed_tax_dist_history" [ref=e265] [cursor=pointer]:
+                - img "Streaming Table" [ref=e266]:
+                  - img [ref=e267]
+                - generic [ref=e271]: ap_self_assessed_tax_dist_history
+            - generic [ref=e272]:
+              - generic [ref=e273]: ⧗ Recently viewed
+              - generic [ref=e274]:
+                - button "Streaming Table ap_self_assessed_tax_dist_history" [ref=e275] [cursor=pointer]:
+                  - img "Streaming Table" [ref=e276]:
+                    - img [ref=e277]
+                  - generic [ref=e281]: ap_self_assessed_tax_dist_history
+                - button "Metric View mv_gl_journal_activity" [ref=e282] [cursor=pointer]:
+                  - img "Metric View" [ref=e283]:
+                    - img [ref=e284]
+                  - generic [ref=e288]: mv_gl_journal_activity
+                - button "Materialized View ap_self_assessed_tax_dist" [ref=e289] [cursor=pointer]:
+                  - img "Materialized View" [ref=e290]:
+                    - img [ref=e291]
+                  - generic [ref=e295]: ap_self_assessed_tax_dist
+          - button "Open ap_self_assessed_tax_dist_history" [ref=e296] [cursor=pointer]:
+            - generic [ref=e297]:
+              - generic [ref=e298]:
+                - img "Streaming Table" [ref=e299]:
+                  - img [ref=e300]
+                - generic [ref=e304]: Table/View
+              - generic [ref=e305]:
+                - checkbox "Select ap_self_assessed_tax_dist_history" [ref=e306]
+                - button "Remove from favorites" [pressed] [ref=e307]: ★
+                - button "Open Governance" [ref=e308]: ⋮
+            - heading "ap_self_assessed_tax_dist_history" [level=3] [ref=e309]
+            - generic [ref=e310]:
+              - 'generic "Domain: Unassigned" [ref=e311]': UNCATEGORIZED DATA
+              - generic "alice@entrada.ai" [ref=e312]:
+                - img "alice@entrada.ai" [ref=e313]: AL
+                - generic [ref=e314]: Alice
+            - generic [ref=e315]:
+              - generic [ref=e316]: PII
+              - generic [ref=e317]: Transaction
+              - generic [ref=e318]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e319]': PUBLISHED
+            - generic [ref=e320]:
+              - generic "Views" [ref=e321]:
+                - generic [ref=e322]: ⊙
+                - text: views
+              - generic [ref=e323]: ·
+              - generic "Notebook usage" [ref=e324]:
+                - generic [ref=e325]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 55%" [ref=e326]': Mid Trust 55%
+            - paragraph [ref=e327]: "SCD Type 2 change history of AP_SELF_ASSESSED_TAX_DIST_ALL. Each row version has __START_AT / __END_AT validity windows. PK: INVOICE_DISTRIBUTION_ID + __START_AT. Timestamps in America/Denver."
+            - button "Lineage unavailable" [disabled] [ref=e328]
+            - button "Open Record" [ref=e329]
+            - generic [ref=e330]: Updated —
+          - button "Open ap_self_assessed_tax_dist" [ref=e331] [cursor=pointer]:
+            - generic [ref=e332]:
+              - generic [ref=e333]:
+                - img "Materialized View" [ref=e334]:
+                  - img [ref=e335]
+                - generic [ref=e339]: Table/View
+              - generic [ref=e340]:
+                - checkbox "Select ap_self_assessed_tax_dist" [ref=e341]
+                - button "Add to favorites" [ref=e342]: ☆
+                - button "Open Governance" [ref=e343]: ⋮
+            - heading "ap_self_assessed_tax_dist" [level=3] [ref=e344]
+            - generic [ref=e345]:
+              - 'generic "Domain: Unassigned" [ref=e346]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e347]:
+                - img "prod.silver.ap_self_assessed_tax_dist" [ref=e348]: PS
+                - generic [ref=e349]: Namer Avatar
+            - generic [ref=e350]:
+              - generic [ref=e351]: PII
+              - generic [ref=e352]: Transaction
+              - generic [ref=e353]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e354]': PUBLISHED
+            - generic [ref=e355]:
+              - generic "Views" [ref=e356]:
+                - generic [ref=e357]: ⊙
+                - text: views
+              - generic [ref=e358]: ·
+              - generic "Notebook usage" [ref=e359]:
+                - generic [ref=e360]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e361]': High Trust 92%
+            - paragraph [ref=e362]: "Latest-state, Oracle-typed AP_SELF_ASSESSED_TAX_DIST_ALL. Derived from SCD2 history (WHERE __END_AT IS NULL). PK: INVOICE_DISTRIBUTION_ID. Timestamps in America/Denver."
+            - button "Lineage unavailable" [disabled] [ref=e363]
+            - button "Open Record" [ref=e364]
+            - generic [ref=e365]: Updated —
+          - button "Open ap_self_assessed_tax_dist_history" [ref=e366] [cursor=pointer]:
+            - generic [ref=e367]:
+              - generic [ref=e368]:
+                - img "Streaming Table" [ref=e369]:
+                  - img [ref=e370]
+                - generic [ref=e374]: Table/View
+              - generic [ref=e375]:
+                - checkbox "Select ap_self_assessed_tax_dist_history" [ref=e376]
+                - button "Add to favorites" [ref=e377]: ☆
+                - button "Open Governance" [ref=e378]: ⋮
+            - heading "ap_self_assessed_tax_dist_history" [level=3] [ref=e379]
+            - generic [ref=e380]:
+              - 'generic "Domain: Unassigned" [ref=e381]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e382]:
+                - img "dev.silver.ap_self_assessed_tax_dist_history" [ref=e383]: DS
+                - generic [ref=e384]: Namer Avatar
+            - generic [ref=e385]:
+              - generic [ref=e386]: PII
+              - generic [ref=e387]: Transaction
+              - generic [ref=e388]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e389]': PUBLISHED
+            - generic [ref=e390]:
+              - generic "Views" [ref=e391]:
+                - generic [ref=e392]: ⊙
+                - text: views
+              - generic [ref=e393]: ·
+              - generic "Notebook usage" [ref=e394]:
+                - generic [ref=e395]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e396]': High Trust 92%
+            - paragraph [ref=e397]: "SCD Type 2 change history of AP_SELF_ASSESSED_TAX_DIST_ALL. Each row version has __START_AT / __END_AT validity windows. PK: INVOICE_DISTRIBUTION_ID + __START_AT. Timestamps in America/Denver."
+            - button "Lineage unavailable" [disabled] [ref=e398]
+            - button "Open Record" [ref=e399]
+            - generic [ref=e400]: Updated —
+          - button "Open ap_self_assessed_tax_dist" [ref=e401] [cursor=pointer]:
+            - generic [ref=e402]:
+              - generic [ref=e403]:
+                - img "Materialized View" [ref=e404]:
+                  - img [ref=e405]
+                - generic [ref=e409]: Table/View
+              - generic [ref=e410]:
+                - checkbox "Select ap_self_assessed_tax_dist" [ref=e411]
+                - button "Add to favorites" [ref=e412]: ☆
+                - button "Open Governance" [ref=e413]: ⋮
+            - heading "ap_self_assessed_tax_dist" [level=3] [ref=e414]
+            - generic [ref=e415]:
+              - 'generic "Domain: Unassigned" [ref=e416]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e417]:
+                - img "dev.silver.ap_self_assessed_tax_dist" [ref=e418]: DS
+                - generic [ref=e419]: Namer Avatar
+            - generic [ref=e420]:
+              - generic [ref=e421]: PII
+              - generic [ref=e422]: Transaction
+              - generic [ref=e423]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e424]': PUBLISHED
+            - generic [ref=e425]:
+              - generic "Views" [ref=e426]:
+                - generic [ref=e427]: ⊙
+                - text: views
+              - generic [ref=e428]: ·
+              - generic "Notebook usage" [ref=e429]:
+                - generic [ref=e430]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e431]': High Trust 92%
+            - paragraph [ref=e432]: "Latest-state, Oracle-typed AP_SELF_ASSESSED_TAX_DIST_ALL. Derived from SCD2 history (WHERE __END_AT IS NULL). PK: INVOICE_DISTRIBUTION_ID. Timestamps in America/Denver."
+            - button "Lineage unavailable" [disabled] [ref=e433]
+            - button "Open Record" [ref=e434]
+            - generic [ref=e435]: Updated —
+          - button "Open report_user_mapping" [ref=e436] [cursor=pointer]:
+            - generic [ref=e437]:
+              - generic [ref=e438]:
+                - img "Delta Table" [ref=e439]:
+                  - img [ref=e440]
+                - generic [ref=e444]: Table/View
+              - generic [ref=e445]:
+                - checkbox "Select report_user_mapping" [ref=e446]
+                - button "Add to favorites" [ref=e447]: ☆
+                - button "Open Governance" [ref=e448]: ⋮
+            - heading "report_user_mapping" [level=3] [ref=e449]
+            - generic [ref=e450]:
+              - 'generic "Domain: Unassigned" [ref=e451]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e452]:
+                - img "dev.powerbi_bronze.report_user_mapping" [ref=e453]: DP
+                - generic [ref=e454]: Namer Avatar
+            - generic [ref=e455]:
+              - generic [ref=e456]: PII
+              - generic [ref=e457]: Transaction
+              - generic [ref=e458]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e459]': PUBLISHED
+            - generic [ref=e460]:
+              - generic "Views" [ref=e461]:
+                - generic [ref=e462]: ⊙
+                - text: views
+              - generic [ref=e463]: ·
+              - generic "Notebook usage" [ref=e464]:
+                - generic [ref=e465]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e466]': High Trust 92%
+            - paragraph [ref=e467]: This table contains information about users' access rights to various reports. It includes details such as the report ID and name, the level of access each user has, and user identification attributes like email address, display name, and user type. This data can be useful for managing report permissions, auditing user access, and understanding who can view or modify specific reports.
+            - button "Lineage unavailable" [disabled] [ref=e468]
+            - button "Open Record" [ref=e469]
+            - generic [ref=e470]: Updated —
+          - button "Open om_killer_demo" [ref=e471] [cursor=pointer]:
+            - generic [ref=e472]:
+              - generic [ref=e473]:
+                - img "Delta Table" [ref=e474]:
+                  - img [ref=e475]
+                - generic [ref=e479]: Table/View
+              - generic [ref=e480]:
+                - checkbox "Select om_killer_demo" [ref=e481]
+                - button "Add to favorites" [ref=e482]: ☆
+                - button "Open Governance" [ref=e483]: ⋮
+            - heading "om_killer_demo" [level=3] [ref=e484]
+            - generic [ref=e485]:
+              - 'generic "Domain: Unassigned" [ref=e486]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e487]:
+                - img "dev.governance_hub_test.om_killer_demo" [ref=e488]: DG
+                - generic [ref=e489]: Namer Avatar
+            - generic [ref=e490]:
+              - generic [ref=e491]: PII
+              - generic [ref=e492]: Transaction
+              - generic [ref=e493]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e494]': PUBLISHED
+            - generic [ref=e495]:
+              - generic "Views" [ref=e496]:
+                - generic [ref=e497]: ⊙
+                - text: views
+              - generic [ref=e498]: ·
+              - generic "Notebook usage" [ref=e499]:
+                - generic [ref=e500]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e501]': High Trust 92%
+            - paragraph [ref=e502]: OM-killer E2E demo table — created by governance hub tests
+            - button "Lineage unavailable" [disabled] [ref=e503]
+            - button "Open Record" [ref=e504]
+            - generic [ref=e505]: Updated —
+          - button "Open mv_requisition_spend" [ref=e506] [cursor=pointer]:
+            - generic [ref=e507]:
+              - generic [ref=e508]:
+                - img "Metric View" [ref=e509]:
+                  - img [ref=e510]
+                - generic [ref=e514]: Table/View
+              - generic [ref=e515]:
+                - checkbox "Select mv_requisition_spend" [ref=e516]
+                - button "Add to favorites" [ref=e517]: ☆
+                - button "Open Governance" [ref=e518]: ⋮
+            - heading "mv_requisition_spend" [level=3] [ref=e519]
+            - generic [ref=e520]:
+              - 'generic "Domain: Unassigned" [ref=e521]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e522]:
+                - img "dev.gold.mv_requisition_spend" [ref=e523]: DG
+                - generic [ref=e524]: Namer Avatar
+            - generic [ref=e525]:
+              - generic [ref=e526]: PII
+              - generic [ref=e527]: Transaction
+              - generic [ref=e528]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e529]': PUBLISHED
+            - generic [ref=e530]:
+              - generic "Views" [ref=e531]:
+                - generic [ref=e532]: ⊙
+                - text: views
+              - generic [ref=e533]: ·
+              - generic "Notebook usage" [ref=e534]:
+                - generic [ref=e535]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e536]': High Trust 92%
+            - paragraph [ref=e537]: Requisition distribution and fulfillment linkage metrics built on the curated requisition mart.
+            - button "Lineage unavailable" [disabled] [ref=e538]
+            - button "Open Record" [ref=e539]
+            - generic [ref=e540]: Updated —
+          - button "Open mv_purchase_order_spend" [ref=e541] [cursor=pointer]:
+            - generic [ref=e542]:
+              - generic [ref=e543]:
+                - img "Metric View" [ref=e544]:
+                  - img [ref=e545]
+                - generic [ref=e549]: Table/View
+              - generic [ref=e550]:
+                - checkbox "Select mv_purchase_order_spend" [ref=e551]
+                - button "Add to favorites" [ref=e552]: ☆
+                - button "Open Governance" [ref=e553]: ⋮
+            - heading "mv_purchase_order_spend" [level=3] [ref=e554]
+            - generic [ref=e555]:
+              - 'generic "Domain: Unassigned" [ref=e556]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e557]:
+                - img "dev.gold.mv_purchase_order_spend" [ref=e558]: DG
+                - generic [ref=e559]: Namer Avatar
+            - generic [ref=e560]:
+              - generic [ref=e561]: PII
+              - generic [ref=e562]: Transaction
+              - generic [ref=e563]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e564]': PUBLISHED
+            - generic [ref=e565]:
+              - generic "Views" [ref=e566]:
+                - generic [ref=e567]: ⊙
+                - text: views
+              - generic [ref=e568]: ·
+              - generic "Notebook usage" [ref=e569]:
+                - generic [ref=e570]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e571]': High Trust 92%
+            - paragraph [ref=e572]: Purchase order distribution and lead-time metrics built on the curated purchase order mart.
+            - button "Lineage unavailable" [disabled] [ref=e573]
+            - button "Open Record" [ref=e574]
+            - generic [ref=e575]: Updated —
+          - button "Open mv_project_costs" [ref=e576] [cursor=pointer]:
+            - generic [ref=e577]:
+              - generic [ref=e578]:
+                - img "Metric View" [ref=e579]:
+                  - img [ref=e580]
+                - generic [ref=e584]: Table/View
+              - generic [ref=e585]:
+                - checkbox "Select mv_project_costs" [ref=e586]
+                - button "Add to favorites" [ref=e587]: ☆
+                - button "Open Governance" [ref=e588]: ⋮
+            - heading "mv_project_costs" [level=3] [ref=e589]
+            - generic [ref=e590]:
+              - 'generic "Domain: Unassigned" [ref=e591]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e592]:
+                - img "dev.gold.mv_project_costs" [ref=e593]: DG
+                - generic [ref=e594]: Namer Avatar
+            - generic [ref=e595]:
+              - generic [ref=e596]: PII
+              - generic [ref=e597]: Transaction
+              - generic [ref=e598]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e599]': PUBLISHED
+            - generic [ref=e600]:
+              - generic "Views" [ref=e601]:
+                - generic [ref=e602]: ⊙
+                - text: views
+              - generic [ref=e603]: ·
+              - generic "Notebook usage" [ref=e604]:
+                - generic [ref=e605]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e606]': High Trust 92%
+            - paragraph [ref=e607]: Project expenditure and accounting metrics over the curated project cost mart.
+            - button "Lineage unavailable" [disabled] [ref=e608]
+            - button "Open Record" [ref=e609]
+            - generic [ref=e610]: Updated —
+          - button "Open mv_gl_journal_activity" [ref=e611] [cursor=pointer]:
+            - generic [ref=e612]:
+              - generic [ref=e613]:
+                - img "Metric View" [ref=e614]:
+                  - img [ref=e615]
+                - generic [ref=e619]: Table/View
+              - generic [ref=e620]:
+                - checkbox "Select mv_gl_journal_activity" [ref=e621]
+                - button "Add to favorites" [ref=e622]: ☆
+                - button "Open Governance" [ref=e623]: ⋮
+            - heading "mv_gl_journal_activity" [level=3] [ref=e624]
+            - generic [ref=e625]:
+              - 'generic "Domain: Unassigned" [ref=e626]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e627]:
+                - img "dev.gold.mv_gl_journal_activity" [ref=e628]: DG
+                - generic [ref=e629]: Namer Avatar
+            - generic [ref=e630]:
+              - generic [ref=e631]: PII
+              - generic [ref=e632]: Transaction
+              - generic [ref=e633]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e634]': PUBLISHED
+            - generic [ref=e635]:
+              - generic "Views" [ref=e636]:
+                - generic [ref=e637]: ⊙
+                - text: views
+              - generic [ref=e638]: ·
+              - generic "Notebook usage" [ref=e639]:
+                - generic [ref=e640]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e641]': High Trust 92%
+            - paragraph [ref=e642]: General ledger journal activity metrics over the curated GL journal mart.
+            - button "Lineage unavailable" [disabled] [ref=e643]
+            - button "Open Record" [ref=e644]
+            - generic [ref=e645]: Updated —
+          - button "Open mv_gl_balances" [ref=e646] [cursor=pointer]:
+            - generic [ref=e647]:
+              - generic [ref=e648]:
+                - img "Metric View" [ref=e649]:
+                  - img [ref=e650]
+                - generic [ref=e654]: Table/View
+              - generic [ref=e655]:
+                - checkbox "Select mv_gl_balances" [ref=e656]
+                - button "Add to favorites" [ref=e657]: ☆
+                - button "Open Governance" [ref=e658]: ⋮
+            - heading "mv_gl_balances" [level=3] [ref=e659]
+            - generic [ref=e660]:
+              - 'generic "Domain: Unassigned" [ref=e661]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e662]:
+                - img "dev.gold.mv_gl_balances" [ref=e663]: DG
+                - generic [ref=e664]: Namer Avatar
+            - generic [ref=e665]:
+              - generic [ref=e666]: PII
+              - generic [ref=e667]: Transaction
+              - generic [ref=e668]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e669]': PUBLISHED
+            - generic [ref=e670]:
+              - generic "Views" [ref=e671]:
+                - generic [ref=e672]: ⊙
+                - text: views
+              - generic [ref=e673]: ·
+              - generic "Notebook usage" [ref=e674]:
+                - generic [ref=e675]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e676]': High Trust 92%
+            - paragraph [ref=e677]: General ledger balance metrics over the curated GL balance mart.
+            - button "Lineage unavailable" [disabled] [ref=e678]
+            - button "Open Record" [ref=e679]
+            - generic [ref=e680]: Updated —
+          - button "Open mv_ap_payment_allocations" [ref=e681] [cursor=pointer]:
+            - generic [ref=e682]:
+              - generic [ref=e683]:
+                - img "Metric View" [ref=e684]:
+                  - img [ref=e685]
+                - generic [ref=e689]: Table/View
+              - generic [ref=e690]:
+                - checkbox "Select mv_ap_payment_allocations" [ref=e691]
+                - button "Add to favorites" [ref=e692]: ☆
+                - button "Open Governance" [ref=e693]: ⋮
+            - heading "mv_ap_payment_allocations" [level=3] [ref=e694]
+            - generic [ref=e695]:
+              - 'generic "Domain: Unassigned" [ref=e696]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e697]:
+                - img "dev.gold.mv_ap_payment_allocations" [ref=e698]: DG
+                - generic [ref=e699]: Namer Avatar
+            - generic [ref=e700]:
+              - generic [ref=e701]: PII
+              - generic [ref=e702]: Transaction
+              - generic [ref=e703]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e704]': PUBLISHED
+            - generic [ref=e705]:
+              - generic "Views" [ref=e706]:
+                - generic [ref=e707]: ⊙
+                - text: views
+              - generic [ref=e708]: ·
+              - generic "Notebook usage" [ref=e709]:
+                - generic [ref=e710]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e711]': High Trust 92%
+            - paragraph [ref=e712]: Accounts payable payment allocation metrics over the curated AP payment detail view.
+            - button "Lineage unavailable" [disabled] [ref=e713]
+            - button "Open Record" [ref=e714]
+            - generic [ref=e715]: Updated —
+          - button "Open mv_ap_invoice_distributions" [ref=e716] [cursor=pointer]:
+            - generic [ref=e717]:
+              - generic [ref=e718]:
+                - img "Metric View" [ref=e719]:
+                  - img [ref=e720]
+                - generic [ref=e724]: Table/View
+              - generic [ref=e725]:
+                - checkbox "Select mv_ap_invoice_distributions" [ref=e726]
+                - button "Add to favorites" [ref=e727]: ☆
+                - button "Open Governance" [ref=e728]: ⋮
+            - heading "mv_ap_invoice_distributions" [level=3] [ref=e729]
+            - generic [ref=e730]:
+              - 'generic "Domain: Unassigned" [ref=e731]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e732]:
+                - img "dev.gold.mv_ap_invoice_distributions" [ref=e733]: DG
+                - generic [ref=e734]: Namer Avatar
+            - generic [ref=e735]:
+              - generic [ref=e736]: PII
+              - generic [ref=e737]: Transaction
+              - generic [ref=e738]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e739]': PUBLISHED
+            - generic [ref=e740]:
+              - generic "Views" [ref=e741]:
+                - generic [ref=e742]: ⊙
+                - text: views
+              - generic [ref=e743]: ·
+              - generic "Notebook usage" [ref=e744]:
+                - generic [ref=e745]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e746]': High Trust 92%
+            - paragraph [ref=e747]: Accounts payable invoice distribution metrics over the curated AP invoice detail view.
+            - button "Lineage unavailable" [disabled] [ref=e748]
+            - button "Open Record" [ref=e749]
+            - generic [ref=e750]: Updated —
+          - button "Open kpi_training_metrics" [ref=e751] [cursor=pointer]:
+            - generic [ref=e752]:
+              - generic [ref=e753]:
+                - img "Delta Table" [ref=e754]:
+                  - img [ref=e755]
+                - generic [ref=e759]: Table/View
+              - generic [ref=e760]:
+                - checkbox "Select kpi_training_metrics" [ref=e761]
+                - button "Add to favorites" [ref=e762]: ☆
+                - button "Open Governance" [ref=e763]: ⋮
+            - heading "kpi_training_metrics" [level=3] [ref=e764]
+            - generic [ref=e765]:
+              - 'generic "Domain: Unassigned" [ref=e766]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e767]:
+                - img "dev.gold.kpi_training_metrics" [ref=e768]: DG
+                - generic [ref=e769]: Namer Avatar
+            - generic [ref=e770]:
+              - generic [ref=e771]: PII
+              - generic [ref=e772]: Transaction
+              - generic [ref=e773]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e774]': PUBLISHED
+            - generic [ref=e775]:
+              - generic "Views" [ref=e776]:
+                - generic [ref=e777]: ⊙
+                - text: views
+              - generic [ref=e778]: ·
+              - generic "Notebook usage" [ref=e779]:
+                - generic [ref=e780]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e781]': High Trust 92%
+            - paragraph [ref=e782]: Captures training and enablement metrics such as enrollments, completions, and participation to measure learning and skill development.
+            - button "Lineage unavailable" [disabled] [ref=e783]
+            - button "Open Record" [ref=e784]
+            - generic [ref=e785]: Updated —
+          - button "Open kpi_platform_observability" [ref=e786] [cursor=pointer]:
+            - generic [ref=e787]:
+              - generic [ref=e788]:
+                - img "Delta Table" [ref=e789]:
+                  - img [ref=e790]
+                - generic [ref=e794]: Table/View
+              - generic [ref=e795]:
+                - checkbox "Select kpi_platform_observability" [ref=e796]
+                - button "Add to favorites" [ref=e797]: ☆
+                - button "Open Governance" [ref=e798]: ⋮
+            - heading "kpi_platform_observability" [level=3] [ref=e799]
+            - generic [ref=e800]:
+              - 'generic "Domain: Unassigned" [ref=e801]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e802]:
+                - img "dev.gold.kpi_platform_observability" [ref=e803]: DG
+                - generic [ref=e804]: Namer Avatar
+            - generic [ref=e805]:
+              - generic [ref=e806]: PII
+              - generic [ref=e807]: Transaction
+              - generic [ref=e808]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e809]': PUBLISHED
+            - generic [ref=e810]:
+              - generic "Views" [ref=e811]:
+                - generic [ref=e812]: ⊙
+                - text: views
+              - generic [ref=e813]: ·
+              - generic "Notebook usage" [ref=e814]:
+                - generic [ref=e815]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e816]': High Trust 92%
+            - paragraph [ref=e817]: Provides platform observability KPIs including job execution metrics, system performance, resource utilization, and infrastructure-level monitoring for operational visibility.
+            - button "Lineage unavailable" [disabled] [ref=e818]
+            - button "Open Record" [ref=e819]
+            - generic [ref=e820]: Updated —
+          - button "Open w1_work_req_log" [ref=e821] [cursor=pointer]:
+            - generic [ref=e822]:
+              - generic [ref=e823]:
+                - img "Materialized View" [ref=e824]:
+                  - img [ref=e825]
+                - generic [ref=e829]: Table/View
+              - generic [ref=e830]:
+                - checkbox "Select w1_work_req_log" [ref=e831]
+                - button "Add to favorites" [ref=e832]: ☆
+                - button "Open Governance" [ref=e833]: ⋮
+            - heading "w1_work_req_log" [level=3] [ref=e834]
+            - generic [ref=e835]:
+              - 'generic "Domain: Unassigned" [ref=e836]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e837]:
+                - img "bronze.wacs.w1_work_req_log" [ref=e838]: BW
+                - generic [ref=e839]: Namer Avatar
+            - generic [ref=e840]:
+              - generic [ref=e841]: PII
+              - generic [ref=e842]: Transaction
+              - generic [ref=e843]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e844]': PUBLISHED
+            - generic [ref=e845]:
+              - generic "Views" [ref=e846]:
+                - generic [ref=e847]: ⊙
+                - text: views
+              - generic [ref=e848]: ·
+              - generic "Notebook usage" [ref=e849]:
+                - generic [ref=e850]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e851]': High Trust 92%
+            - paragraph [ref=e852]: "Batch overwrite load from w1_work_req_log. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_work_req_log/20260410022326/"
+            - button "Lineage unavailable" [disabled] [ref=e853]
+            - button "Open Record" [ref=e854]
+            - generic [ref=e855]: Updated —
+          - button "Open w1_work_req" [ref=e856] [cursor=pointer]:
+            - generic [ref=e857]:
+              - generic [ref=e858]:
+                - img "Materialized View" [ref=e859]:
+                  - img [ref=e860]
+                - generic [ref=e864]: Table/View
+              - generic [ref=e865]:
+                - checkbox "Select w1_work_req" [ref=e866]
+                - button "Add to favorites" [ref=e867]: ☆
+                - button "Open Governance" [ref=e868]: ⋮
+            - heading "w1_work_req" [level=3] [ref=e869]
+            - generic [ref=e870]:
+              - 'generic "Domain: Unassigned" [ref=e871]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e872]:
+                - img "bronze.wacs.w1_work_req" [ref=e873]: BW
+                - generic [ref=e874]: Namer Avatar
+            - generic [ref=e875]:
+              - generic [ref=e876]: PII
+              - generic [ref=e877]: Transaction
+              - generic [ref=e878]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e879]': PUBLISHED
+            - generic [ref=e880]:
+              - generic "Views" [ref=e881]:
+                - generic [ref=e882]: ⊙
+                - text: views
+              - generic [ref=e883]: ·
+              - generic "Notebook usage" [ref=e884]:
+                - generic [ref=e885]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e886]': High Trust 92%
+            - paragraph [ref=e887]: "Batch overwrite load from w1_work_req. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_work_req/20260410022324/"
+            - button "Lineage unavailable" [disabled] [ref=e888]
+            - button "Open Record" [ref=e889]
+            - generic [ref=e890]: Updated —
+          - button "Open w1_work_class_l" [ref=e891] [cursor=pointer]:
+            - generic [ref=e892]:
+              - generic [ref=e893]:
+                - img "Materialized View" [ref=e894]:
+                  - img [ref=e895]
+                - generic [ref=e899]: Table/View
+              - generic [ref=e900]:
+                - checkbox "Select w1_work_class_l" [ref=e901]
+                - button "Add to favorites" [ref=e902]: ☆
+                - button "Open Governance" [ref=e903]: ⋮
+            - heading "w1_work_class_l" [level=3] [ref=e904]
+            - generic [ref=e905]:
+              - 'generic "Domain: Unassigned" [ref=e906]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e907]:
+                - img "bronze.wacs.w1_work_class_l" [ref=e908]: BW
+                - generic [ref=e909]: Namer Avatar
+            - generic [ref=e910]:
+              - generic [ref=e911]: PII
+              - generic [ref=e912]: Transaction
+              - generic [ref=e913]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e914]': PUBLISHED
+            - generic [ref=e915]:
+              - generic "Views" [ref=e916]:
+                - generic [ref=e917]: ⊙
+                - text: views
+              - generic [ref=e918]: ·
+              - generic "Notebook usage" [ref=e919]:
+                - generic [ref=e920]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e921]': High Trust 92%
+            - paragraph [ref=e922]: "Batch overwrite load from w1_work_class_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_work_class_l/20260410022257/"
+            - button "Lineage unavailable" [disabled] [ref=e923]
+            - button "Open Record" [ref=e924]
+            - generic [ref=e925]: Updated —
+          - button "Open w1_work_category_l" [ref=e926] [cursor=pointer]:
+            - generic [ref=e927]:
+              - generic [ref=e928]:
+                - img "Materialized View" [ref=e929]:
+                  - img [ref=e930]
+                - generic [ref=e934]: Table/View
+              - generic [ref=e935]:
+                - checkbox "Select w1_work_category_l" [ref=e936]
+                - button "Add to favorites" [ref=e937]: ☆
+                - button "Open Governance" [ref=e938]: ⋮
+            - heading "w1_work_category_l" [level=3] [ref=e939]
+            - generic [ref=e940]:
+              - 'generic "Domain: Unassigned" [ref=e941]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e942]:
+                - img "bronze.wacs.w1_work_category_l" [ref=e943]: BW
+                - generic [ref=e944]: Namer Avatar
+            - generic [ref=e945]:
+              - generic [ref=e946]: PII
+              - generic [ref=e947]: Transaction
+              - generic [ref=e948]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e949]': PUBLISHED
+            - generic [ref=e950]:
+              - generic "Views" [ref=e951]:
+                - generic [ref=e952]: ⊙
+                - text: views
+              - generic [ref=e953]: ·
+              - generic "Notebook usage" [ref=e954]:
+                - generic [ref=e955]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e956]': High Trust 92%
+            - paragraph [ref=e957]: "Batch overwrite load from w1_work_category_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_work_category_l/20260410022257/"
+            - button "Lineage unavailable" [disabled] [ref=e958]
+            - button "Open Record" [ref=e959]
+            - generic [ref=e960]: Updated —
+          - button "Open w1_wo_log" [ref=e961] [cursor=pointer]:
+            - generic [ref=e962]:
+              - generic [ref=e963]:
+                - img "Materialized View" [ref=e964]:
+                  - img [ref=e965]
+                - generic [ref=e969]: Table/View
+              - generic [ref=e970]:
+                - checkbox "Select w1_wo_log" [ref=e971]
+                - button "Add to favorites" [ref=e972]: ☆
+                - button "Open Governance" [ref=e973]: ⋮
+            - heading "w1_wo_log" [level=3] [ref=e974]
+            - generic [ref=e975]:
+              - 'generic "Domain: Unassigned" [ref=e976]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e977]:
+                - img "bronze.wacs.w1_wo_log" [ref=e978]: BW
+                - generic [ref=e979]: Namer Avatar
+            - generic [ref=e980]:
+              - generic [ref=e981]: PII
+              - generic [ref=e982]: Transaction
+              - generic [ref=e983]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e984]': PUBLISHED
+            - generic [ref=e985]:
+              - generic "Views" [ref=e986]:
+                - generic [ref=e987]: ⊙
+                - text: views
+              - generic [ref=e988]: ·
+              - generic "Notebook usage" [ref=e989]:
+                - generic [ref=e990]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e991]': High Trust 92%
+            - paragraph [ref=e992]: "Batch overwrite load from w1_wo_log. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_wo_log/20260410022504/"
+            - button "Lineage unavailable" [disabled] [ref=e993]
+            - button "Open Record" [ref=e994]
+            - generic [ref=e995]: Updated —
+          - button "Open w1_wo" [ref=e996] [cursor=pointer]:
+            - generic [ref=e997]:
+              - generic [ref=e998]:
+                - img "Materialized View" [ref=e999]:
+                  - img [ref=e1000]
+                - generic [ref=e1004]: Table/View
+              - generic [ref=e1005]:
+                - checkbox "Select w1_wo" [ref=e1006]
+                - button "Add to favorites" [ref=e1007]: ☆
+                - button "Open Governance" [ref=e1008]: ⋮
+            - heading "w1_wo" [level=3] [ref=e1009]
+            - generic [ref=e1010]:
+              - 'generic "Domain: Unassigned" [ref=e1011]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1012]:
+                - img "bronze.wacs.w1_wo" [ref=e1013]: BW
+                - generic [ref=e1014]: Namer Avatar
+            - generic [ref=e1015]:
+              - generic [ref=e1016]: PII
+              - generic [ref=e1017]: Transaction
+              - generic [ref=e1018]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1019]': PUBLISHED
+            - generic [ref=e1020]:
+              - generic "Views" [ref=e1021]:
+                - generic [ref=e1022]: ⊙
+                - text: views
+              - generic [ref=e1023]: ·
+              - generic "Notebook usage" [ref=e1024]:
+                - generic [ref=e1025]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1026]': High Trust 92%
+            - paragraph [ref=e1027]: "Batch overwrite load from w1_wo. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_wo/20260410022350/"
+            - button "Lineage unavailable" [disabled] [ref=e1028]
+            - button "Open Record" [ref=e1029]
+            - generic [ref=e1030]: Updated —
+          - button "Open w1_tmpl_wo" [ref=e1031] [cursor=pointer]:
+            - generic [ref=e1032]:
+              - generic [ref=e1033]:
+                - img "Materialized View" [ref=e1034]:
+                  - img [ref=e1035]
+                - generic [ref=e1039]: Table/View
+              - generic [ref=e1040]:
+                - checkbox "Select w1_tmpl_wo" [ref=e1041]
+                - button "Add to favorites" [ref=e1042]: ☆
+                - button "Open Governance" [ref=e1043]: ⋮
+            - heading "w1_tmpl_wo" [level=3] [ref=e1044]
+            - generic [ref=e1045]:
+              - 'generic "Domain: Unassigned" [ref=e1046]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1047]:
+                - img "bronze.wacs.w1_tmpl_wo" [ref=e1048]: BW
+                - generic [ref=e1049]: Namer Avatar
+            - generic [ref=e1050]:
+              - generic [ref=e1051]: PII
+              - generic [ref=e1052]: Transaction
+              - generic [ref=e1053]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1054]': PUBLISHED
+            - generic [ref=e1055]:
+              - generic "Views" [ref=e1056]:
+                - generic [ref=e1057]: ⊙
+                - text: views
+              - generic [ref=e1058]: ·
+              - generic "Notebook usage" [ref=e1059]:
+                - generic [ref=e1060]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1061]': High Trust 92%
+            - paragraph [ref=e1062]: "Batch overwrite load from w1_tmpl_wo. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_tmpl_wo/20260410022310/"
+            - button "Lineage unavailable" [disabled] [ref=e1063]
+            - button "Open Record" [ref=e1064]
+            - generic [ref=e1065]: Updated —
+          - button "Open w1_tmpl_act" [ref=e1066] [cursor=pointer]:
+            - generic [ref=e1067]:
+              - generic [ref=e1068]:
+                - img "Materialized View" [ref=e1069]:
+                  - img [ref=e1070]
+                - generic [ref=e1074]: Table/View
+              - generic [ref=e1075]:
+                - checkbox "Select w1_tmpl_act" [ref=e1076]
+                - button "Add to favorites" [ref=e1077]: ☆
+                - button "Open Governance" [ref=e1078]: ⋮
+            - heading "w1_tmpl_act" [level=3] [ref=e1079]
+            - generic [ref=e1080]:
+              - 'generic "Domain: Unassigned" [ref=e1081]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1082]:
+                - img "bronze.wacs.w1_tmpl_act" [ref=e1083]: BW
+                - generic [ref=e1084]: Namer Avatar
+            - generic [ref=e1085]:
+              - generic [ref=e1086]: PII
+              - generic [ref=e1087]: Transaction
+              - generic [ref=e1088]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1089]': PUBLISHED
+            - generic [ref=e1090]:
+              - generic "Views" [ref=e1091]:
+                - generic [ref=e1092]: ⊙
+                - text: views
+              - generic [ref=e1093]: ·
+              - generic "Notebook usage" [ref=e1094]:
+                - generic [ref=e1095]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1096]': High Trust 92%
+            - paragraph [ref=e1097]: "Batch overwrite load from w1_tmpl_act. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_tmpl_act/20260410022314/"
+            - button "Lineage unavailable" [disabled] [ref=e1098]
+            - button "Open Record" [ref=e1099]
+            - generic [ref=e1100]: Updated —
+          - button "Open w1_svc_hist_type_qstn" [ref=e1101] [cursor=pointer]:
+            - generic [ref=e1102]:
+              - generic [ref=e1103]:
+                - img "Materialized View" [ref=e1104]:
+                  - img [ref=e1105]
+                - generic [ref=e1109]: Table/View
+              - generic [ref=e1110]:
+                - checkbox "Select w1_svc_hist_type_qstn" [ref=e1111]
+                - button "Add to favorites" [ref=e1112]: ☆
+                - button "Open Governance" [ref=e1113]: ⋮
+            - heading "w1_svc_hist_type_qstn" [level=3] [ref=e1114]
+            - generic [ref=e1115]:
+              - 'generic "Domain: Unassigned" [ref=e1116]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1117]:
+                - img "bronze.wacs.w1_svc_hist_type_qstn" [ref=e1118]: BW
+                - generic [ref=e1119]: Namer Avatar
+            - generic [ref=e1120]:
+              - generic [ref=e1121]: PII
+              - generic [ref=e1122]: Transaction
+              - generic [ref=e1123]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1124]': PUBLISHED
+            - generic [ref=e1125]:
+              - generic "Views" [ref=e1126]:
+                - generic [ref=e1127]: ⊙
+                - text: views
+              - generic [ref=e1128]: ·
+              - generic "Notebook usage" [ref=e1129]:
+                - generic [ref=e1130]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1131]': High Trust 92%
+            - paragraph [ref=e1132]: "Batch overwrite load from w1_svc_hist_type_qstn. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_svc_hist_type_qstn/20260410022301/"
+            - button "Lineage unavailable" [disabled] [ref=e1133]
+            - button "Open Record" [ref=e1134]
+            - generic [ref=e1135]: Updated —
+          - button "Open w1_svc_hist_type_l" [ref=e1136] [cursor=pointer]:
+            - generic [ref=e1137]:
+              - generic [ref=e1138]:
+                - img "Materialized View" [ref=e1139]:
+                  - img [ref=e1140]
+                - generic [ref=e1144]: Table/View
+              - generic [ref=e1145]:
+                - checkbox "Select w1_svc_hist_type_l" [ref=e1146]
+                - button "Add to favorites" [ref=e1147]: ☆
+                - button "Open Governance" [ref=e1148]: ⋮
+            - heading "w1_svc_hist_type_l" [level=3] [ref=e1149]
+            - generic [ref=e1150]:
+              - 'generic "Domain: Unassigned" [ref=e1151]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1152]:
+                - img "bronze.wacs.w1_svc_hist_type_l" [ref=e1153]: BW
+                - generic [ref=e1154]: Namer Avatar
+            - generic [ref=e1155]:
+              - generic [ref=e1156]: PII
+              - generic [ref=e1157]: Transaction
+              - generic [ref=e1158]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1159]': PUBLISHED
+            - generic [ref=e1160]:
+              - generic "Views" [ref=e1161]:
+                - generic [ref=e1162]: ⊙
+                - text: views
+              - generic [ref=e1163]: ·
+              - generic "Notebook usage" [ref=e1164]:
+                - generic [ref=e1165]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1166]': High Trust 92%
+            - paragraph [ref=e1167]: "Batch overwrite load from w1_svc_hist_type_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_svc_hist_type_l/20260410022258/"
+            - button "Lineage unavailable" [disabled] [ref=e1168]
+            - button "Open Record" [ref=e1169]
+            - generic [ref=e1170]: Updated —
+          - button "Open w1_svc_hist_qstn_ansr" [ref=e1171] [cursor=pointer]:
+            - generic [ref=e1172]:
+              - generic [ref=e1173]:
+                - img "Materialized View" [ref=e1174]:
+                  - img [ref=e1175]
+                - generic [ref=e1179]: Table/View
+              - generic [ref=e1180]:
+                - checkbox "Select w1_svc_hist_qstn_ansr" [ref=e1181]
+                - button "Add to favorites" [ref=e1182]: ☆
+                - button "Open Governance" [ref=e1183]: ⋮
+            - heading "w1_svc_hist_qstn_ansr" [level=3] [ref=e1184]
+            - generic [ref=e1185]:
+              - 'generic "Domain: Unassigned" [ref=e1186]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1187]:
+                - img "bronze.wacs.w1_svc_hist_qstn_ansr" [ref=e1188]: BW
+                - generic [ref=e1189]: Namer Avatar
+            - generic [ref=e1190]:
+              - generic [ref=e1191]: PII
+              - generic [ref=e1192]: Transaction
+              - generic [ref=e1193]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1194]': PUBLISHED
+            - generic [ref=e1195]:
+              - generic "Views" [ref=e1196]:
+                - generic [ref=e1197]: ⊙
+                - text: views
+              - generic [ref=e1198]: ·
+              - generic "Notebook usage" [ref=e1199]:
+                - generic [ref=e1200]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1201]': High Trust 92%
+            - paragraph [ref=e1202]: "Batch overwrite load from w1_svc_hist_qstn_ansr. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_svc_hist_qstn_ansr/20260410023741/"
+            - button "Lineage unavailable" [disabled] [ref=e1203]
+            - button "Open Record" [ref=e1204]
+            - generic [ref=e1205]: Updated —
+          - button "Open w1_svc_hist" [ref=e1206] [cursor=pointer]:
+            - generic [ref=e1207]:
+              - generic [ref=e1208]:
+                - img "Materialized View" [ref=e1209]:
+                  - img [ref=e1210]
+                - generic [ref=e1214]: Table/View
+              - generic [ref=e1215]:
+                - checkbox "Select w1_svc_hist" [ref=e1216]
+                - button "Add to favorites" [ref=e1217]: ☆
+                - button "Open Governance" [ref=e1218]: ⋮
+            - heading "w1_svc_hist" [level=3] [ref=e1219]
+            - generic [ref=e1220]:
+              - 'generic "Domain: Unassigned" [ref=e1221]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1222]:
+                - img "bronze.wacs.w1_svc_hist" [ref=e1223]: BW
+                - generic [ref=e1224]: Namer Avatar
+            - generic [ref=e1225]:
+              - generic [ref=e1226]: PII
+              - generic [ref=e1227]: Transaction
+              - generic [ref=e1228]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1229]': PUBLISHED
+            - generic [ref=e1230]:
+              - generic "Views" [ref=e1231]:
+                - generic [ref=e1232]: ⊙
+                - text: views
+              - generic [ref=e1233]: ·
+              - generic "Notebook usage" [ref=e1234]:
+                - generic [ref=e1235]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1236]': High Trust 92%
+            - paragraph [ref=e1237]: "Batch overwrite load from w1_svc_hist. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_svc_hist/20260410022735/"
+            - button "Lineage unavailable" [disabled] [ref=e1238]
+            - button "Open Record" [ref=e1239]
+            - generic [ref=e1240]: Updated —
+          - button "Open w1_stock_trans" [ref=e1241] [cursor=pointer]:
+            - generic [ref=e1242]:
+              - generic [ref=e1243]:
+                - img "Materialized View" [ref=e1244]:
+                  - img [ref=e1245]
+                - generic [ref=e1249]: Table/View
+              - generic [ref=e1250]:
+                - checkbox "Select w1_stock_trans" [ref=e1251]
+                - button "Add to favorites" [ref=e1252]: ☆
+                - button "Open Governance" [ref=e1253]: ⋮
+            - heading "w1_stock_trans" [level=3] [ref=e1254]
+            - generic [ref=e1255]:
+              - 'generic "Domain: Unassigned" [ref=e1256]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1257]:
+                - img "bronze.wacs.w1_stock_trans" [ref=e1258]: BW
+                - generic [ref=e1259]: Namer Avatar
+            - generic [ref=e1260]:
+              - generic [ref=e1261]: PII
+              - generic [ref=e1262]: Transaction
+              - generic [ref=e1263]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1264]': PUBLISHED
+            - generic [ref=e1265]:
+              - generic "Views" [ref=e1266]:
+                - generic [ref=e1267]: ⊙
+                - text: views
+              - generic [ref=e1268]: ·
+              - generic "Notebook usage" [ref=e1269]:
+                - generic [ref=e1270]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1271]': High Trust 92%
+            - paragraph [ref=e1272]: "Batch overwrite load from w1_stock_trans. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_stock_trans/20260410022832/"
+            - button "Lineage unavailable" [disabled] [ref=e1273]
+            - button "Open Record" [ref=e1274]
+            - generic [ref=e1275]: Updated —
+          - button "Open w1_stock_item_dtl_bin" [ref=e1276] [cursor=pointer]:
+            - generic [ref=e1277]:
+              - generic [ref=e1278]:
+                - img "Materialized View" [ref=e1279]:
+                  - img [ref=e1280]
+                - generic [ref=e1284]: Table/View
+              - generic [ref=e1285]:
+                - checkbox "Select w1_stock_item_dtl_bin" [ref=e1286]
+                - button "Add to favorites" [ref=e1287]: ☆
+                - button "Open Governance" [ref=e1288]: ⋮
+            - heading "w1_stock_item_dtl_bin" [level=3] [ref=e1289]
+            - generic [ref=e1290]:
+              - 'generic "Domain: Unassigned" [ref=e1291]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1292]:
+                - img "bronze.wacs.w1_stock_item_dtl_bin" [ref=e1293]: BW
+                - generic [ref=e1294]: Namer Avatar
+            - generic [ref=e1295]:
+              - generic [ref=e1296]: PII
+              - generic [ref=e1297]: Transaction
+              - generic [ref=e1298]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1299]': PUBLISHED
+            - generic [ref=e1300]:
+              - generic "Views" [ref=e1301]:
+                - generic [ref=e1302]: ⊙
+                - text: views
+              - generic [ref=e1303]: ·
+              - generic "Notebook usage" [ref=e1304]:
+                - generic [ref=e1305]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1306]': High Trust 92%
+            - paragraph [ref=e1307]: "Batch overwrite load from w1_stock_item_dtl_bin. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_stock_item_dtl_bin/20260410022314/"
+            - button "Lineage unavailable" [disabled] [ref=e1308]
+            - button "Open Record" [ref=e1309]
+            - generic [ref=e1310]: Updated —
+          - button "Open w1_stock_item_dtl" [ref=e1311] [cursor=pointer]:
+            - generic [ref=e1312]:
+              - generic [ref=e1313]:
+                - img "Materialized View" [ref=e1314]:
+                  - img [ref=e1315]
+                - generic [ref=e1319]: Table/View
+              - generic [ref=e1320]:
+                - checkbox "Select w1_stock_item_dtl" [ref=e1321]
+                - button "Add to favorites" [ref=e1322]: ☆
+                - button "Open Governance" [ref=e1323]: ⋮
+            - heading "w1_stock_item_dtl" [level=3] [ref=e1324]
+            - generic [ref=e1325]:
+              - 'generic "Domain: Unassigned" [ref=e1326]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1327]:
+                - img "bronze.wacs.w1_stock_item_dtl" [ref=e1328]: BW
+                - generic [ref=e1329]: Namer Avatar
+            - generic [ref=e1330]:
+              - generic [ref=e1331]: PII
+              - generic [ref=e1332]: Transaction
+              - generic [ref=e1333]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1334]': PUBLISHED
+            - generic [ref=e1335]:
+              - generic "Views" [ref=e1336]:
+                - generic [ref=e1337]: ⊙
+                - text: views
+              - generic [ref=e1338]: ·
+              - generic "Notebook usage" [ref=e1339]:
+                - generic [ref=e1340]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1341]': High Trust 92%
+            - paragraph [ref=e1342]: "Batch overwrite load from w1_stock_item_dtl. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_stock_item_dtl/20260410022445/"
+            - button "Lineage unavailable" [disabled] [ref=e1343]
+            - button "Open Record" [ref=e1344]
+            - generic [ref=e1345]: Updated —
+          - button "Open w1_specification_maint_sched" [ref=e1346] [cursor=pointer]:
+            - generic [ref=e1347]:
+              - generic [ref=e1348]:
+                - img "Materialized View" [ref=e1349]:
+                  - img [ref=e1350]
+                - generic [ref=e1354]: Table/View
+              - generic [ref=e1355]:
+                - checkbox "Select w1_specification_maint_sched" [ref=e1356]
+                - button "Add to favorites" [ref=e1357]: ☆
+                - button "Open Governance" [ref=e1358]: ⋮
+            - heading "w1_specification_maint_sched" [level=3] [ref=e1359]
+            - generic [ref=e1360]:
+              - 'generic "Domain: Unassigned" [ref=e1361]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1362]:
+                - img "bronze.wacs.w1_specification_maint_sched" [ref=e1363]: BW
+                - generic [ref=e1364]: Namer Avatar
+            - generic [ref=e1365]:
+              - generic [ref=e1366]: PII
+              - generic [ref=e1367]: Transaction
+              - generic [ref=e1368]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1369]': PUBLISHED
+            - generic [ref=e1370]:
+              - generic "Views" [ref=e1371]:
+                - generic [ref=e1372]: ⊙
+                - text: views
+              - generic [ref=e1373]: ·
+              - generic "Notebook usage" [ref=e1374]:
+                - generic [ref=e1375]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1376]': High Trust 92%
+            - paragraph [ref=e1377]: "Batch overwrite load from w1_specification_maint_sched. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_specification_maint_sched/20260410022301/"
+            - button "Lineage unavailable" [disabled] [ref=e1378]
+            - button "Open Record" [ref=e1379]
+            - generic [ref=e1380]: Updated —
+          - button "Open w1_specification_l" [ref=e1381] [cursor=pointer]:
+            - generic [ref=e1382]:
+              - generic [ref=e1383]:
+                - img "Materialized View" [ref=e1384]:
+                  - img [ref=e1385]
+                - generic [ref=e1389]: Table/View
+              - generic [ref=e1390]:
+                - checkbox "Select w1_specification_l" [ref=e1391]
+                - button "Add to favorites" [ref=e1392]: ☆
+                - button "Open Governance" [ref=e1393]: ⋮
+            - heading "w1_specification_l" [level=3] [ref=e1394]
+            - generic [ref=e1395]:
+              - 'generic "Domain: Unassigned" [ref=e1396]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1397]:
+                - img "bronze.wacs.w1_specification_l" [ref=e1398]: BW
+                - generic [ref=e1399]: Namer Avatar
+            - generic [ref=e1400]:
+              - generic [ref=e1401]: PII
+              - generic [ref=e1402]: Transaction
+              - generic [ref=e1403]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1404]': PUBLISHED
+            - generic [ref=e1405]:
+              - generic "Views" [ref=e1406]:
+                - generic [ref=e1407]: ⊙
+                - text: views
+              - generic [ref=e1408]: ·
+              - generic "Notebook usage" [ref=e1409]:
+                - generic [ref=e1410]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1411]': High Trust 92%
+            - paragraph [ref=e1412]: "Batch overwrite load from w1_specification_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_specification_l/20260410022300/"
+            - button "Lineage unavailable" [disabled] [ref=e1413]
+            - button "Open Record" [ref=e1414]
+            - generic [ref=e1415]: Updated —
+          - button "Open w1_specification" [ref=e1416] [cursor=pointer]:
+            - generic [ref=e1417]:
+              - generic [ref=e1418]:
+                - img "Materialized View" [ref=e1419]:
+                  - img [ref=e1420]
+                - generic [ref=e1424]: Table/View
+              - generic [ref=e1425]:
+                - checkbox "Select w1_specification" [ref=e1426]
+                - button "Add to favorites" [ref=e1427]: ☆
+                - button "Open Governance" [ref=e1428]: ⋮
+            - heading "w1_specification" [level=3] [ref=e1429]
+            - generic [ref=e1430]:
+              - 'generic "Domain: Unassigned" [ref=e1431]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1432]:
+                - img "bronze.wacs.w1_specification" [ref=e1433]: BW
+                - generic [ref=e1434]: Namer Avatar
+            - generic [ref=e1435]:
+              - generic [ref=e1436]: PII
+              - generic [ref=e1437]: Transaction
+              - generic [ref=e1438]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1439]': PUBLISHED
+            - generic [ref=e1440]:
+              - generic "Views" [ref=e1441]:
+                - generic [ref=e1442]: ⊙
+                - text: views
+              - generic [ref=e1443]: ·
+              - generic "Notebook usage" [ref=e1444]:
+                - generic [ref=e1445]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1446]': High Trust 92%
+            - paragraph [ref=e1447]: "Batch overwrite load from w1_specification. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_specification/20260410022302/"
+            - button "Lineage unavailable" [disabled] [ref=e1448]
+            - button "Open Record" [ref=e1449]
+            - generic [ref=e1450]: Updated —
+          - button "Open w1_service_class_l" [ref=e1451] [cursor=pointer]:
+            - generic [ref=e1452]:
+              - generic [ref=e1453]:
+                - img "Materialized View" [ref=e1454]:
+                  - img [ref=e1455]
+                - generic [ref=e1459]: Table/View
+              - generic [ref=e1460]:
+                - checkbox "Select w1_service_class_l" [ref=e1461]
+                - button "Add to favorites" [ref=e1462]: ☆
+                - button "Open Governance" [ref=e1463]: ⋮
+            - heading "w1_service_class_l" [level=3] [ref=e1464]
+            - generic [ref=e1465]:
+              - 'generic "Domain: Unassigned" [ref=e1466]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1467]:
+                - img "bronze.wacs.w1_service_class_l" [ref=e1468]: BW
+                - generic [ref=e1469]: Namer Avatar
+            - generic [ref=e1470]:
+              - generic [ref=e1471]: PII
+              - generic [ref=e1472]: Transaction
+              - generic [ref=e1473]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1474]': PUBLISHED
+            - generic [ref=e1475]:
+              - generic "Views" [ref=e1476]:
+                - generic [ref=e1477]: ⊙
+                - text: views
+              - generic [ref=e1478]: ·
+              - generic "Notebook usage" [ref=e1479]:
+                - generic [ref=e1480]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1481]': High Trust 92%
+            - paragraph [ref=e1482]: "Batch overwrite load from w1_service_class_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_service_class_l/20260410022257/"
+            - button "Lineage unavailable" [disabled] [ref=e1483]
+            - button "Open Record" [ref=e1484]
+            - generic [ref=e1485]: Updated —
+          - button "Open w1_service_area_l" [ref=e1486] [cursor=pointer]:
+            - generic [ref=e1487]:
+              - generic [ref=e1488]:
+                - img "Materialized View" [ref=e1489]:
+                  - img [ref=e1490]
+                - generic [ref=e1494]: Table/View
+              - generic [ref=e1495]:
+                - checkbox "Select w1_service_area_l" [ref=e1496]
+                - button "Add to favorites" [ref=e1497]: ☆
+                - button "Open Governance" [ref=e1498]: ⋮
+            - heading "w1_service_area_l" [level=3] [ref=e1499]
+            - generic [ref=e1500]:
+              - 'generic "Domain: Unassigned" [ref=e1501]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1502]:
+                - img "bronze.wacs.w1_service_area_l" [ref=e1503]: BW
+                - generic [ref=e1504]: Namer Avatar
+            - generic [ref=e1505]:
+              - generic [ref=e1506]: PII
+              - generic [ref=e1507]: Transaction
+              - generic [ref=e1508]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1509]': PUBLISHED
+            - generic [ref=e1510]:
+              - generic "Views" [ref=e1511]:
+                - generic [ref=e1512]: ⊙
+                - text: views
+              - generic [ref=e1513]: ·
+              - generic "Notebook usage" [ref=e1514]:
+                - generic [ref=e1515]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1516]': High Trust 92%
+            - paragraph [ref=e1517]: "Batch overwrite load from w1_service_area_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_service_area_l/20260410022257/"
+            - button "Lineage unavailable" [disabled] [ref=e1518]
+            - button "Open Record" [ref=e1519]
+            - generic [ref=e1520]: Updated —
+          - button "Open w1_rtn_line" [ref=e1521] [cursor=pointer]:
+            - generic [ref=e1522]:
+              - generic [ref=e1523]:
+                - img "Materialized View" [ref=e1524]:
+                  - img [ref=e1525]
+                - generic [ref=e1529]: Table/View
+              - generic [ref=e1530]:
+                - checkbox "Select w1_rtn_line" [ref=e1531]
+                - button "Add to favorites" [ref=e1532]: ☆
+                - button "Open Governance" [ref=e1533]: ⋮
+            - heading "w1_rtn_line" [level=3] [ref=e1534]
+            - generic [ref=e1535]:
+              - 'generic "Domain: Unassigned" [ref=e1536]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1537]:
+                - img "bronze.wacs.w1_rtn_line" [ref=e1538]: BW
+                - generic [ref=e1539]: Namer Avatar
+            - generic [ref=e1540]:
+              - generic [ref=e1541]: PII
+              - generic [ref=e1542]: Transaction
+              - generic [ref=e1543]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1544]': PUBLISHED
+            - generic [ref=e1545]:
+              - generic "Views" [ref=e1546]:
+                - generic [ref=e1547]: ⊙
+                - text: views
+              - generic [ref=e1548]: ·
+              - generic "Notebook usage" [ref=e1549]:
+                - generic [ref=e1550]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1551]': High Trust 92%
+            - paragraph [ref=e1552]: "Batch overwrite load from w1_rtn_line. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_rtn_line/20260410022258/"
+            - button "Lineage unavailable" [disabled] [ref=e1553]
+            - button "Open Record" [ref=e1554]
+            - generic [ref=e1555]: Updated —
+          - button "Open w1_rr_note" [ref=e1556] [cursor=pointer]:
+            - generic [ref=e1557]:
+              - generic [ref=e1558]:
+                - img "Materialized View" [ref=e1559]:
+                  - img [ref=e1560]
+                - generic [ref=e1564]: Table/View
+              - generic [ref=e1565]:
+                - checkbox "Select w1_rr_note" [ref=e1566]
+                - button "Add to favorites" [ref=e1567]: ☆
+                - button "Open Governance" [ref=e1568]: ⋮
+            - heading "w1_rr_note" [level=3] [ref=e1569]
+            - generic [ref=e1570]:
+              - 'generic "Domain: Unassigned" [ref=e1571]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1572]:
+                - img "bronze.wacs.w1_rr_note" [ref=e1573]: BW
+                - generic [ref=e1574]: Namer Avatar
+            - generic [ref=e1575]:
+              - generic [ref=e1576]: PII
+              - generic [ref=e1577]: Transaction
+              - generic [ref=e1578]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1579]': PUBLISHED
+            - generic [ref=e1580]:
+              - generic "Views" [ref=e1581]:
+                - generic [ref=e1582]: ⊙
+                - text: views
+              - generic [ref=e1583]: ·
+              - generic "Notebook usage" [ref=e1584]:
+                - generic [ref=e1585]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1586]': High Trust 92%
+            - paragraph [ref=e1587]: "Batch overwrite load from w1_rr_note. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_rr_note/20260410022257/"
+            - button "Lineage unavailable" [disabled] [ref=e1588]
+            - button "Open Record" [ref=e1589]
+            - generic [ref=e1590]: Updated —
+          - button "Open w1_resrc_uom_l" [ref=e1591] [cursor=pointer]:
+            - generic [ref=e1592]:
+              - generic [ref=e1593]:
+                - img "Materialized View" [ref=e1594]:
+                  - img [ref=e1595]
+                - generic [ref=e1599]: Table/View
+              - generic [ref=e1600]:
+                - checkbox "Select w1_resrc_uom_l" [ref=e1601]
+                - button "Add to favorites" [ref=e1602]: ☆
+                - button "Open Governance" [ref=e1603]: ⋮
+            - heading "w1_resrc_uom_l" [level=3] [ref=e1604]
+            - generic [ref=e1605]:
+              - 'generic "Domain: Unassigned" [ref=e1606]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1607]:
+                - img "bronze.wacs.w1_resrc_uom_l" [ref=e1608]: BW
+                - generic [ref=e1609]: Namer Avatar
+            - generic [ref=e1610]:
+              - generic [ref=e1611]: PII
+              - generic [ref=e1612]: Transaction
+              - generic [ref=e1613]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1614]': PUBLISHED
+            - generic [ref=e1615]:
+              - generic "Views" [ref=e1616]:
+                - generic [ref=e1617]: ⊙
+                - text: views
+              - generic [ref=e1618]: ·
+              - generic "Notebook usage" [ref=e1619]:
+                - generic [ref=e1620]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1621]': High Trust 92%
+            - paragraph [ref=e1622]: "Batch overwrite load from w1_resrc_uom_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_resrc_uom_l/20260410022257/"
+            - button "Lineage unavailable" [disabled] [ref=e1623]
+            - button "Open Record" [ref=e1624]
+            - generic [ref=e1625]: Updated —
+          - button "Open w1_resrc_type_l" [ref=e1626] [cursor=pointer]:
+            - generic [ref=e1627]:
+              - generic [ref=e1628]:
+                - img "Materialized View" [ref=e1629]:
+                  - img [ref=e1630]
+                - generic [ref=e1634]: Table/View
+              - generic [ref=e1635]:
+                - checkbox "Select w1_resrc_type_l" [ref=e1636]
+                - button "Add to favorites" [ref=e1637]: ☆
+                - button "Open Governance" [ref=e1638]: ⋮
+            - heading "w1_resrc_type_l" [level=3] [ref=e1639]
+            - generic [ref=e1640]:
+              - 'generic "Domain: Unassigned" [ref=e1641]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1642]:
+                - img "bronze.wacs.w1_resrc_type_l" [ref=e1643]: BW
+                - generic [ref=e1644]: Namer Avatar
+            - generic [ref=e1645]:
+              - generic [ref=e1646]: PII
+              - generic [ref=e1647]: Transaction
+              - generic [ref=e1648]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1649]': PUBLISHED
+            - generic [ref=e1650]:
+              - generic "Views" [ref=e1651]:
+                - generic [ref=e1652]: ⊙
+                - text: views
+              - generic [ref=e1653]: ·
+              - generic "Notebook usage" [ref=e1654]:
+                - generic [ref=e1655]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1656]': High Trust 92%
+            - paragraph [ref=e1657]: "Batch overwrite load from w1_resrc_type_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_resrc_type_l/20260410022318/"
+            - button "Lineage unavailable" [disabled] [ref=e1658]
+            - button "Open Record" [ref=e1659]
+            - generic [ref=e1660]: Updated —
+          - button "Open w1_resrc_type_identifier" [ref=e1661] [cursor=pointer]:
+            - generic [ref=e1662]:
+              - generic [ref=e1663]:
+                - img "Materialized View" [ref=e1664]:
+                  - img [ref=e1665]
+                - generic [ref=e1669]: Table/View
+              - generic [ref=e1670]:
+                - checkbox "Select w1_resrc_type_identifier" [ref=e1671]
+                - button "Add to favorites" [ref=e1672]: ☆
+                - button "Open Governance" [ref=e1673]: ⋮
+            - heading "w1_resrc_type_identifier" [level=3] [ref=e1674]
+            - generic [ref=e1675]:
+              - 'generic "Domain: Unassigned" [ref=e1676]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1677]:
+                - img "bronze.wacs.w1_resrc_type_identifier" [ref=e1678]: BW
+                - generic [ref=e1679]: Namer Avatar
+            - generic [ref=e1680]:
+              - generic [ref=e1681]: PII
+              - generic [ref=e1682]: Transaction
+              - generic [ref=e1683]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1684]': PUBLISHED
+            - generic [ref=e1685]:
+              - generic "Views" [ref=e1686]:
+                - generic [ref=e1687]: ⊙
+                - text: views
+              - generic [ref=e1688]: ·
+              - generic "Notebook usage" [ref=e1689]:
+                - generic [ref=e1690]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1691]': High Trust 92%
+            - paragraph [ref=e1692]: "Batch overwrite load from w1_resrc_type_identifier. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_resrc_type_identifier/20260410022329/"
+            - button "Lineage unavailable" [disabled] [ref=e1693]
+            - button "Open Record" [ref=e1694]
+            - generic [ref=e1695]: Updated —
+          - button "Open w1_resrc_type" [ref=e1696] [cursor=pointer]:
+            - generic [ref=e1697]:
+              - generic [ref=e1698]:
+                - img "Materialized View" [ref=e1699]:
+                  - img [ref=e1700]
+                - generic [ref=e1704]: Table/View
+              - generic [ref=e1705]:
+                - checkbox "Select w1_resrc_type" [ref=e1706]
+                - button "Add to favorites" [ref=e1707]: ☆
+                - button "Open Governance" [ref=e1708]: ⋮
+            - heading "w1_resrc_type" [level=3] [ref=e1709]
+            - generic [ref=e1710]:
+              - 'generic "Domain: Unassigned" [ref=e1711]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1712]:
+                - img "bronze.wacs.w1_resrc_type" [ref=e1713]: BW
+                - generic [ref=e1714]: Namer Avatar
+            - generic [ref=e1715]:
+              - generic [ref=e1716]: PII
+              - generic [ref=e1717]: Transaction
+              - generic [ref=e1718]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1719]': PUBLISHED
+            - generic [ref=e1720]:
+              - generic "Views" [ref=e1721]:
+                - generic [ref=e1722]: ⊙
+                - text: views
+              - generic [ref=e1723]: ·
+              - generic "Notebook usage" [ref=e1724]:
+                - generic [ref=e1725]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1726]': High Trust 92%
+            - paragraph [ref=e1727]: "Batch overwrite load from w1_resrc_type. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_resrc_type/20260410022352/"
+            - button "Lineage unavailable" [disabled] [ref=e1728]
+            - button "Open Record" [ref=e1729]
+            - generic [ref=e1730]: Updated —
+          - button "Open w1_rcpt_line" [ref=e1731] [cursor=pointer]:
+            - generic [ref=e1732]:
+              - generic [ref=e1733]:
+                - img "Materialized View" [ref=e1734]:
+                  - img [ref=e1735]
+                - generic [ref=e1739]: Table/View
+              - generic [ref=e1740]:
+                - checkbox "Select w1_rcpt_line" [ref=e1741]
+                - button "Add to favorites" [ref=e1742]: ☆
+                - button "Open Governance" [ref=e1743]: ⋮
+            - heading "w1_rcpt_line" [level=3] [ref=e1744]
+            - generic [ref=e1745]:
+              - 'generic "Domain: Unassigned" [ref=e1746]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1747]:
+                - img "bronze.wacs.w1_rcpt_line" [ref=e1748]: BW
+                - generic [ref=e1749]: Namer Avatar
+            - generic [ref=e1750]:
+              - generic [ref=e1751]: PII
+              - generic [ref=e1752]: Transaction
+              - generic [ref=e1753]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1754]': PUBLISHED
+            - generic [ref=e1755]:
+              - generic "Views" [ref=e1756]:
+                - generic [ref=e1757]: ⊙
+                - text: views
+              - generic [ref=e1758]: ·
+              - generic "Notebook usage" [ref=e1759]:
+                - generic [ref=e1760]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1761]': High Trust 92%
+            - paragraph [ref=e1762]: "Batch overwrite load from w1_rcpt_line. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_rcpt_line/20260410022329/"
+            - button "Lineage unavailable" [disabled] [ref=e1763]
+            - button "Open Record" [ref=e1764]
+            - generic [ref=e1765]: Updated —
+          - button "Open w1_question_l" [ref=e1766] [cursor=pointer]:
+            - generic [ref=e1767]:
+              - generic [ref=e1768]:
+                - img "Materialized View" [ref=e1769]:
+                  - img [ref=e1770]
+                - generic [ref=e1774]: Table/View
+              - generic [ref=e1775]:
+                - checkbox "Select w1_question_l" [ref=e1776]
+                - button "Add to favorites" [ref=e1777]: ☆
+                - button "Open Governance" [ref=e1778]: ⋮
+            - heading "w1_question_l" [level=3] [ref=e1779]
+            - generic [ref=e1780]:
+              - 'generic "Domain: Unassigned" [ref=e1781]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1782]:
+                - img "bronze.wacs.w1_question_l" [ref=e1783]: BW
+                - generic [ref=e1784]: Namer Avatar
+            - generic [ref=e1785]:
+              - generic [ref=e1786]: PII
+              - generic [ref=e1787]: Transaction
+              - generic [ref=e1788]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1789]': PUBLISHED
+            - generic [ref=e1790]:
+              - generic "Views" [ref=e1791]:
+                - generic [ref=e1792]: ⊙
+                - text: views
+              - generic [ref=e1793]: ·
+              - generic "Notebook usage" [ref=e1794]:
+                - generic [ref=e1795]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1796]': High Trust 92%
+            - paragraph [ref=e1797]: "Batch overwrite load from w1_question_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_question_l/20260410022259/"
+            - button "Lineage unavailable" [disabled] [ref=e1798]
+            - button "Open Record" [ref=e1799]
+            - generic [ref=e1800]: Updated —
+          - button "Open w1_question_answer_l" [ref=e1801] [cursor=pointer]:
+            - generic [ref=e1802]:
+              - generic [ref=e1803]:
+                - img "Materialized View" [ref=e1804]:
+                  - img [ref=e1805]
+                - generic [ref=e1809]: Table/View
+              - generic [ref=e1810]:
+                - checkbox "Select w1_question_answer_l" [ref=e1811]
+                - button "Add to favorites" [ref=e1812]: ☆
+                - button "Open Governance" [ref=e1813]: ⋮
+            - heading "w1_question_answer_l" [level=3] [ref=e1814]
+            - generic [ref=e1815]:
+              - 'generic "Domain: Unassigned" [ref=e1816]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1817]:
+                - img "bronze.wacs.w1_question_answer_l" [ref=e1818]: BW
+                - generic [ref=e1819]: Namer Avatar
+            - generic [ref=e1820]:
+              - generic [ref=e1821]: PII
+              - generic [ref=e1822]: Transaction
+              - generic [ref=e1823]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1824]': PUBLISHED
+            - generic [ref=e1825]:
+              - generic "Views" [ref=e1826]:
+                - generic [ref=e1827]: ⊙
+                - text: views
+              - generic [ref=e1828]: ·
+              - generic "Notebook usage" [ref=e1829]:
+                - generic [ref=e1830]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1831]': High Trust 92%
+            - paragraph [ref=e1832]: "Batch overwrite load from w1_question_answer_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_question_answer_l/20260410022300/"
+            - button "Lineage unavailable" [disabled] [ref=e1833]
+            - button "Open Record" [ref=e1834]
+            - generic [ref=e1835]: Updated —
+          - button "Open w1_purchase_cmdty_l" [ref=e1836] [cursor=pointer]:
+            - generic [ref=e1837]:
+              - generic [ref=e1838]:
+                - img "Materialized View" [ref=e1839]:
+                  - img [ref=e1840]
+                - generic [ref=e1844]: Table/View
+              - generic [ref=e1845]:
+                - checkbox "Select w1_purchase_cmdty_l" [ref=e1846]
+                - button "Add to favorites" [ref=e1847]: ☆
+                - button "Open Governance" [ref=e1848]: ⋮
+            - heading "w1_purchase_cmdty_l" [level=3] [ref=e1849]
+            - generic [ref=e1850]:
+              - 'generic "Domain: Unassigned" [ref=e1851]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1852]:
+                - img "bronze.wacs.w1_purchase_cmdty_l" [ref=e1853]: BW
+                - generic [ref=e1854]: Namer Avatar
+            - generic [ref=e1855]:
+              - generic [ref=e1856]: PII
+              - generic [ref=e1857]: Transaction
+              - generic [ref=e1858]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1859]': PUBLISHED
+            - generic [ref=e1860]:
+              - generic "Views" [ref=e1861]:
+                - generic [ref=e1862]: ⊙
+                - text: views
+              - generic [ref=e1863]: ·
+              - generic "Notebook usage" [ref=e1864]:
+                - generic [ref=e1865]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1866]': High Trust 92%
+            - paragraph [ref=e1867]: "Batch overwrite load from w1_purchase_cmdty_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_purchase_cmdty_l/20260410022257/"
+            - button "Lineage unavailable" [disabled] [ref=e1868]
+            - button "Open Record" [ref=e1869]
+            - generic [ref=e1870]: Updated —
+          - button "Open w1_project" [ref=e1871] [cursor=pointer]:
+            - generic [ref=e1872]:
+              - generic [ref=e1873]:
+                - img "Materialized View" [ref=e1874]:
+                  - img [ref=e1875]
+                - generic [ref=e1879]: Table/View
+              - generic [ref=e1880]:
+                - checkbox "Select w1_project" [ref=e1881]
+                - button "Add to favorites" [ref=e1882]: ☆
+                - button "Open Governance" [ref=e1883]: ⋮
+            - heading "w1_project" [level=3] [ref=e1884]
+            - generic [ref=e1885]:
+              - 'generic "Domain: Unassigned" [ref=e1886]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1887]:
+                - img "bronze.wacs.w1_project" [ref=e1888]: BW
+                - generic [ref=e1889]: Namer Avatar
+            - generic [ref=e1890]:
+              - generic [ref=e1891]: PII
+              - generic [ref=e1892]: Transaction
+              - generic [ref=e1893]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1894]': PUBLISHED
+            - generic [ref=e1895]:
+              - generic "Views" [ref=e1896]:
+                - generic [ref=e1897]: ⊙
+                - text: views
+              - generic [ref=e1898]: ·
+              - generic "Notebook usage" [ref=e1899]:
+                - generic [ref=e1900]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1901]': High Trust 92%
+            - paragraph [ref=e1902]: "Batch overwrite load from w1_project. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_project/20260410022334/"
+            - button "Lineage unavailable" [disabled] [ref=e1903]
+            - button "Open Record" [ref=e1904]
+            - generic [ref=e1905]: Updated —
+          - button "Open w1_po_line" [ref=e1906] [cursor=pointer]:
+            - generic [ref=e1907]:
+              - generic [ref=e1908]:
+                - img "Materialized View" [ref=e1909]:
+                  - img [ref=e1910]
+                - generic [ref=e1914]: Table/View
+              - generic [ref=e1915]:
+                - checkbox "Select w1_po_line" [ref=e1916]
+                - button "Add to favorites" [ref=e1917]: ☆
+                - button "Open Governance" [ref=e1918]: ⋮
+            - heading "w1_po_line" [level=3] [ref=e1919]
+            - generic [ref=e1920]:
+              - 'generic "Domain: Unassigned" [ref=e1921]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1922]:
+                - img "bronze.wacs.w1_po_line" [ref=e1923]: BW
+                - generic [ref=e1924]: Namer Avatar
+            - generic [ref=e1925]:
+              - generic [ref=e1926]: PII
+              - generic [ref=e1927]: Transaction
+              - generic [ref=e1928]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1929]': PUBLISHED
+            - generic [ref=e1930]:
+              - generic "Views" [ref=e1931]:
+                - generic [ref=e1932]: ⊙
+                - text: views
+              - generic [ref=e1933]: ·
+              - generic "Notebook usage" [ref=e1934]:
+                - generic [ref=e1935]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1936]': High Trust 92%
+            - paragraph [ref=e1937]: "Batch overwrite load from w1_po_line. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_po_line/20260410022351/"
+            - button "Lineage unavailable" [disabled] [ref=e1938]
+            - button "Open Record" [ref=e1939]
+            - generic [ref=e1940]: Updated —
+          - button "Open w1_po_header" [ref=e1941] [cursor=pointer]:
+            - generic [ref=e1942]:
+              - generic [ref=e1943]:
+                - img "Materialized View" [ref=e1944]:
+                  - img [ref=e1945]
+                - generic [ref=e1949]: Table/View
+              - generic [ref=e1950]:
+                - checkbox "Select w1_po_header" [ref=e1951]
+                - button "Add to favorites" [ref=e1952]: ☆
+                - button "Open Governance" [ref=e1953]: ⋮
+            - heading "w1_po_header" [level=3] [ref=e1954]
+            - generic [ref=e1955]:
+              - 'generic "Domain: Unassigned" [ref=e1956]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1957]:
+                - img "bronze.wacs.w1_po_header" [ref=e1958]: BW
+                - generic [ref=e1959]: Namer Avatar
+            - generic [ref=e1960]:
+              - generic [ref=e1961]: PII
+              - generic [ref=e1962]: Transaction
+              - generic [ref=e1963]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1964]': PUBLISHED
+            - generic [ref=e1965]:
+              - generic "Views" [ref=e1966]:
+                - generic [ref=e1967]: ⊙
+                - text: views
+              - generic [ref=e1968]: ·
+              - generic "Notebook usage" [ref=e1969]:
+                - generic [ref=e1970]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e1971]': High Trust 92%
+            - paragraph [ref=e1972]: "Batch overwrite load from w1_po_header. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_po_header/20260410022327/"
+            - button "Lineage unavailable" [disabled] [ref=e1973]
+            - button "Open Record" [ref=e1974]
+            - generic [ref=e1975]: Updated —
+          - button "Open w1_planner_l" [ref=e1976] [cursor=pointer]:
+            - generic [ref=e1977]:
+              - generic [ref=e1978]:
+                - img "Materialized View" [ref=e1979]:
+                  - img [ref=e1980]
+                - generic [ref=e1984]: Table/View
+              - generic [ref=e1985]:
+                - checkbox "Select w1_planner_l" [ref=e1986]
+                - button "Add to favorites" [ref=e1987]: ☆
+                - button "Open Governance" [ref=e1988]: ⋮
+            - heading "w1_planner_l" [level=3] [ref=e1989]
+            - generic [ref=e1990]:
+              - 'generic "Domain: Unassigned" [ref=e1991]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e1992]:
+                - img "bronze.wacs.w1_planner_l" [ref=e1993]: BW
+                - generic [ref=e1994]: Namer Avatar
+            - generic [ref=e1995]:
+              - generic [ref=e1996]: PII
+              - generic [ref=e1997]: Transaction
+              - generic [ref=e1998]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e1999]': PUBLISHED
+            - generic [ref=e2000]:
+              - generic "Views" [ref=e2001]:
+                - generic [ref=e2002]: ⊙
+                - text: views
+              - generic [ref=e2003]: ·
+              - generic "Notebook usage" [ref=e2004]:
+                - generic [ref=e2005]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e2006]': High Trust 92%
+            - paragraph [ref=e2007]: "Batch overwrite load from w1_planner_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_planner_l/20260410022257/"
+            - button "Lineage unavailable" [disabled] [ref=e2008]
+            - button "Open Record" [ref=e2009]
+            - generic [ref=e2010]: Updated —
+          - button "Open w1_pi_header" [ref=e2011] [cursor=pointer]:
+            - generic [ref=e2012]:
+              - generic [ref=e2013]:
+                - img "Materialized View" [ref=e2014]:
+                  - img [ref=e2015]
+                - generic [ref=e2019]: Table/View
+              - generic [ref=e2020]:
+                - checkbox "Select w1_pi_header" [ref=e2021]
+                - button "Add to favorites" [ref=e2022]: ☆
+                - button "Open Governance" [ref=e2023]: ⋮
+            - heading "w1_pi_header" [level=3] [ref=e2024]
+            - generic [ref=e2025]:
+              - 'generic "Domain: Unassigned" [ref=e2026]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e2027]:
+                - img "bronze.wacs.w1_pi_header" [ref=e2028]: BW
+                - generic [ref=e2029]: Namer Avatar
+            - generic [ref=e2030]:
+              - generic [ref=e2031]: PII
+              - generic [ref=e2032]: Transaction
+              - generic [ref=e2033]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e2034]': PUBLISHED
+            - generic [ref=e2035]:
+              - generic "Views" [ref=e2036]:
+                - generic [ref=e2037]: ⊙
+                - text: views
+              - generic [ref=e2038]: ·
+              - generic "Notebook usage" [ref=e2039]:
+                - generic [ref=e2040]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e2041]': High Trust 92%
+            - paragraph [ref=e2042]: "Batch overwrite load from w1_pi_header. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_pi_header/20260410022300/"
+            - button "Lineage unavailable" [disabled] [ref=e2043]
+            - button "Open Record" [ref=e2044]
+            - generic [ref=e2045]: Updated —
+          - button "Open w1_pi_cnt_mst" [ref=e2046] [cursor=pointer]:
+            - generic [ref=e2047]:
+              - generic [ref=e2048]:
+                - img "Materialized View" [ref=e2049]:
+                  - img [ref=e2050]
+                - generic [ref=e2054]: Table/View
+              - generic [ref=e2055]:
+                - checkbox "Select w1_pi_cnt_mst" [ref=e2056]
+                - button "Add to favorites" [ref=e2057]: ☆
+                - button "Open Governance" [ref=e2058]: ⋮
+            - heading "w1_pi_cnt_mst" [level=3] [ref=e2059]
+            - generic [ref=e2060]:
+              - 'generic "Domain: Unassigned" [ref=e2061]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e2062]:
+                - img "bronze.wacs.w1_pi_cnt_mst" [ref=e2063]: BW
+                - generic [ref=e2064]: Namer Avatar
+            - generic [ref=e2065]:
+              - generic [ref=e2066]: PII
+              - generic [ref=e2067]: Transaction
+              - generic [ref=e2068]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e2069]': PUBLISHED
+            - generic [ref=e2070]:
+              - generic "Views" [ref=e2071]:
+                - generic [ref=e2072]: ⊙
+                - text: views
+              - generic [ref=e2073]: ·
+              - generic "Notebook usage" [ref=e2074]:
+                - generic [ref=e2075]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e2076]': High Trust 92%
+            - paragraph [ref=e2077]: "Batch overwrite load from w1_pi_cnt_mst. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_pi_cnt_mst/20260410022334/"
+            - button "Lineage unavailable" [disabled] [ref=e2078]
+            - button "Open Record" [ref=e2079]
+            - generic [ref=e2080]: Updated —
+          - button "Open w1_pi_cnt_line" [ref=e2081] [cursor=pointer]:
+            - generic [ref=e2082]:
+              - generic [ref=e2083]:
+                - img "Materialized View" [ref=e2084]:
+                  - img [ref=e2085]
+                - generic [ref=e2089]: Table/View
+              - generic [ref=e2090]:
+                - checkbox "Select w1_pi_cnt_line" [ref=e2091]
+                - button "Add to favorites" [ref=e2092]: ☆
+                - button "Open Governance" [ref=e2093]: ⋮
+            - heading "w1_pi_cnt_line" [level=3] [ref=e2094]
+            - generic [ref=e2095]:
+              - 'generic "Domain: Unassigned" [ref=e2096]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e2097]:
+                - img "bronze.wacs.w1_pi_cnt_line" [ref=e2098]: BW
+                - generic [ref=e2099]: Namer Avatar
+            - generic [ref=e2100]:
+              - generic [ref=e2101]: PII
+              - generic [ref=e2102]: Transaction
+              - generic [ref=e2103]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e2104]': PUBLISHED
+            - generic [ref=e2105]:
+              - generic "Views" [ref=e2106]:
+                - generic [ref=e2107]: ⊙
+                - text: views
+              - generic [ref=e2108]: ·
+              - generic "Notebook usage" [ref=e2109]:
+                - generic [ref=e2110]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e2111]': High Trust 92%
+            - paragraph [ref=e2112]: "Batch overwrite load from w1_pi_cnt_line. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_pi_cnt_line/20260410022339/"
+            - button "Lineage unavailable" [disabled] [ref=e2113]
+            - button "Open Record" [ref=e2114]
+            - generic [ref=e2115]: Updated —
+          - button "Open w1_permit_tmpl_l" [ref=e2116] [cursor=pointer]:
+            - generic [ref=e2117]:
+              - generic [ref=e2118]:
+                - img "Materialized View" [ref=e2119]:
+                  - img [ref=e2120]
+                - generic [ref=e2124]: Table/View
+              - generic [ref=e2125]:
+                - checkbox "Select w1_permit_tmpl_l" [ref=e2126]
+                - button "Add to favorites" [ref=e2127]: ☆
+                - button "Open Governance" [ref=e2128]: ⋮
+            - heading "w1_permit_tmpl_l" [level=3] [ref=e2129]
+            - generic [ref=e2130]:
+              - 'generic "Domain: Unassigned" [ref=e2131]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e2132]:
+                - img "bronze.wacs.w1_permit_tmpl_l" [ref=e2133]: BW
+                - generic [ref=e2134]: Namer Avatar
+            - generic [ref=e2135]:
+              - generic [ref=e2136]: PII
+              - generic [ref=e2137]: Transaction
+              - generic [ref=e2138]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e2139]': PUBLISHED
+            - generic [ref=e2140]:
+              - generic "Views" [ref=e2141]:
+                - generic [ref=e2142]: ⊙
+                - text: views
+              - generic [ref=e2143]: ·
+              - generic "Notebook usage" [ref=e2144]:
+                - generic [ref=e2145]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e2146]': High Trust 92%
+            - paragraph [ref=e2147]: "Batch overwrite load from w1_permit_tmpl_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_permit_tmpl_l/20260410022257/"
+            - button "Lineage unavailable" [disabled] [ref=e2148]
+            - button "Open Record" [ref=e2149]
+            - generic [ref=e2150]: Updated —
+          - button "Open w1_permit_identifier" [ref=e2151] [cursor=pointer]:
+            - generic [ref=e2152]:
+              - generic [ref=e2153]:
+                - img "Materialized View" [ref=e2154]:
+                  - img [ref=e2155]
+                - generic [ref=e2159]: Table/View
+              - generic [ref=e2160]:
+                - checkbox "Select w1_permit_identifier" [ref=e2161]
+                - button "Add to favorites" [ref=e2162]: ☆
+                - button "Open Governance" [ref=e2163]: ⋮
+            - heading "w1_permit_identifier" [level=3] [ref=e2164]
+            - generic [ref=e2165]:
+              - 'generic "Domain: Unassigned" [ref=e2166]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e2167]:
+                - img "bronze.wacs.w1_permit_identifier" [ref=e2168]: BW
+                - generic [ref=e2169]: Namer Avatar
+            - generic [ref=e2170]:
+              - generic [ref=e2171]: PII
+              - generic [ref=e2172]: Transaction
+              - generic [ref=e2173]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e2174]': PUBLISHED
+            - generic [ref=e2175]:
+              - generic "Views" [ref=e2176]:
+                - generic [ref=e2177]: ⊙
+                - text: views
+              - generic [ref=e2178]: ·
+              - generic "Notebook usage" [ref=e2179]:
+                - generic [ref=e2180]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e2181]': High Trust 92%
+            - paragraph [ref=e2182]: "Batch overwrite load from w1_permit_identifier. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_permit_identifier/20260410022258/"
+            - button "Lineage unavailable" [disabled] [ref=e2183]
+            - button "Open Record" [ref=e2184]
+            - generic [ref=e2185]: Updated —
+          - button "Open w1_permit_char" [ref=e2186] [cursor=pointer]:
+            - generic [ref=e2187]:
+              - generic [ref=e2188]:
+                - img "Materialized View" [ref=e2189]:
+                  - img [ref=e2190]
+                - generic [ref=e2194]: Table/View
+              - generic [ref=e2195]:
+                - checkbox "Select w1_permit_char" [ref=e2196]
+                - button "Add to favorites" [ref=e2197]: ☆
+                - button "Open Governance" [ref=e2198]: ⋮
+            - heading "w1_permit_char" [level=3] [ref=e2199]
+            - generic [ref=e2200]:
+              - 'generic "Domain: Unassigned" [ref=e2201]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e2202]:
+                - img "bronze.wacs.w1_permit_char" [ref=e2203]: BW
+                - generic [ref=e2204]: Namer Avatar
+            - generic [ref=e2205]:
+              - generic [ref=e2206]: PII
+              - generic [ref=e2207]: Transaction
+              - generic [ref=e2208]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e2209]': PUBLISHED
+            - generic [ref=e2210]:
+              - generic "Views" [ref=e2211]:
+                - generic [ref=e2212]: ⊙
+                - text: views
+              - generic [ref=e2213]: ·
+              - generic "Notebook usage" [ref=e2214]:
+                - generic [ref=e2215]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e2216]': High Trust 92%
+            - paragraph [ref=e2217]: "Batch overwrite load from w1_permit_char. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_permit_char/20260410022257/"
+            - button "Lineage unavailable" [disabled] [ref=e2218]
+            - button "Open Record" [ref=e2219]
+            - generic [ref=e2220]: Updated —
+          - button "Open w1_permit_asset_location" [ref=e2221] [cursor=pointer]:
+            - generic [ref=e2222]:
+              - generic [ref=e2223]:
+                - img "Materialized View" [ref=e2224]:
+                  - img [ref=e2225]
+                - generic [ref=e2229]: Table/View
+              - generic [ref=e2230]:
+                - checkbox "Select w1_permit_asset_location" [ref=e2231]
+                - button "Add to favorites" [ref=e2232]: ☆
+                - button "Open Governance" [ref=e2233]: ⋮
+            - heading "w1_permit_asset_location" [level=3] [ref=e2234]
+            - generic [ref=e2235]:
+              - 'generic "Domain: Unassigned" [ref=e2236]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e2237]:
+                - img "bronze.wacs.w1_permit_asset_location" [ref=e2238]: BW
+                - generic [ref=e2239]: Namer Avatar
+            - generic [ref=e2240]:
+              - generic [ref=e2241]: PII
+              - generic [ref=e2242]: Transaction
+              - generic [ref=e2243]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e2244]': PUBLISHED
+            - generic [ref=e2245]:
+              - generic "Views" [ref=e2246]:
+                - generic [ref=e2247]: ⊙
+                - text: views
+              - generic [ref=e2248]: ·
+              - generic "Notebook usage" [ref=e2249]:
+                - generic [ref=e2250]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e2251]': High Trust 92%
+            - paragraph [ref=e2252]: "Batch overwrite load from w1_permit_asset_location. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_permit_asset_location/20260410022300/"
+            - button "Lineage unavailable" [disabled] [ref=e2253]
+            - button "Open Record" [ref=e2254]
+            - generic [ref=e2255]: Updated —
+          - button "Open w1_permit" [ref=e2256] [cursor=pointer]:
+            - generic [ref=e2257]:
+              - generic [ref=e2258]:
+                - img "Materialized View" [ref=e2259]:
+                  - img [ref=e2260]
+                - generic [ref=e2264]: Table/View
+              - generic [ref=e2265]:
+                - checkbox "Select w1_permit" [ref=e2266]
+                - button "Add to favorites" [ref=e2267]: ☆
+                - button "Open Governance" [ref=e2268]: ⋮
+            - heading "w1_permit" [level=3] [ref=e2269]
+            - generic [ref=e2270]:
+              - 'generic "Domain: Unassigned" [ref=e2271]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e2272]:
+                - img "bronze.wacs.w1_permit" [ref=e2273]: BW
+                - generic [ref=e2274]: Namer Avatar
+            - generic [ref=e2275]:
+              - generic [ref=e2276]: PII
+              - generic [ref=e2277]: Transaction
+              - generic [ref=e2278]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e2279]': PUBLISHED
+            - generic [ref=e2280]:
+              - generic "Views" [ref=e2281]:
+                - generic [ref=e2282]: ⊙
+                - text: views
+              - generic [ref=e2283]: ·
+              - generic "Notebook usage" [ref=e2284]:
+                - generic [ref=e2285]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e2286]': High Trust 92%
+            - paragraph [ref=e2287]: "Batch overwrite load from w1_permit. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_permit/20260410022301/"
+            - button "Lineage unavailable" [disabled] [ref=e2288]
+            - button "Open Record" [ref=e2289]
+            - generic [ref=e2290]: Updated —
+          - button "Open w1_node_type_l" [ref=e2291] [cursor=pointer]:
+            - generic [ref=e2292]:
+              - generic [ref=e2293]:
+                - img "Materialized View" [ref=e2294]:
+                  - img [ref=e2295]
+                - generic [ref=e2299]: Table/View
+              - generic [ref=e2300]:
+                - checkbox "Select w1_node_type_l" [ref=e2301]
+                - button "Add to favorites" [ref=e2302]: ☆
+                - button "Open Governance" [ref=e2303]: ⋮
+            - heading "w1_node_type_l" [level=3] [ref=e2304]
+            - generic [ref=e2305]:
+              - 'generic "Domain: Unassigned" [ref=e2306]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e2307]:
+                - img "bronze.wacs.w1_node_type_l" [ref=e2308]: BW
+                - generic [ref=e2309]: Namer Avatar
+            - generic [ref=e2310]:
+              - generic [ref=e2311]: PII
+              - generic [ref=e2312]: Transaction
+              - generic [ref=e2313]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e2314]': PUBLISHED
+            - generic [ref=e2315]:
+              - generic "Views" [ref=e2316]:
+                - generic [ref=e2317]: ⊙
+                - text: views
+              - generic [ref=e2318]: ·
+              - generic "Notebook usage" [ref=e2319]:
+                - generic [ref=e2320]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e2321]': High Trust 92%
+            - paragraph [ref=e2322]: "Batch overwrite load from w1_node_type_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_node_type_l/20260410022257/"
+            - button "Lineage unavailable" [disabled] [ref=e2323]
+            - button "Open Record" [ref=e2324]
+            - generic [ref=e2325]: Updated —
+          - button "Open w1_node_note" [ref=e2326] [cursor=pointer]:
+            - generic [ref=e2327]:
+              - generic [ref=e2328]:
+                - img "Materialized View" [ref=e2329]:
+                  - img [ref=e2330]
+                - generic [ref=e2334]: Table/View
+              - generic [ref=e2335]:
+                - checkbox "Select w1_node_note" [ref=e2336]
+                - button "Add to favorites" [ref=e2337]: ☆
+                - button "Open Governance" [ref=e2338]: ⋮
+            - heading "w1_node_note" [level=3] [ref=e2339]
+            - generic [ref=e2340]:
+              - 'generic "Domain: Unassigned" [ref=e2341]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e2342]:
+                - img "bronze.wacs.w1_node_note" [ref=e2343]: BW
+                - generic [ref=e2344]: Namer Avatar
+            - generic [ref=e2345]:
+              - generic [ref=e2346]: PII
+              - generic [ref=e2347]: Transaction
+              - generic [ref=e2348]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e2349]': PUBLISHED
+            - generic [ref=e2350]:
+              - generic "Views" [ref=e2351]:
+                - generic [ref=e2352]: ⊙
+                - text: views
+              - generic [ref=e2353]: ·
+              - generic "Notebook usage" [ref=e2354]:
+                - generic [ref=e2355]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e2356]': High Trust 92%
+            - paragraph [ref=e2357]: "Batch overwrite load from w1_node_note. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_node_note/20260410022257/"
+            - button "Lineage unavailable" [disabled] [ref=e2358]
+            - button "Open Record" [ref=e2359]
+            - generic [ref=e2360]: Updated —
+          - button "Open w1_node" [ref=e2361] [cursor=pointer]:
+            - generic [ref=e2362]:
+              - generic [ref=e2363]:
+                - img "Materialized View" [ref=e2364]:
+                  - img [ref=e2365]
+                - generic [ref=e2369]: Table/View
+              - generic [ref=e2370]:
+                - checkbox "Select w1_node" [ref=e2371]
+                - button "Add to favorites" [ref=e2372]: ☆
+                - button "Open Governance" [ref=e2373]: ⋮
+            - heading "w1_node" [level=3] [ref=e2374]
+            - generic [ref=e2375]:
+              - 'generic "Domain: Unassigned" [ref=e2376]': UNCATEGORIZED DATA
+              - generic "Suggested steward — no owner assigned" [ref=e2377]:
+                - img "bronze.wacs.w1_node" [ref=e2378]: BW
+                - generic [ref=e2379]: Namer Avatar
+            - generic [ref=e2380]:
+              - generic [ref=e2381]: PII
+              - generic [ref=e2382]: Transaction
+              - generic [ref=e2383]: Critical
+              - 'generic "Workflow state: PUBLISHED" [ref=e2384]': PUBLISHED
+            - generic [ref=e2385]:
+              - generic "Views" [ref=e2386]:
+                - generic [ref=e2387]: ⊙
+                - text: views
+              - generic [ref=e2388]: ·
+              - generic "Notebook usage" [ref=e2389]:
+                - generic [ref=e2390]: ▤
+                - text: 2 notebook usage
+              - 'generic "Metadata coverage: 92%" [ref=e2391]': High Trust 92%
+            - paragraph [ref=e2392]: "Batch overwrite load from w1_node. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_node/20260410022401/"
+            - button "Lineage unavailable" [disabled] [ref=e2393]
+            - button "Open Record" [ref=e2394]
+            - generic [ref=e2395]: Updated —
+          - generic [ref=e2396]:
+            - generic [ref=e2397]: Showing 60 of 860 results to keep the catalog responsive.
+            - button "Load more results" [ref=e2398] [cursor=pointer]
+      - complementary [ref=e2399]:
+        - generic [ref=e2401]:
+          - generic [ref=e2402]: Selected Asset
+          - generic [ref=e2403]:
+            - heading "ap_self_assessed_tax_dist_history" [level=3] [ref=e2404]
+            - generic [ref=e2406]: Operational
+          - generic [ref=e2407]: prod / silver · Streaming Table
+        - generic [ref=e2408]:
+          - button "Open Record" [ref=e2409] [cursor=pointer]
+          - button "Lineage unavailable" [disabled] [ref=e2410]
+          - button "Open Governance" [ref=e2411] [cursor=pointer]
+        - generic [ref=e2413]:
+          - generic [ref=e2414]: Preview unavailable
+          - heading "Live preview rows and schema are unavailable for this workspace." [level=2] [ref=e2415]
+          - generic [ref=e2416]: Warming the Databricks SQL warehouse. Serverless warehouses take 30–90 seconds to start after idle; capabilities will hydrate automatically.
+  - generic [ref=e93]:
+    - button "Open command palette" [ref=e94] [cursor=pointer]:
+      - generic [ref=e95]: ⌘
+      - generic [ref=e96]: K
+    - button "Switch to dark mode" [ref=e97] [cursor=pointer]: ☾

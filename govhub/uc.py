@@ -61,6 +61,33 @@ def _is_skippable_metadata_error(exc: Exception) -> bool:
     return any(marker in message for marker in markers)
 
 
+def is_missing_sql_scope_error(exc: Exception | None) -> bool:
+    """Return True when the Databricks platform rejected the request because
+    the calling token is missing the ``sql`` OBO scope.
+
+    The failure surfaces as ``403 Forbidden — Invalid scope, required scopes: sql``
+    coming back through the SDK as a parse error (the SDK can't decode the HTML
+    error envelope). We match both the raw scope marker and the SDK's
+    surfaced text so the signal is resilient across SDK versions.
+
+    Detection matters because this error is recoverable: the user simply
+    hasn't re-authorized the app since the ``sql`` scope was added, so the
+    request succeeds if we retry on the app-principal client instead. See
+    runtime_app.py :class:`_UCWithFallback` for the retry loop.
+    """
+    if exc is None:
+        return False
+    text = str(exc)
+    if not text:
+        return False
+    needles = (
+        "required scopes: sql",
+        "Invalid scope, required scopes: sql",
+        "required scopes:sql",
+    )
+    return any(needle in text for needle in needles)
+
+
 def _env(name: str) -> str:
     return os.getenv(name, "").strip()
 
