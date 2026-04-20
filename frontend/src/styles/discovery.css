@@ -112,6 +112,22 @@
   gap: 6px;
 }
 
+/* Minimal inline "Clear search / Reset browse" strip — sits below the
+   sort row, only shown when there's something to clear. Operator
+   2026-04-19 round 3 asked to drop the old duplicated active-filter
+   strip; this is just the tertiary links. */
+.gh-discovery-reset-inline {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 6px 4px 0;
+  font-size: 0.85rem;
+}
+.gh-discovery-reset-inline .gh-tertiary-button {
+  color: var(--gh-indigo, #3d2bc4);
+  font-weight: 600;
+}
+
 .gh-discovery-results-copy {
   color: var(--gh-ink-soft);
   font-size: 0.8rem;

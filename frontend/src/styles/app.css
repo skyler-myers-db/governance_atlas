@@ -2186,7 +2186,92 @@ button:focus-visible,
 .gh-discovery-sort-inline {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
+}
+
+.gh-discovery-sort-anchor {
+  position: relative;
+  display: inline-block;
+}
+
+.gh-discovery-sort-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 200px;
+  height: 38px;
+  padding: 0 12px 0 14px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--gh-ink, #1a2236);
+  background: #fff;
+  border: 1px solid var(--gh-line, #d8cfb9);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.gh-discovery-sort-trigger:hover {
+  border-color: var(--gh-line-strong, #b8ac8c);
+}
+.gh-discovery-sort-trigger.is-open,
+.gh-discovery-sort-trigger:focus-visible {
+  border-color: var(--gh-indigo, #3d2bc4);
+  box-shadow: 0 0 0 3px rgba(61, 43, 196, 0.12);
+  outline: none;
+}
+.gh-discovery-sort-trigger svg {
+  color: var(--gh-ink-muted, #7a859a);
+  transition: transform 140ms ease;
+}
+.gh-discovery-sort-trigger.is-open svg {
+  transform: rotate(180deg);
+  color: var(--gh-indigo, #3d2bc4);
+}
+
+.gh-discovery-sort-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--gh-line, #d8cfb9);
+  border-radius: 10px;
+  box-shadow: 0 16px 34px rgba(18, 35, 58, 0.12);
+  z-index: 240;
+  display: grid;
+  gap: 2px;
+}
+.gh-discovery-sort-option {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gh-ink, #1a2236);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.gh-discovery-sort-option:hover {
+  background: var(--gh-indigo-soft, #e6e3ff);
+  color: var(--gh-indigo-2, #2d1f93);
+}
+.gh-discovery-sort-option.is-active {
+  background: var(--gh-indigo-soft, #e6e3ff);
+  color: var(--gh-indigo-2, #2d1f93);
+}
+.gh-discovery-sort-option:focus-visible {
+  outline: 2px solid var(--gh-indigo, #3d2bc4);
+  outline-offset: 1px;
 }
 
 .gh-chip-selected {
@@ -2685,6 +2770,33 @@ button:focus-visible,
   top: 18px;
   align-self: start;
   height: fit-content;
+}
+
+/* Asset preview sidecar reads as slightly "less cream" than the body —
+   a soft ivory tint so it steps back from the white card grid but
+   still stays warm. Operator 2026-04-19 round 3 asked for this
+   subtle layering. Section headings also bump up a font size. */
+.gh-selection-preview {
+  background: #fbf6e9 !important;
+  border: 1px solid var(--gh-line, #d8cfb9) !important;
+  border-radius: 14px;
+  padding: 14px 14px 18px;
+  box-shadow: 0 10px 22px rgba(18, 35, 58, 0.04);
+}
+.gh-selection-preview::before {
+  display: none !important;
+}
+.gh-selection-preview .gh-panel-title,
+.gh-selection-preview .gh-panel-title-row .gh-panel-title {
+  font-size: 0.92rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.02em;
+  color: var(--gh-ink, #1a2236);
+  text-transform: none;
+}
+.gh-asset-preview-section + .gh-asset-preview-section {
+  padding-top: 14px;
+  border-top: 1px solid rgba(216, 207, 185, 0.6);
 }
 
 .gh-surface-rail-head,
@@ -3846,7 +3958,10 @@ and single-line
   align-items: center !important;
   gap: 0 !important;
   min-height: 56px;
-  padding: 0 20px;
+  /* Tighter left padding so the brand mark + "Governance Hub"
+     wordmark sit closer to the side icon rail. Operator 2026-04-19
+     round 3 asked for a left-aligned brand. */
+  padding: 0 20px 0 4px;
 }
 .gh-shell-brand-band {
   min-height: 0 !important;
@@ -5672,4 +5787,43 @@ button[class*="back-to-discovery"] {
   font-size: 0.9rem;
   line-height: 1.5;
   color: var(--gh-ink-soft, #525e74);
+}
+
+/* In-app inbox surface — mounted at /inbox. Wraps the InboxPanel with
+   a page-level header so clicking the top-bar inbox icon opens a real
+   destination rather than a transient drawer. */
+.gh-inbox-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 0 48px;
+  display: grid;
+  gap: 20px;
+}
+.gh-inbox-page-head {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: var(--gh-surface, #fff);
+  border: 1px solid var(--gh-line-strong, #b8ac8c);
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 10px 22px rgba(18, 35, 58, 0.04);
+}
+.gh-inbox-page-title {
+  margin: 6px 0 8px;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--gh-ink, #1a2236);
+}
+.gh-inbox-page-lede {
+  margin: 0;
+  color: var(--gh-ink-soft, #525e74);
+  font-size: 0.98rem;
+  line-height: 1.5;
+  max-width: 68ch;
+}
+.gh-inbox-page-back {
+  white-space: nowrap;
 }

@@ -18,6 +18,7 @@ const LineageWorkspace = lazy(() => import("./components/LineageWorkspace"));
 const AuditBrowserWorkspace = lazy(() => import("./components/AuditBrowserWorkspace"));
 const TaxonomyWorkspace = lazy(() => import("./components/TaxonomyWorkspace"));
 const HelpPage = lazy(() => import("./components/HelpPage"));
+const InboxPage = lazy(() => import("./components/InboxPage"));
 
 function visibleAssetSetFromGroups(...groups) {
   const visible = new Set();
@@ -384,6 +385,7 @@ export default function App() {
       audit: "Opening audit browser…",
       taxonomy: "Opening taxonomy…",
       help: "Opening help…",
+      inbox: "Opening inbox…",
     };
     handleNavigationStateChange(true, labels[nextModule] || "Opening workspace…");
     onModuleChange(nextModule);
@@ -485,12 +487,16 @@ export default function App() {
   );
 
   const handleToggleInbox = useCallback(() => {
-    // Always toggle — the InboxPanel renders a proper empty/degraded
-    // state when governanceInbox is missing or unavailable. Operator
-    // 2026-04-19 flagged the old early-return as a silent no-op.
+    // Clicking the header inbox icon now navigates to the dedicated
+    // /inbox surface rather than toggling a transient panel. Operator
+    // 2026-04-19 round 3 flagged the panel toggle as "doesn't actually
+    // take you to your inbox." The InboxPage mounts the same
+    // InboxPanel content + an in-shell header so the button feels
+    // like every other top-level destination.
     setShellDiagnosticsOpen(false);
-    setShellInboxOpen((current) => !current);
-  }, []);
+    setShellInboxOpen(false);
+    onModuleChange("inbox");
+  }, [onModuleChange]);
 
   const handleToggleDiagnostics = useCallback(() => {
     setShellInboxOpen(false);
@@ -698,6 +704,21 @@ export default function App() {
           />
         </Suspense>
       );
+    } else if (surface === "inbox") {
+      content = (
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading inbox",
+            "Preparing governance notifications and stewardship requests.",
+          )}
+        >
+          <InboxPage
+            governanceInbox={shellGovernance.inbox}
+            onInboxItemAction={handleInboxItemAction}
+            onBack={() => openDiscoveryWorkspace("", { fresh: false })}
+          />
+        </Suspense>
+      );
     } else {
       content = governanceSummaryLoading ? (
         workspaceLoading(
@@ -734,7 +755,7 @@ export default function App() {
       activeModule={
         surface === "entity"
           ? "discovery"
-          : ["discovery", "lineage", "governance", "audit", "taxonomy", "help"].includes(surface)
+          : ["discovery", "lineage", "governance", "audit", "taxonomy", "help", "inbox"].includes(surface)
             ? surface
             : ""
       }

@@ -329,9 +329,11 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    expect(
-      screen.getByText("Live preview rows and schema are unavailable for this workspace."),
-    ).not.toBeNull();
+    // When preview is gated, the rail now surfaces a compact inline notice
+    // ("Live rows unavailable") above the structured metadata, instead of
+    // replacing the whole panel with an empty-state card. The full
+    // metadata sections (from the discovery list row) still render.
+    expect(screen.getByText("Live rows unavailable")).not.toBeNull();
     expect(screen.getByText("Live preview rows are disabled in this workspace.")).not.toBeNull();
     expect(useAssetDetailMock.mock.calls[0]?.[1]?.enabled).toBe(false);
     expect(useAssetDetailMock.mock.calls[1]?.[1]?.enabled).toBe(false);
@@ -455,7 +457,9 @@ describe("DiscoveryWorkspace", () => {
           "Visible in discovery, but the record cannot be opened with current permissions.",
         ),
       ).not.toBeNull();
-      expect(within(unavailableCard).getByRole("button", { name: "Open Governance" }).disabled).toBe(true);
+      // Card governance affordance lives inside the ⋮ menu now.
+      fireEvent.click(within(unavailableCard).getByRole("button", { name: "Open asset actions" }));
+      expect(within(unavailableCard).getByRole("menuitem", { name: "Open governance" }).disabled).toBe(true);
       const preview = document.querySelector(".gh-selection-preview");
       if (!preview) throw new Error("Expected selected-asset preview rail");
       expect(
@@ -613,7 +617,10 @@ describe("DiscoveryWorkspace", () => {
     const card = container.querySelector(`[data-asset-fqn="${asset.fqn}"]`);
     if (!card) throw new Error("Expected discovery result card");
     expect(within(card).getByRole("button", { name: "Metadata record unavailable" }).disabled).toBe(true);
-    expect(within(card).getByRole("button", { name: "Open Governance" }).disabled).toBe(true);
+    // The ⋮ button now opens an action menu; the direct-nav governance
+    // affordance is a disabled menuitem when the record isn't openable.
+    fireEvent.click(within(card).getByRole("button", { name: "Open asset actions" }));
+    expect(within(card).getByRole("menuitem", { name: "Open governance" }).disabled).toBe(true);
   });
 
   it("clears discovery record-open failure overrides when the request scope changes", async () => {
@@ -1793,16 +1800,22 @@ describe("DiscoveryWorkspace", () => {
     // The inline toolbar search input was removed (target parity). The
     // equivalent query text input now lives inside the Filters popover,
     // reachable via the Stack Filters launcher below.
-    expect(screen.getByRole("combobox", { name: "Sort metadata catalog results" })).not.toBeNull();
-    fireEvent.change(screen.getByLabelText("Sort metadata catalog results"), {
-      target: { value: "Best match" },
-    });
+    // Sort is now a custom anchored dropdown (operator 2026-04-19
+    // round 3 — native <select> popup was rendering at the wrong
+    // position on some zoom configs).
+    const sortTrigger = document.querySelector(".gh-discovery-sort-trigger");
+    expect(sortTrigger).not.toBeNull();
+    fireEvent.click(sortTrigger);
+    const relevance = Array.from(document.querySelectorAll(".gh-discovery-sort-option"))
+      .find((el) => /^Relevance$/.test((el.textContent || "").trim()));
+    expect(relevance).not.toBeUndefined();
+    fireEvent.click(relevance);
     fireEvent.click(screen.getByRole("button", { name: "Stack Filters" }));
 
     expect(setFilters).toHaveBeenCalledTimes(1);
     expect(
       setFilters.mock.calls.some(
-        ([updater]) => typeof updater === "function" && updater(discoveryFilters()).sortBy === "Best match",
+        ([updater]) => typeof updater === "function" && updater(discoveryFilters()).sortBy === "Relevance",
       ),
     ).toBe(true);
     // "Filters" now appears in the sidebar title, the quick-filter launcher,

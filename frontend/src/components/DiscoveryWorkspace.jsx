@@ -1232,20 +1232,102 @@ function DiscoveryBreadcrumb({ schemaFilter, onClear }) {
   );
 }
 
+// Custom anchored Sort dropdown. Replaces the native <select> element
+// so the options panel ALWAYS opens directly under the trigger — the
+// native popup positioning is browser-owned and was rendering at the
+// bottom-right of the viewport under certain zoom/overlay conditions
+// (operator 2026-04-19 round 3). The button is keyboard-reachable
+// (Enter/Space toggles, Escape closes, Arrow keys cycle values).
+function SortDropdown({ options = [], value = "", onChange }) {
+  const [open, setOpen] = useState(false);
+  const anchorRef = useRef(null);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointer = (event) => {
+      if (!anchorRef.current?.contains(event.target) && !menuRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (event) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const normalized = options.length ? options : ["Relevance"];
+  const active = normalized.includes(value) ? value : normalized[0];
+
+  return (
+    <div className="gh-discovery-sort-inline">
+      <span className="gh-field-label gh-field-label-inline" id="gh-discovery-sort-label">
+        Sort by
+      </span>
+      <div className="gh-discovery-sort-anchor" ref={anchorRef}>
+        <button
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          aria-labelledby="gh-discovery-sort-label"
+          className={`gh-discovery-sort-trigger ${open ? "is-open" : ""}`.trim()}
+          onClick={() => setOpen((current) => !current)}
+          type="button"
+        >
+          <span>{active}</span>
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+        {open ? (
+          <ul
+            aria-labelledby="gh-discovery-sort-label"
+            className="gh-discovery-sort-menu"
+            ref={menuRef}
+            role="listbox"
+          >
+            {normalized.map((option) => (
+              <li key={option} role="none">
+                <button
+                  aria-selected={option === active}
+                  className={`gh-discovery-sort-option ${option === active ? "is-active" : ""}`.trim()}
+                  onClick={() => {
+                    onChange?.(option);
+                    setOpen(false);
+                  }}
+                  role="option"
+                  type="button"
+                >
+                  {option}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function PrimaryFacetChips({
   assetTypeCounts,
   filters,
   onDiscoveryStateChange,
   onOpenFilters,
+  activeFilterChips = [],
   showFiltersBadge = 0,
   obsoleteCount = 0,
 }) {
-  // Primary-facet chips. The mockup's "Banonns" / "Columns" chips were
-  // GenAI placeholders with no real backing in our catalog, so they are
-  // not rendered (operator called them out as confusing on 2026-04-19).
-  // Tables and Views map directly to asset-type filters; Obsolete maps
-  // to the Deprecated certification. Each chip shows a clear "×" when
-  // applied so it doesn't read as a static label.
+  // Primary-facet chips. Operator 2026-04-19 round 3 asked that ALL
+  // applied filter chips sit on this single row next to the Filters
+  // launcher — no separate "Active Filters" strip below. Tables /
+  // Views / Deprecated still render as quick toggles; everything else
+  // (catalog, domain, owner, classification, glossary) appears inline
+  // as "Catalog: prod" style chips that clear themselves on click.
   const primary = [
     { key: "Delta Table", label: "Tables" },
     { key: "View", label: "Views" },
@@ -1259,8 +1341,18 @@ function PrimaryFacetChips({
     .filter((entry) => entry.count > 0);
   const typeFilters = Array.isArray(filters.types) ? filters.types : [];
 
+  // Surface non-type, non-Deprecated active filters inline so the row
+  // stays the single source of truth for applied filters.
+  const visibleChips = (activeFilterChips || []).filter((chip) => {
+    const chipKey = String(chip?.key || "").toLowerCase();
+    const label = String(chip?.label || "");
+    if (chipKey === "types") return false; // already surfaced via Tables/Views
+    if (chipKey === "certifications" && /deprecated/i.test(label)) return false;
+    return true;
+  });
+
   return (
-    <div className="gh-primary-facet-row" role="group" aria-label="Quick asset-type filters">
+    <div className="gh-primary-facet-row" role="group" aria-label="Applied and quick-toggle filters">
       {entries.map((entry) => {
         const active = typeFilters.includes(entry.key);
         const handleToggle = () => {
@@ -1311,6 +1403,19 @@ function PrimaryFacetChips({
           <span className="gh-primary-facet-chip-x" aria-hidden="true">×</span>
         </button>
       ) : null}
+      {visibleChips.map((chip) => (
+        <button
+          aria-pressed="true"
+          className="gh-primary-facet-chip is-active"
+          key={chip.id || `${chip.key}-${chip.label}`}
+          onClick={chip.clear || (() => clearFilter(filters, chip, onDiscoveryStateChange))}
+          title={`Remove ${chip.label}`}
+          type="button"
+        >
+          <span className="gh-primary-facet-chip-label">{chip.label}</span>
+          <span className="gh-primary-facet-chip-x" aria-hidden="true">×</span>
+        </button>
+      ))}
       <div className="gh-primary-facet-spacer" />
       <button
         aria-controls="gh-discovery-filter-popover"
@@ -1729,6 +1834,21 @@ function SelectionPreview({
     : 0;
   const targetDescriptionLine =
     "No description has been captured for this asset yet.";
+  // Classification label for the preview rail metadata row — prefer the
+  // explicit `asset.sensitivity` field, fall back to a PII/PHI tag match.
+  const previewClassificationLabel = (() => {
+    const sens = String(asset.sensitivity || "").trim();
+    if (sens) return sens;
+    const tagMatch = Array.isArray(asset.tags)
+      ? asset.tags.find((t) => /pii|phi|confidential|restricted|internal|public/i.test(String(t || "")))
+      : null;
+    return tagMatch ? String(tagMatch) : "";
+  })();
+  const ownerLabels = Array.isArray(asset.owners)
+    ? asset.owners.map((o) => (typeof o === "string" ? o : o?.email || o?.name || "")).filter(Boolean)
+    : [];
+  const primaryOwner = ownerLabels[0] || "";
+  const ownerCount = ownerLabels.length;
 
   return (
     <SurfaceRail
@@ -1863,13 +1983,25 @@ function SelectionPreview({
           </button>
         </div>
 
-        {/* 4 — Metadata label/value rows with pill values */}
+        {/* 4 — Metadata label/value rows. The "Asset name" and
+            "Description" rows were redundant (both shown in the hero
+            above). Operator 2026-04-19 round 3 asked to swap them for
+            Data owner and Classification, which are the governance
+            signals that actually matter at a glance. */}
         <section className="gh-asset-preview-section">
           <div className="gh-panel-title">Metadata</div>
           <dl className="gh-asset-preview-metadata">
             <div className="gh-asset-preview-metadata-row">
-              <dt>Asset name</dt>
-              <dd className="gh-truncate" title={asset.name}>{asset.name}</dd>
+              <dt>Data owner</dt>
+              <dd className="gh-truncate" title={ownerLabels.join(", ") || "No owner assigned in Unity Catalog"}>
+                {primaryOwner ? (
+                  ownerCount === 1
+                    ? prettyOwnerName(primaryOwner)
+                    : `${ownerCount} owners`
+                ) : (
+                  <span className="gh-asset-preview-metadata-empty">Unassigned</span>
+                )}
+              </dd>
             </div>
             <div className="gh-asset-preview-metadata-row">
               <dt>Domain type</dt>
@@ -1893,9 +2025,18 @@ function SelectionPreview({
               </dd>
             </div>
             <div className="gh-asset-preview-metadata-row">
-              <dt>Description</dt>
-              <dd className="gh-asset-preview-metadata-description">
-                {shortDescription || targetDescriptionLine}
+              <dt>Classification</dt>
+              <dd>
+                {previewClassificationLabel ? (
+                  <span
+                    className="gh-labeled-pill gh-labeled-pill-classification"
+                    title={`Sensitivity classification: ${previewClassificationLabel}`}
+                  >
+                    {previewClassificationLabel}
+                  </span>
+                ) : (
+                  <span className="gh-asset-preview-metadata-empty">Unclassified</span>
+                )}
               </dd>
             </div>
           </dl>
@@ -3469,14 +3610,11 @@ export default function DiscoveryWorkspace({
             })()}
           </SidebarSection>
 
-          {/* 5. Sensitivity (chip row) — show "All" sentinel + real
-              sensitivities from the live facet. Operator 2026-04-19
-              round 2 flagged that PII / Conf / Internal were being
-              rendered as fixed placeholders even when no asset has a
-              sensitivity classification. Now we only include real
-              values from the facet (no hardcoded seed) and always
-              include an "All" row that reads as "no filter applied",
-              matching the Domain/Owner pattern. */}
+          {/* 5. Classification (renamed from "Sensitivity" in round 3).
+              Shows "All classifications" sentinel + real values from
+              the live facet. We never seed PII / Conf / Internal as
+              placeholders — only render values the catalog actually
+              carries, matching the Domain/Owner pattern. */}
           {(() => {
             const rawSensitivities = facetValues(
               resultsFacets,
@@ -3485,17 +3623,18 @@ export default function DiscoveryWorkspace({
               filters.sensitivities || [],
             );
             const sensitivityOptions = rawSensitivities.filter((option) =>
-              !/^all\s+sensitivit/i.test(String(option || "")),
+              !/^all\s+sensitivit/i.test(String(option || "")) &&
+              !/^all\s+classificat/i.test(String(option || "")),
             );
             const activeSens = filters.sensitivities || [];
             const allSelected = activeSens.length === 0;
             const totalCount = Number(discoveryResults.count || allDiscoveryAssets.length);
             return (
-              <SidebarSection title="Sensitivity">
+              <SidebarSection title="Classification">
                 <div className="gh-checkbox-list">
                   <label className={`gh-checkbox-row ${allSelected ? "is-active" : ""}`.trim()}>
                     <input
-                      aria-label="Show assets with any sensitivity"
+                      aria-label="Show assets with any classification"
                       checked={allSelected}
                       className="gh-checkbox"
                       onChange={() =>
@@ -3503,7 +3642,7 @@ export default function DiscoveryWorkspace({
                       }
                       type="checkbox"
                     />
-                    <span className="gh-checkbox-label">All sensitivities</span>
+                    <span className="gh-checkbox-label">All classifications</span>
                     <span className="gh-checkbox-count">({Number(totalCount || 0).toLocaleString()})</span>
                   </label>
                   {sensitivityOptions.slice(0, 6).map((option) => {
@@ -3605,17 +3744,12 @@ export default function DiscoveryWorkspace({
           />
           <PrimaryFacetChips
             assetTypeCounts={liveAssetTypeCounts}
+            activeFilterChips={filtersApplied}
             filters={filters}
             obsoleteCount={facetCount(resultsFacets, "certifications", "Deprecated")}
             onDiscoveryStateChange={onDiscoveryStateChange}
             onOpenFilters={() => setShowAdvancedFilters((current) => !current)}
-            showFiltersBadge={directFilterCount}
-          />
-          <ActiveFilterStrip
-            filters={filters}
-            onClearSchemaFilter={() => setSelectedSchemas(new Set())}
-            onDiscoveryStateChange={onDiscoveryStateChange}
-            schemaFilter={selectedSchema}
+            showFiltersBadge={filtersApplied.length}
           />
           <div className="gh-panel gh-discovery-command-panel" ref={filterCommandRef}>
             {/* Discovery / Navigation sub-tab row deliberately removed —
@@ -3641,36 +3775,22 @@ export default function DiscoveryWorkspace({
                 </div>
               </div>
               <div className="gh-discovery-command-controls">
-                <label className="gh-discovery-sort-inline" htmlFor="gh-discovery-sort">
-                  <span className="gh-field-label gh-field-label-inline">Sort by</span>
-                  <select
-                    className="gh-select gh-select-sort"
-                    aria-label="Sort metadata catalog results"
-                    id="gh-discovery-sort"
-                    onChange={(event) =>
-                      onDiscoveryStateChange((current) => ({ ...current, sortBy: event.target.value }))
-                    }
-                    value={filters.sortBy || "Relevance"}
-                  >
-                    {(() => {
-                      const opts = Array.isArray(bootstrap.discovery.sortOptions)
-                        ? bootstrap.discovery.sortOptions
-                        : [];
-                      // "Best match" is a synonym for Relevance; collapse the
-                      // two so the dropdown doesn't ship both (users found
-                      // that confusing). "Relevance" is the default sort
-                      // when the user has no explicit pick.
-                      const filtered = opts.filter((o) => !/best\s*match/i.test(String(o)));
-                      const hasRelevance = filtered.some((o) => /relevance/i.test(String(o)));
-                      const merged = hasRelevance ? filtered : ["Relevance", ...filtered];
-                      return merged.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ));
-                    })()}
-                  </select>
-                </label>
+                <SortDropdown
+                  options={(() => {
+                    const opts = Array.isArray(bootstrap.discovery.sortOptions)
+                      ? bootstrap.discovery.sortOptions
+                      : [];
+                    // "Best match" is a synonym for Relevance; collapse the
+                    // two so the dropdown doesn't ship both.
+                    const filtered = opts.filter((o) => !/best\s*match/i.test(String(o)));
+                    const hasRelevance = filtered.some((o) => /relevance/i.test(String(o)));
+                    return hasRelevance ? filtered : ["Relevance", ...filtered];
+                  })()}
+                  value={filters.sortBy || "Relevance"}
+                  onChange={(nextValue) =>
+                    onDiscoveryStateChange((current) => ({ ...current, sortBy: nextValue }))
+                  }
+                />
               </div>
             </div>
 
@@ -3695,37 +3815,33 @@ export default function DiscoveryWorkspace({
               ) : null}
             </div>
 
-            {filtersApplied.length ? (
-              <div className="gh-active-filter-row gh-active-filter-row-inline gh-discovery-active-row">
-                {filtersApplied.map((chip) => (
+            {/* Active filter chips moved to PrimaryFacetChips (same row
+                as Tables/Views/Filters). Operator 2026-04-19 round 3
+                flagged the separate strip as redundant with the
+                primary facet row. The Reset-browse / Clear-search
+                controls are kept but compressed to a single inline
+                link row only when something is applied. */}
+            {filtersApplied.length || filters.query ? (
+              <div className="gh-discovery-reset-inline">
+                {filters.query ? (
                   <button
-                    className="gh-chip gh-chip-soft"
-                    key={chip.id || `${chip.key}-${chip.label}`}
-                    onClick={() => clearFilter(filters, chip, onDiscoveryStateChange)}
+                    className="gh-tertiary-button gh-inline-link-button"
+                    onClick={() =>
+                      onDiscoveryStateChange((current) => ({
+                        ...current,
+                        query: "",
+                      }))
+                    }
                     type="button"
                   >
-                    {chip.label}
+                    Clear search
                   </button>
-                ))}
-                <div className="gh-results-strip-actions">
-                  {filters.query ? (
-                    <button
-                      className="gh-tertiary-button gh-inline-link-button"
-                      onClick={() =>
-                        onDiscoveryStateChange((current) => ({
-                          ...current,
-                          query: "",
-                        }))
-                      }
-                      type="button"
-                    >
-                      Clear search
-                    </button>
-                  ) : null}
+                ) : null}
+                {filtersApplied.length ? (
                   <button className="gh-tertiary-button gh-inline-link-button" onClick={resetBrowse} type="button">
                     Reset browse
                   </button>
-                </div>
+                ) : null}
               </div>
             ) : null}
           </div>
