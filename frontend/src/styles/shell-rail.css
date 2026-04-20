@@ -59,14 +59,11 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  /* Round 8: top padding = header height + sub-tab padding so the
-     Home icon centers vertically on the same row as the Discovery /
-     Navigation active tab text. Computed from: header 88px + subtab
-     top padding 12px + ~24px half-button so Home's center sits at
-     the Discovery tab's center Y. */
   padding: calc(var(--gh-shell-header-height, 80px) + 36px) 6px 16px;
   border: 0;
-  border-right: 1px solid var(--gh-line-strong, #6e6039);
+  /* Round 9: thicker, darker-purple vertical separator so the rail
+     edge is clearly visible against the cream body. */
+  border-right: 2px solid var(--gh-line-strong, #6e6039);
   background: transparent;
   box-shadow: none;
   height: 100vh;
@@ -1074,11 +1071,10 @@
   color: var(--gh-ink, #14213d);
 }
 
-/* Round 5: sidebar section titles slightly bigger so the filter rail
-   hierarchy reads from "Filters" → "Catalog" → facet rows without
-   collapsing into one flat wall of text. */
+/* Round 5/9: sidebar section titles slightly bigger so the filter
+   rail hierarchy reads from "Filters" → "CATALOG" → facet rows. */
 .gh-discovery-sidebar-section .gh-panel-title {
-  font-size: 0.86rem !important;
+  font-size: 0.92rem !important;
   font-weight: 800 !important;
   letter-spacing: 0.04em !important;
   text-transform: uppercase !important;
@@ -1816,12 +1812,11 @@ input:focus-visible {
 .gh-asset-preview-header-name {
   flex: 1 1 auto;
   min-width: 0;
-  /* Round 8: bumped 1.6 → 1.9rem so the asset name clearly
-     dominates every other label in the sidecar. */
-  font-size: 1.9rem;
+  /* Round 9: asset name bumped 1.9 → 2.2rem — dominates the sidecar. */
+  font-size: 2.2rem;
   font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
   color: #14213d;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -2267,5 +2262,7 @@ aside.gh-discovery-sidebar.gh-surface-rail {
   border-right: 1px solid var(--gh-line, #9a8c5d) !important;
 }
 .gh-side-rail.gh-side-rail {
-  border-right: 1px solid rgba(15, 23, 42, 0.04) !important;
+  /* Round 9: darker, thicker 2px separator between side rail and
+     Filters area — operator flagged the old faint line as invisible. */
+  border-right: 2px solid var(--gh-line-strong, #6e6039) !important;
 }
