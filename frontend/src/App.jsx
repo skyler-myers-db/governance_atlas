@@ -19,6 +19,7 @@ const AuditBrowserWorkspace = lazy(() => import("./components/AuditBrowserWorksp
 const TaxonomyWorkspace = lazy(() => import("./components/TaxonomyWorkspace"));
 const HelpPage = lazy(() => import("./components/HelpPage"));
 const InboxPage = lazy(() => import("./components/InboxPage"));
+const HomePage = lazy(() => import("./components/HomePage"));
 
 function visibleAssetSetFromGroups(...groups) {
   const visible = new Set();
@@ -386,6 +387,7 @@ export default function App() {
       taxonomy: "Opening taxonomy…",
       help: "Opening help…",
       inbox: "Opening inbox…",
+      home: "Opening home…",
     };
     handleNavigationStateChange(true, labels[nextModule] || "Opening workspace…");
     onModuleChange(nextModule);
@@ -719,6 +721,64 @@ export default function App() {
           />
         </Suspense>
       );
+    } else if (surface === "home") {
+      // Pull the estate snapshot from the richest signal available —
+      // prefer live discovery truth, then bootstrap's defaultCount /
+      // defaultFacets.catalogs (which the server ships on /api/bootstrap
+      // for the live state), then fall back to any baseline data.
+      // Operator 2026-04-19 round 4 flagged that Home was showing
+      // "Governed assets: 0, Catalogs in scope: 1" at cold load —
+      // the bootstrap already carries the right numbers, we just
+      // weren't reading them.
+      const discoveryPayload = data?.discovery || {};
+      const bootstrapSummary = discoveryPayload.summary || {};
+      const visibleAssetCount =
+        typeof liveCatalogVisibleCount === "number"
+          ? liveCatalogVisibleCount
+          : Number.isFinite(Number(discoveryPayload.defaultCount))
+            ? Number(discoveryPayload.defaultCount)
+            : Number.isFinite(Number(bootstrapSummary.visibleAssets))
+              ? Number(bootstrapSummary.visibleAssets)
+              : searchSeedAssets.length || null;
+      const catalogsFacet = Array.isArray(discoveryPayload.defaultFacets?.catalogs)
+        ? discoveryPayload.defaultFacets.catalogs
+        : [];
+      const catalogCount =
+        catalogsFacet.filter((c) => {
+          const label = typeof c === "string" ? c : c?.value || c?.label || "";
+          return label && !/^all\s+catalogs$/i.test(String(label));
+        }).length
+        || Number(bootstrapSummary.catalogCount)
+        || Number(data?.inventory?.catalogCount)
+        || (Array.isArray(discoveryPayload.catalogs) ? discoveryPayload.catalogs.length : 0);
+      const openRequests =
+        Number(shellGovernance?.backlog?.length || 0)
+        || Number(shellGovernance?.inbox?.unreadCount || 0);
+      const coverageScore =
+        bootstrapSummary.averageCoverage
+        || data?.governance?.summary?.coverageScore
+        || shellGovernance?.summary?.coverageScore;
+      content = (
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading home",
+            "Preparing your governance overview.",
+          )}
+        >
+          <HomePage
+            userName={shell?.userEmail || ""}
+            estate={{
+              visibleAssetCount,
+              catalogCount,
+              openRequests,
+              coverageScore,
+            }}
+            recentAssets={searchSeedAssets.slice(0, 6)}
+            onNavigate={(surfaceKey) => handleModuleSurfaceChange(surfaceKey)}
+            onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
+          />
+        </Suspense>
+      );
     } else {
       content = governanceSummaryLoading ? (
         workspaceLoading(
@@ -755,7 +815,7 @@ export default function App() {
       activeModule={
         surface === "entity"
           ? "discovery"
-          : ["discovery", "lineage", "governance", "audit", "taxonomy", "help", "inbox"].includes(surface)
+          : ["home", "discovery", "lineage", "governance", "audit", "taxonomy", "help", "inbox"].includes(surface)
             ? surface
             : ""
       }

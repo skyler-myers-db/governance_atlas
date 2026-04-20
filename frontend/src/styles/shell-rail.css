@@ -717,10 +717,12 @@
   font-size: 0.84rem;
   font-weight: 700;
   color: #2f3b55;
-  /* Soft cream fill so the chip stays coherent with the body but still
-     reads as a clickable surface. Operator 2026-04-19 round 2. */
-  background: var(--gh-surface-soft, #fcf8ee);
-  border: 1px solid var(--gh-line, #d8cfb9);
+  /* Idle chips are transparent so they read as "tap to apply"
+     affordances, not pre-applied filters. Operator 2026-04-19 rounds
+     3+4: Tables / Views still looked "always on" because they had a
+     filled background. Only .is-active chips carry the purple tint. */
+  background: transparent;
+  border: 1px solid var(--gh-line, #c9bf9e);
   border-radius: 999px;
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
@@ -728,9 +730,9 @@
 }
 
 .gh-primary-facet-chip:hover {
-  background: #fff;
-  border-color: var(--gh-line-strong, #b8ac8c);
-  color: #2a2f6b;
+  background: var(--gh-surface-soft, #fcf8ee);
+  border-color: var(--gh-line-strong, #a99a70);
+  color: var(--gh-ink, #1a2236);
 }
 
 .gh-primary-facet-chip.is-active {
@@ -769,6 +771,28 @@
 .gh-primary-facet-spacer {
   flex: 1 1 auto;
   min-width: 8px;
+}
+
+.gh-primary-facet-clear-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--gh-indigo, #3d2bc4);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 120ms ease, background 120ms ease;
+}
+.gh-primary-facet-clear-all:hover {
+  color: var(--gh-indigo-2, #2d1f93);
+  background: var(--gh-indigo-soft, #e6e3ff);
+  text-decoration: none;
 }
 
 .gh-primary-facet-launch {

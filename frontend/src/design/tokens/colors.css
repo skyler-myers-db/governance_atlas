@@ -13,11 +13,11 @@
      checkboxes are pure white, which is how they "pop" off the base.
      Accent stays magenta (brand mark, Quick action button, progress
      rail); indigo stays as a soft secondary for selection/focus. */
-  --gh-bg: #f7f2e7;
-  --gh-bg-2: #f2ecdf;
+  --gh-bg: #faf6ec;
+  --gh-bg-2: #f5efe2;
   --gh-surface: #ffffff;
-  --gh-surface-soft: #fcf8ee;
-  --gh-surface-muted: #f4eedf;
+  --gh-surface-soft: #fdfaf2;
+  --gh-surface-muted: #f7f1e3;
 
   /* Border lines are a warm beige — round 3 darkened them another
      notch so card silhouettes read crisply against the cream body.

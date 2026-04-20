@@ -1769,8 +1769,11 @@
   border-bottom: 1px solid var(--gh-line, #e2e4ec);
 }
 .gh-asset-preview-eyebrow {
-  font-size: 0.78rem;
-  font-weight: 700;
+  /* Matches the section titles inside the preview (0.92rem / 800) —
+     operator 2026-04-19 round 4 asked for it to be "a tad bigger
+     (to match Metadata)". */
+  font-size: 0.92rem;
+  font-weight: 800;
   letter-spacing: 0.01em;
   color: var(--gh-ink, #14213d);
 }
@@ -1797,7 +1800,11 @@
 .gh-asset-preview-header-name {
   flex: 1 1 auto;
   font-weight: 800;
-  font-size: 1.05rem;
+  /* Operator 2026-04-19 round 4 asked for the asset name in the
+     sidecar to be a slightly larger font. Bump from 1.05 to 1.2rem
+     and tighten letter-spacing so long FQN titles still fit. */
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
   color: var(--gh-ink, #14213d);
   min-width: 0;
   margin: 0;

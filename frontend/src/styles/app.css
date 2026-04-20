@@ -80,13 +80,12 @@ body {
   margin: 0;
   font-family: var(--gh-font);
   color: var(--gh-ink);
-  /* Light cream base — operator 2026-04-19 round 2 asked for a shade
-     lighter so the cards stand out more. Radial bloom is a subtle
-     warm highlight only, no hue shift. */
+  /* Light cream base — operator round 4 asked for another smidget
+     lighter. Radial bloom is a subtle warm highlight only, no hue shift. */
   background:
-    radial-gradient(circle at top left, rgba(224, 196, 132, 0.05), transparent 28%),
-    radial-gradient(circle at top right, rgba(224, 196, 132, 0.04), transparent 24%),
-    linear-gradient(180deg, #faf5ea 0%, #f7f2e7 40%, #f4efe2 100%);
+    radial-gradient(circle at top left, rgba(224, 196, 132, 0.04), transparent 28%),
+    radial-gradient(circle at top right, rgba(224, 196, 132, 0.03), transparent 24%),
+    linear-gradient(180deg, #fdf9ef 0%, #faf6ec 40%, #f7f1e4 100%);
   text-rendering: optimizeLegibility;
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
@@ -2777,12 +2776,11 @@ button:focus-visible,
 }
 
 /* Asset preview sidecar reads as slightly "less cream" than the body —
-   a soft ivory tint so it steps back from the white card grid but
-   still stays warm. Operator 2026-04-19 round 3 asked for this
-   subtle layering. Section headings also bump up a font size. */
+   operator rounds 3+4. With the lighter body (#faf6ec) we push the
+   sidecar a shade deeper/warmer so the layering actually reads. */
 .gh-selection-preview {
-  background: #fbf6e9 !important;
-  border: 1px solid var(--gh-line, #d8cfb9) !important;
+  background: #f1e8cf !important;
+  border: 1px solid var(--gh-line-strong, #a99a70) !important;
   border-radius: 14px;
   padding: 14px 14px 18px;
   box-shadow: 0 10px 22px rgba(18, 35, 58, 0.04);
@@ -5836,5 +5834,324 @@ button[class*="back-to-discovery"] {
   max-width: 68ch;
 }
 .gh-inbox-page-back {
+  white-space: nowrap;
+}
+
+/* =============================================================
+   Home page — premium landing surface with hero, stats, quick
+   action cards, and recent-assets list. Shipped 2026-04-19 round
+   4 because the operator asked for "a super awesome and catchy
+   page with amazing visuals and dynamic art and such that matches
+   the theme of the app. Something to really 'wow' people and blow
+   them away." Lives on cream; the hero uses a magenta→indigo
+   gradient accent to reinforce the brand, the stats cards each
+   pick a tone-colored left bar, and the hero art is an animated
+   lineage-graph SVG (pulses travel along the edges). The page is
+   purely content / routing — the heavy app logic stays in the
+   Discovery / Governance surfaces this page links into.
+   ============================================================= */
+
+.gh-home-page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 8px 0 48px;
+  display: grid;
+  gap: 28px;
+}
+
+/* Hero — brand mark + name, welcome headline, primary CTA pair,
+   animated SVG to the right. Two columns at >=900px, stacks on
+   narrower. */
+.gh-home-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 36px;
+  align-items: center;
+  padding: 36px 40px;
+  border-radius: 22px;
+  border: 1px solid var(--gh-line-strong, #a99a70);
+  background:
+    radial-gradient(circle at 12% 18%, rgba(225, 29, 116, 0.08), transparent 42%),
+    radial-gradient(circle at 88% 82%, rgba(61, 43, 196, 0.1), transparent 46%),
+    linear-gradient(135deg, #fdfaf2 0%, #f6eed9 100%);
+  box-shadow: 0 18px 44px rgba(18, 35, 58, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+@media (max-width: 899px) {
+  .gh-home-hero {
+    grid-template-columns: 1fr;
+    padding: 28px 24px;
+  }
+}
+
+.gh-home-hero-copy {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.gh-home-hero-brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.gh-home-hero-eyebrow {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gh-ink-soft, #525e74);
+}
+.gh-home-hero-mark {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--gh-ink, #1a2236);
+  opacity: 0.82;
+}
+.gh-home-hero-title {
+  margin: 0;
+  font-size: clamp(1.8rem, 1.2vw + 1.6rem, 2.6rem);
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  color: var(--gh-ink, #1a2236);
+  background: linear-gradient(135deg, #1a2236 0%, #3d2bc4 80%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+.gh-home-hero-lede {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: var(--gh-ink-soft, #525e74);
+  max-width: 64ch;
+}
+.gh-home-hero-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 6px;
+}
+.gh-home-hero-cta-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #e11d74 0%, #3d2bc4 100%);
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(225, 29, 116, 0.28);
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+.gh-home-hero-cta-primary:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(225, 29, 116, 0.32);
+}
+.gh-home-hero-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  padding: 12px 20px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gh-indigo, #3d2bc4);
+  background: #fff;
+  border: 1px solid var(--gh-indigo, #3d2bc4);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+.gh-home-hero-cta-secondary:hover {
+  background: var(--gh-indigo-soft, #e6e3ff);
+  transform: translateY(-1px);
+}
+
+.gh-home-hero-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+}
+.gh-home-hero-art {
+  width: 100%;
+  max-width: 460px;
+  height: auto;
+}
+
+/* Estate stats — four cards in a responsive grid. Each card picks
+   up a different tone-colored left bar so the eye can scan. */
+.gh-home-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.gh-home-stat {
+  position: relative;
+  padding: 20px 22px;
+  background: #fff;
+  border: 1px solid var(--gh-line, #c9bf9e);
+  border-radius: 14px;
+  box-shadow: 0 8px 18px rgba(18, 35, 58, 0.04);
+  overflow: hidden;
+}
+.gh-home-stat::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-top-left-radius: 14px;
+  border-bottom-left-radius: 14px;
+}
+.gh-home-stat-1::before { background: linear-gradient(180deg, #e11d74, #a01255); }
+.gh-home-stat-2::before { background: linear-gradient(180deg, #3d2bc4, #2d1f93); }
+.gh-home-stat-3::before { background: linear-gradient(180deg, #b67b1f, #8b5a10); }
+.gh-home-stat-4::before { background: linear-gradient(180deg, #1f8b67, #126848); }
+.gh-home-stat-value {
+  font-size: 2rem;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--gh-ink, #1a2236);
+  margin-bottom: 8px;
+}
+.gh-home-stat-label {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--gh-ink, #1a2236);
+  margin-bottom: 4px;
+}
+.gh-home-stat-hint {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--gh-ink-soft, #525e74);
+}
+
+/* Quick-start cards */
+.gh-home-quick-head {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.gh-home-section-title {
+  margin: 0;
+  font-size: 1.24rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--gh-ink, #1a2236);
+}
+.gh-home-section-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--gh-ink-soft, #525e74);
+  line-height: 1.5;
+}
+.gh-home-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+.gh-home-quick-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 22px 24px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--gh-line, #c9bf9e);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+  font-family: inherit;
+  color: inherit;
+  min-height: 200px;
+}
+.gh-home-quick-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 40px rgba(18, 35, 58, 0.08);
+  border-color: var(--gh-line-strong, #a99a70);
+}
+.gh-home-quick-card-eyebrow {
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gh-ink-soft, #525e74);
+}
+.gh-home-quick-card-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--gh-ink, #1a2236);
+  letter-spacing: -0.015em;
+}
+.gh-home-quick-card-body {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--gh-ink-soft, #525e74);
+}
+.gh-home-quick-card-cta {
+  margin-top: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--gh-indigo, #3d2bc4);
+}
+.gh-home-quick-card-accent  .gh-home-quick-card-title { background: linear-gradient(135deg, #e11d74, #3d2bc4); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+.gh-home-quick-card-indigo  .gh-home-quick-card-title { background: linear-gradient(135deg, #3d2bc4, #2d1f93); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+.gh-home-quick-card-teal    .gh-home-quick-card-title { background: linear-gradient(135deg, #0ea5a0, #0b7a76); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+.gh-home-quick-card-magenta .gh-home-quick-card-title { background: linear-gradient(135deg, #e11d74, #a01255); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; }
+
+/* Recent assets list — compact pick-up-where-you-left-off block. */
+.gh-home-recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+.gh-home-recent-item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 16px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--gh-line, #c9bf9e);
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+.gh-home-recent-item:hover {
+  border-color: var(--gh-indigo, #3d2bc4);
+  transform: translateY(-1px);
+}
+.gh-home-recent-item-name {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--gh-ink, #1a2236);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gh-home-recent-item-fqn {
+  font-size: 0.8rem;
+  color: var(--gh-ink-muted, #7a859a);
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }

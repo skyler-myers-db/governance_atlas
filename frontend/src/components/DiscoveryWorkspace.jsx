@@ -578,6 +578,19 @@ function DiscoveryQueryBuilder({
     setBuilderValue("");
   };
 
+  // Operator 2026-04-19 round 4 flagged "Clear clause" as not-working.
+  // Reset every builder input (value + field + join + matchMode) so the
+  // helper lands back at its first-use state. Previously this only
+  // cleared the value, which was indistinguishable from a no-op if the
+  // user hadn't typed anything yet.
+  const clearClauseInputs = () => {
+    setBuilderValue("");
+    setBuilderJoin("AND");
+    setBuilderMatchMode("single");
+    const defaultField = fieldOptions[0]?.value || "";
+    if (defaultField) setBuilderField(defaultField);
+  };
+
   return (
     <section className="gh-query-builder">
       <div className="gh-filter-section-head">
@@ -673,7 +686,7 @@ function DiscoveryQueryBuilder({
         </button>
         <button
           className="gh-tertiary-button gh-inline-link-button"
-          onClick={() => setBuilderValue("")}
+          onClick={clearClauseInputs}
           type="button"
         >
           Clear clause
@@ -1321,6 +1334,9 @@ function PrimaryFacetChips({
   activeFilterChips = [],
   showFiltersBadge = 0,
   obsoleteCount = 0,
+  schemaFilter = null,
+  onClearSchemaFilter,
+  onClearAll,
 }) {
   // Primary-facet chips. Operator 2026-04-19 round 3 asked that ALL
   // applied filter chips sit on this single row next to the Filters
@@ -1403,6 +1419,22 @@ function PrimaryFacetChips({
           <span className="gh-primary-facet-chip-x" aria-hidden="true">×</span>
         </button>
       ) : null}
+      {schemaFilter ? (
+        <button
+          aria-pressed="true"
+          className="gh-primary-facet-chip is-active"
+          onClick={onClearSchemaFilter}
+          title={`Clear catalog scope ${schemaFilter.catalog}${schemaFilter.schema ? "." + schemaFilter.schema : ""}`}
+          type="button"
+        >
+          <span className="gh-primary-facet-chip-label">
+            {schemaFilter.schema
+              ? `${schemaFilter.catalog}.${schemaFilter.schema}`
+              : schemaFilter.catalog}
+          </span>
+          <span className="gh-primary-facet-chip-x" aria-hidden="true">×</span>
+        </button>
+      ) : null}
       {visibleChips.map((chip) => (
         <button
           aria-pressed="true"
@@ -1416,6 +1448,16 @@ function PrimaryFacetChips({
           <span className="gh-primary-facet-chip-x" aria-hidden="true">×</span>
         </button>
       ))}
+      {(showFiltersBadge > 0 || schemaFilter) && onClearAll ? (
+        <button
+          className="gh-primary-facet-clear-all"
+          onClick={onClearAll}
+          title="Clear all applied filters"
+          type="button"
+        >
+          Clear all
+        </button>
+      ) : null}
       <div className="gh-primary-facet-spacer" />
       <button
         aria-controls="gh-discovery-filter-popover"
@@ -3556,6 +3598,15 @@ export default function DiscoveryWorkspace({
                 .slice(0, 8);
               const unassignedCount = ownerCounts.get("__unassigned__") || 0;
               const allSelected = !ownerFilterText;
+              // Total count matches the Domain/Classification sentinels:
+              // prefer the backend-reported discovery count, fall back to
+              // the locally-rendered asset length only when the backend
+              // hasn't reported a count yet. Operator 2026-04-19 round 4
+              // flagged that "All owners (80)" was wrong (it was reporting
+              // only the rendered-so-far count).
+              const ownerTotalCount = Number(
+                discoveryResults.count || allDiscoveryAssets.length,
+              );
               return (
                 <div className="gh-checkbox-list">
                   <label className={`gh-checkbox-row ${allSelected ? "is-active" : ""}`.trim()}>
@@ -3567,7 +3618,7 @@ export default function DiscoveryWorkspace({
                       type="checkbox"
                     />
                     <span className="gh-checkbox-label">All owners</span>
-                    <span className="gh-checkbox-count">({allDiscoveryAssets.length.toLocaleString()})</span>
+                    <span className="gh-checkbox-count">({ownerTotalCount.toLocaleString()})</span>
                   </label>
                   {ownerEntries.map(([label, count]) => {
                     const active = ownerFilterText === label;
@@ -3689,13 +3740,21 @@ export default function DiscoveryWorkspace({
             />
           </SidebarSection>
 
-          {/* 7. Workflow State (checkboxes with relabel) */}
+          {/* 7. Workflow State — "All workflow states" sentinel + real
+              values only. Operator 2026-04-19 round 4 flagged "All
+              certifications" leaking into the option list (it was
+              coming from the backend facet as a synthetic "All" row
+              and getting rendered as if it were a real certification). */}
           {(() => {
-            const certOptions = facetValues(
+            const rawCertOptions = facetValues(
               resultsFacets,
               "certifications",
               ["Certified", "Pending", "Deprecated"],
               filters.certifications || [],
+            );
+            const certOptions = rawCertOptions.filter((option) =>
+              !/^all\s+certificat/i.test(String(option || "")) &&
+              !/^all\s+workflow/i.test(String(option || "")),
             );
             if (!certOptions.length) return null;
             const workflowLabelFor = (option) =>
@@ -3706,9 +3765,27 @@ export default function DiscoveryWorkspace({
                   : /deprecated|retired|obsolete/i.test(option)
                     ? "Deprecated"
                     : option;
+            const activeCerts = filters.certifications || [];
+            const allCertsSelected = activeCerts.length === 0;
+            const certTotalCount = Number(
+              discoveryResults.count || allDiscoveryAssets.length,
+            );
             return (
               <SidebarSection title="Workflow State">
                 <div className="gh-checkbox-list">
+                  <label className={`gh-checkbox-row ${allCertsSelected ? "is-active" : ""}`.trim()}>
+                    <input
+                      aria-label="Show assets in any workflow state"
+                      checked={allCertsSelected}
+                      className="gh-checkbox"
+                      onChange={() =>
+                        onDiscoveryStateChange((current) => ({ ...current, certifications: [] }))
+                      }
+                      type="checkbox"
+                    />
+                    <span className="gh-checkbox-label">All workflow states</span>
+                    <span className="gh-checkbox-count">({certTotalCount.toLocaleString()})</span>
+                  </label>
                   {certOptions.slice(0, 6).map((option) => {
                     const active = (filters.certifications || []).includes(option);
                     const count = facetCount(resultsFacets, "certifications", option);
@@ -3738,18 +3815,39 @@ export default function DiscoveryWorkspace({
         </aside>
 
         <section className="gh-results-column">
-          <DiscoveryBreadcrumb
-            onClear={() => setSelectedSchemas(new Set())}
-            schemaFilter={selectedSchema}
-          />
+          {/* The standalone DiscoveryBreadcrumb was removed 2026-04-19
+              round 4 — the catalog / schema scope now renders as an
+              inline chip inside PrimaryFacetChips so the facet row is
+              the single source of truth for "what's filtering the
+              results". Operator round 4: "[breadcrumb] pops up when
+              you filter by catalog/schema instead of them showing up
+              with the rest of the filters on the Filters line." */}
           <PrimaryFacetChips
             assetTypeCounts={liveAssetTypeCounts}
             activeFilterChips={filtersApplied}
             filters={filters}
             obsoleteCount={facetCount(resultsFacets, "certifications", "Deprecated")}
+            schemaFilter={selectedSchema}
+            onClearSchemaFilter={() => setSelectedSchemas(new Set())}
+            onClearAll={() => {
+              setSelectedSchemas(new Set());
+              setOwnerFilterText("");
+              setGlossaryFilterText("");
+              onDiscoveryStateChange((current) => ({
+                ...current,
+                types: [],
+                catalogs: [],
+                domains: [],
+                tiers: [],
+                certifications: [],
+                sensitivities: [],
+                views: [],
+                query: "",
+              }));
+            }}
             onDiscoveryStateChange={onDiscoveryStateChange}
             onOpenFilters={() => setShowAdvancedFilters((current) => !current)}
-            showFiltersBadge={filtersApplied.length}
+            showFiltersBadge={filtersApplied.length + (selectedSchema ? 1 : 0)}
           />
           <div className="gh-panel gh-discovery-command-panel" ref={filterCommandRef}>
             {/* Discovery / Navigation sub-tab row deliberately removed —
