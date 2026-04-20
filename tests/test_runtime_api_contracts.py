@@ -391,7 +391,13 @@ class RuntimeApiContractsTests(unittest.TestCase):
         ):
             client = runtime_app._uc_for_request(request)
 
-        self.assertIs(client, actor_scoped_sentinel)
+        # When an OBO token is present, the runtime wraps the actor-scoped
+        # client in _UCWithFallback so missing-sql-scope failures can
+        # transparently retry via the app-principal client. The primary
+        # (_primary) slot on that wrapper holds the actor-scoped client.
+        self.assertIsInstance(client, runtime_app._UCWithFallback)
+        self.assertIs(client._primary, actor_scoped_sentinel)
+        self.assertIs(client._fallback, app_principal_sentinel)
         self.assertEqual(observed_tokens, ["obo-token-42"])
 
     def test_uc_for_request_falls_back_to_app_principal_if_actor_scoped_build_fails(

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { setWorkspaceIntent } from "../lib/workspaceIntent";
 
-const KNOWN_SURFACES = ["discovery", "entity", "lineage", "governance", "audit", "taxonomy"];
+const KNOWN_SURFACES = ["discovery", "entity", "lineage", "governance", "audit", "taxonomy", "help"];
 const DISCOVERY_GROUPED_FILTER_KEYS = [
   "types",
   "catalogs",
@@ -122,6 +122,12 @@ function parsePathRoute(pathname = "/") {
       asset: "",
     };
   }
+  if (root === "help") {
+    return {
+      surface: "help",
+      asset: "",
+    };
+  }
   return null;
 }
 
@@ -176,6 +182,7 @@ function canonicalPath(surface, routeAssetFqn) {
   if (surface === "governance") return "/governance";
   if (surface === "audit") return "/audit";
   if (surface === "taxonomy") return "/taxonomy";
+  if (surface === "help") return "/help";
   return "/discovery";
 }
 
@@ -450,15 +457,75 @@ export function useAppRouteState() {
   }, [discoveryRouteState.filterGroups, discoveryRouteState.previewAssetFqn, discoveryRouteState.sortBy, discoveryRouteState.views, location.search, navigate]);
 
   const onModuleChange = useCallback((nextModule) => {
+    // "home" is a virtual module: until we ship a dedicated landing surface,
+    // Home opens Discovery with its query/filters/views reset so it reads as
+    // a true "back to start". Keeping it distinct from `discovery` prevents
+    // both rail icons lighting up simultaneously.
+    if (nextModule === "home") {
+      openDiscoveryWorkspace("", {
+        fresh: true,
+        previewAssetFqn: "",
+        views: [],
+        filterGroups: normalizeDiscoveryFilterGroups(),
+      });
+      return;
+    }
     if (nextModule === "discovery") {
       openDiscoveryWorkspace(discoveryRouteState.query, { fresh: true });
-    } else if (nextModule === "lineage") {
-      openLineageWorkspace(routeAssetFqn || "");
-    } else {
-      openGovernanceWorkspace(routeAssetFqn || "");
+      return;
     }
+    if (nextModule === "lineage") {
+      openLineageWorkspace(routeAssetFqn || "");
+      return;
+    }
+    if (nextModule === "audit") {
+      navigate(buildCanonicalUrl(
+        "audit",
+        "",
+        discoveryRouteState.query,
+        location.search,
+        discoveryRouteState.sortBy,
+        discoveryRouteState.previewAssetFqn,
+        discoveryRouteState.views,
+        discoveryRouteState.filterGroups,
+      ), { state: { fresh: false } });
+      return;
+    }
+    if (nextModule === "taxonomy") {
+      navigate(buildCanonicalUrl(
+        "taxonomy",
+        "",
+        discoveryRouteState.query,
+        location.search,
+        discoveryRouteState.sortBy,
+        discoveryRouteState.previewAssetFqn,
+        discoveryRouteState.views,
+        discoveryRouteState.filterGroups,
+      ), { state: { fresh: false } });
+      return;
+    }
+    if (nextModule === "help") {
+      navigate(buildCanonicalUrl(
+        "help",
+        "",
+        discoveryRouteState.query,
+        location.search,
+        discoveryRouteState.sortBy,
+        discoveryRouteState.previewAssetFqn,
+        discoveryRouteState.views,
+        discoveryRouteState.filterGroups,
+      ), { state: { fresh: false } });
+      return;
+    }
+    openGovernanceWorkspace(routeAssetFqn || "");
   }, [
+    discoveryRouteState.filterGroups,
+    discoveryRouteState.previewAssetFqn,
     discoveryRouteState.query,
+    discoveryRouteState.sortBy,
+    discoveryRouteState.views,
+    location.search,
+    navigate,
     openDiscoveryWorkspace,
     openGovernanceWorkspace,
     openLineageWorkspace,

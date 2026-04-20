@@ -1,5 +1,91 @@
 /* Extracted from app.css by Phase 2-g.2 — selectors exclusive to the discovery feature. */
 
+/* Discovery / Navigation sub-tab strip — sits above the filter rail and
+   results grid to match the target mockup (see docs/mockups/discovery_mockup.png).
+   Tabs are visually quiet by default with an indigo underline on the
+   active tab. Kept flush-left against the main grid — the icon rail
+   already consumes the first column of the shell so this strip starts
+   aligned with the filter rail. */
+.gh-discovery-subtabs {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 2px 4px 0;
+  margin: 0 0 10px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  width: 100%;
+}
+.gh-discovery-subtabs-spacer {
+  flex: 1 1 auto;
+}
+.gh-discovery-subtabs-quick-action {
+  margin-bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #5b3ff2 0%, #4c34d8 100%);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  border: 0;
+  box-shadow: 0 6px 14px rgba(91, 63, 242, 0.22);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+.gh-discovery-subtabs-quick-action:hover {
+  filter: brightness(1.04);
+  box-shadow: 0 10px 18px rgba(91, 63, 242, 0.28);
+}
+.gh-discovery-subtabs-quick-action:focus-visible {
+  outline: 2px solid var(--gh-indigo, #5b3ff2);
+  outline-offset: 2px;
+}
+.gh-discovery-subtabs-quick-action:active {
+  transform: translateY(0.5px);
+}
+.gh-discovery-subtab {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 10px 2px 12px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--gh-ink-soft, #5f718c);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px; /* sit the underline over the strip border */
+  line-height: 1;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.gh-discovery-subtab:hover {
+  color: var(--gh-ink, #1a2236);
+}
+.gh-discovery-subtab.is-active {
+  color: var(--gh-ink, #1a2236);
+  border-bottom-color: var(--gh-indigo, #5b3ff2);
+  font-weight: 700;
+}
+.gh-discovery-subtab:focus-visible {
+  outline: 2px solid var(--gh-indigo, #5b3ff2);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Navigation view emphasizes catalog-tree browsing — give the filter
+   rail (which holds the catalog tree) more room and drop the card grid
+   so stewards can breadth-browse without card noise. The preview rail
+   stays put for drill-downs. */
+.gh-discovery-main-grid[data-sub-tab="navigation"] {
+  grid-template-columns: minmax(300px, 1.2fr) minmax(390px, 0.8fr) !important;
+}
+.gh-discovery-main-grid[data-sub-tab="navigation"] > :nth-child(2) {
+  display: none !important;
+}
+
 .gh-discovery-sidebar {
   position: sticky;
   top: 14px;
@@ -62,10 +148,10 @@
   display: grid;
   gap: 10px;
   padding-bottom: 12px;
-  background:
-    radial-gradient(circle at top right, rgba(91, 67, 238, 0.07), transparent 38%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.988) 0%, rgba(247, 250, 255, 0.968) 100%);
-  box-shadow: 0 16px 34px rgba(18, 35, 58, 0.08);
+  /* Transparent so the cream body shows through. Only asset cards,
+     search input, and checkbox surfaces are white (operator 2026-04-19). */
+  background: transparent;
+  box-shadow: none;
 }
 
 .gh-discovery-sidebar .gh-category-row,
@@ -1183,12 +1269,14 @@
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
   gap: 14px !important;
-  padding: 16px !important;
-  background: #ffffff !important;
-  border: 1px solid var(--gh-border, #d8dee9) !important;
-  border-top: 0 !important;
-  border-radius: 0 0 12px 12px !important;
-  overflow: clip;
+  padding: 4px 0 0 !important;
+  /* Transparent wrapper — the cream body shows through, only the cards
+     themselves are white (operator 2026-04-19 flagged that only cards,
+     search, and checkboxes should be white). No surrounding border. */
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
 }
 /* Narrow right-preview-open layouts fall back to 2 columns,
    and below 900px single column. */
@@ -1214,10 +1302,10 @@
 .gh-discovery-asset-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px 12px;
+  gap: 8px;
+  padding: 12px 14px;
   background: var(--gh-surface, #fff);
-  border: 1px solid var(--gh-border, #d8dee9);
+  border: 1px solid rgba(182, 198, 216, 0.7);
   border-radius: 10px;
   cursor: pointer;
   transition:
@@ -1225,6 +1313,15 @@
     box-shadow 140ms ease,
     transform 140ms ease;
   min-width: 0;
+  position: relative;
+  /* Clip any text/chips that exceed the card silhouette. Operator
+     2026-04-19 flagged text spilling. The ⋮ dropdown escapes via a
+     higher z-index + explicit stacking context on open, not via an
+     overflow escape on the card itself. */
+}
+.gh-discovery-asset-card > :not(.gh-discovery-asset-card-more-wrap):not(.gh-discovery-asset-card-head) {
+  min-width: 0;
+  max-width: 100%;
 }
 .gh-discovery-asset-card:hover {
   border-color: var(--gh-accent, #5b3ff2);
@@ -1251,18 +1348,28 @@
 .gh-discovery-asset-card-head {
   align-items: center;
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: space-between;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.gh-discovery-asset-card-head > * {
+  min-width: 0;
+}
+.gh-discovery-asset-card-head-actions {
+  flex: 0 0 auto;
 }
 .gh-discovery-asset-card-kind {
   align-items: center;
   color: var(--gh-text-muted, #5c6b82);
   display: inline-flex;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 600;
-  gap: 6px;
+  gap: 5px;
   letter-spacing: 0.01em;
   min-width: 0;
+  flex: 1 1 auto;
 }
 .gh-discovery-asset-card-kind > span {
   overflow: hidden;
@@ -1322,34 +1429,46 @@
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+.gh-discovery-asset-card-primary-meta > * {
+  min-width: 0;
 }
 .gh-discovery-asset-pill {
   align-items: center;
-  background: rgba(22, 101, 168, 0.1);
-  border: 1px solid rgba(22, 101, 168, 0.28);
-  border-radius: 999px;
-  color: #0b4d80;
+  background: rgba(225, 29, 116, 0.08);
+  border: 1px solid rgba(225, 29, 116, 0.28);
+  border-radius: 4px;
+  color: #a01255;
   display: inline-flex;
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 0.66rem;
+  font-weight: 800;
   height: 22px;
-  letter-spacing: 0.06em;
-  padding: 0 10px;
+  letter-spacing: 0.04em;
+  padding: 0 8px;
   text-transform: uppercase;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .gh-discovery-asset-pill-domain {
-  background: rgba(30, 68, 115, 0.08);
-  border-color: rgba(30, 68, 115, 0.22);
-  color: #1e4473;
+  /* Real domain (non-fallback) uses the magenta brand accent as
+     a soft-fill pill, matching the mockup's FINANCE DATA marker. */
+  background: rgba(225, 29, 116, 0.1);
+  border-color: rgba(225, 29, 116, 0.3);
+  color: #a01255;
 }
 
 .gh-discovery-asset-card-chips {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
+  min-width: 0;
+  max-width: 100%;
 }
 .gh-discovery-asset-tag {
   align-items: center;
@@ -1393,6 +1512,77 @@
   font-weight: 500;
 }
 
+/* Honest empty / overflow tag states. Previously we synthesized PII /
+   Transaction / Critical chips on every card to "match the silhouette";
+   real governance data now drives the chips, so we surface the gap
+   (Untagged) or compact overflow (+N) instead of faking a tag. */
+.gh-discovery-asset-tag.is-untagged {
+  background: transparent;
+  border-style: dashed;
+  color: #8794af;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.gh-discovery-asset-tag.is-extra {
+  background: transparent;
+  color: var(--gh-text-muted, #5c6b82);
+  font-weight: 600;
+}
+
+/* Asset card three-dot menu (Tranche E): anchored dropdown of real
+   actions. Previously the ⋮ button fired onOpenGovernance directly,
+   which meant users had no menu at all. */
+.gh-discovery-asset-card-more-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.gh-discovery-asset-card-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(13, 31, 71, 0.14);
+  padding: 6px;
+  z-index: 220;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gh-discovery-asset-card-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gh-ink, #14213d);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.gh-discovery-asset-card-menu-item:hover:not(:disabled) {
+  background: rgba(91, 67, 238, 0.08);
+}
+
+.gh-discovery-asset-card-menu-item:focus-visible {
+  outline: none;
+  background: rgba(91, 67, 238, 0.12);
+}
+
+.gh-discovery-asset-card-menu-item:disabled {
+  color: #b0b8c7;
+  cursor: not-allowed;
+}
+
 .gh-discovery-asset-status {
   align-items: center;
   background: rgba(6, 118, 71, 0.12);
@@ -1430,16 +1620,29 @@
   color: var(--gh-text-muted, #5c6b82);
   display: flex;
   flex-wrap: wrap;
-  font-size: 0.77rem;
-  gap: 10px;
-  justify-content: space-between;
+  font-size: 0.76rem;
+  gap: 6px 10px;
+  justify-content: flex-start;
   margin-top: 2px;
+  min-width: 0;
+  max-width: 100%;
 }
 .gh-discovery-asset-usage-item {
   align-items: center;
   display: inline-flex;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
+  white-space: nowrap;
+}
+.gh-discovery-asset-usage-item.is-muted {
+  color: var(--gh-ink-muted, #7a859a);
+  font-style: italic;
+}
+.gh-discovery-asset-usage-icon {
+  display: inline-flex;
+  width: 12px;
+  text-align: center;
+  opacity: 0.75;
 }
 .gh-discovery-asset-trust {
   align-items: center;
@@ -1523,16 +1726,30 @@
 .gh-asset-preview {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+}
+.gh-asset-preview-eyebrow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--gh-line, #e2e4ec);
+}
+.gh-asset-preview-eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--gh-ink, #14213d);
 }
 .gh-asset-preview-header {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
-  background: var(--gh-surface-muted, #f3f6fb);
-  border: 1px solid var(--gh-border, #d8dee9);
-  border-radius: 8px;
+  padding: 4px 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
 }
 .gh-asset-preview-header-icon {
   display: inline-flex;
@@ -1547,10 +1764,11 @@
 }
 .gh-asset-preview-header-name {
   flex: 1 1 auto;
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: var(--gh-text, #1a2332);
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: var(--gh-ink, #14213d);
   min-width: 0;
+  margin: 0;
 }
 .gh-asset-preview-header-close {
   flex: 0 0 auto;
@@ -1578,22 +1796,105 @@
   line-height: 1.4;
 }
 
-/* 2×2 action grid */
+/* 2×2 action grid — matches mockup. Primary "View Details" button is
+   the indigo brand accent, remaining three are outlined secondaries.
+   Padding and gap tuned to give each label room to breathe without
+   ellipsis-clipping at narrow rail widths.
+
+   The ``min-width: 0`` + ``minmax(0, 1fr)`` pair is load-bearing: without
+   them the child buttons take their max-content width, overflow the
+   360px preview rail, and get clipped by the aside's overflow:hidden
+   (observed in the 2026-04-19 parity review — "Request Access" and
+   "Favorited" rendered 141px beyond the 1440 viewport edge). */
 .gh-asset-preview-action-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px 12px;
+  margin: 4px 0 10px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+/* The preview body + preview root must not widen past the preview rail,
+   otherwise the 2×2 grid above can't actually contain itself in the 360px
+   aside column. Force full-width + min-width 0 so grid layout fits. */
+.gh-asset-preview,
+.gh-selection-preview .gh-surface-rail-body {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 .gh-asset-preview-action-grid > button {
   width: 100%;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  gap: 6px;
+  white-space: normal !important;
+  word-break: break-word;
+  overflow: visible;
+  text-overflow: clip;
+  padding: 8px 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.15;
+  border-radius: 10px;
+  letter-spacing: 0.01em;
+  text-align: center;
+  min-width: 0;
+}
+.gh-asset-preview-action-grid > .gh-primary-button {
+  background: var(--gh-indigo, #5b3ff2);
+  border: 1px solid var(--gh-indigo, #5b3ff2);
+  color: #fff;
+}
+.gh-asset-preview-action-grid > .gh-primary-button:hover:not(:disabled) {
+  background: #4832d4;
+}
+.gh-asset-preview-action-grid > .gh-secondary-button {
+  background: #fff;
+  border: 1px solid var(--gh-line-strong, #b8c2d3);
+  color: var(--gh-ink, #14213d);
+}
+.gh-asset-preview-action-grid > .gh-secondary-button:hover:not(:disabled) {
+  border-color: var(--gh-indigo, #5b3ff2);
+  color: var(--gh-indigo, #5b3ff2);
 }
 .gh-asset-preview-action-grid > button.is-favorite {
-  color: var(--gh-accent, #5b3ff2);
-  border-color: var(--gh-accent, #5b3ff2);
+  /* Favorited state uses the amber star convention, consistent with the
+     card-level star glyph. The prior magenta tint conflicted with the
+     de-magenta-fication directive from the fourth parity review. */
+  color: #c48712;
+  border-color: rgba(196, 135, 18, 0.45);
+  background: rgba(255, 232, 176, 0.2);
+}
+
+/* Inline degraded-preview notice (shown when live rows aren't granted
+   to the workspace). Kept compact so the real metadata panels below
+   remain the primary content. */
+.gh-selection-preview-inline-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: rgba(181, 71, 8, 0.06);
+  border: 1px solid rgba(181, 71, 8, 0.24);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+}
+.gh-selection-preview-inline-notice-label {
+  font-weight: 800;
+  color: #8a3a07;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+}
+.gh-selection-preview-inline-notice-body {
+  color: #5c4733;
+  line-height: 1.35;
 }
 
 /* Section wrapper inside the preview body */
