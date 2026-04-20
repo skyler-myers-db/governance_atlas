@@ -1803,17 +1803,15 @@
 .gh-asset-preview-header-name {
   flex: 1 1 auto;
   font-weight: 800;
-  /* Operator 2026-04-19 round 5: asset name should be distinctly
-     bigger than the "Asset preview" eyebrow (0.92rem). Bump to
-     1.44rem so the title dominates the sidecar header. */
-  font-size: 1.44rem;
+  /* Round 6: bumped from 1.44rem → 1.6rem to sit visibly bigger than
+     the Metadata / Schema / Usage section titles (0.92rem), matching
+     the mockup hierarchy. */
+  font-size: 1.6rem;
   line-height: 1.2;
   letter-spacing: -0.02em;
   color: var(--gh-ink, #14213d);
   min-width: 0;
   margin: 0;
-  /* Long FQNs like ap_self_assessed_tax_dist should wrap rather than
-     truncate — the title is the primary anchor for the sidecar. */
   overflow-wrap: anywhere;
   word-break: break-word;
   white-space: normal;

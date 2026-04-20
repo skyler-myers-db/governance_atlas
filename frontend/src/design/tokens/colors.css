@@ -19,11 +19,10 @@
   --gh-surface-soft: #fdfaf2;
   --gh-surface-muted: #f7f1e3;
 
-  /* Border lines in warm beige. Rounds 2/3/5 progressively
-     darkened them so card silhouettes and panel separators read
-     crisply against the cream body. */
-  --gh-line: #b9ad84;
-  --gh-line-strong: #8c7d52;
+  /* Border lines in warm beige. Rounds 2/3/5/6 progressively darken
+     them so card silhouettes + panel separators read crisply. */
+  --gh-line: #9a8c5d;
+  --gh-line-strong: #6e6039;
 
   --gh-ink: #1a2236;
   --gh-ink-soft: #525e74;

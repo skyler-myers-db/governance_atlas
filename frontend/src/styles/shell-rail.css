@@ -1,7 +1,7 @@
 /* Phase 2-k shell redesign: left icon rail, header action buttons, density rules, global focus. */
 
 :root {
-  --gh-side-rail-width: 60px;
+  --gh-side-rail-width: 64px;
   --gh-focus-ring: 0 0 0 3px rgba(91, 67, 238, 0.28);
   --gh-focus-ring-inset: inset 0 0 0 2px rgba(91, 67, 238, 0.55);
 }
@@ -55,13 +55,13 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: 12px 6px 16px;
-  /* Rail shares the cream body but gets a clean right-edge divider
-     so it reads as a distinct region. Operator 2026-04-19 round 5:
-     "there should be more of them [borders] (separating the 'Asset
-     preview', 'Discovery', left side 'Filters', far left menu, etc.)" */
+  /* Round 6: top padding matches the sticky header height so the
+     Home icon aligns horizontally with the Discovery / Navigation
+     sub-tab row in the main content column ("Home icon should start
+     right to the left of 'Discovery Navigation'"). */
+  padding: calc(var(--gh-shell-header-height, 80px) + 8px) 6px 16px;
   border: 0;
-  border-right: 1px solid var(--gh-line, #b9ad84);
+  border-right: 1px solid var(--gh-line, #9a8c5d);
   background: transparent;
   box-shadow: none;
   height: 100vh;
@@ -118,17 +118,23 @@
 }
 
 .gh-side-rail-button {
-  width: 44px;
-  height: 44px;
+  /* Round 6 bump: larger hit-target + glyph so the rail reads as
+     primary navigation, not a thin utility column. */
+  width: 48px;
+  height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
   color: #4c5c78;
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.gh-side-rail-button .gh-side-rail-icon svg {
+  width: 24px !important;
+  height: 24px !important;
 }
 
 .gh-side-rail-button:hover:not(:disabled) {
@@ -1781,10 +1787,17 @@ input:focus-visible {
 .gh-asset-preview-header-name {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 1rem;
+  /* Round 6: asset name must dominate the sidecar header — bigger
+     than "Asset preview" eyebrow AND the Metadata/Schema section
+     titles. Operator flagged it as "still too small" multiple rounds. */
+  font-size: 1.6rem;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
   color: #14213d;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .gh-asset-preview-header-close {
@@ -2149,20 +2162,18 @@ body {
   background: transparent !important;
 }
 
-/* Thin separator lines give shape without the white-card look: */
+/* Thin separator lines for the rails (darker now, round 6): */
 .gh-filters-rail {
-  border-right: 1px solid rgba(15, 23, 42, 0.06) !important;
-}
-.gh-selection-preview {
-  border-left: 1px solid rgba(15, 23, 42, 0.06) !important;
+  border-right: 1px solid var(--gh-line, #9a8c5d) !important;
 }
 .gh-side-rail {
-  border-right: 1px solid rgba(15, 23, 42, 0.04) !important;
+  border-right: 1px solid var(--gh-line, #9a8c5d) !important;
 }
 
-/* Asset preview sidecar: stay visible while the result grid scrolls.
-   Thin accent bar removed — the flat transparent treatment matches
-   the mockup's "no card" styling. */
+/* Asset preview sidecar (round 6): full-perimeter border that extends
+   ABOVE the "Asset preview" label so the whole panel reads as a
+   framed region (operator 2026-04-19 round 6: "border needs to start
+   above 'Asset preview'"). Lighter cream tint vs body. */
 .gh-selection-preview {
   position: sticky !important;
   top: calc(var(--gh-shell-header-height, 80px) + 16px);
@@ -2170,9 +2181,6 @@ body {
   overflow-y: auto !important;
   overflow-x: hidden !important;
   align-self: start;
-  border-top: 0 !important;
-  border-top-left-radius: 0 !important;
-  border-top-right-radius: 0 !important;
 }
 
 .gh-selection-preview::before {
@@ -2210,15 +2218,13 @@ body {
    the mockup's flat treatment with thin dividers only. High-specificity
    compound selectors below win against the earlier app.css rules that
    set white backgrounds via single-class selectors. */
-/* gh-shell-header intentionally NOT in this list — it needs a solid
-   cream background so sticky scroll doesn't let cards bleed through.
-   Round 5 fix. */
+/* gh-shell-header + gh-selection-preview intentionally NOT in this
+   list. Header needs a solid cream background (sticky scroll). The
+   sidecar needs its own panel styling (round 6) — a lighter cream
+   tint + full darker beige border that extends above "Asset preview". */
 .gh-side-rail.gh-side-rail,
 aside.gh-filters-rail,
-aside.gh-discovery-sidebar.gh-surface-rail,
-aside.gh-selection-preview,
-aside.gh-selection-preview.gh-surface-rail,
-aside.gh-panel.gh-selection-preview {
+aside.gh-discovery-sidebar.gh-surface-rail {
   background: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
@@ -2230,12 +2236,7 @@ aside.gh-panel.gh-selection-preview {
    scaffolding between rail and results, no card chrome. */
 aside.gh-filters-rail,
 aside.gh-discovery-sidebar.gh-surface-rail {
-  border-right: 1px solid rgba(15, 23, 42, 0.06) !important;
-}
-aside.gh-selection-preview,
-aside.gh-selection-preview.gh-surface-rail,
-aside.gh-panel.gh-selection-preview {
-  border-left: 1px solid rgba(15, 23, 42, 0.06) !important;
+  border-right: 1px solid var(--gh-line, #9a8c5d) !important;
 }
 .gh-side-rail.gh-side-rail {
   border-right: 1px solid rgba(15, 23, 42, 0.04) !important;
