@@ -29,7 +29,9 @@ REMOVED_PATHS = (
 TRACKED_ARTIFACT_PREFIXES = (
     "frontend/dist/",
     "frontend/node_modules/",
+    "node_modules/",
     ".venv/",
+    "__MACOSX/",
 )
 
 DUPLICATE_NAME_MARKER = " 2."

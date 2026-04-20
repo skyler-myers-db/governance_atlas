@@ -649,6 +649,14 @@ export function fetchRuntimeStatus(options = {}) {
   return request(path, options).then((payload) => normalizeRuntimeStatusPayload(payload));
 }
 
+export function fetchAdminBackgroundStatus(options = {}) {
+  // The contract normally advertises the full `/api/...` path. Strip the
+  // api prefix so `request()` can layer it back on via `buildUrl`.
+  const contract = contractPath("adminBackgroundStatus") || "/api/admin/background/status";
+  const path = contract.startsWith("/api") ? contract.slice(4) : contract;
+  return request(path || "/admin/background/status", options);
+}
+
 function appendList(params, key, values) {
   (values || []).forEach((value) => {
     if (!value) return;
@@ -672,6 +680,10 @@ export function fetchDiscoverySearch(filters = {}, options = {}) {
   appendList(params, "tiers", filters.tiers);
   appendList(params, "certifications", filters.certifications);
   appendList(params, "sensitivities", filters.sensitivities);
+  // Round 19 OBO hardening: `refresh: true` evicts the server's per-actor
+  // inventory cache before the search so the OBO client re-attempts a
+  // fresh fetch. Used by the "Retry with actor scope" banner button.
+  if (filters.refresh) params.set("refresh", "1");
   const query = params.toString();
   const discoveryPath = contractPath("discoverySearch") || "/discovery/search";
   return request(`${discoveryPath}${query ? `?${query}` : ""}`, options).then((payload) =>
@@ -731,6 +743,18 @@ export function fetchGovernanceSummary(options = {}) {
   return request("/governance/summary", options).then((payload) => normalizeGovernancePayload(payload));
 }
 
+export function fetchGapAnalysis(options = {}) {
+  const limit = Number.isFinite(Number(options.limit))
+    ? Math.max(1, Math.min(500, Math.trunc(Number(options.limit))))
+    : 200;
+  const params = new URLSearchParams();
+  params.set("limit", String(limit));
+  if (options.refresh) params.set("refresh", "1");
+  return request(`/insights/gap-analysis?${params.toString()}`, {
+    signal: options.signal,
+  });
+}
+
 export function fetchGovernanceGlossary() {
   return request("/governance/glossary").then((payload) => normalizeGovernancePayload(payload));
 }
@@ -775,6 +799,94 @@ export function updateGovernanceNotification(notificationId, payload) {
 export function updateGovernanceGlossaryTerm(termId, payload) {
   const template = contractPath("governanceGlossaryTerm") || "/governance/glossary/:id";
   return requestJson(routeToken(template, "id", termId), "PATCH", payload);
+}
+
+// A9.4 Classification Recommendation Workflow --------------------------------
+
+function normalizeClassificationRecord(record) {
+  if (!record || typeof record !== "object" || Array.isArray(record)) return null;
+  return {
+    recommendationId: String(record.recommendationId || record.recommendation_id || "").trim(),
+    assetFqn: String(record.assetFqn || record.asset_fqn || "").trim(),
+    columnName: String(record.columnName || record.column_name || "").trim(),
+    suggestedSensitivity: String(record.suggestedSensitivity || "").trim(),
+    suggestedTier: String(record.suggestedTier || "").trim(),
+    suggestedCertification: String(record.suggestedCertification || "").trim(),
+    evidence: Array.isArray(record.evidence) ? record.evidence : [],
+    sampleRedacted: Boolean(record.sampleRedacted),
+    sampleValues: Array.isArray(record.sampleValues) ? record.sampleValues : [],
+    status: String(record.status || "pending").trim().toLowerCase(),
+    remediationSuggestions: Array.isArray(record.remediationSuggestions)
+      ? record.remediationSuggestions
+      : [],
+    reviewNote: String(record.reviewNote || "").trim(),
+    reviewedBy: String(record.reviewedBy || "").trim(),
+    reviewedAt: String(record.reviewedAt || "").trim(),
+    createdAt: String(record.createdAt || "").trim(),
+    createdBy: String(record.createdBy || "").trim(),
+    updatedAt: String(record.updatedAt || "").trim(),
+    updatedBy: String(record.updatedBy || "").trim(),
+  };
+}
+
+export function fetchClassificationRecommendations({ status = "pending", assetFqn = "", signal } = {}) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (assetFqn) params.set("assetFqn", assetFqn);
+  const qs = params.toString();
+  const path = qs
+    ? `/classification-recommendations?${qs}`
+    : "/classification-recommendations";
+  return request(path, { signal }).then((payload) => {
+    const recs = Array.isArray(payload?.recommendations) ? payload.recommendations : [];
+    return {
+      recommendations: recs.map(normalizeClassificationRecord).filter(Boolean),
+      count: Number(payload?.count || recs.length || 0),
+      pendingCount: Number(payload?.pendingCount || 0),
+    };
+  });
+}
+
+export function fetchClassificationRecommendation(recommendationId, { signal } = {}) {
+  const normalized = String(recommendationId || "").trim();
+  if (!normalized) return Promise.resolve(null);
+  return request(
+    `/classification-recommendations/${encodeURIComponent(normalized)}`,
+    { signal },
+  ).then((payload) => normalizeClassificationRecord(payload?.recommendation));
+}
+
+export function reviewClassificationRecommendation(recommendationId, { decision, note = "" } = {}) {
+  const normalized = String(recommendationId || "").trim();
+  if (!normalized) {
+    return Promise.reject(new Error("recommendationId is required"));
+  }
+  return requestJson(
+    `/classification-recommendations/${encodeURIComponent(normalized)}/review`,
+    "POST",
+    { decision, note },
+  ).then((payload) => normalizeClassificationRecord(payload?.recommendation));
+}
+
+export function scanClassificationRecommendations(assetFqn) {
+  const normalized = String(assetFqn || "").trim();
+  if (!normalized) {
+    return Promise.reject(new Error("assetFqn is required"));
+  }
+  return requestJson(
+    `/classification-recommendations/scan/${encodeURIComponent(normalized)}`,
+    "POST",
+    {},
+  ).then((payload) => {
+    const recs = Array.isArray(payload?.recommendations) ? payload.recommendations : [];
+    return {
+      ok: Boolean(payload?.ok),
+      assetFqn: String(payload?.assetFqn || normalized),
+      scanned: Number(payload?.scanned || 0),
+      generated: Number(payload?.generated || 0),
+      recommendations: recs.map(normalizeClassificationRecord).filter(Boolean),
+    };
+  });
 }
 
 export function updateAssetColumnDescription(assetFqn, columnName, description) {

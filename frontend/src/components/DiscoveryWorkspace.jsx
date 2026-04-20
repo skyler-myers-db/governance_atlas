@@ -1940,15 +1940,30 @@ function SelectionPreview({
           </button>
           <button
             className="gh-secondary-button"
-            disabled={!lineageAvailable}
-            onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
-            title={!lineageAvailable ? lineageUnavailableReason : "Add this asset to the lineage graph"}
+            disabled={!lineageAvailable || !asset?.fqn}
+            onClick={(event) => {
+              // Round 19 defect #10: prior wiring sometimes needed two
+              // clicks — if the preview hover was mid-refresh, the onClick
+              // closure sometimes fired with a stale `asset` reference
+              // while the visible preview was already a new asset.
+              // Read the FQN at click-time from the DOM so we never
+              // navigate to a stale target, and preventDefault the
+              // browser native label-click bubbling that React was
+              // occasionally swallowing on the first press.
+              event?.preventDefault?.();
+              const fqn = String(asset?.fqn || "").trim();
+              if (!fqn) return;
+              onOpenLineage?.(fqn, "Data Lineage");
+            }}
+            title={!lineageAvailable ? lineageUnavailableReason : "Open the Lineage workspace focused on this asset"}
             type="button"
           >
             {/* Lineage glyph — two small nodes connected by an arrow.
-                The prior build reused the favorite star here, which the
-                operator flagged on 2026-04-19 as a misleading icon (a
-                star implies favoriting, not graph placement). */}
+                Button label renamed from "Add to Lineage" → "Go to
+                Lineage" in round 17 because the action doesn't add the
+                asset to anything — it navigates to the Lineage
+                workspace with this asset focused. The old name implied
+                a manual-edit affordance the surface doesn't have. */}
             <svg
               aria-hidden="true"
               className="gh-asset-preview-action-glyph"
@@ -1965,7 +1980,7 @@ function SelectionPreview({
               <circle cx="18" cy="18" r="2.2" />
               <path d="M7.5 7.5 16.5 16.5" />
             </svg>
-            Add to Lineage
+            Go to Lineage
           </button>
           <button
             aria-pressed={isFavorite}
@@ -2423,6 +2438,172 @@ function SelectionPreviewTabs({
           <span className="gh-selection-preview-alert-body">{lineageUnavailableReason}</span>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Compact diagnostics strip rendered alongside Discovery empty states.
+ *
+ * Audit A1.4 asked for a single-line, muted row that surfaces — at a
+ * glance — what the runtime actually sees when Discovery returns no
+ * rows: runtime state, auth mode, inventory source, visible-asset
+ * count, and when the envelope was observed. It is only rendered on
+ * empty-state paths so the regular catalog grid remains uncluttered.
+ */
+function labelForAuthMode(authMode) {
+  const raw = String(authMode || "").trim().toLowerCase();
+  if (raw === "obo-available") return "OBO";
+  if (raw === "app-principal-only") return "app-principal";
+  if (raw === "no-identity") return "no-identity";
+  return raw || "unknown";
+}
+
+function labelForInventorySource(source, authMode) {
+  const normalizedSource = String(source || "").trim();
+  const normalizedMode = String(authMode || "").trim().toLowerCase();
+  if (normalizedMode === "obo-available") {
+    return "Unity Catalog (actor-scoped)";
+  }
+  if (normalizedMode === "app-principal-only") {
+    return "Unity Catalog (app-principal)";
+  }
+  if (normalizedSource) return normalizedSource;
+  return "Unity Catalog";
+}
+
+function labelForRuntimeState(state) {
+  const raw = String(state || "").trim().toLowerCase();
+  if (raw === "live") return "live";
+  if (raw === "degraded") return "degraded";
+  if (raw === "unavailable" || raw === "error") return "unavailable";
+  if (raw === "loading" || raw === "warming") return "loading";
+  return raw || "unknown";
+}
+
+export function DiscoveryDiagnosticsStrip({
+  runtimeState = "",
+  authMode = "",
+  visibilityScope = "",
+  visibleAssets = null,
+  observedAt = "",
+  inventorySource = "",
+  discoveryState = "",
+}) {
+  const runtimeLabel = labelForRuntimeState(runtimeState);
+  const authLabel = labelForAuthMode(authMode);
+  const sourceLabel = labelForInventorySource(
+    inventorySource || visibilityScope,
+    authMode,
+  );
+  const visibleCountLabel =
+    visibleAssets === null || visibleAssets === undefined || Number.isNaN(Number(visibleAssets))
+      ? "—"
+      : Number(visibleAssets).toLocaleString();
+  const observedLabel = observedAt ? String(observedAt) : "—";
+  return (
+    <div
+      aria-label="Discovery diagnostics"
+      className="gh-discovery-diagnostics-strip"
+      data-testid="gh-discovery-diagnostics-strip"
+      role="status"
+    >
+      <span className="gh-discovery-diagnostics-item">
+        <span className="gh-discovery-diagnostics-label">Runtime</span>
+        <span
+          className="gh-discovery-diagnostics-value"
+          data-testid="gh-discovery-diagnostics-runtime"
+        >
+          {runtimeLabel}
+        </span>
+      </span>
+      <span aria-hidden="true" className="gh-discovery-diagnostics-sep">·</span>
+      <span className="gh-discovery-diagnostics-item">
+        <span className="gh-discovery-diagnostics-label">Auth mode</span>
+        <span
+          className="gh-discovery-diagnostics-value"
+          data-testid="gh-discovery-diagnostics-auth"
+        >
+          {authLabel}
+        </span>
+      </span>
+      <span aria-hidden="true" className="gh-discovery-diagnostics-sep">·</span>
+      <span className="gh-discovery-diagnostics-item">
+        <span className="gh-discovery-diagnostics-label">Inventory source</span>
+        <span
+          className="gh-discovery-diagnostics-value"
+          data-testid="gh-discovery-diagnostics-source"
+        >
+          {sourceLabel}
+        </span>
+      </span>
+      <span aria-hidden="true" className="gh-discovery-diagnostics-sep">·</span>
+      <span className="gh-discovery-diagnostics-item">
+        <span className="gh-discovery-diagnostics-label">Visible assets</span>
+        <span
+          className="gh-discovery-diagnostics-value"
+          data-testid="gh-discovery-diagnostics-visible"
+        >
+          {visibleCountLabel}
+        </span>
+      </span>
+      <span aria-hidden="true" className="gh-discovery-diagnostics-sep">·</span>
+      <span className="gh-discovery-diagnostics-item">
+        <span className="gh-discovery-diagnostics-label">Last observed</span>
+        <span
+          className="gh-discovery-diagnostics-value"
+          data-testid="gh-discovery-diagnostics-observed"
+        >
+          {observedLabel}
+        </span>
+      </span>
+      {discoveryState ? (
+        <>
+          <span aria-hidden="true" className="gh-discovery-diagnostics-sep">·</span>
+          <span className="gh-discovery-diagnostics-item">
+            <span className="gh-discovery-diagnostics-label">State</span>
+            <span
+              className="gh-discovery-diagnostics-value"
+              data-testid="gh-discovery-diagnostics-state"
+            >
+              {discoveryState}
+            </span>
+          </span>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Round 19 defect #2: permanent user-visible surfacing of OBO scope
+ * fallback. When the request's UC client silently degrades to the
+ * app-principal (user's token missing the `sql` scope), the inventory
+ * reflects the SP's narrower visibility — the user needs to KNOW they're
+ * seeing a subset AND have a one-click path to retry.
+ */
+export function DiscoveryOboFallbackBanner({ reason, onRetry, retrying = false }) {
+  return (
+    <div
+      aria-live="polite"
+      className="gh-discovery-obo-fallback-banner"
+      data-testid="gh-discovery-obo-fallback-banner"
+      role="status"
+    >
+      <div className="gh-discovery-obo-fallback-copy">
+        <strong>Showing app-principal view.</strong>{" "}
+        {reason ||
+          "The forwarded user token is missing the `sql` scope; Discovery is showing the app-principal view of the catalog."}
+      </div>
+      <button
+        className="gh-tertiary-button gh-inline-link-button"
+        data-testid="gh-discovery-obo-fallback-retry"
+        disabled={retrying}
+        onClick={() => onRetry?.()}
+        type="button"
+      >
+        {retrying ? "Retrying…" : "Retry with actor scope"}
+      </button>
     </div>
   );
 }
@@ -3196,6 +3377,32 @@ export default function DiscoveryWorkspace({
     ? effectiveBootMessage ||
       "The workspace can load, but the current principal is not surfacing any visible catalog assets yet."
     : "Relax the current search, saved view, or filters to widen the catalog scope.";
+  // A1.4: operator-facing diagnostics strip. Only materialize the
+  // props object when an empty-state branch will render, so we never
+  // pay the render cost on the happy path.
+  const discoveryMeta = discoveryResults.meta || null;
+  const discoveryDiagnostics = {
+    runtimeState: effectiveBootState || discoveryMeta?.state || bootstrap?.bootState || "",
+    authMode:
+      bootstrap?.identity?.authMode ||
+      discoveryMeta?.authMode ||
+      discoveryMeta?.productMode ||
+      "",
+    visibilityScope:
+      bootstrap?.identity?.visibilityScope ||
+      discoveryMeta?.visibilityScope ||
+      discoveryMeta?.readScope ||
+      "",
+    inventorySource: discoveryMeta?.source || "",
+    visibleAssets:
+      typeof discoveryMeta?.visibleAssetCount === "number"
+        ? discoveryMeta.visibleAssetCount
+        : effectiveVisibleCount ?? (Array.isArray(discoveryResults.assets)
+          ? discoveryResults.assets.length
+          : 0),
+    observedAt: discoveryMeta?.observedAt || "",
+    discoveryState: discoveryMeta?.discoveryState || "",
+  };
   const showingCount = renderedDiscoveryAssets.length;
   const canLoadMoreResults = resultsCount > showingCount;
   const loadingMoreResults =
@@ -3523,36 +3730,82 @@ export default function DiscoveryWorkspace({
             );
           })()}
 
-          {/* 4. Owner — reads from backend `owners` facet so "Unassigned"
-               and per-owner counts aggregate across the FULL matched set,
-               not just the paged window. Round 13 fix: previously this
-               tallied `allDiscoveryAssets` (page-size ≈ 60), so Unassigned
-               reported 80 while the actual total was 1,198. */}
+          {/* 4. Owner — reads from backend `owners` facet when present
+               (Round 13: full-matched-set counts vs paged-window counts) and
+               falls back to a client-side tally over `allDiscoveryAssets`
+               when the backend hasn't populated the facet yet. The fallback
+               preserves the pre-facet UX so the section never collapses to
+               just "All owners" when the backend envelope omits `owners`. */}
           <SidebarSection title="Owner">
             {(() => {
               const ownerFacetEntries = Array.isArray(discoveryResults.facets?.owners)
                 ? discoveryResults.facets.owners
                 : [];
-              const ownerEntries = ownerFacetEntries
-                .filter(
-                  (entry) =>
-                    entry &&
-                    entry.value &&
-                    entry.value !== "All owners" &&
-                    entry.value !== "Unassigned",
-                )
-                .map((entry) => [entry.value, Number(entry.count || 0)])
-                .slice(0, 8);
-              const unassignedEntry = ownerFacetEntries.find(
-                (entry) => entry && entry.value === "Unassigned",
+              const hasBackendFacet = ownerFacetEntries.some(
+                (entry) =>
+                  entry &&
+                  entry.value &&
+                  entry.value !== "All owners" &&
+                  entry.value !== "Unassigned",
               );
-              const unassignedCount = Number(unassignedEntry?.count || 0);
-              const allEntry = ownerFacetEntries.find(
-                (entry) => entry && entry.value === "All owners",
-              );
-              const ownerTotalCount = Number(
-                allEntry?.count ?? discoveryResults.count ?? allDiscoveryAssets.length ?? 0,
-              );
+
+              let ownerEntries;
+              let unassignedCount;
+              let ownerTotalCount;
+
+              if (hasBackendFacet) {
+                ownerEntries = ownerFacetEntries
+                  .filter(
+                    (entry) =>
+                      entry &&
+                      entry.value &&
+                      entry.value !== "All owners" &&
+                      entry.value !== "Unassigned",
+                  )
+                  .map((entry) => [entry.value, Number(entry.count || 0)])
+                  .slice(0, 8);
+                const unassignedEntry = ownerFacetEntries.find(
+                  (entry) => entry && entry.value === "Unassigned",
+                );
+                unassignedCount = Number(unassignedEntry?.count || 0);
+                const allEntry = ownerFacetEntries.find(
+                  (entry) => entry && entry.value === "All owners",
+                );
+                ownerTotalCount = Number(
+                  allEntry?.count ?? discoveryResults.count ?? allDiscoveryAssets.length ?? 0,
+                );
+              } else {
+                // Fallback: aggregate owners from the visible page of assets.
+                // This path is exercised when the backend envelope omits the
+                // `owners` facet (older server, test fixtures, degraded response).
+                const ownerCounts = new Map();
+                let localUnassigned = 0;
+                for (const entry of allDiscoveryAssets) {
+                  const owners = Array.isArray(entry?.owners) ? entry.owners : [];
+                  if (!owners.length) {
+                    localUnassigned += 1;
+                    continue;
+                  }
+                  const seenForAsset = new Set();
+                  for (const owner of owners) {
+                    const label =
+                      typeof owner === "string"
+                        ? owner
+                        : owner?.email || owner?.name || owner?.label || "";
+                    if (!label || seenForAsset.has(label)) continue;
+                    seenForAsset.add(label);
+                    ownerCounts.set(label, (ownerCounts.get(label) || 0) + 1);
+                  }
+                }
+                ownerEntries = [...ownerCounts.entries()]
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 8);
+                unassignedCount = localUnassigned;
+                ownerTotalCount = Number(
+                  discoveryResults.count ?? allDiscoveryAssets.length ?? 0,
+                );
+              }
+
               const allSelected = !ownerFilterText;
               return (
                 <div className="gh-checkbox-list">
@@ -3762,6 +4015,18 @@ export default function DiscoveryWorkspace({
         </aside>
 
         <section className="gh-results-column">
+          {/* Round 19 defect #2: permanent OBO scope-fallback banner.
+              Renders above the facet row when the backend flagged the
+              response as app-principal-scoped so the user always knows
+              they're looking at a narrower inventory AND has a one-click
+              path back to actor-scoped data. */}
+          {discoveryResults.oboScopeFallback ? (
+            <DiscoveryOboFallbackBanner
+              reason={discoveryResults.oboFallbackReason}
+              onRetry={() => discoveryResults.refreshActorScope?.()}
+              retrying={discoveryResults.refreshing}
+            />
+          ) : null}
           {/* The standalone DiscoveryBreadcrumb was removed 2026-04-19
               round 4 — the catalog / schema scope now renders as an
               inline chip inside PrimaryFacetChips so the facet row is
@@ -4018,55 +4283,61 @@ export default function DiscoveryWorkspace({
               ))}
             </div>
           ) : resultsError ? (
-            <WorkspaceStateCard
-              actions={(
-                <>
-                  {filters.query ? (
-                    <button
-                      className="gh-secondary-button"
-                      onClick={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
-                      type="button"
-                    >
-                      Clear search
+            <>
+              <DiscoveryDiagnosticsStrip {...discoveryDiagnostics} />
+              <WorkspaceStateCard
+                actions={(
+                  <>
+                    {filters.query ? (
+                      <button
+                        className="gh-secondary-button"
+                        onClick={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
+                        type="button"
+                      >
+                        Clear search
+                      </button>
+                    ) : null}
+                    <button className="gh-secondary-button" onClick={resetBrowse} type="button">
+                      Reset browse
                     </button>
-                  ) : null}
-                  <button className="gh-secondary-button" onClick={resetBrowse} type="button">
-                    Reset browse
-                  </button>
-                </>
-              )}
-              className="gh-discovery-empty-state"
-              eyebrow="Discovery Unavailable"
-              message={
-                bootstrap.bootMessage ||
-                "The search surface is reachable, but live discovery could not return results."
-              }
-              title={summarizeDiscoveryError(resultsError)}
-              tone="bad"
-            />
+                  </>
+                )}
+                className="gh-discovery-empty-state"
+                eyebrow="Discovery Unavailable"
+                message={
+                  bootstrap.bootMessage ||
+                  "The search surface is reachable, but live discovery could not return results."
+                }
+                title={summarizeDiscoveryError(resultsError)}
+                tone="bad"
+              />
+            </>
           ) : (
-            <WorkspaceStateCard
-              actions={(
-                <>
-                  {filters.query ? (
-                    <button
-                      className="gh-secondary-button"
-                      onClick={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
-                      type="button"
-                    >
-                      Clear search
+            <>
+              <DiscoveryDiagnosticsStrip {...discoveryDiagnostics} />
+              <WorkspaceStateCard
+                actions={(
+                  <>
+                    {filters.query ? (
+                      <button
+                        className="gh-secondary-button"
+                        onClick={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
+                        type="button"
+                      >
+                        Clear search
+                      </button>
+                    ) : null}
+                    <button className="gh-secondary-button" onClick={resetBrowse} type="button">
+                      Reset browse
                     </button>
-                  ) : null}
-                  <button className="gh-secondary-button" onClick={resetBrowse} type="button">
-                    Reset browse
-                  </button>
-                </>
-              )}
-              className="gh-discovery-empty-state"
-              eyebrow={showInventoryEmptyState ? "Inventory empty" : "No matching assets"}
-              message={emptyCopy}
-              title={emptyHeading}
-            />
+                  </>
+                )}
+                className="gh-discovery-empty-state"
+                eyebrow={showInventoryEmptyState ? "Inventory empty" : "No matching assets"}
+                message={emptyCopy}
+                title={emptyHeading}
+              />
+            </>
           )}
         </section>
 

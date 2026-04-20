@@ -679,12 +679,12 @@ LIMIT 1"""
 
     def get_table_columns(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
         queries = [
-            f"""SELECT ordinal_position, column_name, data_type, comment
+            f"""SELECT ordinal_position, column_name, data_type, comment, is_nullable, column_default
 FROM {quote_ident(catalog)}.information_schema.columns
 WHERE table_schema = {sql_literal(schema)}
   AND table_name   = {sql_literal(table)}
 ORDER BY ordinal_position""",
-            f"""SELECT ordinal_position, column_name, data_type, comment
+            f"""SELECT ordinal_position, column_name, data_type, comment, is_nullable, column_default
 FROM system.information_schema.columns
 WHERE table_catalog = {sql_literal(catalog)}
   AND table_schema  = {sql_literal(schema)}
@@ -696,18 +696,38 @@ ORDER BY ordinal_position""",
             normalized_info = _normalized_columns_df(info_df)
             required = ["ordinal_position", "column_name", "data_type", "comment"]
             if all(column in normalized_info.columns for column in required):
-                return normalized_info[required].reset_index(drop=True)
+                # Optional extended metadata — return if present, fall back to empty strings otherwise.
+                for optional_column in ("is_nullable", "column_default"):
+                    if optional_column not in normalized_info.columns:
+                        normalized_info[optional_column] = ""
+                return normalized_info[
+                    required + ["is_nullable", "column_default"]
+                ].reset_index(drop=True)
 
         full = quote_uc_3part(catalog, schema, table)
         try:
             describe_df = self.query_df(f"DESCRIBE TABLE {full}")
         except Exception:
             return pd.DataFrame(
-                columns=["ordinal_position", "column_name", "data_type", "comment"]
+                columns=[
+                    "ordinal_position",
+                    "column_name",
+                    "data_type",
+                    "comment",
+                    "is_nullable",
+                    "column_default",
+                ]
             )
         if describe_df.empty or "col_name" not in describe_df.columns:
             return pd.DataFrame(
-                columns=["ordinal_position", "column_name", "data_type", "comment"]
+                columns=[
+                    "ordinal_position",
+                    "column_name",
+                    "data_type",
+                    "comment",
+                    "is_nullable",
+                    "column_default",
+                ]
             )
 
         normalized = _normalized_columns_df(describe_df)
@@ -726,7 +746,21 @@ ORDER BY ordinal_position""",
         normalized = normalized.reset_index(drop=True)
         normalized["ordinal_position"] = range(1, len(normalized) + 1)
         normalized = normalized.rename(columns={"col_name": "column_name"})
-        return normalized[["ordinal_position", "column_name", "data_type", "comment"]]
+        # DESCRIBE TABLE does not expose is_nullable / column_default, so fill blanks.
+        if "is_nullable" not in normalized.columns:
+            normalized["is_nullable"] = ""
+        if "column_default" not in normalized.columns:
+            normalized["column_default"] = ""
+        return normalized[
+            [
+                "ordinal_position",
+                "column_name",
+                "data_type",
+                "comment",
+                "is_nullable",
+                "column_default",
+            ]
+        ]
 
     def get_table_tags(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
         queries = [

@@ -350,6 +350,49 @@
   gap: 12px;
 }
 
+/* A1.4 — diagnostics strip rendered above Discovery empty states so
+   operators can see what the runtime actually reports (runtime state,
+   auth mode, inventory source, visible-asset count, last observed)
+   without having to open DevTools. One-line, muted, unobtrusive. */
+.gh-discovery-diagnostics-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  background: var(--gh-surface-muted, rgba(0, 0, 0, 0.03));
+  color: var(--gh-text-muted, #5b6270);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.gh-discovery-diagnostics-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.gh-discovery-diagnostics-label {
+  color: var(--gh-text-muted, #5b6270);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10.5px;
+}
+
+.gh-discovery-diagnostics-value {
+  color: var(--gh-text-strong, #1f2430);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.gh-discovery-diagnostics-sep {
+  color: var(--gh-line-strong, rgba(0, 0, 0, 0.25));
+  user-select: none;
+}
+
 .gh-discovery-command-panel {
   overflow: visible;
 }
@@ -2260,4 +2303,26 @@ h3.gh-asset-preview-header-name {
   background: var(--gh-accent, #5b3ff2);
   border-color: var(--gh-accent, #5b3ff2);
   color: #fff;
+}
+
+/* Round 19 defect #2: OBO fallback banner on the Discovery results column. */
+.gh-discovery-obo-fallback-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+  background: rgba(182, 123, 31, 0.1);
+  border: 1px solid rgba(182, 123, 31, 0.3);
+  color: #6b4a14;
+  border-radius: var(--gh-radius-md, 10px);
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  margin: 0 0 12px;
+}
+.gh-discovery-obo-fallback-banner strong {
+  color: #6b4a14;
+}
+.gh-discovery-obo-fallback-copy {
+  flex: 1 1 auto;
+  min-width: 0;
 }

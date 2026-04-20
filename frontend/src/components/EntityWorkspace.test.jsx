@@ -1430,15 +1430,18 @@ describe("EntityWorkspace", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open Lineage" }));
     fireEvent.click(screen.getByRole("button", { name: "Open Governance" }));
-    fireEvent.click(screen.getByRole("button", { name: "Operational Context" }));
+    // Round 18 — the lineage mode toggle surfaces "Operational Lineage"
+    // as its visible label; the internal context key stays "Operational
+    // Context" so persisted workspace intents remain stable.
+    fireEvent.click(screen.getByRole("tab", { name: "Operational Lineage" }));
 
     expect(onOpenLineage).toHaveBeenCalledWith(asset.fqn, "Data Lineage");
     expect(onOpenGovernance).toHaveBeenCalledWith(asset.fqn);
-    expect(screen.getByRole("button", { name: "Operational Context" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Operational Lineage" }).getAttribute("aria-pressed")).toBe("true");
 
     rerender(<EntityWorkspace {...props} />);
 
-    expect(screen.getByRole("button", { name: "Operational Context" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("tab", { name: "Operational Lineage" }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByRole("button", { name: "Lineage" })).not.toBeNull();
   });
 

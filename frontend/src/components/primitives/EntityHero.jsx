@@ -4,6 +4,7 @@ import { SurfaceHeader } from "../ShellLayoutPrimitives";
 import { InlineStatusBanner } from "../ShellStatePrimitives";
 import { AssetTypeIcon } from "./AssetTypeIcon";
 import { Breadcrumbs } from "./Breadcrumbs";
+import { OwnerAvatar } from "./OwnerAvatar";
 import { OwnerAvatarStack } from "./OwnerAvatarStack";
 
 function readPinnedSet() {
@@ -33,6 +34,38 @@ function statusTone(asset) {
   if (asset?.governanceStatus === "Enterprise Ready") return "good";
   if (asset?.governanceStatus === "Operational") return "warn";
   return "bad";
+}
+
+// Owners on the asset payload come in two flavours: bare strings (email) from
+// the discovery bootstrap, or { name, email } objects from the governance
+// service. Normalise to { label, title } so the hero chip row renders the
+// same regardless of source.
+function primaryOwnerFromAsset(asset) {
+  const owners = Array.isArray(asset?.owners) ? asset.owners : [];
+  if (!owners.length) return null;
+  const first = owners[0];
+  if (!first) return null;
+  if (typeof first === "string") {
+    return { label: first, title: first };
+  }
+  const label = first.name || first.email || first.ownerEmail || first.title || "";
+  if (!label) return null;
+  return { label, title: first.email || first.ownerEmail || label };
+}
+
+// Humanize an email-y owner label for inline rendering next to the avatar
+// (so "ada.lovelace@example.com" becomes "Ada Lovelace" but "Ada Lovelace"
+// stays "Ada Lovelace"). Mirrors DiscoveryWorkspace.prettyOwnerName.
+function prettyOwnerLabel(label = "") {
+  const raw = String(label || "").trim();
+  if (!raw) return "";
+  const local = raw.includes("@") ? raw.split("@")[0] : raw;
+  const parts = local.split(/[\s._+-]+/).filter(Boolean);
+  if (!parts.length) return raw;
+  return parts
+    .slice(0, 2)
+    .map((part) => (part[0] ? part[0].toUpperCase() + part.slice(1) : part))
+    .join(" ");
 }
 
 export function EntityHero({
@@ -219,6 +252,8 @@ export function EntityHero({
             <span className="gh-chip gh-chip-soft">{asset.sensitivity}</span>
           ) : null}
         </div>
+        <EntityHeroChipRow asset={asset} />
+
         {detailUnavailable ? (
           <div className="gh-support-copy">
             {assetDetail.error ||
@@ -229,6 +264,62 @@ export function EntityHero({
         ) : null}
         {linkNotice ? <InlineStatusBanner message={linkNotice} title="Navigation limited" /> : null}
       </SurfaceHeader>
+    </div>
+  );
+}
+
+// A4.1 — compact identity chip strip rendered directly under the hero title
+// so stewards can read domain / tier / owner / usage / environment at a
+// glance without scanning the right-hand "Live Record Signals" panel. Each
+// chip is optional — we render only the fields actually present on the
+// asset payload. The right panel still owns the complete detail view.
+export function EntityHeroChipRow({ asset }) {
+  if (!asset) return null;
+  const owner = primaryOwnerFromAsset(asset);
+  const domain = asset.domain && asset.domain !== "Unassigned" ? asset.domain : "";
+  const tier = asset.tier && asset.tier !== "Unassigned" ? asset.tier : "";
+  const usageLabel = asset.usageLabel || asset.usage_label || "";
+  const environment = asset.environment || asset.env || "";
+
+  const hasAnything = Boolean(owner || domain || tier || usageLabel || environment);
+  if (!hasAnything) return null;
+
+  return (
+    <div className="gh-entity-hero-chips" data-testid="gh-entity-hero-chips">
+      {domain ? (
+        <span className="gh-chip gh-chip-soft gh-entity-hero-chip" title={`Domain: ${domain}`}>
+          <span className="gh-chip-label">Domain</span>
+          <span className="gh-chip-separator">{" · "}</span>
+          <span className="gh-chip-value">{domain}</span>
+        </span>
+      ) : null}
+      {tier ? (
+        <span className="gh-chip gh-chip-soft gh-entity-hero-chip" title={`Tier: ${tier}`}>
+          <span className="gh-chip-label">Tier</span>
+          <span className="gh-chip-separator">{" · "}</span>
+          <span className="gh-chip-value">{tier}</span>
+        </span>
+      ) : null}
+      {owner ? (
+        <span className="gh-chip gh-chip-soft gh-entity-hero-chip gh-entity-hero-chip-owner" title={`Owner: ${owner.title}`}>
+          <OwnerAvatar owner={owner.label} size={18} />
+          <span className="gh-chip-value">{prettyOwnerLabel(owner.label)}</span>
+        </span>
+      ) : null}
+      {usageLabel ? (
+        <span className="gh-chip gh-chip-soft gh-entity-hero-chip" title={`Usage: ${usageLabel}`}>
+          <span className="gh-chip-label">Usage</span>
+          <span className="gh-chip-separator">{" · "}</span>
+          <span className="gh-chip-value">{usageLabel}</span>
+        </span>
+      ) : null}
+      {environment ? (
+        <span className="gh-chip gh-chip-soft gh-entity-hero-chip" title={`Environment: ${environment}`}>
+          <span className="gh-chip-label">Env</span>
+          <span className="gh-chip-separator">{" · "}</span>
+          <span className="gh-chip-value">{environment}</span>
+        </span>
+      ) : null}
     </div>
   );
 }

@@ -3370,3 +3370,143 @@ FROM {self._fq('metadata_audit_log')} {where}
 ORDER BY created_at DESC, audit_id DESC
 LIMIT {int(limit)}"""
         )
+
+    # ── A9.4 classification recommendations ─────────────────
+
+    def upsert_classification_recommendation(
+        self,
+        record: Dict[str, Any],
+        *,
+        actor_email: str | None = None,
+    ) -> str:
+        """Insert or update a classification recommendation keyed by recommendation_id.
+
+        The Delta-style upsert is done as a DELETE-then-INSERT to keep the SQL
+        portable across workspace permissions (MERGE requires DELETE privs that
+        aren't universally granted). The call is idempotent on recommendation_id.
+        """
+        rec_id = str(record.get("recommendation_id") or "").strip()
+        if not rec_id:
+            rec_id = uuid.uuid4().hex
+        asset_fqn = str(record.get("asset_fqn") or "").strip()
+        column_name = str(record.get("column_name") or "").strip()
+        if not asset_fqn or not column_name:
+            raise ValueError("asset_fqn and column_name are required.")
+        ts = _utc_now_ts()
+        actor = str(actor_email or record.get("created_by") or "system").strip() or "system"
+        status = str(record.get("status") or "pending").strip().lower() or "pending"
+        # Delete any existing row with this recommendation_id so the insert is
+        # effectively an upsert. No-op when the row does not yet exist.
+        try:
+            self.uc.execute(
+                f"DELETE FROM {self._fq('classification_recommendations')} "
+                f"WHERE recommendation_id = {sql_literal(rec_id)}"
+            )
+        except Exception:
+            # First-run races: the table may exist but the row may not; we
+            # still want the INSERT below to land.
+            pass
+        sample_redacted = bool(record.get("sample_redacted", True))
+        sample_values_json = record.get("sample_values_json")
+        if sample_values_json is None:
+            sample_values_json = ""
+        self.uc.execute(
+            f"""INSERT INTO {self._fq('classification_recommendations')} (
+    recommendation_id, asset_fqn, column_name,
+    suggested_sensitivity, suggested_tier, suggested_certification,
+    evidence_json, sample_redacted, sample_values_json,
+    status, remediation_suggestions_json,
+    review_note, reviewed_by, reviewed_at,
+    created_at, created_by, updated_at, updated_by
+) VALUES (
+    {sql_literal(rec_id)},
+    {sql_literal(asset_fqn)},
+    {sql_literal(column_name)},
+    {sql_literal(_text_value(record.get("suggested_sensitivity")))},
+    {sql_literal(_text_value(record.get("suggested_tier")))},
+    {sql_literal(_text_value(record.get("suggested_certification")))},
+    {sql_literal(record.get("evidence_json") or "[]")},
+    {'TRUE' if sample_redacted else 'FALSE'},
+    {sql_literal(str(sample_values_json))},
+    {sql_literal(status)},
+    {sql_literal(record.get("remediation_suggestions_json") or "[]")},
+    {sql_literal(_text_value(record.get("review_note")))},
+    {sql_literal(_text_value(record.get("reviewed_by")))},
+    {'NULL' if not record.get("reviewed_at") else f"timestamp({sql_literal(str(record.get('reviewed_at')))})"},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(actor)},
+    timestamp({sql_literal(ts)}),
+    {sql_literal(actor)}
+)"""
+        )
+        return rec_id
+
+    def list_classification_recommendations(
+        self,
+        *,
+        status: str | None = None,
+        asset_fqn: str | None = None,
+        limit: int = 500,
+    ) -> pd.DataFrame:
+        clauses: List[str] = []
+        if status:
+            clauses.append(f"lower(status) = {sql_literal(status.strip().lower())}")
+        if asset_fqn:
+            clauses.append(f"asset_fqn = {sql_literal(asset_fqn)}")
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        return self.uc.query_df(
+            f"""SELECT recommendation_id, asset_fqn, column_name,
+    suggested_sensitivity, suggested_tier, suggested_certification,
+    evidence_json, sample_redacted, sample_values_json,
+    status, remediation_suggestions_json,
+    review_note, reviewed_by, reviewed_at,
+    created_at, created_by, updated_at, updated_by
+FROM {self._fq('classification_recommendations')} {where}
+ORDER BY created_at DESC, recommendation_id
+LIMIT {int(limit)}"""
+        )
+
+    def get_classification_recommendation(
+        self, recommendation_id: str
+    ) -> Optional[Dict[str, Any]]:
+        rec_id = str(recommendation_id or "").strip()
+        if not rec_id:
+            return None
+        df = self.uc.query_df(
+            f"""SELECT recommendation_id, asset_fqn, column_name,
+    suggested_sensitivity, suggested_tier, suggested_certification,
+    evidence_json, sample_redacted, sample_values_json,
+    status, remediation_suggestions_json,
+    review_note, reviewed_by, reviewed_at,
+    created_at, created_by, updated_at, updated_by
+FROM {self._fq('classification_recommendations')}
+WHERE recommendation_id = {sql_literal(rec_id)} LIMIT 1"""
+        )
+        if df is None or df.empty:
+            return None
+        row = df.iloc[0]
+        return {col: row.get(col) for col in df.columns}
+
+    def set_classification_recommendation_status(
+        self,
+        recommendation_id: str,
+        *,
+        status: str,
+        reviewer: str,
+        review_note: str | None = None,
+    ) -> None:
+        rec_id = str(recommendation_id or "").strip()
+        if not rec_id:
+            raise ValueError("recommendation_id is required.")
+        ts = _utc_now_ts()
+        normalized_status = str(status or "").strip().lower()
+        self.uc.execute(
+            f"""UPDATE {self._fq('classification_recommendations')} SET
+    status = {sql_literal(normalized_status)},
+    review_note = {sql_literal(_text_value(review_note))},
+    reviewed_by = {sql_literal(reviewer)},
+    reviewed_at = timestamp({sql_literal(ts)}),
+    updated_at = timestamp({sql_literal(ts)}),
+    updated_by = {sql_literal(reviewer)}
+WHERE recommendation_id = {sql_literal(rec_id)}"""
+        )

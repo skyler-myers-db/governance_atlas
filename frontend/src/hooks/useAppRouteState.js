@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { setWorkspaceIntent } from "../lib/workspaceIntent";
 
-const KNOWN_SURFACES = ["home", "discovery", "entity", "lineage", "governance", "audit", "taxonomy", "help", "inbox"];
+const KNOWN_SURFACES = ["home", "discovery", "entity", "lineage", "governance", "audit", "taxonomy", "help", "inbox", "capabilities", "insights"];
 const DISCOVERY_GROUPED_FILTER_KEYS = [
   "types",
   "catalogs",
@@ -140,6 +140,18 @@ function parsePathRoute(pathname = "/") {
       asset: "",
     };
   }
+  if (root === "capabilities") {
+    return {
+      surface: "capabilities",
+      asset: "",
+    };
+  }
+  if (root === "insights") {
+    return {
+      surface: "insights",
+      asset: "",
+    };
+  }
   return null;
 }
 
@@ -201,6 +213,8 @@ function canonicalPath(surface, routeAssetFqn) {
   if (surface === "help") return "/help";
   if (surface === "inbox") return "/inbox";
   if (surface === "home") return "/home";
+  if (surface === "capabilities") return "/capabilities";
+  if (surface === "insights") return "/insights";
   return "/discovery";
 }
 
@@ -542,6 +556,32 @@ export function useAppRouteState() {
     if (nextModule === "inbox") {
       navigate(buildCanonicalUrl(
         "inbox",
+        "",
+        discoveryRouteState.query,
+        location.search,
+        discoveryRouteState.sortBy,
+        discoveryRouteState.previewAssetFqn,
+        discoveryRouteState.views,
+        discoveryRouteState.filterGroups,
+      ), { state: { fresh: false } });
+      return;
+    }
+    if (nextModule === "capabilities") {
+      navigate(buildCanonicalUrl(
+        "capabilities",
+        "",
+        discoveryRouteState.query,
+        location.search,
+        discoveryRouteState.sortBy,
+        discoveryRouteState.previewAssetFqn,
+        discoveryRouteState.views,
+        discoveryRouteState.filterGroups,
+      ), { state: { fresh: false } });
+      return;
+    }
+    if (nextModule === "insights") {
+      navigate(buildCanonicalUrl(
+        "insights",
         "",
         discoveryRouteState.query,
         location.search,

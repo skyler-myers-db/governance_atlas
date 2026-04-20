@@ -57,8 +57,22 @@ export default function LineageWorkspace({
       peekWorkspaceIntent("lineageContext", initialAssetFqn || "", "Data Lineage"),
     )
   );
+  // Round 18 defect #7: Data / Operational are independent on/off flags.
+  // Default to data-only so the first paint matches the previous contract;
+  // the operator enables operational overlay when needed.
+  const [modeFlags, setModeFlags] = useState({ data: true, operational: false });
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
   const [linkFeedback, setLinkFeedback] = useState("");
+  // Lineage-wide filter knobs — separate upstream/downstream caps, a
+  // max-depth clamp, a per-layer node budget, and the include-columns
+  // toggle. Today the backend returns a fully-materialised graph so we
+  // clamp client-side; when/if the service starts honoring these caps
+  // server-side, the same state drives the request without UI churn.
+  const [upstreamLevels, setUpstreamLevels] = useState(2);
+  const [downstreamLevels, setDownstreamLevels] = useState(2);
+  const [maxDepth, setMaxDepth] = useState(2);
+  const [nodesPerLayer, setNodesPerLayer] = useState(10);
+  const [includeColumns, setIncludeColumns] = useState(false);
   const lineageAvailable = tableLineageAvailable(bootstrap);
   const lineageUnavailableReason = tableLineageReason(bootstrap);
   const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", false);
@@ -107,11 +121,12 @@ export default function LineageWorkspace({
   );
   const searchReady =
     !assetSearch.loading && assetSearch.resolvedQuery === assetSearchQuery.trim();
-  const activeGraph =
-    localContext === "Operational Context"
-      ? lineage.graph?.operational
-      : lineage.graph?.data;
-  const hasGraph = Boolean(activeGraph?.nodes?.length);
+  // hasGraph now reflects the modeFlags union: a graph is present if any
+  // enabled lineage mode carries at least one node.
+  const dataNodes = lineage.graph?.data?.nodes?.length || 0;
+  const operationalNodes = lineage.graph?.operational?.nodes?.length || 0;
+  const hasGraph =
+    (modeFlags.data && dataNodes > 0) || (modeFlags.operational && operationalNodes > 0);
 
   useEffect(() => {
     setAssetSearchQuery("");
@@ -323,6 +338,23 @@ export default function LineageWorkspace({
     );
   }
 
+  // Defect 1 — the node drawer footer's "View in Databricks Catalog" button
+  // deep-links to the Unity Catalog explorer page. We plumb the workspace
+  // host down through LineageStage → LineageGraph so the button can build
+  // `https://<host>/explore/data/<catalog>/<schema>/<table>`. Prefer the
+  // runtime-reported host (matches the Databricks workspace the app is
+  // bound to); fall back to `window.location.host` when the bootstrap
+  // payload hasn't populated it yet. Both are safer than deriving from the
+  // request URL because the app is served from `databricksapps.com` while
+  // the Unity Catalog explorer lives on `databricks.net`.
+  const runtimeHost = bootstrap?.runtime?.client?.host || bootstrap?.runtime?.client?.workspaceHost || "";
+  const browserHost = typeof window !== "undefined" ? window.location.host : "";
+  const workspaceHost =
+    String(runtimeHost || "").trim() ||
+    (browserHost
+      ? browserHost.replace(/^[^.]+\./, "").replace(/databricksapps\.com$/, "databricks.net")
+      : "");
+
   return (
     <section className="gh-lineage-shell">
       <LineageStage
@@ -332,7 +364,10 @@ export default function LineageWorkspace({
         assetSearchResults={assetSearch.assets}
         assetSearchResolvedQuery={assetSearch.resolvedQuery}
         context={localContext}
+        modeFlags={modeFlags}
+        onModeChange={setModeFlags}
         embedded={false}
+        workspaceHost={workspaceHost}
         error={lineage.error}
         graphBundle={lineage.graph}
         lineagePayload={lineage.payload}
@@ -342,6 +377,16 @@ export default function LineageWorkspace({
         authoritative={lineage.authoritative}
         provisional={lineage.provisional}
         overlay={!hasGraph ? searchOverlay : null}
+        upstreamLevels={upstreamLevels}
+        downstreamLevels={downstreamLevels}
+        maxDepth={maxDepth}
+        nodesPerLayer={nodesPerLayer}
+        includeColumns={includeColumns}
+        onUpstreamLevelsChange={setUpstreamLevels}
+        onDownstreamLevelsChange={setDownstreamLevels}
+        onMaxDepthChange={setMaxDepth}
+        onNodesPerLayerChange={setNodesPerLayer}
+        onIncludeColumnsChange={setIncludeColumns}
         onAssetSearchQueryChange={setAssetSearchQuery}
         onContextChange={(nextContext) => {
           setLocalContext(nextContext);

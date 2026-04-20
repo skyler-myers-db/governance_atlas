@@ -142,6 +142,24 @@
         "title": "AssetTagsPatch",
         "type": "object"
       },
+      "ClassificationReviewPayload": {
+        "properties": {
+          "decision": {
+            "title": "Decision",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "decision"
+        ],
+        "title": "ClassificationReviewPayload",
+        "type": "object"
+      },
       "ColumnDescriptionPatch": {
         "properties": {
           "description": {
@@ -668,6 +686,25 @@
         "summary": "Api Admin Run Background Batch",
         "tags": [
           "export"
+        ]
+      }
+    },
+    "/api/admin/background/status": {
+      "get": {
+        "operationId": "api_background_status_api_admin_background_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Api Background Status",
+        "tags": [
+          "admin"
         ]
       }
     },
@@ -1536,6 +1573,154 @@
         ]
       }
     },
+    "/api/classification-recommendations": {
+      "get": {
+        "operationId": "api_list_classification_recommendations_api_classification_recommendations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "default": "pending",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "assetFqn",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Assetfqn"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api List Classification Recommendations",
+        "tags": [
+          "classification"
+        ]
+      }
+    },
+    "/api/classification-recommendations/scan/{asset_fqn:path}": {},
+    "/api/classification-recommendations/{recommendation_id}": {
+      "get": {
+        "operationId": "api_get_classification_recommendation_api_classification_recommendations__recommendation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recommendation_id",
+            "required": true,
+            "schema": {
+              "title": "Recommendation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Get Classification Recommendation",
+        "tags": [
+          "classification"
+        ]
+      }
+    },
+    "/api/classification-recommendations/{recommendation_id}/review": {
+      "post": {
+        "operationId": "api_review_classification_recommendation_api_classification_recommendations__recommendation_id__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recommendation_id",
+            "required": true,
+            "schema": {
+              "title": "Recommendation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassificationReviewPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Review Classification Recommendation",
+        "tags": [
+          "classification"
+        ]
+      }
+    },
     "/api/classifications": {
       "get": {
         "operationId": "api_list_classifications_api_classifications_get",
@@ -1942,6 +2127,22 @@
               "default": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "refresh",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Refresh"
             }
           }
         ],
@@ -2591,6 +2792,66 @@
         "summary": "Api Governance Summary",
         "tags": [
           "governance"
+        ]
+      }
+    },
+    "/api/insights/gap-analysis": {
+      "get": {
+        "description": "Return the four-lane gap envelope + tile totals.\n\nOBO-scope truthfulness (round 17): if the request's UC client latches\nto the app-principal fallback during the inventory load (e.g. the\nforwarded user token is missing the `sql` scope), the returned tiles\nreflect the SP-visible estate \u2014 NOT the actor's view. We surface that\nstate in ``meta.state`` + ``meta.degraded`` + ``meta.obo_scope_fallback``\nso the frontend can render a \"Showing app-principal view\" banner\ninstead of silently displaying narrower counts.\n\n``?refresh=1`` evicts the per-actor inventory cache entry before the\nload so the next OBO request re-attempts the actor-scoped path. This\nis the escape hatch when a cached SP snapshot is stale.",
+        "operationId": "api_insights_gap_analysis_api_insights_gap_analysis_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "refresh",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Api Insights Gap Analysis",
+        "tags": [
+          "insights"
         ]
       }
     },

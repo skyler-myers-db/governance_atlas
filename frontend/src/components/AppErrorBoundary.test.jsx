@@ -76,4 +76,52 @@ describe("AppErrorBoundary", () => {
       expect(screen.getByText("Async failure")).not.toBeNull();
     });
   });
+
+  it("shows a friendly reload-now card when a lazy chunk import fails after a redeploy", async () => {
+    render(
+      <AppErrorBoundary>
+        <div>Healthy child</div>
+      </AppErrorBoundary>,
+    );
+
+    // Classic Chromium/Safari stale-chunk message. This is what the user
+    // was seeing on 2026-04-20 after a deploy: the open tab held a stale
+    // index.js that referenced a LineageWorkspace-*.js hash that no
+    // longer existed.
+    const event = new Event("unhandledrejection");
+    Object.defineProperty(event, "reason", {
+      value: new TypeError(
+        "Failed to fetch dynamically imported module: https://governance-hub-7405619023278880.0.azure.databricksapps.com/assets/LineageWorkspace-C1U3X0Wm.js",
+      ),
+    });
+
+    window.dispatchEvent(event);
+
+    await waitFor(() => {
+      // Stale-chunk path renders the "New version available" copy, not
+      // the generic "Frontend Error" card.
+      expect(screen.getByText("New version available")).not.toBeNull();
+      expect(screen.getByText("Reload now")).not.toBeNull();
+      expect(screen.queryByText("Frontend Error")).toBeNull();
+    });
+  });
+
+  it("treats `ChunkLoadError` as a stale-bundle reload prompt too", async () => {
+    render(
+      <AppErrorBoundary>
+        <div>Healthy child</div>
+      </AppErrorBoundary>,
+    );
+
+    const chunkError = new Error("Loading chunk 42 failed.");
+    chunkError.name = "ChunkLoadError";
+    const event = new Event("unhandledrejection");
+    Object.defineProperty(event, "reason", { value: chunkError });
+
+    window.dispatchEvent(event);
+
+    await waitFor(() => {
+      expect(screen.getByText("New version available")).not.toBeNull();
+    });
+  });
 });

@@ -31,6 +31,12 @@ import {
 } from "./ShellLayoutPrimitives";
 import { EmptyStateBlock, InlineStatusBanner, LoadingState } from "./ShellStatePrimitives";
 import { AuditTimelineDrawer } from "./primitives/AuditTimelineDrawer";
+import { ClassificationEvidenceDrawer } from "./primitives/ClassificationEvidenceDrawer";
+import {
+  useClassificationRecommendation,
+  useClassificationRecommendations,
+  useClassificationReview,
+} from "../hooks/useClassificationRecommendations";
 
 const GLOSSARY_STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
@@ -483,6 +489,39 @@ export default function GovernanceWorkspace({
   const auditTimeline = useGovernanceAuditTimeline(focusedAssetFqn, {
     enabled: auditDrawerOpen,
   });
+  // A9.4 — classification recommendations + drawer state.
+  const classificationRecommendations = useClassificationRecommendations({
+    status: "pending",
+    assetFqn: focusedAssetFqn,
+  });
+  const pendingClassificationCount =
+    classificationRecommendations.data?.pendingCount ??
+    classificationRecommendations.data?.count ??
+    0;
+  const [classificationDrawerOpen, setClassificationDrawerOpen] = useState(false);
+  const [activeClassificationId, setActiveClassificationId] = useState("");
+  const activeClassification = useClassificationRecommendation(activeClassificationId, {
+    enabled: classificationDrawerOpen && Boolean(activeClassificationId),
+  });
+  const classificationReview = useClassificationReview();
+  const openClassificationDrawer = (recommendationId = "") => {
+    const list = classificationRecommendations.data?.recommendations || [];
+    const fallback = list[0]?.recommendationId || "";
+    setActiveClassificationId(recommendationId || fallback);
+    setClassificationDrawerOpen(true);
+  };
+  const closeClassificationDrawer = () => {
+    setClassificationDrawerOpen(false);
+  };
+  const handleClassificationReview = async ({ recommendationId, decision, note }) => {
+    try {
+      await classificationReview.review({ recommendationId, decision, note });
+      classificationRecommendations.refresh?.();
+      setClassificationDrawerOpen(false);
+    } catch {
+      // Error surfaces via classificationReview.error; drawer stays open.
+    }
+  };
 
   useEffect(() => {
     const nextAssetFqn = initialAssetFqn || "";
@@ -928,7 +967,22 @@ export default function GovernanceWorkspace({
           <SurfaceWorkbench>
             <SurfaceWorkbenchMain className="gh-governance-main-pane" dense>
                 <SurfacePanelSection
-                  actions={<span className="gh-chip gh-chip-soft">{lanePanelMeta}</span>}
+                  actions={
+                    <div className="gh-chip-row">
+                      <span className="gh-chip gh-chip-soft">{lanePanelMeta}</span>
+                      {pendingClassificationCount > 0 ? (
+                        <button
+                          className="gh-chip gh-chip-tone-info"
+                          data-testid="governance-classification-open-drawer"
+                          onClick={() => openClassificationDrawer()}
+                          type="button"
+                        >
+                          {pendingClassificationCount} classification review
+                          {pendingClassificationCount === 1 ? "" : "s"}
+                        </button>
+                      ) : null}
+                    </div>
+                  }
                   title={lanePanelTitle}
                 >
                   <div className="gh-governance-lane-rail">
@@ -1397,7 +1451,22 @@ export default function GovernanceWorkspace({
           <SurfaceWorkbench>
             <SurfaceWorkbenchMain className="gh-governance-main-pane" dense>
                 <SurfacePanelSection
-                  actions={<span className="gh-chip gh-chip-soft">{lanePanelMeta}</span>}
+                  actions={
+                    <div className="gh-chip-row">
+                      <span className="gh-chip gh-chip-soft">{lanePanelMeta}</span>
+                      {pendingClassificationCount > 0 ? (
+                        <button
+                          className="gh-chip gh-chip-tone-info"
+                          data-testid="governance-classification-open-drawer"
+                          onClick={() => openClassificationDrawer()}
+                          type="button"
+                        >
+                          {pendingClassificationCount} classification review
+                          {pendingClassificationCount === 1 ? "" : "s"}
+                        </button>
+                      ) : null}
+                    </div>
+                  }
                   title={lanePanelTitle}
                 >
                   <div className="gh-governance-lane-rail">
@@ -1944,6 +2013,14 @@ export default function GovernanceWorkspace({
         isOpen={auditDrawerOpen && Boolean(focusedAssetFqn)}
         onClose={() => setAuditDrawerOpen(false)}
         onRefresh={() => auditTimeline.refresh()}
+      />
+      <ClassificationEvidenceDrawer
+        isOpen={classificationDrawerOpen}
+        onClose={closeClassificationDrawer}
+        recommendation={activeClassification.data}
+        onReview={handleClassificationReview}
+        submitting={classificationReview.submitting}
+        reviewError={classificationReview.error || activeClassification.error}
       />
     </section>
   );

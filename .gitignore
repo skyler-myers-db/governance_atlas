@@ -211,5 +211,10 @@ AGENT*
 .DS_Store
 frontend/dist/
 frontend/node_modules/
+# Root-level node_modules (from repo-root vitest/vite caches) — we already
+# ignore frontend/node_modules; this line catches any node_modules tree that
+# lands at the repo root so tool caches like .vite/vitest/*/results.json never
+# slip into git again.
+node_modules/
 .claude/
 *mcp*

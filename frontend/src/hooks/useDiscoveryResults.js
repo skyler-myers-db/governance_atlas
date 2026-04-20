@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchDiscoverySearch } from "../lib/api";
 
 const DISCOVERY_DEFAULT_FETCH_LIMIT = 80;
@@ -94,8 +94,15 @@ export function useDiscoveryResults(filters, options = {}) {
     lastAuthoritativeResultRef.current.scopeKey === currentScopeKey
       ? lastAuthoritativeResultRef.current.data
       : seededFallback;
+  // Round 19 OBO hardening: one-shot cache-bypass flag. When the user
+  // clicks "Retry with actor scope" on the fallback banner, we send
+  // ?refresh=1 on the next fetch so the server evicts the per-actor
+  // inventory cache and re-attempts OBO from scratch. The flag resets
+  // after the fetch resolves so normal caching resumes.
+  const [pendingRefresh, setPendingRefresh] = useState(false);
+  const queryClient = useQueryClient();
   const query = useQuery({
-    queryKey: ["discoveryResults", currentScopeKey, safeLimit, safeOffset],
+    queryKey: ["discoveryResults", currentScopeKey, safeLimit, safeOffset, pendingRefresh ? "force" : "cache"],
     queryFn: ({ signal }) =>
       fetchDiscoverySearch(
         {
@@ -103,11 +110,18 @@ export function useDiscoveryResults(filters, options = {}) {
           queryMode: "structured",
           limit: safeLimit,
           offset: safeOffset,
+          refresh: pendingRefresh,
         },
         { signal },
-      ),
+      ).finally(() => {
+        if (pendingRefresh) setPendingRefresh(false);
+      }),
     placeholderData,
   });
+  const refreshActorScope = useCallback(() => {
+    setPendingRefresh(true);
+    queryClient.invalidateQueries({ queryKey: ["discoveryResults"] });
+  }, [queryClient]);
   const usingPlaceholder = query.isPlaceholderData === true;
   const assets = query.data?.assets || seededFallback.assets;
   const count = typeof query.data?.count === "number" ? query.data.count : seededFallback.count;
@@ -140,6 +154,17 @@ export function useDiscoveryResults(filters, options = {}) {
     count,
     facets: query.data?.facets || seededFallback.facets,
     queryState: invalidQuery || query.data?.queryState || null,
+    // Expose the envelope `meta` block so downstream surfaces (diagnostics
+    // strip for A1.4) can read the fine-grained discoveryState vocabulary
+    // and observedAt timestamp without refetching.
+    meta:
+      query.data?.meta && typeof query.data.meta === "object"
+        ? query.data.meta
+        : null,
+    oboScopeFallback: Boolean(query.data?.meta?.oboScopeFallback),
+    oboFallbackReason: query.data?.meta?.oboFallbackReason || "",
+    refreshActorScope,
+    refreshing: query.isFetching,
     requestKey: currentScopeKey,
     fetching: query.isFetching,
     fetchLimit: safeLimit,

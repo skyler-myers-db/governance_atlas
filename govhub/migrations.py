@@ -804,6 +804,39 @@ DEFAULT_MIGRATIONS: tuple[Migration, ...] = (
                   OR LOWER(COALESCE(detail, '')) LIKE '%entrada%'""",
         ),
     ),
+    Migration(
+        version=15,
+        name="classification_recommendations",
+        statements=(
+            # A9.4 — Classification Recommendation Workflow.
+            # Steward-reviewed queue of suggested column classifications
+            # with evidence. On approve, the approved classification is
+            # written as a Databricks column tag via the existing UC tag
+            # API; this table is the source of truth for the review
+            # lifecycle and audit trail. Remediation suggestions are
+            # informational only — no auto-policy writes.
+            """CREATE TABLE IF NOT EXISTS {classification_recommendations_table} (
+                recommendation_id STRING NOT NULL,
+                asset_fqn STRING NOT NULL,
+                column_name STRING NOT NULL,
+                suggested_sensitivity STRING,
+                suggested_tier STRING,
+                suggested_certification STRING,
+                evidence_json STRING COMMENT 'JSON array of evidence objects (source, pattern|tag|comment|glossary, confidence)',
+                sample_redacted BOOLEAN,
+                sample_values_json STRING COMMENT 'JSON array of sample values; empty/masked when sample_redacted=true',
+                status STRING COMMENT 'pending | approved | rejected | deferred',
+                remediation_suggestions_json STRING COMMENT 'JSON array of informational remediation suggestions',
+                review_note STRING,
+                reviewed_by STRING,
+                reviewed_at TIMESTAMP,
+                created_at TIMESTAMP,
+                created_by STRING,
+                updated_at TIMESTAMP,
+                updated_by STRING
+            ) USING DELTA""",
+        ),
+    ),
 )
 
 
@@ -910,6 +943,9 @@ def apply_migrations(
                 logical_column_group_members_table=_fq_table(catalog, schema, "logical_column_group_members"),
                 metrics_table=_fq_table(catalog, schema, "metrics"),
                 contracts_table=_fq_table(catalog, schema, "contracts"),
+                classification_recommendations_table=_fq_table(
+                    catalog, schema, "classification_recommendations"
+                ),
             ).strip()
             if sql:
                 uc.execute(sql)

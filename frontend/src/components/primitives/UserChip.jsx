@@ -41,6 +41,7 @@ export function UserChip({
   showInbox = false,
   onSignOut,
   onOpenSettings,
+  onOpenCapabilities,
 }) {
   const displayName = prettyName(userEmail);
   const displayRole = prettyRole(role) + (roleProvisional ? " (verifying)" : "");
@@ -127,6 +128,16 @@ export function UserChip({
               type="button"
             >
               Settings &amp; diagnostics
+            </button>
+          ) : null}
+          {onOpenCapabilities ? (
+            <button
+              className="gh-user-chip-menu-item"
+              onClick={() => { setMenuOpen(false); onOpenCapabilities(); }}
+              role="menuitem"
+              type="button"
+            >
+              Capability dashboard
             </button>
           ) : null}
           {onSignOut ? (
