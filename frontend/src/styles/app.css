@@ -615,10 +615,13 @@ button.gh-chip:not(.is-readonly):focus-visible,
 }
 
 .gh-surface-rail-section {
+  /* Round 15: padding-top 12→2 so the CATALOG header sits closer to
+     the "Filters" title directly above (operator: "space between
+     Filters and CATALOG should be less"). */
   min-width: 0;
   display: grid;
   gap: 8px;
-  padding-top: 12px;
+  padding-top: 2px;
   border-top: 0;
 }
 
@@ -3236,11 +3239,14 @@ body::after {
 
 .gh-app {
   width: min(1880px, calc(100vw - clamp(16px, 1.55vw, 34px)));
-  /* Round 12: trim the top margin so the Governance Hub title row
-     sits closer to the top of the viewport (operator: "the top row
-     with the Governance Hub title and search bar should be slightly
-     higher to the top"). */
-  margin: 2px auto 28px;
+  /* Round 15: anchor the app flush to the left edge of the page so
+     the side-rail icons sit at x≈32 (the midpoint between the page
+     left at x=0 and the rail's right vertical border at x=64).
+     Previously `margin: 2px auto` centered the app with ~10px on
+     each side, which shoved the icons ~5px right of the true
+     left/right midpoint (operator: "slightly more to the right than
+     perfectly centered"). */
+  margin: 2px auto 28px 0;
 }
 
 .gh-shell-header,
@@ -3540,9 +3546,10 @@ button.gh-lineage-linked-row.is-asset-link span:first-child {
     var(--gh-shell-header-height) + var(--gh-shell-sticky-gap) + var(--gh-shell-sticky-stack-gap)
   );
   width: min(2860px, calc(100vw - clamp(16px, 1.15vw, 42px)));
-  /* Round 12: match the earlier .gh-app block — keep the top gap
-     minimal so the title row crowds the viewport top. */
-  margin: 2px auto 28px;
+  /* Round 15: anchor flush to page left (margin-left:0) so the
+     side-rail icons center between page-left and the rail's right
+     vertical border. */
+  margin: 2px auto 28px 0;
 }
 
 /* Card-like white gradient kept only on the discovery command panel +
@@ -4470,7 +4477,11 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
 .gh-discovery-sidebar [class*="section-title"],
 .gh-discovery-sidebar .gh-discovery-sidebar-section > h4,
 .gh-discovery-sidebar .gh-surface-rail-section-head {
-  padding: 10px 14px 4px !important;
+  /* Round 15: padding-left 14→10 so CATALOG / ASSET TYPE / GLOSSARY
+     TERM / etc. all land at x=rail_left+10, same left edge as the
+     "Filters" h2 above them. Top padding 10→4 to tighten the gap
+     between the Filters title and the first section header. */
+  padding: 4px 10px 4px !important;
   font-size: 10px !important;
   font-weight: 700 !important;
   letter-spacing: 0.06em !important;

@@ -44,18 +44,19 @@
   margin-bottom: 6px;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  /* Round 12: chunkier padding + font so the button reads as the
-     clear primary CTA on the subtab row (operator: "the + Quick
-     actions menu needs to be much bigger overall, font and size"). */
-  padding: 12px 22px;
-  border-radius: 12px;
+  gap: 8px;
+  /* Round 15: scale back slightly from round 12 — operator said the
+     button is now a touch too chunky. 12×22 / 1.02rem → 9×18 /
+     0.95rem / radius 10 keeps it clearly primary without dominating
+     the subtab row. */
+  padding: 9px 18px;
+  border-radius: 10px;
   /* Deeper purple — operator 2026-04-19 round 2 asked for a darker
      indigo so the Quick action reads as decisive. */
   background: linear-gradient(180deg, var(--gh-indigo, #3d2bc4) 0%, var(--gh-indigo-2, #2d1f93) 100%);
   color: #fff;
   font-family: inherit;
-  font-size: 1.02rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: -0.005em;
   border: 0;
@@ -65,8 +66,8 @@
 }
 
 .gh-discovery-subtabs-quick-action svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 .gh-discovery-subtabs-quick-action:hover {
   filter: brightness(1.05);
@@ -1083,18 +1084,17 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 12px;
-  /* Round 10: no background card + no bottom border. The Favorites
-     / Recently Viewed strip just sits on the cream body between the
-     Discovery heading and the card grid. */
-  padding: 6px 0 10px;
+  /* Round 15: padding-top 6→0 so the Favorites / Recently Viewed
+     strip sits tight under the "Showing N of M assets" summary. */
+  padding: 0 0 8px;
   background: transparent;
   border-bottom: 0;
 }
 .gh-activity-column { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .gh-activity-title {
-  /* Round 13: "Your favorites" / "Recently viewed" eyebrows bumped
-     10px → 12px for readability alongside the bigger chips. */
-  font-size: 12px;
+  /* Round 15: eyebrow 12→13px — operator wants the section labels
+     slightly larger again. */
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1102,19 +1102,19 @@
 }
 .gh-activity-list { display: flex; gap: 8px; flex-wrap: wrap; }
 .gh-activity-chip {
-  /* Round 13: chip padding + font bumped so the quick-access tiles
-     read as proper affordances, not tiny footnote pills. */
+  /* Round 15: chip font + padding bumped again — 13.5→15px font,
+     6×12 → 7×14 padding. */
   display: inline-flex;
   align-items: center;
   gap: 8px;
   background: #ffffff;
   border: 1px solid var(--gh-border, #d8dee9);
   border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 13.5px;
+  padding: 7px 14px;
+  font-size: 15px;
   color: var(--gh-text, #14213d);
   cursor: pointer;
-  max-width: 260px;
+  max-width: 280px;
 }
 .gh-activity-chip:hover {
   background: var(--gh-surface-muted, #f3f6fb);
@@ -1331,7 +1331,10 @@
 .gh-result-list.gh-discovery-card-list {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
-  gap: 14px !important;
+  /* Round 15: grid row-gap 14→6 so "Showing... assets" sits tight
+     against the Favorites / Recently Viewed strip below it without
+     crushing the card-to-card vertical spacing. */
+  gap: 6px 14px !important;
   padding: 4px 0 0 !important;
   /* Transparent wrapper — the cream body shows through, only the cards
      themselves are white (operator 2026-04-19 flagged that only cards,
@@ -1481,7 +1484,11 @@
 
 .gh-discovery-asset-card-title {
   color: var(--gh-text, #14213d);
-  font-size: 0.98rem;
+  /* Round 15: asset title 0.98 → 1.1rem (≈17.6px → 17.6px remains
+     stable at the default rem, but the spacious-density override
+     below jumps to 1.2rem so cards on the default spacious density
+     render at ~19px). */
+  font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 0.002em;
   line-height: 1.28;
@@ -2146,10 +2153,12 @@ h3.gh-asset-preview-header-name {
   display: flex;
   gap: 20px;
   justify-content: space-between;
-  /* Round 10: "Discovery" + "Showing X assets" left-align with the
-     card grid (zero left padding). Sort control still gets some
-     right padding so it doesn't hug the border. */
-  padding: 14px 18px 10px 0;
+  /* Round 15: padding-top 14→2 and padding-bottom 10→2 so "Discovery"
+     sits directly below the facet-chip row and Favorites sits
+     directly below "Showing... assets" (operator: "space between
+     facet filters and Discovery should be less" + "space between
+     Showing... and favorites/recently viewed should be less"). */
+  padding: 2px 18px 2px 0;
 }
 .gh-discovery-command-heading h2.gh-discovery-command-title {
   color: var(--gh-text, #14213d);
