@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { setWorkspaceIntent } from "../lib/workspaceIntent";
 
-const KNOWN_SURFACES = ["discovery", "entity", "lineage", "governance", "audit", "taxonomy", "help", "inbox"];
+const KNOWN_SURFACES = ["home", "discovery", "entity", "lineage", "governance", "audit", "taxonomy", "help", "inbox"];
 const DISCOVERY_GROUPED_FILTER_KEYS = [
   "types",
   "catalogs",
@@ -134,6 +134,12 @@ function parsePathRoute(pathname = "/") {
       asset: "",
     };
   }
+  if (root === "home") {
+    return {
+      surface: "home",
+      asset: "",
+    };
+  }
   return null;
 }
 
@@ -190,6 +196,7 @@ function canonicalPath(surface, routeAssetFqn) {
   if (surface === "taxonomy") return "/taxonomy";
   if (surface === "help") return "/help";
   if (surface === "inbox") return "/inbox";
+  if (surface === "home") return "/home";
   return "/discovery";
 }
 
@@ -464,17 +471,21 @@ export function useAppRouteState() {
   }, [discoveryRouteState.filterGroups, discoveryRouteState.previewAssetFqn, discoveryRouteState.sortBy, discoveryRouteState.views, location.search, navigate]);
 
   const onModuleChange = useCallback((nextModule) => {
-    // "home" is a virtual module: until we ship a dedicated landing surface,
-    // Home opens Discovery with its query/filters/views reset so it reads as
-    // a true "back to start". Keeping it distinct from `discovery` prevents
-    // both rail icons lighting up simultaneously.
+    // Home now has its own dedicated surface at `/` — a landing page
+    // with a hero, quick-start cards, live estate stats, and recent
+    // activity. Operator 2026-04-19 round 4 asked for Home to be a
+    // real page, not a Discovery alias.
     if (nextModule === "home") {
-      openDiscoveryWorkspace("", {
-        fresh: true,
-        previewAssetFqn: "",
-        views: [],
-        filterGroups: normalizeDiscoveryFilterGroups(),
-      });
+      navigate(buildCanonicalUrl(
+        "home",
+        "",
+        "",
+        location.search,
+        "",
+        "",
+        [],
+        normalizeDiscoveryFilterGroups(),
+      ), { state: { fresh: true } });
       return;
     }
     if (nextModule === "discovery") {
