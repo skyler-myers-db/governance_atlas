@@ -13,14 +13,17 @@
      checkboxes are pure white, which is how they "pop" off the base.
      Accent stays magenta (brand mark, Quick action button, progress
      rail); indigo stays as a soft secondary for selection/focus. */
-  --gh-bg: #f2ecdf;
-  --gh-bg-2: #ede5d3;
+  --gh-bg: #f7f2e7;
+  --gh-bg-2: #f2ecdf;
   --gh-surface: #ffffff;
-  --gh-surface-soft: #faf7f0;
-  --gh-surface-muted: #f3ece0;
+  --gh-surface-soft: #fcf8ee;
+  --gh-surface-muted: #f4eedf;
 
-  --gh-line: #e2e4ec;
-  --gh-line-strong: #c3c8d4;
+  /* Border lines are a warm beige — slightly darker than previous
+     so the card silhouettes actually read against the cream body.
+     Operator 2026-04-19 round 2 flagged borders as too faint. */
+  --gh-line: #d8cfb9;
+  --gh-line-strong: #b8ac8c;
 
   --gh-ink: #1a2236;
   --gh-ink-soft: #525e74;
@@ -33,11 +36,13 @@
   --gh-accent-2: #b81560;
   --gh-accent-soft: #fce6ef;
 
-  /* Secondary indigo — used only for subtle checkbox accents,
-     focus rings, and filter-section activation. Kept muted so the
-     primary magenta stays the brand mark. */
-  --gh-indigo: #5b3ff2;
-  --gh-indigo-soft: #ecebff;
+  /* Secondary indigo — used for the Quick action button, checkbox
+     accents, focus rings, and filter-section activation. Operator
+     2026-04-19 round 2 asked for a darker / deeper purple so the
+     Quick action button reads as decisive, not candy-floss. */
+  --gh-indigo: #3d2bc4;
+  --gh-indigo-2: #2d1f93;
+  --gh-indigo-soft: #e6e3ff;
 
   --gh-good: #1f8b67;
   --gh-warn: #b67b1f;

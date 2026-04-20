@@ -80,14 +80,13 @@ body {
   margin: 0;
   font-family: var(--gh-font);
   color: var(--gh-ink);
-  /* Warm cream/tan base — matches docs/mockups/discovery_mockup.png.
-     No cool blue/indigo overlays; those made the surface read as grey
-     (the operator flagged this on 2026-04-19). The radial bloom is a
-     subtle warm highlight only, no hue shift. */
+  /* Light cream base — operator 2026-04-19 round 2 asked for a shade
+     lighter so the cards stand out more. Radial bloom is a subtle
+     warm highlight only, no hue shift. */
   background:
-    radial-gradient(circle at top left, rgba(224, 196, 132, 0.08), transparent 28%),
-    radial-gradient(circle at top right, rgba(224, 196, 132, 0.06), transparent 24%),
-    linear-gradient(180deg, #f4eee1 0%, #f2ecdf 40%, #efe8d8 100%);
+    radial-gradient(circle at top left, rgba(224, 196, 132, 0.05), transparent 28%),
+    radial-gradient(circle at top right, rgba(224, 196, 132, 0.04), transparent 24%),
+    linear-gradient(180deg, #faf5ea 0%, #f7f2e7 40%, #f4efe2 100%);
   text-rendering: optimizeLegibility;
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
@@ -797,6 +796,22 @@ button.gh-chip:not(.is-readonly):focus-visible,
 .gh-governance-shell,
 .gh-entity-workspace {
   gap: 12px;
+}
+/* Workspace shells share the cream body — only the inner panels
+   (metric cards, metadata rows, preview rails) carry white card
+   treatment. Operator 2026-04-19 round 2 flagged the big white
+   rectangles around every page. */
+.gh-panel.gh-entity-shell,
+.gh-panel.gh-lineage-shell,
+.gh-panel.gh-governance-shell,
+.gh-panel.gh-discovery-shell,
+.gh-panel.gh-entity-record-shell,
+.gh-panel.gh-taxonomy-workspace,
+.gh-panel.gh-audit-workspace {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 .gh-results-inline-state {
   color: var(--gh-ink-soft);
@@ -2147,25 +2162,25 @@ button:focus-visible,
   grid-column: 1 / -1;
 }
 .gh-select-sort {
-  min-width: 180px;
+  min-width: 200px;
   width: auto;
-  max-width: 240px;
-  min-height: 34px;
+  max-width: 260px;
+  min-height: 36px;
   border-radius: 8px;
-  padding: 0 2rem 0 0.75rem;
-  font-size: 0.84rem;
+  padding: 0 2rem 0 0.85rem;
+  font-size: 0.95rem;
 }
 
 .gh-field-label-inline {
   white-space: nowrap;
   line-height: 1;
   padding-left: 2px;
-  font-size: 0.88rem;
+  font-size: 1rem;
   font-weight: 700;
   color: var(--gh-ink, #1a2236);
   text-transform: none;
   letter-spacing: 0;
-  margin-right: 8px;
+  margin-right: 10px;
 }
 
 .gh-discovery-sort-inline {
@@ -2758,6 +2773,19 @@ button.gh-lineage-linked-row {
 
 button.gh-lineage-linked-row:not(.is-readonly):hover {
   transform: translateY(-1px);
+}
+
+button.gh-lineage-linked-row.is-opening {
+  cursor: progress;
+  opacity: 0.86;
+}
+
+.gh-lineage-linked-row-opening {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gh-indigo, #3d2bc4);
+  font-weight: 700;
 }
 
 .gh-result-list.gh-discovery-card-list {

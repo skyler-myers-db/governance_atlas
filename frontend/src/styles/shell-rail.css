@@ -39,7 +39,7 @@
 .gh-side-rail {
   position: sticky;
   top: clamp(10px, 0.9vw, 18px);
-  align-self: start;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -51,6 +51,11 @@
   border: 0;
   background: transparent;
   box-shadow: none;
+  /* Fill the viewport height so the flex spacer can push the
+     Settings / Help / Sign out cluster to the bottom. Operator
+     2026-04-19 round 2 flagged they were bunching up near the top
+     because the rail was only as tall as its content. */
+  height: calc(100vh - 24px);
   max-height: calc(100vh - 24px);
   overflow-y: auto;
 }
@@ -96,6 +101,11 @@
   flex-direction: column;
   gap: 4px;
   align-items: center;
+  /* Visible divider above the Settings / Help / Sign out cluster —
+     operator 2026-04-19 round 2 flagged the missing line between nav
+     and footer. */
+  padding-top: 8px;
+  border-top: 1px solid var(--gh-line, #d8cfb9);
 }
 
 .gh-side-rail-button {
@@ -680,17 +690,19 @@
   box-shadow: var(--gh-focus-ring);
 }
 
-/* --- primary facet chip row (always-visible quick filters + Filters launcher) --- */
+/* --- primary facet chip row (always-visible quick filters + Filters launcher)
+   Row shares the cream body — operator 2026-04-19 round 2 flagged the
+   white pill around Tables/Views/Filters as the last holdout. Only the
+   chips themselves carry a soft fill so they read as interactive pills. */
 .gh-primary-facet-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 14px;
+  padding: 4px 0 8px;
   flex-wrap: wrap;
-  border: 1px solid rgba(182, 198, 216, 0.65);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 8px 18px rgba(18, 35, 58, 0.04);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   margin-bottom: 10px;
 }
 
@@ -702,8 +714,10 @@
   font-size: 0.84rem;
   font-weight: 700;
   color: #2f3b55;
-  background: rgba(236, 240, 248, 0.85);
-  border: 1px solid rgba(182, 198, 216, 0.85);
+  /* Soft cream fill so the chip stays coherent with the body but still
+     reads as a clickable surface. Operator 2026-04-19 round 2. */
+  background: var(--gh-surface-soft, #fcf8ee);
+  border: 1px solid var(--gh-line, #d8cfb9);
   border-radius: 999px;
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
@@ -712,14 +726,14 @@
 
 .gh-primary-facet-chip:hover {
   background: #fff;
-  border-color: rgba(91, 67, 238, 0.4);
+  border-color: var(--gh-line-strong, #b8ac8c);
   color: #2a2f6b;
 }
 
 .gh-primary-facet-chip.is-active {
-  background: linear-gradient(135deg, rgba(91, 67, 238, 0.12), rgba(91, 67, 238, 0.04));
-  border-color: rgba(91, 67, 238, 0.55);
-  color: #2a2f6b;
+  background: var(--gh-indigo-soft, #e6e3ff);
+  border-color: var(--gh-indigo, #3d2bc4);
+  color: var(--gh-indigo-2, #2d1f93);
 }
 
 .gh-primary-facet-chip.is-ghost {
@@ -762,16 +776,16 @@
   font-size: 0.84rem;
   font-weight: 700;
   color: #2f3b55;
-  background: #fff;
-  border: 1px solid rgba(182, 198, 216, 0.85);
+  background: var(--gh-surface-soft, #fcf8ee);
+  border: 1px solid var(--gh-line, #d8cfb9);
   border-radius: 8px;
   cursor: pointer;
   transition: background 120ms ease, border-color 120ms ease;
 }
 
 .gh-primary-facet-launch:hover {
-  background: rgba(236, 240, 248, 0.85);
-  border-color: rgba(91, 67, 238, 0.4);
+  background: #fff;
+  border-color: var(--gh-line-strong, #b8ac8c);
 }
 
 .gh-primary-facet-launch:focus-visible {

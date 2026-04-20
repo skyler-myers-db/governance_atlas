@@ -15,6 +15,14 @@
 }
 .gh-entity-record-shell {
   gap: 20px;
+  /* The outer Entity shell shares the cream body — only the metric
+     cards, metadata rows, and data-preview blocks inside it carry the
+     white card treatment. Operator 2026-04-19 round 2 flagged the big
+     white rectangle around the whole page. */
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 
 .gh-entity-record-header {
