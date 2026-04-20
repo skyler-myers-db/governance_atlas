@@ -154,12 +154,16 @@ function parseRouteState(pathname = "/", search = "") {
     ...params.getAll("views"),
     ...(params.get("view") ? [params.get("view")] : []),
   ]);
+  // Operator 2026-04-19 round 5: opening the app at `/` should land
+   // on the new Home surface, not Discovery. The pathRoute parser
+   // returns null for `/` so we default to "home" when no explicit
+   // surface is declared.
   const initialSurface =
     pathRoute?.surface ||
     (surface && KNOWN_SURFACES.includes(surface)
       ? surface
       : normalizedModule) ||
-    "discovery";
+    "home";
   const pathAsset = pathRoute?.asset || "";
   const queryAsset = params.get("asset") || "";
   const previewAsset = params.get("preview") || "";
