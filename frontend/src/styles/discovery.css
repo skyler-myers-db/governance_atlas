@@ -406,6 +406,13 @@
   z-index: 30;
 }
 
+/* Round 16: collapse the filter-popover mount point when closed so
+   the command panel doesn't leave ~30px of dead space between
+   "Showing... assets" and the Favorites / Recently Viewed strip. */
+.gh-discovery-toolbar-shell:empty {
+  display: none !important;
+}
+
 .gh-discovery-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 236px) minmax(176px, max-content);
