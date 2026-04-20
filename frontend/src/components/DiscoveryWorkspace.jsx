@@ -746,7 +746,18 @@ function FiltersPopover({
           onToggle={(value, allLabel) =>
             toggleMulti(filters, "catalogs", value, allLabel, onDiscoveryStateChange)
           }
-          options={facetValues(facets, "catalogs", [], filters.catalogs)}
+          /* Operator 2026-04-20 round 8: the popover was only
+             showing "All" because live facets hadn't hydrated yet.
+             Fall back to the bootstrap defaultFacets when live is
+             empty so per-catalog checkboxes always appear. */
+          options={facetValues(
+            facets,
+            "catalogs",
+            (bootstrap?.discovery?.defaultFacets?.catalogs || []).map((c) =>
+              typeof c === "string" ? c : c?.value || c?.label || "",
+            ).filter(Boolean),
+            filters.catalogs,
+          )}
           selected={filters.catalogs}
         />
         <FilterSection
@@ -1352,8 +1363,15 @@ function PrimaryFacetChips({
     return true;
   });
 
+  const hasAnyApplied = Boolean(schemaFilter) || visibleChips.length > 0;
+
   return (
     <div className="gh-primary-facet-row" role="group" aria-label="Applied filters and filters launcher">
+      {!hasAnyApplied ? (
+        <span className="gh-primary-facet-empty" aria-live="polite">
+          No filters applied
+        </span>
+      ) : null}
       {schemaFilter ? (
         <button
           aria-pressed="true"
@@ -1836,26 +1854,11 @@ function SelectionPreview({
       title=""
       actions={previewActions}
     >
-      {detailError ? <InlineStatusBanner message={detailError} title="Preview degraded" /> : null}
-      {/* Previously we showed a plain-text "Refreshing live header and schema
-          metadata…" while the detail API was hydrating. That line rendered
-          ABOVE the "Asset preview" eyebrow and shifted the whole preview
-          layout down, which the 2026-04-19 parity review flagged as a
-          mockup divergence. The asset header and schema sections already
-          render their own loading affordances; the standalone banner is
-          redundant. Kept only the error banner (load failure) here. */}
-      {!previewAvailable && previewUnavailableReason ? (
-        <div className="gh-selection-preview-inline-notice" role="status">
-          <span className="gh-selection-preview-inline-notice-label">Live rows unavailable</span>
-          <span className="gh-selection-preview-inline-notice-body">{previewUnavailableReason}</span>
-        </div>
-      ) : null}
-      {recordUnavailable ? (
-        <div className="gh-support-copy gh-selection-preview-record-state">
-          {recordUnavailableReason}
-        </div>
-      ) : null}
-
+      {/* Operator 2026-04-20 round 8: the "Asset preview" eyebrow
+          MUST be the first visible element in the sidecar so it sits
+          flush with the top border at the same Y as "Filters" in the
+          left rail. Banners + error notices moved to render AFTER
+          the eyebrow row inside gh-asset-preview below. */}
       <div className="gh-asset-preview">
         {/* 0 — Eyebrow + close: matches the mockup's "Asset preview" label
             that sits above the asset title. Close button anchors right. */}
@@ -1873,6 +1876,22 @@ function SelectionPreview({
             </button>
           ) : null}
         </div>
+
+        {/* Banners + error notices moved here (round 8) so the eyebrow
+            stays pinned at the top edge of the sidecar, matching
+            "Filters" on the left. */}
+        {detailError ? <InlineStatusBanner message={detailError} title="Preview degraded" /> : null}
+        {!previewAvailable && previewUnavailableReason ? (
+          <div className="gh-selection-preview-inline-notice" role="status">
+            <span className="gh-selection-preview-inline-notice-label">Live rows unavailable</span>
+            <span className="gh-selection-preview-inline-notice-body">{previewUnavailableReason}</span>
+          </div>
+        ) : null}
+        {recordUnavailable ? (
+          <div className="gh-support-copy gh-selection-preview-record-state">
+            {recordUnavailableReason}
+          </div>
+        ) : null}
 
         {/* 1 — Header row: asset icon square + asset name */}
         <div className="gh-asset-preview-header">

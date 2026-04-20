@@ -34,7 +34,11 @@
   top: 0;
   z-index: 60;
   background: linear-gradient(180deg, #faf6ec 0%, #faf6ec 92%, rgba(250, 246, 236, 0.92) 100%);
-  border-bottom: 1px solid var(--gh-line, #b9ad84);
+  /* Round 8: remove the border under the title bar — the darker
+     horizontal rule above the Discovery / Navigation subtabs (and
+     +Quick action row) is the only separator. Two stacked lines
+     read as noise. */
+  border-bottom: 0;
   padding-bottom: 4px;
 }
 
@@ -55,13 +59,14 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  /* Round 6: top padding matches the sticky header height so the
-     Home icon aligns horizontally with the Discovery / Navigation
-     sub-tab row in the main content column ("Home icon should start
-     right to the left of 'Discovery Navigation'"). */
-  padding: calc(var(--gh-shell-header-height, 80px) + 8px) 6px 16px;
+  /* Round 8: top padding = header height + sub-tab padding so the
+     Home icon centers vertically on the same row as the Discovery /
+     Navigation active tab text. Computed from: header 88px + subtab
+     top padding 12px + ~24px half-button so Home's center sits at
+     the Discovery tab's center Y. */
+  padding: calc(var(--gh-shell-header-height, 80px) + 36px) 6px 16px;
   border: 0;
-  border-right: 1px solid var(--gh-line, #9a8c5d);
+  border-right: 1px solid var(--gh-line-strong, #6e6039);
   background: transparent;
   box-shadow: none;
   height: 100vh;
@@ -237,9 +242,10 @@
 }
 
 .gh-shell-brand-title {
-  font-size: 1.02rem;
+  /* Round 8: title bar content bigger overall. */
+  font-size: 1.24rem;
   font-weight: 800;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   line-height: 1;
   color: var(--gh-ink, #14213d);
 }
@@ -796,6 +802,19 @@
   min-width: 8px;
 }
 
+/* Round 8: "No filters applied" placeholder text that sits in the
+   primary facet row when nothing is selected. Quiet, italic, cream
+   color so it reads as a hint rather than a button. */
+.gh-primary-facet-empty {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 4px;
+  font-size: 0.88rem;
+  font-style: italic;
+  font-weight: 500;
+  color: var(--gh-ink-muted, #7a859a);
+}
+
 .gh-primary-facet-clear-all {
   display: inline-flex;
   align-items: center;
@@ -1021,16 +1040,16 @@
    was flagged on 2026-04-19 as "janky". */
 .gh-filters-rail {
   position: sticky;
-  /* Sticky offset leaves room for the sticky shell header so the
-     Filters heading never sits UNDER or ABOVE the header bar.
-     Operator 2026-04-19 round 5 flagged that scrolling made the
-     rail heading "combine with other text". */
   top: calc(var(--gh-shell-header-height, 80px) + 12px);
   align-self: start;
-  padding: 14px 0 16px;
+  /* Round 8: zero top padding + 14px inside the head so "Filters"
+     sits at the same Y as the "Asset preview" eyebrow on the right.
+     No border between Filters and Catalog — flush with the facet
+     sections below. */
+  padding: 0 0 16px;
   border: 0;
   background: transparent !important;
-  border-right: 1px solid var(--gh-line-strong, #a99a70);
+  border-right: 1px solid var(--gh-line-strong, #6e6039);
   border-radius: 0;
   box-shadow: none !important;
   display: grid;
@@ -1040,9 +1059,11 @@
 }
 
 .gh-filters-rail-head {
-  /* 16px horizontal padding matches the sidebar section head, so
-     "Filters" stacks exactly over "Catalog" below. */
-  padding: 0 16px 10px;
+  /* 16px horizontal padding matches the sidebar section head so
+     "Filters" stacks exactly over "Catalog" below. 14px top padding
+     mirrors the sidecar eyebrow row so the two headings align. */
+  padding: 14px 16px 10px;
+  border: 0 !important;
 }
 
 .gh-filters-rail-title {
@@ -1795,13 +1816,12 @@ input:focus-visible {
 .gh-asset-preview-header-name {
   flex: 1 1 auto;
   min-width: 0;
-  /* Round 6: asset name must dominate the sidecar header — bigger
-     than "Asset preview" eyebrow AND the Metadata/Schema section
-     titles. Operator flagged it as "still too small" multiple rounds. */
-  font-size: 1.6rem;
+  /* Round 8: bumped 1.6 → 1.9rem so the asset name clearly
+     dominates every other label in the sidecar. */
+  font-size: 1.9rem;
   font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
   color: #14213d;
   overflow-wrap: anywhere;
   word-break: break-word;
