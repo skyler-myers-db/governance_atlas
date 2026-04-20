@@ -10,10 +10,11 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  /* Round 9: tighter padding so the top + bottom borders sit closer
-     to the "Discovery / Navigation" text. The active tab's underline
-     sits exactly on the bottom border and is thicker + darker purple. */
-  padding: 4px 4px 0;
+  /* Round 10: top + bottom borders EQUIDISTANT from the tab text.
+     Zero row-padding: the tab button's own padding does all the
+     vertical spacing, so the top / bottom borders frame the text
+     symmetrically. */
+  padding: 0 4px;
   margin: 0;
   border-top: 1px solid var(--gh-line-strong, #6e6039);
   border-bottom: 1px solid var(--gh-line-strong, #6e6039);
@@ -57,14 +58,14 @@
   -webkit-appearance: none;
   background: transparent;
   border: 0;
-  padding: 8px 2px 10px;
+  /* Round 10: symmetric vertical padding so the tab text sits
+     centered between the subtab row's top and bottom borders. */
+  padding: 10px 2px 10px;
   font-family: inherit;
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--gh-ink-soft, #5f718c);
   cursor: pointer;
-  /* Round 9: underline thicker (4px) + darker purple, sitting
-     exactly on the subtab-row bottom border. */
   border-bottom: 4px solid transparent;
   margin-bottom: -1px;
   line-height: 1;
@@ -1056,9 +1057,12 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 12px;
-  padding: 10px 14px;
-  background: #fafbfd;
-  border-bottom: 1px solid var(--gh-border, #d8dee9);
+  /* Round 10: no background card + no bottom border. The Favorites
+     / Recently Viewed strip just sits on the cream body between the
+     Discovery heading and the card grid. */
+  padding: 6px 0 10px;
+  background: transparent;
+  border-bottom: 0;
 }
 .gh-activity-column { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .gh-activity-title {
@@ -2107,7 +2111,10 @@
   display: flex;
   gap: 20px;
   justify-content: space-between;
-  padding: 14px 18px 6px;
+  /* Round 10: "Discovery" + "Showing X assets" left-align with the
+     card grid (zero left padding). Sort control still gets some
+     right padding so it doesn't hug the border. */
+  padding: 14px 18px 10px 0;
 }
 .gh-discovery-command-heading h2.gh-discovery-command-title {
   color: var(--gh-text, #14213d);

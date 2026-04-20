@@ -94,7 +94,10 @@ body {
 
 .gh-app {
   width: min(1940px, calc(100vw - clamp(18px, 1.7vw, 42px)));
-  margin: clamp(14px, 0.9vw, 24px) auto 30px;
+  /* Round 10: reduced top margin so the title bar sits closer to the
+     top of the page. Operator: "Governance Hub row with the search
+     bar and everything should be closer to the top of the page." */
+  margin: 4px auto 30px;
   display: grid;
   gap: clamp(18px, 1.15vw, 24px);
 }
@@ -4536,12 +4539,14 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
   border-radius: 6px 6px 0 0 !important;
   padding: 12px 16px !important;
 }
-/* Move the toolbar inside the card visually by attaching directly underneath */
+/* Round 10: toolbar shell blends into the cream body — no background
+   card, no border-top. Operator flagged the light hairline below the
+   "Showing..." subline as unwanted. */
 .gh-discovery-toolbar-shell {
-  padding: 10px 14px !important;
-  background: var(--gh-surface-muted, #f3f6fb) !important;
-  border-top: 1px solid var(--gh-border, #d8dee9) !important;
-  border-radius: 0 0 6px 6px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border-top: 0 !important;
+  border-radius: 0 !important;
   margin: 0 !important;
   box-shadow: none !important;
 }
