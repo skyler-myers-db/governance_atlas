@@ -6,22 +6,38 @@
  */
 
 :root {
-  --gh-bg: #edf2f8;
-  --gh-bg-2: #e3ebf4;
+  /* Palette tuned against docs/mockups/discovery_mockup.png. The base
+     surface (side rail, top header, main body) is a warm cream/tan,
+     NOT cool grey — the mockup reads as off-white beige with a slight
+     warmth. ONLY the search field, asset cards, sort select, and
+     checkboxes are pure white, which is how they "pop" off the base.
+     Accent stays magenta (brand mark, Quick action button, progress
+     rail); indigo stays as a soft secondary for selection/focus. */
+  --gh-bg: #f2ecdf;
+  --gh-bg-2: #ede5d3;
   --gh-surface: #ffffff;
-  --gh-surface-soft: #f5f8fc;
-  --gh-surface-muted: #eef3f8;
+  --gh-surface-soft: #faf7f0;
+  --gh-surface-muted: #f3ece0;
 
-  --gh-line: #d6e0ec;
-  --gh-line-strong: #b6c6d8;
+  --gh-line: #e2e4ec;
+  --gh-line-strong: #c3c8d4;
 
-  --gh-ink: #162338;
-  --gh-ink-soft: #52657d;
-  --gh-ink-muted: #74859b;
+  --gh-ink: #1a2236;
+  --gh-ink-soft: #525e74;
+  --gh-ink-muted: #7a859a;
 
-  --gh-accent: #0f5cc0;
-  --gh-accent-2: #0b79c9;
-  --gh-accent-soft: #e6f0ff;
+  /* Brand magenta — owns the left-rail active mark, Quick action
+     button, primary buttons in the preview sidecar, and the thin
+     progress rail above panels. */
+  --gh-accent: #e11d74;
+  --gh-accent-2: #b81560;
+  --gh-accent-soft: #fce6ef;
+
+  /* Secondary indigo — used only for subtle checkbox accents,
+     focus rings, and filter-section activation. Kept muted so the
+     primary magenta stays the brand mark. */
+  --gh-indigo: #5b3ff2;
+  --gh-indigo-soft: #ecebff;
 
   --gh-good: #1f8b67;
   --gh-warn: #b67b1f;

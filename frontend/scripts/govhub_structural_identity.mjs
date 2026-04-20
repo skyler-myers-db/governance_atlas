@@ -164,13 +164,17 @@ const traits = [
 
   // ─────── ACTIVE FACET CHIP ROW (items 9–11) ───────
   {
-    id: "chips.tables-views-columns-banonns",
-    name: "Chip row: Tables / Views / Columns / Banonns chips all visible",
+    id: "chips.tables-views",
+    name: "Chip row: Tables / Views chips visible (Banonns + Columns placeholders removed 2026-04-19)",
     check: async (page) => {
       const row = page.locator(".gh-primary-facet-row");
       if (!(await row.count())) return false;
       const text = await row.innerText();
-      return /Tables/.test(text) && /Views/.test(text) && /Columns/.test(text) && /Banonns/i.test(text);
+      // "Banonns" was a GenAI artifact in the mockup. "Columns" was carried
+      // over from the mockup but operator 2026-04-19 flagged it as a
+      // placeholder with no real backing in the catalog. Only the real
+      // asset-type facets (Tables, Views) ship.
+      return /Tables/.test(text) && /Views/.test(text) && !/Columns/.test(text) && !/Banonns/i.test(text);
     },
   },
   {

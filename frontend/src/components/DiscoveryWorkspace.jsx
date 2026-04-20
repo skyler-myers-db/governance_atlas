@@ -54,6 +54,29 @@ const DISCOVERY_QUERY_MATCH_OPTIONS = [
 const DISCOVERY_RECORD_UNAVAILABLE_REASON =
   "Visible in discovery, but the record cannot be opened with current permissions.";
 
+/**
+ * Collapse long SDK error envelopes into a user-facing summary. Specifically,
+ * the Databricks workspace OBO flow emits a 403 with "Invalid scope, required
+ * scopes: sql" when a signed-in user's token pre-dates the sql scope grant.
+ * The SDK wraps that as a raw HTML parse error, which we surface verbatim to
+ * stewards today — a confusing wall of text. Return a terse, actionable
+ * summary when we recognize that shape; otherwise pass through.
+ */
+function summarizeDiscoveryError(rawError) {
+  const text = String(rawError || "").trim();
+  if (!text) return "";
+  if (/required scopes:\s*sql/i.test(text) || /Invalid scope,\s*required scopes/i.test(text)) {
+    return (
+      "Your session is missing the Databricks sql scope needed to read " +
+      "Unity Catalog metadata. Sign out and back in so the app can pick up " +
+      "the updated workspace scopes, then retry. Discovery has already " +
+      "auto-retried on the app principal; if you still see this banner, " +
+      "your operator may need to re-approve the app in Databricks."
+    );
+  }
+  return text;
+}
+
 function discoveryQueryFields(supportedFields = []) {
   const allowed = new Set(
     (supportedFields || [])
@@ -362,9 +385,8 @@ function ownerLabel(owner) {
   return owner.name || owner.email || owner.title || "";
 }
 
-// Render an owner label (email or name) as "First Last" so it reads like a
-// human avatar target label (Target uses "Namer Avatar" / "Anner Avatar"
-// formatting, which is basically local-part titlecased + a trailing descriptor).
+// Render an owner label (email or name) as "First Last" by titlecasing the
+// local-part of an email and splitting on separators.
 function prettyOwnerName(label = "") {
   const raw = String(label || "").trim();
   if (!raw) return "";
@@ -788,6 +810,24 @@ function DiscoveryResultCard({
   const recordUnavailable = recordOpenable === false;
   const gaps = needsWorkMessages(asset);
   const updatedLabel = relativeTime(asset.updatedAt || asset.lastModified);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (!menuRef.current?.contains(event.target)) setMenuOpen(false);
+    };
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   const handleRowClick = (event) => {
     if (event.target.closest(".gh-row-action") || event.target.closest("input[type='checkbox']")) return;
@@ -818,31 +858,54 @@ function DiscoveryResultCard({
     : [];
   const visibleTags = tagLabels.slice(0, 3);
   const extraTagCount = Math.max(0, tagLabels.length - visibleTags.length);
-  // Workflow state — default PUBLISHED unless the asset explicitly carries a
-  // non-published governance signal. Target mockup reads every card as
-  // PUBLISHED; we only divergent when the underlying metadata says otherwise
-  // (e.g. certification == Deprecated or governanceStatus == "In Review").
-  const rawWorkflowState = asset.governanceStatus || "";
+  // Workflow state — render only what the asset's governance metadata
+  // actually says. We previously defaulted every card to "PUBLISHED" so the
+  // silhouette matched the mockup; that meant every uncurated asset read as
+  // production-ready, which is false and materially misleading for stewards.
+  const rawWorkflowState = String(asset.governanceStatus || "").trim();
   const workflowLabel = /deprecated|retired|obsolete/i.test(rawWorkflowState)
     ? "OBSOLETE"
     : /review|pending|draft/i.test(rawWorkflowState)
       ? "IN REVIEW"
-      : "PUBLISHED"; // optimistic default to match target mockup
+      : /publish|certif|approved|live/i.test(rawWorkflowState)
+        ? "PUBLISHED"
+        : "";
   const workflowVariant = workflowLabel === "PUBLISHED"
     ? "published"
     : workflowLabel === "OBSOLETE"
       ? "obsolete"
-      : "in-review";
-  // Coverage / trust score — target shows "High Trust 92%" on every card. We
-  // honor the backend value when it's high, otherwise we fall back to 92%
-  // so the chip silhouette matches the mockup and the asset doesn't read as
-  // broken just because the governance backfill hasn't landed yet.
-  const rawCoverage = Math.round(Number(asset.coverageScore || 0));
-  const coverageScore = rawCoverage >= 50 ? rawCoverage : 92;
-  const coverageTone = coverageScore >= 75 ? "is-high" : coverageScore >= 50 ? "is-mid" : "is-low";
-  const coverageTier = coverageScore >= 75 ? "High Trust" : coverageScore >= 50 ? "Mid Trust" : "Low Trust";
-  const coverageLabel = `${coverageTier} ${coverageScore}%`;
-  const viewCount = Number(asset.viewCount || asset.usage?.views || 0);
+      : workflowLabel === "IN REVIEW"
+        ? "in-review"
+        : "unknown";
+  // Coverage / trust score — honor the backend value honestly. No more 92%
+  // fallback; if the governance backfill hasn't landed, the chip simply
+  // doesn't render so the card doesn't claim a trust level that isn't real.
+  const rawCoverage = Number.isFinite(Number(asset.coverageScore)) ? Math.round(Number(asset.coverageScore)) : null;
+  const coverageScore = rawCoverage !== null && rawCoverage > 0 ? rawCoverage : null;
+  const coverageTone = coverageScore === null
+    ? ""
+    : coverageScore >= 75
+      ? "is-high"
+      : coverageScore >= 50
+        ? "is-mid"
+        : "is-low";
+  const coverageTier = coverageScore === null
+    ? ""
+    : coverageScore >= 75
+      ? "High Trust"
+      : coverageScore >= 50
+        ? "Mid Trust"
+        : "Low Trust";
+  const coverageLabel = coverageScore === null ? "" : `${coverageTier} ${coverageScore}%`;
+  // Usage metrics from the asset service — queryCount = SQL + notebook runs,
+  // producerCount = upstream jobs/pipelines, consumerCount = downstream
+  // readers. Operator 2026-04-19 asked for jobs/pipelines-style language
+  // instead of the stub "views" field from the mockup. Notebook usage is
+  // preserved because it's meaningful for tables governed by notebook
+  // workflows.
+  const queryCount = Number(asset.usage?.queryCount ?? asset.queryCount ?? 0);
+  const producerCount = Number(asset.usage?.producerCount ?? asset.producerCount ?? 0);
+  const consumerCount = Number(asset.usage?.consumerCount ?? asset.consumerCount ?? 0);
   const notebookUsage = Number(asset.notebookUsage || asset.usage?.notebooks || 0);
   const description = String(asset.description || "").trim();
 
@@ -858,19 +921,23 @@ function DiscoveryResultCard({
           handleRowClick(event);
         }
       }}
-      onMouseEnter={() => onHoverPreview?.(asset.fqn)}
-      onMouseLeave={() => onHoverEnd?.()}
+      /* Previously mouse-enter synthetically "selected" the hovered asset
+          which swapped the preview sidecar every time the cursor drifted
+          across the grid — users experienced it as asset selection on
+          hover, which is both distracting and a data-weight concern for
+          the preview-detail network call. Selection is now click-only. */
       role="button"
       tabIndex={0}
     >
       <header className="gh-discovery-asset-card-head">
         <div className="gh-discovery-asset-card-kind">
           <AssetTypeIcon asset={asset} size="sm" />
-          {/* Target uses the generic "Table/View" label in the card header
-              regardless of the specific metastore-native type. The
-              AssetTypeIcon still reflects the real type so advanced users
-              can still read the glyph. */}
-          <span>Table/View</span>
+          {/* Real metastore-native type from Unity Catalog — one of
+              Delta Table / View / Materialized View / Streaming Table /
+              Metric View / External Table. Falls back to "Asset" when the
+              type is truly unknown, so we never ship the mockup's
+              placeholder "Table/View" label. */}
+          <span>{displayObjectType(asset) || "Asset"}</span>
         </div>
         <div className="gh-discovery-asset-card-head-actions">
           <input
@@ -891,16 +958,58 @@ function DiscoveryResultCard({
           >
             {isFavorite ? "★" : "☆"}
           </button>
-          <button
-            aria-label="Open Governance"
-            className="gh-discovery-asset-card-more gh-row-action"
-            disabled={recordUnavailable}
-            onClick={stop(() => onOpenGovernance(asset.fqn))}
-            title={recordUnavailable ? recordUnavailableReason : "Open governance"}
-            type="button"
-          >
-            ⋮
-          </button>
+          <div className="gh-discovery-asset-card-more-wrap">
+            <button
+              aria-expanded={menuOpen}
+              aria-haspopup="menu"
+              aria-label="Open asset actions"
+              className="gh-discovery-asset-card-more gh-row-action"
+              onClick={stop(() => setMenuOpen((current) => !current))}
+              title="Asset actions"
+              type="button"
+            >
+              ⋮
+            </button>
+            {menuOpen ? (
+              <div className="gh-discovery-asset-card-menu" role="menu" ref={menuRef}>
+                <button
+                  className="gh-discovery-asset-card-menu-item"
+                  disabled={recordUnavailable}
+                  onClick={stop(() => { setMenuOpen(false); onOpenAsset(asset.fqn); })}
+                  role="menuitem"
+                  type="button"
+                >
+                  View details
+                </button>
+                <button
+                  className="gh-discovery-asset-card-menu-item"
+                  disabled={recordUnavailable}
+                  onClick={stop(() => { setMenuOpen(false); onOpenGovernance(asset.fqn); })}
+                  role="menuitem"
+                  type="button"
+                >
+                  Open governance
+                </button>
+                <button
+                  className="gh-discovery-asset-card-menu-item"
+                  disabled={!lineageAvailable}
+                  onClick={stop(() => { setMenuOpen(false); onOpenLineage(asset.fqn, "Data Lineage"); })}
+                  role="menuitem"
+                  type="button"
+                >
+                  Open lineage
+                </button>
+                <button
+                  className="gh-discovery-asset-card-menu-item"
+                  onClick={stop(() => { setMenuOpen(false); onToggleFavorite?.(asset.fqn); })}
+                  role="menuitem"
+                  type="button"
+                >
+                  {isFavorite ? "Remove from favorites" : "Add to favorites"}
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -920,45 +1029,38 @@ function DiscoveryResultCard({
         >
           {asset.domain && asset.domain !== "Unassigned"
             ? `${String(asset.domain).toUpperCase()} DATA`
-            : "UNCATEGORIZED DATA"}
+            : "UNCATEGORIZED"}
         </span>
         {primaryOwner ? (
           <span className="gh-discovery-asset-owner-chip" title={ownerLabels.join(", ")}>
-            <OwnerAvatar owner={primaryOwner} size={22} />
-            <span className="gh-discovery-asset-owner-name">{prettyOwnerName(primaryOwner)}</span>
             {ownerCount > 1 ? (
-              <span className="gh-discovery-asset-owner-extra">+{ownerCount - 1}</span>
-            ) : null}
+              <OwnerAvatarStack
+                owners={ownerLabels.slice(0, 3).map((label) => ({ name: prettyOwnerName(label), email: label }))}
+                size={22}
+                maxVisible={3}
+              />
+            ) : (
+              <OwnerAvatar owner={primaryOwner} size={22} />
+            )}
+            {ownerCount === 1 ? (
+              <span className="gh-discovery-asset-owner-name">{prettyOwnerName(primaryOwner)}</span>
+            ) : (
+              <span className="gh-discovery-asset-owner-name">{`${ownerCount} owners`}</span>
+            )}
           </span>
         ) : (
-          <span className="gh-discovery-asset-owner-chip" title="Suggested steward — no owner assigned">
-            <OwnerAvatar owner={asset.fqn || asset.name || "namer"} size={22} />
-            <span className="gh-discovery-asset-owner-name">Namer Avatar</span>
+          <span
+            className="gh-discovery-asset-owner-chip is-unassigned"
+            title="No owner assigned in Unity Catalog"
+          >
+            <span className="gh-discovery-asset-owner-unassigned">No owner</span>
           </span>
         )}
       </div>
 
       <div className="gh-discovery-asset-card-chips">
-        {(() => {
-          // Always render a 3-tag row to match target silhouette. Pull from real
-          // tags first (up to 2), then top up with sentinel tags derived from
-          // the asset's sensitivity + type. Sentinel chips are advisory-only.
-          const real = visibleTags.slice(0, 2);
-          const sensitivitySentinel = (asset.sensitivities || [])[0] ||
-            (asset.dataSensitivity || "") ||
-            "PII";
-          const transactionLike = /transact|payment|invoice|order|ledger/i.test(
-            `${asset.name || ""} ${asset.description || ""}`,
-          )
-            ? "Transaction"
-            : null;
-          const kindSentinel = transactionLike || "Transaction";
-          const criticalSentinel = "Critical";
-          const composed = [...real];
-          if (composed.length < 3) composed.push(sensitivitySentinel);
-          if (composed.length < 3) composed.push(kindSentinel);
-          if (composed.length < 3) composed.push(criticalSentinel);
-          return composed.slice(0, 3).map((tag, i) => (
+        {visibleTags.length ? (
+          visibleTags.map((tag, i) => (
             <span
               className="gh-discovery-asset-tag"
               data-tag={String(tag).toLowerCase()}
@@ -966,34 +1068,67 @@ function DiscoveryResultCard({
             >
               {tag}
             </span>
-          ));
-        })()}
+          ))
+        ) : (
+          <span className="gh-discovery-asset-tag is-untagged" title="No governance tags assigned">
+            Untagged
+          </span>
+        )}
+        {extraTagCount > 0 ? (
+          <span className="gh-discovery-asset-tag is-extra" title={tagLabels.join(", ")}>
+            +{extraTagCount}
+          </span>
+        ) : null}
         <span className="gh-discovery-asset-chip-spacer" aria-hidden="true" />
-        <span
-          className={`gh-discovery-asset-status gh-discovery-asset-status-${workflowVariant}`}
-          title={`Workflow state: ${workflowLabel}`}
-        >
-          {workflowLabel}
-        </span>
+        {workflowLabel ? (
+          <span
+            className={`gh-discovery-asset-status gh-discovery-asset-status-${workflowVariant}`}
+            title={`Workflow state: ${workflowLabel}`}
+          >
+            {workflowLabel}
+          </span>
+        ) : null}
       </div>
 
       <div className="gh-discovery-asset-card-usage">
-        <span className="gh-discovery-asset-usage-item" title="Views">
-          <span aria-hidden="true" className="gh-discovery-asset-usage-icon">⊙</span>
-          {viewCount > 0 ? `${viewCount} views` : "views"}
-        </span>
-        <span className="gh-discovery-asset-usage-dot" aria-hidden="true">·</span>
-        <span className="gh-discovery-asset-usage-item" title="Notebook usage">
-          <span aria-hidden="true" className="gh-discovery-asset-usage-icon">▤</span>
-          {`${Math.max(notebookUsage, 2)} notebook usage`}
-        </span>
+        {queryCount > 0 ? (
+          <span className="gh-discovery-asset-usage-item" title={`${queryCount.toLocaleString()} queries in the last 30 days (SQL + notebook runs)`}>
+            <span aria-hidden="true" className="gh-discovery-asset-usage-icon">▦</span>
+            {queryCount.toLocaleString()} queries
+          </span>
+        ) : null}
+        {producerCount > 0 ? (
+          <span className="gh-discovery-asset-usage-item" title={`${producerCount.toLocaleString()} upstream jobs/pipelines`}>
+            <span aria-hidden="true" className="gh-discovery-asset-usage-icon">⚙</span>
+            {producerCount.toLocaleString()} {producerCount === 1 ? "job" : "jobs"}
+          </span>
+        ) : null}
+        {consumerCount > 0 ? (
+          <span className="gh-discovery-asset-usage-item" title={`${consumerCount.toLocaleString()} downstream readers`}>
+            <span aria-hidden="true" className="gh-discovery-asset-usage-icon">↓</span>
+            {consumerCount.toLocaleString()} {consumerCount === 1 ? "consumer" : "consumers"}
+          </span>
+        ) : null}
+        {notebookUsage > 0 ? (
+          <span className="gh-discovery-asset-usage-item" title={`${notebookUsage.toLocaleString()} notebook references`}>
+            <span aria-hidden="true" className="gh-discovery-asset-usage-icon">▤</span>
+            {notebookUsage.toLocaleString()} {notebookUsage === 1 ? "notebook" : "notebooks"}
+          </span>
+        ) : null}
+        {queryCount === 0 && producerCount === 0 && consumerCount === 0 && notebookUsage === 0 ? (
+          <span className="gh-discovery-asset-usage-item is-muted" title="No recorded usage in the last 30 days">
+            No recent usage
+          </span>
+        ) : null}
         <span className="gh-discovery-asset-chip-spacer" aria-hidden="true" />
-        <span
-          className={`gh-discovery-asset-trust ${coverageTone}`}
-          title={`Metadata coverage: ${coverageScore}%`}
-        >
-          {coverageLabel}
-        </span>
+        {coverageLabel ? (
+          <span
+            className={`gh-discovery-asset-trust ${coverageTone}`}
+            title={`Metadata coverage: ${coverageScore}%`}
+          >
+            {coverageLabel}
+          </span>
+        ) : null}
       </div>
 
       <p className="gh-discovery-asset-card-description">
@@ -1106,66 +1241,38 @@ function PrimaryFacetChips({
   onOpenFilters,
   showFiltersBadge = 0,
   obsoleteCount = 0,
-  columnsCount = 0,
-  banonnsCount = 0,
 }) {
-  // Curated primary facets that mirror the target mockup: a row of
-  // asset-type-shaped pills with counts, always visible above the results.
-  // The target shows Tables / Views / Columns / Banonns (bannons = banned
-  // owner list, per the OM copy convention) / Obsolete.
+  // Primary-facet chips. The mockup's "Banonns" / "Columns" chips were
+  // GenAI placeholders with no real backing in our catalog, so they are
+  // not rendered (operator called them out as confusing on 2026-04-19).
+  // Tables and Views map directly to asset-type filters; Obsolete maps
+  // to the Deprecated certification. Each chip shows a clear "×" when
+  // applied so it doesn't read as a static label.
   const primary = [
     { key: "Delta Table", label: "Tables" },
     { key: "View", label: "Views" },
   ];
-  const typed = primary
+  const entries = primary
     .map((entry) => ({
       ...entry,
       count: Number(assetTypeCounts[entry.key] || 0),
       kind: "type",
     }))
     .filter((entry) => entry.count > 0);
-  // Columns is a facet distinct from asset types (catalog columns as
-  // discoverable metadata entities). Banonns is the target's explicit
-  // banned-owner-list count. When the backend doesn't publish these
-  // facets we still surface the chip shape using sensible defaults so
-  // the row has the same silhouette as the mockup.
-  const entries = [
-    ...typed,
-    { key: "columns", label: "Columns", count: Math.max(columnsCount, 0), kind: "meta" },
-    { key: "banonns", label: "Banonns", count: Math.max(banonnsCount, 0), kind: "meta" },
-  ].filter((entry) => entry.count > 0 || entry.kind === "meta");
   const typeFilters = Array.isArray(filters.types) ? filters.types : [];
 
   return (
     <div className="gh-primary-facet-row" role="group" aria-label="Quick asset-type filters">
       {entries.map((entry) => {
-        const active =
-          entry.kind === "type"
-            ? typeFilters.includes(entry.key)
-            : entry.key === "columns"
-              ? (filters.types || []).includes("Column")
-              : false;
+        const active = typeFilters.includes(entry.key);
         const handleToggle = () => {
-          if (entry.kind === "type") {
-            onDiscoveryStateChange((current) => {
-              const currentTypes = Array.isArray(current.types) ? current.types : [];
-              const nextTypes = currentTypes.includes(entry.key)
-                ? currentTypes.filter((t) => t !== entry.key)
-                : [...currentTypes, entry.key];
-              return { ...current, types: nextTypes };
-            });
-          } else if (entry.key === "columns") {
-            onDiscoveryStateChange((current) => {
-              const currentTypes = Array.isArray(current.types) ? current.types : [];
-              const nextTypes = currentTypes.includes("Column")
-                ? currentTypes.filter((t) => t !== "Column")
-                : [...currentTypes, "Column"];
-              return { ...current, types: nextTypes };
-            });
-          }
-          // Banonns is advisory — it opens the advanced filters popover since
-          // the underlying banned-owner-list lives behind stewardship rules.
-          if (entry.key === "banonns") onOpenFilters?.();
+          onDiscoveryStateChange((current) => {
+            const currentTypes = Array.isArray(current.types) ? current.types : [];
+            const nextTypes = currentTypes.includes(entry.key)
+              ? currentTypes.filter((t) => t !== entry.key)
+              : [...currentTypes, entry.key];
+            return { ...current, types: nextTypes };
+          });
         };
         return (
           <button
@@ -1173,6 +1280,7 @@ function PrimaryFacetChips({
             className={`gh-primary-facet-chip ${active ? "is-active" : ""}`.trim()}
             key={entry.key}
             onClick={handleToggle}
+            title={active ? `Remove ${entry.label} filter` : `Filter to ${entry.label}`}
             type="button"
           >
             <span className="gh-primary-facet-chip-label">{entry.label}</span>
@@ -1185,21 +1293,24 @@ function PrimaryFacetChips({
           </button>
         );
       })}
-      {obsoleteCount > 0 ? (
+      {obsoleteCount > 0 && (filters.certifications || []).includes("Deprecated") ? (
         <button
-          className="gh-primary-facet-chip is-ghost"
+          aria-pressed="true"
+          className="gh-primary-facet-chip is-active"
           onClick={() =>
             onDiscoveryStateChange((current) => ({
               ...current,
-              certifications: ["Deprecated"],
+              certifications: (current.certifications || []).filter((c) => c !== "Deprecated"),
             }))
           }
+          title="Remove Obsolete filter"
           type="button"
         >
           <span className="gh-primary-facet-chip-label">Obsolete</span>
           <span className="gh-primary-facet-chip-count">
             ({Number(obsoleteCount).toLocaleString()})
           </span>
+          <span className="gh-primary-facet-chip-x" aria-hidden="true">×</span>
         </button>
       ) : null}
       <div className="gh-primary-facet-spacer" />
@@ -1438,6 +1549,16 @@ function SelectionPreview({
   recordUnavailableReason = "",
 }) {
   const [lineageWarm, setLineageWarm] = useState(false);
+  // Navigating to the full record is an async boundary (new route + a
+  // second bootstrap). Without a signal, "View Details" read as broken
+  // clicks. We flip a loading flag the moment the user clicks, so the
+  // button shows a spinner until the route change lands.
+  const [navigating, setNavigating] = useState(false);
+  useEffect(() => {
+    // Reset when the selected asset changes so switching cards clears
+    // any stale spinner.
+    setNavigating(false);
+  }, [asset?.fqn]);
   const lineage = useLineage(
     asset?.fqn || "",
     Boolean(asset?.fqn) && lineageWarm && lineageAvailable && previewAvailable,
@@ -1540,36 +1661,13 @@ function SelectionPreview({
     </>
   );
 
-  if (!previewAvailable) {
-    return (
-      <SurfaceRail
-        className="gh-selection-preview"
-        data-asset-fqn={asset.fqn}
-        eyebrow="Selected Asset"
-        identity={assetPathLabel(asset, true)}
-        title={asset.name}
-        titleMeta={
-          asset.governanceStatus ? (
-            <span className={`gh-status-chip tone-${statusTone(asset)}`}>
-              {asset.governanceStatus}
-            </span>
-          ) : null
-        }
-        actions={previewActions}
-      >
-        {recordUnavailable ? (
-          <div className="gh-support-copy gh-selection-preview-record-state">
-            {recordUnavailableReason}
-          </div>
-        ) : null}
-        <WorkspaceStateCard
-          eyebrow="Preview unavailable"
-          message={previewUnavailableReason}
-          title="Live preview rows and schema are unavailable for this workspace."
-        />
-      </SurfaceRail>
-    );
-  }
+  // When `previewAvailable` is false (workspace didn't grant preview/row
+  // scopes) we USED to blow the right rail away and show a giant
+  // "Preview unavailable" card. That threw away the metadata we already
+  // had from the discovery list. Now we render the normal mockup-shaped
+  // preview using only list data and surface the unavailability as a
+  // compact banner, so stewards still get the Asset-name / Domain /
+  // Glossary / Schema / Lineage / Usage / Tasks structure.
 
   const shortDescription = String(asset.description || "").trim();
   const glossaryLabels = Array.isArray(asset.glossaryTerms)
@@ -1577,7 +1675,6 @@ function SelectionPreview({
     : [];
   const schemaChipColumns = (asset.columns || []).slice(0, 6);
   const totalColumnCount = asset.columns?.length || 0;
-  const viewCount = Number(asset.viewCount || asset.usage?.views || 0);
   const notebookUsage = Number(
     asset.usage?.notebooks
       ?? asset.usage?.notebookUsage
@@ -1593,15 +1690,41 @@ function SelectionPreview({
 
   const domainLabel =
     asset.domain && asset.domain !== "Unassigned" ? String(asset.domain).toUpperCase() : "UNCATEGORIZED";
-  const glossaryChipLabel = glossaryLabels[0] || "Critical";
-  // Schema overview chips: show catalog.schema scope tokens (target parity),
-  // not individual column names. The full column list is still reachable via
-  // View Details → Schema tab.
-  const catalogLabel = asset.catalog || "production_catalog";
-  const schemaLabel = asset.schema || "schema";
-  const totalColumnSize = asset.columns?.length || 45;
+  // Honest glossary-term slot: null-pill when none is assigned, rather
+  // than defaulting to "Critical" (which read as real curation).
+  const glossaryChipLabel = glossaryLabels[0] || null;
+  const catalogLabel = asset.catalog || "";
+  const schemaLabel = asset.schema || "";
+  const totalColumnCountReal =
+    Number.isFinite(Number(asset.columnCount))
+      ? Number(asset.columnCount)
+      : Array.isArray(asset.columns)
+        ? asset.columns.length
+        : null;
+  // Real first-N columns for the Schema overview preview. Each chip shows
+  // column name + data type so the steward can eyeball the shape without
+  // opening the full record. Limit to 5 so the rail stays dense.
+  const previewColumns = Array.isArray(asset.columns)
+    ? asset.columns.slice(0, 5).map((col) => ({
+        name: String(col?.name || "").trim(),
+        type: String(col?.type || col?.dataType || "").trim(),
+      })).filter((c) => c.name)
+    : [];
+  const extraColumnCount = totalColumnCountReal && previewColumns.length
+    ? Math.max(0, totalColumnCountReal - previewColumns.length)
+    : 0;
+  // Real usage counts from the backend's `operational` section.
+  const producerCount = Number.isFinite(Number(asset.usage?.producerCount))
+    ? Number(asset.usage.producerCount)
+    : 0;
+  const consumerCount = Number.isFinite(Number(asset.usage?.consumerCount))
+    ? Number(asset.usage.consumerCount)
+    : 0;
+  const queryCount = Number.isFinite(Number(asset.usage?.queryCount))
+    ? Number(asset.usage.queryCount)
+    : 0;
   const targetDescriptionLine =
-    "Description from: Databricks Unity Catalog, tables, views, and metrics.";
+    "No description has been captured for this asset yet.";
 
   return (
     <SurfaceRail
@@ -1613,7 +1736,19 @@ function SelectionPreview({
       actions={previewActions}
     >
       {detailError ? <InlineStatusBanner message={detailError} title="Preview degraded" /> : null}
-      {detailLoading ? <div className="gh-support-copy">Refreshing live header and schema metadata...</div> : null}
+      {/* Previously we showed a plain-text "Refreshing live header and schema
+          metadata…" while the detail API was hydrating. That line rendered
+          ABOVE the "Asset preview" eyebrow and shifted the whole preview
+          layout down, which the 2026-04-19 parity review flagged as a
+          mockup divergence. The asset header and schema sections already
+          render their own loading affordances; the standalone banner is
+          redundant. Kept only the error banner (load failure) here. */}
+      {!previewAvailable && previewUnavailableReason ? (
+        <div className="gh-selection-preview-inline-notice" role="status">
+          <span className="gh-selection-preview-inline-notice-label">Live rows unavailable</span>
+          <span className="gh-selection-preview-inline-notice-body">{previewUnavailableReason}</span>
+        </div>
+      ) : null}
       {recordUnavailable ? (
         <div className="gh-support-copy gh-selection-preview-record-state">
           {recordUnavailableReason}
@@ -1621,14 +1756,10 @@ function SelectionPreview({
       ) : null}
 
       <div className="gh-asset-preview">
-        {/* 1 — Header row: asset icon square + asset name + X close */}
-        <div className="gh-asset-preview-header">
-          <div className="gh-asset-preview-header-icon">
-            <AssetTypeIcon asset={asset} size="md" />
-          </div>
-          <h3 className="gh-asset-preview-header-name gh-truncate" title={asset.name}>
-            {asset.name}
-          </h3>
+        {/* 0 — Eyebrow + close: matches the mockup's "Asset preview" label
+            that sits above the asset title. Close button anchors right. */}
+        <div className="gh-asset-preview-eyebrow-row">
+          <span className="gh-asset-preview-eyebrow">Asset preview</span>
           {onClearSelection ? (
             <button
               aria-label="Close preview"
@@ -1642,6 +1773,16 @@ function SelectionPreview({
           ) : null}
         </div>
 
+        {/* 1 — Header row: asset icon square + asset name */}
+        <div className="gh-asset-preview-header">
+          <div className="gh-asset-preview-header-icon">
+            <AssetTypeIcon asset={asset} size="md" />
+          </div>
+          <h3 className="gh-asset-preview-header-name gh-truncate" title={asset.name}>
+            {asset.name}
+          </h3>
+        </div>
+
         {/* 2 — Description block */}
         <div className="gh-asset-preview-description">
           {shortDescription || targetDescriptionLine}
@@ -1650,13 +1791,23 @@ function SelectionPreview({
         {/* 3 — 2×2 action grid (always 4 buttons, dimmed when unavailable) */}
         <div className="gh-asset-preview-action-grid">
           <button
-            className="gh-primary-button"
-            disabled={recordUnavailable}
-            onClick={() => onOpenAsset(asset.fqn, "Overview")}
+            className={`gh-primary-button ${navigating ? "is-loading" : ""}`.trim()}
+            disabled={recordUnavailable || navigating}
+            onClick={() => {
+              setNavigating(true);
+              onOpenAsset(asset.fqn, "Overview");
+            }}
             title={recordUnavailable ? recordUnavailableReason : "Open the asset metadata record"}
             type="button"
           >
-            View Details
+            {navigating ? (
+              <>
+                <span aria-hidden="true" className="gh-button-spinner" />
+                <span>Opening…</span>
+              </>
+            ) : (
+              "View Details"
+            )}
           </button>
           <button
             className="gh-secondary-button"
@@ -1674,18 +1825,37 @@ function SelectionPreview({
             title={!lineageAvailable ? lineageUnavailableReason : "Add this asset to the lineage graph"}
             type="button"
           >
-            <span aria-hidden="true" className="gh-asset-preview-action-glyph">★</span>
+            {/* Lineage glyph — two small nodes connected by an arrow.
+                The prior build reused the favorite star here, which the
+                operator flagged on 2026-04-19 as a misleading icon (a
+                star implies favoriting, not graph placement). */}
+            <svg
+              aria-hidden="true"
+              className="gh-asset-preview-action-glyph"
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="6" cy="6" r="2.2" />
+              <circle cx="18" cy="18" r="2.2" />
+              <path d="M7.5 7.5 16.5 16.5" />
+            </svg>
             Add to Lineage
           </button>
           <button
             aria-pressed={isFavorite}
             className={`gh-secondary-button ${isFavorite ? "is-favorite" : ""}`}
             onClick={() => onToggleFavorite?.(asset.fqn)}
-            title="Favorite this asset"
+            title={isFavorite ? "Remove from favorites" : "Mark this asset as a favorite"}
             type="button"
           >
             <span aria-hidden="true" className="gh-asset-preview-action-glyph">★</span>
-            {isFavorite ? "Favorited" : "Mark as Favorite"}
+            {isFavorite ? "Favorited" : "Favorite"}
           </button>
         </div>
 
@@ -1700,35 +1870,95 @@ function SelectionPreview({
             <div className="gh-asset-preview-metadata-row">
               <dt>Domain type</dt>
               <dd>
-                <span className="gh-labeled-pill gh-labeled-pill-domain">{domainLabel}</span>
+                <span
+                  className="gh-labeled-pill gh-labeled-pill-domain"
+                  data-domain-fallback={domainLabel === "UNCATEGORIZED" ? "true" : "false"}
+                >
+                  {domainLabel}
+                </span>
               </dd>
             </div>
             <div className="gh-asset-preview-metadata-row">
               <dt>Glossary term</dt>
               <dd>
-                <span className="gh-labeled-pill gh-labeled-pill-glossary">{glossaryChipLabel}</span>
+                {glossaryChipLabel ? (
+                  <span className="gh-labeled-pill gh-labeled-pill-glossary">{glossaryChipLabel}</span>
+                ) : (
+                  <span className="gh-asset-preview-metadata-empty">—</span>
+                )}
               </dd>
             </div>
             <div className="gh-asset-preview-metadata-row">
               <dt>Description</dt>
               <dd className="gh-asset-preview-metadata-description">
-                {shortDescription || "production data"}
+                {shortDescription || targetDescriptionLine}
               </dd>
             </div>
           </dl>
         </section>
 
-        {/* 5 — Schema overview: catalog / schema scope chips */}
+        {/* 5 — Schema overview: real column preview pulled from the asset
+            detail (first 5 columns with data type), plus a total-column
+            count and a link into the Schema tab of the record. If the
+            workspace doesn't return columns yet (OBO not granted), we
+            still show the catalog.schema scope so stewards can see where
+            the asset lives. */}
         <section className="gh-asset-preview-section">
-          <div className="gh-panel-title">Schema overview</div>
-          <div className="gh-asset-preview-schema-chips">
-            <span className="gh-chip gh-chip-soft" title={`Catalog ${catalogLabel}`}>
-              {catalogLabel}
-            </span>
-            <span className="gh-chip gh-chip-soft" title={`Schema ${schemaLabel}`}>
-              {schemaLabel}_({Number(totalColumnSize || 45).toLocaleString()})
-            </span>
+          <div className="gh-panel-title-row">
+            <span className="gh-panel-title">Schema overview</span>
+            {totalColumnCountReal !== null ? (
+              <span className="gh-asset-preview-section-count">
+                {`${totalColumnCountReal.toLocaleString()} column${totalColumnCountReal === 1 ? "" : "s"}`}
+              </span>
+            ) : null}
           </div>
+          {previewColumns.length ? (
+            <ul className="gh-asset-preview-columns">
+              {previewColumns.map((col) => (
+                <li className="gh-asset-preview-column" key={col.name}>
+                  <span className="gh-asset-preview-column-name gh-truncate" title={col.name}>
+                    {col.name}
+                  </span>
+                  {col.type ? (
+                    <span className="gh-asset-preview-column-type" title={col.type}>
+                      {col.type}
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+              {extraColumnCount > 0 ? (
+                <li className="gh-asset-preview-column is-more">
+                  <button
+                    className="gh-tertiary-button"
+                    disabled={recordUnavailable || navigating}
+                    onClick={() => {
+                      setNavigating(true);
+                      onOpenAsset(asset.fqn, "Schema");
+                    }}
+                    type="button"
+                  >
+                    {`+${extraColumnCount.toLocaleString()} more — open Schema`}
+                  </button>
+                </li>
+              ) : null}
+            </ul>
+          ) : (
+            <div className="gh-asset-preview-schema-chips">
+              {catalogLabel ? (
+                <span className="gh-chip gh-chip-soft" title={`Catalog ${catalogLabel}`}>
+                  {catalogLabel}
+                </span>
+              ) : null}
+              {schemaLabel ? (
+                <span className="gh-chip gh-chip-soft" title={`Schema ${schemaLabel}`}>
+                  {schemaLabel}
+                </span>
+              ) : null}
+              <span className="gh-asset-preview-schema-empty">
+                Columns will load once workspace-scoped access is granted.
+              </span>
+            </div>
+          )}
         </section>
 
         {/* 6 — Simplified lineage preview: icon → icon visual */}
@@ -1763,21 +1993,39 @@ function SelectionPreview({
           )}
         </section>
 
-        {/* 7 — Usage metrics: two cells, primary stat + secondary caption */}
+        {/* 7 — Usage metrics: real lineage-derived counts (producers,
+            consumers, queries) from the backend's operational section.
+            "Producers" = upstream entities that write to this asset.
+            "Consumers" = downstream entities that read from it. The
+            query count aggregates notebook / job / SQL-warehouse calls
+            that transit the asset. Fallback caption appears when lineage
+            hasn't resolved yet — never fake numbers. */}
         <section className="gh-asset-preview-section">
-          <div className="gh-panel-title">Usage metrics</div>
+          <div className="gh-panel-title-row">
+            <span className="gh-panel-title">Usage metrics</span>
+            <span className="gh-asset-preview-section-caption">Last 30 days · lineage</span>
+          </div>
           <div className="gh-asset-preview-usage-grid">
             <div className="gh-asset-preview-usage-cell">
-              <div className="gh-asset-preview-usage-label">Views</div>
-              <div className="gh-asset-preview-usage-subcell">
-                {`${Number(viewCount || 2).toLocaleString()} notebook usage`}
+              <div className="gh-asset-preview-usage-stat">
+                {producerCount.toLocaleString()}
               </div>
+              <div className="gh-asset-preview-usage-label">Producers</div>
+              <div className="gh-asset-preview-usage-caption">Upstream writers</div>
             </div>
             <div className="gh-asset-preview-usage-cell">
-              <div className="gh-asset-preview-usage-label">Notebook usage</div>
-              <div className="gh-asset-preview-usage-subcell">
-                {`${Number(notebookUsage || 1).toLocaleString()} winrvs`}
+              <div className="gh-asset-preview-usage-stat">
+                {consumerCount.toLocaleString()}
               </div>
+              <div className="gh-asset-preview-usage-label">Consumers</div>
+              <div className="gh-asset-preview-usage-caption">Downstream readers</div>
+            </div>
+            <div className="gh-asset-preview-usage-cell">
+              <div className="gh-asset-preview-usage-stat">
+                {queryCount.toLocaleString()}
+              </div>
+              <div className="gh-asset-preview-usage-label">Queries</div>
+              <div className="gh-asset-preview-usage-caption">Notebook & SQL runs</div>
             </div>
           </div>
         </section>
@@ -2096,10 +2344,38 @@ export default function DiscoveryWorkspace({
   // which (catalog, schema) leaf is currently selected for client-side
   // filtering. Selecting the same leaf again clears the pick.
   const [expandedCatalogs, setExpandedCatalogs] = useState(() => new Set());
-  const [selectedSchema, setSelectedSchema] = useState(null);
+  // Multi-select set of `catalog.schema` keys. Previously this was a single
+  // `{catalog, schema}` pick which meant stewards could only scope to one
+  // schema at a time — a stark usability regression versus real governance
+  // tooling. Using a Set keeps the URL cheap and the set semantics obvious.
+  const [selectedSchemas, setSelectedSchemas] = useState(() => new Set());
   const [ownerFilterText, setOwnerFilterText] = useState("");
   const [glossaryFilterText, setGlossaryFilterText] = useState("");
-  const [discoverySubView, setDiscoverySubView] = useState("discovery"); // "discovery" | "navigation"
+  // Discovery/Navigation sub-tab — matches the mockup's two-tab strip above
+  // the filter rail. "discovery" = default card grid; "navigation" = catalog
+  // tree focus mode (hides the card grid and expands the catalog tree for
+  // breadth-first browsing). Persisted in URL via ?view= so deep links work.
+  const [discoverySubTab, setDiscoverySubTab] = useState(() => {
+    if (typeof window === "undefined") return "discovery";
+    const params = new URLSearchParams(window.location.search || "");
+    const raw = String(params.get("view") || "").trim().toLowerCase();
+    return raw === "navigation" ? "navigation" : "discovery";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const url = new URL(window.location.href);
+      if (discoverySubTab === "navigation") {
+        url.searchParams.set("view", "navigation");
+      } else {
+        url.searchParams.delete("view");
+      }
+      window.history.replaceState(null, "", url.pathname + (url.search ? url.search : "") + url.hash);
+    } catch {
+      /* ignore — ?view= is purely an affordance, not load-bearing */
+    }
+  }, [discoverySubTab]);
+  const [openCardMenuFqn, setOpenCardMenuFqn] = useState("");
   const toggleCatalogExpanded = (catalog) => {
     setExpandedCatalogs((current) => {
       const next = new Set(current);
@@ -2107,12 +2383,27 @@ export default function DiscoveryWorkspace({
       return next;
     });
   };
-  const pickSchema = (catalog, schema) => {
-    setSelectedSchema((current) => {
-      if (current?.catalog === catalog && current?.schema === schema) return null;
-      return { catalog, schema };
+  const schemaKey = (catalog, schema) => `${catalog || "unknown"}.${schema || "unknown"}`;
+  const toggleSchema = (catalog, schema) => {
+    setSelectedSchemas((current) => {
+      const next = new Set(current);
+      const key = schemaKey(catalog, schema);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
     });
   };
+  const isSchemaSelected = (catalog, schema) => selectedSchemas.has(schemaKey(catalog, schema));
+  const hasSchemaSelection = selectedSchemas.size > 0;
+  // Back-compat shim: code below still references `selectedSchema` (the
+  // single-value shape) for the schema-filter notice and preview scoping.
+  // Preserve the first-entry shape so callers don't need to rewrite, while
+  // the user can still select additional schemas via toggleSchema.
+  const selectedSchema = useMemo(() => {
+    if (!selectedSchemas.size) return null;
+    const [first] = selectedSchemas;
+    const [catalog, schema] = String(first).split(".");
+    return { catalog, schema };
+  }, [selectedSchemas]);
   const toggleFavorite = (fqn) => {
     setFavorites((current) => {
       const next = new Set(current);
@@ -2253,8 +2544,12 @@ export default function DiscoveryWorkspace({
     }
     return map;
   }, [allDiscoveryAssets]);
-  // Build the catalog/schema tree from the full visible inventory so
-  // the left rail is stable regardless of which schema is picked.
+  // Build the catalog/schema tree. Schema-level counts are computed from
+  // the visible inventory (there is no schema facet over the whole
+  // catalog from the backend), but CATALOG totals prefer the backend
+  // `facets.catalogs` count when available — the previous client-side
+  // tally reported e.g. "prod (2)" because only the fetched batch was
+  // counted, which read as catastrophically wrong.
   const catalogSchemaTree = useMemo(() => {
     const counts = new Map();
     for (const entry of allDiscoveryAssets) {
@@ -2264,27 +2559,44 @@ export default function DiscoveryWorkspace({
       const schemaMap = counts.get(catalog);
       schemaMap.set(schema, (schemaMap.get(schema) || 0) + 1);
     }
+    const backendCatalogFacets = Array.isArray(discoveryResults.facets?.catalogs)
+      ? discoveryResults.facets.catalogs
+      : [];
+    const backendCounts = new Map();
+    for (const entry of backendCatalogFacets) {
+      if (entry?.value != null) backendCounts.set(String(entry.value), Number(entry.count || 0));
+    }
+    // Ensure catalogs that only appear in backend facets (but no assets
+    // yet in the visible batch) still show up in the tree.
+    for (const [catalog] of backendCounts.entries()) {
+      if (!counts.has(catalog)) counts.set(catalog, new Map());
+    }
     return [...counts.entries()]
-      .map(([catalog, schemaMap]) => ({
-        catalog,
-        count: [...schemaMap.values()].reduce((a, b) => a + b, 0),
-        schemas: [...schemaMap.entries()]
-          .map(([schema, count]) => ({ schema, count }))
-          .sort((a, b) => a.schema.localeCompare(b.schema)),
-      }))
+      .map(([catalog, schemaMap]) => {
+        const clientTotal = [...schemaMap.values()].reduce((a, b) => a + b, 0);
+        const backendTotal = backendCounts.get(catalog);
+        return {
+          catalog,
+          count: typeof backendTotal === "number" && backendTotal > 0 ? backendTotal : clientTotal,
+          schemas: [...schemaMap.entries()]
+            .map(([schema, count]) => ({ schema, count }))
+            .sort((a, b) => a.schema.localeCompare(b.schema)),
+        };
+      })
       .sort((a, b) => a.catalog.localeCompare(b.catalog));
-  }, [allDiscoveryAssets]);
+  }, [allDiscoveryAssets, discoveryResults.facets]);
   // Apply the (catalog,schema) pick + owner/glossary free-text filters as
   // client-side scopes on the result list without round-tripping through
   // the discovery search contract.
   const renderableDiscoveryAssets = useMemo(() => {
     let list = allDiscoveryAssets;
-    if (selectedSchema) {
-      const { catalog, schema } = selectedSchema;
-      list = list.filter((entry) => entry?.catalog === catalog && entry?.schema === schema);
+    if (selectedSchemas.size) {
+      list = list.filter((entry) => selectedSchemas.has(schemaKey(entry?.catalog, entry?.schema)));
     }
     const ownerNeedle = ownerFilterText.trim().toLowerCase();
-    if (ownerNeedle) {
+    if (ownerNeedle === "__unassigned__") {
+      list = list.filter((entry) => !(Array.isArray(entry?.owners) && entry.owners.length));
+    } else if (ownerNeedle) {
       list = list.filter((entry) => {
         const owners = Array.isArray(entry?.owners) ? entry.owners : [];
         return owners.some((owner) => {
@@ -2311,7 +2623,7 @@ export default function DiscoveryWorkspace({
       });
     }
     return list;
-  }, [allDiscoveryAssets, selectedSchema, ownerFilterText, glossaryFilterText]);
+  }, [allDiscoveryAssets, selectedSchemas, ownerFilterText, glossaryFilterText]);
   const explicitRoutePreviewIndex = useMemo(
     () =>
       routePreviewAssetFqn
@@ -2390,7 +2702,10 @@ export default function DiscoveryWorkspace({
     enabled: Boolean(selectedSeedAsset?.fqn) && previewSurfaceAvailable,
   });
   const previewSchemaDetail = useAssetDetail(selectedSeedAsset?.fqn || "", {
-    sections: ["header", "schema"],
+    // Include the `operational` section too so the sidecar can render
+    // REAL usage counts (producer / consumer / query counts from lineage)
+    // and a REAL column schema preview, instead of placeholder zeros.
+    sections: ["header", "schema", "operational"],
     enabled: Boolean(selectedSeedAsset?.fqn) && previewSchemaWarm && previewSurfaceAvailable,
   });
   const previewAsset = isUsableAssetDetail(previewSchemaDetail.detail)
@@ -2794,83 +3109,165 @@ export default function DiscoveryWorkspace({
 
   return (
     <section className="gh-workspace gh-discovery-shell">
-      <section className="gh-discovery-main gh-discovery-main-grid">
+      {/* Discovery / Navigation sub-tab strip. Operator 2026-04-19
+          requested the Quick action button sit here (right side of the
+          tab row) instead of in the global header, so it's the module-
+          specific primary action rather than a global chrome element.
+          The palette is opened via a window-level custom event so we
+          don't need to plumb a setter through App.jsx → AppFrame →
+          children; AppFrame installs the listener. */}
+      <div className="gh-discovery-subtabs" role="tablist" aria-label="Discovery view">
+        <button
+          aria-selected={discoverySubTab === "discovery"}
+          className={`gh-discovery-subtab ${discoverySubTab === "discovery" ? "is-active" : ""}`.trim()}
+          onClick={() => setDiscoverySubTab("discovery")}
+          role="tab"
+          type="button"
+        >
+          Discovery
+        </button>
+        <button
+          aria-selected={discoverySubTab === "navigation"}
+          className={`gh-discovery-subtab ${discoverySubTab === "navigation" ? "is-active" : ""}`.trim()}
+          onClick={() => setDiscoverySubTab("navigation")}
+          role="tab"
+          type="button"
+        >
+          Navigation
+        </button>
+        <div className="gh-discovery-subtabs-spacer" aria-hidden="true" />
+        <button
+          aria-label="Quick action (⌘K)"
+          className="gh-discovery-subtabs-quick-action"
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("gh:open-command-palette"));
+            }
+          }}
+          title="Quick action (⌘K)"
+          type="button"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </svg>
+          <span>Quick action</span>
+        </button>
+      </div>
+      <section
+        className="gh-discovery-main gh-discovery-main-grid"
+        data-sub-tab={discoverySubTab}
+      >
         <aside className="gh-discovery-sidebar gh-surface-rail gh-filters-rail" aria-label="Filters">
           <header className="gh-filters-rail-head">
             <h2 className="gh-filters-rail-title">Filters</h2>
           </header>
 
-          {/* 1. Catalog (top) */}
+          {/* 1. Catalog (top). Catalogs collapse/expand via a dedicated
+              chevron so the checkbox is purely a filter toggle, not an
+              expand toggle (previously the two were conflated, which
+              meant un-checking a catalog also closed its schemas and
+              hid whatever the user was scoped into). Schemas cap at 5
+              per catalog with a "Show more" escape hatch so a catalog
+              with 50 schemas doesn't stampede the sidebar. */}
           <SidebarSection title="Catalog">
             {catalogSchemaTree.length ? (
               <div className="gh-catalog-tree" role="tree" aria-label="Catalog navigation">
-                {catalogSchemaTree.slice(0, 6).map((entry, index) => {
+                {catalogSchemaTree.map((entry, index) => {
+                  const catalogHasSchemaPick = [...selectedSchemas].some((key) =>
+                    String(key).startsWith(`${entry.catalog}.`),
+                  );
                   const catalogActive =
                     (filters.catalogs || []).includes(entry.catalog) ||
-                    selectedSchema?.catalog === entry.catalog;
+                    catalogHasSchemaPick;
+                  const manuallyExpanded = expandedCatalogs.has(entry.catalog);
                   const expanded =
-                    expandedCatalogs.has(entry.catalog) ||
+                    manuallyExpanded ||
                     catalogActive ||
-                    index === 0; /* auto-expand first catalog */
+                    (index === 0 && !expandedCatalogs.size); /* auto-expand first by default */
+                  const hasSchemas = entry.schemas.length > 0;
+                  const visibleSchemas = expanded ? entry.schemas : [];
                   return (
                     <div className="gh-catalog-tree-entry" key={entry.catalog}>
-                      <label
-                        className={`gh-catalog-tree-row gh-catalog-tree-catalog-row ${catalogActive ? "is-active" : ""}`.trim()}
-                      >
+                      <div className={`gh-catalog-tree-row gh-catalog-tree-catalog-row ${catalogActive ? "is-active" : ""}`.trim()}>
+                        <button
+                          aria-label={expanded ? `Collapse ${entry.catalog}` : `Expand ${entry.catalog}`}
+                          aria-expanded={expanded}
+                          className={`gh-catalog-tree-chevron ${expanded ? "is-open" : ""}`.trim()}
+                          disabled={!hasSchemas}
+                          onClick={() => toggleCatalogExpanded(entry.catalog)}
+                          type="button"
+                        >
+                          <svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="5 4 10 8 5 12" />
+                          </svg>
+                        </button>
                         <input
                           aria-label={`Filter to catalog ${entry.catalog}`}
                           checked={catalogActive}
                           className="gh-catalog-tree-checkbox"
-                          onChange={() => {
-                            toggleCatalogExpanded(entry.catalog);
+                          onChange={() =>
                             toggleMulti(
                               filters,
                               "catalogs",
                               entry.catalog,
                               null,
                               onDiscoveryStateChange,
-                            );
-                          }}
+                            )
+                          }
                           type="checkbox"
                         />
-                        <span className="gh-catalog-tree-label">{entry.catalog}</span>
+                        <span className="gh-catalog-tree-label gh-truncate" title={entry.catalog}>{entry.catalog}</span>
                         <span className="gh-catalog-tree-count">({entry.count.toLocaleString()})</span>
-                      </label>
-                      {expanded ? (
+                      </div>
+                      {expanded && hasSchemas ? (
                         <div className="gh-catalog-tree-schemas">
-                          {entry.schemas.slice(0, 8).map((schemaEntry) => {
-                            const active =
-                              selectedSchema?.catalog === entry.catalog &&
-                              selectedSchema?.schema === schemaEntry.schema;
+                          {(manuallyExpanded ? visibleSchemas : visibleSchemas.slice(0, 5)).map((schemaEntry) => {
+                            const active = isSchemaSelected(entry.catalog, schemaEntry.schema);
                             return (
-                              <button
-                                aria-pressed={active}
+                              <label
                                 className={`gh-catalog-tree-row gh-catalog-tree-schema-row ${active ? "is-active" : ""}`.trim()}
                                 key={schemaEntry.schema}
-                                onClick={() => pickSchema(entry.catalog, schemaEntry.schema)}
-                                type="button"
                                 title={`Filter to ${entry.catalog}.${schemaEntry.schema}`}
                               >
                                 <span className="gh-catalog-tree-schema-indent" aria-hidden="true" />
-                                <span className="gh-catalog-tree-label">{schemaEntry.schema}</span>
+                                <input
+                                  aria-label={`Filter to schema ${entry.catalog}.${schemaEntry.schema}`}
+                                  checked={active}
+                                  className="gh-catalog-tree-checkbox"
+                                  onChange={() => toggleSchema(entry.catalog, schemaEntry.schema)}
+                                  type="checkbox"
+                                />
+                                <span className="gh-catalog-tree-label gh-truncate" title={schemaEntry.schema}>
+                                  {schemaEntry.schema}
+                                </span>
                                 <span className="gh-catalog-tree-count">
                                   ({schemaEntry.count.toLocaleString()})
                                 </span>
-                              </button>
+                              </label>
                             );
                           })}
+                          {!manuallyExpanded && visibleSchemas.length > 5 ? (
+                            <button
+                              className="gh-tertiary-button gh-catalog-tree-show-more"
+                              onClick={() => toggleCatalogExpanded(entry.catalog)}
+                              type="button"
+                            >
+                              Show all {visibleSchemas.length} schemas
+                            </button>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>
                   );
                 })}
-                {selectedSchema ? (
+                {hasSchemaSelection ? (
                   <button
                     className="gh-tertiary-button gh-catalog-tree-clear"
-                    onClick={() => setSelectedSchema(null)}
+                    onClick={() => setSelectedSchemas(new Set())}
                     type="button"
                   >
-                    Clear schema filter
+                    Clear schema filter{selectedSchemas.size > 1 ? "s" : ""}
                   </button>
                 ) : null}
               </div>
@@ -2916,15 +3313,36 @@ export default function DiscoveryWorkspace({
             )}
           </SidebarSection>
 
-          {/* 3. Domain (checkboxes) */}
+          {/* 3. Domain (checkboxes) — "All domains" is always the top row
+              so stewards never start in a state that reads as nothing-selected.
+              The row is checked by default (when filters.domains is empty)
+              and unchecks as soon as a specific domain is picked. We strip
+              any "All domains" string the backend may have synthesized as a
+              facet so the row doesn't appear twice. */}
           {(() => {
-            const domainOptions = facetValues(resultsFacets, "domains", [], filters.domains || []);
-            if (!domainOptions.length) return null;
+            const rawDomainOptions = facetValues(resultsFacets, "domains", [], filters.domains || []);
+            const domainOptions = rawDomainOptions.filter((option) => !/^all\s+domains$/i.test(String(option || "")));
+            const activeDomains = filters.domains || [];
+            const allSelected = activeDomains.length === 0;
+            const totalCount = Number(discoveryResults.count || allDiscoveryAssets.length);
             return (
               <SidebarSection title="Domain">
                 <div className="gh-checkbox-list">
+                  <label className={`gh-checkbox-row ${allSelected ? "is-active" : ""}`.trim()}>
+                    <input
+                      aria-label="Show assets from all domains"
+                      checked={allSelected}
+                      className="gh-checkbox"
+                      onChange={() =>
+                        onDiscoveryStateChange((current) => ({ ...current, domains: [] }))
+                      }
+                      type="checkbox"
+                    />
+                    <span className="gh-checkbox-label">All domains</span>
+                    <span className="gh-checkbox-count">({Number(totalCount || 0).toLocaleString()})</span>
+                  </label>
                   {domainOptions.slice(0, 8).map((option) => {
-                    const active = (filters.domains || []).includes(option);
+                    const active = activeDomains.includes(option);
                     const count = facetCount(resultsFacets, "domains", option);
                     return (
                       <label
@@ -2950,22 +3368,87 @@ export default function DiscoveryWorkspace({
             );
           })()}
 
-          {/* 4. Owner (single User/Team checkbox — target parity) */}
+          {/* 4. Owner (real owners from visible inventory + "All owners") */}
           <SidebarSection title="Owner">
-            <div className="gh-checkbox-list">
-              <label
-                className={`gh-checkbox-row ${ownerFilterText ? "is-active" : ""}`.trim()}
-              >
-                <input
-                  aria-label="Filter by user/team"
-                  checked={Boolean(ownerFilterText)}
-                  className="gh-checkbox"
-                  onChange={() => setOwnerFilterText(ownerFilterText ? "" : "@")}
-                  type="checkbox"
-                />
-                <span className="gh-checkbox-label">User/Team</span>
-              </label>
-            </div>
+            {(() => {
+              // Distinct owner list from the live inventory. Previously this
+              // section rendered a single "User/Team" checkbox as a mockup
+              // stand-in, which gave stewards no way to actually filter by a
+              // real owner. Now we tally owners out of the visible assets
+              // and surface the top N as real filter checkboxes with counts.
+              const ownerCounts = new Map();
+              for (const entry of allDiscoveryAssets) {
+                const owners = Array.isArray(entry?.owners) ? entry.owners : [];
+                if (!owners.length) {
+                  ownerCounts.set("__unassigned__", (ownerCounts.get("__unassigned__") || 0) + 1);
+                  continue;
+                }
+                for (const owner of owners) {
+                  const label = typeof owner === "string"
+                    ? owner
+                    : owner?.email || owner?.name || owner?.label || "";
+                  if (!label) continue;
+                  ownerCounts.set(label, (ownerCounts.get(label) || 0) + 1);
+                }
+              }
+              const ownerEntries = [...ownerCounts.entries()]
+                .filter(([key]) => key !== "__unassigned__")
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 8);
+              const unassignedCount = ownerCounts.get("__unassigned__") || 0;
+              const allSelected = !ownerFilterText;
+              return (
+                <div className="gh-checkbox-list">
+                  <label className={`gh-checkbox-row ${allSelected ? "is-active" : ""}`.trim()}>
+                    <input
+                      aria-label="Show assets from all owners"
+                      checked={allSelected}
+                      className="gh-checkbox"
+                      onChange={() => setOwnerFilterText("")}
+                      type="checkbox"
+                    />
+                    <span className="gh-checkbox-label">All owners</span>
+                    <span className="gh-checkbox-count">({allDiscoveryAssets.length.toLocaleString()})</span>
+                  </label>
+                  {ownerEntries.map(([label, count]) => {
+                    const active = ownerFilterText === label;
+                    return (
+                      <label
+                        className={`gh-checkbox-row ${active ? "is-active" : ""}`.trim()}
+                        key={label}
+                      >
+                        <input
+                          aria-label={`Filter by owner ${label}`}
+                          checked={active}
+                          className="gh-checkbox"
+                          onChange={() => setOwnerFilterText(active ? "" : label)}
+                          type="checkbox"
+                        />
+                        <span className="gh-checkbox-label gh-truncate" title={label}>{prettyOwnerName(label)}</span>
+                        <span className="gh-checkbox-count">({Number(count).toLocaleString()})</span>
+                      </label>
+                    );
+                  })}
+                  {unassignedCount > 0 ? (
+                    <label
+                      className={`gh-checkbox-row ${ownerFilterText === "__unassigned__" ? "is-active" : ""}`.trim()}
+                    >
+                      <input
+                        aria-label="Show assets with no owner"
+                        checked={ownerFilterText === "__unassigned__"}
+                        className="gh-checkbox"
+                        onChange={() =>
+                          setOwnerFilterText(ownerFilterText === "__unassigned__" ? "" : "__unassigned__")
+                        }
+                        type="checkbox"
+                      />
+                      <span className="gh-checkbox-label">Unassigned</span>
+                      <span className="gh-checkbox-count">({unassignedCount.toLocaleString()})</span>
+                    </label>
+                  ) : null}
+                </div>
+              );
+            })()}
           </SidebarSection>
 
           {/* 5. Sensitivity (chip row) */}
@@ -3068,29 +3551,11 @@ export default function DiscoveryWorkspace({
 
         <section className="gh-results-column">
           <DiscoveryBreadcrumb
-            onClear={() => setSelectedSchema(null)}
+            onClear={() => setSelectedSchemas(new Set())}
             schemaFilter={selectedSchema}
           />
           <PrimaryFacetChips
             assetTypeCounts={liveAssetTypeCounts}
-            banonnsCount={
-              // Banned-owner-list facet count. If the backend publishes
-              // `facets.banonns` (future), use it; otherwise infer a small
-              // non-zero shape from unowned asset count so the chip reads
-              // like the target (e.g. "Banonns (4)").
-              facetCount(resultsFacets, "banonns", "all") ||
-              Math.min(
-                4,
-                allDiscoveryAssets.filter((a) => !(a?.owners?.length)).length,
-              )
-            }
-            columnsCount={
-              // Columns facet comes from facets.columns when published;
-              // otherwise fall back to a small default so the chip is present.
-              facetCount(resultsFacets, "columns", "all") ||
-              facetCount(resultsFacets, "assetTypes", "Column") ||
-              1
-            }
             filters={filters}
             obsoleteCount={facetCount(resultsFacets, "certifications", "Deprecated")}
             onDiscoveryStateChange={onDiscoveryStateChange}
@@ -3099,38 +3564,19 @@ export default function DiscoveryWorkspace({
           />
           <ActiveFilterStrip
             filters={filters}
-            onClearSchemaFilter={() => setSelectedSchema(null)}
+            onClearSchemaFilter={() => setSelectedSchemas(new Set())}
             onDiscoveryStateChange={onDiscoveryStateChange}
             schemaFilter={selectedSchema}
           />
           <div className="gh-panel gh-discovery-command-panel" ref={filterCommandRef}>
-            <div className="gh-discovery-subtabs-row" role="tablist" aria-label="Discovery view">
-              <div className="gh-sub-tab-row">
-                <button
-                  aria-selected={discoverySubView === "discovery"}
-                  className={`gh-sub-tab ${discoverySubView === "discovery" ? "is-active" : ""}`}
-                  onClick={() => setDiscoverySubView("discovery")}
-                  role="tab"
-                  type="button"
-                >
-                  Discovery
-                </button>
-                <button
-                  aria-selected={discoverySubView === "navigation"}
-                  className={`gh-sub-tab ${discoverySubView === "navigation" ? "is-active" : ""}`}
-                  onClick={() => setDiscoverySubView("navigation")}
-                  role="tab"
-                  type="button"
-                >
-                  Navigation
-                </button>
-              </div>
-            </div>
+            {/* Discovery / Navigation sub-tab row deliberately removed —
+                the mockup has no such toggle; instead the Discovery page
+                shows just the page title + result count + sort. The
+                "Navigation" grid view is still reachable via ?view=navigation
+                for deep links, but it doesn't pollute the main header. */}
             <div className="gh-discovery-command-head-v2">
               <div className="gh-discovery-command-heading">
-                <h2 className="gh-discovery-command-title">
-                  {discoverySubView === "navigation" ? "Navigation" : "Discovery"}
-                </h2>
+                <h2 className="gh-discovery-command-title">Discovery</h2>
                 <div className="gh-discovery-command-subline">
                   {showLiveFacetCounts ? (
                     <>
@@ -3155,14 +3601,19 @@ export default function DiscoveryWorkspace({
                     onChange={(event) =>
                       onDiscoveryStateChange((current) => ({ ...current, sortBy: event.target.value }))
                     }
-                    value={filters.sortBy}
+                    value={filters.sortBy || "Relevance"}
                   >
                     {(() => {
                       const opts = Array.isArray(bootstrap.discovery.sortOptions)
                         ? bootstrap.discovery.sortOptions
                         : [];
-                      const hasRelevance = opts.some((o) => /relevance/i.test(o));
-                      const merged = hasRelevance ? opts : ["Relevance", ...opts];
+                      // "Best match" is a synonym for Relevance; collapse the
+                      // two so the dropdown doesn't ship both (users found
+                      // that confusing). "Relevance" is the default sort
+                      // when the user has no explicit pick.
+                      const filtered = opts.filter((o) => !/best\s*match/i.test(String(o)));
+                      const hasRelevance = filtered.some((o) => /relevance/i.test(String(o)));
+                      const merged = hasRelevance ? filtered : ["Relevance", ...filtered];
                       return merged.map((option) => (
                         <option key={option} value={option}>
                           {option}
@@ -3235,7 +3686,10 @@ export default function DiscoveryWorkspace({
           ) : null}
 
           {resultsError && !hasRenderableResults ? (
-            <InlineStatusBanner message={resultsError} title="Discovery search degraded" />
+            <InlineStatusBanner
+              message={summarizeDiscoveryError(resultsError)}
+              title="Discovery search degraded"
+            />
           ) : null}
 
           {invalidQuery ? (
@@ -3265,46 +3719,6 @@ export default function DiscoveryWorkspace({
               title={invalidQuery.message || "Invalid discovery query."}
               tone="bad"
             />
-          ) : discoverySubView === "navigation" ? (
-            <div className="gh-navigation-grid" role="region" aria-label="Catalog navigation">
-              {catalogSchemaTree.length ? (
-                catalogSchemaTree.map((entry) => (
-                  <div className="gh-navigation-catalog" key={entry.catalog}>
-                    <div className="gh-navigation-catalog-head">
-                      <span className="gh-navigation-catalog-name">{entry.catalog}</span>
-                      <span className="gh-navigation-catalog-count">{entry.count} assets</span>
-                    </div>
-                    <div className="gh-navigation-schema-grid">
-                      {entry.schemas.map((schemaEntry) => {
-                        const active =
-                          selectedSchema?.catalog === entry.catalog &&
-                          selectedSchema?.schema === schemaEntry.schema;
-                        return (
-                          <button
-                            aria-pressed={active}
-                            className={`gh-navigation-schema-card ${active ? "is-active" : ""}`.trim()}
-                            key={schemaEntry.schema}
-                            onClick={() => {
-                              pickSchema(entry.catalog, schemaEntry.schema);
-                              setDiscoverySubView("discovery");
-                            }}
-                            title={`Open ${entry.catalog}.${schemaEntry.schema} in Discovery`}
-                            type="button"
-                          >
-                            <span className="gh-navigation-schema-name">{schemaEntry.schema}</span>
-                            <span className="gh-navigation-schema-count">{schemaEntry.count}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="gh-support-copy">
-                  Navigation will populate once the catalog is live.
-                </div>
-              )}
-            </div>
           ) : hasRenderableResults ? (
             <div className={`gh-result-list gh-discovery-card-list density-${density} gh-discovery-table`}>
               <DiscoveryActivityHome
@@ -3419,7 +3833,7 @@ export default function DiscoveryWorkspace({
                 bootstrap.bootMessage ||
                 "The search surface is reachable, but live discovery could not return results."
               }
-              title={resultsError}
+              title={summarizeDiscoveryError(resultsError)}
               tone="bad"
             />
           ) : (

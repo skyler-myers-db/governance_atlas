@@ -17,6 +17,7 @@ const EntityWorkspace = lazy(() => import("./components/EntityWorkspace"));
 const LineageWorkspace = lazy(() => import("./components/LineageWorkspace"));
 const AuditBrowserWorkspace = lazy(() => import("./components/AuditBrowserWorkspace"));
 const TaxonomyWorkspace = lazy(() => import("./components/TaxonomyWorkspace"));
+const HelpPage = lazy(() => import("./components/HelpPage"));
 
 function visibleAssetSetFromGroups(...groups) {
   const visible = new Set();
@@ -382,6 +383,7 @@ export default function App() {
       governance: "Opening governance…",
       audit: "Opening audit browser…",
       taxonomy: "Opening taxonomy…",
+      help: "Opening help…",
     };
     handleNavigationStateChange(true, labels[nextModule] || "Opening workspace…");
     onModuleChange(nextModule);
@@ -442,11 +444,10 @@ export default function App() {
     }
   }, [diagnosticsAvailable]);
 
-  useEffect(() => {
-    if (!governanceInbox) {
-      setShellInboxOpen(false);
-    }
-  }, [governanceInbox]);
+  // Previously we force-closed the inbox whenever the governance payload
+  // was absent, which meant clicking the bell on first paint (before the
+  // summary arrived) felt like a dead button. The InboxPanel already has
+  // a graceful empty state — let it render.
 
   const bootstrapAssets = useMemo(() => data?.assets || [], [data?.assets]);
   const bootstrapRefreshFailed = Boolean(refreshError);
@@ -484,10 +485,12 @@ export default function App() {
   );
 
   const handleToggleInbox = useCallback(() => {
-    if (!governanceInbox || governanceInbox.state === "unavailable") return;
+    // Always toggle — the InboxPanel renders a proper empty/degraded
+    // state when governanceInbox is missing or unavailable. Operator
+    // 2026-04-19 flagged the old early-return as a silent no-op.
     setShellDiagnosticsOpen(false);
     setShellInboxOpen((current) => !current);
-  }, [governanceInbox]);
+  }, []);
 
   const handleToggleDiagnostics = useCallback(() => {
     setShellInboxOpen(false);
@@ -682,6 +685,19 @@ export default function App() {
           <TaxonomyWorkspace />
         </Suspense>
       );
+    } else if (surface === "help") {
+      content = (
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading help",
+            "Preparing the in-app help and documentation page.",
+          )}
+        >
+          <HelpPage
+            onBack={() => openDiscoveryWorkspace("", { fresh: false })}
+          />
+        </Suspense>
+      );
     } else {
       content = governanceSummaryLoading ? (
         workspaceLoading(
@@ -718,7 +734,7 @@ export default function App() {
       activeModule={
         surface === "entity"
           ? "discovery"
-          : ["discovery", "lineage", "governance", "audit", "taxonomy"].includes(surface)
+          : ["discovery", "lineage", "governance", "audit", "taxonomy", "help"].includes(surface)
             ? surface
             : ""
       }

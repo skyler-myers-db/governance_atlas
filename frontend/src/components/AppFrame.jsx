@@ -39,6 +39,7 @@ export default function AppFrame({
   const [searchNotice, setSearchNotice] = useState("");
   const [shellHeaderHeight, setShellHeaderHeight] = useState(0);
   const [commandOpen, setCommandOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [theme, setTheme] = useState(() => {
     if (typeof window === "undefined") return "light";
     try {
@@ -73,7 +74,14 @@ export default function AppFrame({
       }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Let inner surfaces (e.g. the Discovery sub-tab Quick action button)
+    // open the palette without prop drilling through the children tree.
+    const onOpenPalette = () => setCommandOpen(true);
+    window.addEventListener("gh:open-command-palette", onOpenPalette);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("gh:open-command-palette", onOpenPalette);
+    };
   }, []);
   const hasRenderableLiveCatalog =
     (typeof liveCatalogVisibleCount === "number" && liveCatalogVisibleCount > 0) ||
@@ -101,8 +109,11 @@ export default function AppFrame({
   const inboxUnreadCount = Number.isFinite(Number(governanceInbox?.unreadCount))
     ? Math.max(0, Math.trunc(Number(governanceInbox.unreadCount)))
     : 0;
+  // Show the inbox chrome as soon as we know who the signed-in user is,
+  // and let the panel open even when the governance summary hasn't
+  // arrived yet — InboxPanel renders a proper empty/degraded state.
+  // Operator 2026-04-19 flagged the old "click does nothing" behavior.
   const showInbox = Boolean(
-    governanceInbox &&
     shell?.userEmail &&
     String(shell.userEmail).trim().toLowerCase() !== "unknown",
   );
@@ -144,6 +155,20 @@ export default function AppFrame({
   };
   const openDiscoveryModule = () => {
     onModuleChange?.("discovery");
+  };
+
+  const handleSignOut = () => {
+    if (typeof window === "undefined") return;
+    const proceed = typeof window.confirm === "function"
+      ? window.confirm(
+          "Sign out?\n\nGovernance Hub uses your Databricks workspace login. Continuing opens the Databricks sign-out page in a new tab.",
+        )
+      : true;
+    if (!proceed) return;
+    const { protocol, hostname } = window.location;
+    const workspaceHost = hostname.replace(/^[^.]+\./, "").replace(/databricksapps\.com$/, "databricks.net");
+    const signOutUrl = `${protocol}//${workspaceHost}/login.html?action=logOut`;
+    window.open(signOutUrl, "_blank", "noopener,noreferrer");
   };
 
   useEffect(() => {
@@ -265,6 +290,7 @@ export default function AppFrame({
         activeModule={activeModule}
         onModuleChange={onModuleChange}
         onOpenSettings={onToggleDiagnostics}
+        onSignOut={handleSignOut}
         shellDisabled={shellDisabled}
         shellDisabledReason={shellDisabledReason}
       />
@@ -289,6 +315,11 @@ export default function AppFrame({
           inboxOpen={inboxOpen}
           inboxUnreadCount={inboxUnreadCount}
           onToggleInbox={onToggleInbox}
+          alertsOpen={alertsOpen}
+          alertsUnreadCount={0}
+          onToggleAlerts={() => setAlertsOpen((current) => !current)}
+          onOpenSettings={onToggleDiagnostics}
+          onSignOut={handleSignOut}
           onOpenCommandPalette={() => setCommandOpen(true)}
           topbarSearchSlot={(
             <TopbarSearch
@@ -325,6 +356,29 @@ export default function AppFrame({
 
       {showInboxPanel ? (
         <InboxPanel governanceInbox={governanceInbox} onInboxItemAction={onInboxItemAction} />
+      ) : null}
+
+      {alertsOpen ? (
+        <div className="gh-alerts-panel" role="dialog" aria-label="Alerts">
+          <div className="gh-alerts-panel-head">
+            <span className="gh-alerts-panel-title">Alerts</span>
+            <button
+              aria-label="Close alerts"
+              className="gh-alerts-panel-close"
+              onClick={() => setAlertsOpen(false)}
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+          <div className="gh-alerts-panel-body">
+            <p className="gh-support-copy">
+              No governance alerts in the last 24 hours. Steward follow-ups,
+              broken lineage edges, and quality breaches will appear here
+              when they fire.
+            </p>
+          </div>
+        </div>
       ) : null}
 
       <main className="gh-main">{children}</main>

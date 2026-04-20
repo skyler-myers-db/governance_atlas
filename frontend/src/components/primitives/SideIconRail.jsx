@@ -37,15 +37,23 @@ const RAIL_ICONS = {
       <path d="M21 12H10" />
     </svg>
   ),
+  help: (
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.8-2.5 2.2-2.5 4" />
+      <circle cx="12" cy="17" r="0.6" fill="currentColor" />
+    </svg>
+  ),
 };
 
-// Target rail: Home / Search (active) / Clock / People / Cog / Logout.
-// Keys match the existing module keys where meaningful so the rail stays
-// a functional navigator; "home" and "search" both route to discovery,
-// "clock" → audit, "people" → governance, "cog" → settings (opens
-// diagnostics drawer), "logout" → best-effort sign-out stub.
+// Target rail: Home / Discovery / Clock / People / Cog / Logout.
+// "home" and "search/discovery" live on DIFFERENT module keys so only the
+// surface the user actually chose lights up — previously both shared the
+// `discovery` key and lit simultaneously, which read as a broken rail.
+// "home" routes to a neutral Discovery open (no preserved filters) so it
+// acts as a true "back to start" affordance until we ship a dedicated home.
 const RAIL_ENTRIES = [
-  { key: "home", label: "Home", tooltip: "Home", moduleKey: "discovery", icon: "home" },
+  { key: "home", label: "Home", tooltip: "Home", moduleKey: "home", icon: "home" },
   { key: "search", label: "Discovery", tooltip: "Discovery", moduleKey: "discovery", icon: "search" },
   { key: "audit", label: "Activity", tooltip: "Recent activity", moduleKey: "audit", icon: "clock" },
   { key: "governance", label: "Team", tooltip: "Team & governance", moduleKey: "governance", icon: "people" },
@@ -55,6 +63,7 @@ const RAIL_ENTRIES = [
 
 const FOOTER_ENTRIES = [
   { key: "settings", label: "Settings", tooltip: "Settings & diagnostics", icon: "cog" },
+  { key: "help", label: "Help", tooltip: "Help & docs", icon: "help" },
   { key: "logout", label: "Sign out", tooltip: "Sign out", icon: "logout" },
 ];
 
@@ -68,10 +77,25 @@ export function SideIconRail({
 }) {
   const handleSignOut = () => {
     if (onSignOut) return onSignOut();
-    // Fallback: posts to the Databricks app sign-out path if present.
-    if (typeof window !== "undefined") {
-      window.location.assign("/_logout");
-    }
+    // Databricks Apps don't expose a first-class client-side logout: the
+    // session is owned by the workspace, not the app process. A previous
+    // `/_logout` GET produced a plaintext 404 page, which read as a broken
+    // button. Explain the handoff instead of redirecting blindly, and open
+    // the Databricks workspace sign-out page in a new tab when the user
+    // confirms so their app session + workspace session both terminate.
+    if (typeof window === "undefined") return;
+    const proceed = typeof window.confirm === "function"
+      ? window.confirm(
+          "Sign out?\n\nGovernance Hub uses your Databricks workspace login. Continuing opens the Databricks sign-out page in a new tab.",
+        )
+      : true;
+    if (!proceed) return;
+    const { protocol, hostname } = window.location;
+    // governance-hub-<id>.<region>.azure.databricksapps.com →
+    //   https://<region>.azure.databricks.net/login.html?action=logOut
+    const workspaceHost = hostname.replace(/^[^.]+\./, "").replace(/databricksapps\.com$/, "databricks.net");
+    const signOutUrl = `${protocol}//${workspaceHost}/login.html?action=logOut`;
+    window.open(signOutUrl, "_blank", "noopener,noreferrer");
   };
 
   // Only render the first two nav entries (Home + Search / Discovery) as
@@ -110,22 +134,31 @@ export function SideIconRail({
       </nav>
       <div className="gh-side-rail-spacer" />
       <div className="gh-side-rail-footer">
-        {FOOTER_ENTRIES.map((entry) => (
-          <button
-            aria-label={entry.label}
-            className="gh-side-rail-button"
-            key={entry.key}
-            onClick={() => {
-              if (entry.key === "settings") onOpenSettings?.();
-              else if (entry.key === "logout") handleSignOut();
-            }}
-            title={entry.tooltip}
-            type="button"
-          >
-            <span className="gh-side-rail-icon">{RAIL_ICONS[entry.icon]}</span>
-            <span className="gh-side-rail-label-sr">{entry.label}</span>
-          </button>
-        ))}
+        {FOOTER_ENTRIES.map((entry) => {
+          const helpActive = entry.key === "help" && activeModule === "help";
+          return (
+            <button
+              aria-current={helpActive ? "page" : undefined}
+              aria-label={entry.label}
+              className={`gh-side-rail-button ${helpActive ? "is-active" : ""}`.trim()}
+              key={entry.key}
+              onClick={() => {
+                if (entry.key === "settings") onOpenSettings?.();
+                // Help opens the in-app help surface — operator 2026-04-19
+                // flagged that the old external GitHub link went to a page
+                // that "should actually be a detailed and helpful part of
+                // the app."
+                else if (entry.key === "help") onModuleChange?.("help");
+                else if (entry.key === "logout") handleSignOut();
+              }}
+              title={entry.tooltip}
+              type="button"
+            >
+              <span className="gh-side-rail-icon">{RAIL_ICONS[entry.icon]}</span>
+              <span className="gh-side-rail-label-sr">{entry.label}</span>
+            </button>
+          );
+        })}
       </div>
     </aside>
   );

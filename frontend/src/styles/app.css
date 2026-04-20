@@ -80,10 +80,14 @@ body {
   margin: 0;
   font-family: var(--gh-font);
   color: var(--gh-ink);
+  /* Warm cream/tan base — matches docs/mockups/discovery_mockup.png.
+     No cool blue/indigo overlays; those made the surface read as grey
+     (the operator flagged this on 2026-04-19). The radial bloom is a
+     subtle warm highlight only, no hue shift. */
   background:
-    radial-gradient(circle at top left, rgba(98, 72, 255, 0.08), transparent 24%),
-    radial-gradient(circle at top right, rgba(84, 146, 255, 0.07), transparent 22%),
-    linear-gradient(180deg, #edf3f9 0%, #f4f7fb 34%, #eef3f7 100%);
+    radial-gradient(circle at top left, rgba(224, 196, 132, 0.08), transparent 28%),
+    radial-gradient(circle at top right, rgba(224, 196, 132, 0.06), transparent 24%),
+    linear-gradient(180deg, #f4eee1 0%, #f2ecdf 40%, #efe8d8 100%);
   text-rendering: optimizeLegibility;
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
@@ -97,11 +101,18 @@ body {
   gap: clamp(18px, 1.15vw, 24px);
 }
 
-.gh-shell-header,
 .gh-panel {
   border-radius: var(--gh-radius-xl);
   border: 1px solid rgba(182, 198, 216, 0.78);
   box-shadow: var(--gh-shadow-soft);
+}
+/* Shell header: no surrounding card. Inside the header the brand-band
+   keeps its own padding; the header itself just groups the content. */
+.gh-shell-header {
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent !important;
 }
 
 .gh-eyebrow,
@@ -2136,15 +2147,31 @@ button:focus-visible,
   grid-column: 1 / -1;
 }
 .gh-select-sort {
-  min-width: 0;
-  width: 100%;
-  padding-right: 3rem;
+  min-width: 180px;
+  width: auto;
+  max-width: 240px;
+  min-height: 34px;
+  border-radius: 8px;
+  padding: 0 2rem 0 0.75rem;
+  font-size: 0.84rem;
 }
 
 .gh-field-label-inline {
   white-space: nowrap;
   line-height: 1;
   padding-left: 2px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--gh-ink, #1a2236);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-right: 8px;
+}
+
+.gh-discovery-sort-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .gh-chip-selected {
@@ -2520,11 +2547,11 @@ button:focus-visible,
   z-index: 90;
 }
 
-.gh-shell-brand-band,
-.gh-shell-nav-band,
+/* Only the command panel + individual asset cards keep a white-gradient
+   surface — that's the card layer the mockup emphasizes. The filter rail
+   and the selection preview stay transparent so the page off-white
+   flows through (mockup parity, 2026-04-19). */
 .gh-discovery-command-panel,
-.gh-discovery-sidebar,
-.gh-selection-preview,
 .gh-record-card {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(248, 250, 255, 0.965));
@@ -2999,42 +3026,23 @@ button.gh-lineage-linked-row:focus-visible {
   }
 }
 
-/* Late-shell polish overrides */
+/* Late-shell polish overrides — background gradients removed so the
+   mockup-accurate flat off-white from the --gh-bg token wins (see
+   shell-rail.css body rule). Keeping the stacking context so the
+   animated overlays below are still declared but opacity is
+   suppressed separately. */
 body {
   position: relative;
   isolation: isolate;
-  background:
-    radial-gradient(circle at 14% 18%, rgba(93, 132, 255, 0.16), transparent 26%),
-    radial-gradient(circle at 82% 12%, rgba(91, 67, 238, 0.12), transparent 22%),
-    radial-gradient(circle at 50% 86%, rgba(15, 92, 192, 0.08), transparent 34%),
-    linear-gradient(180deg, #edf3f9 0%, #f4f7fb 34%, #eef3f7 100%);
 }
 
+/* Animated body underlay is suppressed — the mockup has a flat off-white
+   background with no blue/purple halos. Kept as empty rules to preserve the
+   stacking context for #root so nothing else regresses. */
 body::before,
 body::after {
-  content: "";
-  position: fixed;
-  inset: -12%;
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.92;
-}
-
-body::before {
-  background:
-    radial-gradient(circle at 24% 28%, rgba(91, 67, 238, 0.12), transparent 30%),
-    radial-gradient(circle at 76% 18%, rgba(15, 92, 192, 0.1), transparent 28%),
-    radial-gradient(circle at 60% 78%, rgba(55, 156, 255, 0.08), transparent 34%);
-  filter: blur(10px);
-  animation: gh-background-drift 34s ease-in-out infinite alternate;
-}
-
-body::after {
-  background:
-    linear-gradient(115deg, rgba(255, 255, 255, 0.08), transparent 26%, rgba(255, 255, 255, 0.04) 52%, transparent 74%),
-    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12), transparent 62%);
-  mix-blend-mode: screen;
-  animation: gh-background-drift 48s ease-in-out infinite alternate-reverse;
+  content: none !important;
+  display: none !important;
 }
 
 #root {
@@ -3332,29 +3340,9 @@ button.gh-lineage-linked-row.is-asset-link span:first-child {
   }
 }
 
-/* Final regression-recovery overrides */
-body {
-  background:
-    radial-gradient(circle at 12% 14%, rgba(53, 108, 255, 0.14), transparent 24%),
-    radial-gradient(circle at 88% 18%, rgba(92, 64, 255, 0.12), transparent 22%),
-    radial-gradient(circle at 52% 82%, rgba(19, 132, 208, 0.08), transparent 28%),
-    linear-gradient(180deg, #edf3fa 0%, #f5f8fc 34%, #eef3f8 100%);
-}
-
-body::before,
-body::after {
-  inset: -8%;
-  opacity: 0.72;
-}
-
-body::before {
-  filter: blur(2px);
-  animation: gh-background-drift 92s ease-in-out infinite alternate;
-}
-
-body::after {
-  animation: gh-background-drift 116s ease-in-out infinite alternate-reverse;
-}
+/* Final regression-recovery overrides — the body gradient block was a
+   legacy of the old purple-haloed shell, not the mockup. Keeping body
+   flat off-white (see shell-rail.css body rule). */
 
 .gh-app {
   --gh-shell-sticky-gap: clamp(8px, 0.6vw, 16px);
@@ -3367,11 +3355,11 @@ body::after {
   margin: clamp(12px, 0.7vw, 20px) auto 28px;
 }
 
-.gh-shell-header,
+/* Card-like white gradient kept only on the discovery command panel +
+   record cards; the shell header, filter rail and selection preview
+   stay transparent so the mockup's flat off-white flows through. */
 .gh-panel,
 .gh-discovery-command-panel,
-.gh-discovery-sidebar,
-.gh-selection-preview,
 .gh-record-card,
 .gh-lineage-drawer,
 .gh-lineage-overlay-card,
@@ -3812,14 +3800,17 @@ and single-line
    These rules are appended last so they win the cascade.
    ======================================================================== */
 
-/* ---- Compact top bar + nav ---- */
+/* ---- Compact top bar + nav ----
+   Top bar shares the cream body per the mockup — only the search input
+   inside it is white. Operator 2026-04-19 flagged the white header as
+   the last holdout of the "only cards/search/checkboxes are white" rule. */
 .gh-shell-topbar {
   grid-template-columns: minmax(0, 1fr) !important;
   gap: 0 !important;
   padding: 0 !important;
-  border-bottom: 1px solid var(--gh-border, #d8dee9);
-  background: #ffffff !important;
-  box-shadow: 0 1px 0 rgba(20, 33, 61, 0.04) !important;
+  border-bottom: 1px solid rgba(201, 183, 138, 0.35);
+  background: transparent !important;
+  box-shadow: none !important;
   align-items: center !important;
 }
 .gh-shell-spine {
@@ -4076,12 +4067,15 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
   margin-right: auto !important;
 }
 
-/* ---- Sidebar card (Browse Asset Types and Filters) — strip the heavy SurfaceRail chrome ---- */
+/* ---- Sidebar card (Browse Asset Types and Filters) — strip the heavy SurfaceRail chrome ----
+   Transparent background so the page off-white flows through. A thin
+   right-hand rule (declared in shell-rail.css) separates it from the
+   results column; no card border, no shadow. */
 .gh-discovery-sidebar.gh-surface-rail {
-  border: 1px solid var(--gh-border, #d8dee9) !important;
-  border-radius: 6px !important;
-  background: #ffffff !important;
-  box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
   padding: 0 !important;
   max-height: calc(100vh - 140px) !important;
   overflow: hidden auto !important;
@@ -4113,12 +4107,15 @@ body { background: var(--gh-bg, #f7f9fc) !important; }
   line-height: 1.4 !important;
 }
 
-/* ---- Right rail Preview/Selected Asset card ---- */
+/* ---- Right rail Preview/Selected Asset card ----
+   Now transparent so the page off-white flows through — matches the
+   mockup's flat rail treatment. A thin left-hand rule (declared in
+   shell-rail.css) separates it from the result column. */
 .gh-selection-preview.gh-surface-rail {
-  border: 1px solid var(--gh-border, #d8dee9) !important;
-  border-radius: 6px !important;
-  background: #ffffff !important;
-  box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
   padding: 0 !important;
 }
 .gh-selection-preview .gh-surface-rail-header {
@@ -4321,12 +4318,15 @@ body, .gh-app, .gh-workspace, .gh-discovery-shell {
   background-image: none !important;
 }
 
-/* ---- Shell overhaul tranche 4: kill discovery-command-panel chrome + featured header accents ---- */
+/* ---- Shell overhaul tranche 4: kill discovery-command-panel chrome + featured header accents ----
+   Command panel now shares the cream body — only the card grid is white.
+   Operator 2026-04-19 flagged the panel around "Discovery / Sort by" as
+   the last big white surface that shouldn't be white. */
 .gh-panel.gh-discovery-command-panel {
-  border: 1px solid var(--gh-border, #d8dee9) !important;
-  border-radius: 6px !important;
-  background: #ffffff !important;
-  box-shadow: 0 1px 2px rgba(20, 33, 61, 0.04) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
   padding: 0 !important;
 }
 .gh-panel.gh-discovery-command-panel::before,
@@ -5294,12 +5294,13 @@ button[class*="back-to-discovery"] {
    ============================================================ */
 .gh-app-footer-controls {
   position: fixed;
-  right: 14px;
-  bottom: 14px;
+  right: 18px;
+  bottom: 18px;
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: center;
-  z-index: 100;
+  z-index: 9999; /* sits above sticky sidecars / shell headers */
+  pointer-events: auto;
 }
 .gh-cmdk-hint-pill {
   display: inline-flex;
@@ -5331,23 +5332,90 @@ button[class*="back-to-discovery"] {
   background: var(--gh-surface-muted, #f3f6fb);
 }
 .gh-theme-toggle {
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  border: 1px solid var(--gh-border, #d8dee9);
+  border: 1px solid var(--gh-line-strong, #b6c6d8);
   background: var(--gh-surface, #fff);
-  color: var(--gh-text, #14213d);
-  font-size: 15px;
+  color: var(--gh-ink, #14213d);
+  font-size: 20px;
   cursor: pointer;
-  box-shadow: 0 6px 16px rgba(20, 33, 61, 0.12);
+  box-shadow: 0 10px 22px rgba(20, 33, 61, 0.18);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
+  transition: transform 120ms ease, border-color 120ms ease, color 120ms ease;
 }
 .gh-theme-toggle:hover {
   border-color: var(--gh-accent, #5b3ff2);
   color: var(--gh-accent, #5b3ff2);
+  transform: translateY(-1px);
+}
+.gh-theme-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(91, 67, 238, 0.3), 0 10px 22px rgba(20, 33, 61, 0.18);
+}
+
+/* Alerts dropdown panel — premiered next to the top bar bell. Small,
+   declarative, mounted via AppFrame so it shares the header's sticky
+   context without ever stealing focus from the discovery grid. */
+.gh-alerts-panel {
+  position: fixed;
+  top: calc(var(--gh-shell-header-height, 88px) + 12px);
+  right: 24px;
+  width: 340px;
+  max-width: calc(100vw - 48px);
+  background: #fff;
+  border: 1px solid var(--gh-line, #d6e0ec);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(20, 33, 61, 0.16);
+  z-index: 240;
+  overflow: hidden;
+}
+.gh-alerts-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--gh-line, #d6e0ec);
+}
+.gh-alerts-panel-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--gh-ink, #14213d);
+}
+.gh-alerts-panel-close {
+  border: 0;
+  background: transparent;
+  color: #5c6b82;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.gh-alerts-panel-close:hover {
+  background: rgba(91, 67, 238, 0.08);
+  color: #2a2f6b;
+}
+.gh-alerts-panel-body {
+  padding: 14px;
+}
+
+/* Bell icon alert states */
+.gh-shell-topbar-icon-dot.is-alert {
+  background: #c1545f;
+}
+.gh-shell-topbar-icon-ping {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c1545f;
+  box-shadow: 0 0 0 2px #fff;
 }
 
 /* ============================================================
@@ -5458,17 +5526,122 @@ button[class*="back-to-discovery"] {
   top: calc(var(--gh-shell-sticky-offset, 0px) + 36px) !important;
 }
 
-/* Exact-class follow-up to hide marketing subtitle + sort label */
+/* Exact-class follow-up to hide marketing subtitle — "Sort by" label
+   stays visible per the mockup (operator 2026-04-19 flagged its absence
+   as a gap). */
 .gh-discovery-results-copy,
 .gh-surface-header-extra,
 .gh-discovery-command-head .gh-discovery-results-copy,
 .gh-discovery-command-head .gh-surface-header-extra { display: none !important; }
-.gh-field-label,
-.gh-field-label-inline { display: none !important; }
 
 /* Final: Setup attention status note should not truncate mid-word —
    let it wrap or hide on narrow viewports instead. */
 .gh-shell-status-note { max-width: none !important; white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
 @media (max-width: 1500px) {
   .gh-shell-status-note { display: none !important; }
+}
+
+/* In-app help surface — landed 2026-04-19 after the operator flagged
+   that the old help button went to a GitHub README. */
+.gh-help-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 8px 0 48px;
+  display: grid;
+  gap: 24px;
+}
+.gh-help-page-head {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: var(--gh-surface, #fff);
+  border: 1px solid var(--gh-line-strong, #c3c8d4);
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 10px 22px rgba(18, 35, 58, 0.05);
+}
+.gh-help-page-title {
+  margin: 6px 0 8px;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--gh-ink, #1a2236);
+}
+.gh-help-page-lede {
+  margin: 0;
+  color: var(--gh-ink-soft, #525e74);
+  font-size: 0.98rem;
+  line-height: 1.5;
+  max-width: 62ch;
+}
+.gh-help-page-back {
+  white-space: nowrap;
+}
+.gh-help-page-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--gh-surface, #fff);
+  border: 1px solid var(--gh-line, #e2e4ec);
+  border-radius: 12px;
+}
+.gh-help-page-toc-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--gh-ink-soft, #525e74);
+  text-decoration: none;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.gh-help-page-toc-link:hover {
+  background: rgba(91, 63, 242, 0.06);
+  color: var(--gh-ink, #1a2236);
+  border-color: rgba(91, 63, 242, 0.18);
+}
+.gh-help-page-body {
+  display: grid;
+  gap: 20px;
+}
+.gh-help-page-section {
+  background: var(--gh-surface, #fff);
+  border: 1px solid var(--gh-line, #e2e4ec);
+  border-radius: 16px;
+  padding: 22px 26px;
+}
+.gh-help-page-section-title {
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--gh-ink, #1a2236);
+  letter-spacing: -0.015em;
+}
+.gh-help-page-entries {
+  display: grid;
+  gap: 14px;
+}
+.gh-help-page-entry {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--gh-surface-soft, #faf7f0);
+  border: 1px solid var(--gh-line, #e2e4ec);
+  border-radius: 12px;
+}
+.gh-help-page-entry-heading {
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: var(--gh-ink, #1a2236);
+}
+.gh-help-page-entry-body {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--gh-ink-soft, #525e74);
 }

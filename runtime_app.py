@@ -63,14 +63,14 @@ from govhub.services import governance as governance_service
 from govhub.services import lineage as lineage_service
 from govhub.services import runtime_setup as runtime_setup_service
 from govhub.store import GovernanceStore
-from govhub.uc import UCSQLClient, _is_skippable_metadata_error
+from govhub.uc import UCSQLClient, _is_skippable_metadata_error, is_missing_sql_scope_error
 
 
 ROOT = Path(__file__).resolve().parent
 REACT_DIST_DIR = ROOT / "frontend" / "dist"
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
 KNOWN_SURFACES = {"discovery", "entity", "lineage", "governance"}
-CLIENT_ROUTE_PREFIXES = {"discovery", "entity", "lineage", "governance", "glossary", "audit", "taxonomy"}
+CLIENT_ROUTE_PREFIXES = {"discovery", "entity", "lineage", "governance", "glossary", "audit", "taxonomy", "help"}
 MUTATION_ROLES = {"writer", "steward", "admin"}
 APP_VERSION = "governance-hub-runtime-6"
 REQUEST_ID_HEADER = "X-Request-ID"
@@ -344,15 +344,77 @@ def _uc_for_token(user_access_token: str) -> UCSQLClient:
     return client
 
 
+class _UCWithFallback:
+    """Thin wrapper that delegates to an OBO-scoped UC client and transparently
+    retries on the app-principal client when the OBO token is missing the
+    ``sql`` scope.
+
+    Background: when Databricks Apps adds a new OBO scope (e.g. ``sql``),
+    users who signed in before the scope was granted carry tokens that
+    don't include it. The warehouse rejects those with
+    ``403 Forbidden — Invalid scope, required scopes: sql``. The SDK
+    can't decode that envelope and surfaces it as a generic parse error.
+    Prior to this wrapper the error propagated all the way to the UI as
+    a 503 "Discovery search is unavailable" banner — even though the
+    app-principal client on the same warehouse would have succeeded.
+
+    Behavior: the first ``sql`` scope failure latches the wrapper to
+    the fallback client for the rest of the request lifecycle. Per-user
+    metadata that would be filtered by OBO is still honored where
+    available (we only take this path for the read operations that
+    are scoped at the warehouse — catalogs/schemas/tables/info_schema).
+    """
+
+    __slots__ = ("_primary", "_fallback", "_latched")
+
+    def __init__(self, primary: UCSQLClient, fallback: UCSQLClient) -> None:
+        self._primary = primary
+        self._fallback = fallback
+        self._latched = primary is fallback
+
+    def _active(self) -> UCSQLClient:
+        return self._fallback if self._latched else self._primary
+
+    def __getattr__(self, name: str) -> Any:
+        attr = getattr(self._active(), name)
+        if not callable(attr):
+            return attr
+
+        def _wrapped(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return attr(*args, **kwargs)
+            except Exception as exc:
+                if not self._latched and is_missing_sql_scope_error(exc):
+                    logging.getLogger(__name__).info(
+                        "OBO client missing sql scope; retrying %s via app-principal fallback",
+                        name,
+                    )
+                    self._latched = True
+                    fallback_attr = getattr(self._fallback, name)
+                    return fallback_attr(*args, **kwargs)
+                raise
+
+        return _wrapped
+
+    # Surface the underlying runtime_context of whichever client is active
+    # so diagnostics reflect which path served the request.
+    def runtime_context(self) -> Dict[str, Any]:
+        context = dict(self._active().runtime_context())
+        if self._latched and self._primary is not self._fallback:
+            context.setdefault("obo_scope_fallback", True)
+        return context
+
+
 def _uc_for_request(request: Optional[Request]) -> UCSQLClient:
     token = _request_obo_token(request)
     if token:
         try:
-            return _uc_for_token(token)
+            obo_client = _uc_for_token(token)
         except Exception:
             # Per-user client construction failed; fall back to the app-principal
             # client so the read path stays available.
             return _uc()
+        return _UCWithFallback(obo_client, _uc())  # type: ignore[return-value]
     return _uc()
 
 
@@ -1371,12 +1433,32 @@ def _shell_payload(
         boot_message=message,
         per_user_authorization=bool(_request_obo_token(request)),
     )
+    # Pre-hydrated discovery envelope: on live bootstrap we run a zero-
+    # filter discovery search inside the same request so the first card
+    # grid paints from the bootstrap payload instead of waiting on a
+    # second client round-trip. Failures fall back silently to the shell
+    # defaults; the frontend will then kick its normal search query.
+    discovery_shell = _shell_discovery_payload()
+    if state == "live" and request is not None:
+        try:
+            pre = _discovery_search_payload(request, query="", limit=60, offset=0)
+            discovery_shell = {
+                **discovery_shell,
+                "defaultResults": list(pre.get("assets") or []),
+                "defaultFacets": pre.get("facets") or {},
+                "defaultCount": int(pre.get("count") or 0),
+            }
+        except Exception:
+            # Cold warehouse, scope issues, or transient UC errors —
+            # leave bootstrap shell-only, frontend will re-query.
+            pass
+
     payload = {
         "version": APP_VERSION,
         "bootState": state,
         "bootMessage": message,
         "apiBase": "/api",
-        "discovery": _shell_discovery_payload(),
+        "discovery": discovery_shell,
         "capabilities": capabilities,
         "featureFlags": _shell_feature_flags_payload(capabilities),
         "bootstrapContract": _bootstrap_contract_payload(mode),
