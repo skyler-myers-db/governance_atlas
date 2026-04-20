@@ -257,10 +257,11 @@ describe("AppFrame", () => {
       />,
     );
 
-    // The inbox trigger moved from a text "Inbox" button into the bell icon
-    // inside the user chip. Its accessible name includes the unread count.
+    // The inbox trigger lives in the top bar as a dedicated tray icon
+    // (separate from the user chip). Its accessible name reads "Inbox (N
+    // unread)" when there are unread items.
     fireEvent.click(
-      screen.getByRole("button", { name: /Notifications \(2 unread\)/i }),
+      screen.getByRole("button", { name: /Inbox \(2 unread\)/i }),
     );
 
     expect(screen.getByText("Inbox ready")).not.toBeNull();

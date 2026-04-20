@@ -58,13 +58,33 @@ export function useDiscoveryResults(filters, options = {}) {
     0,
     Number.isFinite(Number(options?.offset)) ? Math.trunc(Number(options.offset)) : 0,
   );
+  // Bootstrap seed — when the outer app hands us an initial assets array
+  // (served by the app's SSR-ish bootstrap endpoint), use it to paint cards
+  // IMMEDIATELY instead of sitting on an empty grid for the ~1-3s it takes
+  // the structured search to round-trip. Only applies to the default
+  // unfiltered scope because the seed reflects that scope.
+  const seededAssets = Array.isArray(options?.seedAssets) ? options.seedAssets : [];
+  const seededCount = Number.isFinite(Number(options?.seedCount))
+    ? Number(options.seedCount)
+    : seededAssets.length;
+  const seededScopeIsDefault =
+    !normalizedFilters.query &&
+    !normalizedFilters.views.length &&
+    !normalizedFilters.types.length &&
+    !normalizedFilters.catalogs.length &&
+    !normalizedFilters.domains.length &&
+    !normalizedFilters.tiers.length &&
+    !normalizedFilters.certifications.length &&
+    !normalizedFilters.sensitivities.length;
+  const seededFacets = options?.seedFacets && typeof options.seedFacets === "object"
+    ? options.seedFacets
+    : null;
   const seededFallback = useMemo(
-    () => ({
-      assets: [],
-      count: 0,
-      facets: null,
-    }),
-    [],
+    () =>
+      seededAssets.length && seededScopeIsDefault
+        ? { assets: seededAssets, count: seededCount, facets: seededFacets }
+        : { assets: [], count: 0, facets: null },
+    [seededAssets, seededCount, seededFacets, seededScopeIsDefault],
   );
   const lastAuthoritativeResultRef = useRef({
     scopeKey: "",

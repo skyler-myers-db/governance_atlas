@@ -769,6 +769,41 @@ DEFAULT_MIGRATIONS: tuple[Migration, ...] = (
             ) USING DELTA""",
         ),
     ),
+    Migration(
+        version=14,
+        name="purge_foreign_org_identity_references",
+        statements=(
+            # One-time scrub: remove any row that references a foreign-org
+            # email domain (entrada.ai) that leaked into this workspace's
+            # app-owned tables. The live app surfaced alice@entrada.ai as
+            # an owner on 2026-04-18; per operator directive, every trace
+            # of that identity must be purged from the tristate workspace.
+            # Idempotent — each DELETE is a no-op once the rows are gone.
+            #
+            # Uses LOWER(...) LIKE ... so any future stray case/domain
+            # variant (Alice@ENTRADA.AI, alice.smith@entrada.ai, ...)
+            # also falls out.
+            """DELETE FROM {data_owners_table}
+               WHERE LOWER(COALESCE(owner_email, '')) LIKE '%entrada%'""",
+            """DELETE FROM {identity_directory_table}
+               WHERE LOWER(COALESCE(email, '')) LIKE '%entrada%'
+                  OR LOWER(COALESCE(external_key, '')) LIKE '%entrada%'
+                  OR LOWER(COALESCE(display_name, '')) LIKE '%entrada%'""",
+            """DELETE FROM {identity_directory_memberships_table}
+               WHERE member_entry_id NOT IN (
+                   SELECT entry_id FROM {identity_directory_table}
+               ) OR group_entry_id NOT IN (
+                   SELECT entry_id FROM {identity_directory_table}
+               )""",
+            """DELETE FROM {metadata_audit_table}
+               WHERE LOWER(COALESCE(entity_id, '')) LIKE '%entrada%'
+                  OR LOWER(COALESCE(entity_fqn, '')) LIKE '%entrada%'
+                  OR LOWER(COALESCE(actor_email, '')) LIKE '%entrada%'
+                  OR LOWER(COALESCE(before_json, '')) LIKE '%entrada%'
+                  OR LOWER(COALESCE(after_json, '')) LIKE '%entrada%'
+                  OR LOWER(COALESCE(detail, '')) LIKE '%entrada%'""",
+        ),
+    ),
 )
 
 
@@ -829,6 +864,7 @@ def apply_migrations(
                 schema_fq=_fq_schema(catalog, schema),
                 table=_fq_table(catalog, schema, "metadata_audit_log"),
                 metadata_audit_table=_fq_table(catalog, schema, "metadata_audit_log"),
+                data_owners_table=_fq_table(catalog, schema, "data_owners"),
                 glossary_links_table=_fq_table(catalog, schema, "glossary_term_links"),
                 identity_directory_table=_fq_table(catalog, schema, "identity_directory_entries"),
                 entity_registry_table=_fq_table(catalog, schema, "entity_registry"),

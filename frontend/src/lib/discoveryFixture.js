@@ -11,10 +11,14 @@
  * is explicit and opt-in. Without the flag, behavior is unchanged.
  */
 
+// Realistic synthetic stewards for fixture mode. Intentionally chosen so they
+// do not echo the original mockup's placeholder labels ("Namer Avatar",
+// "Anner Avatar") — the user explicitly flagged those as mockup artifacts
+// that must never leak into the product surface, even in fixture mode.
 const GOLDEN_OWNER_SEED = [
-  { name: "Namer Avatar", email: "namer@example.org" },
-  { name: "Anner Avatar", email: "anner@example.org" },
-  { name: "Runner Avatar", email: "runner@example.org" },
+  { name: "Priya Subramaniam", email: "priya.subramaniam@example.org" },
+  { name: "Marcus Chen", email: "marcus.chen@example.org" },
+  { name: "Elena Vasquez", email: "elena.vasquez@example.org" },
 ];
 
 const GOLDEN_TAGS = ["PII", "Transaction", "Critical"];

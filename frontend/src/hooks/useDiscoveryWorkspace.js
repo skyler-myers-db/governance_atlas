@@ -361,8 +361,30 @@ export function useDiscoveryWorkspace({
     }
   }, [bootstrap, filters]);
 
+  // Prefer the bootstrap-hydrated discovery envelope (new in runtime-app
+  // _shell_payload: runs a zero-filter discovery search inside the
+  // bootstrap request so the grid paints immediately). Fall back to the
+  // legacy top-level `bootstrap.assets` if present.
+  const bootstrapAssets =
+    Array.isArray(bootstrap?.discovery?.defaultResults) && bootstrap.discovery.defaultResults.length
+      ? bootstrap.discovery.defaultResults
+      : Array.isArray(bootstrap?.assets)
+        ? bootstrap.assets
+        : [];
+  const bootstrapCount = Number.isFinite(Number(bootstrap?.discovery?.defaultCount))
+    ? Number(bootstrap.discovery.defaultCount)
+    : Number.isFinite(Number(bootstrap?.assetsCount))
+      ? Number(bootstrap.assetsCount)
+      : bootstrapAssets.length;
+  const bootstrapFacets =
+    bootstrap?.discovery?.defaultFacets && typeof bootstrap.discovery.defaultFacets === "object"
+      ? bootstrap.discovery.defaultFacets
+      : null;
   const results = useDiscoveryResults(filters, {
     limit: requestedResultLimit,
+    seedAssets: bootstrapAssets,
+    seedCount: bootstrapCount,
+    seedFacets: bootstrapFacets,
   });
 
   return {

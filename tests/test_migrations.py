@@ -50,7 +50,7 @@ class MigrationTests(unittest.TestCase):
 
         applied = migrations.apply_migrations(uc, "main", "governance_hub")
 
-        self.assertEqual(applied, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13])
+        self.assertEqual(applied, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14])
         self.assertTrue(
             any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`schema_migrations`" in sql for sql in uc.executed)
         )
@@ -166,7 +166,7 @@ class MigrationTests(unittest.TestCase):
                 any(f"CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`{table}`" in sql for sql in uc.executed),
                 f"expected {table} create statement",
             )
-        self.assertEqual(uc._applied_versions, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13})
+        self.assertEqual(uc._applied_versions, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14})
 
     def test_apply_migrations_is_idempotent(self) -> None:
         uc = FakeUC()
