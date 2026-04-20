@@ -1017,10 +1017,12 @@ function DiscoveryResultCard({
         {asset.name}
       </h3>
 
-      <div className="gh-discovery-asset-card-primary-meta">
-        {/* Always render the domain pill. When the asset has no assigned
-            domain, fall back to a muted "UNCATEGORIZED DATA" label so the
-            card silhouette matches the target. */}
+      {/* One combined meta row — domain pill, owner, tags, workflow all
+          wrap horizontally on the same row(s). Operator 2026-04-19 round
+          2 flagged that the stacked layout made cards feel tall/narrow;
+          combining them lets the card compress into a more square
+          silhouette. */}
+      <div className="gh-discovery-asset-card-meta-row">
         <span
           className={`gh-discovery-asset-pill gh-discovery-asset-pill-domain ${
             !asset.domain || asset.domain === "Unassigned" ? "is-fallback" : ""
@@ -1036,11 +1038,11 @@ function DiscoveryResultCard({
             {ownerCount > 1 ? (
               <OwnerAvatarStack
                 owners={ownerLabels.slice(0, 3).map((label) => ({ name: prettyOwnerName(label), email: label }))}
-                size={22}
+                size={20}
                 maxVisible={3}
               />
             ) : (
-              <OwnerAvatar owner={primaryOwner} size={22} />
+              <OwnerAvatar owner={primaryOwner} size={20} />
             )}
             {ownerCount === 1 ? (
               <span className="gh-discovery-asset-owner-name">{prettyOwnerName(primaryOwner)}</span>
@@ -1056,9 +1058,6 @@ function DiscoveryResultCard({
             <span className="gh-discovery-asset-owner-unassigned">No owner</span>
           </span>
         )}
-      </div>
-
-      <div className="gh-discovery-asset-card-chips">
         {visibleTags.length ? (
           visibleTags.map((tag, i) => (
             <span
@@ -1079,7 +1078,6 @@ function DiscoveryResultCard({
             +{extraTagCount}
           </span>
         ) : null}
-        <span className="gh-discovery-asset-chip-spacer" aria-hidden="true" />
         {workflowLabel ? (
           <span
             className={`gh-discovery-asset-status gh-discovery-asset-status-${workflowVariant}`}
@@ -1303,10 +1301,10 @@ function PrimaryFacetChips({
               certifications: (current.certifications || []).filter((c) => c !== "Deprecated"),
             }))
           }
-          title="Remove Obsolete filter"
+          title="Remove Deprecated filter"
           type="button"
         >
-          <span className="gh-primary-facet-chip-label">Obsolete</span>
+          <span className="gh-primary-facet-chip-label">Deprecated</span>
           <span className="gh-primary-facet-chip-count">
             ({Number(obsoleteCount).toLocaleString()})
           </span>
@@ -1554,10 +1552,16 @@ function SelectionPreview({
   // clicks. We flip a loading flag the moment the user clicks, so the
   // button shows a spinner until the route change lands.
   const [navigating, setNavigating] = useState(false);
+  // Local "opening" state for individual Connected assets rows so the
+  // row shows an instant spinner on click. Operator 2026-04-19 round 2
+  // flagged the click as dead because the global loading state isn't
+  // visible from the preview rail.
+  const [openingLinkedAsset, setOpeningLinkedAsset] = useState(null);
   useEffect(() => {
     // Reset when the selected asset changes so switching cards clears
     // any stale spinner.
     setNavigating(false);
+    setOpeningLinkedAsset(null);
   }, [asset?.fqn]);
   const lineage = useLineage(
     asset?.fqn || "",
@@ -2030,9 +2034,11 @@ function SelectionPreview({
           </div>
         </section>
 
-        {/* Connected assets — stewardship navigation. Keeps the
-            historical .gh-lineage-linked-row button/div markup so
-            existing linked-open integration tests stay green. */}
+        {/* Connected assets — stewardship navigation. Clicking a row
+            now shows an immediate local "Opening…" spinner so the
+            user has instant visual feedback even if the metadata
+            record takes a second to hydrate. Operator 2026-04-19
+            round 2 flagged that clicks felt dead. */}
         {previewRelatedAssets.length ? (
           <section className="gh-asset-preview-section">
             <div className="gh-panel-title">Connected assets</div>
@@ -2040,6 +2046,7 @@ function SelectionPreview({
               {previewRelatedAssets.map((item) => {
                 const linkedRecordAvailability =
                   linkedRecordUnavailableOverrides[item] === true ? false : relatedAssetAvailability[item];
+                const isOpening = openingLinkedAsset === item;
                 return linkedRecordAvailability === false ? (
                   <div className="gh-lineage-linked-row is-readonly" key={item}>
                     <span>{item}</span>
@@ -2047,13 +2054,24 @@ function SelectionPreview({
                   </div>
                 ) : (
                   <button
-                    className="gh-lineage-linked-row is-asset-link"
+                    className={`gh-lineage-linked-row is-asset-link ${isOpening ? "is-opening" : ""}`.trim()}
+                    disabled={isOpening}
                     key={item}
-                    onClick={() => onOpenLinkedAsset(item)}
+                    onClick={() => {
+                      setOpeningLinkedAsset(item);
+                      onOpenLinkedAsset(item);
+                    }}
                     type="button"
                   >
                     <span>{item}</span>
-                    <span>{linkedRecordAvailability === true ? "Open Record" : "Checking access..."}</span>
+                    {isOpening ? (
+                      <span className="gh-lineage-linked-row-opening">
+                        <span aria-hidden="true" className="gh-button-spinner" />
+                        <span>Opening…</span>
+                      </span>
+                    ) : (
+                      <span>{linkedRecordAvailability === true ? "Open Record" : "Checking access..."}</span>
+                    )}
                   </button>
                 );
               })}
@@ -3451,37 +3469,68 @@ export default function DiscoveryWorkspace({
             })()}
           </SidebarSection>
 
-          {/* 5. Sensitivity (chip row) */}
+          {/* 5. Sensitivity (chip row) — show "All" sentinel + real
+              sensitivities from the live facet. Operator 2026-04-19
+              round 2 flagged that PII / Conf / Internal were being
+              rendered as fixed placeholders even when no asset has a
+              sensitivity classification. Now we only include real
+              values from the facet (no hardcoded seed) and always
+              include an "All" row that reads as "no filter applied",
+              matching the Domain/Owner pattern. */}
           {(() => {
-            const sensitivityOptions = facetValues(
+            const rawSensitivities = facetValues(
               resultsFacets,
               "sensitivities",
-              ["PII", "Confidential", "Internal"],
+              [],
               filters.sensitivities || [],
             );
-            if (!sensitivityOptions.length) return null;
+            const sensitivityOptions = rawSensitivities.filter((option) =>
+              !/^all\s+sensitivit/i.test(String(option || "")),
+            );
+            const activeSens = filters.sensitivities || [];
+            const allSelected = activeSens.length === 0;
+            const totalCount = Number(discoveryResults.count || allDiscoveryAssets.length);
             return (
               <SidebarSection title="Sensitivity">
-                <div className="gh-discovery-chip-row">
+                <div className="gh-checkbox-list">
+                  <label className={`gh-checkbox-row ${allSelected ? "is-active" : ""}`.trim()}>
+                    <input
+                      aria-label="Show assets with any sensitivity"
+                      checked={allSelected}
+                      className="gh-checkbox"
+                      onChange={() =>
+                        onDiscoveryStateChange((current) => ({ ...current, sensitivities: [] }))
+                      }
+                      type="checkbox"
+                    />
+                    <span className="gh-checkbox-label">All sensitivities</span>
+                    <span className="gh-checkbox-count">({Number(totalCount || 0).toLocaleString()})</span>
+                  </label>
                   {sensitivityOptions.slice(0, 6).map((option) => {
-                    const active = (filters.sensitivities || []).includes(option);
-                    // Target shortens labels ("Conf" instead of "Confidential").
+                    const active = activeSens.includes(option);
+                    const count = facetCount(resultsFacets, "sensitivities", option);
                     const shortLabel = /conf/i.test(option)
                       ? "Conf"
                       : /internal/i.test(option)
                         ? "Internal"
                         : option;
                     return (
-                      <button
-                        aria-pressed={active}
-                        className={`gh-chip ${active ? "gh-chip-accent" : "gh-chip-soft"}`}
+                      <label
+                        className={`gh-checkbox-row ${active ? "is-active" : ""}`.trim()}
                         key={option}
-                        onClick={() => toggleMulti(filters, "sensitivities", option, null, onDiscoveryStateChange)}
-                        title={`Toggle ${option} sensitivity filter`}
-                        type="button"
                       >
-                        {shortLabel}
-                      </button>
+                        <input
+                          aria-label={`Filter by sensitivity ${option}`}
+                          checked={active}
+                          className="gh-checkbox"
+                          onChange={() =>
+                            toggleMulti(filters, "sensitivities", option, null, onDiscoveryStateChange)
+                          }
+                          type="checkbox"
+                        />
+                        <span className="gh-checkbox-label">{shortLabel}</span>
+                        <span className="gh-checkbox-count">({Number(count || 0).toLocaleString()})</span>
+                      </label>
                     );
                   })}
                 </div>
@@ -3516,7 +3565,7 @@ export default function DiscoveryWorkspace({
                 : /pending|review|draft/i.test(option)
                   ? "In Review"
                   : /deprecated|retired|obsolete/i.test(option)
-                    ? "Obsolete"
+                    ? "Deprecated"
                     : option;
             return (
               <SidebarSection title="Workflow State">

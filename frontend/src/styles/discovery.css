@@ -25,22 +25,24 @@
   gap: 8px;
   padding: 8px 14px;
   border-radius: 10px;
-  background: linear-gradient(180deg, #5b3ff2 0%, #4c34d8 100%);
+  /* Deeper purple — operator 2026-04-19 round 2 asked for a darker
+     indigo so the Quick action reads as decisive. */
+  background: linear-gradient(180deg, var(--gh-indigo, #3d2bc4) 0%, var(--gh-indigo-2, #2d1f93) 100%);
   color: #fff;
   font-family: inherit;
   font-size: 0.84rem;
   font-weight: 600;
   border: 0;
-  box-shadow: 0 6px 14px rgba(91, 63, 242, 0.22);
+  box-shadow: 0 6px 14px rgba(61, 43, 196, 0.28);
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
 }
 .gh-discovery-subtabs-quick-action:hover {
-  filter: brightness(1.04);
-  box-shadow: 0 10px 18px rgba(91, 63, 242, 0.28);
+  filter: brightness(1.05);
+  box-shadow: 0 10px 18px rgba(61, 43, 196, 0.32);
 }
 .gh-discovery-subtabs-quick-action:focus-visible {
-  outline: 2px solid var(--gh-indigo, #5b3ff2);
+  outline: 2px solid var(--gh-indigo, #3d2bc4);
   outline-offset: 2px;
 }
 .gh-discovery-subtabs-quick-action:active {
@@ -1436,6 +1438,20 @@
 .gh-discovery-asset-card-primary-meta > * {
   min-width: 0;
 }
+/* Combined meta row — domain + owner + tags + workflow all wrap on the
+   same rows so cards stay more square. Operator 2026-04-19 round 2. */
+.gh-discovery-asset-card-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.gh-discovery-asset-card-meta-row > * {
+  min-width: 0;
+  max-width: 100%;
+}
 .gh-discovery-asset-pill {
   align-items: center;
   background: rgba(225, 29, 116, 0.08);
@@ -1846,21 +1862,25 @@
   min-width: 0;
 }
 .gh-asset-preview-action-grid > .gh-primary-button {
-  background: var(--gh-indigo, #5b3ff2);
-  border: 1px solid var(--gh-indigo, #5b3ff2);
+  background: linear-gradient(180deg, var(--gh-indigo, #3d2bc4) 0%, var(--gh-indigo-2, #2d1f93) 100%);
+  border: 1px solid var(--gh-indigo-2, #2d1f93);
   color: #fff;
 }
 .gh-asset-preview-action-grid > .gh-primary-button:hover:not(:disabled) {
-  background: #4832d4;
+  filter: brightness(1.06);
 }
+/* Secondary action buttons (Request Access / Add to Lineage / Favorite)
+   share the soft cream fill so they read as coherent with the body.
+   Operator 2026-04-19 round 2 flagged the white buttons as out-of-place. */
 .gh-asset-preview-action-grid > .gh-secondary-button {
-  background: #fff;
-  border: 1px solid var(--gh-line-strong, #b8c2d3);
+  background: var(--gh-surface-soft, #fcf8ee);
+  border: 1px solid var(--gh-line, #d8cfb9);
   color: var(--gh-ink, #14213d);
 }
 .gh-asset-preview-action-grid > .gh-secondary-button:hover:not(:disabled) {
-  border-color: var(--gh-indigo, #5b3ff2);
-  color: var(--gh-indigo, #5b3ff2);
+  border-color: var(--gh-indigo, #3d2bc4);
+  color: var(--gh-indigo, #3d2bc4);
+  background: #fff;
 }
 .gh-asset-preview-action-grid > button.is-favorite {
   /* Favorited state uses the amber star convention, consistent with the
