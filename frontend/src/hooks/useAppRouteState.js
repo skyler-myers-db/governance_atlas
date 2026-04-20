@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { setWorkspaceIntent } from "../lib/workspaceIntent";
 
-const KNOWN_SURFACES = ["discovery", "entity", "lineage", "governance", "audit", "taxonomy", "help"];
+const KNOWN_SURFACES = ["discovery", "entity", "lineage", "governance", "audit", "taxonomy", "help", "inbox"];
 const DISCOVERY_GROUPED_FILTER_KEYS = [
   "types",
   "catalogs",
@@ -128,6 +128,12 @@ function parsePathRoute(pathname = "/") {
       asset: "",
     };
   }
+  if (root === "inbox") {
+    return {
+      surface: "inbox",
+      asset: "",
+    };
+  }
   return null;
 }
 
@@ -183,6 +189,7 @@ function canonicalPath(surface, routeAssetFqn) {
   if (surface === "audit") return "/audit";
   if (surface === "taxonomy") return "/taxonomy";
   if (surface === "help") return "/help";
+  if (surface === "inbox") return "/inbox";
   return "/discovery";
 }
 
@@ -507,6 +514,19 @@ export function useAppRouteState() {
     if (nextModule === "help") {
       navigate(buildCanonicalUrl(
         "help",
+        "",
+        discoveryRouteState.query,
+        location.search,
+        discoveryRouteState.sortBy,
+        discoveryRouteState.previewAssetFqn,
+        discoveryRouteState.views,
+        discoveryRouteState.filterGroups,
+      ), { state: { fresh: false } });
+      return;
+    }
+    if (nextModule === "inbox") {
+      navigate(buildCanonicalUrl(
+        "inbox",
         "",
         discoveryRouteState.query,
         location.search,

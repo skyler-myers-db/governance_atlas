@@ -1010,12 +1010,43 @@ describe("App", () => {
       data: null,
     });
 
+    // Operator 2026-04-19 round 3 asked the header inbox icon to
+    // *navigate* to /inbox instead of toggling a transient panel.
+    // Wire a named onModuleChange mock so we can assert the route
+    // change (was previously asserting the `inboxOpen` prop flipped,
+    // which no longer happens).
+    const moduleChange = vi.fn();
+    useAppRouteStateMock.mockReturnValue({
+      surface: "discovery",
+      setSurface: vi.fn(),
+      routeAssetFqn: "",
+      discoveryRouteState: {
+        filterGroups: { types: [], catalogs: [], domains: [], tiers: [], certifications: [], sensitivities: [] },
+        query: "",
+        previewAssetFqn: "",
+        sortBy: "",
+        views: [],
+        fresh: false,
+        requestKey: "seed",
+      },
+      setDiscoveryRouteFilterGroups: vi.fn(),
+      setDiscoveryRoutePreview: vi.fn(),
+      setDiscoveryRouteQuery: vi.fn(),
+      setDiscoveryRouteSort: vi.fn(),
+      setDiscoveryRouteViews: vi.fn(),
+      openDiscoveryWorkspace: vi.fn(),
+      openEntityWorkspace: vi.fn(),
+      openLineageWorkspace: vi.fn(),
+      openGovernanceWorkspace: vi.fn(),
+      onModuleChange: moduleChange,
+    });
+
     render(<App />);
 
     expect(screen.getByTestId("inbox-count").textContent).toBe("2");
 
     fireEvent.click(screen.getByRole("button", { name: "Toggle inbox" }));
-    expect(screen.getByTestId("inbox-open")).not.toBeNull();
+    expect(moduleChange).toHaveBeenCalledWith("inbox");
 
     fireEvent.click(screen.getByRole("button", { name: "Mark first inbox item read" }));
     await waitFor(() => {
