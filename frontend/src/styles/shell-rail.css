@@ -14,7 +14,10 @@
     "rail main"
     "rail footer";
   gap: 0;
-  column-gap: clamp(10px, 1vw, 22px);
+  /* Round 10: no gap between rail and main column so the rail's
+     right border touches the main column's top border at a right
+     angle without a cream gutter between them. */
+  column-gap: 0;
 }
 
 .gh-app.gh-app-with-rail > .gh-side-rail {
@@ -23,8 +26,10 @@
 
 .gh-app.gh-app-with-rail > .gh-shell-header {
   grid-area: header;
-  margin-top: clamp(10px, 0.9vw, 18px);
-  margin-bottom: clamp(10px, 0.9vw, 18px);
+  /* Round 10: tighter vertical margins around the sticky header. */
+  margin-top: 4px;
+  margin-bottom: 8px;
+  padding-left: clamp(10px, 1vw, 22px);
   /* Sticky header — stays pinned while the main content scrolls so
      the search bar and profile chip are always reachable. Solid cream
      background + z-index above the card grid prevents text bleed
@@ -59,16 +64,28 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  padding: calc(var(--gh-shell-header-height, 80px) + 36px) 6px 16px;
+  /* Round 10: Home button center aligns with the Discovery sub-tab
+     center. */
+  padding: calc(var(--gh-shell-header-height, 80px) + 28px) 6px 16px;
   border: 0;
-  /* Round 9: thicker, darker-purple vertical separator so the rail
-     edge is clearly visible against the cream body. */
-  border-right: 2px solid var(--gh-line-strong, #6e6039);
+  /* Round 10: border-right is drawn via an ::after pseudo so we
+     can stop it at the top horizontal border (subtab top) instead
+     of having it extend up alongside the title bar. */
   background: transparent;
   box-shadow: none;
   height: 100vh;
   max-height: 100vh;
   overflow-y: auto;
+}
+.gh-side-rail::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: calc(var(--gh-shell-header-height, 80px) + 14px);
+  bottom: 0;
+  width: 1px;
+  background: var(--gh-line-strong, #6e6039);
+  pointer-events: none;
 }
 
 .gh-side-rail-brand {
@@ -357,7 +374,9 @@
   z-index: 240;
 }
 
-/* --- topbar icon buttons (inbox, settings-style) --- */
+/* --- topbar icon buttons (inbox, alerts) ---
+   Round 10: no white bubble — icons sit directly on the cream body.
+   Operator flagged the circular white background as mockup drift. */
 .gh-shell-topbar-icon-button {
   position: relative;
   display: inline-flex;
@@ -365,18 +384,17 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  border: 1px solid rgba(182, 198, 216, 0.85);
-  background: rgba(247, 250, 255, 0.88);
-  color: #2f3b55;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--gh-ink, #2f3b55);
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 .gh-shell-topbar-icon-button:hover {
-  background: #fff;
-  border-color: rgba(91, 67, 238, 0.35);
-  color: #2a2f6b;
+  background: var(--gh-indigo-soft, #e6e3ff);
+  color: var(--gh-indigo-2, #2d1f93);
 }
 
 .gh-shell-topbar-icon-button:focus-visible {
@@ -720,19 +738,19 @@
 }
 
 /* --- primary facet chip row (always-visible quick filters + Filters launcher)
-   Row shares the cream body — operator 2026-04-19 round 2 flagged the
-   white pill around Tables/Views/Filters as the last holdout. Only the
-   chips themselves carry a soft fill so they read as interactive pills. */
+   Row shares the cream body. Round 10: bumped top padding so the
+   "No filters applied" label + Filters button don't crowd the
+   subtab border-bottom above them. */
 .gh-primary-facet-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 0 8px;
+  padding: 16px 0 10px;
   flex-wrap: wrap;
   border: 0;
   background: transparent;
   box-shadow: none;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .gh-primary-facet-chip {
@@ -1056,10 +1074,9 @@
 }
 
 .gh-filters-rail-head {
-  /* 16px horizontal padding matches the sidebar section head so
-     "Filters" stacks exactly over "Catalog" below. 14px top padding
-     mirrors the sidecar eyebrow row so the two headings align. */
-  padding: 14px 16px 10px;
+  /* Round 10: padding matches the sidebar section head exactly so
+     "Filters" sits directly above "CATALOG" (same x, minimal gap). */
+  padding: 14px 12px 4px;
   border: 0 !important;
 }
 
@@ -1081,14 +1098,16 @@
   color: var(--gh-ink, #14213d) !important;
 }
 
-/* Collapse chevrons on each section */
+/* Collapse chevrons on each section.
+   Round 10: horizontal padding matches the Filters-rail head (12px)
+   so every filter-rail label lines up flush. */
 .gh-sidebar-section-toggle {
   display: flex !important;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border: 0;
   background: transparent;
   color: #14213d;
@@ -1121,7 +1140,9 @@
 }
 
 .gh-sidebar-section-body {
-  padding: 2px 16px 10px;
+  /* Round 10: narrower horizontal padding so filter-rail items feel
+     centered between the left and right vertical borders. */
+  padding: 2px 12px 10px;
 }
 
 /* Checkbox-row filter items (asset type, domain, workflow) */
@@ -2262,7 +2283,12 @@ aside.gh-discovery-sidebar.gh-surface-rail {
   border-right: 1px solid var(--gh-line, #9a8c5d) !important;
 }
 .gh-side-rail.gh-side-rail {
-  /* Round 9: darker, thicker 2px separator between side rail and
-     Filters area — operator flagged the old faint line as invisible. */
-  border-right: 2px solid var(--gh-line-strong, #6e6039) !important;
+  /* Round 10: zero out the border — the ::after pseudo above draws
+     a 1px line from the top horizontal down so the rail edge stops
+     at the subtab border and doesn't extend up next to the brand. */
+  border-right: 0 !important;
+  position: sticky !important;
+}
+.gh-side-rail.gh-side-rail {
+  overflow: visible !important;
 }
