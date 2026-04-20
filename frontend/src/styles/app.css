@@ -616,12 +616,19 @@ button.gh-chip:not(.is-readonly):focus-visible,
   display: grid;
   gap: 8px;
   padding-top: 12px;
-  border-top: 1px solid rgba(214, 224, 236, 0.9);
+  border-top: 0;
 }
 
 .gh-surface-rail-section:first-child {
   padding-top: 0;
   border-top: 0;
+}
+
+/* Round 9: no divider between filter sections in the sidebar
+   ("No border below Filters and above CATALOG"). */
+.gh-discovery-sidebar .gh-discovery-sidebar-section,
+.gh-discovery-sidebar .gh-surface-rail-section {
+  border-top: 0 !important;
 }
 
 .gh-surface-rail-section-head {
@@ -748,6 +755,16 @@ button.gh-chip:not(.is-readonly):focus-visible,
 .gh-workspace {
   display: grid;
   gap: 12px;
+}
+/* Round 9: discovery shell removes the grid row-gap between the
+   sub-tab row and the column grid so the sidecar + filter-rail
+   vertical borders meet the sub-tab row's horizontal borders at a
+   right angle. Operator flagged the 12-32px gap multiple rounds. */
+.gh-workspace.gh-discovery-shell {
+  gap: 0;
+}
+.gh-workspace.gh-discovery-shell > .gh-discovery-main-grid {
+  margin-top: 0;
 }
 
 .gh-panel {
@@ -4014,9 +4031,12 @@ and single-line
 }
 .gh-shell-brand-copy { gap: 0 !important; }
 .gh-shell-brand-title {
-  font-size: 15px !important;
-  font-weight: 700 !important;
-  letter-spacing: -0.01em !important;
+  /* Round 9: title bar wordmark clearly larger. The old clamped
+     15px / 700 didn't land as "bigger" — operator flagged it three
+     rounds running. 1.35rem / 800 with tighter letter-spacing. */
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
   line-height: 1.2 !important;
 }
 .gh-shell-brand-subtitle { display: none !important; }
@@ -4133,11 +4153,14 @@ and single-line
   background: #ffffff !important;
 }
 
-/* ---- Discovery three-column layout, properly bounded ---- */
+/* ---- Discovery three-column layout, properly bounded ----
+   Round 9: zero padding-top so the sidecar + filter-rail top edges
+   sit flush against the sub-tab row's border-bottom (borders meet
+   at right angles). Horizontal padding kept for breathing room. */
 .gh-discovery-main-grid {
   grid-template-columns: 240px minmax(0, 1fr) 360px !important;
-  gap: 16px !important;
-  padding: 16px 20px !important;
+  gap: 0 16px !important;
+  padding: 0 20px !important;
   max-width: none !important;
   align-items: start !important;
 }
