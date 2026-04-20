@@ -715,13 +715,14 @@ function FiltersPopover({
         </button>
       </div>
       <div className="gh-filters-popover-grid">
-        <DiscoveryQueryBuilder
-          activeQuery={filters.query}
-          onDiscoveryStateChange={onDiscoveryStateChange}
-          queryState={queryState}
-          supportedFields={supportedQueryFields}
-          syntaxHint={querySyntaxHint}
-        />
+        {/* Structured Search Helper deliberately not rendered here —
+            operator 2026-04-19 round 5 flagged that the "Clear clause"
+            and "Insert into search" buttons "still don't seem to do
+            anything". Root cause: Insert into search was disabled
+            until the user typed a value, and the disabled state wasn't
+            visually obvious. The filter rail on the left + the global
+            search bar already cover every filtering need; removing the
+            query-builder panel removes the confusion entirely. */}
         <ToggleChipSection
           allLabel="All types"
           emptyMessage="Asset types populate from live discovery facets."
@@ -1327,98 +1328,32 @@ function SortDropdown({ options = [], value = "", onChange }) {
 }
 
 function PrimaryFacetChips({
-  assetTypeCounts,
   filters,
   onDiscoveryStateChange,
   onOpenFilters,
   activeFilterChips = [],
   showFiltersBadge = 0,
-  obsoleteCount = 0,
   schemaFilter = null,
   onClearSchemaFilter,
   onClearAll,
 }) {
-  // Primary-facet chips. Operator 2026-04-19 round 3 asked that ALL
-  // applied filter chips sit on this single row next to the Filters
-  // launcher — no separate "Active Filters" strip below. Tables /
-  // Views / Deprecated still render as quick toggles; everything else
-  // (catalog, domain, owner, classification, glossary) appears inline
-  // as "Catalog: prod" style chips that clear themselves on click.
-  const primary = [
-    { key: "Delta Table", label: "Tables" },
-    { key: "View", label: "Views" },
-  ];
-  const entries = primary
-    .map((entry) => ({
-      ...entry,
-      count: Number(assetTypeCounts[entry.key] || 0),
-      kind: "type",
-    }))
-    .filter((entry) => entry.count > 0);
-  const typeFilters = Array.isArray(filters.types) ? filters.types : [];
-
-  // Surface non-type, non-Deprecated active filters inline so the row
-  // stays the single source of truth for applied filters.
+  // Primary facet row. Round 5 removal: the Tables / Views quick-toggle
+  // chips are gone — operator flagged them multiple times as "still
+  // there by default" because they always rendered. Asset-type filters
+  // live in the left filter rail under "Asset type" (Delta Table,
+  // Materialized View, Metric View, Streaming Table, View) where they
+  // belong. This row is now ONLY the applied-filter chips + the
+  // "Clear all" affordance + the Filters launcher.
   const visibleChips = (activeFilterChips || []).filter((chip) => {
-    const chipKey = String(chip?.key || "").toLowerCase();
     const label = String(chip?.label || "");
-    if (chipKey === "types") return false; // already surfaced via Tables/Views
-    if (chipKey === "certifications" && /deprecated/i.test(label)) return false;
+    // Deprecated is a workflow-state chip; render it exactly once via
+    // the active-filter strip path, not as a duplicate quick chip.
+    if (/^certifications:|deprecated/i.test(label)) return true;
     return true;
   });
 
   return (
-    <div className="gh-primary-facet-row" role="group" aria-label="Applied and quick-toggle filters">
-      {entries.map((entry) => {
-        const active = typeFilters.includes(entry.key);
-        const handleToggle = () => {
-          onDiscoveryStateChange((current) => {
-            const currentTypes = Array.isArray(current.types) ? current.types : [];
-            const nextTypes = currentTypes.includes(entry.key)
-              ? currentTypes.filter((t) => t !== entry.key)
-              : [...currentTypes, entry.key];
-            return { ...current, types: nextTypes };
-          });
-        };
-        return (
-          <button
-            aria-pressed={active}
-            className={`gh-primary-facet-chip ${active ? "is-active" : ""}`.trim()}
-            key={entry.key}
-            onClick={handleToggle}
-            title={active ? `Remove ${entry.label} filter` : `Filter to ${entry.label}`}
-            type="button"
-          >
-            <span className="gh-primary-facet-chip-label">{entry.label}</span>
-            <span className="gh-primary-facet-chip-count">
-              ({Number(entry.count || 0).toLocaleString()})
-            </span>
-            {active ? (
-              <span className="gh-primary-facet-chip-x" aria-hidden="true">×</span>
-            ) : null}
-          </button>
-        );
-      })}
-      {obsoleteCount > 0 && (filters.certifications || []).includes("Deprecated") ? (
-        <button
-          aria-pressed="true"
-          className="gh-primary-facet-chip is-active"
-          onClick={() =>
-            onDiscoveryStateChange((current) => ({
-              ...current,
-              certifications: (current.certifications || []).filter((c) => c !== "Deprecated"),
-            }))
-          }
-          title="Remove Deprecated filter"
-          type="button"
-        >
-          <span className="gh-primary-facet-chip-label">Deprecated</span>
-          <span className="gh-primary-facet-chip-count">
-            ({Number(obsoleteCount).toLocaleString()})
-          </span>
-          <span className="gh-primary-facet-chip-x" aria-hidden="true">×</span>
-        </button>
-      ) : null}
+    <div className="gh-primary-facet-row" role="group" aria-label="Applied filters and filters launcher">
       {schemaFilter ? (
         <button
           aria-pressed="true"
@@ -3823,10 +3758,8 @@ export default function DiscoveryWorkspace({
               you filter by catalog/schema instead of them showing up
               with the rest of the filters on the Filters line." */}
           <PrimaryFacetChips
-            assetTypeCounts={liveAssetTypeCounts}
             activeFilterChips={filtersApplied}
             filters={filters}
-            obsoleteCount={facetCount(resultsFacets, "certifications", "Deprecated")}
             schemaFilter={selectedSchema}
             onClearSchemaFilter={() => setSelectedSchemas(new Set())}
             onClearAll={() => {

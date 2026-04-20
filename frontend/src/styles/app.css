@@ -104,13 +104,14 @@ body {
   border: 1px solid rgba(182, 198, 216, 0.78);
   box-shadow: var(--gh-shadow-soft);
 }
-/* Shell header: no surrounding card. Inside the header the brand-band
-   keeps its own padding; the header itself just groups the content. */
+/* Shell header: no surrounding card but sticky cream background so
+   scrolled content doesn't bleed through. Operator 2026-04-19 round 5
+   flagged scroll-through. */
 .gh-shell-header {
   border-radius: 0;
   border: 0;
   box-shadow: none;
-  background: transparent !important;
+  background: #faf6ec !important;
 }
 
 .gh-eyebrow,
@@ -2770,16 +2771,22 @@ button:focus-visible,
   display: grid;
   gap: 12px;
   position: sticky;
-  top: 18px;
+  /* Sticky offset leaves space for the sticky shell header so these
+     rails don't slide UNDER the header on scroll. Operator round 5. */
+  top: calc(var(--gh-shell-header-height, 80px) + 12px);
   align-self: start;
   height: fit-content;
+  max-height: calc(100vh - var(--gh-shell-header-height, 80px) - 24px);
+  overflow-y: auto;
 }
 
-/* Asset preview sidecar reads as slightly "less cream" than the body —
-   operator rounds 3+4. With the lighter body (#faf6ec) we push the
-   sidecar a shade deeper/warmer so the layering actually reads. */
+/* Asset preview sidecar reads as slightly LIGHTER than the body —
+   operator 2026-04-19 round 5 flipped the direction ("should be a
+   smidge lighter than the rest of the cream"). Body is #faf6ec;
+   sidecar is #fdfaf1 with a warm beige border so the edge still
+   reads. */
 .gh-selection-preview {
-  background: #f1e8cf !important;
+  background: #fdfaf1 !important;
   border: 1px solid var(--gh-line-strong, #a99a70) !important;
   border-radius: 14px;
   padding: 14px 14px 18px;

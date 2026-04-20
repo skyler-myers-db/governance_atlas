@@ -25,6 +25,17 @@
   grid-area: header;
   margin-top: clamp(10px, 0.9vw, 18px);
   margin-bottom: clamp(10px, 0.9vw, 18px);
+  /* Sticky header — stays pinned while the main content scrolls so
+     the search bar and profile chip are always reachable. Solid cream
+     background + z-index above the card grid prevents text bleed
+     from rows below (operator 2026-04-19 round 5: "it shouldn't
+     combine with other text"). */
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: linear-gradient(180deg, #faf6ec 0%, #faf6ec 92%, rgba(250, 246, 236, 0.92) 100%);
+  border-bottom: 1px solid var(--gh-line, #b9ad84);
+  padding-bottom: 4px;
 }
 
 .gh-app.gh-app-with-rail > .gh-main {
@@ -38,25 +49,23 @@
 /* --- left icon rail --- */
 .gh-side-rail {
   position: sticky;
-  top: clamp(10px, 0.9vw, 18px);
+  top: 0;
   align-self: stretch;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   padding: 12px 6px 16px;
-  /* The rail shares the cream body — no white card for the rail itself,
-     only the icon buttons light up on hover/active. Operator 2026-04-19
-     flagged that the rail/header were reading as white. */
+  /* Rail shares the cream body but gets a clean right-edge divider
+     so it reads as a distinct region. Operator 2026-04-19 round 5:
+     "there should be more of them [borders] (separating the 'Asset
+     preview', 'Discovery', left side 'Filters', far left menu, etc.)" */
   border: 0;
+  border-right: 1px solid var(--gh-line, #b9ad84);
   background: transparent;
   box-shadow: none;
-  /* Fill the viewport height so the flex spacer can push the
-     Settings / Help / Sign out cluster to the bottom. Operator
-     2026-04-19 round 2 flagged they were bunching up near the top
-     because the rail was only as tall as its content. */
-  height: calc(100vh - 24px);
-  max-height: calc(100vh - 24px);
+  height: 100vh;
+  max-height: 100vh;
   overflow-y: auto;
 }
 
@@ -795,24 +804,28 @@
   text-decoration: none;
 }
 
+/* Filters launcher — selectable text with an icon, no bubble.
+   Operator 2026-04-19 round 5 asked for this to look like a link,
+   not a button. */
 .gh-primary-facet-launch {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
-  font-size: 0.84rem;
+  padding: 4px 2px;
+  font-family: inherit;
+  font-size: 0.9rem;
   font-weight: 700;
-  color: #2f3b55;
-  background: var(--gh-surface-soft, #fcf8ee);
-  border: 1px solid var(--gh-line, #d8cfb9);
-  border-radius: 8px;
+  color: var(--gh-ink, #1a2236);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
+  transition: color 120ms ease;
 }
 
 .gh-primary-facet-launch:hover {
-  background: #fff;
-  border-color: var(--gh-line-strong, #b8ac8c);
+  color: var(--gh-indigo, #3d2bc4);
+  background: transparent;
 }
 
 .gh-primary-facet-launch:focus-visible {
@@ -994,27 +1007,47 @@
    was flagged on 2026-04-19 as "janky". */
 .gh-filters-rail {
   position: sticky;
-  top: 14px;
+  /* Sticky offset leaves room for the sticky shell header so the
+     Filters heading never sits UNDER or ABOVE the header bar.
+     Operator 2026-04-19 round 5 flagged that scrolling made the
+     rail heading "combine with other text". */
+  top: calc(var(--gh-shell-header-height, 80px) + 12px);
   align-self: start;
-  padding: 14px 4px 16px;
+  padding: 14px 0 16px;
   border: 0;
   background: transparent !important;
+  border-right: 1px solid var(--gh-line-strong, #a99a70);
   border-radius: 0;
   box-shadow: none !important;
   display: grid;
   gap: 6px;
+  max-height: calc(100vh - var(--gh-shell-header-height, 80px) - 24px);
+  overflow-y: auto;
 }
 
 .gh-filters-rail-head {
-  padding: 0 16px 8px;
+  /* 16px horizontal padding matches the sidebar section head, so
+     "Filters" stacks exactly over "Catalog" below. */
+  padding: 0 16px 10px;
 }
 
 .gh-filters-rail-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.2rem;
   font-weight: 800;
-  letter-spacing: -0.01em;
-  color: #14213d;
+  letter-spacing: -0.015em;
+  color: var(--gh-ink, #14213d);
+}
+
+/* Round 5: sidebar section titles slightly bigger so the filter rail
+   hierarchy reads from "Filters" → "Catalog" → facet rows without
+   collapsing into one flat wall of text. */
+.gh-discovery-sidebar-section .gh-panel-title {
+  font-size: 0.86rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  color: var(--gh-ink, #14213d) !important;
 }
 
 /* Collapse chevrons on each section */
@@ -2177,7 +2210,9 @@ body {
    the mockup's flat treatment with thin dividers only. High-specificity
    compound selectors below win against the earlier app.css rules that
    set white backgrounds via single-class selectors. */
-.gh-shell-header.gh-shell-header,
+/* gh-shell-header intentionally NOT in this list — it needs a solid
+   cream background so sticky scroll doesn't let cards bleed through.
+   Round 5 fix. */
 .gh-side-rail.gh-side-rail,
 aside.gh-filters-rail,
 aside.gh-discovery-sidebar.gh-surface-rail,
