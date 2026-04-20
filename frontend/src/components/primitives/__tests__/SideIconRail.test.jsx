@@ -59,17 +59,25 @@ describe("SideIconRail — Tranche A regression suite", () => {
     window.open = origOpen;
   });
 
-  it("defect 10: Settings + Sign out live in the rail footer (not the primary nav)", () => {
+  it("mockup parity 2026-04-20 round 7: Settings sits in the primary nav below Teams & stewards", () => {
+    // Operator round 7 moved Settings out of the bottom footer and
+    // put it directly below Teams & stewards in the main nav column,
+    // with a thin divider above it. Help + Sign out stay at the
+    // bottom.
     const { container } = render(
       <SideIconRail activeModule="discovery" onModuleChange={() => {}} />,
     );
+    const nav = container.querySelector(".gh-side-rail-nav");
     const footer = container.querySelector(".gh-side-rail-footer");
+    expect(nav).not.toBeNull();
     expect(footer).not.toBeNull();
-    expect(footer?.querySelector('[aria-label="Settings"]')).not.toBeNull();
+    expect(nav?.querySelector('[aria-label="Settings"]')).not.toBeNull();
+    expect(footer?.querySelector('[aria-label="Settings"]')).toBeNull();
     expect(footer?.querySelector('[aria-label="Sign out"]')).not.toBeNull();
+    expect(footer?.querySelector('[aria-label="Help"]')).not.toBeNull();
   });
 
-  it("mockup parity: rail footer includes a Help button above Sign out", () => {
+  it("mockup parity 2026-04-20 round 7: rail footer contains only Help + Sign out in order", () => {
     const { container } = render(
       <SideIconRail activeModule="discovery" onModuleChange={() => {}} />,
     );
@@ -77,8 +85,7 @@ describe("SideIconRail — Tranche A regression suite", () => {
     expect(footer).not.toBeNull();
     const buttons = Array.from(footer?.querySelectorAll("button") || []);
     const labels = buttons.map((b) => b.getAttribute("aria-label"));
-    // Exact order from the mockup: Settings → Help → Sign out.
-    expect(labels).toEqual(["Settings", "Help", "Sign out"]);
+    expect(labels).toEqual(["Help", "Sign out"]);
   });
 
   it("mockup parity 2026-04-19: Help button opens the in-app help surface, not an external GitHub link", () => {

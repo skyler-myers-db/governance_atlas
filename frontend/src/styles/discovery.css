@@ -10,9 +10,15 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  padding: 2px 4px 0;
-  margin: 0 0 10px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  /* Round 7: sub-tab row sits inside the Discovery content column.
+     Thin top border separates it from the sticky shell header; the
+     bottom border is the single horizontal line that visually
+     continues into the sidecar's top edge (sidecar starts flush with
+     no margin so the two borders align on the same y). */
+  padding: 12px 4px 12px;
+  margin: 0;
+  border-top: 1px solid var(--gh-line-strong, #6e6039);
+  border-bottom: 1px solid var(--gh-line-strong, #6e6039);
   width: 100%;
 }
 .gh-discovery-subtabs-spacer {
@@ -2099,16 +2105,19 @@
 }
 .gh-discovery-command-heading h2.gh-discovery-command-title {
   color: var(--gh-text, #14213d);
-  font-size: 1.28rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  /* Round 7: "Discovery" dominates the content column — bigger than
+     the "Filters" rail heading (1.2rem) so the page title reads as
+     the primary anchor. */
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
   line-height: 1.15;
   margin: 0;
 }
 .gh-discovery-command-subline {
   color: var(--gh-text-muted, #5c6b82);
-  font-size: 0.82rem;
-  margin-top: 4px;
+  font-size: 0.95rem;
+  margin-top: 6px;
 }
 .gh-discovery-command-subline strong {
   color: var(--gh-text, #14213d);

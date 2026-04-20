@@ -2780,16 +2780,20 @@ button:focus-visible,
   overflow-y: auto;
 }
 
-/* Asset preview sidecar (rounds 5+6): lighter than body cream +
-   full-perimeter darker-beige border so the panel reads as a framed
-   region and the top edge sits ABOVE the "Asset preview" label. */
+/* Asset preview sidecar (round 7): lighter cream fill, SHARP
+   corners, no right border (page edge is the right edge). Only the
+   LEFT edge gets a border — the top horizontal line is drawn by
+   the sub-tab row's border-bottom, which sits at the same y and
+   visually continues across to the sidecar. */
 aside.gh-selection-preview,
 aside.gh-panel.gh-selection-preview {
   background: #fdfaf1 !important;
-  border: 1px solid var(--gh-line-strong, #6e6039) !important;
-  border-radius: 14px !important;
-  padding: 16px 16px 20px !important;
-  box-shadow: 0 10px 22px rgba(18, 35, 58, 0.04) !important;
+  border: 0 !important;
+  border-left: 1px solid var(--gh-line-strong, #6e6039) !important;
+  border-right: 0 !important;
+  border-radius: 0 !important;
+  padding: 18px 18px 20px !important;
+  box-shadow: none !important;
 }
 .gh-selection-preview::before {
   display: none !important;
