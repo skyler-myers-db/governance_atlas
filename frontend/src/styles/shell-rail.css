@@ -788,12 +788,13 @@
    lines up with the Sort-by dropdown below it (operator: "the right
    Filters should be right aligned with the Sort by drop down"). */
 .gh-primary-facet-row {
-  /* Round 15: padding-bottom 10→2 and margin-bottom 6→0 to pull the
-     "Discovery" heading closer to the facet-chip row above it. */
+  /* Round 16: padding-top 16→22 to give the facet chip row a touch
+     more breathing room below the subtab divider (operator: "the
+     selected filter facets needs slightly, slightly more space"). */
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 16px 18px 2px 0;
+  padding: 22px 18px 2px 0;
   flex-wrap: wrap;
   border: 0;
   background: transparent;
@@ -904,12 +905,15 @@
    Operator 2026-04-19 round 5 asked for this to look like a link,
    not a button. */
 .gh-primary-facet-launch {
+  /* Round 16: slightly larger target so the Filters link reads at
+     the same weight as the Sort-by trigger below it (operator: "the
+     Filters button on the right should be slightly bigger"). */
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 2px;
+  gap: 8px;
+  padding: 8px 6px;
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 1.02rem;
   font-weight: 700;
   color: var(--gh-ink, #1a2236);
   background: transparent;
@@ -930,7 +934,8 @@
 }
 
 .gh-primary-facet-launch-icon {
-  font-size: 0.92rem;
+  /* Round 16: icon sized to the bumped 1.02rem label. */
+  font-size: 1.05rem;
 }
 
 .gh-primary-facet-launch-badge {
@@ -1273,10 +1278,13 @@
 }
 
 .gh-catalog-tree-row {
+  /* Round 16: padding-x tightened 10→2 and flex-order reshuffled so
+     the checkbox lands flush with the .gh-checkbox-row checkboxes
+     in the sections below (all at x=94 on a 1440 viewport). */
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 6px 2px;
   border-radius: 8px;
   font-size: 0.84rem;
   color: var(--gh-ink, #14213d);
@@ -1288,6 +1296,15 @@
   width: 100%;
   min-width: 0;
 }
+
+/* Visual order: checkbox | label | count | chevron (right)
+   DOM order stays chevron-first for keyboard flow into the
+   expand/collapse control. */
+.gh-catalog-tree-row .gh-catalog-tree-checkbox { order: 1; }
+.gh-catalog-tree-row .gh-catalog-tree-schema-indent { order: 1; }
+.gh-catalog-tree-row .gh-catalog-tree-label { order: 2; }
+.gh-catalog-tree-row .gh-catalog-tree-count { order: 3; margin-left: auto; }
+.gh-catalog-tree-row .gh-catalog-tree-chevron { order: 4; }
 
 .gh-catalog-tree-row:hover {
   background: rgba(236, 240, 248, 0.82);
