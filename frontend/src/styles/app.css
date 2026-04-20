@@ -138,8 +138,9 @@ body {
 }
 
 .gh-global-search-input {
-  font-size: 0.9rem;
-  min-height: 40px;
+  /* Round 8: bigger search input to match the larger title-bar row. */
+  font-size: 1rem;
+  min-height: 46px;
 }
 
 .gh-search-dropdown {
@@ -2780,11 +2781,10 @@ button:focus-visible,
   overflow-y: auto;
 }
 
-/* Asset preview sidecar (round 7): lighter cream fill, SHARP
-   corners, no right border (page edge is the right edge). Only the
-   LEFT edge gets a border — the top horizontal line is drawn by
-   the sub-tab row's border-bottom, which sits at the same y and
-   visually continues across to the sidecar. */
+/* Asset preview sidecar (round 8): lighter cream fill, SHARP
+   corners, no right border, only a left-edge border. Padding-top
+   set to 0 so "Asset preview" eyebrow sits flush with the top
+   (same Y as "Filters" on the left). */
 aside.gh-selection-preview,
 aside.gh-panel.gh-selection-preview {
   background: #fdfaf1 !important;
@@ -2792,8 +2792,20 @@ aside.gh-panel.gh-selection-preview {
   border-left: 1px solid var(--gh-line-strong, #6e6039) !important;
   border-right: 0 !important;
   border-radius: 0 !important;
-  padding: 18px 18px 20px !important;
+  padding: 0 18px 20px !important;
   box-shadow: none !important;
+}
+
+/* Hide the surface-rail head/actions sidecar injects above the body
+   so nothing takes vertical space before the eyebrow row. */
+aside.gh-selection-preview > .gh-surface-rail-head,
+aside.gh-selection-preview > .gh-action-grid.gh-surface-rail-actions:empty,
+aside.gh-selection-preview > .gh-action-grid.gh-surface-rail-actions:has(> :empty) {
+  display: none !important;
+}
+aside.gh-selection-preview > .gh-surface-rail-body {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
 }
 .gh-selection-preview::before {
   display: none !important;
@@ -3960,7 +3972,7 @@ and single-line
   grid-template-columns: minmax(0, 1fr) !important;
   gap: 0 !important;
   padding: 0 !important;
-  border-bottom: 1px solid rgba(201, 183, 138, 0.35);
+  border-bottom: 0;
   background: transparent !important;
   box-shadow: none !important;
   align-items: center !important;

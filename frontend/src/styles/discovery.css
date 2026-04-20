@@ -59,13 +59,15 @@
   -webkit-appearance: none;
   background: transparent;
   border: 0;
-  padding: 10px 2px 12px;
+  /* Round 8: bigger font + thicker underline that aligns with the
+     subtab-row bottom border. */
+  padding: 12px 2px 14px;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--gh-ink-soft, #5f718c);
   cursor: pointer;
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   margin-bottom: -1px; /* sit the underline over the strip border */
   line-height: 1;
   transition: color 120ms ease, border-color 120ms ease;
@@ -74,9 +76,11 @@
   color: var(--gh-ink, #1a2236);
 }
 .gh-discovery-subtab.is-active {
-  color: var(--gh-ink, #1a2236);
-  border-bottom-color: var(--gh-indigo, #5b3ff2);
-  font-weight: 700;
+  /* Round 8: active tab text is indigo, matching the thicker
+     underline that sits exactly on the subtab-row bottom border. */
+  color: var(--gh-indigo-2, #2d1f93);
+  border-bottom-color: var(--gh-indigo, #3d2bc4);
+  font-weight: 800;
 }
 .gh-discovery-subtab:focus-visible {
   outline: 2px solid var(--gh-indigo, #5b3ff2);
@@ -1774,8 +1778,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--gh-line, #e2e4ec);
+  /* Round 8: no border under "Asset preview" — operator called out
+     the extra hairline as visual noise. The sidecar's top edge
+     already separates this row from the sub-tab border above. */
+  padding: 14px 0 10px;
+  border-bottom: 0;
 }
 .gh-asset-preview-eyebrow {
   /* Matches the section titles inside the preview (0.92rem / 800) —
@@ -1809,12 +1816,10 @@
 .gh-asset-preview-header-name {
   flex: 1 1 auto;
   font-weight: 800;
-  /* Round 6: bumped from 1.44rem → 1.6rem to sit visibly bigger than
-     the Metadata / Schema / Usage section titles (0.92rem), matching
-     the mockup hierarchy. */
-  font-size: 1.6rem;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  /* Round 8: 1.6 → 1.9rem so the asset name dominates the panel. */
+  font-size: 1.9rem;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
   color: var(--gh-ink, #14213d);
   min-width: 0;
   margin: 0;

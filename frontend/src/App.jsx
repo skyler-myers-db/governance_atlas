@@ -740,9 +740,20 @@ export default function App() {
             : Number.isFinite(Number(bootstrapSummary.visibleAssets))
               ? Number(bootstrapSummary.visibleAssets)
               : searchSeedAssets.length || null;
-      const catalogsFacet = Array.isArray(discoveryPayload.defaultFacets?.catalogs)
+      // Prefer the LIVE discovery facets over bootstrap — operator
+      // 2026-04-20 round 8 flagged that Home's catalog count didn't
+      // match the filter rail. Root cause: bootstrap was serving a
+      // stale/partial facet (4 catalogs) while the live search returns
+      // the full 5. Live > bootstrap, always.
+      const liveCatalogsFacet = Array.isArray(liveDiscoveryState?.facets?.catalogs)
+        ? liveDiscoveryState.facets.catalogs
+        : [];
+      const bootCatalogsFacet = Array.isArray(discoveryPayload.defaultFacets?.catalogs)
         ? discoveryPayload.defaultFacets.catalogs
         : [];
+      const catalogsFacet = liveCatalogsFacet.length
+        ? liveCatalogsFacet
+        : bootCatalogsFacet;
       const catalogCount =
         catalogsFacet.filter((c) => {
           const label = typeof c === "string" ? c : c?.value || c?.label || "";
