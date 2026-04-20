@@ -788,15 +788,17 @@
    lines up with the Sort-by dropdown below it (operator: "the right
    Filters should be right aligned with the Sort by drop down"). */
 .gh-primary-facet-row {
+  /* Round 15: padding-bottom 10→2 and margin-bottom 6→0 to pull the
+     "Discovery" heading closer to the facet-chip row above it. */
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 16px 18px 10px 0;
+  padding: 16px 18px 2px 0;
   flex-wrap: wrap;
   border: 0;
   background: transparent;
   box-shadow: none;
-  margin-bottom: 6px;
+  margin-bottom: 0;
 }
 
 .gh-primary-facet-chip {
@@ -1702,7 +1704,10 @@
 }
 
 .gh-discovery-card-list.density-spacious .gh-discovery-asset-card-title {
-  font-size: 1.08rem;
+  /* Round 15: 1.08 → 1.2rem so asset names on spacious density cards
+     read as the primary hook of each card (operator: "asset names
+     in the discovery boxes need to be slightly larger"). */
+  font-size: 1.2rem;
 }
 
 .gh-discovery-card-list.density-spacious .gh-discovery-asset-card-description {
@@ -1834,8 +1839,10 @@ input:focus-visible {
 
 /* --- Recently Viewed compression: condensed horizontal strip --- */
 .gh-activity-home {
+  /* Round 15: padding-top 6→0 so the strip sits tight under the
+     "Showing... assets" summary. */
   grid-template-columns: 1fr !important;
-  padding: 6px 12px !important;
+  padding: 0 12px 6px !important;
   gap: 8px !important;
   background: rgba(247, 250, 255, 0.65) !important;
 }
@@ -1858,14 +1865,13 @@ input:focus-visible {
 }
 
 .gh-activity-chip {
-  /* Round 13: chips bumped from 11px/3×8 padding to 13.5px/6×12
-     so the Your Favorites / Recently Viewed tiles read as proper
-     affordances (operator: "those assets for favorites / recents
-     should be slightly larger"). */
+  /* Round 15: chip size bumped again — 13.5→15px font, 6×12→7×14
+     padding. Matches the base rule in discovery.css so the !important
+     override doesn't fight it. */
   flex: 0 0 auto !important;
-  max-width: 260px !important;
-  font-size: 13.5px !important;
-  padding: 6px 12px !important;
+  max-width: 280px !important;
+  font-size: 15px !important;
+  padding: 7px 14px !important;
 }
 
 /* --- Preview panel (Asset preview rail) --- */
