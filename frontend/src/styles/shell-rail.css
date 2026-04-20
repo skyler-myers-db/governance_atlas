@@ -87,10 +87,15 @@
   content: "";
   position: absolute;
   right: 0;
-  top: calc(var(--gh-shell-header-height, 80px) + 14px);
+  /* Round 12: vertical border starts exactly at the subtab row's top
+     horizontal, forming a clean right-angle corner. Side-rail is
+     pinned at top:0, app margin-top ≈ 2, header margin-top 4 + 80px
+     header = bottom at y=86. From side-rail origin (y=2) the offset
+     to y=86 is 84 = header-height (80) + header margin-top (4). */
+  top: calc(var(--gh-shell-header-height, 80px) + 4px);
   bottom: 0;
   width: 1px;
-  background: var(--gh-line-strong, #6e6039);
+  background: var(--gh-line, #b9ac82);
   pointer-events: none;
 }
 
@@ -323,12 +328,14 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
+  gap: 10px;
+  padding: 0 14px;
   border: 1px solid rgba(182, 198, 216, 0.85);
-  border-radius: 999px;
+  /* Round 12: squarer corners (operator: "the top search bar should
+     be more squared than rounded, only slightly rounded edges"). */
+  border-radius: 10px;
   background: rgba(247, 250, 255, 0.88);
-  min-height: 40px;
+  min-height: 44px;
   transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
 }
 
@@ -350,6 +357,14 @@
   justify-content: center;
   color: #60748e;
   flex: 0 0 auto;
+  /* Round 12: slightly larger magnifying glass to match the bigger
+     placeholder text. */
+  font-size: 1.05rem;
+}
+
+.gh-topbar-search-icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .gh-topbar-search-input {
@@ -358,7 +373,8 @@
   border: 0;
   background: transparent;
   padding: 0;
-  font-size: 0.88rem;
+  /* Round 12: placeholder/query text slightly larger. */
+  font-size: 0.98rem;
   color: var(--gh-ink, #14213d);
   outline: none;
 }
@@ -746,12 +762,15 @@
 /* --- primary facet chip row (always-visible quick filters + Filters launcher)
    Row shares the cream body. Round 10: bumped top padding so the
    "No filters applied" label + Filters button don't crowd the
-   subtab border-bottom above them. */
+   subtab border-bottom above them.
+   Round 12: padding-right 18px so the Filters button's right edge
+   lines up with the Sort-by dropdown below it (operator: "the right
+   Filters should be right aligned with the Sort by drop down"). */
 .gh-primary-facet-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 16px 0 10px;
+  padding: 16px 18px 10px 0;
   flex-wrap: wrap;
   border: 0;
   background: transparent;
@@ -1080,10 +1099,13 @@
 }
 
 .gh-filters-rail-head {
-  /* Round 10: padding matches the sidebar section head exactly so
-     "Filters" sits directly above "CATALOG" (same x, minimal gap). */
+  /* Round 12: center the "Filters" title horizontally inside the rail
+     band so it sits on the same center-axis as the section titles
+     below (operator: "everything should be centered between those
+     two vertical borders"). */
   padding: 14px 12px 4px;
   border: 0 !important;
+  text-align: center;
 }
 
 .gh-filters-rail-title {
@@ -1092,6 +1114,7 @@
   font-weight: 800;
   letter-spacing: -0.015em;
   color: var(--gh-ink, #14213d);
+  text-align: center;
 }
 
 /* Round 5/9: sidebar section titles slightly bigger so the filter
@@ -1106,20 +1129,24 @@
 
 /* Collapse chevrons on each section.
    Round 10: horizontal padding matches the Filters-rail head (12px)
-   so every filter-rail label lines up flush. */
+   so every filter-rail label lines up flush.
+   Round 12: center the label + chevron group horizontally so section
+   titles sit on the same center axis as "Filters" (operator asked for
+   everything centered between the rail's two vertical borders). */
 .gh-sidebar-section-toggle {
   display: flex !important;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 8px;
   width: 100%;
   padding: 6px 12px;
   border: 0;
   background: transparent;
   color: #14213d;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
   line-height: 1;
+  position: relative;
 }
 
 .gh-sidebar-section-toggle:hover {
@@ -1135,6 +1162,14 @@
 }
 
 .gh-sidebar-section-chevron {
+  /* Round 12: chevron is absolutely positioned so the section label
+     itself stays centered under "Filters" above. Without this, the
+     chevron's ~20px of inline space pulled the label 10px off the
+     rail center-axis. */
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   color: #60748e;
@@ -1142,8 +1177,11 @@
 }
 
 .gh-sidebar-section-chevron.is-collapsed {
-  transform: rotate(-90deg);
+  transform: translateY(-50%) rotate(-90deg);
 }
+
+/* Round 12: collapsed variant handled above so translateY stays
+   applied alongside the rotation. */
 
 .gh-sidebar-section-body {
   /* Round 10: narrower horizontal padding so filter-rail items feel
@@ -1589,14 +1627,14 @@
 }
 
 .gh-discovery-asset-card.is-selected {
-  /* Selected card: indigo brand outline + matching soft indigo halo.
-     The prior halo painted a 1px magenta ring immediately outside the
-     indigo border, producing a pink outline flagged in the fourth
-     parity review. Matching both border + shadow to indigo lets the
-     selection read as a single consistent accent. */
-  border-color: rgba(91, 67, 238, 0.55) !important;
+  /* Round 12: opaque deep-indigo border + matching halo so the
+     selected card reads as decisive, not washed out. Operator:
+     "the dark purple border around the selected asset still needs
+     to be darker". */
+  border-color: var(--gh-indigo-2, #2d1f93) !important;
+  border-width: 2px !important;
   background: #ffffff !important;
-  box-shadow: 0 0 0 1px rgba(91, 67, 238, 0.18), 0 8px 24px -18px rgba(20, 33, 61, 0.4) !important;
+  box-shadow: 0 0 0 2px rgba(45, 31, 147, 0.55), 0 10px 26px -18px rgba(20, 33, 61, 0.4) !important;
 }
 
 /* Domain pill fallback tone — for assets with no domain assignment,
@@ -1689,7 +1727,7 @@ input:focus-visible {
 /* Ensure selected/active cards have a visible outline even on busy backgrounds */
 .gh-discovery-asset-card.is-selected,
 .gh-discovery-result-row.is-selected {
-  box-shadow: 0 0 0 2px rgba(91, 67, 238, 0.55), 0 16px 34px rgba(18, 35, 58, 0.08);
+  box-shadow: 0 0 0 2px var(--gh-indigo-2, #2d1f93), 0 16px 34px rgba(18, 35, 58, 0.08);
 }
 
 /* Native selection highlight */
@@ -1841,14 +1879,16 @@ input:focus-visible {
 h3.gh-asset-preview-header-name {
   flex: 1 1 auto;
   min-width: 0;
-  /* Round 11: 2.2 → 2.6rem so the asset name is unmistakably the
-     primary anchor of the sidecar. Needs !important + higher-specificity
-     compound selector to beat the generic `.gh-surface-rail h3` and
-     `.gh-selection-preview h3` rules below which set 15px !important. */
-  font-size: 2.6rem !important;
+  /* Round 12: shrink back from the huge round-11 display size —
+     operator said 2.6rem was way too big, wants it just slightly
+     bigger than the "Metadata" label (≈14.7px). 1.25rem (~20px) is
+     the right step up. !important + compound selector needed because
+     the generic `.gh-surface-rail h3` and `.gh-selection-preview h3`
+     rules set 15px !important. */
+  font-size: 1.25rem !important;
   font-weight: 800 !important;
-  line-height: 1.08 !important;
-  letter-spacing: -0.03em;
+  line-height: 1.2 !important;
+  letter-spacing: -0.01em;
   color: #14213d;
   overflow-wrap: anywhere;
   word-break: break-word;

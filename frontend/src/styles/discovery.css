@@ -41,23 +41,32 @@
   flex: 1 1 auto;
 }
 .gh-discovery-subtabs-quick-action {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 10px;
+  gap: 10px;
+  /* Round 12: chunkier padding + font so the button reads as the
+     clear primary CTA on the subtab row (operator: "the + Quick
+     actions menu needs to be much bigger overall, font and size"). */
+  padding: 12px 22px;
+  border-radius: 12px;
   /* Deeper purple — operator 2026-04-19 round 2 asked for a darker
      indigo so the Quick action reads as decisive. */
   background: linear-gradient(180deg, var(--gh-indigo, #3d2bc4) 0%, var(--gh-indigo-2, #2d1f93) 100%);
   color: #fff;
   font-family: inherit;
-  font-size: 0.84rem;
-  font-weight: 600;
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
   border: 0;
   box-shadow: 0 6px 14px rgba(61, 43, 196, 0.28);
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+
+.gh-discovery-subtabs-quick-action svg {
+  width: 18px;
+  height: 18px;
 }
 .gh-discovery-subtabs-quick-action:hover {
   filter: brightness(1.05);
@@ -1840,14 +1849,13 @@
 h3.gh-asset-preview-header-name {
   flex: 1 1 auto;
   font-weight: 800 !important;
-  /* Round 11: 2.2 → 2.6rem — clearly the largest text in the sidecar.
-     !important + higher-specificity compound selector needed because
-     the generic `.gh-surface-rail h3` and `.gh-selection-preview h3`
-     rules in shell-rail.css set font-size: 15px !important and were
-     winning the cascade when this class lived as a plain selector. */
-  font-size: 2.6rem !important;
-  line-height: 1.08 !important;
-  letter-spacing: -0.03em;
+  /* Round 12: asset name is a touch bigger than the "Metadata" section
+     label (≈14.7px / 0.92rem) — operator: "the asset title is way too
+     big; it just needs to be slightly bigger than Metadata". 1.25rem
+     (≈20px) reads as the sidecar anchor without dominating the layout. */
+  font-size: 1.25rem !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.01em;
   color: var(--gh-ink, #14213d);
   min-width: 0;
   margin: 0;
