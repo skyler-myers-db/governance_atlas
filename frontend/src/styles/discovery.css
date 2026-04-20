@@ -10,15 +10,32 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  /* Round 10: top + bottom borders EQUIDISTANT from the tab text.
-     Zero row-padding: the tab button's own padding does all the
-     vertical spacing, so the top / bottom borders frame the text
-     symmetrically. */
-  padding: 0 4px;
+  /* Round 11:
+     - Left padding 32px aligns Discovery/Navigation with the
+       "Filters" heading column (x ≈ 106 per live DOM).
+     - Padding-top 8px pushes the +Quick action button down to
+       8-9px below the top border — equidistant with the current
+       ~9px bottom gap.
+     - Bottom border stays as-is.
+     - ::before extends the top border leftward over the side-rail
+       column so the horizontal rule spans the whole viewport
+       width. */
+  padding: 8px 4px 0 32px;
   margin: 0;
-  border-top: 1px solid var(--gh-line-strong, #6e6039);
-  border-bottom: 1px solid var(--gh-line-strong, #6e6039);
+  border-top: 1px solid var(--gh-line-strong, #a89a73);
+  border-bottom: 1px solid var(--gh-line-strong, #a89a73);
   width: 100%;
+  position: relative;
+}
+.gh-discovery-subtabs::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: 100%;
+  width: 100vw;
+  height: 1px;
+  background: var(--gh-line-strong, #a89a73);
+  pointer-events: none;
 }
 .gh-discovery-subtabs-spacer {
   flex: 1 1 auto;
@@ -1818,12 +1835,18 @@
   border: 1px solid var(--gh-border, #d8dee9);
   flex: 0 0 auto;
 }
-.gh-asset-preview-header-name {
+.gh-selection-preview h3.gh-asset-preview-header-name,
+.gh-surface-rail h3.gh-asset-preview-header-name,
+h3.gh-asset-preview-header-name {
   flex: 1 1 auto;
-  font-weight: 800;
-  /* Round 9: 1.9 → 2.2rem so the asset name dominates the sidecar. */
-  font-size: 2.2rem;
-  line-height: 1.12;
+  font-weight: 800 !important;
+  /* Round 11: 2.2 → 2.6rem — clearly the largest text in the sidecar.
+     !important + higher-specificity compound selector needed because
+     the generic `.gh-surface-rail h3` and `.gh-selection-preview h3`
+     rules in shell-rail.css set font-size: 15px !important and were
+     winning the cascade when this class lived as a plain selector. */
+  font-size: 2.6rem !important;
+  line-height: 1.08 !important;
   letter-spacing: -0.03em;
   color: var(--gh-ink, #14213d);
   min-width: 0;

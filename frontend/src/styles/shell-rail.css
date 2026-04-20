@@ -26,10 +26,16 @@
 
 .gh-app.gh-app-with-rail > .gh-shell-header {
   grid-area: header;
-  /* Round 10: tighter vertical margins around the sticky header. */
+  /* Round 11: margin-bottom 8 → 0 so the subtab row's top border
+     sits flush with the header bottom and the quick-action button
+     reads as equidistant from the top + bottom borders (operator:
+     "the very top border above + Quick Actions needs to be moved
+     up slightly"). */
   margin-top: 4px;
-  margin-bottom: 8px;
-  padding-left: clamp(10px, 1vw, 22px);
+  margin-bottom: 0;
+  /* Padding-left 0 so the brand-band's own 32px padding-left is the
+     single source of alignment. */
+  padding-left: 0;
   /* Sticky header — stays pinned while the main content scrolls so
      the search bar and profile chip are always reachable. Solid cream
      background + z-index above the card grid prevents text bleed
@@ -221,10 +227,10 @@
   flex-wrap: nowrap !important;
   align-items: center !important;
   gap: clamp(14px, 1.5vw, 30px) !important;
-  /* Zero left padding so the Governance Hub logo + wordmark sit
-     immediately right of the side icon rail. Round 7 bumped vertical
-     padding so the header reads as a premium enterprise bar. */
-  padding: 14px 20px 14px 0 !important;
+  /* Round 11: 32px left padding so the Governance Hub brand mark
+     aligns vertically with the Discovery / Filters / CATALOG column
+     at x ≈ 106 (sub-tab padding-left + rail-content-left). */
+  padding: 14px 20px 14px 32px !important;
   min-height: 72px !important;
 }
 
@@ -1830,13 +1836,18 @@ input:focus-visible {
   flex: 0 0 auto;
 }
 
-.gh-asset-preview-header-name {
+.gh-selection-preview h3.gh-asset-preview-header-name,
+.gh-surface-rail h3.gh-asset-preview-header-name,
+h3.gh-asset-preview-header-name {
   flex: 1 1 auto;
   min-width: 0;
-  /* Round 9: asset name bumped 1.9 → 2.2rem — dominates the sidecar. */
-  font-size: 2.2rem;
-  font-weight: 800;
-  line-height: 1.12;
+  /* Round 11: 2.2 → 2.6rem so the asset name is unmistakably the
+     primary anchor of the sidecar. Needs !important + higher-specificity
+     compound selector to beat the generic `.gh-surface-rail h3` and
+     `.gh-selection-preview h3` rules below which set 15px !important. */
+  font-size: 2.6rem !important;
+  font-weight: 800 !important;
+  line-height: 1.08 !important;
   letter-spacing: -0.03em;
   color: #14213d;
   overflow-wrap: anywhere;

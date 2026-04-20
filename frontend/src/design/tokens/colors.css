@@ -19,10 +19,10 @@
   --gh-surface-soft: #fdfaf2;
   --gh-surface-muted: #f7f1e3;
 
-  /* Border lines in warm beige. Rounds 2/3/5/6 progressively darken
-     them so card silhouettes + panel separators read crisply. */
-  --gh-line: #9a8c5d;
-  --gh-line-strong: #6e6039;
+  /* Border lines in warm beige. Round 11 lightens a shade — operator
+     asked for "all borders a shade lighter" after round 10's bump. */
+  --gh-line: #b9ac82;
+  --gh-line-strong: #a89a73;
 
   --gh-ink: #1a2236;
   --gh-ink-soft: #525e74;
