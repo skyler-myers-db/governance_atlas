@@ -3523,44 +3523,37 @@ export default function DiscoveryWorkspace({
             );
           })()}
 
-          {/* 4. Owner (real owners from visible inventory + "All owners") */}
+          {/* 4. Owner — reads from backend `owners` facet so "Unassigned"
+               and per-owner counts aggregate across the FULL matched set,
+               not just the paged window. Round 13 fix: previously this
+               tallied `allDiscoveryAssets` (page-size ≈ 60), so Unassigned
+               reported 80 while the actual total was 1,198. */}
           <SidebarSection title="Owner">
             {(() => {
-              // Distinct owner list from the live inventory. Previously this
-              // section rendered a single "User/Team" checkbox as a mockup
-              // stand-in, which gave stewards no way to actually filter by a
-              // real owner. Now we tally owners out of the visible assets
-              // and surface the top N as real filter checkboxes with counts.
-              const ownerCounts = new Map();
-              for (const entry of allDiscoveryAssets) {
-                const owners = Array.isArray(entry?.owners) ? entry.owners : [];
-                if (!owners.length) {
-                  ownerCounts.set("__unassigned__", (ownerCounts.get("__unassigned__") || 0) + 1);
-                  continue;
-                }
-                for (const owner of owners) {
-                  const label = typeof owner === "string"
-                    ? owner
-                    : owner?.email || owner?.name || owner?.label || "";
-                  if (!label) continue;
-                  ownerCounts.set(label, (ownerCounts.get(label) || 0) + 1);
-                }
-              }
-              const ownerEntries = [...ownerCounts.entries()]
-                .filter(([key]) => key !== "__unassigned__")
-                .sort((a, b) => b[1] - a[1])
+              const ownerFacetEntries = Array.isArray(discoveryResults.facets?.owners)
+                ? discoveryResults.facets.owners
+                : [];
+              const ownerEntries = ownerFacetEntries
+                .filter(
+                  (entry) =>
+                    entry &&
+                    entry.value &&
+                    entry.value !== "All owners" &&
+                    entry.value !== "Unassigned",
+                )
+                .map((entry) => [entry.value, Number(entry.count || 0)])
                 .slice(0, 8);
-              const unassignedCount = ownerCounts.get("__unassigned__") || 0;
-              const allSelected = !ownerFilterText;
-              // Total count matches the Domain/Classification sentinels:
-              // prefer the backend-reported discovery count, fall back to
-              // the locally-rendered asset length only when the backend
-              // hasn't reported a count yet. Operator 2026-04-19 round 4
-              // flagged that "All owners (80)" was wrong (it was reporting
-              // only the rendered-so-far count).
-              const ownerTotalCount = Number(
-                discoveryResults.count || allDiscoveryAssets.length,
+              const unassignedEntry = ownerFacetEntries.find(
+                (entry) => entry && entry.value === "Unassigned",
               );
+              const unassignedCount = Number(unassignedEntry?.count || 0);
+              const allEntry = ownerFacetEntries.find(
+                (entry) => entry && entry.value === "All owners",
+              );
+              const ownerTotalCount = Number(
+                allEntry?.count ?? discoveryResults.count ?? allDiscoveryAssets.length ?? 0,
+              );
+              const allSelected = !ownerFilterText;
               return (
                 <div className="gh-checkbox-list">
                   <label className={`gh-checkbox-row ${allSelected ? "is-active" : ""}`.trim()}>

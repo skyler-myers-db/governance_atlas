@@ -70,9 +70,11 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  /* Round 10: Home button center aligns with the Discovery sub-tab
-     center. */
-  padding: calc(var(--gh-shell-header-height, 80px) + 28px) 6px 16px;
+  /* Round 13: Home icon center aligned with Discovery/Navigation
+     sub-tab center (≈y=120). The old +28px put Home's center at
+     y=132, about 12px below Discovery's center; +16px lands them
+     level. */
+  padding: calc(var(--gh-shell-header-height, 80px) + 16px) 6px 16px;
   border: 0;
   /* Round 10: border-right is drawn via an ::after pseudo so we
      can stop it at the top horizontal border (subtab top) instead
@@ -87,12 +89,13 @@
   content: "";
   position: absolute;
   right: 0;
-  /* Round 12: vertical border starts exactly at the subtab row's top
-     horizontal, forming a clean right-angle corner. Side-rail is
-     pinned at top:0, app margin-top ≈ 2, header margin-top 4 + 80px
-     header = bottom at y=86. From side-rail origin (y=2) the offset
-     to y=86 is 84 = header-height (80) + header margin-top (4). */
-  top: calc(var(--gh-shell-header-height, 80px) + 4px);
+  /* Round 13: vertical border runs the FULL side-rail height so it
+     definitively crosses the top horizontal border and forms a clean
+     right-angle corner at (x=73, y=header-bottom). Earlier rounds
+     tried to start the vertical exactly at the horizontal's y, but
+     1-2px rounding + sticky-pin math kept leaving a visible gap.
+     Extending top to 0 guarantees overlap at the corner pixel. */
+  top: 0;
   bottom: 0;
   width: 1px;
   background: var(--gh-line, #b9ac82);
@@ -257,8 +260,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  /* Round 13: slightly larger brand glyph alongside bigger title. */
+  width: 38px;
+  height: 38px;
   color: #e11d74; /* stylized-G stroke — magenta accent */
   background: transparent !important;
   box-shadow: none !important;
@@ -266,9 +270,15 @@
   border-radius: 0 !important;
 }
 
+.gh-shell-brand-mark svg {
+  width: 100%;
+  height: 100%;
+}
+
 .gh-shell-brand-title {
-  /* Round 8: title bar content bigger overall. */
-  font-size: 1.24rem;
+  /* Round 13: title a shade bigger again (1.24rem → 1.4rem) to match
+     the stepped-up brand glyph. */
+  font-size: 1.4rem;
   font-weight: 800;
   letter-spacing: -0.015em;
   line-height: 1;
@@ -398,20 +408,27 @@
 
 /* --- topbar icon buttons (inbox, alerts) ---
    Round 10: no white bubble — icons sit directly on the cream body.
-   Operator flagged the circular white background as mockup drift. */
+   Operator flagged the circular white background as mockup drift.
+   Round 13: 36→42 + bigger inner SVG (20 → 22) so the inbox / alerts
+   / user chip glyphs read clearly at the larger header scale. */
 .gh-shell-topbar-icon-button {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
   border: 0;
   background: transparent;
   color: var(--gh-ink, #2f3b55);
   cursor: pointer;
   transition: background 120ms ease, color 120ms ease;
+}
+
+.gh-shell-topbar-icon-button svg {
+  width: 22px;
+  height: 22px;
 }
 
 .gh-shell-topbar-icon-button:hover {
@@ -520,7 +537,8 @@
 }
 
 .gh-user-chip-name {
-  font-size: 0.84rem;
+  /* Round 13: nudged up 0.84rem → 0.95rem alongside the bigger avatar. */
+  font-size: 0.95rem;
   font-weight: 800;
   color: var(--gh-ink, #14213d);
   letter-spacing: -0.01em;
@@ -530,7 +548,7 @@
 }
 
 .gh-user-chip-role {
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: #60748e;
   letter-spacing: 0.02em;
@@ -1099,13 +1117,12 @@
 }
 
 .gh-filters-rail-head {
-  /* Round 12: center the "Filters" title horizontally inside the rail
-     band so it sits on the same center-axis as the section titles
-     below (operator: "everything should be centered between those
-     two vertical borders"). */
-  padding: 14px 12px 4px;
+  /* Round 13: revert round-12 centering — operator clarified they
+     want filter labels LEFT-aligned with counts RIGHT-aligned, using
+     the full width between the two vertical borders. */
+  padding: 14px 16px 4px;
   border: 0 !important;
-  text-align: center;
+  text-align: left;
 }
 
 .gh-filters-rail-title {
@@ -1114,7 +1131,7 @@
   font-weight: 800;
   letter-spacing: -0.015em;
   color: var(--gh-ink, #14213d);
-  text-align: center;
+  text-align: left;
 }
 
 /* Round 5/9: sidebar section titles slightly bigger so the filter
@@ -1128,22 +1145,22 @@
 }
 
 /* Collapse chevrons on each section.
-   Round 10: horizontal padding matches the Filters-rail head (12px)
-   so every filter-rail label lines up flush.
-   Round 12: center the label + chevron group horizontally so section
-   titles sit on the same center axis as "Filters" (operator asked for
-   everything centered between the rail's two vertical borders). */
+   Round 13: labels LEFT, chevron RIGHT — operator rescinded the
+   round-12 centering request ("I misspoke, I meant left-aligned
+   labels and right-aligned counts that use the full width").
+   Section padding matches the filters-rail head (16px) so every
+   section label hugs the left vertical border. */
 .gh-sidebar-section-toggle {
   display: flex !important;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 6px 12px;
+  padding: 6px 16px;
   border: 0;
   background: transparent;
   color: #14213d;
-  text-align: center;
+  text-align: left;
   cursor: pointer;
   line-height: 1;
   position: relative;
@@ -1162,14 +1179,8 @@
 }
 
 .gh-sidebar-section-chevron {
-  /* Round 12: chevron is absolutely positioned so the section label
-     itself stays centered under "Filters" above. Without this, the
-     chevron's ~20px of inline space pulled the label 10px off the
-     rail center-axis. */
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+  /* Round 13: back to inline flex child — chevron sits on the right
+     end of the space-between toggle while the label hugs the left. */
   display: inline-flex;
   align-items: center;
   color: #60748e;
@@ -1177,11 +1188,8 @@
 }
 
 .gh-sidebar-section-chevron.is-collapsed {
-  transform: translateY(-50%) rotate(-90deg);
+  transform: rotate(-90deg);
 }
-
-/* Round 12: collapsed variant handled above so translateY stays
-   applied alongside the rotation. */
 
 .gh-sidebar-section-body {
   /* Round 10: narrower horizontal padding so filter-rail items feel
@@ -1196,12 +1204,16 @@
 }
 
 .gh-checkbox-row {
+  /* Round 13: row padding-x matches the section-toggle (16px) so the
+     label sits flush with the left vertical border and the count
+     sits flush with the right — "using up all the space between both
+     vertical borders" per operator. */
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  padding: 6px 16px;
   border-radius: 6px;
-  font-size: 0.84rem;
+  font-size: 0.92rem;
   color: #14213d;
   cursor: pointer;
   line-height: 1.3;
@@ -1237,7 +1249,8 @@
 
 .gh-checkbox-row .gh-checkbox-count {
   flex: 0 0 auto;
-  font-size: 0.76rem;
+  margin-left: auto;
+  font-size: 0.84rem;
   font-weight: 700;
   color: #60748e;
 }
@@ -1841,10 +1854,14 @@ input:focus-visible {
 }
 
 .gh-activity-chip {
+  /* Round 13: chips bumped from 11px/3×8 padding to 13.5px/6×12
+     so the Your Favorites / Recently Viewed tiles read as proper
+     affordances (operator: "those assets for favorites / recents
+     should be slightly larger"). */
   flex: 0 0 auto !important;
-  max-width: 200px !important;
-  font-size: 11px !important;
-  padding: 3px 8px !important;
+  max-width: 260px !important;
+  font-size: 13.5px !important;
+  padding: 6px 12px !important;
 }
 
 /* --- Preview panel (Asset preview rail) --- */

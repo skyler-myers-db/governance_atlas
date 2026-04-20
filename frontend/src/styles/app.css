@@ -4028,10 +4028,12 @@ and single-line
   gap: 10px !important;
 }
 .gh-shell-brand-mark {
-  width: 30px !important;
-  height: 30px !important;
+  /* Round 13: slightly larger brand glyph (30px → 38px) alongside
+     the bigger wordmark. */
+  width: 38px !important;
+  height: 38px !important;
   border-radius: 8px !important;
-  min-width: 30px !important;
+  min-width: 38px !important;
 }
 .gh-shell-brand-mark::before { display: none !important; }
 .gh-shell-brand-glyph {
@@ -4040,10 +4042,9 @@ and single-line
 }
 .gh-shell-brand-copy { gap: 0 !important; }
 .gh-shell-brand-title {
-  /* Round 9: title bar wordmark clearly larger. The old clamped
-     15px / 700 didn't land as "bigger" — operator flagged it three
-     rounds running. 1.35rem / 800 with tighter letter-spacing. */
-  font-size: 1.35rem !important;
+  /* Round 13: bumped 1.35rem → 1.5rem so the wordmark reads slightly
+     bigger alongside the bigger brand glyph and topbar icons. */
+  font-size: 1.5rem !important;
   font-weight: 800 !important;
   letter-spacing: -0.02em !important;
   line-height: 1.2 !important;

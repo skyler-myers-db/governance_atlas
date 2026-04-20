@@ -1689,6 +1689,49 @@ def facet_payload(
     return items
 
 
+def owners_facet_payload(
+    assets: List[Dict[str, Any]], *, all_label: str, top_n: int = 8
+) -> List[Dict[str, Any]]:
+    """Owner facet: tally distinct owners across the full matched set
+    plus an explicit "Unassigned" bucket for rows with no owners.
+
+    The per-asset "owners" field is a list of {name, title, email?}
+    dicts (see owner_entries()). Each named owner contributes one
+    vote per asset that lists them; an asset with zero owners feeds
+    "Unassigned". Returned as [All, ...top_n real owners, Unassigned]
+    matching the shape of facet_payload() so the frontend can render
+    identical checkbox rows.
+    """
+    counts: Dict[str, int] = {}
+    unassigned = 0
+    for asset in assets:
+        owner_list = asset.get("owners") or []
+        if not isinstance(owner_list, list) or not owner_list:
+            unassigned += 1
+            continue
+        seen_for_asset: set[str] = set()
+        for owner in owner_list:
+            if isinstance(owner, dict):
+                label = (
+                    normalize_str(owner.get("email"))
+                    or normalize_str(owner.get("name"))
+                    or normalize_str(owner.get("label"))
+                )
+            else:
+                label = normalize_str(owner)
+            if not label or label in seen_for_asset:
+                continue
+            seen_for_asset.add(label)
+            counts[label] = counts.get(label, 0) + 1
+        if not seen_for_asset:
+            unassigned += 1
+    ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:top_n]
+    items: List[Dict[str, Any]] = [{"value": all_label, "count": len(assets)}]
+    items.extend({"value": label, "count": count} for label, count in ordered)
+    items.append({"value": "Unassigned", "count": unassigned})
+    return items
+
+
 def view_facet_payload(
     assets: List[Dict[str, Any]],
     *,
@@ -1999,6 +2042,10 @@ def discovery_search_payload(
             ],
             "sensitivity",
             all_label="All sensitivities",
+        ),
+        "owners": owners_facet_payload(
+            [asset for asset in matched_assets if in_scope(asset, exclude={"owners"})],
+            all_label="All owners",
         ),
     }
 

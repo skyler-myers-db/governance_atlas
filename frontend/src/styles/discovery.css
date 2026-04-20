@@ -1090,27 +1090,31 @@
   background: transparent;
   border-bottom: 0;
 }
-.gh-activity-column { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.gh-activity-column { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .gh-activity-title {
-  font-size: 10px;
+  /* Round 13: "Your favorites" / "Recently viewed" eyebrows bumped
+     10px → 12px for readability alongside the bigger chips. */
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--gh-text-muted, #5c6b82);
 }
-.gh-activity-list { display: flex; gap: 6px; flex-wrap: wrap; }
+.gh-activity-list { display: flex; gap: 8px; flex-wrap: wrap; }
 .gh-activity-chip {
+  /* Round 13: chip padding + font bumped so the quick-access tiles
+     read as proper affordances, not tiny footnote pills. */
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   background: #ffffff;
   border: 1px solid var(--gh-border, #d8dee9);
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 12px;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13.5px;
   color: var(--gh-text, #14213d);
   cursor: pointer;
-  max-width: 240px;
+  max-width: 260px;
 }
 .gh-activity-chip:hover {
   background: var(--gh-surface-muted, #f3f6fb);

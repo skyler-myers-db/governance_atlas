@@ -99,7 +99,7 @@ export function UserChip({
         onClick={() => setMenuOpen((current) => !current)}
         type="button"
       >
-        <OwnerAvatar owner={userEmail || displayName} size={36} className="gh-user-chip-avatar" />
+        <OwnerAvatar owner={userEmail || displayName} size={42} className="gh-user-chip-avatar" />
         <div className="gh-user-chip-identity">
           <div className="gh-user-chip-name">{displayName}</div>
           <div className="gh-user-chip-role">{displayRole}</div>
