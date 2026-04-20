@@ -110,11 +110,19 @@
   flex-direction: column;
   gap: 4px;
   align-items: center;
-  /* Visible divider above the Settings / Help / Sign out cluster —
-     operator 2026-04-19 round 2 flagged the missing line between nav
-     and footer. */
+  /* Visible divider above Help / Sign out (Settings moved up to the
+     main nav in round 7). */
   padding-top: 8px;
-  border-top: 1px solid var(--gh-line, #d8cfb9);
+  border-top: 1px solid var(--gh-line, #9a8c5d);
+}
+
+/* Thin divider above the Settings cog — sits between Teams &
+   stewards and the Settings icon inside the primary nav column. */
+.gh-side-rail-settings-divider {
+  width: 60%;
+  height: 0;
+  border-top: 1px solid var(--gh-line, #9a8c5d);
+  margin: 10px 0 6px;
 }
 
 .gh-side-rail-button {
@@ -149,10 +157,13 @@
 }
 
 .gh-side-rail-button.is-active {
-  background: rgba(225, 29, 116, 0.06);
-  color: #b0195f;
+  /* Round 7: active rail pill goes purple, not magenta. Operator
+     called out the red/magenta shading as wrong for the active
+     indicator. */
+  background: var(--gh-indigo-soft, #e6e3ff);
+  color: var(--gh-indigo-2, #2d1f93);
   border-color: transparent;
-  box-shadow: inset 2px 0 0 #e11d74;
+  box-shadow: inset 2px 0 0 var(--gh-indigo, #3d2bc4);
 }
 
 .gh-side-rail-button:disabled {
@@ -190,12 +201,12 @@
   display: flex !important;
   flex-wrap: nowrap !important;
   align-items: center !important;
-  gap: clamp(12px, 1.4vw, 28px) !important;
+  gap: clamp(14px, 1.5vw, 30px) !important;
   /* Zero left padding so the Governance Hub logo + wordmark sit
-     immediately right of the side icon rail. Operator 2026-04-19
-     rounds 3+4 asked for the brand to be "slightly more left aligned". */
-  padding: 10px 20px 10px 0 !important;
-  min-height: 56px !important;
+     immediately right of the side icon rail. Round 7 bumped vertical
+     padding so the header reads as a premium enterprise bar. */
+  padding: 14px 20px 14px 0 !important;
+  min-height: 72px !important;
 }
 
 .gh-shell-brand {
@@ -267,14 +278,11 @@
   align-items: center;
 }
 
-/* Collapse the two-column shell spine to a single column — the second
-   column historically held the visible primary-module nav, which has
-   been moved off-screen (sr-only) and replaced by the side icon rail.
-   Leaving the 2nd column allocation in place was stealing ~400px
-   from the brand-band and clipping the center search slot. */
+/* Collapse the two-column shell spine to a single column. */
 .gh-shell-spine {
   grid-template-columns: minmax(0, 1fr) !important;
   gap: 0 !important;
+  min-height: 72px;
 }
 
 /* --- topbar search (wider, centered) --- */

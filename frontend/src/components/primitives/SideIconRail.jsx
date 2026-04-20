@@ -61,8 +61,16 @@ const RAIL_ENTRIES = [
   { key: "lineage", label: "Lineage", tooltip: "Lineage", moduleKey: "lineage", icon: "search" },
 ];
 
+// Round 7: Settings sits *below* Teams & stewards in the main nav
+// column with a separator line above it (operator asked for it to
+// move up from the bottom footer). Help + Logout stay at the bottom.
+const SETTINGS_NAV_ENTRY = {
+  key: "settings",
+  label: "Settings",
+  tooltip: "Settings & diagnostics",
+  icon: "cog",
+};
 const FOOTER_ENTRIES = [
-  { key: "settings", label: "Settings", tooltip: "Settings & diagnostics", icon: "cog" },
   { key: "help", label: "Help", tooltip: "Help & docs", icon: "help" },
   { key: "logout", label: "Sign out", tooltip: "Sign out", icon: "logout" },
 ];
@@ -131,6 +139,19 @@ export function SideIconRail({
             </button>
           );
         })}
+        {/* Settings sits directly below Teams & stewards with a thin
+            divider above it (operator 2026-04-19 round 7 ask). */}
+        <div className="gh-side-rail-settings-divider" aria-hidden="true" />
+        <button
+          aria-label="Settings"
+          className="gh-side-rail-button"
+          onClick={() => onOpenSettings?.()}
+          title={SETTINGS_NAV_ENTRY.tooltip}
+          type="button"
+        >
+          <span className="gh-side-rail-icon">{RAIL_ICONS[SETTINGS_NAV_ENTRY.icon]}</span>
+          <span className="gh-side-rail-label-sr">{SETTINGS_NAV_ENTRY.label}</span>
+        </button>
       </nav>
       <div className="gh-side-rail-spacer" />
       <div className="gh-side-rail-footer">

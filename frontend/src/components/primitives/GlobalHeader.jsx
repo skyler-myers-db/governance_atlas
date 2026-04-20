@@ -12,22 +12,32 @@ const MODULES = [
 // cut-out. This matches the mockup silhouette: a soft magenta tile on
 // the far left of the top bar with a single-stroke G motif, reading
 // clearly as a premium enterprise mark rather than an outlined sketch.
+// Round 7 brand mark: sleek, futuristic purple gradient + thin inner
+// ring so the "G" reads as a tech/AI mark rather than a flat sticker.
+// Operator asked for purple hue "lighter to darker".
 const BrandGlyph = () => (
   <svg
     aria-hidden="true"
     viewBox="0 0 32 32"
-    width="28"
-    height="28"
+    width="32"
+    height="32"
   >
     <defs>
       <linearGradient id="gh-brand-grad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#e11d74" />
-        <stop offset="100%" stopColor="#a01255" />
+        <stop offset="0%" stopColor="#7c63ff" />
+        <stop offset="55%" stopColor="#3d2bc4" />
+        <stop offset="100%" stopColor="#1f1488" />
+      </linearGradient>
+      <linearGradient id="gh-brand-sheen" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.32" />
+        <stop offset="55%" stopColor="#ffffff" stopOpacity="0" />
       </linearGradient>
     </defs>
-    <rect x="1.5" y="1.5" width="29" height="29" rx="8" fill="url(#gh-brand-grad)" />
+    <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#gh-brand-grad)" />
+    <rect x="1" y="1" width="30" height="30" rx="9" fill="url(#gh-brand-sheen)" />
+    <circle cx="16" cy="16" r="11" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="0.8" />
     <path
-      d="M22.2 12.2a6.2 6.2 0 1 0 0 7.6M22.2 16H17"
+      d="M22.4 12a6.5 6.5 0 1 0 0 8M22.4 16H17"
       fill="none"
       stroke="#fff"
       strokeWidth="2.2"
