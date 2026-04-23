@@ -10,8 +10,11 @@ const LINEAGE_CACHE_TTL_MS = 300_000;
 const LINEAGE_GC_TIME_MS = 15 * 60 * 1000;
 const LINEAGE_QUERY_PREFIX = "lineage";
 
-function lineageQueryKey(assetFqn) {
-  return [LINEAGE_QUERY_PREFIX, assetFqn];
+// Tier keys coexist so a fast first-hop payload and the full 2-hop
+// payload can both live in the cache for the same asset. The backend
+// stamps `stats.fetchTier` = "first-hop" | "full" on the response.
+function lineageQueryKey(assetFqn, tier = "full") {
+  return [LINEAGE_QUERY_PREFIX, assetFqn, tier];
 }
 
 function queryUpdatedAt(queryKey) {
@@ -27,11 +30,17 @@ function isFresh(queryKey, maxAgeMs = null) {
 
 function readCachedLineage(assetFqn, { maxAgeMs = LINEAGE_CACHE_TTL_MS } = {}) {
   if (!assetFqn) return null;
-  const queryKey = lineageQueryKey(assetFqn);
-  const payload = govhubQueryClient.getQueryData(queryKey) || null;
-  if (!payload) return null;
-  if (!isFresh(queryKey, maxAgeMs)) return null;
-  return payload;
+  // Prefer the full-tier cache; fall back to first-hop if that's all
+  // we have. Callers use the return value to decide whether a network
+  // fetch is needed, so any cached payload is acceptable.
+  for (const tier of ["full", "first-hop"]) {
+    const queryKey = lineageQueryKey(assetFqn, tier);
+    const payload = govhubQueryClient.getQueryData(queryKey) || null;
+    if (!payload) continue;
+    if (!isFresh(queryKey, maxAgeMs)) continue;
+    return payload;
+  }
+  return null;
 }
 
 function normalizeCanonicalPayload(assetFqn, payload, { authoritative = true, source = "live" } = {}) {
@@ -47,7 +56,10 @@ function normalizeCanonicalPayload(assetFqn, payload, { authoritative = true, so
 function setCachedLineage(assetFqn, payload) {
   const normalized = normalizeCanonicalPayload(assetFqn, payload);
   if (!normalized) return payload;
-  govhubQueryClient.setQueryData(lineageQueryKey(assetFqn), normalized);
+  // Stamp under the tier the server declared so the useLineage selector
+  // can merge first-hop and full cleanly.
+  const tier = normalized?.stats?.fetchTier === "first-hop" ? "first-hop" : "full";
+  govhubQueryClient.setQueryData(lineageQueryKey(assetFqn, tier), normalized);
   return normalized;
 }
 
@@ -57,10 +69,14 @@ export function primeLineagePayload(assetFqn, payload) {
 
 export function invalidateLineage(assetFqn) {
   if (!assetFqn) return;
-  govhubQueryClient.removeQueries({
-    queryKey: lineageQueryKey(assetFqn),
-    exact: true,
-  });
+  // Nuke every tier for this asset so a Refresh click blows away both
+  // the first-hop and full cache entries.
+  for (const tier of ["first-hop", "full"]) {
+    govhubQueryClient.removeQueries({
+      queryKey: lineageQueryKey(assetFqn, tier),
+      exact: true,
+    });
+  }
 }
 
 // Module-scoped tracker for the one-at-a-time prefetch contract. Discovery
@@ -82,7 +98,7 @@ export function prefetchLineage(assetFqn, options = {}) {
   if (_inflightPrefetchFqn && _inflightPrefetchFqn !== assetFqn) {
     try {
       govhubQueryClient.cancelQueries({
-        queryKey: lineageQueryKey(_inflightPrefetchFqn),
+        queryKey: lineageQueryKey(_inflightPrefetchFqn, "full"),
         exact: true,
       });
     } catch {
@@ -90,12 +106,16 @@ export function prefetchLineage(assetFqn, options = {}) {
     }
   }
   _inflightPrefetchFqn = assetFqn;
+  // Prefetch always warms the full-tier cache — the first-hop optimization
+  // only helps the user actively waiting on their own fetch. A background
+  // prefetch has no latency budget to preserve.
   return govhubQueryClient
     .fetchQuery({
-      queryKey: lineageQueryKey(assetFqn),
+      queryKey: lineageQueryKey(assetFqn, "full"),
       staleTime: LINEAGE_CACHE_TTL_MS,
       gcTime: LINEAGE_GC_TIME_MS,
-      queryFn: ({ signal }) => fetchLineage(assetFqn, { signal }),
+      queryFn: ({ signal }) =>
+        fetchLineage(assetFqn, { signal, force }),
     })
     .then((payload) => {
       if (_inflightPrefetchFqn === assetFqn) _inflightPrefetchFqn = null;
@@ -113,13 +133,29 @@ export function useLineage(assetFqn, enabled = true) {
     [assetFqn],
   );
 
-  const query = useQuery({
-    queryKey: lineageQueryKey(assetFqn || ""),
+  // Two queries fire in parallel:
+  //   - first-hop (depth=1, 5-10s cold, skips column/operational)
+  //   - full (25-45s cold, complete graph)
+  // The UI renders whichever completes first. When full arrives, it
+  // supersedes first-hop (merge-by-id in the selector below) so the
+  // user sees a richer graph without losing any state they created
+  // during the intermediate first-hop render.
+  const firstHopQuery = useQuery({
+    queryKey: lineageQueryKey(assetFqn || "", "first-hop"),
+    enabled: Boolean(assetFqn) && enabled,
+    staleTime: LINEAGE_CACHE_TTL_MS,
+    gcTime: LINEAGE_GC_TIME_MS,
+    queryFn: ({ signal }) =>
+      fetchLineage(assetFqn, { signal, depth: 1 }),
+  });
+  const fullQuery = useQuery({
+    queryKey: lineageQueryKey(assetFqn || "", "full"),
     enabled: Boolean(assetFqn) && enabled,
     staleTime: LINEAGE_CACHE_TTL_MS,
     gcTime: LINEAGE_GC_TIME_MS,
     queryFn: ({ signal }) => fetchLineage(assetFqn, { signal }),
   });
+  const query = fullQuery;
   // Neighbor prefetch is intentionally *not* auto-triggered here. Eager
   // stampedes (8 parallel lineage queries) starved the SQL warehouse and
   // turned every focus load into a 2+ minute wait. Callers that actually
@@ -137,7 +173,14 @@ export function useLineage(assetFqn, enabled = true) {
     };
   }
 
-  const payload = query.data || cachedPayload || null;
+  // Prefer the fuller payload when both have resolved. First-hop carries
+  // a `stats.fetchTier === "first-hop"` marker so downstream can tell it
+  // apart when needed.
+  const payload =
+    fullQuery.data ||
+    firstHopQuery.data ||
+    cachedPayload ||
+    null;
   const authoritative = Boolean(payload && payload.authoritative !== false);
   const provisional = Boolean(payload) && !authoritative;
 
@@ -152,8 +195,16 @@ export function useLineage(assetFqn, enabled = true) {
     };
   }
 
+  // Loading state: only show the skeleton when NEITHER query has a
+  // payload. Once first-hop lands, the graph paints even while the
+  // full query is still in flight.
+  const noPayloadYet = !firstHopQuery.data && !fullQuery.data;
+  const anyFetching =
+    firstHopQuery.isPending || fullQuery.isPending ||
+    ((firstHopQuery.isFetching || fullQuery.isFetching) && !authoritative);
+
   return {
-    loading: query.isPending || (query.isFetching && !authoritative),
+    loading: noPayloadYet && anyFetching,
     error: query.isError ? query.error?.message || "Failed to load lineage." : "",
     graph: payload?.graphs || null,
     payload: payload || null,

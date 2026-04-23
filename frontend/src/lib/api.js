@@ -770,7 +770,17 @@ export function fetchAssetAvailability(assetFqns = [], options = {}) {
 }
 
 export function fetchLineage(assetFqn, options = {}) {
-  const path = `/lineage/${encodeURIComponent(assetFqn)}`;
+  // - `force: true` → `?force=1` busts the backend 30-min TTL cache
+  //   (Refresh-Lineage button).
+  // - `depth: 1`    → `?depth=1` asks the backend for the first-hop
+  //   payload only (focus + 1-hop tables, no column/operational).
+  //   Cuts cold fetch from ~25s to ~5-10s; the UI fires this alongside
+  //   the full fetch and merges.
+  const params = new URLSearchParams();
+  if (options.force) params.set("force", "1");
+  if (options.depth === 1) params.set("depth", "1");
+  const qs = params.toString();
+  const path = `/lineage/${encodeURIComponent(assetFqn)}${qs ? `?${qs}` : ""}`;
   const execute = () => request(path, { signal: options.signal });
   return execute().catch((error) => {
     if (options.signal?.aborted) {

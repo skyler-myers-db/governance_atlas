@@ -951,6 +951,8 @@ from govhub.services.metadata_audit import (
 def _lineage_payload(
     asset_fqn: str,
     request: Optional[Request] = None,
+    *,
+    depth: Optional[int] = None,
 ) -> Dict[str, Any]:
     return lineage_service.lineage_payload(
         _uc_for_request(request),
@@ -958,6 +960,7 @@ def _lineage_payload(
         asset_fqn,
         cache_scope=_request_cache_scope(request),
         system_uc=_uc(),
+        depth=depth,
     )
 
 

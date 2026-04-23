@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import threading
 import time
 from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
 
+from govhub import uc as uc_module
 from govhub.uc import UCSQLClient
 
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
@@ -40,6 +42,25 @@ BUSINESS_CRITICALITY_VALUES = (
 )
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
+# Per-key locks so a burst of concurrent requests for the same cached item
+# issues ONE loader call, not N. The outer dict is guarded by a guard lock
+# while a new per-key lock is being created. Pattern mirrors the equivalent
+# guard in services/lineage.py — the comment there has the long-form
+# justification.
+_TTL_CACHE_LOCKS: Dict[str, threading.Lock] = {}
+_TTL_CACHE_LOCKS_GUARD = threading.Lock()
+
+
+def _ttl_cache_lock(key: str) -> threading.Lock:
+    existing = _TTL_CACHE_LOCKS.get(key)
+    if existing is not None:
+        return existing
+    with _TTL_CACHE_LOCKS_GUARD:
+        existing = _TTL_CACHE_LOCKS.get(key)
+        if existing is None:
+            existing = threading.Lock()
+            _TTL_CACHE_LOCKS[key] = existing
+        return existing
 
 
 def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
@@ -47,9 +68,14 @@ def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
     cached = _TTL_CACHE.get(key)
     if cached and now - cached[0] < ttl_s:
         return cached[1]
-    value = loader()
-    _TTL_CACHE[key] = (now, value)
-    return value
+    lock = _ttl_cache_lock(key)
+    with lock:
+        cached = _TTL_CACHE.get(key)
+        if cached and time.time() - cached[0] < ttl_s:
+            return cached[1]
+        value = loader()
+        _TTL_CACHE[key] = (time.time(), value)
+        return value
 
 
 def _warehouse_key(uc: Any) -> str:
@@ -500,7 +526,21 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
     tag_maps: Dict[str, Dict[str, str]] = {}
 
     for catalog in catalogs:
-        inv = cached_catalog_inventory(uc, catalog)
+        # Lineage walks routinely cross into catalogs the current user can't
+        # SELECT from (e.g. `bronze.*` feeding a governed `prod.silver.*`).
+        # Matching the per-catalog try/except pattern in
+        # govhub/services/assets.py:build_inventory — skip catalogs that
+        # raise a skippable metadata error (PERMISSION_DENIED, USE CATALOG,
+        # CATALOG_NOT_FOUND, etc.) and continue. The lineage graph will
+        # surface those nodes as "lineage-only" assets. Without this, one
+        # unreadable catalog in the frontier aborts the whole payload and
+        # the endpoint 500s.
+        try:
+            inv = cached_catalog_inventory(uc, catalog)
+        except Exception as exc:
+            if uc_module._is_skippable_metadata_error(exc):
+                continue
+            raise
         if not inv.empty:
             inv = inv.copy()
             inv["comment"] = inv["comment"].map(normalize_str)
@@ -513,7 +553,12 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
             )
             inventory_frames.append(inv)
 
-        tags_df = cached_catalog_table_tags(uc, catalog)
+        try:
+            tags_df = cached_catalog_table_tags(uc, catalog)
+        except Exception as exc:
+            if uc_module._is_skippable_metadata_error(exc):
+                continue
+            raise
         if tags_df.empty:
             continue
         tags_df = tags_df.copy()
