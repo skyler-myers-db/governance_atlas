@@ -39,11 +39,17 @@ function LineageLoadingSkeleton({ asset }) {
   const state = messages[Math.min(phase, messages.length - 1)];
 
   return (
-    <div className="gh-lineage-skeleton" aria-busy="true" aria-live="polite">
+    <div className="gh-lineage-skeleton" aria-busy="true">
       <div className="gh-lineage-skeleton-copy">
         <div className="gh-eyebrow">Lineage</div>
         <h3>{state.title}</h3>
-        <p>{state.message}</p>
+        {/* Scope the live-region to just the message line. The title
+            changes with each escalation too but announcing both on
+            every phase would double-read to screen-reader users —
+            the message carries the actionable information. */}
+        <p aria-live="polite" aria-atomic="true">
+          {state.message}
+        </p>
       </div>
       <div className="gh-lineage-skeleton-graph" aria-hidden="true">
         <span className="gh-lineage-skeleton-node is-upstream" />
