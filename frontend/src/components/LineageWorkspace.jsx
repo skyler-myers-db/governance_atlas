@@ -1,5 +1,5 @@
 import LineageStage from "./LineageStage";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   canOpenLinkedAssetRecord,
   useAssetDetail,
@@ -111,9 +111,34 @@ export default function LineageWorkspace({
   });
   const assetDetail = useAssetDetail(focusAssetFqn || "", { sections: ["header"] });
   const lineage = useLineage(focusAssetFqn || "", lineageSurfaceAvailable);
+  // Synthesize a minimal asset from the FQN when the governance store has no
+  // record for it (404). Unity Catalog lineage routinely includes tables that
+  // live OUTSIDE the governed catalog/schema (e.g. `bronze.oracle_fscm.*`
+  // upstreams feeding a `prod.silver.*` governed target). Without this
+  // fallback the workspace blanks out for any un-registered asset even when
+  // /api/lineage returned a complete graph.
+  const lineageOnlyAsset = useMemo(() => {
+    if (!focusAssetFqn) return null;
+    const parts = focusAssetFqn.split(".");
+    const [catalog = "", schema = "", ...rest] = parts;
+    const name = rest.join(".") || parts[parts.length - 1] || focusAssetFqn;
+    return {
+      fqn: focusAssetFqn,
+      name,
+      catalog,
+      schema,
+      displayName: name,
+      kind: "table",
+      assetType: "Table",
+      governanceStatus: "Needs Work",
+      resolutionState: "lineage-only",
+      isLineageOnly: true,
+    };
+  }, [focusAssetFqn]);
   const asset =
     assetDetail.detail ||
-    (focusAssetFqn && assetDetail.loading ? seeded.summary : null);
+    (focusAssetFqn && assetDetail.loading ? seeded.summary : null) ||
+    lineageOnlyAsset;
   const assetSearch = useAssetSearch(
     assetSearchQuery,
     assetSearchQuery.trim().length >= 2,
