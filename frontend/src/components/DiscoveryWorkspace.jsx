@@ -6,7 +6,7 @@ import {
   useAssetAvailability,
   useAssetDetail,
 } from "../hooks/useAssetDetail";
-import { useLineage } from "../hooks/useLineage";
+import { prefetchLineage, useLineage } from "../hooks/useLineage";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
 import { AssetTypeIcon } from "./primitives";
@@ -2704,6 +2704,14 @@ export default function DiscoveryWorkspace({
     if (hoverPreviewTimerRef.current) clearTimeout(hoverPreviewTimerRef.current);
     hoverPreviewTimerRef.current = setTimeout(() => {
       setSelectedAssetFqn((current) => (current === fqn ? current : fqn));
+      // While the preview pane loads, silently warm the lineage cache too.
+      // The /api/lineage query is a 20–60s serverless warehouse call on
+      // cold start; 300ms of dwell is a strong "I might click Lineage"
+      // signal and starts the request early so the click feels instant.
+      // Debounced through the existing preview timer — one hover ≠ one
+      // stampede. React Query dedupes if the user hovers the same row
+      // twice within TTL.
+      void prefetchLineage(fqn).catch(() => null);
     }, 300);
   };
   const handleHoverEnd = () => {
