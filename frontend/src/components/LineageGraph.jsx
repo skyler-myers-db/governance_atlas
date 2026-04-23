@@ -1695,11 +1695,12 @@ export default function LineageGraph({
   // stage height. The old `>= 5` gate was rendering an empty box on
   // small graphs and an unreachable minimap on larger ones (the
   // legacy CSS was stuck at min-height: 0).
-  // Only render the minimap when the graph is large enough to warrant
-  // bird's-eye navigation. Small graphs (≤ 8 nodes) fit comfortably in
-  // the viewport and the minimap just becomes a white box floating over
-  // the canvas — which doesn't match the mockup's minimal chrome.
-  const showMiniMap = (transformed?.nodes?.length || 0) >= 9;
+  // The minimap renders empty for our custom assetNode type (it expects
+  // plain HTML nodes) and the mockup has no minimap at all. Gate it on
+  // very large graphs only — ≥ 25 nodes — so typical demo views (≤ 15
+  // nodes) stay clean and the minimap only appears where bird's-eye nav
+  // is actually worth the chrome.
+  const showMiniMap = (transformed?.nodes?.length || 0) >= 25;
   const showControls = true;
   const canReturnToFocus =
     defaultFocusNodeId && (Boolean(selectedEdge) || Boolean(selectedNode && selectedNode.id !== defaultFocusNodeId));
