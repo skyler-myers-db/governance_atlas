@@ -5,7 +5,7 @@ import {
   useAssetDetail,
 } from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
-import { useLineage } from "../hooks/useLineage";
+import { invalidateLineage, prefetchLineage, useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import { assetPathLabel } from "../lib/assetPresentation";
 import {
@@ -412,6 +412,17 @@ export default function LineageWorkspace({
         onMaxDepthChange={setMaxDepth}
         onNodesPerLayerChange={setNodesPerLayer}
         onIncludeColumnsChange={setIncludeColumns}
+        onRefreshLineage={() => {
+          if (!focusAssetFqn) return;
+          // Bypass both the frontend React Query cache and the backend
+          // 30-minute TTL: invalidate the cached payload, then force-
+          // prefetch. Stewards hit this after landing a new pipeline
+          // whose edges haven't yet propagated through the shared cache.
+          invalidateLineage(focusAssetFqn);
+          void prefetchLineage(focusAssetFqn, { force: true }).catch(
+            () => null,
+          );
+        }}
         onAssetSearchQueryChange={setAssetSearchQuery}
         onContextChange={(nextContext) => {
           setLocalContext(nextContext);

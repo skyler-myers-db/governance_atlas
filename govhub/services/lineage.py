@@ -71,9 +71,16 @@ def invalidate_lineage_caches(asset_fqn: str | None = None) -> None:
     if asset_fqn is None:
         _TTL_CACHE.clear()
         return
-    suffix = f":{asset_service.normalize_str(asset_fqn)}"
+    # Cache keys now include a trailing tier suffix (`:tier=1h` / `:tier=full`)
+    # so the fqn sits between the scope and the tier. Match fqn as a
+    # middle-substring wrapped in colons to cover both shapes (legacy
+    # no-tier keys + new tiered keys) without accidentally matching a
+    # longer-fqn superstring.
+    fqn_marker = f":{asset_service.normalize_str(asset_fqn)}"
     for key in list(_TTL_CACHE):
-        if key.endswith(suffix) and key.startswith("lineage:"):
+        if not key.startswith("lineage:"):
+            continue
+        if key.endswith(fqn_marker) or f"{fqn_marker}:" in key:
             _TTL_CACHE.pop(key, None)
 
 
@@ -791,6 +798,7 @@ def build_data_graph(
     asset_fqn: str,
     *,
     system_uc: Optional[UCSQLClient] = None,
+    depth_limit: Optional[int] = None,
 ) -> Dict[str, Any]:
     row = asset_service.inventory_row(uc, store, asset_fqn)
     visible_inventory = asset_service.visible_assets(uc, store)
@@ -815,12 +823,15 @@ def build_data_graph(
         include_columns=True,
     )
     per_branch_limit = max(8, LINEAGE_GRAPH_NODE_LIMIT // 2)
+    effective_depth = (
+        max(1, int(depth_limit)) if depth_limit else LINEAGE_GRAPH_DEPTH_LIMIT
+    )
     upstream_branch = _recursive_branch_graph(
         uc,
         store,
         asset_fqn,
         direction="upstream",
-        depth_limit=LINEAGE_GRAPH_DEPTH_LIMIT,
+        depth_limit=effective_depth,
         node_limit=per_branch_limit,
         per_hop_limit=LINEAGE_GRAPH_PER_HOP_LIMIT,
         visible_inventory=visible_inventory,
@@ -831,7 +842,7 @@ def build_data_graph(
         store,
         asset_fqn,
         direction="downstream",
-        depth_limit=LINEAGE_GRAPH_DEPTH_LIMIT,
+        depth_limit=effective_depth,
         node_limit=per_branch_limit,
         per_hop_limit=LINEAGE_GRAPH_PER_HOP_LIMIT,
         visible_inventory=visible_inventory,
@@ -847,7 +858,7 @@ def build_data_graph(
         "meta": {
             "upstreamLimit": TABLE_LINEAGE_LIMIT,
             "downstreamLimit": TABLE_LINEAGE_LIMIT,
-            "graphDepthLimit": LINEAGE_GRAPH_DEPTH_LIMIT,
+            "graphDepthLimit": effective_depth,
             "graphNodeLimit": LINEAGE_GRAPH_NODE_LIMIT,
             "graphBranchNodeLimit": per_branch_limit,
             "graphPerHopLimit": LINEAGE_GRAPH_PER_HOP_LIMIT,
@@ -988,21 +999,102 @@ def lineage_payload(
     *,
     cache_scope: str = "",
     system_uc: Optional[UCSQLClient] = None,
+    depth: Optional[int] = None,
 ) -> Dict[str, Any]:
-    return _ttl_value(
-        (
-            f"lineage:{_warehouse_key(uc)}:{_cache_scope_key(cache_scope)}:"
-            f"{asset_service.normalize_str(asset_fqn)}"
-        ),
-        # Lineage edges in system.access.table_lineage change slowly —
-        # new pipelines write new rows, but existing relationships don't
-        # vanish. A 30-minute TTL keeps warm sessions hot without making
-        # stewards wait out a re-roundtrip they didn't ask for. First
-        # load still pays the cold query cost; subsequent hits within
-        # 30 min are instant.
-        1800,
-        lambda: _build_lineage_payload(uc, store, asset_fqn, system_uc=system_uc),
+    """Return the lineage payload. When ``depth`` is ``1``, returns a
+    first-hop-only payload (focus + ≤1-hop table neighbors, no column or
+    operational data) that completes in ~5-10s cold instead of ~25-45s
+    for the full build. The frontend fires this first for fast paint,
+    then fires the full payload in the background.
+
+    Separate cache keys (`:tier=1h` vs `:tier=full`) so a warm first-hop
+    never satisfies a full request.
+    """
+    tier = "1h" if depth == 1 else "full"
+    key = (
+        f"lineage:{_warehouse_key(uc)}:{_cache_scope_key(cache_scope)}:"
+        f"{asset_service.normalize_str(asset_fqn)}:tier={tier}"
     )
+
+    def _loader() -> Dict[str, Any]:
+        if depth == 1:
+            return _build_first_hop_payload(uc, store, asset_fqn, system_uc=system_uc)
+        return _build_lineage_payload(uc, store, asset_fqn, system_uc=system_uc)
+
+    # Lineage edges in system.access.table_lineage change slowly — new
+    # pipelines write new rows, but existing relationships don't vanish.
+    # A 30-minute TTL keeps warm sessions hot without making stewards
+    # wait out a re-roundtrip they didn't ask for. First-hop payloads
+    # share the same TTL — they're built from the same SQL surface.
+    return _ttl_value(key, 1800, _loader)
+
+
+def _build_first_hop_payload(
+    uc: UCSQLClient,
+    store: Any,
+    asset_fqn: str,
+    *,
+    system_uc: Optional[UCSQLClient] = None,
+) -> Dict[str, Any]:
+    """Fast-path payload: focus node + 1-hop table neighbors only, no
+    column or operational lineage. Cuts cold fetch from ~25-45s to
+    ~5-10s so the deep-link user sees a graph immediately. The full
+    payload arrives as a background refetch a few seconds later.
+    """
+    data_graph = build_data_graph(
+        uc, store, asset_fqn, system_uc=system_uc, depth_limit=1
+    )
+    empty_graph = {"nodes": [], "edges": [], "meta": {}}
+    empty_columns = {
+        "upstream": [],
+        "downstream": [],
+        "meta": {"truncated": False, "deferred": True},
+    }
+    lineage_depth = _lineage_depth_payload(
+        uc, asset_fqn, data_graph, system_uc=system_uc
+    )
+    data_edge_details = _data_edge_details(data_graph, empty_columns)
+    data_focus_id = next(
+        (node.get("id") for node in data_graph.get("nodes", []) if node.get("role") == "focus"),
+        "",
+    )
+    return {
+        "fqn": asset_fqn,
+        "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+        "graphs": {
+            "data": data_graph,
+            "operational": empty_graph,
+        },
+        "columnLineage": empty_columns,
+        "lineageDepth": lineage_depth,
+        "edgeDetails": data_edge_details,
+        "stats": {
+            "upstreamCount": sum(
+                1 for edge in data_graph.get("edges", []) if edge.get("target") == data_focus_id
+            ),
+            "downstreamCount": sum(
+                1 for edge in data_graph.get("edges", []) if edge.get("source") == data_focus_id
+            ),
+            "operationalProducerCount": 0,
+            "operationalConsumerCount": 0,
+            "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+            "fetchTier": "first-hop",
+            "deferred": ["operational", "columnLineage", "twoHop"],
+            "limits": {
+                "tableLineage": TABLE_LINEAGE_LIMIT,
+                "graphDepth": 1,
+                "graphNodes": LINEAGE_GRAPH_NODE_LIMIT,
+                "graphNeighborsPerHop": LINEAGE_GRAPH_PER_HOP_LIMIT,
+            },
+            "truncated": {
+                "upstream": bool(data_graph.get("meta", {}).get("upstreamTruncated")),
+                "downstream": bool(data_graph.get("meta", {}).get("downstreamTruncated")),
+                "columnLineage": False,
+                "operationalProducers": False,
+                "operationalConsumers": False,
+            },
+        },
+    }
 
 
 def _build_lineage_payload(
@@ -1063,6 +1155,7 @@ def _build_lineage_payload(
                 1 for node in operational_graph.get("nodes", []) if node.get("role") == "target"
             ),
             "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+            "fetchTier": "full",
             "limits": {
                 "tableLineage": TABLE_LINEAGE_LIMIT,
                 "columnLineage": COLUMN_LINEAGE_LIMIT,

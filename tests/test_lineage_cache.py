@@ -55,12 +55,14 @@ class LineageCacheTests(unittest.TestCase):
         self.assertEqual(alice_second["sequence"], 1)
         self.assertEqual(bob_first["sequence"], 2)
         self.assertEqual(len(load_calls), 2)
+        # Cache keys now include a `:tier=full` (or `:tier=1h`) suffix so
+        # first-hop and full payloads coexist for the same user + asset.
         self.assertIn(
-            "lineage:warehouse-1:alice@example.com:main.sales.orders",
+            "lineage:warehouse-1:alice@example.com:main.sales.orders:tier=full",
             lineage_service._TTL_CACHE,
         )
         self.assertIn(
-            "lineage:warehouse-1:bob@example.com:main.sales.orders",
+            "lineage:warehouse-1:bob@example.com:main.sales.orders:tier=full",
             lineage_service._TTL_CACHE,
         )
 

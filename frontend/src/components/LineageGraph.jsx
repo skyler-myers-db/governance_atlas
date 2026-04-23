@@ -1432,6 +1432,15 @@ export default function LineageGraph({
   const canvasRef = useRef(null);
   const viewportRef = useRef(null);
   const lastAutoFitKeyRef = useRef("");
+  // Tracks whether the user has physically interacted with the graph
+  // (click, drag, zoom). When first-hop lands and the user starts poking
+  // the graph before the full-tier payload arrives, we must NOT auto-fit
+  // again when the node count changes — that would yank the viewport
+  // mid-interaction. Reset to false on every new asset fqn.
+  const hasUserInteractedRef = useRef(false);
+  useEffect(() => {
+    hasUserInteractedRef.current = false;
+  }, [asset?.fqn]);
 
   const focusNode = transformedBase.nodes.find((node) => node.data.role === "focus")?.data || null;
   const defaultFocusNodeId = focusNode?.id || transformedBase.nodes[0]?.id || "";
@@ -1948,6 +1957,16 @@ export default function LineageGraph({
   useEffect(() => {
     if (!flowInstance || !transformed.nodes.length) return undefined;
     if (lastAutoFitKeyRef.current === autoFitKey) return undefined;
+    // If the user has already interacted with the graph (clicked a node,
+    // panned, zoomed), treat subsequent graph-size changes — which
+    // typically come from first-hop → full tier transitions — as
+    // in-place updates. The new nodes appear, but the viewport doesn't
+    // yank. Users who want to see the whole graph can hit Focus View /
+    // Reset Zoom manually.
+    if (lastAutoFitKeyRef.current && hasUserInteractedRef.current) {
+      lastAutoFitKeyRef.current = autoFitKey;
+      return undefined;
+    }
     lastAutoFitKeyRef.current = autoFitKey;
     const frame = requestAnimationFrame(() => {
       flowInstance.fitView?.({ padding: 0.24, duration: 180 });
@@ -2317,6 +2336,7 @@ export default function LineageGraph({
               edgeTypes={edgeTypes}
               nodeTypes={nodeTypes}
               onEdgeClick={(_, edge) => {
+                hasUserInteractedRef.current = true;
                 setAllowDefaultSelection(false);
                 setSelectedEdgeId(edge.id);
                 setSelectedNodeId("");
@@ -2325,6 +2345,7 @@ export default function LineageGraph({
                 setGraphMode("path");
               }}
               onNodeClick={(_, node) => {
+                hasUserInteractedRef.current = true;
                 setAllowDefaultSelection(false);
                 setSelectedNodeId(node.id);
                 setSelectedEdgeId("");
@@ -2333,8 +2354,12 @@ export default function LineageGraph({
                 setGraphMode("explore");
               }}
               onPaneClick={() => {
+                hasUserInteractedRef.current = true;
                 if (refocusOpen) setRefocusOpen(false);
                 if (drawerOpen) setDrawerOpen(false);
+              }}
+              onMoveStart={() => {
+                hasUserInteractedRef.current = true;
               }}
               nodesDraggable={false}
               nodesConnectable={false}

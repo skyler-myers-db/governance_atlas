@@ -44,7 +44,10 @@ describe("useLineage", () => {
     expect(result.current.provisional).toBe(false);
 
     await waitFor(() => {
-      expect(fetchLineageMock).toHaveBeenCalledTimes(1);
+      // useLineage now dual-fetches: first-hop (depth=1) for fast paint
+      // and full for the complete graph. Both resolve with the same
+      // stub, so two calls to fetchLineage are expected.
+      expect(fetchLineageMock).toHaveBeenCalledTimes(2);
       expect(result.current.loading).toBe(false);
       expect(result.current.authoritative).toBe(true);
       expect(result.current.provisional).toBe(false);
@@ -56,7 +59,14 @@ describe("useLineage", () => {
       });
     });
 
+    // Each fetch is wired with its own AbortSignal so unmount cancels
+    // both in flight without leaving orphans.
     expect(fetchLineageMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+    expect(fetchLineageMock.mock.calls[1][1].signal).toBeInstanceOf(AbortSignal);
+    // The two calls are distinguished by the `depth` option — one with
+    // depth=1 (first-hop), one without (full).
+    const depths = fetchLineageMock.mock.calls.map((c) => c[1].depth);
+    expect(new Set(depths)).toEqual(new Set([1, undefined]));
   });
 
   it("does not reuse the previous asset graph when route focus changes", async () => {

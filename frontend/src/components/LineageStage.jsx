@@ -381,6 +381,8 @@ function LineageControlBar({
   onIncludeColumnsChange,
   onFocusView,
   onResetZoom,
+  onRefreshLineage,
+  loading = false,
 }) {
   return (
     <div className="gh-lineage-controls" data-testid="lineage-controls">
@@ -445,6 +447,18 @@ function LineageControlBar({
         >
           Reset Zoom
         </button>
+        {onRefreshLineage ? (
+          <button
+            className="gh-tertiary-button gh-lineage-controls-action"
+            data-testid="lineage-refresh"
+            disabled={loading}
+            onClick={() => onRefreshLineage()}
+            title="Re-fetch lineage from Unity Catalog (bypass the 30-minute cache)"
+            type="button"
+          >
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -487,6 +501,7 @@ export default function LineageStage({
   allowRefocus = true,
   userEmail = "",
   workspaceHost = "",
+  onRefreshLineage = null,
 }) {
   const graph = selectGraph(graphBundle, context, modeFlags);
   const stats = {
@@ -544,6 +559,8 @@ export default function LineageStage({
           onResetZoom={handleResetZoom}
           onUpstreamLevelsChange={onUpstreamLevelsChange}
           upstreamLevels={upstreamLevels}
+          onRefreshLineage={onRefreshLineage}
+          loading={loading}
         />
       ) : null}
       <section className="gh-lineage-graph-panel gh-lineage-graph-stage">
