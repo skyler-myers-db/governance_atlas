@@ -245,24 +245,28 @@ def _column_lineage_payload(
     # app-principal client when one is supplied.
     system_client = system_uc or uc
     catalog, schema, table = asset_service.split_uc_name(asset_fqn)
-    try:
-        upstream_df = system_client.get_column_lineage_upstream(
-            catalog,
-            schema,
-            table,
-            limit=COLUMN_LINEAGE_LIMIT,
-        )
-    except Exception:
-        upstream_df = pd.DataFrame()
-    try:
-        downstream_df = system_client.get_column_lineage_downstream(
-            catalog,
-            schema,
-            table,
-            limit=COLUMN_LINEAGE_LIMIT,
-        )
-    except Exception:
-        downstream_df = pd.DataFrame()
+
+    # Upstream + downstream column-lineage SELECTs are independent network
+    # roundtrips. Running them back-to-back used to double the column-
+    # lineage wall time; a 2-worker pool lets both hit the warehouse in
+    # parallel, shaving 1–3s off every cold lineage fetch.
+    def _fetch(direction: str) -> pd.DataFrame:
+        try:
+            if direction == "upstream":
+                return system_client.get_column_lineage_upstream(
+                    catalog, schema, table, limit=COLUMN_LINEAGE_LIMIT
+                )
+            return system_client.get_column_lineage_downstream(
+                catalog, schema, table, limit=COLUMN_LINEAGE_LIMIT
+            )
+        except Exception:
+            return pd.DataFrame()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        up_future = executor.submit(_fetch, "upstream")
+        down_future = executor.submit(_fetch, "downstream")
+        upstream_df = up_future.result()
+        downstream_df = down_future.result()
 
     upstream: Dict[str, List[Dict[str, str]]] = {}
     if upstream_df is not None and not upstream_df.empty:
@@ -883,30 +887,28 @@ def build_operational_graph(
         visible_inventory=visible_inventory,
         include_columns=True,
     )
-    try:
-        upstream_df = metadata_service.enrich_operational_context_names(
-            uc,
-            system_client.get_operational_context_upstream(
-                catalog,
-                schema,
-                table,
-                limit=OPERATIONAL_CONTEXT_LIMIT,
-            ),
-        )
-    except Exception:
-        upstream_df = pd.DataFrame()
-    try:
-        downstream_df = metadata_service.enrich_operational_context_names(
-            uc,
-            system_client.get_operational_context_downstream(
-                catalog,
-                schema,
-                table,
-                limit=OPERATIONAL_CONTEXT_LIMIT,
-            ),
-        )
-    except Exception:
-        downstream_df = pd.DataFrame()
+    # Operational-context upstream + downstream SELECTs are independent;
+    # run them concurrently so each hits the warehouse in parallel instead
+    # of back-to-back. Same 2-worker pattern as the column-lineage fetch.
+    def _fetch_op(direction: str) -> pd.DataFrame:
+        try:
+            if direction == "upstream":
+                raw = system_client.get_operational_context_upstream(
+                    catalog, schema, table, limit=OPERATIONAL_CONTEXT_LIMIT
+                )
+            else:
+                raw = system_client.get_operational_context_downstream(
+                    catalog, schema, table, limit=OPERATIONAL_CONTEXT_LIMIT
+                )
+            return metadata_service.enrich_operational_context_names(uc, raw)
+        except Exception:
+            return pd.DataFrame()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        up_future = executor.submit(_fetch_op, "upstream")
+        down_future = executor.submit(_fetch_op, "downstream")
+        upstream_df = up_future.result()
+        downstream_df = down_future.result()
     upstream_entities = asset_service.operational_entity_records(uc, upstream_df)
     downstream_entities = asset_service.operational_entity_records(uc, downstream_df)
 

@@ -16,7 +16,7 @@ import {
   useAssetDetail,
 } from "../hooks/useAssetDetail";
 import { clearAssetSearchCache } from "../hooks/useAssetSearch";
-import { useLineage } from "../hooks/useLineage";
+import { prefetchLineage, useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import {
   assetPathLabel,
@@ -1270,6 +1270,25 @@ export default function EntityWorkspace({
       }
     };
   }, [activeTab, assetFqn, detailLoading, loadedSections, previewSurfaceAvailable, workloadSurfaceAvailable]);
+
+  // Silently warm the lineage cache once an asset detail page lands — users
+  // frequently click the Lineage tab next, and the /api/lineage call is a
+  // 20-60s serverless warehouse query on cold start. Kicking this off in the
+  // background behind a 1500ms dwell keeps the warehouse from taking the
+  // hit if the user bounces out of the workspace before even reading the
+  // header. The request is a no-op if the React Query cache is already warm.
+  useEffect(() => {
+    if (!assetFqn || !lineageSurfaceAvailable) return undefined;
+    let cancelled = false;
+    const dwell = window.setTimeout(() => {
+      if (cancelled) return;
+      void prefetchLineage(assetFqn).catch(() => null);
+    }, 1500);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(dwell);
+    };
+  }, [assetFqn, lineageSurfaceAvailable]);
 
   if (assetFqn && assetDetail.loading && !asset) {
     return (
