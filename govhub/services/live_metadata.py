@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import threading
 import time
 from functools import lru_cache
@@ -9,6 +10,8 @@ import pandas as pd
 
 from govhub import uc as uc_module
 from govhub.uc import UCSQLClient
+
+logger = logging.getLogger(__name__)
 
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
 PLACEHOLDER_DESCRIPTION = "No description has been captured for this asset yet."
@@ -539,6 +542,11 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
             inv = cached_catalog_inventory(uc, catalog)
         except Exception as exc:
             if uc_module._is_skippable_metadata_error(exc):
+                logger.info(
+                    "lineage inventory skip: catalog=%s reason=%s",
+                    catalog,
+                    str(exc).splitlines()[0][:200],
+                )
                 continue
             raise
         if not inv.empty:
@@ -557,6 +565,11 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
             tags_df = cached_catalog_table_tags(uc, catalog)
         except Exception as exc:
             if uc_module._is_skippable_metadata_error(exc):
+                logger.info(
+                    "lineage tags skip: catalog=%s reason=%s",
+                    catalog,
+                    str(exc).splitlines()[0][:200],
+                )
                 continue
             raise
         if tags_df.empty:

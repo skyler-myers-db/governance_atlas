@@ -5,7 +5,12 @@ import {
   useAssetDetail,
 } from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
-import { invalidateLineage, prefetchLineage, useLineage } from "../hooks/useLineage";
+import {
+  invalidateLineage,
+  prefetchLineage,
+  refreshLineage,
+  useLineage,
+} from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import { assetPathLabel } from "../lib/assetPresentation";
 import {
@@ -414,14 +419,22 @@ export default function LineageWorkspace({
         onIncludeColumnsChange={setIncludeColumns}
         onRefreshLineage={() => {
           if (!focusAssetFqn) return;
-          // Bypass both the frontend React Query cache and the backend
-          // 30-minute TTL: invalidate the cached payload, then force-
-          // prefetch. Stewards hit this after landing a new pipeline
-          // whose edges haven't yet propagated through the shared cache.
-          invalidateLineage(focusAssetFqn);
-          void prefetchLineage(focusAssetFqn, { force: true }).catch(
-            () => null,
-          );
+          // Bypass BOTH caches in the right order:
+          //   1. Fire a force=1 fetch directly. This request carries
+          //      `?force=1` → backend invalidates its 30-min TTL and
+          //      rebuilds.
+          //   2. When it resolves, prime the React Query cache with the
+          //      fresh payload under the full-tier key.
+          //   3. `invalidateLineage` synchronously drops both tier
+          //      caches so the mounted `useQuery` observers refetch,
+          //      but those refetches will now hit the already-cleared
+          //      backend and come back fast.
+          //
+          // Previously the order was reversed (invalidate → prefetch),
+          // which lost the force flag because React Query's queryFn
+          // dedup raced the non-force observer refetch against the
+          // force prefetch.
+          void refreshLineage(focusAssetFqn);
         }}
         onAssetSearchQueryChange={setAssetSearchQuery}
         onContextChange={(nextContext) => {
