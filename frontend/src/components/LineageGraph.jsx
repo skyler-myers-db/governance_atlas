@@ -1377,7 +1377,10 @@ export default function LineageGraph({
   const transformedBase = useMemo(() => transformGraph(graph), [graph]);
   const [selectedNodeId, setSelectedNodeId] = useState("");
   const [selectedEdgeId, setSelectedEdgeId] = useState("");
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Default open so the focused asset's detail rail is visible immediately
+  // on page load, matching the lineage mockup (docs/mockups/lineage_mockup.png).
+  // Users can collapse via the drawer's Close button for full-canvas view.
+  const [drawerOpen, setDrawerOpen] = useState(true);
   const [graphMode, setGraphMode] = useState("explore");
   const [flowInstance, setFlowInstance] = useState(null);
   const [allowDefaultSelection, setAllowDefaultSelection] = useState(true);
