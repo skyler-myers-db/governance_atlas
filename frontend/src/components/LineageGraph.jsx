@@ -2358,7 +2358,16 @@ export default function LineageGraph({
                 if (refocusOpen) setRefocusOpen(false);
                 if (drawerOpen) setDrawerOpen(false);
               }}
-              onMoveStart={() => {
+              onMoveStart={(event) => {
+                // React Flow fires onMoveStart for BOTH programmatic
+                // fitView animations and genuine user gestures. The
+                // programmatic fit has no `event` (or a synthetic one
+                // without a concrete DOM target), whereas a real user
+                // pan/zoom always passes a MouseEvent / WheelEvent /
+                // TouchEvent. Gate on event.type / target to avoid the
+                // own-fit from flipping `hasUserInteractedRef` before
+                // the user has actually touched the graph.
+                if (!event || !event.type) return;
                 hasUserInteractedRef.current = true;
               }}
               nodesDraggable={false}
