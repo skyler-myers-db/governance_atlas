@@ -15,6 +15,8 @@ function scopeKey(filters = {}) {
     tiers: [...(filters.tiers || [])].sort(),
     certifications: [...(filters.certifications || [])].sort(),
     sensitivities: [...(filters.sensitivities || [])].sort(),
+    businessCriticalities: [...(filters.businessCriticalities || [])].sort(),
+    cdeOnly: Boolean(filters.cdeOnly),
     sortBy: String(filters.sortBy || ""),
   });
 }
@@ -30,10 +32,14 @@ export function useDiscoveryResults(filters, options = {}) {
       tiers: [...(filters?.tiers || [])].sort(),
       certifications: [...(filters?.certifications || [])].sort(),
       sensitivities: [...(filters?.sensitivities || [])].sort(),
+      businessCriticalities: [...(filters?.businessCriticalities || [])].sort(),
+      cdeOnly: Boolean(filters?.cdeOnly),
       sortBy: String(filters?.sortBy || ""),
     }),
     [
+      filters?.businessCriticalities,
       filters?.catalogs,
+      filters?.cdeOnly,
       filters?.certifications,
       filters?.domains,
       filters?.query,

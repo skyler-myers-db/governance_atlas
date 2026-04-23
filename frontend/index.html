@@ -8,6 +8,21 @@
       content="Governance Hub metadata workspace built on Unity Catalog."
     />
     <title>Governance Hub</title>
+    <script>
+      // Apply saved theme before first paint so dark-mode users don't
+      // see a light-cream flash. Mirrors the useTheme hook contract.
+      (function applyPreboot() {
+        try {
+          var stored = window.localStorage.getItem("govhub.theme");
+          var mode = (stored === "light" || stored === "dark" || stored === "system") ? stored : "system";
+          var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var applied = mode === "dark" || (mode === "system" && prefersDark) ? "dark" : "light";
+          document.documentElement.setAttribute("data-theme", applied);
+        } catch (err) {
+          document.documentElement.setAttribute("data-theme", "light");
+        }
+      })();
+    </script>
     <style>
       :root {
         color-scheme: light;

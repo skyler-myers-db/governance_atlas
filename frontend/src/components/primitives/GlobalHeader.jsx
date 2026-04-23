@@ -6,7 +6,49 @@ const MODULES = [
   { key: "governance", label: "Governance" },
   { key: "taxonomy", label: "Taxonomy" },
   { key: "audit", label: "Audit" },
+  { key: "cde", label: "CDE" },
+  { key: "admin", label: "Admin" },
 ];
+
+const THEME_ICON_PATHS = {
+  system: (
+    <>
+      <circle cx="12" cy="12" r="5" />
+      <path d="M12 7v10" />
+    </>
+  ),
+  light: (
+    <>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v3M12 19v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M2 12h3M19 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12" />
+    </>
+  ),
+  dark: <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />,
+};
+
+const THEME_LABELS = {
+  system: "System theme",
+  light: "Light theme",
+  dark: "Dark theme",
+};
+
+function ThemeIcon({ mode }) {
+  return (
+    <svg
+      aria-hidden="true"
+      fill="none"
+      height="16"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+      width="16"
+    >
+      {THEME_ICON_PATHS[mode] || THEME_ICON_PATHS.system}
+    </svg>
+  );
+}
 
 // Governance Hub brand mark — a filled rounded tile with an inverse "G"
 // cut-out. This matches the mockup silhouette: a soft magenta tile on
@@ -87,8 +129,16 @@ export function GlobalHeader({
   onOpenSettings,
   onOpenCapabilities,
   onSignOut,
+  onCycleTheme,
+  themeMode = "system",
+  branding = null,
   topbarSearchSlot,
 }) {
+  const logoUrl = typeof branding?.logoUrl === "string" ? branding.logoUrl.trim() : "";
+  const brandTitle =
+    (typeof branding?.orgDisplayName === "string"
+      ? branding.orgDisplayName.trim()
+      : "") || "Governance Hub";
   return (
     <div className="gh-shell-topbar">
       <div className="gh-shell-spine">
@@ -101,9 +151,13 @@ export function GlobalHeader({
             type="button"
           >
             <span className="gh-shell-brand-mark" aria-hidden="true">
-              <BrandGlyph />
+              {logoUrl ? (
+                <img alt="" className="gh-shell-brand-logo" src={logoUrl} />
+              ) : (
+                <BrandGlyph />
+              )}
             </span>
-            <span className="gh-shell-brand-title">Governance Hub</span>
+            <span className="gh-shell-brand-title">{brandTitle}</span>
           </button>
           {topbarSearchSlot ? (
             <div className="gh-shell-brand-search-slot">{topbarSearchSlot}</div>
@@ -153,6 +207,17 @@ export function GlobalHeader({
                     {alertsUnreadCount > 9 ? "9+" : alertsUnreadCount}
                   </span>
                 ) : null}
+              </button>
+            ) : null}
+            {onCycleTheme ? (
+              <button
+                aria-label={`${THEME_LABELS[themeMode] || "Theme"} — click to cycle`}
+                className="gh-shell-topbar-icon-button"
+                onClick={onCycleTheme}
+                title={THEME_LABELS[themeMode] || "Theme"}
+                type="button"
+              >
+                <ThemeIcon mode={themeMode} />
               </button>
             ) : null}
             <UserChip

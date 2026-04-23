@@ -122,6 +122,8 @@ function discoveryFilters(overrides = {}) {
     tiers: [],
     certifications: [],
     sensitivities: [],
+    businessCriticalities: [],
+    cdeOnly: false,
     ...overrides,
   };
 }

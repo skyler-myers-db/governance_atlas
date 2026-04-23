@@ -22,6 +22,8 @@ const InboxPage = lazy(() => import("./components/InboxPage"));
 const HomePage = lazy(() => import("./components/HomePage"));
 const CapabilityDashboard = lazy(() => import("./components/CapabilityDashboard"));
 const InsightsWorkspace = lazy(() => import("./components/InsightsWorkspace"));
+const CdeWorkspace = lazy(() => import("./components/CdeWorkspace"));
+const AdminWorkspace = lazy(() => import("./components/AdminWorkspace"));
 
 function visibleAssetSetFromGroups(...groups) {
   const visible = new Set();
@@ -737,6 +739,37 @@ export default function App() {
           />
         </Suspense>
       );
+    } else if (surface === "cde") {
+      content = (
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading Critical Data Elements",
+            "Aggregating CDE-flagged assets by owning domain.",
+          )}
+        >
+          <CdeWorkspace
+            onNavigationStateChange={handleNavigationStateChange}
+            onSurfaceReady={handleSurfaceReady}
+            onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
+            onOpenLineage={openLineageWorkspace}
+          />
+        </Suspense>
+      );
+    } else if (surface === "admin") {
+      content = (
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading Admin",
+            "Preparing bulk import, coverage, and branding tools.",
+          )}
+        >
+          <AdminWorkspace
+            bootstrap={data}
+            onNavigationStateChange={handleNavigationStateChange}
+            onSurfaceReady={handleSurfaceReady}
+          />
+        </Suspense>
+      );
     } else if (surface === "inbox") {
       content = (
         <Suspense
@@ -857,7 +890,7 @@ export default function App() {
       activeModule={
         surface === "entity"
           ? "discovery"
-          : ["home", "discovery", "lineage", "governance", "audit", "taxonomy", "help", "inbox", "capabilities", "insights"].includes(surface)
+          : ["home", "discovery", "lineage", "governance", "audit", "taxonomy", "help", "inbox", "capabilities", "insights", "cde", "admin"].includes(surface)
             ? surface
             : ""
       }

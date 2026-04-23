@@ -114,6 +114,17 @@ function postureItems(asset, detailLoading = false) {
     { label: "Certification", value: asset.certification || "Unassigned" },
     { label: "Sensitivity", value: asset.sensitivity || "Unassigned" },
     { label: "Criticality", value: asset.criticality || "Unassigned" },
+    {
+      label: "Business Criticality",
+      value:
+        asset.businessCriticality ||
+        asset.business_criticality ||
+        "Unassigned",
+    },
+    {
+      label: "Critical Data Element",
+      value: asset.isCde ? "Yes" : "No",
+    },
   ];
   if (managementType !== "—") {
     items.splice(3, 0, { label: "Management", value: loadingAwareValue(managementType, "—", detailLoading) });
@@ -122,7 +133,15 @@ function postureItems(asset, detailLoading = false) {
 }
 
 function governancePostureSubset(asset, detailLoading = false) {
-  const keep = new Set(["Domain", "Tier", "Certification", "Sensitivity", "Criticality"]);
+  const keep = new Set([
+    "Domain",
+    "Tier",
+    "Certification",
+    "Sensitivity",
+    "Criticality",
+    "Business Criticality",
+    "Critical Data Element",
+  ]);
   return postureItems(asset, detailLoading).filter((item) => keep.has(item.label));
 }
 
@@ -192,6 +211,9 @@ const STRUCTURED_TAG_KEYS = new Set([
   "certification",
   "sensitivity",
   "criticality",
+  "business_criticality",
+  "cde",
+  "cde_rationale",
   "glossary_term",
   "data_product",
 ]);
@@ -212,7 +234,12 @@ function metadataDraftFromAsset(asset) {
     certification: toDraftValue(asset?.certification),
     sensitivity: toDraftValue(asset?.sensitivity),
     criticality: toDraftValue(asset?.criticality),
+    businessCriticality: toDraftValue(
+      asset?.business_criticality || asset?.businessCriticality,
+    ),
     dataProduct: toDraftValue(asset?.data_product || asset?.dataProduct),
+    isCde: Boolean(asset?.isCde),
+    cdeRationale: toDraftValue(asset?.cdeRationale || asset?.cde_rationale),
     freeformTags: freeformTagDraftValue(asset),
   };
 }
@@ -399,9 +426,20 @@ function MetadataEditorPanel({
                   className="gh-input gh-textarea"
                   onChange={(event) => onChange(field.key, event.target.value)}
                   placeholder={field.placeholder}
-                  rows={5}
+                  rows={field.key === "cdeRationale" ? 3 : 5}
                   value={draft[field.key] ?? ""}
                 />
+              ) : field.type === "toggle" ? (
+                <div className="gh-metadata-edit-toggle">
+                  <input
+                    checked={Boolean(draft[field.key])}
+                    onChange={(event) => onChange(field.key, event.target.checked)}
+                    type="checkbox"
+                  />
+                  <span>
+                    {draft[field.key] ? "Flagged as Critical Data Element" : "Not a CDE"}
+                  </span>
+                </div>
               ) : field.type === "text" ? (
                 <>
                   <input
@@ -1334,7 +1372,10 @@ export default function EntityWorkspace({
     const certification = metadataDraft.certification.trim();
     const sensitivity = metadataDraft.sensitivity.trim();
     const criticality = metadataDraft.criticality.trim();
+    const businessCriticality = (metadataDraft.businessCriticality || "").trim();
     const dataProduct = metadataDraft.dataProduct.trim();
+    const isCde = Boolean(metadataDraft.isCde);
+    const cdeRationale = (metadataDraft.cdeRationale || "").trim();
     const freeformTags = metadataDraft.freeformTags
       .split(",")
       .map((item) => item.trim())
@@ -1354,11 +1395,28 @@ export default function EntityWorkspace({
       certification: certification || null,
       sensitivity: sensitivity || null,
       criticality: criticality || null,
+      businessCriticality: businessCriticality || null,
       dataProduct: dataProduct || null,
+      isCde,
+      cdeRationale: isCde ? cdeRationale : "",
       freeformTags,
     };
 
     const response = await editor.save(payload);
+    const approvalStatus = String(response?.approval?.status || "")
+      .trim()
+      .toLowerCase();
+    if (approvalStatus === "pending") {
+      // Write was queued for approval — keep the live asset cache
+      // untouched, reset the draft, and surface the updated governance
+      // summary (where the new backlog entry lives).
+      if (response?.governance) {
+        onGovernanceChange?.(response.governance);
+      }
+      setMetadataDirty(false);
+      setMetadataDraft(metadataDraftFromAsset(asset));
+      return response;
+    }
     const nextAsset = response?.asset || null;
     if (nextAsset?.fqn) {
       primeAssetDetail(nextAsset.fqn, nextAsset);

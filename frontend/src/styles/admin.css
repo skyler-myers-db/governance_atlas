@@ -1,0 +1,475 @@
+/* Admin workspace — tabs for Bulk Import / Coverage / Branding.
+   All rules use design tokens so the surface adapts cleanly to dark
+   mode alongside the rest of the shell. */
+
+.gh-admin-surface {
+  display: grid;
+  gap: 18px;
+}
+
+/* Bulk import */
+.gh-bulk-import-surface {
+  display: grid;
+  gap: 16px;
+}
+
+.gh-bulk-import-step {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.gh-bulk-import-step-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.gh-bulk-import-step-head h2 {
+  margin: 4px 0 0;
+  font-size: 1.02rem;
+}
+
+.gh-bulk-import-step-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gh-bulk-import-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gh-bulk-import-textarea {
+  font-family: "SF Mono", "Menlo", monospace;
+  font-size: 0.82rem;
+  min-height: 180px;
+}
+
+.gh-bulk-import-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.gh-bulk-import-summary dt {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gh-ink-muted);
+}
+
+.gh-bulk-import-summary dd {
+  margin: 4px 0 0;
+  font-size: 1.34rem;
+  font-weight: 800;
+}
+
+.gh-bulk-import-parse-errors {
+  list-style: none;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--gh-accent-soft);
+  border: 1px solid var(--gh-line);
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.gh-bulk-import-table {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-bulk-import-row {
+  border: 1px solid var(--gh-line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--gh-surface);
+  display: grid;
+  gap: 8px;
+}
+
+.gh-bulk-import-row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.gh-bulk-import-row-fqn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.gh-bulk-import-row-fqn code {
+  font-family: "SF Mono", "Menlo", monospace;
+  font-size: 0.8rem;
+  word-break: break-all;
+  color: var(--gh-ink-soft);
+}
+
+.gh-bulk-import-diff {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 6px;
+}
+
+.gh-bulk-import-diff li {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--gh-surface-soft);
+  border: 1px solid var(--gh-line);
+}
+
+.gh-bulk-import-diff-key {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gh-ink-muted);
+}
+
+.gh-bulk-import-diff-value {
+  margin-top: 2px;
+  font-size: 0.86rem;
+}
+
+.gh-bulk-import-errors,
+.gh-bulk-import-warnings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 0.82rem;
+}
+
+.gh-bulk-import-errors li {
+  color: var(--gh-bad);
+}
+
+.gh-bulk-import-warnings li {
+  color: var(--gh-warn);
+}
+
+.gh-bulk-import-empty {
+  font-size: 0.86rem;
+  color: var(--gh-ink-muted);
+}
+
+/* Coverage dashboard */
+.gh-coverage-surface {
+  display: grid;
+  gap: 16px;
+}
+
+.gh-coverage-policy {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.gh-coverage-policy-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.gh-coverage-field-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--gh-surface-soft);
+  border: 1px solid var(--gh-line);
+}
+
+.gh-coverage-hero {
+  font-size: 1.4rem;
+  font-weight: 900;
+}
+
+.gh-coverage-pct {
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--gh-line);
+  background: var(--gh-surface-soft);
+}
+
+.gh-coverage-pct.tone-good {
+  border-color: rgba(31, 139, 103, 0.4);
+  color: var(--gh-good);
+}
+
+.gh-coverage-pct.tone-warn {
+  border-color: rgba(182, 123, 31, 0.4);
+  color: var(--gh-warn);
+}
+
+.gh-coverage-pct.tone-bad {
+  border-color: rgba(193, 84, 95, 0.4);
+  color: var(--gh-bad);
+}
+
+.gh-coverage-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.gh-coverage-field-card {
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--gh-surface-soft);
+  border: 1px solid var(--gh-line);
+  color: var(--gh-ink);
+  cursor: pointer;
+  font: inherit;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.gh-coverage-field-card:hover {
+  transform: translateY(-1px);
+}
+
+.gh-coverage-field-card.tone-good {
+  border-color: rgba(31, 139, 103, 0.45);
+}
+
+.gh-coverage-field-card.tone-warn {
+  border-color: rgba(182, 123, 31, 0.45);
+}
+
+.gh-coverage-field-card.tone-bad {
+  border-color: rgba(193, 84, 95, 0.45);
+}
+
+.gh-coverage-field-card-pct {
+  font-size: 1.5rem;
+  font-weight: 900;
+  margin: 4px 0;
+}
+
+.gh-coverage-field-card-meta {
+  font-size: 0.76rem;
+  color: var(--gh-ink-soft);
+}
+
+.gh-coverage-grid {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.gh-coverage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.gh-coverage-table th,
+.gh-coverage-table td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--gh-line);
+  vertical-align: top;
+}
+
+.gh-coverage-table th {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gh-ink-muted);
+}
+
+.gh-coverage-fqn {
+  font-family: "SF Mono", "Menlo", monospace;
+  font-size: 0.74rem;
+  color: var(--gh-ink-muted);
+}
+
+.gh-coverage-missing-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.gh-coverage-placeholder {
+  padding: 24px;
+  color: var(--gh-ink-soft);
+  background: var(--gh-surface);
+  border-radius: var(--gh-radius-xl, 20px);
+  border: 1px solid var(--gh-line);
+  text-align: center;
+}
+
+.gh-coverage-drilldown {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+/* Branding editor */
+.gh-branding-surface {
+  display: grid;
+  gap: 16px;
+}
+
+.gh-branding-step {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.gh-branding-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.gh-branding-field {
+  display: grid;
+  gap: 6px;
+  font-size: 0.88rem;
+}
+
+.gh-branding-field > span:first-child {
+  font-weight: 700;
+}
+
+.gh-branding-field-wide {
+  grid-column: 1 / -1;
+}
+
+.gh-branding-field small {
+  color: var(--gh-ink-soft);
+  font-size: 0.76rem;
+}
+
+.gh-branding-color-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gh-branding-color-picker {
+  width: 54px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--gh-line);
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.gh-branding-hex-input {
+  font-family: "SF Mono", "Menlo", monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gh-branding-preview {
+  padding: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.gh-branding-preview-shell {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid var(--gh-line);
+  background: var(--gh-surface-soft);
+}
+
+.gh-branding-preview-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: white;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  background: linear-gradient(
+    135deg,
+    var(--preview-primary, var(--gh-accent)) 0%,
+    var(--preview-accent, var(--gh-accent-2)) 100%
+  );
+}
+
+.gh-branding-preview-mark img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.gh-branding-preview-title {
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.gh-branding-preview-subtitle {
+  font-size: 0.84rem;
+  color: var(--gh-ink-soft);
+}
+
+.gh-branding-preview-buttons {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.gh-branding-preview-button {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--preview-primary, var(--gh-accent));
+  color: white;
+}
+
+.gh-branding-preview-button-secondary {
+  background: transparent;
+  color: var(--preview-primary, var(--gh-accent));
+  border-color: var(--preview-primary, var(--gh-accent));
+}
+
+.gh-shell-brand-logo {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+}

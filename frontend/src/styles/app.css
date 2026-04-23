@@ -868,6 +868,39 @@ button.gh-chip:not(.is-readonly):focus-visible,
   gap: 5px;
 }
 
+.gh-filter-section-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gh-ink-soft);
+}
+
+.gh-filter-section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--gh-ink);
+  cursor: pointer;
+}
+
+.gh-filter-section-toggle input[type="checkbox"] {
+  margin: 0;
+}
+
+.gh-metadata-edit-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 2px;
+}
+
+.gh-metadata-edit-toggle span {
+  font-size: 0.86rem;
+  color: var(--gh-ink-soft);
+}
+
 .gh-filter-choice-row {
   display: flex;
   flex-wrap: wrap;

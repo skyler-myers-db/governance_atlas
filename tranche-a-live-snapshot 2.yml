@@ -1,0 +1,269 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e6]:
+      - button "Governance Hub Metadata Workspace" [ref=e8] [cursor=pointer]:
+        - generic [ref=e10]: GH
+        - generic [ref=e11]:
+          - generic [ref=e12]: Governance Hub
+          - generic [ref=e13]: Metadata Workspace
+      - generic [ref=e14]:
+        - generic [ref=e15]:
+          - generic [ref=e16]: Modules
+          - generic [ref=e17]:
+            - generic [ref=e18]
+            - generic [ref=e52]
+        - navigation "Primary modules" [ref=e21]:
+          - button "Discovery" [ref=e22] [cursor=pointer]:
+            - generic [ref=e23]: Discovery
+          - button "Lineage" [ref=e24] [cursor=pointer]:
+            - generic [ref=e25]: Lineage
+          - button "Governance" [ref=e26] [cursor=pointer]:
+            - generic [ref=e27]: Governance
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e30]: Command bar
+        - generic [ref=e31]: Search visible assets, then open the broader discovery surface.
+        - generic [ref=e33]: 827 visible assets in scope
+      - generic [ref=e36]:
+        - generic [ref=e38]: Search
+        - textbox "Search" [ref=e40]:
+          - /placeholder: Search visible assets by name, schema, domain, or tag
+        - button "Browse" [ref=e41] [cursor=pointer]
+  - main [ref=e42]:
+    - generic [ref=e59]:
+      - complementary [ref=e60]:
+        - generic [ref=e62]:
+          - generic [ref=e63]: Discovery Scope
+          - generic [ref=e64]:
+            - heading "Browse Asset Types and Filters" [level=3] [ref=e65]
+            - generic [ref=e67]: 827 visible
+          - generic [ref=e68]: Layer asset type, saved view, catalog, and stacked filters without leaving the catalog.
+        - generic [ref=e69]:
+          - generic [ref=e70]:
+            - generic [ref=e72]: Asset Types
+            - generic [ref=e73]
+          - generic [ref=e92]:
+            - generic [ref=e94]: Saved Views
+            - generic [ref=e95]
+          - generic [ref=e114]:
+            - generic [ref=e116]: Catalogs in Scope
+            - generic [ref=e117]
+      - generic [ref=e124]:
+        - generic [ref=e125]:
+          - generic [ref=e126]:
+            - generic [ref=e127]
+            - generic [ref=e134]: Filter visible assets with stacked search, saved views, and facet filters.
+          - generic [ref=e136]:
+            - textbox "Filter visible assets by name, schema, owner, domain, or tag" [ref=e137]
+            - generic [ref=e138]
+            - button "Stack Filters" [ref=e142] [cursor=pointer]
+        - generic [ref=e143]:
+          - article [ref=e144]:
+            - 'button "ap_self_assessed_tax_dist_history Streaming Table prod / silver Needs Work SCD Type 2 change history of AP_SELF_ASSESSED_TAX_DIST_ALL. Each row version has __START_AT / __END_AT validity windows. PK: INVOICE_DISTRIBUTION_ID + __START_AT. Timestamps in America/Denver. Coverage 35 •0 owners •1 requests •Unassigned •Unassigned •Unassigned" [ref=e145] [cursor=pointer]'
+            - generic [ref=e161]
+          - article [ref=e165]:
+            - 'button "ap_self_assessed_tax_dist Materialized View prod / silver Needs Work Latest-state, Oracle-typed AP_SELF_ASSESSED_TAX_DIST_ALL. Derived from SCD2 history (WHERE __END_AT IS NULL). PK: INVOICE_DISTRIBUTION_ID. Timestamps in America/Denver. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e166] [cursor=pointer]'
+            - generic [ref=e182]
+          - article [ref=e186]:
+            - 'button "ap_self_assessed_tax_dist_history Streaming Table dev / silver Needs Work SCD Type 2 change history of AP_SELF_ASSESSED_TAX_DIST_ALL. Each row version has __START_AT / __END_AT validity windows. PK: INVOICE_DISTRIBUTION_ID + __START_AT. Timestamps in America/Denver. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e187] [cursor=pointer]'
+            - generic [ref=e203]
+          - article [ref=e207]:
+            - 'button "ap_self_assessed_tax_dist Materialized View dev / silver Needs Work Latest-state, Oracle-typed AP_SELF_ASSESSED_TAX_DIST_ALL. Derived from SCD2 history (WHERE __END_AT IS NULL). PK: INVOICE_DISTRIBUTION_ID. Timestamps in America/Denver. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e208] [cursor=pointer]'
+            - generic [ref=e224]
+          - article [ref=e228]:
+            - button "report_user_mapping Delta Table dev / powerbi_bronze Needs Work This table contains information about users' access rights to various reports. It includes details such as the report ID and name, the level of access each user has, and user identification attributes like email address, display name, and user type. This data can be useful for managing report permissions, auditing user access, and understanding who can view or modify specific reports. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e229] [cursor=pointer]
+            - generic [ref=e245]
+          - article [ref=e249]:
+            - button "mv_requisition_spend Metric View dev / gold Needs Work Requisition distribution and fulfillment linkage metrics built on the curated requisition mart. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e250] [cursor=pointer]
+            - generic [ref=e266]
+          - article [ref=e270]:
+            - button "mv_purchase_order_spend Metric View dev / gold Needs Work Purchase order distribution and lead-time metrics built on the curated purchase order mart. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e271] [cursor=pointer]
+            - generic [ref=e287]
+          - article [ref=e291]:
+            - button "mv_project_costs Metric View dev / gold Needs Work Project expenditure and accounting metrics over the curated project cost mart. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e292] [cursor=pointer]
+            - generic [ref=e308]
+          - article [ref=e312]:
+            - button "mv_gl_journal_activity Metric View dev / gold Needs Work General ledger journal activity metrics over the curated GL journal mart. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e313] [cursor=pointer]
+            - generic [ref=e329]
+          - article [ref=e333]:
+            - button "mv_gl_balances Metric View dev / gold Needs Work General ledger balance metrics over the curated GL balance mart. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e334] [cursor=pointer]
+            - generic [ref=e350]
+          - article [ref=e354]:
+            - button "mv_ap_payment_allocations Metric View dev / gold Needs Work Accounts payable payment allocation metrics over the curated AP payment detail view. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e355] [cursor=pointer]
+            - generic [ref=e371]
+          - article [ref=e375]:
+            - button "mv_ap_invoice_distributions Metric View dev / gold Needs Work Accounts payable invoice distribution metrics over the curated AP invoice detail view. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e376] [cursor=pointer]
+            - generic [ref=e392]
+          - article [ref=e396]:
+            - button "kpi_training_metrics Delta Table dev / gold Needs Work Captures training and enablement metrics such as enrollments, completions, and participation to measure learning and skill development. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e397] [cursor=pointer]
+            - generic [ref=e413]
+          - article [ref=e417]:
+            - button "kpi_platform_observability Delta Table dev / gold Needs Work Provides platform observability KPIs including job execution metrics, system performance, resource utilization, and infrastructure-level monitoring for operational visibility. Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e418] [cursor=pointer]
+            - generic [ref=e434]
+          - article [ref=e438]:
+            - 'button "w1_work_req_log Materialized View bronze / wacs Needs Work Batch overwrite load from w1_work_req_log. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_work_req_log/20260410022326/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e439] [cursor=pointer]'
+            - generic [ref=e455]
+          - article [ref=e459]:
+            - 'button "w1_work_req Materialized View bronze / wacs Needs Work Batch overwrite load from w1_work_req. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_work_req/20260410022324/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e460] [cursor=pointer]'
+            - generic [ref=e476]
+          - article [ref=e480]:
+            - 'button "w1_work_class_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_work_class_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_work_class_l/20260410022257/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e481] [cursor=pointer]'
+            - generic [ref=e497]
+          - article [ref=e501]:
+            - 'button "w1_work_category_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_work_category_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_work_category_l/20260410022257/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e502] [cursor=pointer]'
+            - generic [ref=e518]
+          - article [ref=e522]:
+            - 'button "w1_wo_log Materialized View bronze / wacs Needs Work Batch overwrite load from w1_wo_log. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_wo_log/20260410022504/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e523] [cursor=pointer]'
+            - generic [ref=e539]
+          - article [ref=e543]:
+            - 'button "w1_wo Materialized View bronze / wacs Needs Work Batch overwrite load from w1_wo. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_wo/20260410022350/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e544] [cursor=pointer]'
+            - generic [ref=e560]
+          - article [ref=e564]:
+            - 'button "w1_tmpl_wo Materialized View bronze / wacs Needs Work Batch overwrite load from w1_tmpl_wo. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_tmpl_wo/20260410022310/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e565] [cursor=pointer]'
+            - generic [ref=e581]
+          - article [ref=e585]:
+            - 'button "w1_tmpl_act Materialized View bronze / wacs Needs Work Batch overwrite load from w1_tmpl_act. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_tmpl_act/20260410022314/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e586] [cursor=pointer]'
+            - generic [ref=e602]
+          - article [ref=e606]:
+            - 'button "w1_svc_hist_type_qstn Materialized View bronze / wacs Needs Work Batch overwrite load from w1_svc_hist_type_qstn. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_svc_hist_type_qstn/20260410022301/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e607] [cursor=pointer]'
+            - generic [ref=e623]
+          - article [ref=e627]:
+            - 'button "w1_svc_hist_type_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_svc_hist_type_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_svc_hist_type_l/20260410022258/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e628] [cursor=pointer]'
+            - generic [ref=e644]
+          - article [ref=e648]:
+            - 'button "w1_svc_hist_qstn_ansr Materialized View bronze / wacs Needs Work Batch overwrite load from w1_svc_hist_qstn_ansr. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_svc_hist_qstn_ansr/20260410023741/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e649] [cursor=pointer]'
+            - generic [ref=e665]
+          - article [ref=e669]:
+            - 'button "w1_svc_hist Materialized View bronze / wacs Needs Work Batch overwrite load from w1_svc_hist. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_svc_hist/20260410022735/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e670] [cursor=pointer]'
+            - generic [ref=e686]
+          - article [ref=e690]:
+            - 'button "w1_stock_trans Materialized View bronze / wacs Needs Work Batch overwrite load from w1_stock_trans. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_stock_trans/20260410022832/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e691] [cursor=pointer]'
+            - generic [ref=e707]
+          - article [ref=e711]:
+            - 'button "w1_stock_item_dtl_bin Materialized View bronze / wacs Needs Work Batch overwrite load from w1_stock_item_dtl_bin. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_stock_item_dtl_bin/20260410022314/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e712] [cursor=pointer]'
+            - generic [ref=e728]
+          - article [ref=e732]:
+            - 'button "w1_stock_item_dtl Materialized View bronze / wacs Needs Work Batch overwrite load from w1_stock_item_dtl. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_stock_item_dtl/20260410022445/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e733] [cursor=pointer]'
+            - generic [ref=e749]
+          - article [ref=e753]:
+            - 'button "w1_specification_maint_sched Materialized View bronze / wacs Needs Work Batch overwrite load from w1_specification_maint_sched. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_specification_maint_sched/20260410022301/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e754] [cursor=pointer]'
+            - generic [ref=e770]
+          - article [ref=e774]:
+            - 'button "w1_specification_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_specification_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_specification_l/20260410022300/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e775] [cursor=pointer]'
+            - generic [ref=e791]
+          - article [ref=e795]:
+            - 'button "w1_specification Materialized View bronze / wacs Needs Work Batch overwrite load from w1_specification. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_specification/20260410022302/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e796] [cursor=pointer]'
+            - generic [ref=e812]
+          - article [ref=e816]:
+            - 'button "w1_service_class_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_service_class_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_service_class_l/20260410022257/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e817] [cursor=pointer]'
+            - generic [ref=e833]
+          - article [ref=e837]:
+            - 'button "w1_service_area_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_service_area_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_service_area_l/20260410022257/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e838] [cursor=pointer]'
+            - generic [ref=e854]
+          - article [ref=e858]:
+            - 'button "w1_rtn_line Materialized View bronze / wacs Needs Work Batch overwrite load from w1_rtn_line. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_rtn_line/20260410022258/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e859] [cursor=pointer]'
+            - generic [ref=e875]
+          - article [ref=e879]:
+            - 'button "w1_rr_note Materialized View bronze / wacs Needs Work Batch overwrite load from w1_rr_note. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_rr_note/20260410022257/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e880] [cursor=pointer]'
+            - generic [ref=e896]
+          - article [ref=e900]:
+            - 'button "w1_resrc_uom_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_resrc_uom_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_resrc_uom_l/20260410022257/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e901] [cursor=pointer]'
+            - generic [ref=e917]
+          - article [ref=e921]:
+            - 'button "w1_resrc_type_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_resrc_type_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_resrc_type_l/20260410022318/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e922] [cursor=pointer]'
+            - generic [ref=e938]
+          - article [ref=e942]:
+            - 'button "w1_resrc_type_identifier Materialized View bronze / wacs Needs Work Batch overwrite load from w1_resrc_type_identifier. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_resrc_type_identifier/20260410022329/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e943] [cursor=pointer]'
+            - generic [ref=e959]
+          - article [ref=e963]:
+            - 'button "w1_resrc_type Materialized View bronze / wacs Needs Work Batch overwrite load from w1_resrc_type. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_resrc_type/20260410022352/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e964] [cursor=pointer]'
+            - generic [ref=e980]
+          - article [ref=e984]:
+            - 'button "w1_rcpt_line Materialized View bronze / wacs Needs Work Batch overwrite load from w1_rcpt_line. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_rcpt_line/20260410022329/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e985] [cursor=pointer]'
+            - generic [ref=e1001]
+          - article [ref=e1005]:
+            - 'button "w1_question_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_question_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_question_l/20260410022259/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1006] [cursor=pointer]'
+            - generic [ref=e1022]
+          - article [ref=e1026]:
+            - 'button "w1_question_answer_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_question_answer_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_question_answer_l/20260410022300/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1027] [cursor=pointer]'
+            - generic [ref=e1043]
+          - article [ref=e1047]:
+            - 'button "w1_purchase_cmdty_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_purchase_cmdty_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_purchase_cmdty_l/20260410022257/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1048] [cursor=pointer]'
+            - generic [ref=e1064]
+          - article [ref=e1068]:
+            - 'button "w1_project Materialized View bronze / wacs Needs Work Batch overwrite load from w1_project. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_project/20260410022334/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1069] [cursor=pointer]'
+            - generic [ref=e1085]
+          - article [ref=e1089]:
+            - 'button "w1_po_line Materialized View bronze / wacs Needs Work Batch overwrite load from w1_po_line. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_po_line/20260410022351/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1090] [cursor=pointer]'
+            - generic [ref=e1106]
+          - article [ref=e1110]:
+            - 'button "w1_po_header Materialized View bronze / wacs Needs Work Batch overwrite load from w1_po_header. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_po_header/20260410022327/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1111] [cursor=pointer]'
+            - generic [ref=e1127]
+          - article [ref=e1131]:
+            - 'button "w1_planner_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_planner_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_planner_l/20260410022257/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1132] [cursor=pointer]'
+            - generic [ref=e1148]
+          - article [ref=e1152]:
+            - 'button "w1_pi_header Materialized View bronze / wacs Needs Work Batch overwrite load from w1_pi_header. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_pi_header/20260410022300/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1153] [cursor=pointer]'
+            - generic [ref=e1169]
+          - article [ref=e1173]:
+            - 'button "w1_pi_cnt_mst Materialized View bronze / wacs Needs Work Batch overwrite load from w1_pi_cnt_mst. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_pi_cnt_mst/20260410022334/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1174] [cursor=pointer]'
+            - generic [ref=e1190]
+          - article [ref=e1194]:
+            - 'button "w1_pi_cnt_line Materialized View bronze / wacs Needs Work Batch overwrite load from w1_pi_cnt_line. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_pi_cnt_line/20260410022339/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1195] [cursor=pointer]'
+            - generic [ref=e1211]
+          - article [ref=e1215]:
+            - 'button "w1_permit_tmpl_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_permit_tmpl_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_permit_tmpl_l/20260410022257/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1216] [cursor=pointer]'
+            - generic [ref=e1232]
+          - article [ref=e1236]:
+            - 'button "w1_permit_identifier Materialized View bronze / wacs Needs Work Batch overwrite load from w1_permit_identifier. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_permit_identifier/20260410022258/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1237] [cursor=pointer]'
+            - generic [ref=e1253]
+          - article [ref=e1257]:
+            - 'button "w1_permit_char Materialized View bronze / wacs Needs Work Batch overwrite load from w1_permit_char. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_permit_char/20260410022257/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1258] [cursor=pointer]'
+            - generic [ref=e1274]
+          - article [ref=e1278]:
+            - 'button "w1_permit_asset_location Materialized View bronze / wacs Needs Work Batch overwrite load from w1_permit_asset_location. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_permit_asset_location/20260410022300/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1279] [cursor=pointer]'
+            - generic [ref=e1295]
+          - article [ref=e1299]:
+            - 'button "w1_permit Materialized View bronze / wacs Needs Work Batch overwrite load from w1_permit. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_permit/20260410022301/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1300] [cursor=pointer]'
+            - generic [ref=e1316]
+          - article [ref=e1320]:
+            - 'button "w1_node_type_l Materialized View bronze / wacs Needs Work Batch overwrite load from w1_node_type_l. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_node_type_l/20260410022257/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1321] [cursor=pointer]'
+            - generic [ref=e1337]
+          - article [ref=e1341]:
+            - 'button "w1_node_note Materialized View bronze / wacs Needs Work Batch overwrite load from w1_node_note. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_node_note/20260410022257/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1342] [cursor=pointer]'
+            - generic [ref=e1358]
+          - article [ref=e1362]:
+            - 'button "w1_node Materialized View bronze / wacs Needs Work Batch overwrite load from w1_node. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_node/20260410022401/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1363] [cursor=pointer]'
+            - generic [ref=e1379]
+          - article [ref=e1383]:
+            - 'button "w1_measurement Materialized View bronze / wacs Needs Work Batch overwrite load from w1_measurement. Dynamically reading from: abfss://portable@tsgtdevnonprodadls.dfs.core.windows.net/portable_ingest/w1_measurement/20260410022658/ Coverage 35 •0 owners •0 requests •Unassigned •Unassigned •Unassigned" [ref=e1384] [cursor=pointer]'
+            - generic [ref=e1400]
+          - generic [ref=e1404]:
+            - generic [ref=e1405]: Showing 60 of 827 results to keep the catalog responsive.
+            - button "Load more results" [ref=e1406] [cursor=pointer]
+      - complementary [ref=e1407]:
+        - generic [ref=e1409]:
+          - generic [ref=e1410]: Selected Asset
+          - generic [ref=e1411]:
+            - heading "ap_self_assessed_tax_dist_history" [level=3] [ref=e1412]
+            - generic [ref=e1414]: Needs Work
+          - generic [ref=e1415]: prod / silver · Streaming Table
+        - generic [ref=e1416]:
+          - button "Open Record" [ref=e1417] [cursor=pointer]
+          - button "Open Lineage" [ref=e1418] [cursor=pointer]
+          - button "Open Governance" [ref=e1419] [cursor=pointer]
+        - generic [ref=e1420]:
+          - generic [ref=e1422]:
+            - generic [ref=e1424]: Definition
+            - generic [ref=e1425]: "SCD Type 2 change history of AP_SELF_ASSESSED_TAX_DIST_ALL. Each row version has __START_AT / __END_AT validity windows. PK: INVOICE_DISTRIBUTION_ID + __START_AT. Timestamps in America/Denver."
+          - generic [ref=e1427]:
+            - generic [ref=e1428]
+            - generic [ref=e1431]
+            - generic [ref=e1434]
+            - generic [ref=e1437]
+          - generic [ref=e1440]:
+            - generic [ref=e1442]: Schema
+            - generic [ref=e1443]
+          - generic [ref=e1444]:
+            - generic [ref=e1446]: Connected Assets
+            - generic [ref=e1447]: Refreshing live lineage context...
