@@ -316,6 +316,11 @@ class _NullGovernanceStore:
         return self.list_metadata_audit(**_)
 
     def get_role(self, email: str, admin_emails: Optional[List[str]] = None) -> str:
+        e = (email or "").strip().lower()
+        admins = {(a or "").strip().lower() for a in (admin_emails or [])}
+        admins.discard("")
+        if e and e in admins:
+            return "admin"
         return "reader"
 
 
@@ -568,10 +573,14 @@ def _user_role_slug(request: Optional[Request]) -> str:
     email = _user_email(request)
     if email == "unknown":
         return "reader"
+    admin_emails = _config().admin_emails
     store = _store_for_read()
     try:
-        role = store.get_role(email, admin_emails=_config().admin_emails)
+        role = store.get_role(email, admin_emails=admin_emails)
     except Exception:
+        e = email.strip().lower()
+        if e and any(e == (a or "").strip().lower() for a in admin_emails):
+            return "admin"
         return "reader"
     return (role or "reader").strip().lower() or "reader"
 
