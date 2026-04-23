@@ -320,6 +320,11 @@ class _NullGovernanceStore:
         admins = {(a or "").strip().lower() for a in (admin_emails or [])}
         admins.discard("")
         if e and e in admins:
+            LOGGER.warning(
+                "admin_emails_fallback_promotion store=null email=%s "
+                "(honoring GOVHUB_ADMIN_EMAILS while governance store is unreachable)",
+                e,
+            )
             return "admin"
         return "reader"
 

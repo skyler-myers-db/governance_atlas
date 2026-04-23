@@ -319,10 +319,12 @@ def build_admin_router() -> APIRouter:
 
     @router.get("/branding")
     def api_admin_branding_get(request: Request) -> JSONResponse:
-        """Admin/steward read of tenant branding. The shell bootstrap
-        reads branding via _shell_branding_payload() internally for all
-        roles, so gating this HTTP endpoint does not break shell render
-        for readers."""
+        """Admin-only read of tenant branding, matching the admin-only
+        write at PUT /branding. The shell bootstrap reads branding via
+        _shell_branding_payload() internally for all roles, so gating
+        this HTTP endpoint to admins does not break shell render for
+        readers/stewards — they still receive the active palette at
+        /api/bootstrap and see it applied shell-wide."""
         from runtime_app import (
             _ensure_can_mutate,
             _ensure_governance_store,
@@ -334,10 +336,10 @@ def build_admin_router() -> APIRouter:
 
         _ensure_live_runtime()
         _ensure_can_mutate(request)
-        if _user_role_slug(request) not in {"admin", "steward"}:
+        if _user_role_slug(request) != "admin":
             raise HTTPException(
                 status_code=403,
-                detail="Only admins and stewards can read tenant branding via the admin API.",
+                detail="Only admins can read tenant branding via the admin API.",
             )
         _ensure_governance_store()
         return JSONResponse({"branding": branding_service.get_branding(_store())})
