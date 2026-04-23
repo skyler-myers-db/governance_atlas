@@ -73,6 +73,125 @@
   min-height: 660px;
 }
 
+/* Cold-load skeleton — shown while /api/lineage is still running.
+   Six pulsing boxes hint at the upstream/focus/downstream shape of
+   the graph that's about to appear. The copy block is honest about
+   warehouse cold-start latency so a 30-60s wait feels intentional
+   instead of broken. */
+.gh-lineage-skeleton {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 24px;
+  padding: 32px 40px 40px;
+}
+
+.gh-lineage-skeleton-copy {
+  max-width: 520px;
+  display: grid;
+  gap: 6px;
+}
+
+.gh-lineage-skeleton-copy h3 {
+  margin: 0;
+  font-size: 1.14rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--gh-ink, #1a2236);
+}
+
+.gh-lineage-skeleton-copy p {
+  margin: 0;
+  color: var(--gh-ink-soft, #525e74);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.gh-lineage-skeleton-graph {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  align-items: center;
+}
+
+.gh-lineage-skeleton-node {
+  display: block;
+  height: 56px;
+  max-height: 72px;
+  border-radius: 12px;
+  background: linear-gradient(
+    90deg,
+    rgba(91, 67, 238, 0.04) 0%,
+    rgba(91, 67, 238, 0.12) 50%,
+    rgba(91, 67, 238, 0.04) 100%
+  );
+  background-size: 200% 100%;
+  border: 1px solid rgba(91, 67, 238, 0.14);
+  animation: ghLineageSkeletonPulse 1.8s ease-in-out infinite;
+}
+
+.gh-lineage-skeleton-node.is-upstream {
+  grid-column: 1;
+}
+
+.gh-lineage-skeleton-node.is-upstream:nth-of-type(1) {
+  grid-row: 1;
+}
+
+.gh-lineage-skeleton-node.is-upstream:nth-of-type(2) {
+  grid-row: 3;
+}
+
+.gh-lineage-skeleton-node.is-focus {
+  grid-column: 2;
+  grid-row: 2;
+  height: 96px;
+  border: 2px solid rgba(91, 67, 238, 0.35);
+  background: linear-gradient(
+    90deg,
+    rgba(91, 67, 238, 0.08) 0%,
+    rgba(91, 67, 238, 0.2) 50%,
+    rgba(91, 67, 238, 0.08) 100%
+  );
+  background-size: 200% 100%;
+  animation-duration: 1.4s;
+}
+
+.gh-lineage-skeleton-node.is-downstream {
+  grid-column: 3;
+}
+
+.gh-lineage-skeleton-node.is-downstream:nth-of-type(4) {
+  grid-row: 1;
+}
+
+.gh-lineage-skeleton-node.is-downstream:nth-of-type(5) {
+  grid-row: 2;
+}
+
+.gh-lineage-skeleton-node.is-downstream:nth-of-type(6) {
+  grid-row: 3;
+}
+
+@keyframes ghLineageSkeletonPulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-lineage-skeleton-node {
+    animation: none;
+    opacity: 0.8;
+  }
+}
+
 .gh-lineage-stage-canvas {
   position: relative;
   min-height: 660px;

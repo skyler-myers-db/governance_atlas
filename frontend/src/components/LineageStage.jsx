@@ -1,7 +1,61 @@
+import { useEffect, useState } from "react";
 import { displayObjectType } from "../lib/assetPresentation";
 import { Breadcrumbs } from "./primitives/Breadcrumbs";
 import LineageGraph from "./LineageGraph";
 import { EmptyStateBlock, InlineStatusBanner } from "./ShellStatePrimitives";
+
+// The full lineage pull hits `system.access.table_lineage` + column
+// lineage — a serverless warehouse query path that can take 30–60s
+// cold. A generic spinner makes that feel broken; an honest skeleton
+// with escalating messaging makes it feel like progress.
+function LineageLoadingSkeleton({ asset }) {
+  const [phase, setPhase] = useState(0);
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase(1), 4000);
+    const t2 = setTimeout(() => setPhase(2), 12000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [asset?.fqn]);
+
+  const messages = [
+    {
+      title: "Assembling the lineage graph",
+      message:
+        "Querying system.access.table_lineage for upstream + downstream producers.",
+    },
+    {
+      title: "Warehouse warming up",
+      message:
+        "Serverless SQL warehouses take 30–90 seconds to start from idle. Hang on — the graph will fill in as soon as the warehouse responds.",
+    },
+    {
+      title: "Still fetching",
+      message:
+        "Large dependency graphs (2-hop, 50-edge cap) take longer to materialize. Column-level lineage is being pulled in parallel.",
+    },
+  ];
+  const state = messages[Math.min(phase, messages.length - 1)];
+
+  return (
+    <div className="gh-lineage-skeleton" aria-busy="true" aria-live="polite">
+      <div className="gh-lineage-skeleton-copy">
+        <div className="gh-eyebrow">Lineage</div>
+        <h3>{state.title}</h3>
+        <p>{state.message}</p>
+      </div>
+      <div className="gh-lineage-skeleton-graph" aria-hidden="true">
+        <span className="gh-lineage-skeleton-node is-upstream" />
+        <span className="gh-lineage-skeleton-node is-upstream" />
+        <span className="gh-lineage-skeleton-node is-focus" />
+        <span className="gh-lineage-skeleton-node is-downstream" />
+        <span className="gh-lineage-skeleton-node is-downstream" />
+        <span className="gh-lineage-skeleton-node is-downstream" />
+      </div>
+    </div>
+  );
+}
 
 function selectGraph(graphBundle, context, modeFlags) {
   if (!graphBundle) return null;
@@ -513,7 +567,7 @@ export default function LineageStage({
         ) : null}
         <div className="gh-lineage-stage-canvas">
           {loading && !hasGraph ? (
-            <EmptyStateBlock message="Loading lineage graph…" title="Refreshing graph" />
+            <LineageLoadingSkeleton asset={asset} />
           ) : hasGraph || overlay ? (
             <>
               {error ? (
