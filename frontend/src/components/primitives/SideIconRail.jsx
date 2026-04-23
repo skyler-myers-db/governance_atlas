@@ -59,6 +59,8 @@ const RAIL_ENTRIES = [
   { key: "governance", label: "Team", tooltip: "Team & governance", moduleKey: "governance", icon: "people" },
   { key: "taxonomy", label: "Taxonomy", tooltip: "Taxonomy", moduleKey: "taxonomy", icon: "people" },
   { key: "lineage", label: "Lineage", tooltip: "Lineage", moduleKey: "lineage", icon: "search" },
+  { key: "cde", label: "CDE", tooltip: "Critical Data Elements", moduleKey: "cde", icon: "search" },
+  { key: "admin", label: "Admin", tooltip: "Admin tools", moduleKey: "admin", icon: "cog" },
 ];
 
 // Round 7: Settings sits *below* Teams & stewards in the main nav

@@ -195,7 +195,15 @@ function clearFilter(filters, chip, onDiscoveryStateChange) {
     tiers: "All tiers",
     certifications: "All certifications",
     sensitivities: "All sensitivities",
+    businessCriticalities: "All criticalities",
   };
+  if (chip.key === "cdeOnly") {
+    onDiscoveryStateChange((current) => ({
+      ...current,
+      cdeOnly: false,
+    }));
+    return;
+  }
   const allLabel = allLabelByKey[chip.key];
   const next = (filters[chip.key] || []).filter((value) => value !== chip.label && value !== allLabel);
   onDiscoveryStateChange((current) => ({
@@ -238,9 +246,19 @@ function activeFilters(filters, queryState = null) {
   }
   (filters.views || []).forEach((value) => chips.push({ label: value, key: "views" }));
   (filters.types || []).forEach((value) => chips.push({ label: value, key: "types" }));
-  ["catalogs", "domains", "tiers", "certifications", "sensitivities"].forEach((key) => {
+  [
+    "catalogs",
+    "domains",
+    "tiers",
+    "certifications",
+    "sensitivities",
+    "businessCriticalities",
+  ].forEach((key) => {
     (filters[key] || []).forEach((value) => chips.push({ label: value, key }));
   });
+  if (filters.cdeOnly) {
+    chips.push({ label: "CDE only", key: "cdeOnly" });
+  }
   return chips;
 }
 
@@ -804,6 +822,50 @@ function FiltersPopover({
           options={facetValues(facets, "sensitivities", [], filters.sensitivities)}
           selected={filters.sensitivities}
         />
+        <FilterSection
+          allLabel="All criticalities"
+          counts={facetCounts(facets, "businessCriticalities")}
+          emptyMessage="Business criticality filters populate once assets carry the tag."
+          label="Business Criticality"
+          onToggle={(value, allLabel) =>
+            toggleMulti(
+              filters,
+              "businessCriticalities",
+              value,
+              allLabel,
+              onDiscoveryStateChange,
+            )
+          }
+          options={facetValues(
+            facets,
+            "businessCriticalities",
+            [
+              "Mission Critical",
+              "Business Critical",
+              "Operational",
+              "Low Impact",
+              "Not Assessed",
+            ],
+            filters.businessCriticalities,
+          )}
+          selected={filters.businessCriticalities}
+        />
+        <div className="gh-filter-section">
+          <div className="gh-filter-section-label">Critical Data Elements</div>
+          <label className="gh-filter-section-toggle">
+            <input
+              checked={Boolean(filters.cdeOnly)}
+              onChange={(event) =>
+                onDiscoveryStateChange((current) => ({
+                  ...current,
+                  cdeOnly: event.target.checked,
+                }))
+              }
+              type="checkbox"
+            />
+            <span>Only show CDE-flagged assets</span>
+          </label>
+        </div>
       </div>
     </div>
   );
@@ -3259,6 +3321,8 @@ export default function DiscoveryWorkspace({
       tiers: [],
       certifications: [],
       sensitivities: [],
+      businessCriticalities: [],
+      cdeOnly: false,
     });
   };
 

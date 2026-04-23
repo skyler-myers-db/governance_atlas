@@ -51,3 +51,49 @@
   --gh-warn: #b67b1f;
   --gh-bad: #c1545f;
 }
+
+/*
+ * Dark-theme palette. Activates when <html data-theme="dark"> is set.
+ * The useTheme hook manages the attribute. All rules here override the
+ * same tokens declared in the :root block above, so any component that
+ * references `var(--gh-bg)` / `var(--gh-surface)` / ... picks up the
+ * dark variant automatically.
+ *
+ * Cards stay near-black with a slight lift against body, matching the
+ * "only cards are white in light mode" convention inverted — in dark,
+ * cards and search fields are a lifted surface against the very dark
+ * body, and the side rail/filter rail share the body tone.
+ *
+ * Hard-coded rgba() rules scattered through app.css and per-surface
+ * stylesheets may still paint light in dark mode. Those surface as
+ * visual regressions; fix them as token references, not as a second
+ * dark-only override, so the light palette stays canonical.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --gh-bg: #0f1420;
+  --gh-bg-2: #141b28;
+  --gh-surface: #1a2234;
+  --gh-surface-soft: #171e2c;
+  --gh-surface-muted: #141a26;
+
+  --gh-line: #2c364a;
+  --gh-line-strong: #3a4661;
+
+  --gh-ink: #e6ecf5;
+  --gh-ink-soft: #a1aec4;
+  --gh-ink-muted: #7a869d;
+
+  --gh-accent: #f063a3;
+  --gh-accent-2: #d44a8a;
+  --gh-accent-soft: rgba(224, 99, 163, 0.18);
+
+  --gh-indigo: #8075ff;
+  --gh-indigo-2: #6c60ff;
+  --gh-indigo-soft: rgba(108, 96, 255, 0.18);
+
+  --gh-good: #4db892;
+  --gh-warn: #e1a84d;
+  --gh-bad: #e08089;
+}
+

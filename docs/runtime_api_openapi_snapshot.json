@@ -27,6 +27,28 @@
       },
       "AssetMetadataPatch": {
         "properties": {
+          "businessCriticality": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Businesscriticality"
+          },
+          "cdeRationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cderationale"
+          },
           "certification": {
             "anyOf": [
               {
@@ -90,6 +112,17 @@
             ],
             "title": "Freeformtags"
           },
+          "isCde": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iscde"
+          },
           "sensitivity": {
             "anyOf": [
               {
@@ -140,6 +173,32 @@
           }
         },
         "title": "AssetTagsPatch",
+        "type": "object"
+      },
+      "BrandingPatch": {
+        "properties": {
+          "accentColor": {
+            "default": "",
+            "title": "Accentcolor",
+            "type": "string"
+          },
+          "logoUrl": {
+            "default": "",
+            "title": "Logourl",
+            "type": "string"
+          },
+          "orgDisplayName": {
+            "default": "",
+            "title": "Orgdisplayname",
+            "type": "string"
+          },
+          "primaryColor": {
+            "default": "",
+            "title": "Primarycolor",
+            "type": "string"
+          }
+        },
+        "title": "BrandingPatch",
         "type": "object"
       },
       "ClassificationReviewPayload": {
@@ -2097,6 +2156,35 @@
                 }
               ],
               "title": "Sensitivities"
+            }
+          },
+          {
+            "in": "query",
+            "name": "businessCriticalities",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Businesscriticalities"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cdeOnly",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Cdeonly",
+              "type": "boolean"
             }
           },
           {

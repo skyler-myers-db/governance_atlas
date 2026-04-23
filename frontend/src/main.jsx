@@ -14,6 +14,8 @@ import "./styles/governance.css";
 import "./styles/shell-rail.css";
 import "./styles/capability-dashboard.css";
 import "./styles/insights.css";
+import "./styles/cde.css";
+import "./styles/admin.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

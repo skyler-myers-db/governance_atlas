@@ -1,0 +1,2390 @@
+/* Phase 2-k shell redesign: left icon rail, header action buttons, density rules, global focus. */
+
+:root {
+  /* --gh-side-rail-w lives in design/tokens/layout.css (canonical).
+     Do not re-declare the raw pixel value here. */
+  --gh-focus-ring: 0 0 0 3px rgba(91, 67, 238, 0.28);
+  --gh-focus-ring-inset: inset 0 0 0 2px rgba(91, 67, 238, 0.55);
+}
+
+/* --- app shell grid: rail + content column --- */
+.gh-app.gh-app-with-rail {
+  grid-template-columns: var(--gh-side-rail-w) minmax(0, 1fr);
+  grid-template-areas:
+    "rail header"
+    "rail main"
+    "rail footer";
+  gap: 0;
+  /* Round 10: no gap between rail and main column so the rail's
+     right border touches the main column's top border at a right
+     angle without a cream gutter between them. */
+  column-gap: 0;
+}
+
+.gh-app.gh-app-with-rail > .gh-side-rail {
+  grid-area: rail;
+}
+
+.gh-app.gh-app-with-rail > .gh-shell-header {
+  grid-area: header;
+  /* Round 14: header sits closer to the viewport top so the top-left
+     corner of the side rail reads as a ~64×64 square. */
+  margin-top: 2px;
+  margin-bottom: 0;
+  /* Padding-left 0 so the brand-band's own 32px padding-left is the
+     single source of alignment. */
+  padding-left: 0;
+  /* Sticky header — stays pinned while the main content scrolls so
+     the search bar and profile chip are always reachable. Solid cream
+     background + z-index above the card grid prevents text bleed
+     from rows below (operator 2026-04-19 round 5: "it shouldn't
+     combine with other text"). */
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: linear-gradient(180deg, #faf6ec 0%, #faf6ec 92%, rgba(250, 246, 236, 0.92) 100%);
+  /* Round 8: remove the border under the title bar — the darker
+     horizontal rule above the Discovery / Navigation subtabs (and
+     +Quick action row) is the only separator. Two stacked lines
+     read as noise. */
+  border-bottom: 0;
+  /* Round 14: padding-bottom 4→0 to help the top-left corner land at a
+     clean 64-high square. */
+  padding-bottom: 0;
+}
+
+.gh-app.gh-app-with-rail > .gh-main {
+  grid-area: main;
+}
+
+.gh-app.gh-app-with-rail > .gh-app-footer-controls {
+  grid-area: footer;
+}
+
+/* --- left icon rail --- */
+.gh-side-rail {
+  position: sticky;
+  top: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  /* Round 13: Home icon center aligned with Discovery/Navigation
+     sub-tab center (≈y=120). The old +28px put Home's center at
+     y=132, about 12px below Discovery's center; +16px lands them
+     level. */
+  padding: calc(var(--gh-shell-header-height, 80px) + 16px) 6px 16px;
+  border: 0;
+  /* Round 10: border-right is drawn via an ::after pseudo so we
+     can stop it at the top horizontal border (subtab top) instead
+     of having it extend up alongside the title bar. */
+  background: transparent;
+  box-shadow: none;
+  height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
+}
+.gh-side-rail::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  /* Round 13: vertical border runs the FULL side-rail height so it
+     definitively crosses the top horizontal border and forms a clean
+     right-angle corner at (x=73, y=header-bottom). Earlier rounds
+     tried to start the vertical exactly at the horizontal's y, but
+     1-2px rounding + sticky-pin math kept leaving a visible gap.
+     Extending top to 0 guarantees overlap at the corner pixel. */
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--gh-line, #b9ac82);
+  pointer-events: none;
+}
+
+.gh-side-rail-brand {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #5b43ee 0%, #8a6ff5 100%);
+  color: #fff;
+  font-weight: 900;
+  font-size: 0.84rem;
+  letter-spacing: 0.04em;
+  box-shadow: 0 6px 14px rgba(91, 67, 238, 0.28);
+  margin-bottom: 4px;
+}
+
+.gh-side-rail-brand-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gh-side-rail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  align-items: center;
+}
+
+.gh-side-rail-spacer {
+  flex: 1 1 auto;
+  min-height: 8px;
+}
+
+.gh-side-rail-footer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  /* Visible divider above Help / Sign out (Settings moved up to the
+     main nav in round 7). */
+  padding-top: 8px;
+  border-top: 1px solid var(--gh-line, #9a8c5d);
+}
+
+/* Thin divider above the Settings cog — sits between Teams &
+   stewards and the Settings icon inside the primary nav column. */
+.gh-side-rail-settings-divider {
+  width: 60%;
+  height: 0;
+  border-top: 1px solid var(--gh-line, #9a8c5d);
+  margin: 10px 0 6px;
+}
+
+.gh-side-rail-button {
+  /* Round 6 bump: larger hit-target + glyph so the rail reads as
+     primary navigation, not a thin utility column. */
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: #4c5c78;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.gh-side-rail-button .gh-side-rail-icon svg {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.gh-side-rail-button:hover:not(:disabled) {
+  background: rgba(91, 67, 238, 0.08);
+  color: #2a2f6b;
+  border-color: rgba(91, 67, 238, 0.16);
+}
+
+.gh-side-rail-button:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring);
+}
+
+.gh-side-rail-button.is-active {
+  /* Round 7: active rail pill goes purple, not magenta. Operator
+     called out the red/magenta shading as wrong for the active
+     indicator. */
+  background: var(--gh-indigo-soft, #e6e3ff);
+  color: var(--gh-indigo-2, #2d1f93);
+  border-color: transparent;
+  box-shadow: inset 2px 0 0 var(--gh-indigo, #3d2bc4);
+}
+
+.gh-side-rail-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.gh-side-rail-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gh-side-rail-label-sr {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- brand band: brand | search (centered) | profile cluster (right) ---
+   Flexbox with explicit flex allocations so the middle search track
+   actually grows. A grid's ``auto minmax(0,1fr) auto`` ended up handing
+   the 1fr column the min-content width of its child input instead of
+   the remaining row width (observed in the 2026-04-19 audit). Flex
+   avoids that gotcha — the tail ships with ``flex: 0 0 auto`` so it
+   never shrinks, and the search slot grows into the leftover space
+   with ``flex: 1 1 auto`` + max-width clamp. */
+.gh-shell-brand-band {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: clamp(14px, 1.5vw, 30px) !important;
+  /* Round 14: tighter vertical padding so the whole header shrinks
+     from ~86px to ~64px tall. That pulls the top horizontal border
+     up to y≈64 and makes the top-left side-rail segment a 64×64
+     square instead of a 64×86 rectangle (operator: "that top-left
+     corner box should be a square, not a rectangle"). */
+  padding: 8px 20px 8px 32px !important;
+  min-height: 56px !important;
+}
+
+.gh-shell-brand {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  color: var(--gh-ink, #14213d);
+  white-space: nowrap;
+  flex: 0 0 auto !important;
+}
+
+.gh-shell-brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Round 13: slightly larger brand glyph alongside bigger title. */
+  width: 38px;
+  height: 38px;
+  color: #e11d74; /* stylized-G stroke — magenta accent */
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.gh-shell-brand-mark svg {
+  width: 100%;
+  height: 100%;
+}
+
+.gh-shell-brand-title {
+  /* Round 13: title a shade bigger again (1.24rem → 1.4rem) to match
+     the stepped-up brand glyph. */
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1;
+  color: var(--gh-ink, #14213d);
+}
+
+/* Kill any legacy brand-copy block (subtitle) */
+.gh-shell-brand-copy,
+.gh-shell-brand-subtitle,
+.gh-shell-brand-glyph {
+  display: none !important;
+}
+
+.gh-shell-brand-search-slot {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  flex: 1 1 auto !important;
+}
+
+.gh-shell-brand-tail {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto !important;
+  flex-wrap: nowrap;
+  margin-left: auto;
+}
+
+.gh-shell-brand-band {
+  align-items: center !important;
+  /* Round 14: min-height 56→48 for the redundant override block so it
+     doesn't fight the primary 56px minimum up above. */
+  min-height: 48px;
+}
+
+.gh-shell-brand-band > * {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Collapse the two-column shell spine to a single column. */
+.gh-shell-spine {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0 !important;
+  min-height: var(--gh-topbar-h);
+}
+
+/* --- topbar search (wider, centered) --- */
+.gh-topbar-search {
+  width: 100%;
+  min-width: 280px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.gh-topbar-search-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid rgba(182, 198, 216, 0.85);
+  /* Round 12: squarer corners (operator: "the top search bar should
+     be more squared than rounded, only slightly rounded edges"). */
+  border-radius: 10px;
+  background: rgba(247, 250, 255, 0.88);
+  min-height: 44px;
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.gh-topbar-search-field:hover {
+  border-color: rgba(91, 67, 238, 0.35);
+  background: #fff;
+}
+
+.gh-topbar-search-field:focus-within,
+.gh-topbar-search-field.is-open {
+  border-color: rgba(91, 67, 238, 0.55);
+  background: #fff;
+  box-shadow: var(--gh-focus-ring, 0 0 0 3px rgba(91, 67, 238, 0.22));
+}
+
+.gh-topbar-search-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #60748e;
+  flex: 0 0 auto;
+  /* Round 12: slightly larger magnifying glass to match the bigger
+     placeholder text. */
+  font-size: 1.05rem;
+}
+
+.gh-topbar-search-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.gh-topbar-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  /* Round 12: placeholder/query text slightly larger. */
+  font-size: 0.98rem;
+  color: var(--gh-ink, #14213d);
+  outline: none;
+}
+
+.gh-topbar-search-input::placeholder {
+  color: #8794af;
+}
+
+.gh-topbar-search-input:disabled {
+  color: #b0b8c7;
+}
+
+.gh-topbar-search-field .gh-search-dropdown {
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  z-index: 240;
+}
+
+/* --- topbar icon buttons (inbox, alerts) ---
+   Round 10: no white bubble — icons sit directly on the cream body.
+   Operator flagged the circular white background as mockup drift.
+   Round 13: 36→42 + bigger inner SVG (20 → 22) so the inbox / alerts
+   / user chip glyphs read clearly at the larger header scale. */
+.gh-shell-topbar-icon-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--gh-ink, #2f3b55);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.gh-shell-topbar-icon-button svg {
+  width: 22px;
+  height: 22px;
+}
+
+.gh-shell-topbar-icon-button:hover {
+  background: var(--gh-indigo-soft, #e6e3ff);
+  color: var(--gh-indigo-2, #2d1f93);
+}
+
+.gh-shell-topbar-icon-button:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring, 0 0 0 3px rgba(91, 67, 238, 0.22));
+}
+
+.gh-shell-topbar-icon-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e11d74;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+.gh-shell-topbar-quick-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(91, 67, 238, 0.85);
+  background: var(--gh-indigo, #5b3ff2);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(91, 67, 238, 0.22);
+  transition: background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.gh-shell-topbar-quick-action:hover {
+  background: #4832d4;
+  transform: translateY(-1px);
+}
+
+.gh-shell-topbar-quick-action:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring, 0 0 0 3px rgba(91, 67, 238, 0.35));
+}
+
+.gh-shell-topbar-quick-action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* --- user chip: avatar + name + role (avatar BEFORE name) --- */
+.gh-user-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.gh-user-chip-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.gh-user-chip-trigger:hover {
+  background: rgba(247, 250, 255, 0.9);
+  border-color: rgba(182, 198, 216, 0.85);
+}
+
+.gh-user-chip-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring, 0 0 0 3px rgba(91, 67, 238, 0.22));
+}
+
+.gh-user-chip-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.gh-user-chip-name {
+  /* Round 13: nudged up 0.84rem → 0.95rem alongside the bigger avatar. */
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--gh-ink, #14213d);
+  letter-spacing: -0.01em;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gh-user-chip-role {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #60748e;
+  letter-spacing: 0.02em;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gh-user-chip-caret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gh-ink-muted, #7a859a);
+  margin-left: 4px;
+  transition: transform 140ms ease, color 120ms ease;
+}
+.gh-user-chip-trigger:hover .gh-user-chip-caret {
+  color: var(--gh-ink, #14213d);
+}
+.gh-user-chip-caret.is-open {
+  transform: rotate(180deg);
+}
+
+.gh-user-chip-avatar {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3px rgba(182, 198, 216, 0.7);
+}
+
+.gh-user-chip-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(182, 198, 216, 0.85);
+  background: rgba(247, 250, 255, 0.88);
+  color: #2f3b55;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.gh-user-chip-bell:hover {
+  background: #fff;
+  border-color: rgba(91, 67, 238, 0.35);
+  color: #2a2f6b;
+}
+
+.gh-user-chip-bell:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring);
+}
+
+.gh-user-chip-bell-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 8px;
+  height: 8px;
+  padding: 0 3px;
+  border-radius: 999px;
+  background: #e11d74; /* same pink accent as brand */
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+/* When there's an unread count, swell the dot to a pill */
+.gh-user-chip-bell-dot:not(:empty) {
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+}
+
+.gh-user-chip-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  background: #fff;
+  border: 1px solid rgba(182, 198, 216, 0.85);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(13, 31, 71, 0.14);
+  padding: 8px;
+  z-index: 260;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gh-user-chip-menu-header {
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid rgba(182, 198, 216, 0.5);
+  margin-bottom: 4px;
+}
+
+.gh-user-chip-menu-name {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: var(--gh-ink, #14213d);
+}
+
+.gh-user-chip-menu-email {
+  font-size: 0.72rem;
+  color: #60748e;
+  margin-top: 2px;
+}
+
+.gh-user-chip-menu-item {
+  display: block;
+  text-align: left;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--gh-ink, #14213d);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.gh-user-chip-menu-item:hover {
+  background: rgba(91, 67, 238, 0.08);
+}
+
+.gh-user-chip-menu-item:focus-visible {
+  outline: none;
+  background: rgba(91, 67, 238, 0.12);
+}
+
+/* --- status band (runtime + setup hints) moved out of the nav band --- */
+.gh-shell-status-band {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 16px 10px;
+  border-top: 1px dashed rgba(182, 198, 216, 0.5);
+}
+
+.gh-shell-status-band .gh-shell-context-state,
+.gh-shell-status-band .gh-shell-setup-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+
+.gh-shell-status-band .gh-shell-status-note {
+  color: #60748e;
+  font-size: 0.8rem;
+}
+
+/* The top module-tab row duplicates the left icon rail. Hide it visually but
+   keep it in the DOM so accessibility tests can still resolve it. */
+.gh-shell-nav.gh-shell-nav-secondary {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- header action buttons (Take a ban / Quick action) --- */
+.gh-shell-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  margin-right: 12px;
+}
+
+.gh-header-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1;
+  min-height: 32px;
+}
+
+.gh-header-action-button > svg {
+  flex: 0 0 auto;
+}
+
+.gh-header-action-button-ghost {
+  background: rgba(236, 240, 248, 0.72);
+  color: #2f3b55;
+  border: 1px solid rgba(182, 198, 216, 0.9);
+}
+
+.gh-header-action-button-ghost:hover:not(:disabled) {
+  background: #fff;
+  border-color: rgba(91, 67, 238, 0.35);
+  color: #2a2f6b;
+}
+
+.gh-header-action-button-primary {
+  background: linear-gradient(135deg, #5b43ee 0%, #8a6ff5 100%);
+  color: #fff;
+  border: 1px solid rgba(91, 67, 238, 0.45);
+  box-shadow: 0 6px 14px rgba(91, 67, 238, 0.22);
+}
+
+.gh-header-action-button-primary:hover:not(:disabled) {
+  filter: brightness(1.04);
+  box-shadow: 0 8px 18px rgba(91, 67, 238, 0.28);
+}
+
+.gh-header-action-button:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring);
+}
+
+/* --- primary facet chip row (always-visible quick filters + Filters launcher)
+   Row shares the cream body. Round 10: bumped top padding so the
+   "No filters applied" label + Filters button don't crowd the
+   subtab border-bottom above them.
+   Round 12: padding-right 18px so the Filters button's right edge
+   lines up with the Sort-by dropdown below it (operator: "the right
+   Filters should be right aligned with the Sort by drop down"). */
+.gh-primary-facet-row {
+  /* Round 16: padding-top 16→22 to give the facet chip row a touch
+     more breathing room below the subtab divider (operator: "the
+     selected filter facets needs slightly, slightly more space"). */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 22px 18px 2px 0;
+  flex-wrap: wrap;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  margin-bottom: 0;
+}
+
+.gh-primary-facet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #2f3b55;
+  /* Idle chips are transparent so they read as "tap to apply"
+     affordances, not pre-applied filters. Operator 2026-04-19 rounds
+     3+4: Tables / Views still looked "always on" because they had a
+     filled background. Only .is-active chips carry the purple tint. */
+  background: transparent;
+  border: 1px solid var(--gh-line, #c9bf9e);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  line-height: 1.2;
+}
+
+.gh-primary-facet-chip:hover {
+  background: var(--gh-surface-soft, #fcf8ee);
+  border-color: var(--gh-line-strong, #a99a70);
+  color: var(--gh-ink, #1a2236);
+}
+
+.gh-primary-facet-chip.is-active {
+  background: var(--gh-indigo-soft, #e6e3ff);
+  border-color: var(--gh-indigo, #3d2bc4);
+  color: var(--gh-indigo-2, #2d1f93);
+}
+
+.gh-primary-facet-chip.is-ghost {
+  background: transparent;
+  border-style: dashed;
+  color: #60748e;
+}
+
+.gh-primary-facet-chip-count {
+  color: #60748e;
+  font-weight: 700;
+}
+
+.gh-primary-facet-chip.is-active .gh-primary-facet-chip-count {
+  color: #2a2f6b;
+}
+
+.gh-primary-facet-chip-x {
+  margin-left: 2px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: #6b7793;
+}
+
+.gh-primary-facet-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring);
+}
+
+.gh-primary-facet-spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+
+/* Round 8: "No filters applied" placeholder text that sits in the
+   primary facet row when nothing is selected. Quiet, italic, cream
+   color so it reads as a hint rather than a button. */
+.gh-primary-facet-empty {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 4px;
+  font-size: 0.88rem;
+  font-style: italic;
+  font-weight: 500;
+  color: var(--gh-ink-muted, #7a859a);
+}
+
+.gh-primary-facet-clear-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--gh-indigo, #3d2bc4);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 120ms ease, background 120ms ease;
+}
+.gh-primary-facet-clear-all:hover {
+  color: var(--gh-indigo-2, #2d1f93);
+  background: var(--gh-indigo-soft, #e6e3ff);
+  text-decoration: none;
+}
+
+/* Filters launcher — selectable text with an icon, no bubble.
+   Operator 2026-04-19 round 5 asked for this to look like a link,
+   not a button. */
+.gh-primary-facet-launch {
+  /* Round 16: slightly larger target so the Filters link reads at
+     the same weight as the Sort-by trigger below it (operator: "the
+     Filters button on the right should be slightly bigger"). */
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+  font-family: inherit;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--gh-ink, #1a2236);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.gh-primary-facet-launch:hover {
+  color: var(--gh-indigo, #3d2bc4);
+  background: transparent;
+}
+
+.gh-primary-facet-launch:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring);
+}
+
+.gh-primary-facet-launch-icon {
+  /* Round 16: icon sized to the bumped 1.02rem label. */
+  font-size: 1.05rem;
+}
+
+.gh-primary-facet-launch-badge {
+  margin-left: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(91, 67, 238, 0.12);
+  color: #3a28c5;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Discovery / Navigation sub-tabs (underline style, target parity) --- */
+.gh-sub-tab-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(182, 198, 216, 0.4);
+  width: 100%;
+}
+
+.gh-sub-tab {
+  position: relative;
+  padding: 10px 2px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #60748e;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+  transition: color 120ms ease;
+  min-height: 32px;
+}
+
+.gh-sub-tab:hover {
+  color: #14213d;
+}
+
+.gh-sub-tab.is-active {
+  color: #14213d;
+}
+
+.gh-sub-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: #5b43ee;
+}
+
+.gh-sub-tab:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring);
+}
+
+.gh-discovery-subtabs-row {
+  display: flex;
+  align-items: center;
+  padding-bottom: 2px;
+}
+
+/* --- Navigation grid (Discovery sub-tab = Navigation) --- */
+.gh-navigation-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.gh-navigation-catalog {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgba(182, 198, 216, 0.72);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 22px rgba(18, 35, 58, 0.05);
+}
+
+.gh-navigation-catalog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(182, 198, 216, 0.55);
+}
+
+.gh-navigation-catalog-name {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: #14213d;
+  letter-spacing: -0.01em;
+}
+
+.gh-navigation-catalog-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #60748e;
+}
+
+.gh-navigation-schema-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.gh-navigation-schema-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(182, 198, 216, 0.7);
+  border-radius: 10px;
+  background: rgba(247, 250, 255, 0.85);
+  color: #2f3b55;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  text-align: left;
+}
+
+.gh-navigation-schema-card:hover {
+  background: #fff;
+  border-color: rgba(91, 67, 238, 0.32);
+  color: #2a2f6b;
+}
+
+.gh-navigation-schema-card.is-active {
+  background: rgba(91, 67, 238, 0.06);
+  border-color: rgba(91, 67, 238, 0.45);
+  color: #2a2f6b;
+}
+
+.gh-navigation-schema-name {
+  font-size: 0.86rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.gh-navigation-schema-count {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: #60748e;
+  background: rgba(236, 240, 248, 0.78);
+  border-radius: 999px;
+  padding: 2px 8px;
+  min-width: 28px;
+  text-align: center;
+}
+
+/* --- Filters rail header + checkbox-style rows (target parity) ---
+   Flat off-white panel with thin separators — the mockup does NOT
+   treat the filter rail as a white card against a grey page; the
+   background flows through and a subtle right-hand rule separates
+   it from the card grid. The prior white card-on-grey treatment
+   was flagged on 2026-04-19 as "janky". */
+.gh-filters-rail {
+  position: sticky;
+  top: calc(var(--gh-shell-header-height, 80px) + 12px);
+  align-self: start;
+  /* Round 8: zero top padding + 14px inside the head so "Filters"
+     sits at the same Y as the "Asset preview" eyebrow on the right.
+     No border between Filters and Catalog — flush with the facet
+     sections below. */
+  padding: 0 0 16px;
+  border: 0;
+  background: transparent !important;
+  border-right: 1px solid var(--gh-line-strong, #6e6039);
+  border-radius: 0;
+  box-shadow: none !important;
+  display: grid;
+  gap: 6px;
+  max-height: calc(100vh - var(--gh-shell-header-height, 80px) - 24px);
+  overflow-y: auto;
+}
+
+.gh-filters-rail-head {
+  /* Round 14: matching 10px gap so "Filters" title sits on the same
+     left-edge column as section titles + checkbox rows below. */
+  padding: 14px 10px 4px;
+  border: 0 !important;
+  text-align: left;
+}
+
+.gh-filters-rail-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: var(--gh-ink, #14213d);
+  text-align: left;
+}
+
+/* Round 5/9: sidebar section titles slightly bigger so the filter
+   rail hierarchy reads from "Filters" → "CATALOG" → facet rows. */
+.gh-discovery-sidebar-section .gh-panel-title {
+  font-size: 0.92rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  color: var(--gh-ink, #14213d) !important;
+}
+
+/* Collapse chevrons on each section.
+   Round 14: tighter horizontal padding (16px → 10px) so section
+   titles hug the left rail border and chevrons hug the right,
+   mirrored with equal gaps. */
+.gh-sidebar-section-toggle {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: #14213d;
+  text-align: left;
+  cursor: pointer;
+  line-height: 1;
+  position: relative;
+}
+
+.gh-sidebar-section-toggle:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.gh-sidebar-section-toggle .gh-panel-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #14213d;
+  text-transform: none;
+}
+
+.gh-sidebar-section-chevron {
+  /* Round 13: back to inline flex child — chevron sits on the right
+     end of the space-between toggle while the label hugs the left. */
+  display: inline-flex;
+  align-items: center;
+  color: #60748e;
+  transition: transform 140ms ease;
+}
+
+.gh-sidebar-section-chevron.is-collapsed {
+  transform: rotate(-90deg);
+}
+
+.gh-sidebar-section-body {
+  /* Round 14: tighter horizontal inset so checkbox rows reach closer
+     to both vertical borders — labels hug the left, counts hug the
+     right, with matching ~6px gaps on each side (operator: "more
+     left aligned... more right aligned... even spacing"). */
+  padding: 2px 4px 10px;
+}
+
+/* Checkbox-row filter items (asset type, domain, workflow) */
+.gh-checkbox-list {
+  display: grid;
+  gap: 2px;
+}
+
+.gh-checkbox-row {
+  /* Round 14: tighter padding so label hugs the left rail border and
+     count hugs the right, with matching ~6px gaps from each vertical
+     line. Combined with .gh-sidebar-section-body's 4px inset, the
+     checkbox lands at rail_left+8, label at rail_left+30, and the
+     count at rail_right-10 (operator: "more left aligned... more
+     right aligned... even spacing on both borders"). */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px;
+  border-radius: 6px;
+  font-size: 0.92rem;
+  color: #14213d;
+  cursor: pointer;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.gh-checkbox-row:hover {
+  background: rgba(236, 240, 248, 0.72);
+}
+
+.gh-checkbox-row.is-active {
+  background: rgba(91, 67, 238, 0.06);
+  color: #2a2f6b;
+  font-weight: 700;
+}
+
+.gh-checkbox-row .gh-checkbox {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  accent-color: #5b43ee;
+  margin: 0;
+}
+
+.gh-checkbox-row .gh-checkbox-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.gh-checkbox-row .gh-checkbox-count {
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #60748e;
+}
+
+/* --- Catalog tree (target-style checkbox hierarchy) --- */
+.gh-catalog-tree {
+  display: grid;
+  gap: 4px;
+}
+
+.gh-catalog-tree-entry {
+  display: grid;
+  gap: 2px;
+}
+
+.gh-catalog-tree-row {
+  /* Round 16: padding-x tightened 10→2 and flex-order reshuffled so
+     the checkbox lands flush with the .gh-checkbox-row checkboxes
+     in the sections below (all at x=94 on a 1440 viewport). */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  color: var(--gh-ink, #14213d);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  line-height: 1.3;
+  text-align: left;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Visual order: checkbox | label | count | chevron (right)
+   DOM order stays chevron-first for keyboard flow into the
+   expand/collapse control. */
+.gh-catalog-tree-row .gh-catalog-tree-checkbox { order: 1; }
+.gh-catalog-tree-row .gh-catalog-tree-schema-indent { order: 1; }
+.gh-catalog-tree-row .gh-catalog-tree-label { order: 2; }
+.gh-catalog-tree-row .gh-catalog-tree-count { order: 3; margin-left: auto; }
+.gh-catalog-tree-row .gh-catalog-tree-chevron { order: 4; }
+
+.gh-catalog-tree-row:hover {
+  background: rgba(236, 240, 248, 0.82);
+}
+
+.gh-catalog-tree-catalog-row.is-active {
+  background: rgba(91, 67, 238, 0.08);
+  color: #2a2f6b;
+  font-weight: 700;
+}
+
+.gh-catalog-tree-schema-row.is-active {
+  background: rgba(91, 67, 238, 0.06);
+  color: #2a2f6b;
+  font-weight: 700;
+}
+
+.gh-catalog-tree-checkbox {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  accent-color: #5b43ee;
+}
+
+.gh-catalog-tree-chevron {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: #60748e;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: transform 120ms ease, color 120ms ease;
+}
+
+.gh-catalog-tree-chevron:hover:not(:disabled) {
+  color: #2a2f6b;
+}
+
+.gh-catalog-tree-chevron:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.gh-catalog-tree-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.gh-catalog-tree-show-more {
+  margin-left: 22px;
+  padding: 4px 0;
+  font-size: 0.74rem;
+  color: var(--gh-accent, #5b3ff2);
+  font-weight: 600;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.gh-catalog-tree-show-more:hover {
+  text-decoration: underline;
+}
+
+.gh-catalog-tree-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.gh-catalog-tree-catalog-row .gh-catalog-tree-label {
+  font-weight: 700;
+}
+
+.gh-catalog-tree-count {
+  flex: 0 0 auto;
+  font-size: 0.76rem;
+  color: #60748e;
+  font-weight: 700;
+}
+
+.gh-catalog-tree-schemas {
+  display: grid;
+  gap: 1px;
+  padding-left: 22px;
+}
+
+.gh-catalog-tree-schema-indent {
+  width: 2px;
+  align-self: stretch;
+  background: rgba(182, 198, 216, 0.6);
+  border-radius: 1px;
+  margin-right: 6px;
+}
+
+.gh-catalog-tree-schema-row {
+  padding: 4px 10px 4px 0;
+}
+
+.gh-catalog-tree-clear {
+  margin-top: 4px;
+  align-self: start;
+  font-size: 0.78rem;
+}
+
+/* --- Sidebar free-text inputs (Owner + Glossary) --- */
+.gh-sidebar-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.86rem;
+  color: var(--gh-ink, #14213d);
+  background: #fff;
+  border: 1px solid rgba(182, 198, 216, 0.9);
+  border-radius: 10px;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.gh-sidebar-input::placeholder {
+  color: #8794af;
+}
+
+.gh-sidebar-input:hover {
+  border-color: rgba(91, 67, 238, 0.32);
+}
+
+.gh-sidebar-input:focus-visible,
+.gh-sidebar-input:focus {
+  outline: none;
+  border-color: rgba(91, 67, 238, 0.55);
+  box-shadow: var(--gh-focus-ring);
+}
+
+/* --- Asset card: owner chip with avatar + name inline --- */
+.gh-discovery-asset-owner-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 3px;
+  font-size: 0.82rem;
+  color: var(--gh-ink, #14213d);
+  background: rgba(247, 250, 255, 0.92);
+  border: 1px solid rgba(182, 198, 216, 0.6);
+  border-radius: 999px;
+  font-weight: 700;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.gh-discovery-asset-owner-chip-empty {
+  color: #8794af;
+  font-weight: 600;
+}
+
+/* Honest "no owner" chip: no avatar, no placeholder name — simply an
+   italic caption so a reader can see the gap without being misled into
+   thinking a steward exists. */
+.gh-discovery-asset-owner-chip.is-unassigned {
+  background: transparent;
+  border-color: rgba(182, 198, 216, 0.35);
+  padding: 3px 10px;
+  font-weight: 600;
+}
+
+.gh-discovery-asset-owner-unassigned {
+  font-style: italic;
+  color: #8794af;
+  font-size: 0.78rem;
+}
+
+.gh-discovery-asset-owner-placeholder {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(182, 198, 216, 0.35);
+  font-size: 0.82rem;
+  color: #8794af;
+}
+
+.gh-discovery-asset-owner-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 140px;
+}
+
+.gh-discovery-asset-owner-extra {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(182, 198, 216, 0.35);
+  color: #4c5c78;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+/* Card chip row: flex layout with end-aligned workflow state via spacer */
+.gh-discovery-asset-card-chips {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.gh-discovery-asset-chip-spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Workflow state badges — target parity: PUBLISHED (green), IN REVIEW (amber), OBSOLETE (red) */
+.gh-discovery-asset-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  border: 1px solid transparent;
+}
+
+.gh-discovery-asset-status-published {
+  background: rgba(45, 138, 116, 0.12);
+  border-color: rgba(45, 138, 116, 0.35);
+  color: #1f7057;
+}
+
+.gh-discovery-asset-status-in-review {
+  background: rgba(201, 135, 45, 0.12);
+  border-color: rgba(201, 135, 45, 0.35);
+  color: #9a5b0f;
+}
+
+.gh-discovery-asset-status-obsolete {
+  background: rgba(180, 35, 24, 0.1);
+  border-color: rgba(180, 35, 24, 0.35);
+  color: #a52014;
+}
+
+.gh-discovery-asset-status-neutral {
+  background: rgba(182, 198, 216, 0.35);
+  border-color: rgba(182, 198, 216, 0.55);
+  color: #4c5c78;
+}
+
+/* Usage row: icons + metrics + right-aligned coverage */
+.gh-discovery-asset-card-usage {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #60748e;
+}
+
+.gh-discovery-asset-usage-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.gh-discovery-asset-usage-icon {
+  color: #8794af;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+/* Coverage / trust pill */
+.gh-discovery-asset-trust {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+
+.gh-discovery-asset-trust.is-high {
+  background: rgba(45, 138, 116, 0.12);
+  border-color: rgba(45, 138, 116, 0.32);
+  color: #1f7057;
+}
+
+.gh-discovery-asset-trust.is-mid {
+  background: rgba(201, 135, 45, 0.1);
+  border-color: rgba(201, 135, 45, 0.3);
+  color: #9a5b0f;
+}
+
+.gh-discovery-asset-trust.is-low {
+  background: rgba(100, 116, 139, 0.12);
+  border-color: rgba(100, 116, 139, 0.32);
+  color: #4c5c78;
+}
+
+/* --- Force 3-column grid at common viewports (target parity) --- */
+.gh-discovery-card-list.gh-result-list {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+  padding: 0;
+}
+
+@media (max-width: 1040px) {
+  .gh-discovery-card-list.gh-result-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .gh-discovery-card-list.gh-result-list {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* Recently Viewed chip row + any full-width children should span all three columns */
+.gh-discovery-card-list.gh-result-list > .gh-activity-home,
+.gh-discovery-card-list.gh-result-list > .gh-discovery-bulk-bar,
+.gh-discovery-card-list.gh-result-list > .gh-discovery-results-more {
+  grid-column: 1 / -1;
+}
+
+/* Flatten the card border to a thin charcoal stroke — no gradient background,
+   no purple left accent bar, no soft drop shadow. */
+.gh-discovery-asset-card {
+  background: #fff !important;
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
+  box-shadow: none !important;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.gh-discovery-asset-card::before {
+  display: none !important;
+}
+
+.gh-discovery-asset-card:hover {
+  border-color: rgba(91, 67, 238, 0.28) !important;
+  transform: none;
+  box-shadow: 0 4px 12px rgba(18, 35, 58, 0.04) !important;
+}
+
+.gh-discovery-asset-card.is-selected {
+  /* Round 12: opaque deep-indigo border + matching halo so the
+     selected card reads as decisive, not washed out. Operator:
+     "the dark purple border around the selected asset still needs
+     to be darker". */
+  border-color: var(--gh-indigo-2, #2d1f93) !important;
+  border-width: 2px !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 2px rgba(45, 31, 147, 0.55), 0 10px 26px -18px rgba(20, 33, 61, 0.4) !important;
+}
+
+/* Domain pill fallback tone — for assets with no domain assignment,
+   render a muted neutral pill (not a loud magenta "UNCATEGORIZED DATA"
+   claim). Dashed border telegraphs "this is a gap to fill" rather
+   than "this is a curated label". */
+.gh-discovery-asset-pill-domain.is-fallback {
+  background: rgba(116, 133, 155, 0.08);
+  border: 1px dashed rgba(116, 133, 155, 0.4);
+  color: #74859b;
+  letter-spacing: 0.08em;
+}
+
+/* Usage row dots */
+.gh-discovery-asset-usage-dot {
+  color: #8794af;
+  font-size: 0.9rem;
+}
+
+/* Hide card-level Updated footer block in favor of sr-only helpers */
+.gh-discovery-asset-card-foot {
+  display: none !important;
+}
+
+/* --- Density rules that target the current card grid --- */
+.gh-discovery-card-list.density-compact .gh-discovery-asset-card {
+  padding: 10px 12px;
+  gap: 6px;
+}
+
+.gh-discovery-card-list.density-compact .gh-discovery-asset-card-title {
+  font-size: 0.94rem;
+}
+
+.gh-discovery-card-list.density-compact .gh-discovery-asset-card-description {
+  -webkit-line-clamp: 1;
+  font-size: 0.82rem;
+}
+
+.gh-discovery-card-list.density-normal .gh-discovery-asset-card {
+  padding: 14px 16px;
+  gap: 8px;
+}
+
+.gh-discovery-card-list.density-spacious .gh-discovery-asset-card {
+  padding: 20px 22px;
+  gap: 14px;
+}
+
+.gh-discovery-card-list.density-spacious .gh-discovery-asset-card-title {
+  /* Round 15: 1.08 → 1.2rem so asset names on spacious density cards
+     read as the primary hook of each card (operator: "asset names
+     in the discovery boxes need to be slightly larger"). */
+  font-size: 1.2rem;
+}
+
+.gh-discovery-card-list.density-spacious .gh-discovery-asset-card-description {
+  -webkit-line-clamp: 4;
+}
+
+/* --- Global hover/focus-visible catch-alls --- */
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+[role="option"]:focus-visible,
+[role="menuitem"]:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring);
+}
+
+input:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring);
+}
+
+/* Fix invisible active module tab: an earlier override made the active tab's
+   background transparent for an underline style, but left the span color as
+   white from the Phase 2 pill-gradient era. Re-assert dark ink. */
+.gh-product-tab.is-active span,
+.gh-product-tab.is-active {
+  color: var(--gh-text, #14213d) !important;
+  -webkit-text-fill-color: var(--gh-text, #14213d) !important;
+}
+
+.gh-product-tab.is-active {
+  border-bottom: 2px solid var(--gh-accent, #5b43ee) !important;
+  background: transparent !important;
+}
+
+/* Ensure selected/active cards have a visible outline even on busy backgrounds */
+.gh-discovery-asset-card.is-selected,
+.gh-discovery-result-row.is-selected {
+  box-shadow: 0 0 0 2px var(--gh-indigo-2, #2d1f93), 0 16px 34px rgba(18, 35, 58, 0.08);
+}
+
+/* Native selection highlight */
+::selection {
+  background: rgba(91, 67, 238, 0.22);
+  color: inherit;
+}
+
+/* --- Responsive rules --- */
+@media (max-width: 1200px) {
+  .gh-app.gh-app-with-rail {
+    column-gap: 12px;
+  }
+  .gh-discovery-main-grid {
+    grid-template-columns: minmax(220px, 0.38fr) minmax(0, 1.3fr) minmax(320px, 0.74fr) !important;
+    gap: 12px !important;
+  }
+}
+
+@media (max-width: 1040px) {
+  :root {
+    --gh-side-rail-w: 56px;
+  }
+  .gh-discovery-main-grid {
+    grid-template-columns: minmax(200px, 0.36fr) minmax(0, 1.4fr) !important;
+  }
+  .gh-discovery-main-grid > :last-child {
+    grid-column: 1 / -1;
+  }
+  .gh-shell-header-actions {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 820px) {
+  .gh-app.gh-app-with-rail {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "header"
+      "rail"
+      "main"
+      "footer";
+    column-gap: 0;
+  }
+  .gh-side-rail {
+    position: static;
+    flex-direction: row;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px 10px;
+  }
+  .gh-side-rail-brand {
+    display: none;
+  }
+  .gh-side-rail-nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+  }
+  .gh-side-rail-spacer {
+    min-height: 0;
+    min-width: 8px;
+  }
+  .gh-side-rail-footer {
+    flex-direction: row;
+  }
+  .gh-side-rail-button {
+    width: 40px;
+    height: 40px;
+  }
+  .gh-side-rail-button.is-active {
+    box-shadow: inset 0 2px 0 #5b43ee;
+  }
+  .gh-discovery-main-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .gh-header-action-button span:not(.gh-side-rail-label-sr) {
+    display: none;
+  }
+  .gh-header-action-button {
+    padding: 6px 10px;
+  }
+}
+
+/* --- Recently Viewed compression: condensed horizontal strip --- */
+.gh-activity-home {
+  /* Round 15: padding-top 6→0 so the strip sits tight under the
+     "Showing... assets" summary. */
+  grid-template-columns: 1fr !important;
+  padding: 0 12px 6px !important;
+  gap: 8px !important;
+  background: rgba(247, 250, 255, 0.65) !important;
+}
+
+.gh-activity-column {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.gh-activity-title {
+  flex: 0 0 auto !important;
+  white-space: nowrap;
+}
+
+.gh-activity-list {
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.gh-activity-chip {
+  /* Round 15: chip size bumped again — 13.5→15px font, 6×12→7×14
+     padding. Matches the base rule in discovery.css so the !important
+     override doesn't fight it. */
+  flex: 0 0 auto !important;
+  max-width: 280px !important;
+  font-size: 15px !important;
+  padding: 7px 14px !important;
+}
+
+/* --- Preview panel (Asset preview rail) --- */
+.gh-selection-preview .gh-surface-rail-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: #5c6b82;
+}
+
+.gh-asset-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 4px;
+}
+
+.gh-asset-preview-header-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(91, 67, 238, 0.08);
+  flex: 0 0 auto;
+}
+
+.gh-selection-preview h3.gh-asset-preview-header-name,
+.gh-surface-rail h3.gh-asset-preview-header-name,
+h3.gh-asset-preview-header-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* Round 12: shrink back from the huge round-11 display size —
+     operator said 2.6rem was way too big, wants it just slightly
+     bigger than the "Metadata" label (≈14.7px). 1.25rem (~20px) is
+     the right step up. !important + compound selector needed because
+     the generic `.gh-surface-rail h3` and `.gh-selection-preview h3`
+     rules set 15px !important. */
+  font-size: 1.25rem !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.01em;
+  color: #14213d;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.gh-asset-preview-header-close {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  color: #60748e;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gh-asset-preview-header-close:hover {
+  background: rgba(15, 23, 42, 0.08);
+  color: #14213d;
+}
+
+.gh-asset-preview-description {
+  font-size: 0.84rem;
+  color: #4c5c78;
+  line-height: 1.4;
+  padding-bottom: 6px;
+}
+
+.gh-asset-preview-action-grid {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+}
+
+.gh-asset-preview-action-glyph {
+  color: #e2a000;
+  margin-right: 4px;
+}
+
+.gh-labeled-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+}
+
+.gh-labeled-pill-domain {
+  /* Real domain labels render as a muted indigo pill to match the
+     mockup's restrained brand accent. Magenta is reserved for the
+     Governance Hub brand mark only. */
+  background: rgba(91, 67, 238, 0.08);
+  border-color: rgba(91, 67, 238, 0.28);
+  color: #3a28c5;
+}
+/* UNCATEGORIZED (fallback) domain chips in the preview + card header
+   drop to a neutral-gray dashed pill — not a loud magenta "claim".
+   2026-04-19 parity review flagged the magenta as dominating the grid. */
+.gh-labeled-pill-domain[data-domain-fallback="true"],
+.gh-discovery-asset-pill-domain.is-fallback {
+  background: rgba(116, 133, 155, 0.08) !important;
+  border: 1px dashed rgba(116, 133, 155, 0.42) !important;
+  color: #74859b !important;
+}
+
+.gh-labeled-pill-glossary {
+  background: rgba(91, 67, 238, 0.08);
+  border-color: rgba(91, 67, 238, 0.3);
+  color: #3a28c5;
+}
+
+/* Lineage mini preview with icon nodes */
+.gh-lineage-mini-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: rgba(247, 250, 255, 0.6);
+}
+
+.gh-lineage-mini-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: #fff;
+}
+
+.gh-lineage-mini-node-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2f3b55;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-lineage-mini-node.is-current {
+  border-color: rgba(91, 67, 238, 0.4);
+  background: rgba(91, 67, 238, 0.04);
+}
+
+.gh-lineage-mini-arrow {
+  flex: 0 0 auto;
+  color: #60748e;
+}
+
+/* Usage metrics 2-cell */
+.gh-asset-preview-usage-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.gh-asset-preview-usage-cell {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 8px;
+  background: rgba(247, 250, 255, 0.5);
+}
+
+.gh-asset-preview-usage-stat {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--gh-ink, #14213d);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+/* 3-column usage grid (Producers / Consumers / Queries). Flat white
+   tiles with subtle borders — matches the mockup's data-density look. */
+.gh-asset-preview-usage-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+.gh-asset-preview-usage-cell {
+  background: #fff !important;
+  border: 1px solid var(--gh-line, #e2e4ec) !important;
+  border-radius: 8px;
+  padding: 10px;
+  display: grid;
+  gap: 2px;
+}
+
+.gh-asset-preview-usage-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #4c5c78;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.gh-asset-preview-usage-caption {
+  font-size: 0.66rem;
+  color: #8794af;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.gh-asset-preview-usage-subcell {
+  font-size: 0.82rem;
+  color: #60748e;
+  font-weight: 600;
+}
+
+.gh-asset-preview-metadata-empty {
+  color: #8794af;
+  font-style: italic;
+}
+
+/* Section title with right-aligned caption / count */
+.gh-panel-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gh-asset-preview-section-count,
+.gh-asset-preview-section-caption {
+  font-size: 0.72rem;
+  color: #8794af;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+/* Column preview list in Schema overview */
+.gh-asset-preview-columns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.gh-asset-preview-column {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #fff;
+  border: 1px solid var(--gh-line, #e2e4ec);
+  border-radius: 6px;
+  font-size: 0.82rem;
+}
+
+.gh-asset-preview-column-name {
+  font-weight: 700;
+  color: var(--gh-ink, #14213d);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.gh-asset-preview-column-type {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #5c6b82;
+  padding: 2px 8px;
+  background: #f1f2f6;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  font-family: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+}
+
+.gh-asset-preview-column.is-more {
+  background: transparent;
+  border: 0;
+  padding: 4px 0;
+}
+
+.gh-asset-preview-schema-empty {
+  font-size: 0.76rem;
+  color: #8794af;
+  font-style: italic;
+}
+
+/* View Details button spinner */
+.gh-button-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: gh-button-spin 720ms linear infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.gh-primary-button.is-loading {
+  opacity: 0.88;
+  cursor: progress;
+}
+
+@keyframes gh-button-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Associated tasks tree */
+.gh-asset-preview-tasks-title {
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+}
+
+.gh-info-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: #8794af;
+}
+
+.gh-asset-preview-task-tree {
+  display: grid;
+  gap: 4px;
+}
+
+.gh-asset-preview-task-row.is-parent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(91, 67, 238, 0.05);
+  font-size: 0.84rem;
+  color: #2f3b55;
+}
+
+.gh-asset-preview-task-title {
+  font-weight: 800;
+}
+
+.gh-asset-preview-task-detail {
+  color: #60748e;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gh-asset-preview-task-child {
+  padding: 4px 28px;
+  font-size: 0.82rem;
+  color: #60748e;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- M7: Global framing (flat bg, thin charcoal borders, no soft shadow) ---
+   The off-white in the mockup is cooler than pure white — #f0f2f6 roughly
+   matches the mockup pick-list (sampled from docs/mockups/discovery_mockup.png).
+   Using the shared token keeps this in sync with dark-mode overrides. */
+body {
+  background: var(--gh-bg, #f0f2f6) !important;
+  background-image: none !important;
+}
+
+/* The Discovery command panel (main results column) and Asset cards stay
+   on white so the card grid reads as the page's primary content. The
+   filter rail, side icon rail, selection preview, and top shell header
+   drop their white-card treatment so the off-white page color flows
+   through — flagged by the operator on 2026-04-19 as the biggest
+   remaining divergence from the mockup. */
+.gh-panel {
+  border: 1px solid rgba(182, 198, 216, 0.55) !important;
+  box-shadow: none !important;
+  background: #fff !important;
+}
+/* Discovery command panel (Discovery title + Favorites + Sort bar) is
+   NOT a card — it sits on the cream body. Operator 2026-04-19 flagged
+   the white rectangle around it as wrong. */
+.gh-panel.gh-discovery-command-panel {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.gh-shell-header,
+.gh-filters-rail,
+.gh-selection-preview,
+.gh-side-rail {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* Thin separator lines for the rails (darker now, round 6): */
+.gh-filters-rail {
+  border-right: 1px solid var(--gh-line, #9a8c5d) !important;
+}
+.gh-side-rail {
+  border-right: 1px solid var(--gh-line, #9a8c5d) !important;
+}
+
+/* Asset preview sidecar (round 6): full-perimeter border that extends
+   ABOVE the "Asset preview" label so the whole panel reads as a
+   framed region (operator 2026-04-19 round 6: "border needs to start
+   above 'Asset preview'"). Lighter cream tint vs body. */
+.gh-selection-preview {
+  position: sticky !important;
+  top: calc(var(--gh-shell-header-height, 80px) + 16px);
+  max-height: calc(100vh - var(--gh-shell-header-height, 80px) - 32px);
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  align-self: start;
+}
+
+.gh-selection-preview::before {
+  display: none !important;
+}
+
+/* Prevent horizontal overflow from long FQNs / badges */
+.gh-discovery-asset-card,
+.gh-discovery-result-row,
+.gh-discovery-asset-card-title,
+.gh-discovery-asset-card-description {
+  min-width: 0;
+}
+
+/* Make sure the Discovery command panel can wrap its controls without overlap */
+.gh-discovery-command-head-v2 {
+  flex-wrap: wrap;
+  gap: 10px;
+  row-gap: 12px;
+}
+
+.gh-discovery-command-controls {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gh-discovery-toolbar-simple {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+/* ---- Final flat-panel override (2026-04-19 parity review, defect 3) ----
+   The filter rail, selection preview, shell header, and side icon rail
+   MUST be transparent so the page off-white flows through — matches
+   the mockup's flat treatment with thin dividers only. High-specificity
+   compound selectors below win against the earlier app.css rules that
+   set white backgrounds via single-class selectors. */
+/* gh-shell-header + gh-selection-preview intentionally NOT in this
+   list. Header needs a solid cream background (sticky scroll). The
+   sidecar needs its own panel styling (round 6) — a lighter cream
+   tint + full darker beige border that extends above "Asset preview". */
+.gh-side-rail.gh-side-rail,
+aside.gh-filters-rail,
+aside.gh-discovery-sidebar.gh-surface-rail {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  backdrop-filter: none !important;
+}
+
+/* Re-apply the thin hairline separators — they are the ONLY visual
+   scaffolding between rail and results, no card chrome. */
+aside.gh-filters-rail,
+aside.gh-discovery-sidebar.gh-surface-rail {
+  border-right: 1px solid var(--gh-line, #9a8c5d) !important;
+}
+.gh-side-rail.gh-side-rail {
+  /* Round 10: zero out the border — the ::after pseudo above draws
+     a 1px line from the top horizontal down so the rail edge stops
+     at the subtab border and doesn't extend up next to the brand. */
+  border-right: 0 !important;
+  position: sticky !important;
+}
+.gh-side-rail.gh-side-rail {
+  overflow: visible !important;
+}

@@ -17,9 +17,27 @@ _STANDARD_TAG_ALIASES = {
     "certification": ("certification", "certified", "data_certification"),
     "sensitivity": ("sensitivity", "classification", "data_classification"),
     "criticality": ("criticality", "priority"),
+    # business_criticality is orthogonal to `criticality` (SLA tier).
+    # Demo feedback: stewards want a fixed-enum business-impact axis —
+    # Mission Critical, Business Critical, Operational, Low Impact,
+    # Not Assessed — round-tripped to UC tags.
+    "business_criticality": ("business_criticality", "biz_criticality"),
     "glossary_term": ("glossary_term", "glossary"),
     "data_product": ("data_product", "product"),
+    # Critical Data Element marker — asset- or column-level boolean tag.
+    "cde": ("cde", "is_cde"),
 }
+
+# Canonical business criticality values — duplicated in
+# govhub/api/assets.py::BUSINESS_CRITICALITY_VALUES for frontend
+# facet rendering. Keep in sync.
+BUSINESS_CRITICALITY_VALUES = (
+    "Mission Critical",
+    "Business Critical",
+    "Operational",
+    "Low Impact",
+    "Not Assessed",
+)
 
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
 
@@ -153,6 +171,8 @@ def lineage_asset_stub(inventory: pd.DataFrame, asset_fqn: str) -> pd.Series:
             "certification": "",
             "sensitivity": "",
             "criticality": "",
+            "business_criticality": "",
+            "cde": "",
             "glossary_term_tag": "",
             "glossary_term": "",
             "glossaryLinks": [],
@@ -536,6 +556,12 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
     )
     inventory["criticality"] = inventory["tags"].map(
         lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "criticality")
+    )
+    inventory["business_criticality"] = inventory["tags"].map(
+        lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "business_criticality")
+    )
+    inventory["cde"] = inventory["tags"].map(
+        lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "cde")
     )
     inventory["glossary_term_tag"] = inventory["tags"].map(
         lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "glossary_term")

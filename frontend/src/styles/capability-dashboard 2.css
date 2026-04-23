@@ -1,0 +1,138 @@
+/* Capability dashboard — operator diagnostics at /capabilities.
+   Uses existing color/spacing tokens so the surface inherits the
+   cream shell; cards stand out via subtle borders rather than
+   alternate backgrounds. */
+
+.gh-capability-dashboard {
+  padding: var(--gh-space-6, 24px);
+}
+
+.gh-capability-dashboard-body {
+  margin-top: var(--gh-space-4, 16px);
+}
+
+.gh-capability-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gh-space-5, 20px);
+}
+
+.gh-capability-section {
+  background-color: var(--gh-color-surface, #ffffff);
+  border: 1px solid var(--gh-color-border-subtle, rgba(20, 20, 20, 0.08));
+  border-radius: var(--gh-radius-lg, 12px);
+  padding: var(--gh-space-4, 16px) var(--gh-space-5, 20px);
+  box-shadow: 0 1px 2px rgba(15, 15, 15, 0.04);
+}
+
+.gh-capability-section-head {
+  margin-bottom: var(--gh-space-3, 12px);
+}
+
+.gh-capability-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--gh-color-text, #1a1a1a);
+}
+
+.gh-capability-section-description {
+  margin: 4px 0 0 0;
+  color: var(--gh-color-text-muted, rgba(20, 20, 20, 0.65));
+  font-size: 0.86rem;
+}
+
+.gh-capability-section-body {
+  display: block;
+}
+
+.gh-capability-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--gh-space-3, 12px) var(--gh-space-4, 16px);
+}
+
+.gh-capability-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--gh-space-2, 8px) 0;
+  border-bottom: 1px dashed var(--gh-color-border-subtle, rgba(20, 20, 20, 0.06));
+}
+
+.gh-capability-kv-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--gh-color-text-muted, rgba(20, 20, 20, 0.7));
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gh-capability-kv-value {
+  font-size: 0.92rem;
+  color: var(--gh-color-text, #1a1a1a);
+  word-break: break-word;
+}
+
+.gh-capability-kv-hint {
+  font-size: 0.82rem;
+  color: var(--gh-color-text-muted, rgba(20, 20, 20, 0.6));
+  font-style: italic;
+}
+
+.gh-capability-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--gh-color-border-subtle, rgba(20, 20, 20, 0.08));
+  border-radius: var(--gh-radius-md, 8px);
+}
+
+.gh-capability-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.gh-capability-table th,
+.gh-capability-table td {
+  text-align: left;
+  padding: var(--gh-space-2, 8px) var(--gh-space-3, 12px);
+  vertical-align: top;
+  border-bottom: 1px solid var(--gh-color-border-subtle, rgba(20, 20, 20, 0.06));
+}
+
+.gh-capability-table thead th {
+  background-color: var(--gh-color-surface-sunken, rgba(20, 20, 20, 0.03));
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--gh-color-text-muted, rgba(20, 20, 20, 0.7));
+}
+
+.gh-capability-table tbody tr:last-child th,
+.gh-capability-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.gh-capability-row-label {
+  font-weight: 600;
+  color: var(--gh-color-text, #1a1a1a);
+  white-space: nowrap;
+}
+
+.gh-capability-row-reason {
+  max-width: 32ch;
+  color: var(--gh-color-text-muted, rgba(20, 20, 20, 0.7));
+}
+
+.gh-capability-header-actions {
+  display: flex;
+  gap: var(--gh-space-2, 8px);
+  align-items: center;
+}
+
+.gh-capability-refreshed {
+  margin-top: 4px;
+  color: var(--gh-color-text-muted, rgba(20, 20, 20, 0.6));
+  font-size: 0.82rem;
+}

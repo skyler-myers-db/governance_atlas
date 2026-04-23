@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { setWorkspaceIntent } from "../lib/workspaceIntent";
 
-const KNOWN_SURFACES = ["home", "discovery", "entity", "lineage", "governance", "audit", "taxonomy", "help", "inbox", "capabilities", "insights"];
+const KNOWN_SURFACES = ["home", "discovery", "entity", "lineage", "governance", "audit", "taxonomy", "help", "inbox", "capabilities", "insights", "cde", "admin"];
 const DISCOVERY_GROUPED_FILTER_KEYS = [
   "types",
   "catalogs",
@@ -152,6 +152,18 @@ function parsePathRoute(pathname = "/") {
       asset: "",
     };
   }
+  if (root === "cde") {
+    return {
+      surface: "cde",
+      asset: "",
+    };
+  }
+  if (root === "admin") {
+    return {
+      surface: "admin",
+      asset: "",
+    };
+  }
   return null;
 }
 
@@ -215,6 +227,8 @@ function canonicalPath(surface, routeAssetFqn) {
   if (surface === "home") return "/home";
   if (surface === "capabilities") return "/capabilities";
   if (surface === "insights") return "/insights";
+  if (surface === "cde") return "/cde";
+  if (surface === "admin") return "/admin";
   return "/discovery";
 }
 
@@ -582,6 +596,32 @@ export function useAppRouteState() {
     if (nextModule === "insights") {
       navigate(buildCanonicalUrl(
         "insights",
+        "",
+        discoveryRouteState.query,
+        location.search,
+        discoveryRouteState.sortBy,
+        discoveryRouteState.previewAssetFqn,
+        discoveryRouteState.views,
+        discoveryRouteState.filterGroups,
+      ), { state: { fresh: false } });
+      return;
+    }
+    if (nextModule === "cde") {
+      navigate(buildCanonicalUrl(
+        "cde",
+        "",
+        discoveryRouteState.query,
+        location.search,
+        discoveryRouteState.sortBy,
+        discoveryRouteState.previewAssetFqn,
+        discoveryRouteState.views,
+        discoveryRouteState.filterGroups,
+      ), { state: { fresh: false } });
+      return;
+    }
+    if (nextModule === "admin") {
+      navigate(buildCanonicalUrl(
+        "admin",
         "",
         discoveryRouteState.query,
         location.search,

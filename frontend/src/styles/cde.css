@@ -1,0 +1,159 @@
+/* Critical Data Elements registry workspace. Scopes colors through
+   design tokens so the surface swaps cleanly between light and dark
+   themes. */
+
+.gh-cde-surface {
+  display: grid;
+  gap: 18px;
+}
+
+.gh-cde-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+}
+
+.gh-cde-toolbar-summary {
+  font-weight: 700;
+  color: var(--gh-ink);
+}
+
+.gh-cde-toolbar-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--gh-ink-soft);
+}
+
+.gh-cde-toolbar-filter select {
+  min-width: 180px;
+}
+
+.gh-cde-domain-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+}
+
+@media (min-width: 1100px) {
+  .gh-cde-domain-grid {
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  }
+}
+
+.gh-cde-domain-column {
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.gh-cde-domain-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.gh-cde-domain-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.gh-cde-asset-list {
+  display: grid;
+  gap: 12px;
+}
+
+.gh-cde-card {
+  padding: 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.gh-cde-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gh-cde-card-title-block {
+  min-width: 0;
+}
+
+.gh-cde-card-title {
+  margin: 2px 0 0;
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.gh-cde-card-fqn {
+  font-size: 0.72rem;
+  color: var(--gh-ink-muted);
+  font-family: "SF Mono", "Menlo", monospace;
+  word-break: break-all;
+}
+
+.gh-cde-card-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gh-cde-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.gh-cde-card-grid dt {
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gh-ink-muted);
+  margin: 0;
+}
+
+.gh-cde-card-grid dd {
+  font-size: 0.88rem;
+  color: var(--gh-ink);
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+
+.gh-cde-card-rationale {
+  background: var(--gh-surface-soft);
+  padding: 10px 12px;
+  border-radius: var(--gh-radius-md, 12px);
+  border: 1px solid var(--gh-line);
+}
+
+.gh-cde-card-rationale p {
+  margin: 4px 0 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.gh-cde-card-description {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--gh-ink-soft);
+  line-height: 1.5;
+}
+
+.gh-cde-placeholder {
+  padding: 32px;
+  color: var(--gh-ink-soft);
+  background: var(--gh-surface);
+  border-radius: var(--gh-radius-xl, 20px);
+  border: 1px solid var(--gh-line);
+  text-align: center;
+}
