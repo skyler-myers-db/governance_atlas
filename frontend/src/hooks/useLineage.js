@@ -63,11 +63,33 @@ export function invalidateLineage(assetFqn) {
   });
 }
 
+// Module-scoped tracker for the one-at-a-time prefetch contract. Discovery
+// hover fires `prefetchLineage(fqn)` on every settled 300ms dwell; without
+// cancellation, a user skimming 10 rows would stampede the warehouse with
+// 10 concurrent 30-60s cold queries. When a new prefetch arrives while a
+// prior one is in flight, cancel the prior query's fetch and let the new
+// one take its slot.
+let _inflightPrefetchFqn = null;
+
 export function prefetchLineage(assetFqn, options = {}) {
   if (!assetFqn) return Promise.resolve(null);
   const force = options.force === true;
   const cached = force ? null : readCachedLineage(assetFqn);
   if (cached) return Promise.resolve(cached);
+  // If another prefetch is in flight for a different asset, cancel it so
+  // we don't stampede the warehouse. `cancelQueries` aborts the fetch's
+  // AbortSignal, which `fetchLineage` threads through to the HTTP call.
+  if (_inflightPrefetchFqn && _inflightPrefetchFqn !== assetFqn) {
+    try {
+      govhubQueryClient.cancelQueries({
+        queryKey: lineageQueryKey(_inflightPrefetchFqn),
+        exact: true,
+      });
+    } catch {
+      // best-effort; cancellation races are non-fatal
+    }
+  }
+  _inflightPrefetchFqn = assetFqn;
   return govhubQueryClient
     .fetchQuery({
       queryKey: lineageQueryKey(assetFqn),
@@ -75,8 +97,14 @@ export function prefetchLineage(assetFqn, options = {}) {
       gcTime: LINEAGE_GC_TIME_MS,
       queryFn: ({ signal }) => fetchLineage(assetFqn, { signal }),
     })
-    .then((payload) => setCachedLineage(assetFqn, payload))
-    .catch(() => readCachedLineage(assetFqn, { maxAgeMs: null }) || null);
+    .then((payload) => {
+      if (_inflightPrefetchFqn === assetFqn) _inflightPrefetchFqn = null;
+      return setCachedLineage(assetFqn, payload);
+    })
+    .catch(() => {
+      if (_inflightPrefetchFqn === assetFqn) _inflightPrefetchFqn = null;
+      return readCachedLineage(assetFqn, { maxAgeMs: null }) || null;
+    });
 }
 
 export function useLineage(assetFqn, enabled = true) {
