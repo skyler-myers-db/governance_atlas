@@ -1957,10 +1957,26 @@ export default function LineageGraph({
 
   useEffect(() => {
     if (!flowInstance || !transformed.nodes.length) return undefined;
+    // React Flow leaves new nodes at `visibility: hidden` until its
+    // internal ResizeObserver measures each one. When the drawer opens on
+    // mount the canvas width shifts mid-measurement and the observer
+    // silently stops firing, leaving every node invisible on cold load.
+    // Dispatch a synthetic resize (twice, with a small gap) to force the
+    // observer to re-measure, then fit the view. The two-shot is belt +
+    // suspenders: the first resize kicks the observer, the second survives
+    // any drawer-open layout that happens on the same frame.
     const frame = requestAnimationFrame(() => {
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("resize"));
       flowInstance.fitView?.({ padding: drawerOpen ? 0.18 : 0.22, duration: 180 });
     });
-    return () => cancelAnimationFrame(frame);
+    const kick = setTimeout(() => {
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("resize"));
+      flowInstance.fitView?.({ padding: drawerOpen ? 0.18 : 0.22, duration: 180 });
+    }, 240);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(kick);
+    };
   }, [drawerOpen, flowInstance, transformed.nodes.length]);
 
   // Expose focus-view / reset-zoom handlers to the workspace control bar
