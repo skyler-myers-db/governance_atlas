@@ -458,6 +458,80 @@ def _lineage_neighbors(
     ]
 
 
+def _lineage_neighbors_batch(
+    uc: UCSQLClient,
+    asset_fqns: List[str],
+    *,
+    direction: str,
+    limit_per_asset: int,
+    system_uc: Optional[UCSQLClient] = None,
+) -> Dict[str, List[str]]:
+    """Return a {asset_fqn: [neighbor_fqn, ...]} map for a whole BFS
+    frontier, issued as a single `system.access.table_lineage` query.
+
+    Collapses N queries-per-level down to 1. The caller still owns the
+    deduplication + ordering semantics — this only fans the DB hit out
+    once.
+    """
+    system_client = system_uc or uc
+    tuples: List[Tuple[str, str, str]] = []
+    tuple_to_fqn: Dict[Tuple[str, str, str], str] = {}
+    for fqn in asset_fqns:
+        try:
+            catalog, schema, table = asset_service.split_uc_name(fqn)
+        except ValueError:
+            continue
+        key = (catalog, schema, table)
+        tuples.append(key)
+        tuple_to_fqn[key] = asset_service.normalize_str(fqn)
+    if not tuples:
+        return {}
+    try:
+        if direction == "upstream":
+            df = system_client.get_table_lineage_upstream_batch(tuples, limit_per_table=limit_per_asset)
+            origin_cat, origin_sch, origin_tbl = "target_table_catalog", "target_table_schema", "target_table_name"
+            neighbor_col = "source_table_full_name"
+        else:
+            df = system_client.get_table_lineage_downstream_batch(tuples, limit_per_table=limit_per_asset)
+            origin_cat, origin_sch, origin_tbl = "source_table_catalog", "source_table_schema", "source_table_name"
+            neighbor_col = "target_table_full_name"
+    except Exception:
+        return {}
+    if df is None or df.empty:
+        return {}
+    if neighbor_col not in df.columns or origin_cat not in df.columns:
+        return {}
+    # Filter to asset rows (drops NULL-named rows etc.) without collapsing
+    # the origin keys we need to group by.
+    filtered = asset_service.filter_asset_rows(df, [neighbor_col])
+    if filtered.empty:
+        return {}
+    out: Dict[str, List[str]] = {}
+    for _, row in filtered.iterrows():
+        origin_key = (
+            asset_service.normalize_str(row.get(origin_cat)),
+            asset_service.normalize_str(row.get(origin_sch)),
+            asset_service.normalize_str(row.get(origin_tbl)),
+        )
+        origin_fqn = tuple_to_fqn.get(origin_key)
+        neighbor_fqn = asset_service.normalize_str(row.get(neighbor_col))
+        if not origin_fqn or not neighbor_fqn:
+            continue
+        out.setdefault(origin_fqn, []).append(neighbor_fqn)
+    # Preserve per-origin cap so we don't over-fan
+    for fqn in list(out.keys()):
+        seen: Set[str] = set()
+        deduped: List[str] = []
+        for n in out[fqn]:
+            if n not in seen:
+                seen.add(n)
+                deduped.append(n)
+                if len(deduped) >= limit_per_asset:
+                    break
+        out[fqn] = deduped
+    return out
+
+
 def _recursive_branch_graph(
     uc: UCSQLClient,
     store: Any,
@@ -478,7 +552,6 @@ def _recursive_branch_graph(
     seen_node_ids: Set[str] = set()
     seen_edges: Set[str] = set()
     visited_assets: Set[str] = {focus_fqn_n}
-    queue: Deque[Tuple[str, int]] = deque([(focus_fqn_n, 0)])
     truncated = False
 
     def node_id_for(asset_fqn: str) -> str:
@@ -487,77 +560,88 @@ def _recursive_branch_graph(
             return f"focus-{focus_fqn_n}"
         return f"{branch_role}-{asset_fqn_n}"
 
-    while queue:
-        current_fqn, current_depth = queue.popleft()
-        if current_depth >= depth_limit:
-            continue
-        neighbor_candidates: List[str] = []
-        for neighbor in _lineage_neighbors(
+    # Batched BFS: instead of one `system.access.table_lineage` query per
+    # frontier node, issue ONE batched query per BFS level. For a depth=2
+    # walk over ~10 nodes this collapses ~10 roundtrips into 2, which is
+    # the dominant chunk of cold-load time in the lineage workspace.
+    current_frontier: List[str] = [focus_fqn_n]
+    current_depth = 0
+    while current_frontier and current_depth < depth_limit:
+        neighbors_by_origin = _lineage_neighbors_batch(
             uc,
-            current_fqn,
+            current_frontier,
             direction=direction,
-            limit=max(TABLE_LINEAGE_LIMIT, per_hop_limit),
+            limit_per_asset=max(TABLE_LINEAGE_LIMIT, per_hop_limit),
             system_uc=system_uc,
-        ):
-            neighbor_fqn = asset_service.normalize_str(neighbor)
-            if (
-                not neighbor_fqn
-                or neighbor_fqn == current_fqn
-                or neighbor_fqn == focus_fqn_n
-                or neighbor_fqn in neighbor_candidates
-            ):
-                continue
-            neighbor_candidates.append(neighbor_fqn)
+        )
+        next_frontier: List[str] = []
+        for current_fqn in current_frontier:
+            neighbor_candidates: List[str] = []
+            for neighbor in neighbors_by_origin.get(current_fqn, []):
+                neighbor_fqn = asset_service.normalize_str(neighbor)
+                if (
+                    not neighbor_fqn
+                    or neighbor_fqn == current_fqn
+                    or neighbor_fqn == focus_fqn_n
+                    or neighbor_fqn in neighbor_candidates
+                ):
+                    continue
+                neighbor_candidates.append(neighbor_fqn)
 
-        if len(neighbor_candidates) > per_hop_limit:
-            truncated = True
-        neighbors = neighbor_candidates[:per_hop_limit]
+            if len(neighbor_candidates) > per_hop_limit:
+                truncated = True
+            neighbors = neighbor_candidates[:per_hop_limit]
 
-        for neighbor_fqn in neighbors:
-            if len(nodes) >= node_limit and neighbor_fqn not in visited_assets:
+            for neighbor_fqn in neighbors:
+                if len(nodes) >= node_limit and neighbor_fqn not in visited_assets:
+                    truncated = True
+                    break
+
+                if neighbor_fqn not in visited_assets:
+                    node = graph_node_for_asset(
+                        uc,
+                        store,
+                        neighbor_fqn,
+                        branch_role,
+                        0,
+                        0,
+                        kicker=branch_kicker,
+                        depth=current_depth + 1,
+                        visible_inventory=visible_inventory,
+                    )
+                    node_id = asset_service.normalize_str(node.get("id"))
+                    if node_id not in seen_node_ids:
+                        nodes.append(node)
+                        seen_node_ids.add(node_id)
+                    visited_assets.add(neighbor_fqn)
+                    if current_depth + 1 < depth_limit:
+                        next_frontier.append(neighbor_fqn)
+
+                current_node_id = node_id_for(current_fqn)
+                neighbor_node_id = node_id_for(neighbor_fqn)
+                source_id = neighbor_node_id if direction == "upstream" else current_node_id
+                target_id = current_node_id if direction == "upstream" else neighbor_node_id
+                edge_key = _data_edge_key(source_id, target_id)
+                if edge_key in seen_edges:
+                    continue
+                edges.append(
+                    {
+                        "source": source_id,
+                        "target": target_id,
+                        "depth": current_depth + 1,
+                        "key": edge_key,
+                    }
+                )
+                seen_edges.add(edge_key)
+
+            if len(nodes) >= node_limit:
                 truncated = True
                 break
 
-            if neighbor_fqn not in visited_assets:
-                node = graph_node_for_asset(
-                    uc,
-                    store,
-                    neighbor_fqn,
-                    branch_role,
-                    0,
-                    0,
-                    kicker=branch_kicker,
-                    depth=current_depth + 1,
-                    visible_inventory=visible_inventory,
-                )
-                node_id = asset_service.normalize_str(node.get("id"))
-                if node_id not in seen_node_ids:
-                    nodes.append(node)
-                    seen_node_ids.add(node_id)
-                visited_assets.add(neighbor_fqn)
-                if current_depth + 1 < depth_limit:
-                    queue.append((neighbor_fqn, current_depth + 1))
-
-            current_node_id = node_id_for(current_fqn)
-            neighbor_node_id = node_id_for(neighbor_fqn)
-            source_id = neighbor_node_id if direction == "upstream" else current_node_id
-            target_id = current_node_id if direction == "upstream" else neighbor_node_id
-            edge_key = _data_edge_key(source_id, target_id)
-            if edge_key in seen_edges:
-                continue
-            edges.append(
-                {
-                    "source": source_id,
-                    "target": target_id,
-                    "depth": current_depth + 1,
-                    "key": edge_key,
-                }
-            )
-            seen_edges.add(edge_key)
-
         if len(nodes) >= node_limit:
-            truncated = True
             break
+        current_frontier = next_frontier
+        current_depth += 1
 
     return {
         "nodes": nodes,
@@ -908,7 +992,13 @@ def lineage_payload(
             f"lineage:{_warehouse_key(uc)}:{_cache_scope_key(cache_scope)}:"
             f"{asset_service.normalize_str(asset_fqn)}"
         ),
-        300,
+        # Lineage edges in system.access.table_lineage change slowly —
+        # new pipelines write new rows, but existing relationships don't
+        # vanish. A 30-minute TTL keeps warm sessions hot without making
+        # stewards wait out a re-roundtrip they didn't ask for. First
+        # load still pays the cold query cost; subsequent hits within
+        # 30 min are instant.
+        1800,
         lambda: _build_lineage_payload(uc, store, asset_fqn, system_uc=system_uc),
     )
 
