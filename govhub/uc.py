@@ -1058,8 +1058,12 @@ LIMIT {int(limit)}
             for c, s, t in tables
         )
         per_origin = int(limit_per_table)
+        # Databricks SQL rejects window functions inside the same SELECT as
+        # GROUP BY ALL. Split the dedup and the ranking into two CTEs:
+        # `deduped` does the GROUP BY, `ranked` applies ROW_NUMBER on its
+        # output.
         q = f"""
-WITH ranked AS (
+WITH deduped AS (
   SELECT
       target_table_catalog,
       target_table_schema,
@@ -1069,15 +1073,19 @@ WITH ranked AS (
       source_table_catalog,
       source_table_schema,
       source_table_name,
-      source_type,
-      ROW_NUMBER() OVER (
-          PARTITION BY target_table_catalog, target_table_schema, target_table_name
-          ORDER BY source_table_full_name
-      ) AS rn
+      source_type
   FROM system.access.table_lineage
   WHERE (target_table_catalog, target_table_schema, target_table_name) IN ({tuples_sql})
     AND source_table_name IS NOT NULL
   GROUP BY ALL
+), ranked AS (
+  SELECT
+      deduped.*,
+      ROW_NUMBER() OVER (
+          PARTITION BY target_table_catalog, target_table_schema, target_table_name
+          ORDER BY source_table_full_name
+      ) AS rn
+  FROM deduped
 )
 SELECT
     target_table_catalog,
@@ -1113,7 +1121,7 @@ ORDER BY target_table_full_name, source_table_full_name
         )
         per_origin = int(limit_per_table)
         q = f"""
-WITH ranked AS (
+WITH deduped AS (
   SELECT
       source_table_catalog,
       source_table_schema,
@@ -1123,15 +1131,19 @@ WITH ranked AS (
       target_table_catalog,
       target_table_schema,
       target_table_name,
-      target_type,
-      ROW_NUMBER() OVER (
-          PARTITION BY source_table_catalog, source_table_schema, source_table_name
-          ORDER BY target_table_full_name
-      ) AS rn
+      target_type
   FROM system.access.table_lineage
   WHERE (source_table_catalog, source_table_schema, source_table_name) IN ({tuples_sql})
     AND target_table_name IS NOT NULL
   GROUP BY ALL
+), ranked AS (
+  SELECT
+      deduped.*,
+      ROW_NUMBER() OVER (
+          PARTITION BY source_table_catalog, source_table_schema, source_table_name
+          ORDER BY target_table_full_name
+      ) AS rn
+  FROM deduped
 )
 SELECT
     source_table_catalog,
