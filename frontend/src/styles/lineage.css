@@ -94,11 +94,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 2px;
-  border: 1px solid rgba(198, 210, 234, 0.95);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 2px 6px rgba(19, 31, 65, 0.025);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   pointer-events: none;
 }
 
@@ -106,11 +105,38 @@
   pointer-events: auto;
 }
 
+/* Canvas toolbar — quiet text-style buttons that sit atop the graph
+   without competing with the focus node. Matches the mockup's
+   low-chrome "Focus View · Reset Zoom" treatment. */
+.gh-lineage-canvas-controls .gh-secondary-button {
+  min-height: 28px !important;
+  padding: 4px 10px !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(198, 210, 234, 0.85) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 1px 2px rgba(19, 31, 65, 0.04) !important;
+  color: var(--gh-ink-soft, #525e74) !important;
+}
+
+.gh-lineage-canvas-controls .gh-secondary-button:hover {
+  color: var(--gh-ink, #1a2236) !important;
+  background: #ffffff !important;
+  border-color: rgba(91, 67, 238, 0.32) !important;
+}
+
+.gh-lineage-canvas-controls .gh-secondary-button.is-active {
+  color: var(--gh-accent, #e11d74) !important;
+  border-color: rgba(225, 29, 116, 0.45) !important;
+  background: rgba(252, 230, 239, 0.6) !important;
+}
+
 .gh-lineage-command-strip {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .gh-lineage-stage-topbar {
