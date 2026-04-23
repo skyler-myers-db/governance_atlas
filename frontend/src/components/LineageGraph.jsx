@@ -545,13 +545,23 @@ function NodeLabel({ data }) {
       <div className="gh-graph-node-head">
         <AssetTypeIcon type={data.kind} size={iconSize} className="gh-graph-node-icon" />
         <div className="gh-graph-node-head-copy">
-          {isFocus ? (
-            <div className="gh-graph-node-kicker">{data.kicker || data.kind}</div>
+          {isFocus && data.kicker && data.kicker !== "Focus" ? (
+            // Hide the "Focus" kicker — the purple border already signals
+            // this is the focused node, and a "Focus" eyebrow on top of a
+            // "FOCUS" footer pill reads as duplicated debug chrome.
+            <div className="gh-graph-node-kicker">{data.kicker}</div>
           ) : null}
           <div className="gh-graph-node-title">{data.label}</div>
           {!isFocus ? (
             <div className="gh-graph-node-peer-meta">
-              <span className="gh-graph-node-type-line">{data.kind}</span>
+              {/* "Lineage Reference" is the backend's label for nodes that
+                  exist in UC lineage but not in the governance store. That
+                  distinction is meaningful inside the drawer but it's noise
+                  on every peer card — suppress it here and only surface a
+                  real asset kind (Table, View, Pipeline, …) when available. */}
+              {data.kind && data.kind !== "Lineage Reference" ? (
+                <span className="gh-graph-node-type-line">{data.kind}</span>
+              ) : null}
               {depthLabel ? (
                 <span className="gh-graph-node-depth-chip">{depthLabel}</span>
               ) : null}
@@ -620,8 +630,14 @@ function NodeLabel({ data }) {
             </ul>
           ) : null}
           <div className="gh-graph-node-foot">
-            <span>{data.kind}</span>
-            {data.layout?.side ? <span className="gh-graph-node-pill">{data.layout.side}</span> : null}
+            <span>{data.kind === "Lineage Reference" ? "Lineage only" : data.kind}</span>
+            {/* The "focus" layout.side pill is redundant with the purple
+                focus border; skip it. Peer nodes still get upstream /
+                downstream pills via `depthLabel` above. Depth pills stay
+                useful on non-focus positions. */}
+            {data.layout?.side && data.layout.side !== "focus" ? (
+              <span className="gh-graph-node-pill">{data.layout.side}</span>
+            ) : null}
             {typeof data.layout?.depth === "number" && data.layout.depth > 0 ? (
               <span className="gh-graph-node-pill">{`d${data.layout.depth}`}</span>
             ) : null}
@@ -1679,7 +1695,11 @@ export default function LineageGraph({
   // stage height. The old `>= 5` gate was rendering an empty box on
   // small graphs and an unreachable minimap on larger ones (the
   // legacy CSS was stuck at min-height: 0).
-  const showMiniMap = (transformed?.nodes?.length || 0) >= 2;
+  // Only render the minimap when the graph is large enough to warrant
+  // bird's-eye navigation. Small graphs (≤ 8 nodes) fit comfortably in
+  // the viewport and the minimap just becomes a white box floating over
+  // the canvas — which doesn't match the mockup's minimal chrome.
+  const showMiniMap = (transformed?.nodes?.length || 0) >= 9;
   const showControls = true;
   const canReturnToFocus =
     defaultFocusNodeId && (Boolean(selectedEdge) || Boolean(selectedNode && selectedNode.id !== defaultFocusNodeId));
