@@ -1618,7 +1618,9 @@ export default function LineageGraph({
   useEffect(() => {
     setSelectedNodeId(defaultFocusNodeId);
     setSelectedEdgeId("");
-    setDrawerOpen(false);
+    // Drawer stays open on asset switch so the new focus node's detail rail
+    // is visible without a click. Matches docs/mockups/lineage_mockup.png.
+    setDrawerOpen(Boolean(defaultFocusNodeId));
     setGraphMode("explore");
     setAllowDefaultSelection(true);
     setRefocusOpen(false);
@@ -1635,7 +1637,7 @@ export default function LineageGraph({
   useEffect(() => {
     setSelectedEdgeId("");
     setSelectedNodeId(defaultFocusNodeId);
-    setDrawerOpen(false);
+    setDrawerOpen(Boolean(defaultFocusNodeId));
     setGraphMode("explore");
     setAllowDefaultSelection(true);
     setRefocusOpen(false);
