@@ -55,6 +55,10 @@ export default function BrandingWorkspace({ bootstrap, onSurfaceReady }) {
   const isAdmin = /admin/i.test(shellRole);
 
   useEffect(() => {
+    if (!isAdmin) {
+      onSurfaceReady?.();
+      return undefined;
+    }
     let cancelled = false;
     setLoading(true);
     fetchAdminBranding()
@@ -74,7 +78,7 @@ export default function BrandingWorkspace({ bootstrap, onSurfaceReady }) {
     return () => {
       cancelled = true;
     };
-  }, [onSurfaceReady]);
+  }, [isAdmin, onSurfaceReady]);
 
   const handleSave = useCallback(async () => {
     setSubmitting(true);
