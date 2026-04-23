@@ -319,13 +319,26 @@ def build_admin_router() -> APIRouter:
 
     @router.get("/branding")
     def api_admin_branding_get(request: Request) -> JSONResponse:
-        """Read tenant branding. Open to any authenticated user so
-        the shell can render the palette before the admin surface
-        loads. The write endpoint is admin-only."""
-        from runtime_app import _ensure_governance_store, _ensure_live_runtime, _store
+        """Admin/steward read of tenant branding. The shell bootstrap
+        reads branding via _shell_branding_payload() internally for all
+        roles, so gating this HTTP endpoint does not break shell render
+        for readers."""
+        from runtime_app import (
+            _ensure_can_mutate,
+            _ensure_governance_store,
+            _ensure_live_runtime,
+            _store,
+            _user_role_slug,
+        )
         from govhub.services import branding as branding_service
 
         _ensure_live_runtime()
+        _ensure_can_mutate(request)
+        if _user_role_slug(request) not in {"admin", "steward"}:
+            raise HTTPException(
+                status_code=403,
+                detail="Only admins and stewards can read tenant branding via the admin API.",
+            )
         _ensure_governance_store()
         return JSONResponse({"branding": branding_service.get_branding(_store())})
 
