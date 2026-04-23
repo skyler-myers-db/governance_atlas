@@ -527,6 +527,13 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
     catalogs = cached_catalogs(uc)
     inventory_frames: List[pd.DataFrame] = []
     tag_maps: Dict[str, Dict[str, str]] = {}
+    # Track skipped catalogs separately. If EVERY catalog we tried ended up
+    # skipped due to a "skippable" error, that's a transient-failure signal
+    # (cold warehouse, OBO propagation lag, expired token), NOT a legitimate
+    # "this user has no visible assets" state. Raising at the end prevents
+    # an empty inventory from being cached as authoritative for 10 minutes.
+    skipped_catalogs: List[str] = []
+    last_skippable_exc: Optional[Exception] = None
 
     for catalog in catalogs:
         # Lineage walks routinely cross into catalogs the current user can't
@@ -547,6 +554,8 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
                     catalog,
                     str(exc).splitlines()[0][:200],
                 )
+                skipped_catalogs.append(catalog)
+                last_skippable_exc = exc
                 continue
             raise
         if not inv.empty:
@@ -588,6 +597,27 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
                 for row in group.itertuples()
                 if normalize_str(row.tag_name)
             }
+
+    # If EVERY catalog we attempted was skipped with a "skippable" error
+    # and nothing made it into inventory_frames, that's almost always a
+    # transient failure rather than a real empty state. Raise the last
+    # seen exception so the caller's short-TTL cache window triggers
+    # (empty results cache for 15s, not 10min) and the user sees real
+    # data as soon as the transient condition clears.
+    if (
+        not inventory_frames
+        and catalogs
+        and skipped_catalogs
+        and len(skipped_catalogs) == len(catalogs)
+        and last_skippable_exc is not None
+    ):
+        logger.warning(
+            "inventory: all %d catalog(s) skipped with skippable errors; "
+            "treating as transient failure (last error: %s)",
+            len(catalogs),
+            str(last_skippable_exc).splitlines()[0][:200],
+        )
+        raise last_skippable_exc
 
     if not inventory_frames:
         return empty_inventory()
@@ -814,8 +844,56 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
 
 
 def cached_asset_inventory(_uc: UCSQLClient, _store: Any) -> pd.DataFrame:
-    return _ttl_value(
-        f"asset_inventory:{_warehouse_key(_uc)}",
-        600,
-        lambda: _inventory_rows_to_frames(_uc, _store),
-    )
+    """Cache asset inventory per warehouse.
+
+    Short-TTL guard on empty results: a populated inventory is cached for
+    10 minutes (cheap to reuse, rarely changes), but an empty result is
+    cached for only 15 seconds. Without that, a transient cold-start or
+    OBO-token-propagation lag that returns zero assets would poison
+    Discovery for 10 minutes — users would see "No assets match the
+    current scope" even after permissions settle. Mirrors the same
+    pattern already used in `cached_catalogs` and `cached_catalog_inventory`.
+    """
+    key = f"asset_inventory:{_warehouse_key(_uc)}"
+    now = time.time()
+    cached = _TTL_CACHE.get(key)
+    if cached:
+        age = now - cached[0]
+        payload = cached[1]
+        is_empty = payload is None or (hasattr(payload, "empty") and payload.empty)
+        if age < 600 and not is_empty:
+            return payload
+        if age < 15 and is_empty:
+            return payload
+    # Use the locked loader so concurrent misses don't stampede.
+    lock = _ttl_cache_lock(key)
+    with lock:
+        cached = _TTL_CACHE.get(key)
+        if cached:
+            age = time.time() - cached[0]
+            payload = cached[1]
+            is_empty = payload is None or (hasattr(payload, "empty") and payload.empty)
+            if age < 600 and not is_empty:
+                return payload
+            if age < 15 and is_empty:
+                return payload
+        try:
+            value = _inventory_rows_to_frames(_uc, _store)
+        except Exception as exc:
+            # `_inventory_rows_to_frames` raises when every catalog was
+            # skipped by a transient metadata error (see its own comment
+            # for the why). Translate to an empty frame cached under the
+            # 15-second short-TTL so the next call will retry quickly
+            # once the transient condition clears — NOT the 10-minute
+            # full TTL that would trap users on "No assets match".
+            if uc_module._is_skippable_metadata_error(exc):
+                logger.warning(
+                    "inventory: transient empty state cached for 15s "
+                    "due to skippable error: %s",
+                    str(exc).splitlines()[0][:200],
+                )
+                value = empty_inventory()
+            else:
+                raise
+        _TTL_CACHE[key] = (time.time(), value)
+        return value
