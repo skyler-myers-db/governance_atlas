@@ -73,7 +73,7 @@ function FrameHarness({
 }
 
 describe("AppFrame", () => {
-  it("opens workspace setup via the rail Settings button when diagnostics are available", () => {
+  it("opens workspace setup via the profile menu when diagnostics are available", () => {
     const onToggle = vi.fn();
     render(
       <AppFrame
@@ -100,20 +100,17 @@ describe("AppFrame", () => {
       </AppFrame>,
     );
 
-    // Diagnostics live behind the rail Settings icon now — the topbar
-    // "Workspace setup" trigger was removed to match the target mockup.
-    const settings = screen.getByRole("button", { name: "Settings" });
-    fireEvent.click(settings);
+    fireEvent.click(screen.getByRole("button", { name: /Open profile menu for Admin/i }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Settings & diagnostics" }));
     expect(onToggle).toHaveBeenCalled();
   });
 
-  it("keeps the rail Settings button available regardless of diagnostics state", () => {
+  it("keeps diagnostics available from the profile menu regardless of diagnostics state", () => {
     render(<FrameHarness diagnosticsAvailable={false} />);
 
-    // The rail's Settings button is the unified entry point for diagnostics
-    // / preferences and always renders. The old topbar "Workspace setup"
-    // trigger that was conditional on diagnostics availability is gone.
-    expect(screen.getByRole("button", { name: "Settings" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Open profile menu for Admin/i }));
+    expect(screen.getByRole("menuitem", { name: "Settings & diagnostics" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Workspace setup" })).toBeNull();
   });
 
@@ -145,7 +142,7 @@ describe("AppFrame", () => {
     );
     expect(searchInput).not.toBeNull();
     expect(searchInput.getAttribute("placeholder")).toMatch(
-      /Search across Databricks Unity Catalog/i,
+      /Search tables, columns, pipelines, assets/i,
     );
   });
 
@@ -190,21 +187,21 @@ describe("AppFrame", () => {
     }
   });
 
-  it("routes the brand button and discovery tab through the shared discovery module callback", () => {
+  it("routes the brand button and visible rail buttons through the shared module callback", () => {
     const onModuleChange = vi.fn();
 
     render(<FrameHarness onModuleChange={onModuleChange} />);
 
     fireEvent.click(screen.getByRole("button", { name: /Governance Hub/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Discovery" }));
-    fireEvent.click(screen.getByRole("button", { name: "Lineage" }));
+    fireEvent.click(screen.getByRole("button", { name: "Go to Catalog" }));
+    fireEvent.click(screen.getByRole("button", { name: "Go to Lineage" }));
 
     expect(onModuleChange).toHaveBeenNthCalledWith(1, "discovery");
     expect(onModuleChange).toHaveBeenNthCalledWith(2, "discovery");
     expect(onModuleChange).toHaveBeenNthCalledWith(3, "lineage");
   });
 
-  it("keeps diagnostics reachable via the rail Settings button even without a 'Workspace setup' trigger", () => {
+  it("keeps diagnostics reachable via the profile menu even without a 'Workspace setup' trigger", () => {
     render(
       <FrameHarness
         diagnosticsAvailable={false}
@@ -216,12 +213,12 @@ describe("AppFrame", () => {
     );
 
     // The topbar no longer surfaces "Setup attention" copy or a dedicated
-    // "Workspace setup" button — those moved behind the rail Settings icon
-    // to match the target mockup. What we still guarantee is that the rail
-    // Settings entry point is present so stewards can still reach diagnostics.
+    // "Workspace setup" button. Diagnostics remain available from the
+    // identity menu so the rail can stay focused on product navigation.
     expect(screen.queryByText("Setup attention")).toBeNull();
     expect(screen.queryByRole("button", { name: "Workspace setup" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Settings" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Open profile menu for Admin/i }));
+    expect(screen.getByRole("menuitem", { name: "Settings & diagnostics" })).not.toBeNull();
   });
 
   it("shows a shell-owned inbox trigger and panel for unread notifications", () => {

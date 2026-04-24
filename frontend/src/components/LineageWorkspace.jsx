@@ -6,8 +6,6 @@ import {
 } from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
 import {
-  invalidateLineage,
-  prefetchLineage,
   refreshLineage,
   useLineage,
 } from "../hooks/useLineage";
@@ -77,7 +75,7 @@ export default function LineageWorkspace({
   const [downstreamLevels, setDownstreamLevels] = useState(2);
   const [maxDepth, setMaxDepth] = useState(2);
   const [nodesPerLayer, setNodesPerLayer] = useState(10);
-  const [includeColumns, setIncludeColumns] = useState(false);
+  const [includeColumns, setIncludeColumns] = useState(true);
   const lineageAvailable = tableLineageAvailable(bootstrap);
   const lineageUnavailableReason = tableLineageReason(bootstrap);
   const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", false);
@@ -425,10 +423,8 @@ export default function LineageWorkspace({
           //      rebuilds.
           //   2. When it resolves, prime the React Query cache with the
           //      fresh payload under the full-tier key.
-          //   3. `invalidateLineage` synchronously drops both tier
-          //      caches so the mounted `useQuery` observers refetch,
-          //      but those refetches will now hit the already-cleared
-          //      backend and come back fast.
+          //   3. `refreshLineage` updates both tier caches so mounted
+          //      observers pick up the refreshed backend payload.
           //
           // Previously the order was reversed (invalidate → prefetch),
           // which lost the force flag because React Query's queryFn

@@ -376,7 +376,7 @@ describe("LineageGraph", () => {
     expect(screen.getByText("customer_id")).not.toBeNull();
   });
 
-  it("switches to the Depend. tab and lists adjacent neighbors that refocus on click", () => {
+  it("switches to the Depend. tab with a full accessible label and lists adjacent neighbors", () => {
     const onSelectAsset = vi.fn();
     render(
       <LineageGraph
@@ -429,7 +429,7 @@ describe("LineageGraph", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "orders" }));
-    fireEvent.click(screen.getByTestId("lineage-node-tab-dependencies"));
+    fireEvent.click(screen.getByRole("tab", { name: "Dependencies" }));
 
     const rows = screen.getAllByTestId("lineage-node-dependency");
     expect(rows.length).toBeGreaterThanOrEqual(1);
