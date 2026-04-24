@@ -284,7 +284,6 @@ export default function AppFrame({
       <SideIconRail
         activeModule={activeModule}
         onModuleChange={onModuleChange}
-        onOpenSettings={onToggleDiagnostics}
         onSignOut={handleSignOut}
         shellDisabled={shellDisabled}
         shellDisabledReason={shellDisabledReason}

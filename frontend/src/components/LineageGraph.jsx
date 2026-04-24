@@ -2,11 +2,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BaseEdge,
-  Background,
   Controls,
   EdgeLabelRenderer,
   Handle,
-  MarkerType,
   MiniMap,
   Position,
   ReactFlow,
@@ -37,34 +35,12 @@ function databricksCatalogUrl(assetFqn, workspaceHost) {
   return `https://${host}/explore/data/${catalog}/${schema}/${table}`;
 }
 
-function nodeColor(kind) {
-  if (kind === "View") return "#5b6af7";
-  if (kind === "Notebook") return "#44b2ff";
-  if (kind === "Pipeline") return "#8e67ff";
-  return "#1d2a44";
+function edgeStroke({ selected }) {
+  if (selected) return "#2f2f46";
+  return "#8d9099";
 }
 
-function edgeKindFor(data) {
-  const raw = String(data?.edgeKind || data?.kind || "").trim().toLowerCase();
-  if (raw.includes("stream") || raw.includes("kafka") || raw.includes("kinesis")) return "streaming";
-  if (raw.includes("pipeline") || raw.includes("job") || raw.includes("workflow")) return "operational";
-  if (raw.includes("schema") || raw.includes("ddl")) return "schema";
-  return "data";
-}
-
-function edgeStroke({ selected, data }) {
-  if (selected) return "#3a2ce0";
-  const kind = edgeKindFor(data);
-  if (kind === "streaming") return "#0891b2";
-  if (kind === "operational") return "#a21caf";
-  if (kind === "schema") return "#b45309";
-  return "#4453db";
-}
-
-function edgeDashArray(data) {
-  const kind = edgeKindFor(data);
-  if (kind === "streaming") return "6 4";
-  if (kind === "schema") return "2 3";
+function edgeDashArray() {
   return undefined;
 }
 
@@ -240,10 +216,10 @@ function layoutGraphNodes(nodes, edges) {
 
   const focusX = 0;
   const focusY = 0;
-  const depthGapX = 388;
-  const branchGapY = 84;
-  const stackGapY = 30;
-  const levelNudgeY = 22;
+  const depthGapX = 260;
+  const branchGapY = 46;
+  const stackGapY = 20;
+  const levelNudgeY = 6;
 
   const positioned = ranked
     .filter((node) => node.id === focusId)
@@ -347,12 +323,8 @@ function transformGraph(graph) {
         borderRadius: node.role === "focus" ? 14 : 10,
         border:
           node.role === "focus"
-            ? "2px solid #5b43ee"
-            : node.layout?.side === "upstream"
-              ? "1px solid rgba(84, 117, 255, 0.35)"
-              : node.layout?.side === "downstream"
-                ? "1px solid rgba(126, 79, 238, 0.35)"
-                : "1px solid #c9d6ee",
+            ? "2px solid #3d2f8f"
+            : "1px solid #d8dbe2",
         // Round 19 defect #10: drop the thick left/right indicator stripe
         // on peer nodes — it was adding ~4px of chrome on every card and
         // reinforcing the upstream/downstream distinction that the graph
@@ -361,17 +333,13 @@ function transformGraph(graph) {
         borderRightWidth: 1,
         background:
           node.role === "focus"
-            ? "linear-gradient(180deg, #ffffff 0%, #f7f5ff 100%)"
-            : node.layout?.side === "upstream"
-              ? "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)"
-              : node.layout?.side === "downstream"
-                ? "linear-gradient(180deg, #ffffff 0%, #fbf8ff 100%)"
-                : "#ffffff",
+            ? "#ffffff"
+            : "#ffffff",
         boxShadow:
           node.role === "focus"
-            ? "0 10px 20px rgba(74,95,206,0.10)"
-            : "0 1px 2px rgba(19,31,65,0.03)",
-        padding: node.role === "focus" ? 10 : 6,
+            ? "0 2px 8px rgba(35, 37, 52, 0.12)"
+            : "0 1px 4px rgba(35, 37, 52, 0.10)",
+        padding: node.role === "focus" ? 12 : 10,
       },
       type: "assetNode",
       sourcePosition: "right",
@@ -384,19 +352,9 @@ function transformGraph(graph) {
       type: "assetEdge",
       data: edge,
       animated: false,
-      // Round 20 defect #3: bring the arrowhead back to a readable
-      // size — round 19's 10x10 got lost against the thin 1.3-1.6 px
-      // stroke. 14x14 closed arrow is still delicate but clearly
-      // directional, matching the mockup.
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        width: 14,
-        height: 14,
-        color: "#3f34d8",
-      },
       style: {
-        stroke: "#4453db",
-        strokeWidth: edge.depth === 1 ? 1.6 : 1.3,
+        stroke: "#8d9099",
+        strokeWidth: edge.depth === 1 ? 1.25 : 1.1,
       },
     })),
   };
@@ -504,22 +462,30 @@ function upstreamSelection(edges, startId) {
   return { nodeIds: [...seen], edgeIds };
 }
 
-function nodeDetailBadges(data) {
+function nodeSignalDots(data) {
   const detail = Array.isArray(data?.details) ? data.details[0] || {} : data?.details || {};
-  const badges = [];
-  const push = (tone, label, title = "") => {
+  const signals = [];
+  const push = (tone, label) => {
     const clean = String(label || "").trim();
-    if (!clean || clean.toLowerCase() === "unassigned" || clean === "—") return;
-    badges.push({ tone, label: clean, title: title || clean });
+    if (!clean || clean === "—" || clean.toLowerCase() === "unassigned") return;
+    signals.push({ tone, label: clean });
   };
-  push("gov", detail.governanceStatus, `Governance status: ${detail.governanceStatus}`);
-  push("cert", detail.certification, `Certification: ${detail.certification}`);
-  if (detail.sensitivity && /pii|phi|sensitive|restricted/i.test(detail.sensitivity)) {
-    push("pii", detail.sensitivity, `Sensitivity classification: ${detail.sensitivity}`);
+  const certification = String(detail.certification || "").trim();
+  if (certification && certification.toLowerCase() !== "unassigned") {
+    push(/certified|published|approved/i.test(certification) ? "good" : "warn", certification);
   }
-  push("domain", detail.domain, `Domain: ${detail.domain}`);
-  push("tier", detail.tier, `Tier: ${detail.tier}`);
-  return badges.slice(0, 3);
+  const sensitivity = String(detail.sensitivity || "").trim();
+  if (sensitivity && sensitivity.toLowerCase() !== "unassigned") {
+    push(/restricted|pii|phi|sensitive/i.test(sensitivity) ? "warn" : "good", sensitivity);
+  }
+  const status = String(detail.governanceStatus || "").trim();
+  if (status && !/^(needs work|unassigned)$/i.test(status)) {
+    push(/ready|operational|published|approved/i.test(status) ? "good" : "warn", status);
+  }
+  if (detail.isOpenable === false) {
+    push("muted", "Metadata record unavailable");
+  }
+  return signals.slice(0, 3);
 }
 
 function NodeLabel({ data }) {
@@ -527,7 +493,7 @@ function NodeLabel({ data }) {
     typeof data?.onToggleBranchCollapse === "function" && Number(data?.branchDescendantCount || 0) > 0;
   const isFocus = data.role === "focus";
   const iconSize = isFocus ? "lg" : "md";
-  const badges = isFocus ? nodeDetailBadges(data) : [];
+  const signals = nodeSignalDots(data);
 
   // Round 20 defect #4: peer nodes now carry a depth label ("Upstream 1",
   // "Downstream 2") so the direction + hop count are obvious at a glance.
@@ -568,6 +534,18 @@ function NodeLabel({ data }) {
             </div>
           ) : null}
         </div>
+        {signals.length ? (
+          <div className="gh-graph-node-signal-dots" aria-label="Backed node signals">
+            {signals.map((signal, index) => (
+              <span
+                aria-hidden="true"
+                className={`gh-graph-node-signal-dot tone-${signal.tone}`}
+                key={`${data.id}-signal-${index}`}
+                title={signal.label}
+              />
+            ))}
+          </div>
+        ) : null}
         {branchToggleVisible ? (
           <button
             className={`gh-graph-branch-toggle ${data.branchCollapsed ? "is-collapsed" : ""}`}
@@ -584,19 +562,6 @@ function NodeLabel({ data }) {
       {isFocus ? (
         <>
           <div className="gh-graph-node-subtitle">{data.subtitle}</div>
-          {badges.length ? (
-            <div className="gh-graph-node-badges">
-              {badges.map((badge, index) => (
-                <span
-                  className={`gh-graph-node-badge tone-${badge.tone}`}
-                  key={`${data.id}-badge-${index}`}
-                  title={badge.title}
-                >
-                  {badge.label}
-                </span>
-              ))}
-            </div>
-          ) : null}
           {/* Round 20 defect #2: the focus node ALWAYS shows its schema
               preview (up to 4 rows) when the backend supplies columns —
               no more waiting for "Include Columns" to be toggled on. The
@@ -631,16 +596,6 @@ function NodeLabel({ data }) {
           ) : null}
           <div className="gh-graph-node-foot">
             <span>{data.kind === "Lineage Reference" ? "Lineage only" : data.kind}</span>
-            {/* The "focus" layout.side pill is redundant with the purple
-                focus border; skip it. Peer nodes still get upstream /
-                downstream pills via `depthLabel` above. Depth pills stay
-                useful on non-focus positions. */}
-            {data.layout?.side && data.layout.side !== "focus" ? (
-              <span className="gh-graph-node-pill">{data.layout.side}</span>
-            ) : null}
-            {typeof data.layout?.depth === "number" && data.layout.depth > 0 ? (
-              <span className="gh-graph-node-pill">{`d${data.layout.depth}`}</span>
-            ) : null}
           </div>
         </>
       ) : null}
@@ -905,14 +860,12 @@ function LineageNodeDrawerBody({
   const fqn = node?.assetFqn || node?.subtitle || node?.label || "";
 
   const TAB_ORDER = ["details", "columns", "quality", "stewardship", "dependencies"];
-  // Defect 9 — the last tab now reads "Neighbors" (clearer than "Depend."
-  // about what it enumerates: immediate upstream/downstream assets).
   const TAB_LABELS = [
     { key: "details", label: "Details" },
     { key: "columns", label: "Columns" },
     { key: "quality", label: "Quality" },
     { key: "stewardship", label: "Stewardship" },
-    { key: "dependencies", label: "Neighbors" },
+    { key: "dependencies", label: "Depend.", ariaLabel: "Dependencies" },
   ];
 
   const handleTabKey = (event) => {
@@ -963,6 +916,7 @@ function LineageNodeDrawerBody({
       >
         {TAB_LABELS.map((t) => (
           <button
+            aria-label={t.ariaLabel || t.label}
             aria-controls={`lineage-node-panel-${t.key}`}
             aria-selected={tab === t.key}
             className={`gh-lineage-node-tab ${tab === t.key ? "is-active" : ""}`}
@@ -1380,6 +1334,7 @@ export default function LineageGraph({
   nodesPerLayer = null,
   includeColumns = null,
   onRegisterGraphActions = null,
+  showCanvasControls = true,
   onAssetSearchQueryChange,
   onContextChange,
   onOpenAsset,
@@ -1704,13 +1659,8 @@ export default function LineageGraph({
   // stage height. The old `>= 5` gate was rendering an empty box on
   // small graphs and an unreachable minimap on larger ones (the
   // legacy CSS was stuck at min-height: 0).
-  // The minimap renders empty for our custom assetNode type (it expects
-  // plain HTML nodes) and the mockup has no minimap at all. Gate it on
-  // very large graphs only — ≥ 25 nodes — so typical demo views (≤ 15
-  // nodes) stay clean and the minimap only appears where bird's-eye nav
-  // is actually worth the chrome.
-  const showMiniMap = (transformed?.nodes?.length || 0) >= 25;
-  const showControls = true;
+  const showMiniMap = false;
+  const showControls = false;
   const canReturnToFocus =
     defaultFocusNodeId && (Boolean(selectedEdge) || Boolean(selectedNode && selectedNode.id !== defaultFocusNodeId));
   const topRefocusCandidate =
@@ -1900,7 +1850,7 @@ export default function LineageGraph({
       .filter(Boolean)
       .slice(0, 6);
   }, [activeNodeIds, nodesById]);
-  const drawerTitle = selectedEdge ? "Relationship Details" : "Selected Node";
+  const drawerTitle = selectedEdge ? "Relationship Details" : "";
 
   useEffect(() => {
     if (!refocusOpen) return undefined;
@@ -1969,7 +1919,7 @@ export default function LineageGraph({
     }
     lastAutoFitKeyRef.current = autoFitKey;
     const frame = requestAnimationFrame(() => {
-      flowInstance.fitView?.({ padding: 0.24, duration: 180 });
+      flowInstance.fitView?.({ padding: 0.08, duration: 180 });
     });
     return () => cancelAnimationFrame(frame);
   }, [autoFitKey, flowInstance, transformed.nodes.length]);
@@ -1986,11 +1936,11 @@ export default function LineageGraph({
     // any drawer-open layout that happens on the same frame.
     const frame = requestAnimationFrame(() => {
       if (typeof window !== "undefined") window.dispatchEvent(new Event("resize"));
-      flowInstance.fitView?.({ padding: drawerOpen ? 0.18 : 0.22, duration: 180 });
+      flowInstance.fitView?.({ padding: drawerOpen ? 0.06 : 0.1, duration: 180 });
     });
     const kick = setTimeout(() => {
       if (typeof window !== "undefined") window.dispatchEvent(new Event("resize"));
-      flowInstance.fitView?.({ padding: drawerOpen ? 0.18 : 0.22, duration: 180 });
+      flowInstance.fitView?.({ padding: drawerOpen ? 0.06 : 0.1, duration: 180 });
     }, 240);
     return () => {
       cancelAnimationFrame(frame);
@@ -2018,11 +1968,11 @@ export default function LineageGraph({
             { zoom: 1.15, duration: 240 },
           );
         } else {
-          flowInstance.fitView?.({ padding: 0.2, duration: 240 });
+          flowInstance.fitView?.({ padding: 0.1, duration: 240 });
         }
       },
       resetZoom: () => {
-        flowInstance?.fitView?.({ padding: 0.2, duration: 220 });
+        flowInstance?.fitView?.({ padding: 0.1, duration: 220 });
       },
     });
     return () => onRegisterGraphActions(null);
@@ -2034,7 +1984,7 @@ export default function LineageGraph({
     const observer = new ResizeObserver(() => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        flowInstance.fitView?.({ padding: drawerOpen ? 0.18 : 0.22, duration: 140 });
+        flowInstance.fitView?.({ padding: drawerOpen ? 0.06 : 0.1, duration: 140 });
       });
     });
     observer.observe(viewportRef.current);
@@ -2047,6 +1997,7 @@ export default function LineageGraph({
   return (
     <div className={`gh-lineage-canvas ${drawerOpen ? "has-drawer" : ""}`} ref={canvasRef}>
       <div className="gh-lineage-main-stage">
+        {showCanvasControls ? (
         <div className="gh-lineage-canvas-controls">
           <div className="gh-lineage-command-strip">
             {allowRefocus ? (
@@ -2298,6 +2249,7 @@ export default function LineageGraph({
             </div>
           ) : null}
         </div>
+        ) : null}
         <div className="gh-lineage-flow-shell">
           <div className="gh-lineage-viewport" ref={viewportRef}>
             <ReactFlow
@@ -2447,7 +2399,6 @@ export default function LineageGraph({
                 />
               ) : null}
               {showControls ? <Controls showInteractive={false} /> : null}
-              <Background color="#d9e2ff" gap={22} />
             </ReactFlow>
             {graphMode === "impact" && activeNodeIds.length > 0 ? (
               <div className="gh-lineage-mode-overlay" role="status" aria-live="polite">
@@ -2491,8 +2442,13 @@ export default function LineageGraph({
 
       <SurfaceDrawer
         actions={
-          <button className="gh-secondary-button" onClick={() => closeDrawer()} type="button">
-            Close drawer
+          <button
+            aria-label="Close drawer"
+            className="gh-lineage-drawer-close"
+            onClick={() => closeDrawer()}
+            type="button"
+          >
+            ×
           </button>
         }
         bodyClassName={selectedNode && !selectedEdge ? "gh-lineage-node-drawer-body" : ""}

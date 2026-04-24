@@ -31,12 +31,12 @@ function renderHeader(overrides = {}) {
 }
 
 describe("GlobalHeader — Tranche B regression suite", () => {
-  it("defect 18: brand mark renders a stylized G (rect + path), not the legacy sigma S-curve", () => {
+  it("mockup parity: brand mark renders as a lightweight line stack icon", () => {
     const { container } = renderHeader();
     const brand = container.querySelector(".gh-shell-brand-mark svg");
     expect(brand).not.toBeNull();
-    // G silhouette uses a rect tile + an inner path; sigma had two M-paths only.
-    expect(brand?.querySelector("rect")).not.toBeNull();
+    expect(brand?.querySelector("rect")).toBeNull();
+    expect(brand?.querySelectorAll("path").length).toBeGreaterThanOrEqual(3);
   });
 
   it("defect 19: inbox button is present in the top bar with accessible name", () => {
@@ -103,14 +103,20 @@ describe("GlobalHeader — Tranche B regression suite", () => {
     expect(kids[1].querySelector("[data-testid='topbar-search-slot']")).not.toBeNull();
   });
 
-  it("mockup parity: tail cluster contains inbox, alerts bell, and user chip so the profile sits right-of-search", () => {
+  it("mockup parity: tail cluster contains alerts, help, inbox, and user chip", () => {
     renderHeader({ alertsUnreadCount: 0, onToggleAlerts: () => {} });
     const tail = document.querySelector(".gh-shell-brand-tail");
     expect(tail).not.toBeNull();
-    expect(tail?.querySelector("button[aria-label='Inbox']")).not.toBeNull();
     expect(tail?.querySelector("button[aria-label='Alerts']")).not.toBeNull();
+    expect(tail?.querySelector("button[aria-label='Help']")).not.toBeNull();
+    expect(tail?.querySelector("button[aria-label='Inbox']")).not.toBeNull();
     expect(tail?.querySelector(".gh-user-chip-trigger")).not.toBeNull();
     // Quick action is not in the tail — it lives on the Discovery sub-tab row.
     expect(tail?.querySelector(".gh-shell-topbar-quick-action")).toBeNull();
+  });
+
+  it("mockup parity: header does not keep a hidden duplicate module nav", () => {
+    const { container } = renderHeader();
+    expect(container.querySelector(".gh-shell-nav-secondary")).toBeNull();
   });
 });

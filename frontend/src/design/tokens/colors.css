@@ -13,11 +13,11 @@
      checkboxes are pure white, which is how they "pop" off the base.
      Accent stays magenta (brand mark, Quick action button, progress
      rail); indigo stays as a soft secondary for selection/focus. */
-  --gh-bg: #faf6ec;
-  --gh-bg-2: #f5efe2;
+  --gh-bg: #f8f8f5;
+  --gh-bg-2: #f2f3f0;
   --gh-surface: #ffffff;
-  --gh-surface-soft: #fdfaf2;
-  --gh-surface-muted: #f7f1e3;
+  --gh-surface-soft: #fbfbf9;
+  --gh-surface-muted: #f1f3f1;
 
   /* Border lines in warm beige. Round 11 lightens a shade — operator
      asked for "all borders a shade lighter" after round 10's bump.
@@ -25,8 +25,8 @@
      subtab, filter-rail borders all paint the same uniform shade
      (operator: "are you sure all the borders are the same darkness
      now? the left vertical looks slightly darker"). */
-  --gh-line: #b9ac82;
-  --gh-line-strong: #b9ac82;
+  --gh-line: #dfe3e6;
+  --gh-line-strong: #cfd5da;
 
   --gh-ink: #1a2236;
   --gh-ink-soft: #525e74;
@@ -96,4 +96,3 @@
   --gh-warn: #e1a84d;
   --gh-bad: #e08089;
 }
-

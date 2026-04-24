@@ -24,7 +24,7 @@ export function TopbarSearch({
   onSearchNoticeReset,
   onSelectAsset,
   topDirectResult,
-  placeholder = "Search across Databricks Unity Catalog, tables, views, and metrics…",
+  placeholder = "Search tables, columns, pipelines, assets",
 }) {
   return (
     <form
