@@ -85,6 +85,8 @@ describe("useDiscoveryWorkspace", () => {
       tiers: [],
       certifications: [],
       sensitivities: [],
+      businessCriticalities: [],
+      cdeOnly: false,
     });
   });
 
@@ -316,6 +318,8 @@ describe("useDiscoveryWorkspace", () => {
         tiers: [],
         certifications: [],
         sensitivities: [],
+        businessCriticalities: [],
+        cdeOnly: false,
       });
     });
   });
@@ -570,6 +574,7 @@ describe("useDiscoveryWorkspace", () => {
           tiers: [],
           certifications: [],
           sensitivities: [],
+          businessCriticalities: [],
         },
         onRouteQueryChange: undefined,
         onRouteFilterGroupsChange,
@@ -692,6 +697,7 @@ describe("useDiscoveryWorkspace", () => {
             tiers: [],
             certifications: [],
             sensitivities: [],
+            businessCriticalities: [],
           },
           querySeedFresh: false,
           querySeedKey: "seed-filters-1",
@@ -715,6 +721,7 @@ describe("useDiscoveryWorkspace", () => {
       tiers: [],
       certifications: [],
       sensitivities: [],
+      businessCriticalities: [],
     });
 
     rerender({
@@ -725,6 +732,7 @@ describe("useDiscoveryWorkspace", () => {
         tiers: [],
         certifications: [],
         sensitivities: [],
+        businessCriticalities: [],
       },
       querySeedFresh: true,
       querySeedKey: "seed-filters-2",

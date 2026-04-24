@@ -1,12 +1,22 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import LineageStage from "./LineageStage";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const lineageGraphProps = vi.hoisted(() => []);
 
 vi.mock("./LineageGraph", () => ({
-  default: () => <div data-testid="lineage-graph" />,
+  default: (props) => {
+    lineageGraphProps.push(props);
+    return <div data-testid="lineage-graph" />;
+  },
 }));
 
+import LineageStage from "./LineageStage";
+
 describe("LineageStage", () => {
+  beforeEach(() => {
+    lineageGraphProps.length = 0;
+  });
+
   it("labels truncated table lineage as partial instead of implying complete mappings", () => {
     render(
       <LineageStage
@@ -109,14 +119,15 @@ describe("LineageStage", () => {
     expect(screen.getByTestId("lineage-depth-stepper")).not.toBeNull();
     expect(screen.getByTestId("lineage-per-layer-stepper")).not.toBeNull();
 
-    // Each stepper increments through the provided handler.
-    fireEvent.click(
-      screen.getByTestId("lineage-upstream-stepper").querySelector('button[aria-label="Increase Upstream levels"]'),
+    fireEvent.change(
+      screen.getByTestId("lineage-upstream-stepper").querySelector("select"),
+      { target: { value: "3" } },
     );
     expect(onUpstream).toHaveBeenCalledWith(3);
 
-    fireEvent.click(
-      screen.getByTestId("lineage-downstream-stepper").querySelector('button[aria-label="Decrease Downstream levels"]'),
+    fireEvent.change(
+      screen.getByTestId("lineage-downstream-stepper").querySelector("select"),
+      { target: { value: "1" } },
     );
     expect(onDownstream).toHaveBeenCalledWith(1);
 
@@ -127,6 +138,42 @@ describe("LineageStage", () => {
     // Focus View + Reset Zoom buttons render (tertiary styling).
     expect(screen.getByTestId("lineage-focus-view")).not.toBeNull();
     expect(screen.getByTestId("lineage-reset-zoom")).not.toBeNull();
+  });
+
+  it("does not render invisible full-surface controls removed from the mockup", () => {
+    render(
+      <LineageStage
+        asset={{
+          fqn: "main.sales.orders",
+          name: "orders",
+          catalog: "main",
+          schema: "sales",
+        }}
+        context="Data Lineage"
+        error=""
+        graphBundle={{
+          data: {
+            nodes: [{ id: "focus", assetFqn: "main.sales.orders", role: "focus" }],
+            edges: [],
+          },
+          operational: {
+            nodes: [],
+            edges: [],
+          },
+        }}
+        lineagePayload={{ stats: {} }}
+        loading={false}
+        onAssetSearchQueryChange={() => {}}
+        onContextChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenGovernance={() => {}}
+        onRefreshLineage={() => {}}
+        onSelectAsset={() => {}}
+      />,
+    );
+
+    expect(screen.queryByTestId("lineage-refresh")).toBeNull();
+    expect(lineageGraphProps.at(-1)?.showCanvasControls).toBe(false);
   });
 
   it("renders the redesigned Lineage: <asset> header with breadcrumb + metadata chips", () => {
@@ -163,19 +210,15 @@ describe("LineageStage", () => {
     expect(title.textContent).toContain("Lineage:");
     expect(title.textContent).toContain("customer_churn_model");
 
-    // Round 18: breadcrumb starts at the catalog (the "Unity Catalog"
-    // prefix was removed because it duplicated the workspace brand in
-    // the topbar). Assert the catalog + schema are present and the
-    // leading item is NOT "Unity Catalog".
-    expect(screen.queryByText("Unity Catalog")).toBeNull();
+    expect(screen.getByText("Unity Catalog")).not.toBeNull();
     expect(screen.getByText("main")).not.toBeNull();
     // "sales" appears in the breadcrumb and the Schema chip — assert at
     // least one breadcrumb link is rendered for it.
     expect(screen.getAllByText("sales").length).toBeGreaterThan(0);
 
-    // Metadata chips render schema + source + databricks connection.
+    // Metadata chips render schema + asset type + databricks connection.
     expect(screen.getByTestId("lineage-chip-schema")).not.toBeNull();
-    expect(screen.getByTestId("lineage-chip-source")).not.toBeNull();
+    expect(screen.getByTestId("lineage-chip-asset-type")).not.toBeNull();
     expect(screen.getByTestId("lineage-chip-databricks")).not.toBeNull();
   });
 

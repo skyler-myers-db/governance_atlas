@@ -1,0 +1,477 @@
+/* Extracted from app.css by Phase 2-g.2 — selectors exclusive to the governance feature. */
+
+.gh-governance-linked-list {
+  display: grid;
+  gap: 8px;
+}
+
+.gh-governance-linked-row {
+  padding: 8px 10px;
+  border: 1px solid rgba(198, 210, 234, 0.72);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+}
+.gh-governance-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-governance-shell-header {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.gh-governance-shell-header-tools {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+.gh-governance-focus-command {
+  position: relative;
+  width: min(300px, 30vw);
+}
+
+.gh-governance-status-banner {
+  margin-top: 2px;
+}
+.gh-governance-focus-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--gh-line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16px 26px rgba(19, 31, 65, 0.1);
+  z-index: 6;
+}
+.gh-governance-workbench,
+.gh-governance-workbench-single {
+  display: grid;
+  gap: 10px;
+  align-items: start;
+}
+
+.gh-governance-workbench,
+.gh-governance-workbench-single {
+  grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+}
+.gh-governance-main-pane,
+.gh-governance-side-pane {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+.gh-governance-side-pane-dense {
+  gap: 8px;
+}
+
+.gh-governance-side-pane .gh-surface-rail-body {
+  gap: 14px;
+}
+
+.gh-governance-side-pane .gh-surface-rail-actions {
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+}
+
+.gh-governance-side-pane .gh-surface-rail-section {
+  gap: 10px;
+}
+
+.gh-governance-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gh-governance-lane-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gh-governance-lane-chip {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid rgba(198, 210, 234, 0.85);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--gh-ink);
+  font-weight: 800;
+}
+
+.gh-governance-lane-chip strong {
+  font-size: 0.86rem;
+}
+
+.gh-governance-lane-chip.is-active {
+  border-color: rgba(103, 79, 236, 0.4);
+  background: rgba(238, 235, 255, 0.9);
+  box-shadow: none;
+}
+
+.gh-governance-focus-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.gh-governance-linked-list {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-governance-linked-row {
+  padding: 6px 8px;
+  border: 1px solid rgba(198, 210, 234, 0.72);
+  border-radius: 8px;
+  background: rgba(250, 252, 255, 0.84);
+  display: grid;
+  gap: 8px;
+}
+
+.gh-governance-glossary-toolbar {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-governance-glossary-tabs {
+  align-self: start;
+}
+
+.gh-governance-glossary-list {
+  gap: 8px;
+}
+
+@media (max-width: 1500px) {  .gh-governance-shell-header-tools,
+.gh-governance-focus-command {
+    width: 100%;
+    justify-items: stretch;
+  }
+
+  .gh-governance-lane-rail {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .gh-governance-focus-command {
+    width: 100%;
+  }
+}
+
+.gh-governance-reviewer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.gh-governance-reviewer-card {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--gh-line);
+  border-radius: 14px;
+  background: var(--gh-surface-soft);
+  box-shadow: var(--gh-shadow-soft);
+}
+
+.gh-governance-reviewer-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gh-governance-reviewer-email {
+  min-width: 0;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.gh-governance-reviewer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gh-governance-timeline {
+  display: grid;
+  gap: 10px;
+}
+
+.gh-governance-timeline-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--gh-line);
+  border-radius: 14px;
+  background: var(--gh-surface);
+  box-shadow: var(--gh-shadow-soft);
+}
+
+.gh-governance-timeline-mark {
+  display: flex;
+  align-items: flex-start;
+}
+
+.gh-governance-timeline-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.gh-governance-timeline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.gh-governance-timeline-title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.gh-governance-glossary-list {
+  gap: 10px;
+}
+
+/* Phase 2-h.4 — richer lane chips with tone + heavier count */
+.gh-governance-lane-chip {
+  align-items: center;
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-line);
+  border-radius: 12px;
+  color: var(--gh-ink);
+  cursor: pointer;
+  display: inline-flex;
+  gap: 10px;
+  min-height: 54px;
+  padding: 10px 16px;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.gh-governance-lane-chip:hover {
+  border-color: var(--gh-line-strong);
+}
+.gh-governance-lane-count {
+  font-size: 1.44rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  min-width: 24px;
+  text-align: center;
+}
+.gh-governance-lane-label {
+  color: var(--gh-ink-soft);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.gh-governance-lane-chip.tone-accent { background: #eef2ff; border-color: #c7d2fe; }
+.gh-governance-lane-chip.tone-accent .gh-governance-lane-count { color: #4338ca; }
+.gh-governance-lane-chip.tone-warn { background: #fef3c7; border-color: #fbd38d; }
+.gh-governance-lane-chip.tone-warn .gh-governance-lane-count { color: #b45309; }
+.gh-governance-lane-chip.tone-info { background: #ecfeff; border-color: #a5f3fc; }
+.gh-governance-lane-chip.tone-info .gh-governance-lane-count { color: #0e7490; }
+.gh-governance-lane-chip.tone-bad { background: #fef2f2; border-color: #fecaca; }
+.gh-governance-lane-chip.tone-bad .gh-governance-lane-count { color: #b91c1c; }
+.gh-governance-lane-chip.is-active {
+  border-color: var(--gh-accent);
+  box-shadow: 0 0 0 3px rgba(15, 92, 192, 0.12);
+}
+
+/* Phase 5-i.1 — Audit timeline drawer */
+.gh-audit-timeline-drawer {
+  --gh-drawer-width: 520px;
+}
+.gh-audit-entry-count {
+  color: var(--gh-ink-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.gh-audit-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.gh-audit-entry {
+  background: var(--gh-surface);
+  border: 1px solid var(--gh-line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(22, 35, 56, 0.04);
+}
+.gh-audit-entry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.gh-audit-entry-time {
+  color: var(--gh-ink-muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.gh-audit-entry-actor {
+  color: var(--gh-ink);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+.gh-audit-entry-meta {
+  color: var(--gh-ink-muted);
+  font-size: 0.78rem;
+}
+.gh-audit-entry-meta code {
+  background: var(--gh-surface-muted);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: ui-monospace, Menlo, SFMono-Regular, monospace;
+}
+.gh-audit-entry-toggle { align-self: flex-start; }
+.gh-audit-entry-diff {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+.gh-audit-entry-pre {
+  background: var(--gh-surface-muted);
+  border: 1px solid var(--gh-line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  font-family: ui-monospace, Menlo, SFMono-Regular, monospace;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Phase 5 Tranche D — glossary hierarchy tree rendering */
+.gh-governance-glossary-item {
+  position: relative;
+}
+.gh-governance-glossary-item[class*="depth-"]:not(.depth-0)::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 14px;
+  width: 6px;
+  height: 1px;
+  background: var(--gh-line-strong);
+}
+
+/* ------------------------------------------------------------
+   Phase 11 — TaxonomyWorkspace
+   ------------------------------------------------------------ */
+.gh-taxonomy-workspace { padding: var(--gh-space-5, 20px); max-width: 1280px; margin: 0 auto; }
+.gh-taxonomy-tabs {
+  display: flex;
+  gap: var(--gh-space-2, 8px);
+  padding-bottom: var(--gh-space-3, 12px);
+  margin-bottom: var(--gh-space-4, 16px);
+  border-bottom: 1px solid var(--gh-border, #d8dee9);
+}
+.gh-taxonomy-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: var(--gh-radius-sm, 6px);
+  overflow: hidden;
+}
+.gh-taxonomy-head {
+  background: var(--gh-surface-muted, #f3f6fb);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--gh-text-muted, #5c6b82);
+}
+.gh-taxonomy-row {
+  display: grid;
+  grid-template-columns: 1.2fr 2fr 0.6fr 0.6fr 0.6fr;
+  gap: var(--gh-space-3, 12px);
+  padding: var(--gh-space-2, 8px) var(--gh-space-3, 12px);
+  align-items: center;
+}
+.gh-taxonomy-row + .gh-taxonomy-row { border-top: 1px solid var(--gh-border, #d8dee9); }
+.gh-taxonomy-name { font-weight: 600; color: var(--gh-text, #14213d); }
+.gh-taxonomy-desc { color: var(--gh-text-muted, #5c6b82); }
+.gh-taxonomy-count { font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------
+   Taxonomy drill-down polish
+   ------------------------------------------------------------ */
+.gh-taxonomy-row-interactive {
+  text-align: left;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+.gh-taxonomy-row-interactive:focus-visible {
+  outline: 2px solid var(--gh-accent, #5b3ff2);
+  outline-offset: -2px;
+}
+.gh-taxonomy-detail-field {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: var(--gh-space-2, 8px);
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--gh-border, #d8dee9);
+}
+.gh-taxonomy-detail-field:last-child { border-bottom: 0; }
+.gh-taxonomy-detail-label {
+  color: var(--gh-text-muted, #5c6b82);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.gh-taxonomy-detail-value { color: var(--gh-text, #14213d); word-break: break-word; }
+.gh-taxonomy-terms,
+.gh-taxonomy-members { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--gh-space-3, 12px); }
+.gh-taxonomy-term,
+.gh-taxonomy-member {
+  padding: var(--gh-space-3, 12px);
+  border: 1px solid var(--gh-border, #d8dee9);
+  border-radius: var(--gh-radius-sm, 6px);
+  background: var(--gh-surface, #fff);
+}
+.gh-taxonomy-term-row,
+.gh-taxonomy-member-head { display: flex; align-items: center; gap: var(--gh-space-2, 8px); }
+.gh-taxonomy-term-name { font-weight: 600; color: var(--gh-text, #14213d); }
+.gh-taxonomy-member-fqn { font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; font-weight: 600; }
+.gh-taxonomy-conflicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--gh-space-3, 12px); }
+.gh-taxonomy-conflict {
+  padding: var(--gh-space-3, 12px);
+  background: var(--gh-surface-muted, #f3f6fb);
+  border-radius: var(--gh-radius-sm, 6px);
+  border: 1px solid var(--gh-border, #d8dee9);
+}
+.gh-taxonomy-conflict-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gh-text-muted, #5c6b82); }
+.gh-taxonomy-conflict-value { font-size: 24px; font-weight: 700; color: var(--gh-text, #14213d); }

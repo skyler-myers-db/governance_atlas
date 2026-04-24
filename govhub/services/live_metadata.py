@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import logging
+import threading
 import time
 from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
 
+from govhub import uc as uc_module
 from govhub.uc import UCSQLClient
+
+logger = logging.getLogger(__name__)
 
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
 PLACEHOLDER_DESCRIPTION = "No description has been captured for this asset yet."
@@ -17,11 +22,48 @@ _STANDARD_TAG_ALIASES = {
     "certification": ("certification", "certified", "data_certification"),
     "sensitivity": ("sensitivity", "classification", "data_classification"),
     "criticality": ("criticality", "priority"),
+    # business_criticality is orthogonal to `criticality` (SLA tier).
+    # Demo feedback: stewards want a fixed-enum business-impact axis —
+    # Mission Critical, Business Critical, Operational, Low Impact,
+    # Not Assessed — round-tripped to UC tags.
+    "business_criticality": ("business_criticality", "biz_criticality"),
     "glossary_term": ("glossary_term", "glossary"),
     "data_product": ("data_product", "product"),
+    # Critical Data Element marker — asset- or column-level boolean tag.
+    "cde": ("cde", "is_cde"),
 }
 
+# Canonical business criticality values — duplicated in
+# govhub/api/assets.py::BUSINESS_CRITICALITY_VALUES for frontend
+# facet rendering. Keep in sync.
+BUSINESS_CRITICALITY_VALUES = (
+    "Mission Critical",
+    "Business Critical",
+    "Operational",
+    "Low Impact",
+    "Not Assessed",
+)
+
 _TTL_CACHE: Dict[str, Tuple[float, Any]] = {}
+# Per-key locks so a burst of concurrent requests for the same cached item
+# issues ONE loader call, not N. The outer dict is guarded by a guard lock
+# while a new per-key lock is being created. Pattern mirrors the equivalent
+# guard in services/lineage.py — the comment there has the long-form
+# justification.
+_TTL_CACHE_LOCKS: Dict[str, threading.Lock] = {}
+_TTL_CACHE_LOCKS_GUARD = threading.Lock()
+
+
+def _ttl_cache_lock(key: str) -> threading.Lock:
+    existing = _TTL_CACHE_LOCKS.get(key)
+    if existing is not None:
+        return existing
+    with _TTL_CACHE_LOCKS_GUARD:
+        existing = _TTL_CACHE_LOCKS.get(key)
+        if existing is None:
+            existing = threading.Lock()
+            _TTL_CACHE_LOCKS[key] = existing
+        return existing
 
 
 def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
@@ -29,9 +71,14 @@ def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
     cached = _TTL_CACHE.get(key)
     if cached and now - cached[0] < ttl_s:
         return cached[1]
-    value = loader()
-    _TTL_CACHE[key] = (now, value)
-    return value
+    lock = _ttl_cache_lock(key)
+    with lock:
+        cached = _TTL_CACHE.get(key)
+        if cached and time.time() - cached[0] < ttl_s:
+            return cached[1]
+        value = loader()
+        _TTL_CACHE[key] = (time.time(), value)
+        return value
 
 
 def _warehouse_key(uc: Any) -> str:
@@ -153,6 +200,8 @@ def lineage_asset_stub(inventory: pd.DataFrame, asset_fqn: str) -> pd.Series:
             "certification": "",
             "sensitivity": "",
             "criticality": "",
+            "business_criticality": "",
+            "cde": "",
             "glossary_term_tag": "",
             "glossary_term": "",
             "glossaryLinks": [],
@@ -478,9 +527,37 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
     catalogs = cached_catalogs(uc)
     inventory_frames: List[pd.DataFrame] = []
     tag_maps: Dict[str, Dict[str, str]] = {}
+    # Track skipped catalogs separately. If EVERY catalog we tried ended up
+    # skipped due to a "skippable" error, that's a transient-failure signal
+    # (cold warehouse, OBO propagation lag, expired token), NOT a legitimate
+    # "this user has no visible assets" state. Raising at the end prevents
+    # an empty inventory from being cached as authoritative for 10 minutes.
+    skipped_catalogs: List[str] = []
+    last_skippable_exc: Optional[Exception] = None
 
     for catalog in catalogs:
-        inv = cached_catalog_inventory(uc, catalog)
+        # Lineage walks routinely cross into catalogs the current user can't
+        # SELECT from (e.g. `bronze.*` feeding a governed `prod.silver.*`).
+        # Matching the per-catalog try/except pattern in
+        # govhub/services/assets.py:build_inventory — skip catalogs that
+        # raise a skippable metadata error (PERMISSION_DENIED, USE CATALOG,
+        # CATALOG_NOT_FOUND, etc.) and continue. The lineage graph will
+        # surface those nodes as "lineage-only" assets. Without this, one
+        # unreadable catalog in the frontier aborts the whole payload and
+        # the endpoint 500s.
+        try:
+            inv = cached_catalog_inventory(uc, catalog)
+        except Exception as exc:
+            if uc_module._is_skippable_metadata_error(exc):
+                logger.info(
+                    "lineage inventory skip: catalog=%s reason=%s",
+                    catalog,
+                    str(exc).splitlines()[0][:200],
+                )
+                skipped_catalogs.append(catalog)
+                last_skippable_exc = exc
+                continue
+            raise
         if not inv.empty:
             inv = inv.copy()
             inv["comment"] = inv["comment"].map(normalize_str)
@@ -493,7 +570,17 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
             )
             inventory_frames.append(inv)
 
-        tags_df = cached_catalog_table_tags(uc, catalog)
+        try:
+            tags_df = cached_catalog_table_tags(uc, catalog)
+        except Exception as exc:
+            if uc_module._is_skippable_metadata_error(exc):
+                logger.info(
+                    "lineage tags skip: catalog=%s reason=%s",
+                    catalog,
+                    str(exc).splitlines()[0][:200],
+                )
+                continue
+            raise
         if tags_df.empty:
             continue
         tags_df = tags_df.copy()
@@ -510,6 +597,27 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
                 for row in group.itertuples()
                 if normalize_str(row.tag_name)
             }
+
+    # If EVERY catalog we attempted was skipped with a "skippable" error
+    # and nothing made it into inventory_frames, that's almost always a
+    # transient failure rather than a real empty state. Raise the last
+    # seen exception so the caller's short-TTL cache window triggers
+    # (empty results cache for 15s, not 10min) and the user sees real
+    # data as soon as the transient condition clears.
+    if (
+        not inventory_frames
+        and catalogs
+        and skipped_catalogs
+        and len(skipped_catalogs) == len(catalogs)
+        and last_skippable_exc is not None
+    ):
+        logger.warning(
+            "inventory: all %d catalog(s) skipped with skippable errors; "
+            "treating as transient failure (last error: %s)",
+            len(catalogs),
+            str(last_skippable_exc).splitlines()[0][:200],
+        )
+        raise last_skippable_exc
 
     if not inventory_frames:
         return empty_inventory()
@@ -536,6 +644,12 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
     )
     inventory["criticality"] = inventory["tags"].map(
         lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "criticality")
+    )
+    inventory["business_criticality"] = inventory["tags"].map(
+        lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "business_criticality")
+    )
+    inventory["cde"] = inventory["tags"].map(
+        lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "cde")
     )
     inventory["glossary_term_tag"] = inventory["tags"].map(
         lambda tags: tag_value(tags if isinstance(tags, dict) else {}, "glossary_term")
@@ -730,8 +844,56 @@ def _inventory_rows_to_frames(uc: UCSQLClient, store: Any) -> pd.DataFrame:
 
 
 def cached_asset_inventory(_uc: UCSQLClient, _store: Any) -> pd.DataFrame:
-    return _ttl_value(
-        f"asset_inventory:{_warehouse_key(_uc)}",
-        600,
-        lambda: _inventory_rows_to_frames(_uc, _store),
-    )
+    """Cache asset inventory per warehouse.
+
+    Short-TTL guard on empty results: a populated inventory is cached for
+    10 minutes (cheap to reuse, rarely changes), but an empty result is
+    cached for only 15 seconds. Without that, a transient cold-start or
+    OBO-token-propagation lag that returns zero assets would poison
+    Discovery for 10 minutes — users would see "No assets match the
+    current scope" even after permissions settle. Mirrors the same
+    pattern already used in `cached_catalogs` and `cached_catalog_inventory`.
+    """
+    key = f"asset_inventory:{_warehouse_key(_uc)}"
+    now = time.time()
+    cached = _TTL_CACHE.get(key)
+    if cached:
+        age = now - cached[0]
+        payload = cached[1]
+        is_empty = payload is None or (hasattr(payload, "empty") and payload.empty)
+        if age < 600 and not is_empty:
+            return payload
+        if age < 15 and is_empty:
+            return payload
+    # Use the locked loader so concurrent misses don't stampede.
+    lock = _ttl_cache_lock(key)
+    with lock:
+        cached = _TTL_CACHE.get(key)
+        if cached:
+            age = time.time() - cached[0]
+            payload = cached[1]
+            is_empty = payload is None or (hasattr(payload, "empty") and payload.empty)
+            if age < 600 and not is_empty:
+                return payload
+            if age < 15 and is_empty:
+                return payload
+        try:
+            value = _inventory_rows_to_frames(_uc, _store)
+        except Exception as exc:
+            # `_inventory_rows_to_frames` raises when every catalog was
+            # skipped by a transient metadata error (see its own comment
+            # for the why). Translate to an empty frame cached under the
+            # 15-second short-TTL so the next call will retry quickly
+            # once the transient condition clears — NOT the 10-minute
+            # full TTL that would trap users on "No assets match".
+            if uc_module._is_skippable_metadata_error(exc):
+                logger.warning(
+                    "inventory: transient empty state cached for 15s "
+                    "due to skippable error: %s",
+                    str(exc).splitlines()[0][:200],
+                )
+                value = empty_inventory()
+            else:
+                raise
+        _TTL_CACHE[key] = (time.time(), value)
+        return value

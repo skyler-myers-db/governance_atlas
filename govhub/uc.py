@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import time
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 import pandas as pd
 
@@ -1028,6 +1028,136 @@ WHERE source_table_catalog = {sql_literal(catalog)}
 GROUP BY ALL
 ORDER BY target_table_full_name
 LIMIT {int(limit)}
+"""
+        return self.query_df(q)
+
+    def get_table_lineage_upstream_batch(
+        self,
+        tables: "List[Tuple[str, str, str]]",
+        limit_per_table: int = 50,
+    ) -> pd.DataFrame:
+        """Batched upstream lookup — one query for N (catalog, schema, table)
+        tuples. Returns rows keyed by target_* so callers can group by the
+        origin table.
+
+        Cuts the BFS walk from N roundtrips per level to 1. Each hop of the
+        branch walk used to issue one `SELECT ... WHERE target = ?` per
+        frontier node; this runs the union of all those predicates in a
+        single statement so warehouse-serverless cold-start overhead is
+        amortized across the whole level.
+
+        The per-origin cap is enforced via `ROW_NUMBER() PARTITION BY
+        target` so one dense target can't starve another's quota. A
+        naïve global LIMIT sorted alphabetically would let a single
+        origin with hundreds of upstreams eat the entire result budget.
+        """
+        if not tables:
+            return pd.DataFrame()
+        tuples_sql = ", ".join(
+            f"({sql_literal(c)}, {sql_literal(s)}, {sql_literal(t)})"
+            for c, s, t in tables
+        )
+        per_origin = int(limit_per_table)
+        # Databricks SQL rejects window functions inside the same SELECT as
+        # GROUP BY ALL. Split the dedup and the ranking into two CTEs:
+        # `deduped` does the GROUP BY, `ranked` applies ROW_NUMBER on its
+        # output.
+        q = f"""
+WITH deduped AS (
+  SELECT
+      target_table_catalog,
+      target_table_schema,
+      target_table_name,
+      target_table_full_name,
+      source_table_full_name,
+      source_table_catalog,
+      source_table_schema,
+      source_table_name,
+      source_type
+  FROM system.access.table_lineage
+  WHERE (target_table_catalog, target_table_schema, target_table_name) IN ({tuples_sql})
+    AND source_table_name IS NOT NULL
+  GROUP BY ALL
+), ranked AS (
+  SELECT
+      deduped.*,
+      ROW_NUMBER() OVER (
+          PARTITION BY target_table_catalog, target_table_schema, target_table_name
+          ORDER BY source_table_full_name
+      ) AS rn
+  FROM deduped
+)
+SELECT
+    target_table_catalog,
+    target_table_schema,
+    target_table_name,
+    target_table_full_name,
+    source_table_full_name,
+    source_table_catalog,
+    source_table_schema,
+    source_table_name,
+    source_type
+FROM ranked
+WHERE rn <= {per_origin}
+ORDER BY target_table_full_name, source_table_full_name
+"""
+        return self.query_df(q)
+
+    def get_table_lineage_downstream_batch(
+        self,
+        tables: "List[Tuple[str, str, str]]",
+        limit_per_table: int = 50,
+    ) -> pd.DataFrame:
+        """Batched downstream lookup — see get_table_lineage_upstream_batch.
+
+        Same per-origin windowed cap so each source in the frontier
+        keeps its `limit_per_table` share of downstream neighbors.
+        """
+        if not tables:
+            return pd.DataFrame()
+        tuples_sql = ", ".join(
+            f"({sql_literal(c)}, {sql_literal(s)}, {sql_literal(t)})"
+            for c, s, t in tables
+        )
+        per_origin = int(limit_per_table)
+        q = f"""
+WITH deduped AS (
+  SELECT
+      source_table_catalog,
+      source_table_schema,
+      source_table_name,
+      source_table_full_name,
+      target_table_full_name,
+      target_table_catalog,
+      target_table_schema,
+      target_table_name,
+      target_type
+  FROM system.access.table_lineage
+  WHERE (source_table_catalog, source_table_schema, source_table_name) IN ({tuples_sql})
+    AND target_table_name IS NOT NULL
+  GROUP BY ALL
+), ranked AS (
+  SELECT
+      deduped.*,
+      ROW_NUMBER() OVER (
+          PARTITION BY source_table_catalog, source_table_schema, source_table_name
+          ORDER BY target_table_full_name
+      ) AS rn
+  FROM deduped
+)
+SELECT
+    source_table_catalog,
+    source_table_schema,
+    source_table_name,
+    source_table_full_name,
+    target_table_full_name,
+    target_table_catalog,
+    target_table_schema,
+    target_table_name,
+    target_type
+FROM ranked
+WHERE rn <= {per_origin}
+ORDER BY source_table_full_name, target_table_full_name
 """
         return self.query_df(q)
 

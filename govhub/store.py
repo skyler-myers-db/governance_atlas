@@ -602,6 +602,70 @@ ON lower(t.email) = lower(s.email)
 WHEN MATCHED THEN UPDATE SET role=s.role, updated_at=s.updated_at, updated_by=s.updated_by
 WHEN NOT MATCHED THEN INSERT * """)
 
+    # ── Tenant branding (F7 white-label palette) ───────────
+
+    def get_tenant_branding(self) -> Dict[str, Any]:
+        """Return the single-row branding config. Absent row yields an
+        empty dict so callers can fall back to hard-coded defaults."""
+        try:
+            df = self.uc.query_df(
+                f"SELECT primary_color, accent_color, logo_url, "
+                f"org_display_name, updated_at, updated_by "
+                f"FROM {self._fq('tenant_branding')} "
+                f"WHERE singleton_id = 'default' LIMIT 1"
+            )
+        except Exception:
+            return {}
+        if df is None or df.empty:
+            return {}
+        row = df.iloc[0].to_dict()
+        return {
+            "primaryColor": str(row.get("primary_color") or "").strip(),
+            "accentColor": str(row.get("accent_color") or "").strip(),
+            "logoUrl": str(row.get("logo_url") or "").strip(),
+            "orgDisplayName": str(row.get("org_display_name") or "").strip(),
+            "updatedAt": str(row.get("updated_at") or ""),
+            "updatedBy": str(row.get("updated_by") or ""),
+        }
+
+    def upsert_tenant_branding(
+        self,
+        *,
+        primary_color: str = "",
+        accent_color: str = "",
+        logo_url: str = "",
+        org_display_name: str = "",
+        updated_by: str = "",
+    ) -> None:
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""MERGE INTO {self._fq("tenant_branding")} t
+USING (
+    SELECT 'default' AS singleton_id,
+           {sql_literal(primary_color or "")} AS primary_color,
+           {sql_literal(accent_color or "")} AS accent_color,
+           {sql_literal(logo_url or "")} AS logo_url,
+           {sql_literal(org_display_name or "")} AS org_display_name,
+           timestamp({sql_literal(ts)}) AS updated_at,
+           {sql_literal(updated_by or "")} AS updated_by
+) s
+ON t.singleton_id = s.singleton_id
+WHEN MATCHED THEN UPDATE SET
+    primary_color = s.primary_color,
+    accent_color = s.accent_color,
+    logo_url = s.logo_url,
+    org_display_name = s.org_display_name,
+    updated_at = s.updated_at,
+    updated_by = s.updated_by
+WHEN NOT MATCHED THEN INSERT (
+    singleton_id, primary_color, accent_color, logo_url, org_display_name,
+    created_at, created_by, updated_at, updated_by
+) VALUES (
+    s.singleton_id, s.primary_color, s.accent_color, s.logo_url, s.org_display_name,
+    s.updated_at, s.updated_by, s.updated_at, s.updated_by
+)"""
+        )
+
     # ── Identity directory / entity registry ───────────────
 
     def list_identity_directory_entries(

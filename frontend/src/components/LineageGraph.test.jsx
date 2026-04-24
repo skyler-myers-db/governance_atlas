@@ -68,12 +68,19 @@ describe("LineageGraph", () => {
       />,
     );
 
+    // The drawer now defaults to open on first render so the focused
+    // asset's detail rail matches the lineage mockup without requiring a
+    // preparatory click. The "close + reopen" semantics are still
+    // exercised below.
+    expect(container.querySelector(".gh-lineage-drawer.is-open")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Close drawer" })).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close drawer" }));
     expect(container.querySelector(".gh-lineage-drawer.is-open")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "orders" }));
 
     expect(container.querySelector(".gh-lineage-drawer.is-open")).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Close drawer" })).not.toBeNull();
     // The rebuilt drawer body always renders the 5 tab buttons + the sticky
     // action footer. Those two pieces are the new load-bearing structure —
     // they replace the old freeform "Graph Actions" / narrative sections.
@@ -369,7 +376,7 @@ describe("LineageGraph", () => {
     expect(screen.getByText("customer_id")).not.toBeNull();
   });
 
-  it("switches to the Depend. tab and lists adjacent neighbors that refocus on click", () => {
+  it("switches to the Depend. tab with a full accessible label and lists adjacent neighbors", () => {
     const onSelectAsset = vi.fn();
     render(
       <LineageGraph
@@ -422,7 +429,7 @@ describe("LineageGraph", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "orders" }));
-    fireEvent.click(screen.getByTestId("lineage-node-tab-dependencies"));
+    fireEvent.click(screen.getByRole("tab", { name: "Dependencies" }));
 
     const rows = screen.getAllByTestId("lineage-node-dependency");
     expect(rows.length).toBeGreaterThanOrEqual(1);

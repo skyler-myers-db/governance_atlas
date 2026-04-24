@@ -1,7 +1,67 @@
+import { useEffect, useState } from "react";
 import { displayObjectType } from "../lib/assetPresentation";
 import { Breadcrumbs } from "./primitives/Breadcrumbs";
 import LineageGraph from "./LineageGraph";
 import { EmptyStateBlock, InlineStatusBanner } from "./ShellStatePrimitives";
+
+// The full lineage pull hits `system.access.table_lineage` + column
+// lineage — a serverless warehouse query path that can take 30–60s
+// cold. A generic spinner makes that feel broken; an honest skeleton
+// with escalating messaging makes it feel like progress.
+function LineageLoadingSkeleton({ asset }) {
+  const [phase, setPhase] = useState(0);
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase(1), 4000);
+    const t2 = setTimeout(() => setPhase(2), 12000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [asset?.fqn]);
+
+  const messages = [
+    {
+      title: "Assembling the lineage graph",
+      message:
+        "Querying system.access.table_lineage for upstream + downstream producers.",
+    },
+    {
+      title: "Warehouse warming up",
+      message:
+        "Serverless SQL warehouses take 30–90 seconds to start from idle. Hang on — the graph will fill in as soon as the warehouse responds.",
+    },
+    {
+      title: "Still fetching",
+      message:
+        "Large dependency graphs (2-hop, 50-edge cap) take longer to materialize. Column-level lineage is being pulled in parallel.",
+    },
+  ];
+  const state = messages[Math.min(phase, messages.length - 1)];
+
+  return (
+    <div className="gh-lineage-skeleton" aria-busy="true">
+      <div className="gh-lineage-skeleton-copy">
+        <div className="gh-eyebrow">Lineage</div>
+        <h3>{state.title}</h3>
+        {/* Scope the live-region to just the message line. The title
+            changes with each escalation too but announcing both on
+            every phase would double-read to screen-reader users —
+            the message carries the actionable information. */}
+        <p aria-live="polite" aria-atomic="true">
+          {state.message}
+        </p>
+      </div>
+      <div className="gh-lineage-skeleton-graph" aria-hidden="true">
+        <span className="gh-lineage-skeleton-node is-upstream" />
+        <span className="gh-lineage-skeleton-node is-upstream" />
+        <span className="gh-lineage-skeleton-node is-focus" />
+        <span className="gh-lineage-skeleton-node is-downstream" />
+        <span className="gh-lineage-skeleton-node is-downstream" />
+        <span className="gh-lineage-skeleton-node is-downstream" />
+      </div>
+    </div>
+  );
+}
 
 function selectGraph(graphBundle, context, modeFlags) {
   if (!graphBundle) return null;
@@ -106,38 +166,29 @@ function humanizeTimestamp(value) {
   }
 }
 
-function Stepper({ label, value, min = 0, max = 99, onChange, "data-testid": testId = "" }) {
-  const dec = () => {
-    if (value > min) onChange(value - 1);
-  };
-  const inc = () => {
-    if (value < max) onChange(value + 1);
-  };
-
+function PillSelect({
+  label,
+  value,
+  min = 0,
+  max = 99,
+  onChange,
+  formatValue = (next) => `${label} (${next})`,
+  "data-testid": testId = "",
+}) {
   return (
-    <label className="gh-lineage-stepper" data-testid={testId || undefined}>
-      <span className="gh-lineage-stepper-label">{label}</span>
-      <button
-        aria-label={`Decrease ${label}`}
-        className="gh-lineage-stepper-button"
-        disabled={value <= min}
-        onClick={dec}
-        type="button"
+    <label className="gh-lineage-pill-select" data-testid={testId || undefined}>
+      <select
+        aria-label={label}
+        className="gh-lineage-pill-select-control"
+        onChange={(event) => onChange?.(Number(event.target.value))}
+        value={value}
       >
-        −
-      </button>
-      <span className="gh-lineage-stepper-value" data-testid={testId ? `${testId}-value` : undefined}>
-        {value}
-      </span>
-      <button
-        aria-label={`Increase ${label}`}
-        className="gh-lineage-stepper-button"
-        disabled={value >= max}
-        onClick={inc}
-        type="button"
-      >
-        +
-      </button>
+        {Array.from({ length: max - min + 1 }, (_, index) => min + index).map((option) => (
+          <option key={`${label}-${option}`} value={option}>
+            {formatValue(option)}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }
@@ -245,10 +296,8 @@ function LineageHeader({ asset, generatedAt }) {
   const catalog = (asset.catalog || "").trim();
   const schema = (asset.schema || "").trim();
   const name = asset.name || asset.label || "";
-  // Round 18 defect #3: breadcrumb starts at the catalog, NOT "Unity Catalog".
-  // The "Unity Catalog" prefix added noise without adding signal — the
-  // workspace name sits in the topbar already.
   const breadcrumbItems = [
+    { key: "unity-catalog", label: "Unity Catalog" },
     catalog ? { key: "catalog", label: catalog } : null,
     schema ? { key: "schema", label: schema } : null,
     name ? { key: "name", label: name } : null,
@@ -265,41 +314,50 @@ function LineageHeader({ asset, generatedAt }) {
 
   const chips = [];
   if (schema) chips.push({ key: "schema", label: "Schema", value: schema });
-  // Round 19 fix #9: label reads "Asset Type" not "Source" — "Source"
-  // was ambiguous with the upstream-source meaning in lineage parlance.
-  if (objectType) chips.push({ key: "source", label: "Asset Type", value: objectType });
+  if (objectType) chips.push({ key: "asset-type", label: "Asset Type", value: objectType });
   if (lastUpdated) chips.push({ key: "updated", label: "Last Updated", value: lastUpdated });
-  // The Databricks connection indicator is always valid when lineage is
-  // available — the page itself cannot load without a connected workspace.
-  chips.push({ key: "databricks", label: "", value: "Databricks connection", dot: true });
 
   return (
     <header className="gh-lineage-header" data-testid="lineage-header">
-      <h1 className="gh-lineage-header-title" data-testid="lineage-header-title">
-        Lineage: <span className="gh-lineage-header-asset-name">{name}</span>
-      </h1>
-      <Breadcrumbs
-        ariaLabel="Lineage breadcrumb"
-        className="gh-lineage-header-breadcrumbs"
-        items={breadcrumbItems}
-        separator="›"
-      />
-      {chips.length ? (
-        <div className="gh-lineage-header-chips" role="list">
-          {chips.map((chip) => (
-            <span
-              className={`gh-lineage-header-chip ${chip.dot ? "is-connection" : ""}`}
-              data-testid={`lineage-chip-${chip.key}`}
-              key={chip.key}
-              role="listitem"
-            >
-              {chip.dot ? <span aria-hidden="true" className="gh-lineage-header-chip-dot" /> : null}
-              {chip.label ? <span className="gh-lineage-header-chip-label">{chip.label}:</span> : null}
-              <span className="gh-lineage-header-chip-value">{chip.value}</span>
-            </span>
-          ))}
+      <div className="gh-lineage-header-main">
+        <div className="gh-lineage-header-copy">
+          <h1 className="gh-lineage-header-title" data-testid="lineage-header-title">
+            Lineage: <span className="gh-lineage-header-asset-name">{name}</span>
+          </h1>
+          <div className="gh-lineage-header-meta">
+            <Breadcrumbs
+              ariaLabel="Lineage breadcrumb"
+              className="gh-lineage-header-breadcrumbs"
+              items={breadcrumbItems}
+              separator="›"
+            />
+            {chips.length ? (
+              <div className="gh-lineage-header-chips" role="list">
+                {chips.map((chip) => (
+                  <span
+                    className="gh-lineage-header-chip"
+                    data-testid={`lineage-chip-${chip.key}`}
+                    key={chip.key}
+                    role="listitem"
+                  >
+                    <span className="gh-lineage-header-chip-label">{chip.label}:</span>
+                    <span className="gh-lineage-header-chip-value">{chip.value}</span>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
-      ) : null}
+        <div
+          className="gh-lineage-connection-pill"
+          data-testid="lineage-chip-databricks"
+          role="status"
+        >
+          <span aria-hidden="true" className="gh-lineage-connection-icon" />
+          <span>Databricks connection</span>
+          <span aria-hidden="true" className="gh-lineage-connection-check">✓</span>
+        </div>
+      </div>
     </header>
   );
 }
@@ -321,39 +379,49 @@ function LineageControlBar({
   onIncludeColumnsChange,
   onFocusView,
   onResetZoom,
+  onRefreshLineage,
+  showRefreshAction = true,
+  loading = false,
 }) {
   return (
     <div className="gh-lineage-controls" data-testid="lineage-controls">
       <div className="gh-lineage-controls-left">
-        <Stepper
+        <div className="gh-lineage-levels-combo" aria-label="Lineage levels">
+          <PillSelect
           data-testid="lineage-upstream-stepper"
           label="Upstream levels"
           max={6}
           min={0}
+          formatValue={(next) => `Upstream (${next} level${next === 1 ? "" : "s"})`}
           onChange={onUpstreamLevelsChange}
           value={upstreamLevels}
-        />
-        <Stepper
+          />
+          <span aria-hidden="true" className="gh-lineage-levels-separator">/</span>
+          <PillSelect
           data-testid="lineage-downstream-stepper"
           label="Downstream levels"
           max={6}
           min={0}
+          formatValue={(next) => `Downstream (${next} level${next === 1 ? "" : "s"})`}
           onChange={onDownstreamLevelsChange}
           value={downstreamLevels}
-        />
-        <Stepper
+          />
+        </div>
+        <PillSelect
           data-testid="lineage-depth-stepper"
           label="Depth"
           max={4}
           min={1}
+          formatValue={(next) => `Depth (${next})`}
           onChange={onMaxDepthChange}
           value={maxDepth}
         />
-        <Stepper
+        <PillSelect
           data-testid="lineage-per-layer-stepper"
           label="Nodes per Layer"
           max={25}
           min={5}
+          formatValue={(next) => `Nodes per Layer (${next})`}
           onChange={onNodesPerLayerChange}
           value={nodesPerLayer}
         />
@@ -385,6 +453,18 @@ function LineageControlBar({
         >
           Reset Zoom
         </button>
+        {showRefreshAction && onRefreshLineage ? (
+          <button
+            className="gh-tertiary-button gh-lineage-controls-action"
+            data-testid="lineage-refresh"
+            disabled={loading}
+            onClick={() => onRefreshLineage()}
+            title="Re-fetch lineage from Unity Catalog (bypass the 30-minute cache)"
+            type="button"
+          >
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -408,7 +488,7 @@ export default function LineageStage({
   downstreamLevels = 2,
   maxDepth = 2,
   nodesPerLayer = 10,
-  includeColumns = false,
+  includeColumns = true,
   onUpstreamLevelsChange,
   onDownstreamLevelsChange,
   onMaxDepthChange,
@@ -427,6 +507,7 @@ export default function LineageStage({
   allowRefocus = true,
   userEmail = "",
   workspaceHost = "",
+  onRefreshLineage = null,
 }) {
   const graph = selectGraph(graphBundle, context, modeFlags);
   const stats = {
@@ -484,6 +565,9 @@ export default function LineageStage({
           onResetZoom={handleResetZoom}
           onUpstreamLevelsChange={onUpstreamLevelsChange}
           upstreamLevels={upstreamLevels}
+          onRefreshLineage={onRefreshLineage}
+          showRefreshAction={false}
+          loading={loading}
         />
       ) : null}
       <section className="gh-lineage-graph-panel gh-lineage-graph-stage">
@@ -513,7 +597,7 @@ export default function LineageStage({
         ) : null}
         <div className="gh-lineage-stage-canvas">
           {loading && !hasGraph ? (
-            <EmptyStateBlock message="Loading lineage graph…" title="Refreshing graph" />
+            <LineageLoadingSkeleton asset={asset} />
           ) : hasGraph || overlay ? (
             <>
               {error ? (
@@ -542,6 +626,7 @@ export default function LineageStage({
                 onRegisterGraphActions={registerGraphActions}
                 onSelectAsset={onSelectAsset}
                 overlay={overlay}
+                showCanvasControls={embedded}
                 upstreamLevels={upstreamLevels}
                 userEmail={userEmail}
                 workspaceHost={workspaceHost}

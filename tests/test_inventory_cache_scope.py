@@ -124,5 +124,119 @@ class BootstrapInventoryCacheScopeTests(unittest.TestCase):
         )
 
 
+class VisibleAssetsShortTTLEmptyTests(unittest.TestCase):
+    """Regression tests for the short-TTL-on-empty guard on the outer
+    per-actor `runtime_inventory:<scope>` cache.
+
+    Without the guard, a single empty fetch during warehouse warm-up / SP
+    grant wipe traps every subsequent request at "Showing 0 of 0 assets"
+    for the full 5-minute TTL, even after the inner cache has recovered.
+    """
+
+    def setUp(self) -> None:
+        with api_cache._CACHE_LOCK:
+            api_cache._TTL_CACHE.clear()
+
+    def _runtime_deps_stub(self):
+        hidden = tuple()
+
+        def request_cache_scope(_request):
+            return "alice@example.com|obo-available"
+
+        def store_for_read():
+            return object()
+
+        def uc_for_request(_request):
+            return object()
+
+        return hidden, request_cache_scope, store_for_read, uc_for_request
+
+    def _fake_columns(self):
+        return [
+            "table_catalog",
+            "table_schema",
+            "table_name",
+            "table_type",
+            "data_source_format",
+            "fqn",
+        ]
+
+    def test_empty_inventory_is_cached_for_only_15s(self) -> None:
+        call_count = {"n": 0}
+        empty = pd.DataFrame(columns=self._fake_columns())
+
+        def fake_visible(_uc, _store, **kwargs):
+            call_count["n"] += 1
+            return empty
+
+        with patch.object(
+            inventory_service, "_runtime_deps", self._runtime_deps_stub
+        ), patch(
+            "govhub.services.assets.visible_assets", side_effect=fake_visible
+        ):
+            # First call: populates the cache with the empty frame.
+            inventory_service.visible_assets(None)
+            # Second call within 15s: must hit cache (no new fetch).
+            inventory_service.visible_assets(None)
+            self.assertEqual(call_count["n"], 1)
+
+            # Simulate the cache entry aging past 15s. The guard must
+            # re-fetch instead of serving the stale empty for 5 minutes.
+            key = "runtime_inventory:alice@example.com|obo-available"
+            old_ts, payload = api_cache._TTL_CACHE[key]
+            api_cache._TTL_CACHE[key] = (old_ts - 30.0, payload)
+
+            inventory_service.visible_assets(None)
+            self.assertEqual(
+                call_count["n"],
+                2,
+                msg=(
+                    "Empty inventory was served from cache past the 15s "
+                    "short-TTL window. The per-actor cache must re-fetch "
+                    "promptly after an empty result so Discovery self-heals "
+                    "when the warehouse / SP grants recover."
+                ),
+            )
+
+    def test_populated_inventory_still_caches_for_5min(self) -> None:
+        call_count = {"n": 0}
+        populated = pd.DataFrame(
+            [
+                {
+                    "table_catalog": "prod",
+                    "table_schema": "silver",
+                    "table_name": "orders",
+                    "table_type": "MANAGED",
+                    "data_source_format": "DELTA",
+                    "fqn": "prod.silver.orders",
+                }
+            ]
+        )
+
+        def fake_visible(_uc, _store, **kwargs):
+            call_count["n"] += 1
+            return populated
+
+        with patch.object(
+            inventory_service, "_runtime_deps", self._runtime_deps_stub
+        ), patch(
+            "govhub.services.assets.visible_assets", side_effect=fake_visible
+        ):
+            inventory_service.visible_assets(None)
+            # Simulate aging to 60s (well past the 15s empty window, well
+            # under the 5min populated window). Populated results must
+            # remain cached.
+            key = "runtime_inventory:alice@example.com|obo-available"
+            old_ts, payload = api_cache._TTL_CACHE[key]
+            api_cache._TTL_CACHE[key] = (old_ts - 60.0, payload)
+
+            inventory_service.visible_assets(None)
+            self.assertEqual(
+                call_count["n"],
+                1,
+                msg="Populated inventory must still hit the full 5-minute TTL.",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

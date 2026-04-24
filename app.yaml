@@ -15,4 +15,4 @@ env:
   - name: GOVHUB_SCHEMA
     value: governance_hub
   - name: GOVHUB_ADMIN_EMAILS
-    value: ""
+    value: "skyler.myers@tristategt.org"

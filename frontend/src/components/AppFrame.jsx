@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAssetSearch } from "../hooks/useAssetSearch";
+import { useTenantBranding } from "../hooks/useTenantBranding";
+import { useTheme } from "../hooks/useTheme";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { workspaceAccessBanner } from "../lib/capabilities";
 import { InlineStatusBanner } from "./ShellStatePrimitives";
@@ -44,13 +46,15 @@ export default function AppFrame({
   const shellHeaderRef = useRef(null);
   const searchRootRef = useRef(null);
 
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    // Light cream theme is the only supported theme for now — operator
-    // 2026-04-19 round 3 removed the dark-mode toggle. Pin the
-    // data-theme attribute so any remaining dark-mode CSS stays inert.
-    document.documentElement.setAttribute("data-theme", "light");
-  }, []);
+  // Theme management — the hook applies `data-theme` on <html> and
+  // persists the user's choice to localStorage. System mode follows
+  // the browser's `prefers-color-scheme`. Previously this surface
+  // pinned data-theme="light" to disable the dark palette; the pin is
+  // now replaced by a real three-state toggle exposed in the topbar.
+  const theme = useTheme();
+  // Apply tenant branding (F7) — overrides --gh-accent / --gh-accent-2
+  // and surfaces org display name + logo url for the brand glyph.
+  const branding = useTenantBranding({ shell });
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -280,7 +284,6 @@ export default function AppFrame({
       <SideIconRail
         activeModule={activeModule}
         onModuleChange={onModuleChange}
-        onOpenSettings={onToggleDiagnostics}
         onSignOut={handleSignOut}
         shellDisabled={shellDisabled}
         shellDisabledReason={shellDisabledReason}
@@ -313,6 +316,9 @@ export default function AppFrame({
           onOpenCapabilities={onOpenCapabilities}
           onSignOut={handleSignOut}
           onOpenCommandPalette={() => setCommandOpen(true)}
+          branding={branding}
+          onCycleTheme={theme.cycleMode}
+          themeMode={theme.mode}
           topbarSearchSlot={(
             <TopbarSearch
               searchRootRef={searchRootRef}

@@ -1,11 +1,14 @@
 import LineageStage from "./LineageStage";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   canOpenLinkedAssetRecord,
   useAssetDetail,
 } from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
-import { useLineage } from "../hooks/useLineage";
+import {
+  refreshLineage,
+  useLineage,
+} from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import { assetPathLabel } from "../lib/assetPresentation";
 import {
@@ -72,7 +75,7 @@ export default function LineageWorkspace({
   const [downstreamLevels, setDownstreamLevels] = useState(2);
   const [maxDepth, setMaxDepth] = useState(2);
   const [nodesPerLayer, setNodesPerLayer] = useState(10);
-  const [includeColumns, setIncludeColumns] = useState(false);
+  const [includeColumns, setIncludeColumns] = useState(true);
   const lineageAvailable = tableLineageAvailable(bootstrap);
   const lineageUnavailableReason = tableLineageReason(bootstrap);
   const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", false);
@@ -111,9 +114,34 @@ export default function LineageWorkspace({
   });
   const assetDetail = useAssetDetail(focusAssetFqn || "", { sections: ["header"] });
   const lineage = useLineage(focusAssetFqn || "", lineageSurfaceAvailable);
+  // Synthesize a minimal asset from the FQN when the governance store has no
+  // record for it (404). Unity Catalog lineage routinely includes tables that
+  // live OUTSIDE the governed catalog/schema (e.g. `bronze.oracle_fscm.*`
+  // upstreams feeding a `prod.silver.*` governed target). Without this
+  // fallback the workspace blanks out for any un-registered asset even when
+  // /api/lineage returned a complete graph.
+  const lineageOnlyAsset = useMemo(() => {
+    if (!focusAssetFqn) return null;
+    const parts = focusAssetFqn.split(".");
+    const [catalog = "", schema = "", ...rest] = parts;
+    const name = rest.join(".") || parts[parts.length - 1] || focusAssetFqn;
+    return {
+      fqn: focusAssetFqn,
+      name,
+      catalog,
+      schema,
+      displayName: name,
+      kind: "table",
+      assetType: "Table",
+      governanceStatus: "Needs Work",
+      resolutionState: "lineage-only",
+      isLineageOnly: true,
+    };
+  }, [focusAssetFqn]);
   const asset =
     assetDetail.detail ||
-    (focusAssetFqn && assetDetail.loading ? seeded.summary : null);
+    (focusAssetFqn && assetDetail.loading ? seeded.summary : null) ||
+    lineageOnlyAsset;
   const assetSearch = useAssetSearch(
     assetSearchQuery,
     assetSearchQuery.trim().length >= 2,
@@ -387,6 +415,23 @@ export default function LineageWorkspace({
         onMaxDepthChange={setMaxDepth}
         onNodesPerLayerChange={setNodesPerLayer}
         onIncludeColumnsChange={setIncludeColumns}
+        onRefreshLineage={() => {
+          if (!focusAssetFqn) return;
+          // Bypass BOTH caches in the right order:
+          //   1. Fire a force=1 fetch directly. This request carries
+          //      `?force=1` → backend invalidates its 30-min TTL and
+          //      rebuilds.
+          //   2. When it resolves, prime the React Query cache with the
+          //      fresh payload under the full-tier key.
+          //   3. `refreshLineage` updates both tier caches so mounted
+          //      observers pick up the refreshed backend payload.
+          //
+          // Previously the order was reversed (invalidate → prefetch),
+          // which lost the force flag because React Query's queryFn
+          // dedup raced the non-force observer refetch against the
+          // force prefetch.
+          void refreshLineage(focusAssetFqn);
+        }}
         onAssetSearchQueryChange={setAssetSearchQuery}
         onContextChange={(nextContext) => {
           setLocalContext(nextContext);
