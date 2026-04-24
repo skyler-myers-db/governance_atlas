@@ -43,6 +43,8 @@ describe("useDiscoveryResults", () => {
             tiers: [],
             certifications: [],
             sensitivities: [],
+            businessCriticalities: [],
+            cdeOnly: false,
             sortBy: "Best match",
           },
         ),
@@ -69,6 +71,8 @@ describe("useDiscoveryResults", () => {
           tiers: [],
           certifications: [],
           sensitivities: [],
+          businessCriticalities: [],
+          cdeOnly: false,
           sortBy: "Best match",
         }),
       );
@@ -103,6 +107,8 @@ describe("useDiscoveryResults", () => {
             tiers: [],
             certifications: [],
             sensitivities: [],
+            businessCriticalities: [],
+            cdeOnly: false,
             sortBy: "Best match",
           },
           {
@@ -150,6 +156,8 @@ describe("useDiscoveryResults", () => {
             tiers: [],
             certifications: [],
             sensitivities: [],
+            businessCriticalities: [],
+            cdeOnly: false,
             sortBy: "Best match",
           },
           { limit },
@@ -181,6 +189,8 @@ describe("useDiscoveryResults", () => {
         tiers: [],
         certifications: [],
         sensitivities: [],
+        businessCriticalities: [],
+        cdeOnly: false,
         sortBy: "Best match",
       }),
     );
@@ -217,6 +227,8 @@ describe("useDiscoveryResults", () => {
           tiers: [],
           certifications: [],
           sensitivities: [],
+          businessCriticalities: [],
+          cdeOnly: false,
           sortBy: "Best match",
         }),
       {
@@ -272,6 +284,8 @@ describe("useDiscoveryResults", () => {
           tiers: [],
           certifications: [],
           sensitivities: [],
+          businessCriticalities: [],
+          cdeOnly: false,
           sortBy: "Best match",
         }),
       {

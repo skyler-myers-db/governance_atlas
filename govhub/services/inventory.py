@@ -38,8 +38,9 @@ def visible_assets(
     *,
     cache_scope: str = "",
 ) -> pd.DataFrame:
-    """Return the visible-assets inventory for this request, memoized for 5 min
-    per cache scope ({actor}|{auth-mode}).
+    """Return the visible-assets inventory for this request, memoized per cache
+    scope ({actor}|{auth-mode}). Populated results cache for 5 minutes; empty
+    results cache for only 15 seconds.
 
     **OBO fallback guard (round 14):** when the request's OBO client silently
     latches to the app-principal fallback (e.g. the user's token is missing
@@ -52,6 +53,14 @@ def visible_assets(
     the cache and, if the client reports `obo_scope_fallback=True` after
     the load, evict the cache entry so the next request attempts OBO
     again instead of serving the degraded result for 5 minutes.
+
+    **Short-TTL empty guard (2026-04-24):** the inner
+    `cached_asset_inventory` already short-TTLs empty results at 15s to
+    self-heal transient warehouse warm-up / SP-grant wipes. This outer
+    per-actor cache needs the same guard — otherwise a single empty
+    fetch during cold-start traps every subsequent request at
+    "Showing 0 of 0 assets" for the full 5-minute TTL, even after the
+    inner cache has already recovered.
     """
     import time
 
@@ -64,8 +73,14 @@ def visible_assets(
 
     now = time.time()
     cached = _TTL_CACHE.get(cache_key)
-    if cached and now - cached[0] < 300:
-        return cached[1]
+    if cached:
+        age = now - cached[0]
+        payload = cached[1]
+        is_empty = payload is None or (hasattr(payload, "empty") and payload.empty)
+        if age < 300 and not is_empty:
+            return payload
+        if age < 15 and is_empty:
+            return payload
 
     uc_client = uc_for_request(request)
     result = asset_service.visible_assets(
@@ -90,7 +105,7 @@ def visible_assets(
         _ttl_cache_pop(cache_key)
     else:
         with _CACHE_LOCK:
-            _TTL_CACHE[cache_key] = (now, result)
+            _TTL_CACHE[cache_key] = (time.time(), result)
 
     return result
 

@@ -4,23 +4,23 @@
  * Each test corresponds to a defect the user flagged in the 2026-04-19
  * reconstruction audit (numbers map to that audit's 23-item list).
  */
-import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { SideIconRail } from "../SideIconRail";
 
 describe("SideIconRail — Tranche A regression suite", () => {
-  it("defect 1: Home and Discovery do not both render as active when the surface is discovery", () => {
+  it("mockup parity: Catalog is the active rail item when the surface is discovery", () => {
     render(<SideIconRail activeModule="discovery" onModuleChange={() => {}} />);
-    const home = screen.getByLabelText("Go to Home");
-    const discovery = screen.getByLabelText("Go to Discovery");
-    expect(home.classList.contains("is-active")).toBe(false);
-    expect(discovery.classList.contains("is-active")).toBe(true);
+    const catalog = screen.getByLabelText("Go to Catalog");
+    const lineage = screen.getByLabelText("Go to Lineage");
+    expect(catalog.classList.contains("is-active")).toBe(true);
+    expect(lineage.classList.contains("is-active")).toBe(false);
   });
 
-  it("defect 17: Activity (clock) rail button reports audit as its module target", () => {
+  it("mockup parity: Reporting rail button routes to the audit/reporting surface", () => {
     const onModuleChange = vi.fn();
     render(<SideIconRail activeModule="discovery" onModuleChange={onModuleChange} />);
-    screen.getByLabelText("Go to Activity").click();
+    screen.getByLabelText("Go to Reporting").click();
     expect(onModuleChange).toHaveBeenCalledWith("audit");
   });
 
@@ -59,25 +59,38 @@ describe("SideIconRail — Tranche A regression suite", () => {
     window.open = origOpen;
   });
 
-  it("mockup parity 2026-04-20 round 7: Settings sits in the primary nav below Teams & stewards", () => {
-    // Operator round 7 moved Settings out of the bottom footer and
-    // put it directly below Teams & stewards in the main nav column,
-    // with a thin divider above it. Help + Sign out stay at the
-    // bottom.
+  it("mockup parity: rail exposes the labeled metadata-product nav set", () => {
     const { container } = render(
       <SideIconRail activeModule="discovery" onModuleChange={() => {}} />,
     );
     const nav = container.querySelector(".gh-side-rail-nav");
-    const footer = container.querySelector(".gh-side-rail-footer");
     expect(nav).not.toBeNull();
-    expect(footer).not.toBeNull();
-    expect(nav?.querySelector('[aria-label="Settings"]')).not.toBeNull();
-    expect(footer?.querySelector('[aria-label="Settings"]')).toBeNull();
-    expect(footer?.querySelector('[aria-label="Sign out"]')).not.toBeNull();
-    expect(footer?.querySelector('[aria-label="Help"]')).not.toBeNull();
+    const labels = Array.from(nav?.querySelectorAll("button") || []).map((button) =>
+      button.getAttribute("aria-label"),
+    );
+    expect(labels).toEqual([
+      "Go to Catalog",
+      "Go to Lineage",
+      "Go to Governance",
+      "Go to Quality",
+      "Go to Glossary",
+      "Go to Reporting",
+    ]);
   });
 
-  it("mockup parity 2026-04-20 round 7: rail footer contains only Help + Sign out in order", () => {
+  it("mockup parity: rail collapse control is a real toggle", () => {
+    const { container } = render(
+      <SideIconRail activeModule="discovery" onModuleChange={() => {}} />,
+    );
+    const rail = container.querySelector(".gh-side-rail");
+    const collapse = screen.getByLabelText("Collapse navigation");
+    expect(rail?.classList.contains("is-collapsed")).toBe(false);
+    fireEvent.click(collapse);
+    expect(rail?.classList.contains("is-collapsed")).toBe(true);
+    expect(screen.getByLabelText("Expand navigation")).not.toBeNull();
+  });
+
+  it("mockup parity: rail footer contains notifications + sign out in order", () => {
     const { container } = render(
       <SideIconRail activeModule="discovery" onModuleChange={() => {}} />,
     );
@@ -85,28 +98,23 @@ describe("SideIconRail — Tranche A regression suite", () => {
     expect(footer).not.toBeNull();
     const buttons = Array.from(footer?.querySelectorAll("button") || []);
     const labels = buttons.map((b) => b.getAttribute("aria-label"));
-    expect(labels).toEqual(["Help", "Sign out"]);
+    expect(labels).toEqual(["Notifications", "Sign out"]);
   });
 
-  it("mockup parity 2026-04-19: Help button opens the in-app help surface, not an external GitHub link", () => {
-    // Operator 2026-04-19 flagged the old behavior (opening
-    // github.com/entrada-ai/governance_hub#readme in a new tab) as
-    // "takes you to a non existent page which should actually be a
-    // detailed and helpful part of the app." The button now routes to
-    // /help via onModuleChange.
+  it("mockup parity: Notifications button opens the in-app inbox surface", () => {
     const origOpen = window.open;
     window.open = vi.fn();
     const onModuleChange = vi.fn();
     render(<SideIconRail activeModule="discovery" onModuleChange={onModuleChange} />);
-    screen.getByLabelText("Help").click();
+    screen.getByLabelText("Notifications").click();
     expect(window.open).not.toHaveBeenCalled();
-    expect(onModuleChange).toHaveBeenCalledWith("help");
+    expect(onModuleChange).toHaveBeenCalledWith("inbox");
     window.open = origOpen;
   });
 
-  it("mockup parity 2026-04-19: Help button lights up as active when the current surface is help", () => {
-    render(<SideIconRail activeModule="help" onModuleChange={() => {}} />);
-    const help = screen.getByLabelText("Help");
-    expect(help.classList.contains("is-active")).toBe(true);
+  it("mockup parity: Notifications button lights up as active on inbox", () => {
+    render(<SideIconRail activeModule="inbox" onModuleChange={() => {}} />);
+    const notifications = screen.getByLabelText("Notifications");
+    expect(notifications.classList.contains("is-active")).toBe(true);
   });
 });

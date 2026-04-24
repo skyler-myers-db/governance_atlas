@@ -25,6 +25,19 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
     )
 
     _ensure_live_runtime()
+    # Explicit `?force=1` query param lets the Refresh button (or any
+    # steward-triggered action) bypass the 30-minute server-side TTL cache
+    # so a freshly-landed pipeline's edges show up without waiting out the
+    # TTL. Falls through to `?force=0|false|absent` → normal cached read.
+    force_param = str(request.query_params.get("force") or "").strip().lower()
+    if force_param in ("1", "true", "yes"):
+        lineage_service.invalidate_lineage_caches(asset_fqn)
+    # `?depth=1` returns the first-hop payload (focus + 1-hop tables only,
+    # no column/operational lineage). Cold fetch drops from ~25s → ~5-10s.
+    # The frontend fires depth=1 first for fast paint, then refetches the
+    # full payload in the background and merges.
+    depth_param = str(request.query_params.get("depth") or "").strip()
+    depth = 1 if depth_param == "1" else None
     actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
     if not actor_scoped:
         return _cacheable_json_response(
@@ -59,7 +72,7 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
             max_age=120,
             stale_while_revalidate=600,
         )
-    payload = _lineage_payload(asset_fqn, request=request)
+    payload = _lineage_payload(asset_fqn, request=request, depth=depth)
     stats = payload.get("stats") or {}
     column_lineage = payload.get("columnLineage") or {}
     has_lineage_context = any(
