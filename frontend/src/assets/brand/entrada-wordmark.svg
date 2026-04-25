@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 338 48" role="img" aria-labelledby="title">
+  <title>Entrada</title>
+  <rect width="338" height="48" fill="none"/>
+  <g fill="#46b8f2">
+    <rect x="19" y="10.5" width="27" height="3.4"/>
+    <rect x="6" y="22.3" width="40" height="3.4"/>
+    <rect x="6" y="34.1" width="27" height="3.4"/>
+  </g>
+  <text x="56" y="34" fill="#46b8f2" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="23" font-weight="400" letter-spacing="8.8">NTRADA</text>
+</svg>

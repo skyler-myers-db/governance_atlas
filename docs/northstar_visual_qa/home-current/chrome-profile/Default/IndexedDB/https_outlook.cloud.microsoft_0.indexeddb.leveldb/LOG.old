@@ -1,0 +1,15 @@
+2026/04/23-21:27:50.522 dfe8f6 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_outlook.cloud.microsoft_0.indexeddb.leveldb/MANIFEST-000001
+2026/04/23-21:27:50.522 dfe8f6 Recovering log #35
+2026/04/23-21:27:50.523 dfe8f6 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_outlook.cloud.microsoft_0.indexeddb.leveldb/000035.log 
+2026/04/23-21:27:53.062 dfe8f6 Level-0 table #40: started
+2026/04/23-21:27:53.064 dfe8f6 Level-0 table #40: 209 bytes OK
+2026/04/23-21:27:53.071 dfe8f6 Delete type=0 #35
+2026/04/23-21:27:53.071 dfe8f6 Manual compaction at level-0 from (begin) .. (end); will stop at (end)
+2026/04/23-21:27:53.071 dfe8f6 Manual compaction at level-1 from (begin) .. (end); will stop at '\x00\x00\x00\x00\x06' @ 500 : 1
+2026/04/23-21:27:53.071 dfe8f6 Compacting 1@1 + 1@2 files
+2026/04/23-21:27:53.072 dfe8f6 Generated table #41@1: 32 keys, 1211 bytes
+2026/04/23-21:27:53.073 dfe8f6 Compacted 1@1 + 1@2 files => 1211 bytes
+2026/04/23-21:27:53.073 dfe8f6 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/23-21:27:53.074 dfe8f6 Delete type=2 #37
+2026/04/23-21:27:53.074 dfe8f6 Delete type=2 #40
+2026/04/23-21:27:53.074 dfe8f6 Manual compaction at level-1 from '\x00\x00\x00\x00\x06' @ 500 : 1 .. (end); will stop at (end)

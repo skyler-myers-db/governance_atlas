@@ -109,6 +109,6 @@ export async function exportLineagePng(node, fqn = "lineage") {
   const { svg, width, height } = nodeToSvg(node);
   const png = await svgToPngBlob(svg, width, height);
   const safeFqn = String(fqn || "lineage").replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 120);
-  download(png, `governance-hub-lineage-${safeFqn}.png`);
+  download(png, `atlas-lineage-${safeFqn}.png`);
   return png;
 }

@@ -19,7 +19,7 @@ import {
   upsertGovernanceGlossaryTerm,
   upsertGovernanceOwner,
 } from "../lib/api";
-import { govhubQueryClient } from "../lib/queryClient";
+import { atlasQueryClient } from "../lib/queryClient";
 import {
   SurfaceHeader,
   SurfacePanelSection,
@@ -30,6 +30,7 @@ import {
   SurfaceWorkbenchMain,
 } from "./ShellLayoutPrimitives";
 import { EmptyStateBlock, InlineStatusBanner, LoadingState } from "./ShellStatePrimitives";
+import { MetricCard } from "./northstar";
 import { AuditTimelineDrawer } from "./primitives/AuditTimelineDrawer";
 import { ClassificationEvidenceDrawer } from "./primitives/ClassificationEvidenceDrawer";
 import {
@@ -37,6 +38,7 @@ import {
   useClassificationRecommendations,
   useClassificationReview,
 } from "../hooks/useClassificationRecommendations";
+import "../styles/operations-pages.css";
 
 const GLOSSARY_STATUS_OPTIONS = [
   { value: "draft", label: "Draft" },
@@ -159,6 +161,11 @@ function parseGlossaryReviewers(value = "") {
       };
     })
     .filter((entry) => entry.reviewerEmail);
+}
+
+function formatMetricValue(metric) {
+  if (!metric || metric.value == null || metric.state === "unavailable") return "Unavailable";
+  return Number.isFinite(Number(metric.value)) ? Number(metric.value).toLocaleString() : String(metric.value);
 }
 
 function governanceViews(governance) {
@@ -498,6 +505,16 @@ export default function GovernanceWorkspace({
     classificationRecommendations.data?.pendingCount ??
     classificationRecommendations.data?.count ??
     0;
+  const workbenchMetrics = useMemo(() => ([
+    { key: "requests", label: "Governance Requests", value: views.requests.length },
+    { key: "glossary", label: "Glossary Terms", value: views.glossary.length },
+    { key: "focusedAsset", label: "Focused Asset", value: focusedAssetFqn ? 1 : 0 },
+    {
+      key: "classificationReviews",
+      label: "Classification Reviews",
+      value: pendingClassificationCount,
+    },
+  ]), [focusedAssetFqn, pendingClassificationCount, views.glossary.length, views.requests.length]);
   const [classificationDrawerOpen, setClassificationDrawerOpen] = useState(false);
   const [activeClassificationId, setActiveClassificationId] = useState("");
   const activeClassification = useClassificationRecommendation(activeClassificationId, {
@@ -793,12 +810,12 @@ export default function GovernanceWorkspace({
       clearAssetSearchCache();
       const nextGovernance = normalizeGovernancePayload(next?.governance || next);
       if (selectedGlossary?.termId) {
-        void govhubQueryClient.invalidateQueries({
+        void atlasQueryClient.invalidateQueries({
           queryKey: ["governanceGlossaryTerm", selectedGlossary.termId],
         });
       }
       if (next?.termId && next?.term) {
-        govhubQueryClient.setQueryData(
+        atlasQueryClient.setQueryData(
           ["governanceGlossaryTerm", next.termId],
           next.term,
         );
@@ -960,6 +977,20 @@ export default function GovernanceWorkspace({
           message={governanceWarnings[0]}
           title="Governance plane degraded"
         />
+      ) : null}
+
+      {workbenchMetrics.length ? (
+        <div className="ga-kpi-grid four gh-governance-northstar-metrics" aria-label="Governance workbench metrics">
+          {workbenchMetrics.slice(0, 4).map((metric) => (
+            <MetricCard
+              key={metric.key || metric.label}
+              label={metric.label}
+              value={formatMetricValue(metric)}
+              delta={metric.state === "unavailable" ? "Signal not configured" : ""}
+              deltaTone="warn"
+            />
+          ))}
+        </div>
       ) : null}
 
       {mode === "stewardship" ? (

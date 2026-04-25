@@ -58,7 +58,7 @@ class RecordAuditLogChangeEventTests(unittest.TestCase):
     def test_dual_writes_to_audit_and_change_event_on_success(self) -> None:
         store = FakeStore()
         _install_fake_runtime_app(store)
-        from govhub.services.metadata_audit import record_audit_log
+        from atlas.services.metadata_audit import record_audit_log
 
         record_audit_log(
             entity_type="asset",
@@ -87,7 +87,7 @@ class RecordAuditLogChangeEventTests(unittest.TestCase):
     def test_entity_version_skipped_when_after_is_none(self) -> None:
         store = FakeStore()
         _install_fake_runtime_app(store)
-        from govhub.services.metadata_audit import record_audit_log
+        from atlas.services.metadata_audit import record_audit_log
 
         record_audit_log(
             entity_type="asset",
@@ -106,7 +106,7 @@ class RecordAuditLogChangeEventTests(unittest.TestCase):
         store = FakeStore()
         store.raise_on_audit = True
         _install_fake_runtime_app(store)
-        from govhub.services.metadata_audit import record_audit_log
+        from atlas.services.metadata_audit import record_audit_log
 
         record_audit_log(
             entity_type="column",
@@ -124,7 +124,7 @@ class RecordAuditLogChangeEventTests(unittest.TestCase):
         store = FakeStore()
         store.raise_on_event = True
         _install_fake_runtime_app(store)
-        from govhub.services.metadata_audit import record_audit_log
+        from atlas.services.metadata_audit import record_audit_log
 
         try:
             record_audit_log(

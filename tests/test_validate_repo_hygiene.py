@@ -58,20 +58,20 @@ RUN_APP = """
 from pathlib import Path
 from typing import Final
 
-from govhub.runtime_contract import validate_frontend_bundle
+from atlas.runtime_contract import validate_frontend_bundle
 
 APP_ENTRYPOINT: Final[str] = "runtime_app:app"
 APP_MODULE: Final[str] = "runtime_app"
 FRONTEND_DIST: Final[Path] = Path(__file__).resolve().parent / "frontend" / "dist" / "index.html"
 FRONTEND_ASSETS: Final[Path] = Path(__file__).resolve().parent / "frontend" / "dist" / "assets"
-FRONTEND_BUILD_MANIFEST: Final[Path] = Path(__file__).resolve().parent / "frontend" / "dist" / "govhub-build-manifest.json"
+FRONTEND_BUILD_MANIFEST: Final[Path] = Path(__file__).resolve().parent / "frontend" / "dist" / "atlas-build-manifest.json"
 validate_frontend_bundle(Path(__file__).resolve().parent)
 """.strip()
 
 PREPARE_BUNDLE = """
 REQUIRED_FRONTEND_FILES = ["frontend/dist/index.html"]
 validate_frontend_bundle = object()
-BUILD_MANIFEST = "frontend/dist/govhub-build-manifest.json"
+BUILD_MANIFEST = "frontend/dist/atlas-build-manifest.json"
 IGNORED = {".git", ".github", "node_modules"}
 """.strip()
 
@@ -102,12 +102,12 @@ runtime:
   app_object: app
   frontend_dist: frontend/dist/index.html
   frontend_assets: frontend/dist/assets
-  frontend_build_manifest: frontend/dist/govhub-build-manifest.json
+  frontend_build_manifest: frontend/dist/atlas-build-manifest.json
 removed_runtime_paths:
   - app.py
   - modern_app.py
   - modern_ui
-  - govhub/openmetadata.py
+  - atlas/openmetadata.py
 """.strip()
 
 
@@ -117,7 +117,7 @@ class RepoHygieneValidationTests(unittest.TestCase):
         (root / "frontend/src/components").mkdir(parents=True, exist_ok=True)
         (root / "frontend/src/lib").mkdir(parents=True, exist_ok=True)
         (root / "frontend/src/types").mkdir(parents=True, exist_ok=True)
-        (root / "govhub").mkdir(parents=True, exist_ok=True)
+        (root / "atlas").mkdir(parents=True, exist_ok=True)
         (root / "scripts").mkdir(parents=True, exist_ok=True)
         (root / "frontend/package.json").write_text(json.dumps(PACKAGE_JSON), encoding="utf-8")
         (root / "frontend/eslint.config.js").write_text(ESLINT_CONFIG, encoding="utf-8")
@@ -131,7 +131,7 @@ class RepoHygieneValidationTests(unittest.TestCase):
         (root / "run_app.py").write_text(RUN_APP, encoding="utf-8")
         (root / "runtime_app.py").write_text("print('runtime')\n", encoding="utf-8")
         (root / "runtime_manifest.yaml").write_text(RUNTIME_MANIFEST, encoding="utf-8")
-        (root / "govhub/runtime_contract.py").write_text("def validate_frontend_bundle(root=None):\n    return {}\n", encoding="utf-8")
+        (root / "atlas/runtime_contract.py").write_text("def validate_frontend_bundle(root=None):\n    return {}\n", encoding="utf-8")
         (root / "scripts/prepare_bundle.py").write_text(PREPARE_BUNDLE, encoding="utf-8")
 
     def _tracked_files(self) -> list[str]:
@@ -148,7 +148,7 @@ class RepoHygieneValidationTests(unittest.TestCase):
             "frontend/src/components/EntityWorkspace.jsx",
             "frontend/src/lib/api.js",
             "frontend/src/main.jsx",
-            "govhub/runtime_contract.py",
+            "atlas/runtime_contract.py",
             "scripts/prepare_bundle.py",
         ]
 

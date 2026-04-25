@@ -1,0 +1,72 @@
+2026/04/23-16:52:19.653 dfe904 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/Sync Data/LevelDB/MANIFEST-000001
+2026/04/23-16:52:19.672 dfe904 Recovering log #1184
+2026/04/23-16:52:19.672 dfe904 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/Sync Data/LevelDB/001184.log 
+2026/04/23-16:52:20.701 dfe8f9 Level-0 table #1188: started
+2026/04/23-16:52:20.706 dfe8f9 Level-0 table #1188: 122685 bytes OK
+2026/04/23-16:52:20.709 dfe8f9 Delete type=0 #1184
+2026/04/23-17:36:36.230 dfe904 Level-0 table #1190: started
+2026/04/23-17:36:36.235 dfe904 Level-0 table #1190: 206618 bytes OK
+2026/04/23-17:36:36.237 dfe904 Delete type=0 #1187
+2026/04/23-18:24:04.826 dfe8f9 Level-0 table #1192: started
+2026/04/23-18:24:04.875 dfe8f9 Level-0 table #1192: 184746 bytes OK
+2026/04/23-18:24:04.883 dfe8f9 Delete type=0 #1189
+2026/04/23-18:24:04.885 dfe8f9 Compacting 4@0 + 1@1 files
+2026/04/23-18:24:04.904 dfe8f9 Generated table #1193@0: 189 keys, 46535 bytes
+2026/04/23-18:24:04.904 dfe8f9 Compacted 4@0 + 1@1 files => 46535 bytes
+2026/04/23-18:24:04.909 dfe8f9 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/04/23-18:24:04.910 dfe8f9 Delete type=2 #1183
+2026/04/23-18:24:04.910 dfe8f9 Delete type=2 #1192
+2026/04/23-18:24:04.910 dfe8f9 Delete type=2 #1190
+2026/04/23-18:24:04.910 dfe8f9 Delete type=2 #1185
+2026/04/23-18:24:04.910 dfe8f9 Delete type=2 #1188
+2026/04/23-18:41:07.804 dfe8f9 Level-0 table #1195: started
+2026/04/23-18:41:07.808 dfe8f9 Level-0 table #1195: 98357 bytes OK
+2026/04/23-18:41:07.810 dfe8f9 Delete type=0 #1191
+2026/04/23-19:10:22.558 dfe8f6 Level-0 table #1197: started
+2026/04/23-19:10:22.571 dfe8f6 Level-0 table #1197: 91723 bytes OK
+2026/04/23-19:10:22.574 dfe8f6 Delete type=0 #1194
+2026/04/23-19:38:30.454 dfe8f9 Level-0 table #1199: started
+2026/04/23-19:38:30.477 dfe8f9 Level-0 table #1199: 109733 bytes OK
+2026/04/23-19:38:30.485 dfe8f9 Delete type=0 #1196
+2026/04/23-19:53:36.588 dfe904 Level-0 table #1201: started
+2026/04/23-19:53:36.592 dfe904 Level-0 table #1201: 287078 bytes OK
+2026/04/23-19:53:36.594 dfe904 Delete type=0 #1198
+2026/04/23-19:53:36.595 dfe904 Compacting 4@0 + 1@1 files
+2026/04/23-19:53:36.600 dfe904 Generated table #1202@0: 189 keys, 52484 bytes
+2026/04/23-19:53:36.601 dfe904 Compacted 4@0 + 1@1 files => 52484 bytes
+2026/04/23-19:53:36.601 dfe904 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/04/23-19:53:36.601 dfe904 Delete type=2 #1195
+2026/04/23-19:53:36.601 dfe904 Delete type=2 #1197
+2026/04/23-19:53:36.601 dfe904 Delete type=2 #1193
+2026/04/23-19:53:36.601 dfe904 Delete type=2 #1201
+2026/04/23-19:53:36.601 dfe904 Delete type=2 #1199
+2026/04/23-20:06:07.765 dfe8f9 Level-0 table #1204: started
+2026/04/23-20:06:07.773 dfe8f9 Level-0 table #1204: 86344 bytes OK
+2026/04/23-20:06:07.776 dfe8f9 Delete type=0 #1200
+2026/04/23-20:27:59.324 dfe904 Level-0 table #1206: started
+2026/04/23-20:27:59.337 dfe904 Level-0 table #1206: 247491 bytes OK
+2026/04/23-20:27:59.339 dfe904 Delete type=0 #1203
+2026/04/23-21:32:56.789 dfe8f9 Level-0 table #1208: started
+2026/04/23-21:32:56.795 dfe8f9 Level-0 table #1208: 91968 bytes OK
+2026/04/23-21:32:56.797 dfe8f9 Delete type=0 #1205
+2026/04/23-22:23:26.957 dfe8f9 Level-0 table #1210: started
+2026/04/23-22:23:26.987 dfe8f9 Level-0 table #1210: 94551 bytes OK
+2026/04/23-22:23:26.993 dfe8f9 Delete type=0 #1207
+2026/04/23-22:23:26.999 dfe8f9 Compacting 4@0 + 1@1 files
+2026/04/23-22:23:27.014 dfe8f9 Generated table #1211@0: 189 keys, 28241 bytes
+2026/04/23-22:23:27.016 dfe8f9 Compacted 4@0 + 1@1 files => 28241 bytes
+2026/04/23-22:23:27.018 dfe8f9 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/04/23-22:23:27.019 dfe8f9 Delete type=2 #1208
+2026/04/23-22:23:27.019 dfe8f9 Delete type=2 #1202
+2026/04/23-22:23:27.019 dfe8f9 Delete type=2 #1206
+2026/04/23-22:23:27.019 dfe8f9 Delete type=2 #1204
+2026/04/23-22:23:27.019 dfe8f9 Delete type=2 #1210
+2026/04/24-09:35:32.530 dfe8f9 Level-0 table #1213: started
+2026/04/24-09:35:32.536 dfe8f9 Level-0 table #1213: 203053 bytes OK
+2026/04/24-09:35:32.539 dfe8f9 Delete type=0 #1209
+2026/04/24-10:00:19.768 dfe8f9 Level-0 table #1215: started
+2026/04/24-10:00:19.773 dfe8f9 Level-0 table #1215: 285723 bytes OK
+2026/04/24-10:00:19.775 dfe8f9 Delete type=0 #1212
+2026/04/24-10:23:30.179 dfe8f9 Level-0 table #1217: started
+2026/04/24-10:23:30.185 dfe8f9 Level-0 table #1217: 88713 bytes OK
+2026/04/24-10:23:30.186 dfe8f9 Delete type=0 #1214

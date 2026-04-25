@@ -1,5 +1,5 @@
 interface Window {
-  __GOVHUB_BOOTSTRAP__?: {
+  __GOVAT_BOOTSTRAP__?: {
     apiBase?: string;
     apiContract?: Record<string, string>;
     [key: string]: unknown;
@@ -7,9 +7,14 @@ interface Window {
 }
 
 interface ImportMetaEnv {
-  readonly VITE_GOVHUB_API_BASE?: string;
+  readonly VITE_GOVAT_API_BASE?: string;
 }
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
+}
+
+declare module "*.svg" {
+  const src: string;
+  export default src;
 }

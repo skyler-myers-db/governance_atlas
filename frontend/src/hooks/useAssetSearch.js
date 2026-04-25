@@ -1,12 +1,12 @@
 import { useDeferredValue, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDiscoverySearch } from "../lib/api";
-import { govhubQueryClient } from "../lib/queryClient";
+import { atlasQueryClient } from "../lib/queryClient";
 
 export function clearAssetSearchCache() {
-  govhubQueryClient.removeQueries({ queryKey: ["assetSearch"] });
-  govhubQueryClient.invalidateQueries({ queryKey: ["discoveryResults"] });
-  govhubQueryClient.invalidateQueries({ queryKey: ["bootstrap"] });
+  atlasQueryClient.removeQueries({ queryKey: ["assetSearch"] });
+  atlasQueryClient.invalidateQueries({ queryKey: ["discoveryResults"] });
+  atlasQueryClient.invalidateQueries({ queryKey: ["bootstrap"] });
 }
 
 function normalizeSearchText(...values) {

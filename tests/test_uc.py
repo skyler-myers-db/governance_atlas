@@ -5,7 +5,7 @@ import types
 import unittest
 from unittest.mock import patch
 
-from govhub import uc
+from atlas import uc
 
 
 class UnityCatalogImportCompatibilityTests(unittest.TestCase):

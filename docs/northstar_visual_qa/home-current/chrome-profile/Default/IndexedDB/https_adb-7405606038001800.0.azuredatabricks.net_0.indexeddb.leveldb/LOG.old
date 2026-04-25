@@ -1,0 +1,5 @@
+2025/12/19-15:55:08.105 1d27 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_adb-7405606038001800.0.azuredatabricks.net_0.indexeddb.leveldb/MANIFEST-000001
+2025/12/19-15:55:08.106 1d27 Recovering log #7
+2025/12/19-15:55:08.108 1d27 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_adb-7405606038001800.0.azuredatabricks.net_0.indexeddb.leveldb/000007.log 
+2025/12/19-15:55:08.108 1d27 Delete type=2 #5
+2025/12/19-15:55:08.108 1d27 Delete type=2 #8

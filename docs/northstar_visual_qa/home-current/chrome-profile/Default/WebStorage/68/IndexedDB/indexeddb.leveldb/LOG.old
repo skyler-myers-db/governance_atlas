@@ -1,0 +1,65 @@
+2026/04/14-13:49:42.792 32d3 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/68/IndexedDB/indexeddb.leveldb/MANIFEST-000001
+2026/04/14-13:49:42.792 32d3 Recovering log #169
+2026/04/14-13:49:42.794 32d3 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/68/IndexedDB/indexeddb.leveldb/000169.log 
+2026/04/14-13:49:43.023 32d3 Compacting 1@1 + 2@2 files
+2026/04/14-13:49:43.042 32d3 Generated table #172@1: 4034 keys, 2175744 bytes
+2026/04/14-13:49:43.069 32d3 Generated table #173@1: 8059 keys, 2199013 bytes
+2026/04/14-13:49:43.073 32d3 Generated table #174@1: 460 keys, 394279 bytes
+2026/04/14-13:49:43.073 32d3 Compacted 1@1 + 2@2 files => 4769036 bytes
+2026/04/14-13:49:43.074 32d3 compacted to: files[ 0 0 5 0 0 0 0 ]
+2026/04/14-13:49:43.074 32d3 Delete type=2 #167
+2026/04/14-13:49:43.074 32d3 Delete type=2 #166
+2026/04/14-13:49:43.074 32d3 Delete type=2 #170
+2026/04/14-13:49:43.095 329b Level-0 table #176: started
+2026/04/14-13:49:43.111 329b Level-0 table #176: 1988722 bytes OK
+2026/04/14-13:49:43.112 329b Delete type=0 #169
+2026/04/14-13:49:43.119 329b Compacting 1@1 + 5@2 files
+2026/04/14-13:49:43.139 329b Generated table #177@1: 3506 keys, 2145053 bytes
+2026/04/14-13:49:43.175 329b Generated table #178@1: 10436 keys, 2244068 bytes
+2026/04/14-13:49:43.181 329b Generated table #179@1: 625 keys, 863709 bytes
+2026/04/14-13:49:43.181 329b Compacted 1@1 + 5@2 files => 5252830 bytes
+2026/04/14-13:49:43.182 329b compacted to: files[ 0 0 3 0 0 0 0 ]
+2026/04/14-13:49:43.182 329b Delete type=2 #161
+2026/04/14-13:49:43.182 329b Delete type=2 #174
+2026/04/14-13:49:43.182 329b Delete type=2 #176
+2026/04/14-13:49:43.182 329b Delete type=2 #173
+2026/04/14-13:49:43.182 329b Delete type=2 #172
+2026/04/14-13:49:43.182 329b Delete type=2 #168
+2026/04/14-13:49:44.730 32d3 Level-0 table #181: started
+2026/04/14-13:49:44.742 32d3 Level-0 table #181: 1794826 bytes OK
+2026/04/14-13:49:44.743 32d3 Delete type=0 #175
+2026/04/14-13:49:44.818 3299 Compacting 1@1 + 2@2 files
+2026/04/14-13:49:44.848 3299 Generated table #182@1: 8341 keys, 2251596 bytes
+2026/04/14-13:49:44.858 3299 Generated table #183@1: 4179 keys, 1293886 bytes
+2026/04/14-13:49:44.858 3299 Compacted 1@1 + 2@2 files => 3545482 bytes
+2026/04/14-13:49:44.859 3299 compacted to: files[ 0 0 3 0 0 0 0 ]
+2026/04/14-13:49:44.860 3299 Delete type=2 #177
+2026/04/14-13:49:44.860 3299 Delete type=2 #181
+2026/04/14-13:49:44.860 3299 Delete type=2 #178
+2026/04/14-13:49:47.583 3299 Level-0 table #185: started
+2026/04/14-13:49:47.595 3299 Level-0 table #185: 1957946 bytes OK
+2026/04/14-13:49:47.596 3299 Delete type=0 #180
+2026/04/14-13:49:57.169 329b Compacting 1@1 + 2@2 files
+2026/04/14-13:49:57.174 329b Level-0 table #188: started
+2026/04/14-13:49:57.187 329b Level-0 table #188: 2950545 bytes OK
+2026/04/14-13:49:57.188 329b Delete type=0 #184
+2026/04/14-13:49:57.200 329b Generated table #186@1: 4244 keys, 2147770 bytes
+2026/04/14-13:49:57.221 329b Generated table #189@1: 10919 keys, 2265229 bytes
+2026/04/14-13:49:57.221 329b Generated table #190@1: 1 keys, 55748 bytes
+2026/04/14-13:49:57.221 329b Compacted 1@1 + 2@2 files => 4468747 bytes
+2026/04/14-13:49:57.223 329b compacted to: files[ 1 0 4 0 0 0 0 ]
+2026/04/14-13:49:57.223 329b Delete type=2 #183
+2026/04/14-13:49:57.223 329b Delete type=2 #182
+2026/04/14-13:49:57.223 329b Delete type=2 #185
+2026/04/14-13:49:57.225 3299 Moved #188 to level-1 2950545 bytes OK: files[ 0 1 4 0 0 0 0 ]
+2026/04/14-13:49:57.233 329b Compacting 1@1 + 4@2 files
+2026/04/14-13:49:57.254 329b Generated table #191@1: 4063 keys, 2178805 bytes
+2026/04/14-13:49:57.277 329b Generated table #192@1: 8805 keys, 2215115 bytes
+2026/04/14-13:49:57.290 329b Generated table #193@1: 827 keys, 1000853 bytes
+2026/04/14-13:49:57.290 329b Compacted 1@1 + 4@2 files => 5394773 bytes
+2026/04/14-13:49:57.303 329b compacted to: files[ 0 0 3 0 0 0 0 ]
+2026/04/14-13:49:57.303 329b Delete type=2 #189
+2026/04/14-13:49:57.303 329b Delete type=2 #188
+2026/04/14-13:49:57.303 329b Delete type=2 #190
+2026/04/14-13:49:57.303 329b Delete type=2 #186
+2026/04/14-13:49:57.303 329b Delete type=2 #179

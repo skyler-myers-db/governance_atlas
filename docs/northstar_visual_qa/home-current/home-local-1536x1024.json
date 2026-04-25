@@ -1,0 +1,63 @@
+{
+  "title": "Enterprise Governance Command Center",
+  "subtitle": "Unified visibility. Trusted data. Confident decisions.",
+  "header": {
+    "x": 264,
+    "y": 0,
+    "width": 1272,
+    "height": 72
+  },
+  "sidebar": {
+    "x": 0,
+    "y": 0,
+    "width": 264,
+    "height": 1024
+  },
+  "main": {
+    "x": 264,
+    "y": 72,
+    "width": 1272,
+    "height": 1018
+  },
+  "home": {
+    "x": 264,
+    "y": 72,
+    "width": 1272,
+    "height": 1018
+  },
+  "hero": {
+    "x": 292,
+    "y": 96,
+    "width": 1216,
+    "height": 96
+  },
+  "kpis": {
+    "x": 292,
+    "y": 206,
+    "width": 1216,
+    "height": 127
+  },
+  "mainGrid": {
+    "x": 292,
+    "y": 347,
+    "width": 1216,
+    "height": 715
+  },
+  "ai": {
+    "x": 1172,
+    "y": 347,
+    "width": 336,
+    "height": 715
+  },
+  "accessBanner": null,
+  "overflowX": false,
+  "overflowY": true,
+  "bodySize": {
+    "width": 1536,
+    "height": 1090
+  },
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}

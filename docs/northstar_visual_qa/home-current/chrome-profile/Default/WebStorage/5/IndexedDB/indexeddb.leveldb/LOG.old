@@ -1,0 +1,60 @@
+2026/03/06-09:30:44.403 32b1 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/5/IndexedDB/indexeddb.leveldb/MANIFEST-000001
+2026/03/06-09:30:44.404 32b1 Recovering log #725
+2026/03/06-09:30:44.404 32b1 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/5/IndexedDB/indexeddb.leveldb/000725.log 
+2026/03/06-09:30:44.993 32b1 Level-0 table #733: started
+2026/03/06-09:30:45.006 32b1 Level-0 table #733: 1893117 bytes OK
+2026/03/06-09:30:45.009 32b1 Delete type=0 #725
+2026/03/06-09:30:45.015 32b1 Compacting 1@1 + 4@2 files
+2026/03/06-09:30:45.025 32b1 Generated table #734@1: 2800 keys, 2137639 bytes
+2026/03/06-09:30:45.041 32b1 Generated table #735@1: 5066 keys, 2191756 bytes
+2026/03/06-09:30:45.074 32b1 Generated table #736@1: 15360 keys, 2373108 bytes
+2026/03/06-09:30:45.104 32b1 Generated table #737@1: 15366 keys, 2373317 bytes
+2026/03/06-09:30:45.117 32b1 Generated table #738@1: 7806 keys, 1164152 bytes
+2026/03/06-09:30:45.117 32b1 Compacted 1@1 + 4@2 files => 10239972 bytes
+2026/03/06-09:30:45.118 32b1 compacted to: files[ 0 0 7 0 0 0 0 ]
+2026/03/06-09:30:45.118 32b1 Delete type=2 #729
+2026/03/06-09:30:45.118 32b1 Delete type=2 #728
+2026/03/06-09:30:45.118 32b1 Delete type=2 #730
+2026/03/06-09:30:45.118 32b1 Delete type=2 #733
+2026/03/06-09:30:45.118 32b1 Delete type=2 #727
+2026/03/06-09:30:45.141 32b1 Level-0 table #740: started
+2026/03/06-09:30:45.151 32b1 Level-0 table #740: 1896707 bytes OK
+2026/03/06-09:30:45.152 32b1 Delete type=0 #732
+2026/03/06-09:30:45.160 32b1 Compacting 1@1 + 2@2 files
+2026/03/06-09:30:45.170 32b1 Generated table #741@1: 4153 keys, 2120926 bytes
+2026/03/06-09:30:45.180 32b1 Generated table #742@1: 1412 keys, 2150116 bytes
+2026/03/06-09:30:45.190 32b1 Generated table #743@1: 4866 keys, 1242070 bytes
+2026/03/06-09:30:45.191 32b1 Compacted 1@1 + 2@2 files => 5513112 bytes
+2026/03/06-09:30:45.192 32b1 compacted to: files[ 0 0 8 0 0 0 0 ]
+2026/03/06-09:30:45.240 32b1 Level-0 table #745: started
+2026/03/06-09:30:45.250 32b1 Level-0 table #745: 1904771 bytes OK
+2026/03/06-09:30:45.251 32b1 Delete type=0 #739
+2026/03/06-09:30:45.251 32b1 Delete type=2 #740
+2026/03/06-09:30:45.251 32b1 Delete type=2 #734
+2026/03/06-09:30:45.251 32b1 Delete type=2 #735
+2026/03/06-09:30:45.253 32b1 Compacting 1@1 + 3@2 files
+2026/03/06-09:30:45.262 32b1 Generated table #746@1: 4141 keys, 2120867 bytes
+2026/03/06-09:30:45.272 32b1 Generated table #747@1: 2979 keys, 2135191 bytes
+2026/03/06-09:30:45.284 32b1 Generated table #748@1: 4181 keys, 2178479 bytes
+2026/03/06-09:30:45.289 32b1 Generated table #749@1: 1692 keys, 262482 bytes
+2026/03/06-09:30:45.289 32b1 Compacted 1@1 + 3@2 files => 6697019 bytes
+2026/03/06-09:30:45.289 32b1 compacted to: files[ 0 0 9 0 0 0 0 ]
+2026/03/06-09:30:45.290 32b1 Delete type=2 #745
+2026/03/06-09:30:45.290 32b1 Delete type=2 #741
+2026/03/06-09:30:45.290 32b1 Delete type=2 #743
+2026/03/06-09:30:45.290 32b1 Delete type=2 #742
+2026/03/06-09:30:45.308 32b1 Level-0 table #751: started
+2026/03/06-09:30:45.317 32b1 Level-0 table #751: 1905413 bytes OK
+2026/03/06-09:30:45.319 32b1 Delete type=0 #744
+2026/03/06-09:30:45.321 32c1 Compacting 1@1 + 4@2 files
+2026/03/06-09:30:45.332 32c1 Generated table #752@1: 4139 keys, 2122393 bytes
+2026/03/06-09:30:45.341 32c1 Generated table #753@1: 4140 keys, 2120685 bytes
+2026/03/06-09:30:45.348 32c1 Generated table #754@1: 1602 keys, 2150049 bytes
+2026/03/06-09:30:45.361 32c1 Generated table #755@1: 5671 keys, 1488859 bytes
+2026/03/06-09:30:45.361 32c1 Compacted 1@1 + 4@2 files => 7881986 bytes
+2026/03/06-09:30:45.362 32c1 compacted to: files[ 0 0 9 0 0 0 0 ]
+2026/03/06-09:30:45.362 32c1 Delete type=2 #749
+2026/03/06-09:30:45.362 32c1 Delete type=2 #748
+2026/03/06-09:30:45.362 32c1 Delete type=2 #746
+2026/03/06-09:30:45.362 32c1 Delete type=2 #747
+2026/03/06-09:30:45.362 32c1 Delete type=2 #751

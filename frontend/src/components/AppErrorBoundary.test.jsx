@@ -91,7 +91,7 @@ describe("AppErrorBoundary", () => {
     const event = new Event("unhandledrejection");
     Object.defineProperty(event, "reason", {
       value: new TypeError(
-        "Failed to fetch dynamically imported module: https://governance-hub-7405619023278880.0.azure.databricksapps.com/assets/LineageWorkspace-C1U3X0Wm.js",
+        "Failed to fetch dynamically imported module: https://atlas-2543889327043640.aws.databricksapps.com/assets/LineageWorkspace-C1U3X0Wm.js",
       ),
     });
 

@@ -12,17 +12,17 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from govhub.runtime_contract import load_runtime_manifest
+from atlas.runtime_contract import load_runtime_manifest
 
 
 
 REMOVED_PATHS = (
     "app.py",
     "modern_app.py",
-    "govhub/openmetadata.py",
-    "govhub/legacy_auth.py",
-    "govhub/legacy_auth 2.py",
-    "govhub/services/live_metadata 2.py",
+    "atlas/openmetadata.py",
+    "atlas/legacy_auth.py",
+    "atlas/legacy_auth 2.py",
+    "atlas/services/live_metadata 2.py",
     "frontend/src/components/AppErrorBoundary 2.jsx",
 )
 
@@ -42,12 +42,12 @@ RUNTIME_HYGIENE_TARGETS = (
     "requirements.txt",
     "run_app.py",
     "runtime_app.py",
-    "govhub",
+    "atlas",
     "sql/bootstrap.sql",
 )
 
 BANNED_RUNTIME_TOKENS = (
-    "GOVHUB_APP_MODE",
+    "APP_MODE",
     "OPENMETADATA_SERVER_URL",
     "OPENMETADATA_JWT_TOKEN",
     "om_server_url",
@@ -70,7 +70,7 @@ REQUIRED_BRANCH_STATE_PATHS = (
     "frontend/src/components/EntityWorkspace.jsx",
     "frontend/src/lib/api.js",
     "frontend/src/main.jsx",
-    "govhub/runtime_contract.py",
+    "atlas/runtime_contract.py",
     "scripts/prepare_bundle.py",
 )
 
@@ -81,14 +81,14 @@ REQUIRED_RUNTIME_MANIFEST = {
     "app_object": "app",
     "frontend_dist": "frontend/dist/index.html",
     "frontend_assets": "frontend/dist/assets",
-    "frontend_build_manifest": "frontend/dist/govhub-build-manifest.json",
+    "frontend_build_manifest": "frontend/dist/atlas-build-manifest.json",
 }
 
 REQUIRED_RUNTIME_REMOVED_PATHS = (
     "app.py",
     "modern_app.py",
     "modern_ui",
-    "govhub/openmetadata.py",
+    "atlas/openmetadata.py",
 )
 
 REQUIRED_FRONTEND_SCRIPTS = {
@@ -144,7 +144,7 @@ REQUIRED_RUN_APP_TOKENS = (
 REQUIRED_PREPARE_BUNDLE_TOKENS = (
     "REQUIRED_FRONTEND_FILES",
     "validate_frontend_bundle",
-    "govhub-build-manifest.json",
+    "atlas-build-manifest.json",
     ".git",
     ".github",
     "node_modules",
@@ -188,7 +188,7 @@ def _target_files(root: Path = ROOT) -> list[Path]:
 def _looks_like_removed_legacy_shell(path: Path) -> bool:
     if not path.is_dir():
         return False
-    if path.name.startswith(".") or path.name in {"frontend", "govhub", "tests", "scripts", "docs", "sql"}:
+    if path.name.startswith(".") or path.name in {"frontend", "atlas", "tests", "scripts", "docs", "sql"}:
         return False
     return (path / "index.html").exists() and (
         (path / "assets").exists() or (path / "data.js").exists()

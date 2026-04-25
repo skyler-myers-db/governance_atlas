@@ -1,0 +1,39 @@
+2026/04/23-17:52:15.605 dfe8f9 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_adb-7405619023278880.0.azuredatabricks.net_0.indexeddb.leveldb/MANIFEST-000001
+2026/04/23-17:52:15.608 dfe8f9 Recovering log #6683
+2026/04/23-17:52:15.615 dfe8f9 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_adb-7405619023278880.0.azuredatabricks.net_0.indexeddb.leveldb/006683.log 
+2026/04/23-17:52:16.168 dfe8f6 Compacting 1@1 + 1@2 files
+2026/04/23-17:52:16.177 dfe8f6 Generated table #6686@1: 426 keys, 890685 bytes
+2026/04/23-17:52:16.177 dfe8f6 Compacted 1@1 + 1@2 files => 890685 bytes
+2026/04/23-17:52:16.185 dfe8f6 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/23-17:52:16.185 dfe8f6 Delete type=2 #6684
+2026/04/23-17:52:16.185 dfe8f6 Delete type=2 #6682
+2026/04/23-17:52:18.853 dfe8f9 Level-0 table #6688: started
+2026/04/23-17:52:18.865 dfe8f9 Level-0 table #6688: 3653348 bytes OK
+2026/04/23-17:52:18.866 dfe8f9 Delete type=0 #6683
+2026/04/23-17:52:20.497 dfe8f9 Compacting 1@1 + 1@2 files
+2026/04/23-17:52:20.502 dfe8f9 Generated table #6689@1: 359 keys, 708594 bytes
+2026/04/23-17:52:20.502 dfe8f9 Compacted 1@1 + 1@2 files => 708594 bytes
+2026/04/23-17:52:20.502 dfe8f9 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/23-17:52:20.502 dfe8f9 Delete type=2 #6688
+2026/04/23-17:52:20.502 dfe8f9 Delete type=2 #6686
+2026/04/23-18:01:54.364 dfe8f9 Level-0 table #6691: started
+2026/04/23-18:01:54.390 dfe8f9 Level-0 table #6691: 3758625 bytes OK
+2026/04/23-18:01:54.392 dfe8f9 Delete type=0 #6687
+2026/04/23-18:09:00.607 dfe8f9 Compacting 1@1 + 1@2 files
+2026/04/23-18:09:00.632 dfe8f9 Generated table #6692@1: 326 keys, 669683 bytes
+2026/04/23-18:09:00.632 dfe8f9 Compacted 1@1 + 1@2 files => 669683 bytes
+2026/04/23-18:09:00.633 dfe8f9 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/23-18:09:00.634 dfe8f9 Delete type=2 #6689
+2026/04/23-18:09:00.634 dfe8f9 Delete type=2 #6691
+2026/04/23-18:25:24.918 dfe8f9 Level-0 table #6694: started
+2026/04/23-18:25:25.000 dfe8f9 Level-0 table #6694: 444559 bytes OK
+2026/04/23-18:25:25.011 dfe8f9 Delete type=0 #6690
+2026/04/23-18:25:25.014 dfe8f9 Manual compaction at level-0 from (begin) .. (end); will stop at (end)
+2026/04/23-18:25:25.018 dfe8f9 Manual compaction at level-1 from (begin) .. (end); will stop at '\x00\x01\x02\x02\x01$\x00f\x00e\x001\x009\x007\x005\x002\x00f\x00-\x001\x006\x006\x003\x00-\x004\x004\x00d\x007\x00-\x009\x001\x004\x00a\x00-\x00e\x002\x008\x008\x009\x00c\x002\x00f\x008\x003\x000\x002' @ 16063002 : 1
+2026/04/23-18:25:25.018 dfe8f9 Compacting 1@1 + 1@2 files
+2026/04/23-18:25:25.043 dfe8f9 Generated table #6695@1: 43 keys, 944 bytes
+2026/04/23-18:25:25.044 dfe8f9 Compacted 1@1 + 1@2 files => 944 bytes
+2026/04/23-18:25:25.055 dfe8f9 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/23-18:25:25.056 dfe8f9 Delete type=2 #6692
+2026/04/23-18:25:25.057 dfe8f9 Delete type=2 #6694
+2026/04/23-18:25:25.063 dfe8f9 Manual compaction at level-1 from '\x00\x01\x02\x02\x01$\x00f\x00e\x001\x009\x007\x005\x002\x00f\x00-\x001\x006\x006\x003\x00-\x004\x004\x00d\x007\x00-\x009\x001\x004\x00a\x00-\x00e\x002\x008\x008\x009\x00c\x002\x00f\x008\x003\x000\x002' @ 16063002 : 1 .. (end); will stop at (end)

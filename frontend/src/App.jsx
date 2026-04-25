@@ -6,6 +6,7 @@ import WorkspaceDiagnosticsSurface from "./components/WorkspaceDiagnosticsSurfac
 import WorkspaceSetupWizard from "./components/WorkspaceSetupWizard";
 import { useAppRouteState } from "./hooks/useAppRouteState";
 import { useBootstrap } from "./hooks/useBootstrap";
+import { useCommandCenter } from "./hooks/useCommandCenter";
 import { useGovernanceSummary } from "./hooks/useGovernanceSummary";
 import { useRuntimeStatus } from "./hooks/useRuntimeStatus";
 import { normalizeGovernancePayload, updateGovernanceNotification } from "./lib/api";
@@ -17,9 +18,11 @@ const EntityWorkspace = lazy(() => import("./components/EntityWorkspace"));
 const LineageWorkspace = lazy(() => import("./components/LineageWorkspace"));
 const AuditBrowserWorkspace = lazy(() => import("./components/AuditBrowserWorkspace"));
 const TaxonomyWorkspace = lazy(() => import("./components/TaxonomyWorkspace"));
+const CdeWorkspace = lazy(() => import("./components/CdeWorkspace"));
 const HelpPage = lazy(() => import("./components/HelpPage"));
 const InboxPage = lazy(() => import("./components/InboxPage"));
 const HomePage = lazy(() => import("./components/HomePage"));
+const AdminWorkspace = lazy(() => import("./components/AdminWorkspace"));
 const CapabilityDashboard = lazy(() => import("./components/CapabilityDashboard"));
 const InsightsWorkspace = lazy(() => import("./components/InsightsWorkspace"));
 
@@ -203,6 +206,7 @@ export default function App() {
   const [liveDiscoveryState, setLiveDiscoveryState] = useState({
     assets: [],
     count: null,
+    facets: null,
     baselineAssets: [],
     baselineCount: null,
     settled: false,
@@ -285,8 +289,13 @@ export default function App() {
         seededShell.userEmail ||
         data?.identity?.actorEmail ||
         "",
+      userName:
+        resolvedIdentity.actorName ||
+        seededShell.userName ||
+        data?.identity?.actorName ||
+        "",
     };
-  }, [data?.identity?.actorEmail, data?.shell, resolvedIdentity.actorEmail, resolvedIdentity.actorRole, resolvedIdentity.actorRoleProvisional]);
+  }, [data?.identity?.actorEmail, data?.identity?.actorName, data?.shell, resolvedIdentity.actorEmail, resolvedIdentity.actorName, resolvedIdentity.actorRole, resolvedIdentity.actorRoleProvisional]);
   const diagnosticsSource =
     runtimeStatus.data?.diagnostics
       ? {
@@ -349,6 +358,10 @@ export default function App() {
           nextAuthoritative && typeof nextState.count === "number"
             ? nextState.count
             : current.count,
+        facets:
+          nextAuthoritative && nextState.facets && typeof nextState.facets === "object"
+            ? nextState.facets
+            : current.facets,
         baselineAssets: nextBaselineAssets,
         baselineCount: nextBaselineCount,
         settled: Boolean(nextState.settled),
@@ -387,10 +400,12 @@ export default function App() {
       governance: "Opening governance…",
       audit: "Opening audit browser…",
       taxonomy: "Opening taxonomy…",
+      cde: "Opening CDE registry…",
       help: "Opening help…",
       inbox: "Opening inbox…",
       home: "Opening home…",
       capabilities: "Opening capability dashboard…",
+      admin: "Opening administration center…",
       insights: "Opening governance insights…",
     };
     handleNavigationStateChange(true, labels[nextModule] || "Opening workspace…");
@@ -402,6 +417,7 @@ export default function App() {
     handleNavigationStateChange(true, query ? "Opening discovery results…" : "Opening discovery…");
     openDiscoveryWorkspace(query, { fresh: true });
   }, [handleNavigationStateChange, openDiscoveryWorkspace]);
+  const shellAsset360Fqn = routeAssetFqn || discoveryRouteState.previewAssetFqn || "";
 
   useEffect(() => {
     if (!governanceSummary.data) return;
@@ -546,6 +562,70 @@ export default function App() {
         : "live";
   const effectiveBootMessage =
     effectiveBootState === "live" && hasRenderableCatalogSeed ? "" : refreshError || bootMessage;
+  const shellBacklogCount = Array.isArray(shellGovernance?.backlog)
+    ? shellGovernance.backlog.length
+    : null;
+  const commandCenterSeed = useMemo(() => {
+    const discoveryPayload = data?.discovery || {};
+    const bootstrapSummary = discoveryPayload.summary || {};
+    const visibleAssetCount =
+      typeof liveCatalogVisibleCount === "number"
+        ? liveCatalogVisibleCount
+        : Number.isFinite(Number(discoveryPayload.defaultCount))
+          ? Number(discoveryPayload.defaultCount)
+          : Number.isFinite(Number(bootstrapSummary.visibleAssets))
+            ? Number(bootstrapSummary.visibleAssets)
+            : searchSeedAssets.length || null;
+    const liveCatalogsFacet = Array.isArray(liveDiscoveryState?.facets?.catalogs)
+      ? liveDiscoveryState.facets.catalogs
+      : [];
+    const bootCatalogsFacet = Array.isArray(discoveryPayload.defaultFacets?.catalogs)
+      ? discoveryPayload.defaultFacets.catalogs
+      : [];
+    const catalogsFacet = liveCatalogsFacet.length
+      ? liveCatalogsFacet
+      : bootCatalogsFacet;
+    const catalogCount =
+      catalogsFacet.filter((c) => {
+        const label = typeof c === "string" ? c : c?.value || c?.label || "";
+        return label && !/^all\s+catalogs$/i.test(String(label));
+      }).length
+      || Number(bootstrapSummary.catalogCount)
+      || Number(data?.inventory?.catalogCount)
+      || (Array.isArray(discoveryPayload.catalogs) ? discoveryPayload.catalogs.length : 0);
+    const openRequests = shellBacklogCount;
+    const coverageScore =
+      bootstrapSummary.averageCoverage
+      ?? data?.governance?.summary?.coverageScore
+      ?? shellGovernance?.summary?.coverageScore
+      ?? null;
+    return {
+      estate: {
+        visibleAssetCount,
+        catalogCount: Number.isFinite(Number(catalogCount)) ? Number(catalogCount) : null,
+        openRequests,
+        coverageScore,
+      },
+      recentAssets: [],
+      meta: {
+        state: "seed",
+        warnings: [],
+      },
+    };
+  }, [
+    data?.discovery,
+    data?.governance?.summary?.coverageScore,
+    data?.inventory?.catalogCount,
+    liveCatalogVisibleCount,
+    liveDiscoveryState.facets,
+    searchSeedAssets.length,
+    shellBacklogCount,
+    shellGovernance?.summary?.coverageScore,
+  ]);
+  const commandCenter = useCommandCenter({
+    enabled: bootstrapReady && surface === "home",
+    seedData: commandCenterSeed,
+  });
 
   const diagnosticsPanel = shellDiagnosticsOpen
     ? renderWorkspaceDiagnostics(
@@ -697,6 +777,20 @@ export default function App() {
           <TaxonomyWorkspace />
         </Suspense>
       );
+    } else if (surface === "cde") {
+      content = (
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading CDE registry",
+            "Deriving critical data elements from visible governed metadata.",
+          )}
+        >
+          <CdeWorkspace
+            onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
+            onOpenLineage={openLineageWorkspace}
+          />
+        </Suspense>
+      );
     } else if (surface === "help") {
       content = (
         <Suspense
@@ -721,6 +815,17 @@ export default function App() {
           <CapabilityDashboard
             onBack={() => openDiscoveryWorkspace("", { fresh: false })}
           />
+        </Suspense>
+      );
+    } else if (surface === "admin") {
+      content = (
+        <Suspense
+          fallback={workspaceLoading(
+            "Loading admin control center",
+            "Preparing runtime, integration, and governance-store diagnostics.",
+          )}
+        >
+          <AdminWorkspace />
         </Suspense>
       );
     } else if (surface === "insights") {
@@ -753,53 +858,13 @@ export default function App() {
         </Suspense>
       );
     } else if (surface === "home") {
-      // Pull the estate snapshot from the richest signal available —
-      // prefer live discovery truth, then bootstrap's defaultCount /
-      // defaultFacets.catalogs (which the server ships on /api/bootstrap
-      // for the live state), then fall back to any baseline data.
-      // Operator 2026-04-19 round 4 flagged that Home was showing
-      // "Governed assets: 0, Catalogs in scope: 1" at cold load —
-      // the bootstrap already carries the right numbers, we just
-      // weren't reading them.
-      const discoveryPayload = data?.discovery || {};
-      const bootstrapSummary = discoveryPayload.summary || {};
-      const visibleAssetCount =
-        typeof liveCatalogVisibleCount === "number"
-          ? liveCatalogVisibleCount
-          : Number.isFinite(Number(discoveryPayload.defaultCount))
-            ? Number(discoveryPayload.defaultCount)
-            : Number.isFinite(Number(bootstrapSummary.visibleAssets))
-              ? Number(bootstrapSummary.visibleAssets)
-              : searchSeedAssets.length || null;
-      // Prefer the LIVE discovery facets over bootstrap — operator
-      // 2026-04-20 round 8 flagged that Home's catalog count didn't
-      // match the filter rail. Root cause: bootstrap was serving a
-      // stale/partial facet (4 catalogs) while the live search returns
-      // the full 5. Live > bootstrap, always.
-      const liveCatalogsFacet = Array.isArray(liveDiscoveryState?.facets?.catalogs)
-        ? liveDiscoveryState.facets.catalogs
-        : [];
-      const bootCatalogsFacet = Array.isArray(discoveryPayload.defaultFacets?.catalogs)
-        ? discoveryPayload.defaultFacets.catalogs
-        : [];
-      const catalogsFacet = liveCatalogsFacet.length
-        ? liveCatalogsFacet
-        : bootCatalogsFacet;
-      const catalogCount =
-        catalogsFacet.filter((c) => {
-          const label = typeof c === "string" ? c : c?.value || c?.label || "";
-          return label && !/^all\s+catalogs$/i.test(String(label));
-        }).length
-        || Number(bootstrapSummary.catalogCount)
-        || Number(data?.inventory?.catalogCount)
-        || (Array.isArray(discoveryPayload.catalogs) ? discoveryPayload.catalogs.length : 0);
-      const openRequests =
-        Number(shellGovernance?.backlog?.length || 0)
-        || Number(shellGovernance?.inbox?.unreadCount || 0);
-      const coverageScore =
-        bootstrapSummary.averageCoverage
-        || data?.governance?.summary?.coverageScore
-        || shellGovernance?.summary?.coverageScore;
+      const homeState = commandCenter.error
+        ? "error"
+        : commandCenter.loading
+          ? "loading"
+          : commandCenter.degraded
+            ? "degraded"
+            : "ready";
       content = (
         <Suspense
           fallback={workspaceLoading(
@@ -808,16 +873,17 @@ export default function App() {
           )}
         >
           <HomePage
-            userName={shell?.userEmail || ""}
-            estate={{
-              visibleAssetCount,
-              catalogCount,
-              openRequests,
-              coverageScore,
-            }}
-            recentAssets={searchSeedAssets.slice(0, 6)}
+            commandCenter={commandCenter.data}
+            estate={commandCenter.data.estate}
+            state={homeState}
+            message={commandCenter.oboFallbackReason || ""}
+            refreshing={commandCenter.refreshing}
+            refreshError={commandCenter.refreshError}
+            warnings={commandCenter.warnings}
+            userName={shell.userName || shell.userEmail}
+            onRetry={commandCenter.oboScopeFallback ? commandCenter.refreshActorScope : commandCenter.refresh}
+            recentAssets={commandCenter.data.recentAssets}
             onNavigate={(surfaceKey) => handleModuleSurfaceChange(surfaceKey)}
-            onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
           />
         </Suspense>
       );
@@ -856,19 +922,25 @@ export default function App() {
     <AppFrame
       activeModule={
         surface === "entity"
-          ? "discovery"
-          : ["home", "discovery", "lineage", "governance", "audit", "taxonomy", "help", "inbox", "capabilities", "insights"].includes(surface)
-            ? surface
-            : ""
+          ? "entity"
+          : surface === "capabilities" || surface === "admin"
+            ? "admin"
+            : ["home", "discovery", "lineage", "governance", "audit", "taxonomy", "help", "inbox", "insights", "cde"].includes(surface)
+              ? surface
+              : ""
       }
       bootMessage={effectiveBootMessage}
       bootState={effectiveBootState}
+      currentAssetFqn={shellAsset360Fqn}
       governanceInbox={shellGovernance.inbox}
       inboxOpen={shellInboxOpen}
       liveCatalogVisibleCount={liveCatalogVisibleCount}
       navigationState={navigationState}
       onBrowseCatalog={handleBrowseCatalog}
       onModuleChange={handleModuleSurfaceChange}
+      onOpenAsset360={() => {
+        if (shellAsset360Fqn) openEntityWorkspace(shellAsset360Fqn, "Overview");
+      }}
       onNavigationStateChange={handleNavigationStateChange}
       onSearchResultSelect={(assetFqn) => {
         setShellDiagnosticsOpen(false);

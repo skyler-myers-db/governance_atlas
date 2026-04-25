@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const appFrameMock = vi.fn();
 const useAppRouteStateMock = vi.fn();
 const useBootstrapMock = vi.fn();
+const useCommandCenterMock = vi.fn();
 const useGovernanceSummaryMock = vi.fn();
 const useRuntimeStatusMock = vi.fn();
 const updateGovernanceNotificationMock = vi.fn();
@@ -11,6 +12,7 @@ const discoveryWorkspaceMock = vi.fn(() => <div data-testid="discovery-workspace
 const entityWorkspaceMock = vi.fn(() => <div data-testid="entity-workspace" />);
 const lineageWorkspaceMock = vi.fn(() => <div data-testid="lineage-workspace" />);
 const governanceWorkspaceMock = vi.fn(() => <div data-testid="governance-workspace" />);
+const adminWorkspaceMock = vi.fn(() => <div data-testid="admin-workspace" />);
 const workspaceSetupWizardMock = vi.fn(() => <div data-testid="workspace-setup-wizard" />);
 
 vi.mock("./hooks/useAppRouteState", () => ({
@@ -19,6 +21,10 @@ vi.mock("./hooks/useAppRouteState", () => ({
 
 vi.mock("./hooks/useBootstrap", () => ({
   useBootstrap: (...args) => useBootstrapMock(...args),
+}));
+
+vi.mock("./hooks/useCommandCenter", () => ({
+  useCommandCenter: (...args) => useCommandCenterMock(...args),
 }));
 
 vi.mock("./hooks/useGovernanceSummary", () => ({
@@ -78,11 +84,19 @@ vi.mock("./components/GovernanceWorkspace", () => ({
   default: (...args) => governanceWorkspaceMock(...args),
 }));
 
+vi.mock("./components/AdminWorkspace", () => ({
+  default: (...args) => adminWorkspaceMock(...args),
+}));
+
 vi.mock("./components/WorkspaceSetupWizard", () => ({
   default: (...args) => workspaceSetupWizardMock(...args),
 }));
 
 vi.mock("./lib/api", () => ({
+  fetchAtlasAiRecommendations: vi.fn().mockResolvedValue({
+    answer: "No evidence-backed recommendations are available from the current visible metadata.",
+    evidence: [],
+  }),
   normalizeGovernancePayload: (payload) => payload,
   updateGovernanceNotification: (...args) => updateGovernanceNotificationMock(...args),
   getRuntimeDiagnostics: () => ({
@@ -102,6 +116,7 @@ describe("App", () => {
   beforeEach(() => {
     useAppRouteStateMock.mockReset();
     useBootstrapMock.mockReset();
+    useCommandCenterMock.mockReset();
     useGovernanceSummaryMock.mockReset();
     useRuntimeStatusMock.mockReset();
     updateGovernanceNotificationMock.mockReset();
@@ -110,6 +125,7 @@ describe("App", () => {
     entityWorkspaceMock.mockClear();
     lineageWorkspaceMock.mockClear();
     governanceWorkspaceMock.mockClear();
+    adminWorkspaceMock.mockClear();
     workspaceSetupWizardMock.mockClear();
 
     useAppRouteStateMock.mockReturnValue({
@@ -163,6 +179,28 @@ describe("App", () => {
         inbox: null,
       },
       refresh: vi.fn(),
+    });
+    useCommandCenterMock.mockReturnValue({
+      data: {
+        estate: {
+          visibleAssetCount: null,
+          catalogCount: null,
+          openRequests: null,
+          coverageScore: null,
+        },
+        recentAssets: [],
+        meta: { state: "available", warnings: [] },
+      },
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      degraded: false,
+      warnings: [],
+      oboScopeFallback: false,
+      oboFallbackReason: "",
+      refresh: vi.fn(),
+      refreshActorScope: vi.fn(),
     });
   });
 
@@ -800,6 +838,81 @@ describe("App", () => {
     });
   });
 
+  it("opens Asset 360 from the Discovery preview asset without clearing preview context", () => {
+    const openEntityWorkspace = vi.fn();
+    const openDiscoveryWorkspace = vi.fn();
+    useAppRouteStateMock.mockReturnValue({
+      surface: "discovery",
+      setSurface: vi.fn(),
+      routeAssetFqn: "",
+      discoveryRouteState: {
+        filterGroups: {
+          types: ["Table"],
+          catalogs: ["main"],
+          domains: ["Finance"],
+          tiers: [],
+          certifications: [],
+          sensitivities: [],
+        },
+        query: "finance",
+        previewAssetFqn: "main.sales.returns",
+        sortBy: "Recently updated",
+        views: ["Needs review"],
+        fresh: false,
+        requestKey: "seed-preview",
+      },
+      setDiscoveryRouteFilterGroups: vi.fn(),
+      setDiscoveryRoutePreview: vi.fn(),
+      setDiscoveryRouteQuery: vi.fn(),
+      setDiscoveryRouteSort: vi.fn(),
+      setDiscoveryRouteViews: vi.fn(),
+      openDiscoveryWorkspace,
+      openEntityWorkspace,
+      openLineageWorkspace: vi.fn(),
+      openGovernanceWorkspace: vi.fn(),
+      onModuleChange: vi.fn(),
+    });
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "live",
+        shell: {
+          role: "Admin",
+          userEmail: "admin@example.com",
+          diagnosticsEnabled: true,
+        },
+        discovery: {
+          summary: {
+            visibleAssets: 1,
+          },
+        },
+        governance: {
+          metrics: [],
+          backlog: [],
+          glossary: [],
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+    });
+
+    render(<App />);
+
+    const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
+    expect(appFrameProps?.currentAssetFqn).toBe("main.sales.returns");
+    appFrameProps?.onOpenAsset360();
+    expect(openEntityWorkspace).toHaveBeenCalledWith("main.sales.returns", "Overview");
+    expect(openDiscoveryWorkspace).not.toHaveBeenCalled();
+  });
+
   it("uses a fresh discovery open when the shell browse action is triggered", async () => {
     const openDiscoveryWorkspace = vi.fn();
     useAppRouteStateMock.mockReturnValue({
@@ -910,6 +1023,158 @@ describe("App", () => {
     const discoveryProps = discoveryWorkspaceMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.liveCatalogVisibleCount).toBeNull();
     expect(discoveryProps?.effectiveVisibleCount).toBeNull();
+  });
+
+  it("uses command center estate for the home route over bootstrap seed values", async () => {
+    useAppRouteStateMock.mockReturnValue({
+      surface: "home",
+      routeAssetFqn: "",
+      discoveryRouteState: {
+        filterGroups: { types: [], catalogs: [], domains: [], tiers: [], certifications: [], sensitivities: [] },
+        query: "",
+        previewAssetFqn: "",
+        sortBy: "",
+        views: [],
+        fresh: false,
+        requestKey: "seed",
+      },
+      setDiscoveryRouteFilterGroups: vi.fn(),
+      setDiscoveryRoutePreview: vi.fn(),
+      setDiscoveryRouteQuery: vi.fn(),
+      setDiscoveryRouteSort: vi.fn(),
+      setDiscoveryRouteViews: vi.fn(),
+      openDiscoveryWorkspace: vi.fn(),
+      openEntityWorkspace: vi.fn(),
+      openLineageWorkspace: vi.fn(),
+      openGovernanceWorkspace: vi.fn(),
+      onModuleChange: vi.fn(),
+    });
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      shellOnly: false,
+      data: {
+        bootState: "live",
+        shell: {
+          role: "Admin",
+          userEmail: "admin@example.com",
+          diagnosticsEnabled: true,
+        },
+        discovery: {
+          summary: {
+            visibleAssets: 1,
+            catalogCount: 1,
+            averageCoverage: 10,
+          },
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+      refresh: vi.fn(),
+    });
+    useCommandCenterMock.mockReturnValue({
+      data: {
+        estate: {
+          visibleAssetCount: 42,
+          catalogCount: 3,
+          openRequests: 5,
+          coverageScore: 88,
+        },
+        recentAssets: [],
+        meta: { state: "available", warnings: [] },
+      },
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      degraded: false,
+      warnings: [],
+      oboScopeFallback: false,
+      oboFallbackReason: "",
+      refresh: vi.fn(),
+      refreshActorScope: vi.fn(),
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText("42")).not.toBeNull();
+      expect(screen.getByText("88%")).not.toBeNull();
+    });
+    expect(useCommandCenterMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        seedData: expect.objectContaining({
+          estate: expect.objectContaining({
+            visibleAssetCount: 1,
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("routes admin directly to the admin control center", async () => {
+    useAppRouteStateMock.mockReturnValue({
+      surface: "admin",
+      routeAssetFqn: "",
+      discoveryRouteState: {
+        filterGroups: { types: [], catalogs: [], domains: [], tiers: [], certifications: [], sensitivities: [] },
+        query: "",
+        previewAssetFqn: "",
+        sortBy: "",
+        views: [],
+        fresh: false,
+        requestKey: "seed",
+      },
+      setDiscoveryRouteFilterGroups: vi.fn(),
+      setDiscoveryRoutePreview: vi.fn(),
+      setDiscoveryRouteQuery: vi.fn(),
+      setDiscoveryRouteSort: vi.fn(),
+      setDiscoveryRouteViews: vi.fn(),
+      openDiscoveryWorkspace: vi.fn(),
+      openEntityWorkspace: vi.fn(),
+      openLineageWorkspace: vi.fn(),
+      openGovernanceWorkspace: vi.fn(),
+      onModuleChange: vi.fn(),
+    });
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      shellOnly: false,
+      data: {
+        bootState: "live",
+        shell: {
+          role: "Admin",
+          userEmail: "admin@example.com",
+          diagnosticsEnabled: true,
+        },
+        assets: [],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+      refresh: vi.fn(),
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("admin-workspace")).not.toBeNull();
+    });
+    expect(adminWorkspaceMock).toHaveBeenCalledTimes(1);
+    expect(appFrameMock.mock.calls.at(-1)?.[0]?.activeModule).toBe("admin");
   });
 
   it("passes the additive governance inbox through AppFrame and updates unread state on shell actions", async () => {

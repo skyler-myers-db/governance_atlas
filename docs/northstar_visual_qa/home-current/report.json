@@ -1,0 +1,54 @@
+{
+  "generatedAt": "2026-04-24T15:52:39.589Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "appOrigin": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deepLinkAsset": "prod.silver.ap_self_assessed_tax_dist",
+  "checks": [
+    {
+      "name": "browser-connect",
+      "status": "warn",
+      "blocking": false,
+      "cdpUrl": "http://127.0.0.1:9223",
+      "message": "browserType.connectOverCDP: connect ECONNREFUSED 127.0.0.1:9223\nCall log:\n\u001b[2m  - <ws preparing> retrieving websocket url from http://127.0.0.1:9223\u001b[22m\n"
+    },
+    {
+      "name": "browser-connect-fallback",
+      "status": "ok",
+      "blocking": true,
+      "profileRoot": "/Users/entrada-mac/Library/Application Support/Google/Chrome"
+    },
+    {
+      "name": "root-shell",
+      "status": "error",
+      "blocking": true,
+      "reason": "auth-required",
+      "expectedOrigin": "https://atlas-2543889327043640.aws.databricksapps.com",
+      "landedUrl": "https://dbc-3aa503a9-4fa8.cloud.databricks.com/login.html?next_url=%2Foidc%2Foauth2%2Fv2.0%2Fauthorize%3Fapproval_prompt%3Dconsent%26client_id%3D551ed2fa-4d54-4dc4-bc7f-abb6e9bdb9ad%26code_challenge%3D8te25z7pREeCE5fIwIOGtQ4HMW2S-E-_rJSaiH_b9pg%26code_challenge_method%3DS256%26redirect_uri%3Dhttps%253A%252F%252Fatlas-2543889327043640.aws.databricksapps.com%252F.auth%252Fcallback%26response_type%3Dcode%26scope%3Ddefault%26state%3DvhX3Oj-uNV1OJvgnIxKb-8akTTf8iY25mBoU7k8R3IY%253A%252F",
+      "detail": {
+        "url": "https://dbc-3aa503a9-4fa8.cloud.databricks.com/login.html?next_url=%2Foidc%2Foauth2%2Fv2.0%2Fauthorize%3Fapproval_prompt%3Dconsent%26client_id%3D551ed2fa-4d54-4dc4-bc7f-abb6e9bdb9ad%26code_challenge%3D8te25z7pREeCE5fIwIOGtQ4HMW2S-E-_rJSaiH_b9pg%26code_challenge_method%3DS256%26redirect_uri%3Dhttps%253A%252F%252Fatlas-2543889327043640.aws.databricksapps.com%252F.auth%252Fcallback%26response_type%3Dcode%26scope%3Ddefault%26state%3DvhX3Oj-uNV1OJvgnIxKb-8akTTf8iY25mBoU7k8R3IY%253A%252F",
+        "title": "Databricks - Sign In",
+        "readyState": "interactive",
+        "bodyPreview": "",
+        "selectors": {
+          "shellHeader": false,
+          "discoveryGrid": false,
+          "entityTabs": false,
+          "unavailable": false,
+          "shellProgress": false
+        }
+      }
+    },
+    {
+      "name": "smoke-run",
+      "status": "error",
+      "blocking": true,
+      "message": "Navigation left the app origin during root-shell: https://dbc-3aa503a9-4fa8.cloud.databricks.com/login.html?next_url=%2Foidc%2Foauth2%2Fv2.0%2Fauthorize%3Fapproval_prompt%3Dconsent%26client_id%3D551ed2fa-4d54-4dc4-bc7f-abb6e9bdb9ad%26code_challenge%3D8te25z7pREeCE5fIwIOGtQ4HMW2S-E-_rJSaiH_b9pg%26code_challenge_method%3DS256%26redirect_uri%3Dhttps%253A%252F%252Fatlas-2543889327043640.aws.databricksapps.com%252F.auth%252Fcallback%26response_type%3Dcode%26scope%3Ddefault%26state%3DvhX3Oj-uNV1OJvgnIxKb-8akTTf8iY25mBoU7k8R3IY%253A%252F"
+    }
+  ],
+  "screenshots": [
+    "/Users/entrada-mac/repos/governance_atlas/docs/northstar_visual_qa/home-current/root-shell-auth-required-failure.png"
+  ],
+  "consoleErrors": [],
+  "pageErrors": [],
+  "networkErrors": []
+}

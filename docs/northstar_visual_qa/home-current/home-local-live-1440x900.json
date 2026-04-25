@@ -1,0 +1,50 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "body": {
+    "width": 1440,
+    "height": 1087,
+    "clientWidth": 1440,
+    "clientHeight": 900
+  },
+  "overflowX": false,
+  "overflowY": true,
+  "home": {
+    "x": 210,
+    "y": 72,
+    "width": 1230,
+    "height": 959,
+    "bottom": 1031,
+    "right": 1440
+  },
+  "grid": {
+    "x": 238,
+    "y": 347,
+    "width": 1174,
+    "height": 657,
+    "bottom": 1003,
+    "right": 1412
+  },
+  "footer": {
+    "x": 210,
+    "y": 1031,
+    "width": 1230,
+    "height": 56,
+    "bottom": 1087,
+    "right": 1440
+  },
+  "banner": null,
+  "globe": {
+    "x": 786,
+    "y": 54,
+    "width": 634,
+    "height": 210,
+    "bottom": 264,
+    "right": 1420
+  },
+  "postureText": "7%\nOverall Posture\nTrend unavailable",
+  "aiInputPlaceholder": "Evidence-backed chat unavailable",
+  "visibleTextSample": "Home\nDiscovery\nAsset 360\nLineage\nGovernance\nInsights\nTaxonomy\nCDEs\nAudit\nAdmin\n<\nCollapse\n© 2026 Entrada. All rights reserved.\nGovernance Atlas\n⌘\nK\nDev - DEFAULT\nAtlas AI\nSK\nSkyler\nAdmin\nEnterprise Governance Command Center\n\nUnified visibility. Trusted data. Confident decisions.\n\nGoverned Assets\n1,123\nCertified Critical Assets\n-\nSignal unavailable\nMetadata Coverage\n7%\nOpen Stewardship Actions\n0\nPolicy Exceptions\n-\nSignal unavailable\nAudit Readiness\n-\nSignal unavailable\nGovernance Posture Over Time\nLast 6 Months\n100%\n75%\n50%\n25%\n0%\nTrend history unavailable\nOverall Posture\nPolicy Compliance\nData Quality\n7%\nOverall Posture\nTrend unavailable\nPosture by Domain\nView all\nDiscoverability\nOwnership\nClassification\nCriticality\nData Product\nUnassigned\nLow\nHigh\nTop Domains\nView all\n1\nUnassigned\n7%\nRecent Governance Events\nView all\nidentity-directory-upserted\nskyler@entrada.ai\n3h ago\nidentity-directo"
+}

@@ -1,0 +1,10 @@
+2026/01/09-14:30:41.297 194c Creating DB /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_www.realtor.com_0.indexeddb.leveldb since it was missing.
+2026/01/09-14:30:41.301 194c Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_www.realtor.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/01/09-14:30:43.388 1995 Level-0 table #5: started
+2026/01/09-14:30:43.390 1995 Level-0 table #5: 300158 bytes OK
+2026/01/09-14:30:43.392 1995 Delete type=0 #3
+2026/01/09-14:30:43.392 194c Manual compaction at level-0 from '\x00\x06\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x07\x00\x00\x00' @ 0 : 0; will stop at (end)
+2026/01/09-14:30:43.396 194c Level-0 table #7: started
+2026/01/09-14:30:43.397 194c Level-0 table #7: 1576 bytes OK
+2026/01/09-14:30:43.398 194c Delete type=0 #4
+2026/01/09-14:30:43.398 194c Manual compaction at level-0 from '\x00\x08\x00\x00\x00' @ 72057594037927935 : 1 .. '\x00\x09\x00\x00\x00' @ 0 : 0; will stop at (end)

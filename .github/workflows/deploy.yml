@@ -1,4 +1,4 @@
-name: Deploy Governance Hub
+name: Deploy Governance Atlas
 
 on:
   push:
@@ -71,28 +71,39 @@ jobs:
         run: python3 scripts/validate_repo_hygiene.py
 
       - name: Backend compile check
-        run: python3 -m py_compile run_app.py runtime_app.py govhub/api/*.py govhub/services/*.py govhub/*.py scripts/prepare_bundle.py scripts/validate_repo_hygiene.py
+        run: python3 -m py_compile run_app.py runtime_app.py atlas/api/*.py atlas/services/*.py atlas/*.py scripts/prepare_bundle.py scripts/validate_repo_hygiene.py
 
       - name: Backend unit tests
         run: python3 -m unittest discover -s tests
 
       - name: Prepare clean bundle directory
-        run: python3 scripts/prepare_bundle.py --output "${RUNNER_TEMP}/governance_hub_bundle"
+        run: python3 scripts/prepare_bundle.py --output "${RUNNER_TEMP}/atlas_bundle"
 
       - name: Install Databricks CLI
         uses: databricks/setup-cli@main
 
+      - name: Configure DEFAULT Databricks profile
+        run: |
+          mkdir -p "$HOME/.databricks"
+          {
+            echo "[DEFAULT]"
+            echo "host = ${DATABRICKS_HOST}"
+            echo "token = ${DATABRICKS_TOKEN}"
+          } > "$HOME/.databrickscfg"
+
       - name: Validate packaged bundle
-        working-directory: ${{ runner.temp }}/governance_hub_bundle
+        working-directory: ${{ runner.temp }}/atlas_bundle
         run: |
           databricks bundle validate \
+            --profile DEFAULT \
             -t dev \
             --var="warehouse_id=${{ secrets.DATABRICKS_WAREHOUSE_ID }}"
 
       - name: Summarize packaged bundle
-        working-directory: ${{ runner.temp }}/governance_hub_bundle
+        working-directory: ${{ runner.temp }}/atlas_bundle
         run: |
           databricks bundle summary \
+            --profile DEFAULT \
             -t dev \
             --var="warehouse_id=${{ secrets.DATABRICKS_WAREHOUSE_ID }}"
 
@@ -126,10 +137,19 @@ jobs:
         run: npm run build
 
       - name: Prepare clean bundle directory
-        run: python3 scripts/prepare_bundle.py --output "${RUNNER_TEMP}/governance_hub_bundle"
+        run: python3 scripts/prepare_bundle.py --output "${RUNNER_TEMP}/atlas_bundle"
 
       - name: Install Databricks CLI
         uses: databricks/setup-cli@main
+
+      - name: Configure DEFAULT Databricks profile
+        run: |
+          mkdir -p "$HOME/.databricks"
+          {
+            echo "[DEFAULT]"
+            echo "host = ${DATABRICKS_HOST}"
+            echo "token = ${DATABRICKS_TOKEN}"
+          } > "$HOME/.databrickscfg"
 
       - name: Set target
         id: target
@@ -141,15 +161,59 @@ jobs:
           fi
 
       - name: Deploy packaged bundle
-        working-directory: ${{ runner.temp }}/governance_hub_bundle
+        working-directory: ${{ runner.temp }}/atlas_bundle
         run: |
           databricks bundle deploy \
+            --profile DEFAULT \
             -t "${{ steps.target.outputs.target }}" \
             --var="warehouse_id=${{ secrets.DATABRICKS_WAREHOUSE_ID }}"
+
+      - name: Activate Databricks App from bundle root
+        working-directory: ${{ runner.temp }}/atlas_bundle
+        run: |
+          user_name="$(databricks current-user me --profile DEFAULT -o json | python3 -c 'import json,sys; print(json.load(sys.stdin)["userName"])')"
+          source_code_path="/Workspace/Users/${user_name}/.bundle/atlas/${{ steps.target.outputs.target }}/files"
+          case "${{ steps.target.outputs.target }}" in
+            dev)
+              gov_catalog="datapact"
+              gov_schema="atlas"
+              ;;
+            staging)
+              gov_catalog="staging"
+              gov_schema="atlas"
+              ;;
+            prod)
+              gov_catalog="prod"
+              gov_schema="atlas"
+              ;;
+            *)
+              echo "Unsupported target: ${{ steps.target.outputs.target }}" >&2
+              exit 1
+              ;;
+          esac
+          python3 - <<PY > /tmp/atlas-app-deploy.json
+          import json
+          payload = {
+              "source_code_path": "${source_code_path}",
+              "mode": "SNAPSHOT",
+              "env_vars": [
+                  {"name": "DATABRICKS_WAREHOUSE_ID", "value_from": "sql-warehouse"},
+                  {"name": "GOVAT_CATALOG", "value": "${gov_catalog}"},
+                  {"name": "GOVAT_SCHEMA", "value": "${gov_schema}"},
+                  {"name": "GOVAT_ADMIN_EMAILS", "value": "${{ secrets.GOVAT_ADMIN_EMAILS }}"},
+              ],
+          }
+          print(json.dumps(payload))
+          PY
+          databricks apps start atlas --profile DEFAULT --timeout 20m
+          databricks apps deploy atlas \
+            --profile DEFAULT \
+            --json @/tmp/atlas-app-deploy.json \
+            --timeout 20m
 
       - name: Summary
         run: |
           echo "### ✅ Deployed to **${{ steps.target.outputs.target }}**" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Bundle: governance-hub" >> "$GITHUB_STEP_SUMMARY"
+          echo "Bundle: atlas" >> "$GITHUB_STEP_SUMMARY"
           echo "Workspace: ${{ secrets.DATABRICKS_HOST }}" >> "$GITHUB_STEP_SUMMARY"

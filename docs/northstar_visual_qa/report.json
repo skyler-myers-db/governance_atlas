@@ -1,0 +1,347 @@
+{
+  "generatedAt": "2026-04-24T08:31:10.609Z",
+  "appUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "firstAsset": "westat_samples.retail_v2_serv.gold_customer_360",
+  "results": [
+    {
+      "name": "admin",
+      "route": "/admin",
+      "viewport": "1280x720",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "admin",
+      "route": "/admin",
+      "viewport": "1440x900",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "admin",
+      "route": "/admin",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/admin",
+      "viewport": "1536x1024",
+      "path": "docs/northstar_visual_qa/admin-1536x1024.png",
+      "failed": false,
+      "checks": {
+        "product": true,
+        "nav": true,
+        "routeTitle": true
+      }
+    },
+    {
+      "name": "audit",
+      "route": "/audit",
+      "viewport": "1280x720",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "audit",
+      "route": "/audit",
+      "viewport": "1440x900",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "audit",
+      "route": "/audit",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/audit",
+      "viewport": "1536x1024",
+      "path": "docs/northstar_visual_qa/audit-1536x1024.png",
+      "failed": false,
+      "checks": {
+        "product": true,
+        "nav": true,
+        "routeTitle": true
+      }
+    },
+    {
+      "name": "cde",
+      "route": "/cde",
+      "viewport": "1280x720",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "cde",
+      "route": "/cde",
+      "viewport": "1440x900",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "cde",
+      "route": "/cde",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/cde",
+      "viewport": "1536x1024",
+      "path": "docs/northstar_visual_qa/cde-1536x1024.png",
+      "failed": false,
+      "checks": {
+        "product": true,
+        "nav": true,
+        "routeTitle": true
+      }
+    },
+    {
+      "name": "discovery",
+      "route": "/discovery",
+      "viewport": "1280x720",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "discovery",
+      "route": "/discovery",
+      "viewport": "1440x900",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "discovery",
+      "route": "/discovery",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/discovery",
+      "viewport": "1536x1024",
+      "path": "docs/northstar_visual_qa/discovery-1536x1024.png",
+      "failed": false,
+      "checks": {
+        "product": true,
+        "nav": true,
+        "routeTitle": true
+      }
+    },
+    {
+      "name": "entity",
+      "route": "/entity/westat_samples.retail_v2_serv.gold_customer_360",
+      "viewport": "1280x720",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": "westat_samples.retail_v2_serv.gold_customer_360",
+      "hasAsset": true
+    },
+    {
+      "name": "entity",
+      "route": "/entity/westat_samples.retail_v2_serv.gold_customer_360",
+      "viewport": "1440x900",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": "westat_samples.retail_v2_serv.gold_customer_360",
+      "hasAsset": true
+    },
+    {
+      "name": "entity",
+      "route": "/entity/westat_samples.retail_v2_serv.gold_customer_360",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/entity/westat_samples.retail_v2_serv.gold_customer_360",
+      "viewport": "1536x1024",
+      "path": "docs/northstar_visual_qa/entity-1536x1024.png",
+      "failed": false,
+      "checks": {
+        "product": true,
+        "nav": true,
+        "routeTitle": true,
+        "hasAsset": true
+      }
+    },
+    {
+      "name": "governance",
+      "route": "/governance",
+      "viewport": "1280x720",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "governance",
+      "route": "/governance",
+      "viewport": "1440x900",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "governance",
+      "route": "/governance",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/governance",
+      "viewport": "1536x1024",
+      "path": "docs/northstar_visual_qa/governance-1536x1024.png",
+      "failed": false,
+      "checks": {
+        "product": true,
+        "nav": true,
+        "routeTitle": true
+      }
+    },
+    {
+      "name": "home",
+      "route": "/home",
+      "viewport": "1280x720",
+      "title": "Home — Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "home",
+      "route": "/home",
+      "viewport": "1440x900",
+      "title": "Home — Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "home",
+      "route": "/home",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/home",
+      "viewport": "1536x1024",
+      "path": "docs/northstar_visual_qa/home-1536x1024.png",
+      "failed": false,
+      "checks": {
+        "product": true,
+        "nav": true,
+        "routeTitle": true
+      }
+    },
+    {
+      "name": "insights",
+      "route": "/insights",
+      "viewport": "1280x720",
+      "title": "Insights — Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "insights",
+      "route": "/insights",
+      "viewport": "1440x900",
+      "title": "Insights — Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "insights",
+      "route": "/insights",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/insights",
+      "viewport": "1536x1024",
+      "path": "docs/northstar_visual_qa/insights-1536x1024.png",
+      "failed": false,
+      "checks": {
+        "product": true,
+        "nav": true,
+        "routeTitle": true
+      }
+    },
+    {
+      "name": "lineage",
+      "route": "/lineage/westat_samples.retail_v2_serv.gold_customer_360",
+      "viewport": "1280x720",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": "westat_samples.retail_v2_serv.gold_customer_360",
+      "hasAsset": true,
+      "assetNote": "Lineage unavailable state preserved visible asset context while warehouse capabilities were warming."
+    },
+    {
+      "name": "lineage",
+      "route": "/lineage/westat_samples.retail_v2_serv.gold_customer_360",
+      "viewport": "1440x900",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": "westat_samples.retail_v2_serv.gold_customer_360",
+      "hasAsset": true,
+      "assetNote": "Lineage unavailable state preserved visible asset context while warehouse capabilities were warming."
+    },
+    {
+      "name": "lineage",
+      "route": "/lineage/westat_samples.retail_v2_serv.gold_customer_360",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/westat_samples.retail_v2_serv.gold_customer_360",
+      "viewport": "1536x1024",
+      "path": "docs/northstar_visual_qa/lineage-1536x1024.png",
+      "failed": false,
+      "checks": {
+        "product": true,
+        "nav": true,
+        "routeTitle": true,
+        "hasAsset": true
+      }
+    },
+    {
+      "name": "taxonomy",
+      "route": "/taxonomy",
+      "viewport": "1280x720",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "taxonomy",
+      "route": "/taxonomy",
+      "viewport": "1440x900",
+      "title": "Governance Atlas",
+      "hasAtlas": true,
+      "hasEntrada": true,
+      "blank": false,
+      "asset": ""
+    },
+    {
+      "name": "taxonomy",
+      "route": "/taxonomy",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/taxonomy",
+      "viewport": "1536x1024",
+      "path": "docs/northstar_visual_qa/taxonomy-1536x1024.png",
+      "failed": false,
+      "checks": {
+        "product": true,
+        "nav": true,
+        "routeTitle": true
+      }
+    }
+  ],
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "updatedAt": "2026-04-24T08:41:51.127Z"
+}

@@ -44,7 +44,7 @@ export default class AppErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error("Governance Hub render failure", error, info);
+    console.error("Governance Atlas render failure", error, info);
   }
 
   componentDidMount() {
@@ -80,7 +80,7 @@ export default class AppErrorBoundary extends Component {
         <section className="gh-workspace gh-unavailable-workspace">
           <WorkspaceStateCard
             eyebrow="New version available"
-            message="Governance Hub has been redeployed since you opened this tab. Reload to load the newest workspace bundle."
+            message="Governance Atlas has been redeployed since you opened this tab. Reload to load the newest workspace bundle."
             title="Reload to pick up the latest build"
             tone="neutral"
           >

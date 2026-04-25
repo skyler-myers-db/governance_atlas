@@ -1,0 +1,83 @@
+2026/03/13-09:32:11.303 2bdd Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/5/IndexedDB/indexeddb.leveldb/MANIFEST-000001
+2026/03/13-09:32:11.305 2bdd Recovering log #750
+2026/03/13-09:32:11.311 2bdd Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/5/IndexedDB/indexeddb.leveldb/000750.log 
+2026/03/13-09:32:11.784 2c6a Level-0 table #758: started
+2026/03/13-09:32:11.800 2c6a Level-0 table #758: 1849257 bytes OK
+2026/03/13-09:32:11.806 2c6a Delete type=0 #750
+2026/03/13-09:32:11.810 2c6a Compacting 1@1 + 7@2 files
+2026/03/13-09:32:11.824 2c6a Generated table #759@1: 2156 keys, 2145437 bytes
+2026/03/13-09:32:11.845 2c6a Generated table #760@1: 8077 keys, 2238695 bytes
+2026/03/13-09:32:11.866 2c6a Level-0 table #763: started
+2026/03/13-09:32:11.875 2c6a Level-0 table #763: 1892795 bytes OK
+2026/03/13-09:32:11.877 2c6a Delete type=0 #757
+2026/03/13-09:32:11.888 2c6a Generated table #761@1: 15372 keys, 2374662 bytes
+2026/03/13-09:32:11.920 2c6a Generated table #764@1: 15354 keys, 2372939 bytes
+2026/03/13-09:32:11.929 2c6a Generated table #765@1: 5981 keys, 877832 bytes
+2026/03/13-09:32:11.930 2c6a Compacted 1@1 + 7@2 files => 10009565 bytes
+2026/03/13-09:32:11.931 2c6a compacted to: files[ 1 0 7 0 0 0 0 ]
+2026/03/13-09:32:11.931 2c6a Delete type=2 #738
+2026/03/13-09:32:11.931 2c6a Delete type=2 #758
+2026/03/13-09:32:11.931 2c6a Delete type=2 #752
+2026/03/13-09:32:11.931 2c6a Delete type=2 #753
+2026/03/13-09:32:11.931 2c6a Delete type=2 #754
+2026/03/13-09:32:11.931 2c6a Delete type=2 #755
+2026/03/13-09:32:11.931 2c6a Delete type=2 #737
+2026/03/13-09:32:11.931 2c6a Delete type=2 #736
+2026/03/13-09:32:11.934 2ed8 Moved #763 to level-1 1892795 bytes OK: files[ 0 1 7 0 0 0 0 ]
+2026/03/13-09:32:11.937 2c6a Compacting 1@1 + 4@2 files
+2026/03/13-09:32:11.940 2c6a Level-0 table #768: started
+2026/03/13-09:32:11.948 2c6a Level-0 table #768: 1905150 bytes OK
+2026/03/13-09:32:11.952 2c6a Delete type=0 #762
+2026/03/13-09:32:11.959 2c6a Generated table #766@1: 3713 keys, 2125743 bytes
+2026/03/13-09:32:11.968 2c6a Generated table #769@1: 1213 keys, 2153423 bytes
+2026/03/13-09:32:11.997 2c6a Generated table #770@1: 14712 keys, 2342706 bytes
+2026/03/13-09:32:12.030 2c6a Generated table #771@1: 15360 keys, 2374104 bytes
+2026/03/13-09:32:12.030 2c6a Level-0 table #773: started
+2026/03/13-09:32:12.039 2c6a Level-0 table #773: 1890576 bytes OK
+2026/03/13-09:32:12.040 2c6a Delete type=0 #767
+2026/03/13-09:32:12.058 2c6a Generated table #774@1: 8533 keys, 1319119 bytes
+2026/03/13-09:32:12.058 2c6a Compacted 1@1 + 4@2 files => 10315095 bytes
+2026/03/13-09:32:12.059 2c6a compacted to: files[ 2 0 8 0 0 0 0 ]
+2026/03/13-09:32:12.059 2c6a Compacting 2@0 + 0@1 files
+2026/03/13-09:32:12.068 2c6a Generated table #775@0: 4136 keys, 2120904 bytes
+2026/03/13-09:32:12.078 2c6a Generated table #776@0: 3914 keys, 1665584 bytes
+2026/03/13-09:32:12.078 2c6a Compacted 2@0 + 0@1 files => 3786488 bytes
+2026/03/13-09:32:12.080 2c6a compacted to: files[ 0 2 8 0 0 0 0 ]
+2026/03/13-09:32:12.080 2c6a Delete type=2 #764
+2026/03/13-09:32:12.080 2c6a Delete type=2 #759
+2026/03/13-09:32:12.080 2c6a Delete type=2 #761
+2026/03/13-09:32:12.080 2c6a Delete type=2 #760
+2026/03/13-09:32:12.080 2c6a Delete type=2 #763
+2026/03/13-09:32:12.082 2c6a Expanding@1 1+4 (1665584+8995976 bytes) to 2+4 (3786488+8995976 bytes)
+2026/03/13-09:32:12.082 2c6a Compacting 2@1 + 4@2 files
+2026/03/13-09:32:12.091 2c6a Generated table #777@1: 4145 keys, 2120835 bytes
+2026/03/13-09:32:12.102 2c6a Generated table #778@1: 3882 keys, 2124428 bytes
+2026/03/13-09:32:12.113 2c6a Generated table #779@1: 1215 keys, 2154376 bytes
+2026/03/13-09:32:12.140 2c6a Generated table #780@1: 13897 keys, 2331388 bytes
+2026/03/13-09:32:12.169 2c6a Generated table #781@1: 15360 keys, 2372214 bytes
+2026/03/13-09:32:12.173 2c6a Generated table #782@1: 1620 keys, 250422 bytes
+2026/03/13-09:32:12.173 2c6a Compacted 2@1 + 4@2 files => 11353663 bytes
+2026/03/13-09:32:12.174 2c6a compacted to: files[ 0 0 10 0 0 0 0 ]
+2026/03/13-09:32:12.174 2c6a Delete type=2 #773
+2026/03/13-09:32:12.174 2c6a Delete type=2 #766
+2026/03/13-09:32:12.174 2c6a Delete type=2 #770
+2026/03/13-09:32:12.174 2c6a Delete type=2 #771
+2026/03/13-09:32:12.174 2c6a Delete type=2 #775
+2026/03/13-09:32:12.174 2c6a Delete type=2 #776
+2026/03/13-09:32:12.174 2c6a Delete type=2 #768
+2026/03/13-09:32:12.174 2c6a Delete type=2 #769
+2026/03/13-09:32:14.937 2c6a Level-0 table #784: started
+2026/03/13-09:32:14.945 2c6a Level-0 table #784: 1693669 bytes OK
+2026/03/13-09:32:14.947 2c6a Delete type=0 #772
+2026/03/13-09:32:15.632 2c6a Level-0 table #786: started
+2026/03/13-09:32:15.642 2c6a Level-0 table #786: 2057938 bytes OK
+2026/03/13-09:32:15.646 2c6a Delete type=0 #783
+2026/03/13-09:32:30.885 2c6a Compacting 1@0 + 1@1 files
+2026/03/13-09:32:30.912 2c6a Generated table #787@0: 17078 keys, 1725020 bytes
+2026/03/13-09:32:30.913 2c6a Compacted 1@0 + 1@1 files => 1725020 bytes
+2026/03/13-09:32:30.914 2c6a compacted to: files[ 0 1 10 0 0 0 0 ]
+2026/03/13-09:32:30.914 2c6a Delete type=2 #784
+2026/03/13-09:32:30.914 2c6a Delete type=2 #786
+2026/03/13-09:32:30.987 2ed8 Level-0 table #789: started
+2026/03/13-09:32:30.997 2ed8 Level-0 table #789: 3072295 bytes OK
+2026/03/13-09:32:31.002 2ed8 Delete type=0 #785

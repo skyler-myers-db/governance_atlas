@@ -1,8 +1,25 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAuditEvents } from "../lib/api";
+import { fetchAuditEvents, fetchAuditEvidence } from "../lib/api";
 import { EmptyStateBlock, LoadingState } from "./ShellStatePrimitives";
-import { SurfacePanelSection } from "./ShellLayoutPrimitives";
+import {
+  DataTable,
+  EmptyState,
+  MetricCard,
+  PageHero,
+  RightInspector,
+  SectionCard,
+  StatusPill,
+} from "./northstar";
+import "../styles/operations-pages.css";
+
+function envelopeData(payload) {
+  return payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
+}
+
+function eventId(event, index = 0) {
+  return event?.audit_id || event?.auditId || event?.id || `${event?.created_at || "event"}-${index}`;
+}
 
 /**
  * Phase 13 — cross-entity audit browser.
@@ -17,6 +34,7 @@ export default function AuditBrowserWorkspace({ shell }) {
   const [action, setAction] = useState("");
   const [since, setSince] = useState("");
   const [limit, setLimit] = useState(100);
+  const [selectedAuditId, setSelectedAuditId] = useState("");
 
   const filters = useMemo(() => ({ actorEmail, entityFqn, action, since, limit }), [
     actorEmail,
@@ -31,23 +49,39 @@ export default function AuditBrowserWorkspace({ shell }) {
     queryFn: ({ signal }) => fetchAuditEvents(filters, { signal }),
     retry: false,
   });
+  const evidenceQuery = useQuery({
+    queryKey: ["atlas", "audit-evidence", selectedAuditId || "latest", limit],
+    queryFn: ({ signal }) => fetchAuditEvidence({ auditId: selectedAuditId, limit, signal }),
+    retry: false,
+  });
 
-  const events = Array.isArray(query.data) ? query.data : [];
+  const evidencePayload = envelopeData(evidenceQuery.data) || {};
+  const compositeEvents = Array.isArray(evidencePayload.events) ? evidencePayload.events : [];
+  const hasLegacyFilters = Boolean(actorEmail.trim() || entityFqn.trim() || action.trim() || since.trim());
+  const filteredEvents = Array.isArray(query.data) ? query.data : [];
+  const events = hasLegacyFilters ? filteredEvents : (compositeEvents.length ? compositeEvents : filteredEvents);
+  const selectedEvent = evidencePayload.selectedEvent || events.find((event) => eventId(event) === selectedAuditId) || events[0] || null;
+  const summary = evidencePayload.summary || {};
   // Errors thrown by the api request helper attach a `status` field.
   const isForbidden = Number((query.error && /** @type {any} */ (query.error).status) || 0) === 403;
 
   return (
-    <section className="gh-audit-browser">
-      <SurfacePanelSection
-        title="Audit browser"
-        titleMeta={
-          <span className="gh-support-copy">
-            Cross-entity audit events from the governance audit log. Filter by actor, entity, action, or time window.
-          </span>
-        }
-      >
-        <div className="gh-audit-browser-filters">
-          <label className="gh-filter">
+    <section className="ga-page ga-operations-page ga-audit-page">
+      <PageHero
+        eyebrow="Audit"
+        title="Audit Evidence Browser"
+        subtitle="Cross-entity governance changes from the metadata audit log with evidence loaded from the composite audit API."
+      />
+      <div className="ga-kpi-grid four">
+        <MetricCard label="Total Changes" value={(summary.totalChanges ?? events.length).toLocaleString()} />
+        <MetricCard label="Policy Changes" value={(summary.policyChanges ?? "Unavailable").toLocaleString?.() || String(summary.policyChanges ?? "Unavailable")} />
+        <MetricCard label="Approvals" value={(summary.approvals ?? "Unavailable").toLocaleString?.() || String(summary.approvals ?? "Unavailable")} />
+        <MetricCard label="Failed Actions" value={(summary.failedActions ?? "Unavailable").toLocaleString?.() || String(summary.failedActions ?? "Unavailable")} />
+      </div>
+      <div className="ga-operations-two-column">
+        <SectionCard title="Audit events" eyebrow="Live governance log">
+          <div className="ga-filter-grid">
+          <label className="ga-filter">
             <span className="gh-filter-label">Actor email</span>
             <input
               aria-label="Filter by actor email"
@@ -58,7 +92,7 @@ export default function AuditBrowserWorkspace({ shell }) {
               value={actorEmail}
             />
           </label>
-          <label className="gh-filter">
+          <label className="ga-filter">
             <span className="gh-filter-label">Entity FQN</span>
             <input
               aria-label="Filter by entity FQN"
@@ -69,7 +103,7 @@ export default function AuditBrowserWorkspace({ shell }) {
               value={entityFqn}
             />
           </label>
-          <label className="gh-filter">
+          <label className="ga-filter">
             <span className="gh-filter-label">Action</span>
             <input
               aria-label="Filter by action"
@@ -80,7 +114,7 @@ export default function AuditBrowserWorkspace({ shell }) {
               value={action}
             />
           </label>
-          <label className="gh-filter">
+          <label className="ga-filter">
             <span className="gh-filter-label">Since</span>
             <input
               aria-label="Filter by since timestamp"
@@ -91,7 +125,7 @@ export default function AuditBrowserWorkspace({ shell }) {
               value={since}
             />
           </label>
-          <label className="gh-filter">
+          <label className="ga-filter">
             <span className="gh-filter-label">Limit</span>
             <select
               aria-label="Result limit"
@@ -114,6 +148,12 @@ export default function AuditBrowserWorkspace({ shell }) {
           />
         ) : query.isLoading ? (
           <LoadingState message="Loading audit events…" />
+        ) : evidenceQuery.error ? (
+          <EmptyState
+            title="Audit evidence unavailable"
+            message={evidenceQuery.error?.message || "Composite audit evidence could not be loaded."}
+            tone="bad"
+          />
         ) : query.error ? (
           <EmptyStateBlock
             title="Failed to load audit events"
@@ -125,38 +165,54 @@ export default function AuditBrowserWorkspace({ shell }) {
             message="Try relaxing a filter or expanding the time window."
           />
         ) : (
-          <div className="gh-audit-browser-table">
-            <div className="gh-audit-browser-row gh-audit-browser-head">
-              <div>Time</div>
-              <div>Actor</div>
-              <div>Entity</div>
-              <div>Action</div>
-              <div>Detail</div>
-            </div>
-            {events.map((event) => (
-              <div className="gh-audit-browser-row" key={event.audit_id}>
-                <div className="gh-audit-ts">{event.created_at || ""}</div>
-                <div>
-                  <div className="gh-audit-actor">{event.actor_email || "—"}</div>
-                  <div className="gh-support-copy">{event.actor_role || ""}</div>
-                </div>
-                <div>
-                  <div className="gh-audit-entity">{event.entity_fqn || event.entity_id || "—"}</div>
-                  <div className="gh-support-copy">
-                    {event.entity_type}
-                    {event.column_name ? ` / ${event.column_name}` : ""}
-                  </div>
-                </div>
-                <div>
-                  <span className="gh-chip gh-chip-soft">{event.action || "—"}</span>
-                  <div className="gh-support-copy">{event.source || "api"}</div>
-                </div>
-                <div className="gh-audit-detail">{event.detail || ""}</div>
-              </div>
-            ))}
-          </div>
+          <DataTable
+            columns={[
+              { key: "created_at", header: "Time", render: (event) => event.created_at || event.createdAt || "Unavailable" },
+              { key: "actor_email", header: "Actor", render: (event) => event.actor_email || event.actorEmail || "Unavailable" },
+              {
+                key: "entity_fqn",
+                header: "Entity",
+                render: (event) => (
+                  <button className="ga-link-button" type="button" onClick={() => setSelectedAuditId(eventId(event))}>
+                    {event.entity_fqn || event.entity_id || "Unavailable"}
+                  </button>
+                ),
+              },
+              { key: "action", header: "Action", render: (event) => <StatusPill tone="info">{event.action || "Unavailable"}</StatusPill> },
+              { key: "detail", header: "Detail", render: (event) => event.detail || "" },
+            ]}
+            rows={events.map((event, index) => ({ ...event, __rowKey: eventId(event, index) }))}
+            rowKey="__rowKey"
+          />
         )}
-      </SurfacePanelSection>
+        </SectionCard>
+        <RightInspector
+          title="Evidence"
+          subtitle={selectedEvent ? eventId(selectedEvent) : "No audit event selected"}
+        >
+          {selectedEvent ? (
+            <div className="ga-inspector-stack">
+              <dl className="ga-detail-list">
+                <div><dt>Action</dt><dd>{selectedEvent.action || "Unavailable"}</dd></div>
+                <div><dt>Actor</dt><dd>{selectedEvent.actor_email || selectedEvent.actorEmail || "Unavailable"}</dd></div>
+                <div><dt>Entity</dt><dd>{selectedEvent.entity_fqn || selectedEvent.entity_id || "Unavailable"}</dd></div>
+                <div><dt>Status</dt><dd>{selectedEvent.status || "Unavailable"}</dd></div>
+                <div><dt>Linked Request</dt><dd>{evidencePayload.evidence?.linkedRequest || "Unavailable"}</dd></div>
+              </dl>
+              <div className="ga-evidence-block">
+                <h3>Before</h3>
+                <pre>{evidencePayload.evidence?.before || "Unavailable"}</pre>
+              </div>
+              <div className="ga-evidence-block">
+                <h3>After</h3>
+                <pre>{evidencePayload.evidence?.after || "Unavailable"}</pre>
+              </div>
+            </div>
+          ) : (
+            <EmptyState title="No evidence selected" message="Select an audit event to inspect stored before/after evidence." />
+          )}
+        </RightInspector>
+      </div>
     </section>
   );
 }

@@ -18,8 +18,8 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from govhub.api import cache as api_cache
-from govhub.services import inventory as inventory_service
+from atlas.api import cache as api_cache
+from atlas.services import inventory as inventory_service
 
 
 class BootstrapInventoryCacheScopeTests(unittest.TestCase):
@@ -71,13 +71,13 @@ class BootstrapInventoryCacheScopeTests(unittest.TestCase):
             return []
 
         with patch.object(inventory_service, "_runtime_deps", self._runtime_deps_stub), \
-             patch("govhub.services.assets.visible_assets", side_effect=fake_visible_assets), \
+             patch("atlas.services.assets.visible_assets", side_effect=fake_visible_assets), \
              patch(
-                 "govhub.services.assets.inventory_catalogs",
+                 "atlas.services.assets.inventory_catalogs",
                  side_effect=fake_inventory_catalogs,
              ), \
              patch(
-                 "govhub.services.assets.lineage_observed_catalogs",
+                 "atlas.services.assets.lineage_observed_catalogs",
                  side_effect=fake_lineage_observed_catalogs,
              ):
             inventory_service.bootstrap_inventory_summary("alice@example.com|obo-available")

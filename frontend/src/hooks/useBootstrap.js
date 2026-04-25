@@ -5,7 +5,7 @@ import { fetchBootstrap } from "../lib/api";
 /** @returns {any} */
 function initialBootstrap() {
   if (typeof window === "undefined") return null;
-  return /** @type {any} */ (window.__GOVHUB_BOOTSTRAP__) || null;
+  return /** @type {any} */ (window.__GOVAT_BOOTSTRAP__) || null;
 }
 
 function normalizeRouteContext(routeContext = {}) {
@@ -33,7 +33,7 @@ export function useBootstrap(routeContext = {}) {
     initialDataUpdatedAt: 0,
     staleTime: 60_000,
   });
-  const message = query.error?.message || "Failed to load Governance Hub bootstrap payload.";
+  const message = query.error?.message || "Failed to load Governance Atlas bootstrap payload.";
   const shellOnly = isInlineShellBootstrap(query.data);
   const hasData = Boolean(query.data);
 

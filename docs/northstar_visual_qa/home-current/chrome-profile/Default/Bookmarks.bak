@@ -1,0 +1,134 @@
+{
+   "checksum": "9a706ea207403562fd5bed775c5e1386",
+   "roots": {
+      "bookmark_bar": {
+         "children": [  ],
+         "date_added": "13410252734867355",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "0bc5d13f-2cba-5d74-951f-3f233fe6c908",
+         "id": "1",
+         "name": "Bookmarks Bar",
+         "type": "folder"
+      },
+      "other": {
+         "children": [ {
+            "children": [ {
+               "date_added": "13417748545078441",
+               "date_last_used": "0",
+               "guid": "9a4fb687-6996-44df-8c91-7889302a1202",
+               "id": "5",
+               "meta_info": {
+                  "power_bookmark_meta": ""
+               },
+               "name": "The Grid - Home Sharepoint",
+               "type": "url",
+               "url": "https://tristategt2.sharepoint.com/"
+            }, {
+               "date_added": "13417748574234863",
+               "date_last_used": "0",
+               "guid": "ce7cc127-44bd-4c98-8811-aeb97a312f62",
+               "id": "7",
+               "meta_info": {
+                  "power_bookmark_meta": ""
+               },
+               "name": "Apps | M365 Copilot",
+               "type": "url",
+               "url": "https://m365.cloud.microsoft/apps/?fromcode=cmmiadtp424&refOrigin=Google&origindomain=Office&auth=2"
+            }, {
+               "date_added": "13417748584038032",
+               "date_last_used": "0",
+               "guid": "81aee40e-f394-4822-abc1-79588b79f085",
+               "id": "8",
+               "meta_info": {
+                  "power_bookmark_meta": ""
+               },
+               "name": "Portable Console | Flow Details",
+               "type": "url",
+               "url": "https://app.portable.io/flows/details?id=8589939885"
+            }, {
+               "date_added": "13417748592977131",
+               "date_last_used": "0",
+               "guid": "3590d42d-3ee1-4df9-8c13-f00cb78b8b00",
+               "id": "9",
+               "meta_info": {
+                  "power_bookmark_meta": ""
+               },
+               "name": "Home - OneDrive",
+               "type": "url",
+               "url": "https://tristategt2-my.sharepoint.com/"
+            }, {
+               "date_added": "13417748648644986",
+               "date_last_used": "0",
+               "guid": "759ec25b-e075-48f7-8180-2f3a8ce7942e",
+               "id": "10",
+               "meta_info": {
+                  "power_bookmark_meta": ""
+               },
+               "name": "My Apps Dashboard | tristategt.org",
+               "type": "url",
+               "url": "https://login.tristategt.org/app/UserHome?iss=https%3A%2F%2Flogin.tristategt.org&session_hint=AUTHENTICATED"
+            }, {
+               "date_added": "13417748663776586",
+               "date_last_used": "0",
+               "guid": "c6559b06-9318-468a-92aa-c1f0e295dbe3",
+               "id": "11",
+               "meta_info": {
+                  "power_bookmark_meta": ""
+               },
+               "name": "Dashboard | Fivetran",
+               "type": "url",
+               "url": "https://fivetran.com/dashboard/alerts?alertGroup=tattered_visage&alertType=databricks_insufficient_privileges&alertIntegration=oracle_fscm"
+            }, {
+               "date_added": "13417748678820497",
+               "date_last_used": "0",
+               "guid": "4af60793-ca8d-433c-86cc-e8bae74107ea",
+               "id": "12",
+               "meta_info": {
+                  "power_bookmark_meta": ""
+               },
+               "name": "My roles - Microsoft Azure",
+               "type": "url",
+               "url": "https://portal.azure.com/?feature.msaljs=true#view/Microsoft_Azure_PIMCommon/ActivationMenuBlade/~/azurerbac/provider/azurerbac"
+            }, {
+               "date_added": "13418254653608948",
+               "date_last_used": "0",
+               "guid": "3d069e17-7756-4c0d-936f-e5a97d9cd228",
+               "id": "13",
+               "meta_info": {
+                  "power_bookmark_meta": ""
+               },
+               "name": "My Apps Dashboard | tristategt.org",
+               "type": "url",
+               "url": "https://login.tristategt.org/app/UserHome"
+            } ],
+            "date_added": "13417748567862019",
+            "date_last_used": "0",
+            "date_modified": "13418254653608948",
+            "guid": "7f2ea649-a8db-488f-8293-ef98b20ba92a",
+            "id": "6",
+            "name": "Tri-State",
+            "type": "folder"
+         } ],
+         "date_added": "13410252734867355",
+         "date_last_used": "0",
+         "date_modified": "13417748545078441",
+         "guid": "82b081ec-3dd3-529c-8475-ab6c344590dd",
+         "id": "2",
+         "name": "Other Bookmarks",
+         "type": "folder"
+      },
+      "synced": {
+         "children": [  ],
+         "date_added": "13410252734867355",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "4cf2e351-0e85-532b-bb37-df045d8f8d0f",
+         "id": "3",
+         "name": "Mobile Bookmarks",
+         "type": "folder"
+      }
+   },
+   "sync_metadata": "Cm8KTwiIgQISSSAAkgE2CjQKDmNocm9tZV9zeW5jX2JtEgU1MSFibRoSCTH624xFTgYAETH624xFTgYAKZY03IxFTgYA6gELCJP4q84GEJDinlUSACoYM2t5KzFQaXdvVTRxNUZLOWw4b2NkUT09SAMS7AEICRLnAQocVEhwTFcxZ0NVTXlMYUVFYUVjOG9GK2cvd3JrPRJmWjpBRHF0QVp3NGNTOHZJVTZXYmdzdmEvbytLekx4Qmp0OFA3d2hCcTdjSzRTd0x5UG1MUEtTRitjY1psRzJmVHRBOVNzUU5kVUU1MURTWWVDcHJjV212aHJoWFRKR1NBTU1hQT09GAAgAigCMOv6sJHgrJMDONGitPvNM0DxorT7zTNKHE41MzdZNEpYK29FQ1YvTEdOa0g2LzBQeVZXND1aHyId7UorWmNiUldyd3ZFS3RpQWlMSUs1ZDdHZ0NKWT1lAu+JpBKrAQgBEqYBChx5eEovNmZ2a2VjcjdrcDVFUXpCNHRXTHBkYkU9Ek5aOkFEcXRBWnloZjN4Q3lBa3d4MzVMV0xqcUI4am1IQ1hpcCtFVGZuZjFOcXVnNHlkOEtNNDQwSmJ1ZlNMd2pJZTNkTkZEaW50NmUxVWsYACAAKAAwqMGJnN2+kQM4AEAAShxhUkNXTGdoRjliNUlucUtJRHZ1Si9qdlFrRmM9WgBlAAAAABLsAQgLEucBChxCSlB6RkNOWjk4QVdacm55RHNNcmR2MnFPQTA9EmZaOkFEcXRBWnc0Y1M4dklVNldiZ3N2YS9vK0t6THhLdnY5VWo1N0lWU3Q0akljQmJ3Q24zazA4MzBrbzRoVUtLckxqUUpwbXNydjR5SG82eVdxLzRvdG9tZWdsd3ZVeVpkNVJ3PT0YACACKAIw6/qwkeCskwM44Mu4+80zQILMuPvNM0ocSm1rVndnVkJnQ1pGbncrdXFhUTE4M2ZqQnI4PVofIh37ekh4SVRnaWFlb0xSa2l0SXFNaUhteENSR2VnPWXQpMO6EuwBCAwS5wEKHDQvUzJ5VmgzMElSeGQxMWFuZ1Q1QzJzajNobz0SZlo6QURxdEFadzRjUzh2SVU2V2Jnc3ZhL28rS3pMeGcyNktwYVJ6VzFwNTl4VWg5eS9FK1RqN09rU0VqQ1UvSm5BVDhDWC9PU1oxY2U3SU13NncvUlBFWEFBYTJCdWpnYVJJaFE9PRgAIAIoAjDr+rCR4KyTAzikwbn7zTNA5MG5+80zShw3bXIvd2VOZnluTVh3WWlnQWVqVldXYWRZYlE9Wh8iHf1abEdkd2J6T3JoYlVqeEVNckkwOThCMVJXUmM9ZYhHri8S7AEIChLnAQocRW1NVGgzYkZ6aXlna0JsNGgvdFVta0MxK0hvPRJmWjpBRHF0QVp3NGNTOHZJVTZXYmdzdmEvbytLekx4elJOU083U0I3WGNHNUUwVkR5clJGWjI5K0ZIdXMrV3E5OFQybDc0aDBwQ1dabjJMNXhvMnIxWEhJWlhzQlJNYXdIaTdJZz09GAAgAigCMOv6sJHgrJMDOMXVt/vNM0Dn1bf7zTNKHFM1eTV1RHBiVmhIbmdLV2haU1ZJUU1zajdHWT1aHyId9kkrZ25aY0JVR2dWcXJkb1IvQmptRjFFZ1JRdz1l9PdQ4RLsAQgIEucBChx0dm1OMk5RRDNoeGh2VGZubFB3NzFjL3hScEE9EmZaOkFEcXRBWnc0Y1M4dklVNldiZ3N2YS9vK0t6THhtbFJ4VU5Ha3ZoL09EelZSbndpR29TRFdhVWc4L0NFVUppS0s0aHBuZElqazRLQkExaUUxaHNjc2ZlSCszV285c0xzT1dnPT0YACACKAIw6/qwkeCskwM45tyz+80zQIvds/vNM0oca3AxSzFNWmIyRzcxV3d0dm9XMHdjb0ZsVGRJPVofIh3abFRnRzRqNVRFQ1YvdzI3WXRCRDNmaE15SktnPWUdshVGEuwBCA0S5wEKHEx6Z0sybEJMcnNxSmUxS1gzbndsUlV2RGY3VT0SZlo6QURxdEFadzRjUzh2SVU2V2Jnc3ZhL28rS3pMeDZLaVlER3V4QVhLK2VGLytqcU9YbE1IQVg1d05qTWt5enlsbExjN2tXbmF5dkpYWG9XN1RWaVp3dFY2N2Q3YzRySE5oWHc9PRgAIAIoAjDr+rCR4KyTAziq4dvszzNA1eHb7M8zShxNbEJXZVlrMXBiWGQ0Z0FBUnVGc3dMMUJwSXM9Wh8iHf5NQTI4SHM4ODBkeXJTaDJFcHBTVzA2STNGTk09ZfT3UOES7AEIBhLnAQocc0dvOWs3a1RjNkZRVDBJdjMrbXI5MmYzcEJvPRJmWjpBRHF0QVp3NGNTOHZJVTZXYmdzdmEvbytLekx4WktGZGw4M2FGWTA2dmRHbHYwOVR5Q05Kb0VWV3BqL0I2Mmo5NlRCbUpVZXVoNS9LUTMyUjY3TW9haFp5VlZDOXh0TXIyQT09GAAgASgBMOv6sJHgrJMDOLbesvvNM0C23rL7zTNKHFRVYkx0WThROUpCWm4wSm1zRjRGb2JhUVNmbz1aHyIdtUlDdjM4YWdQdVhUdWU5cFBtdGZzdTdpcnNYQT1lAAAAABLsAQgHEucBChxyaUpKbCtuZitpZ1hNZmF2NkhQT1A5bjZGZVE9EmZaOkFEcXRBWnc0Y1M4dklVNldiZ3N2YS9vK0t6THhqc0ZHSkdvU0RMQUk3dE1MM212LzRYTlpVamsrOXhKVi81SGNpbHM1a2IvdTI5RXI0M1RmemoxMzlUWFdOT0RqYllJVGN3PT0YACAEKAQw6Kz0lsfIkwM4m5Cz+80zQKTkgYXUM0ocVi9HUWtYdk5SWlN5bDRBREZMZGFqdlBaSFlNPVofIh21V0o2T1RIYjVSTGR5ZURnRWFtTnYrakRRalBNPWX7e6KyEusBCAUS5gEKHDkxZDk1UlV4VFU3b0w4Y1N5S043UWpNbkovZz0SZlo6QURxdEFadzRjUzh2SVU2V2Jnc3ZhL28rS3pMeFRsemlpR1BGcHVJM1ZpemlRNjFOWTBRV2pWNnZ2dzhWOTdCMHhlbWxnQVBLVXVXb1dBcGlGOGo0YjVHMGJ0Mm1lT2FoRXc9PRgAIAQoBDDr+rCR4KyTAzi4rLH7zTNAt96y+80zShxLVndrOUpKTlRPTXdkaHp5a2tnZ09WTWRsL2M9Wh4iHGswa1IrUmxjcnM5MnVNZkp4dUdZNnR0RzVzRT1lDLd+6hLDAQgCEr4BChxZY1NUb252RVNQd3FDczRMMmNyVmh2NjhMOTg9EmZaOkFEcXRBWnc2Vktxam5TS1QzcXQ0azhrRm10Q3Fmcm14NVFOWXV6V2sya3RZZmxPTUVzT3ZNdXZXOE11TlhYK1VCd2RGTzRObE44cVBLUldXaks4WVR3dnNJNWZMbmxvQ093PT0YACAAKAAwqMGJnN2+kQM4AEAAShxvUFZraHdCUmJWNjVLQ1dSMitJT05IV29PdTg9WgBlAAAAABLDAQgDEr4BChxuamdEdTg4ZUNydlhwODZwRDdmSEdjcUZwODg9EmZaOkFEcXRBWnkxaVR0S2l6UjFaRmJFOVJ2d0gyM2pwYVV6NXNwMkg0ak1Eb3NORDRRRmpnMVFPVmJyWGp3b3hGYlB0SGlCbnpaUUJBM1V6ZjFjeVFFMDRzZmdZVWFDaDVRMFZ3PT0YACAAKAAwqMGJnN2+kQM4AEAAShx5ek5CMDFjbjU0QTdjUlUwdVQrL1BnbVR0VW89WgBlAAAAADABOAA=",
+   "version": 1
+}

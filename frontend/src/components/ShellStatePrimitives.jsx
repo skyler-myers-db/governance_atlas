@@ -33,13 +33,18 @@ export function WorkspaceStateCard({
 export function InlineStatusBanner({
   title = "",
   message = "",
+  details = "",
   tone = "warn",
   className = "",
   actions = null,
   children = null,
 }) {
   return (
-    <div className={classes("gh-inline-alert", "gh-inline-status-banner", `tone-${tone}`, className)}>
+    <div
+      aria-label={details || undefined}
+      className={classes("gh-inline-alert", "gh-inline-status-banner", `tone-${tone}`, className)}
+      title={details || undefined}
+    >
       {title ? <div className="gh-inline-alert-title">{title}</div> : null}
       {message ? <div>{message}</div> : null}
       {children ? <div className="gh-inline-status-banner-extra">{children}</div> : null}

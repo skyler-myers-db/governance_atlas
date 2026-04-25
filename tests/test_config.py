@@ -4,7 +4,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from govhub.config import AppConfig
+from atlas.config import AppConfig
 
 
 class AppConfigTests(unittest.TestCase):
@@ -12,8 +12,8 @@ class AppConfigTests(unittest.TestCase):
         os.environ,
         {
             "DATABRICKS_WAREHOUSE_ID": "warehouse-1",
-            "GOVHUB_CATALOG": "main",
-            "GOVHUB_SCHEMA": "governance_hub",
+            "GOVAT_CATALOG": "main",
+            "GOVAT_SCHEMA": "atlas",
         },
         clear=True,
     )
@@ -28,11 +28,11 @@ class AppConfigTests(unittest.TestCase):
         os.environ,
         {
             "DATABRICKS_WAREHOUSE_ID": "warehouse-1",
-            "GOVHUB_CATALOG": "main",
-            "GOVHUB_SCHEMA": "governance_hub",
-            "GOVHUB_BUILD_ID": "build-123",
-            "GOVHUB_DIAGNOSTICS_ENABLED": "false",
-            "GOVHUB_SLOW_REQUEST_MS": "2400",
+            "GOVAT_CATALOG": "main",
+            "GOVAT_SCHEMA": "atlas",
+            "GOVAT_BUILD_ID": "build-123",
+            "GOVAT_DIAGNOSTICS_ENABLED": "false",
+            "GOVAT_SLOW_REQUEST_MS": "2400",
         },
         clear=True,
     )
@@ -42,6 +42,42 @@ class AppConfigTests(unittest.TestCase):
         self.assertEqual(config.build_id, "build-123")
         self.assertFalse(config.diagnostics_enabled)
         self.assertEqual(config.slow_request_ms, 2400)
+
+    @patch.dict(
+        os.environ,
+        {
+            "DATABRICKS_WAREHOUSE_ID": "warehouse-1",
+            "GOVAT_CATALOG": "main",
+            "GOVAT_SCHEMA": "atlas",
+            "GOVAT_BUILD_ID": "build-456",
+            "GOVAT_DIAGNOSTICS_ENABLED": "false",
+            "GOVAT_SLOW_REQUEST_MS": "3100",
+        },
+        clear=True,
+    )
+    def test_from_env_reads_govat_runtime_settings(self) -> None:
+        config = AppConfig.from_env()
+
+        self.assertEqual(config.gov_catalog, "main")
+        self.assertEqual(config.gov_schema, "atlas")
+        self.assertEqual(config.build_id, "build-456")
+        self.assertFalse(config.diagnostics_enabled)
+        self.assertEqual(config.slow_request_ms, 3100)
+
+    @patch.dict(
+        os.environ,
+        {
+            "DATABRICKS_WAREHOUSE_ID": "warehouse-1",
+            "GOVAT_CATALOG": "preferred",
+            "GOVAT_SCHEMA": "atlas",
+        },
+        clear=True,
+    )
+    def test_from_env_uses_govat_catalog_and_schema(self) -> None:
+        config = AppConfig.from_env()
+
+        self.assertEqual(config.gov_catalog, "preferred")
+        self.assertEqual(config.gov_schema, "atlas")
 
 
 if __name__ == "__main__":

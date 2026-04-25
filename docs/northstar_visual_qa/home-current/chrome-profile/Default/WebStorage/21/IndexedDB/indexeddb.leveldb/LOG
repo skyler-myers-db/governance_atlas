@@ -1,0 +1,21 @@
+2026/02/04-09:28:22.668 1e14 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/21/IndexedDB/indexeddb.leveldb/MANIFEST-000001
+2026/02/04-09:28:22.670 1e14 Recovering log #29
+2026/02/04-09:28:22.670 1e14 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/21/IndexedDB/indexeddb.leveldb/000029.log 
+2026/02/04-13:26:36.076 1e49 Level-0 table #34: started
+2026/02/04-13:26:36.100 1e49 Level-0 table #34: 571453 bytes OK
+2026/02/04-13:26:36.102 1e49 Delete type=0 #29
+2026/02/04-13:28:47.376 1e17 Compacting 1@1 + 1@2 files
+2026/02/04-13:28:47.386 1e17 Generated table #35@1: 43 keys, 3862 bytes
+2026/02/04-13:28:47.386 1e17 Compacted 1@1 + 1@2 files => 3862 bytes
+2026/02/04-13:28:47.390 1e17 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/02/04-13:28:47.391 1e17 Delete type=2 #34
+2026/02/04-13:28:47.391 1e17 Delete type=2 #31
+2026/02/04-18:43:44.051 1e17 Level-0 table #37: started
+2026/02/04-18:43:44.075 1e17 Level-0 table #37: 563497 bytes OK
+2026/02/04-18:43:44.078 1e17 Delete type=0 #33
+2026/02/04-19:07:36.217 1e14 Compacting 1@1 + 1@2 files
+2026/02/04-19:07:36.230 1e14 Generated table #38@1: 43 keys, 3864 bytes
+2026/02/04-19:07:36.230 1e14 Compacted 1@1 + 1@2 files => 3864 bytes
+2026/02/04-19:07:36.233 1e14 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/02/04-19:07:36.234 1e14 Delete type=2 #35
+2026/02/04-19:07:36.234 1e14 Delete type=2 #37

@@ -1,0 +1,15 @@
+2026/03/26-20:43:10.944 315e Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_accounts.cloud.databricks.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/03/26-20:43:10.945 315e Recovering log #4
+2026/03/26-20:43:10.945 315e Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_accounts.cloud.databricks.com_0.indexeddb.leveldb/000004.log 
+2026/03/26-20:45:12.709 3162 Level-0 table #8: started
+2026/03/26-20:45:12.726 3162 Level-0 table #8: 3851188 bytes OK
+2026/03/26-20:45:12.727 3162 Delete type=0 #4
+2026/03/26-20:47:23.083 3162 Level-0 table #10: started
+2026/03/26-20:47:23.102 3162 Level-0 table #10: 3841680 bytes OK
+2026/03/26-20:47:23.104 3162 Delete type=0 #7
+2026/03/26-20:47:57.173 3162 Compacting 1@0 + 1@1 files
+2026/03/26-20:47:57.185 3162 Generated table #11@0: 4462 keys, 50477 bytes
+2026/03/26-20:47:57.185 3162 Compacted 1@0 + 1@1 files => 50477 bytes
+2026/03/26-20:47:57.187 3162 compacted to: files[ 0 1 1 0 0 0 0 ]
+2026/03/26-20:47:57.187 3162 Delete type=2 #10
+2026/03/26-20:47:57.187 3162 Delete type=2 #8

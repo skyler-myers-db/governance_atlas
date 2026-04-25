@@ -1,0 +1,15 @@
+2026/04/23-22:54:00.163 dfe8f9 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/3/IndexedDB/indexeddb.leveldb/MANIFEST-000001
+2026/04/23-22:54:00.163 dfe8f9 Recovering log #106
+2026/04/23-22:54:00.178 dfe8f9 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/3/IndexedDB/indexeddb.leveldb/000106.log 
+2026/04/24-09:22:37.041 dfe8f9 Level-0 table #111: started
+2026/04/24-09:22:37.053 dfe8f9 Level-0 table #111: 340692 bytes OK
+2026/04/24-09:22:37.055 dfe8f9 Delete type=0 #106
+2026/04/24-09:22:37.058 dfe8f9 Manual compaction at level-0 from (begin) .. (end); will stop at (end)
+2026/04/24-09:22:37.058 dfe8f9 Manual compaction at level-1 from (begin) .. (end); will stop at '\x00\x07\x01\x1f\x04\x03\x01\x06\x00Q\x00U\x00E\x00U\x00E\x00D\x03\x00\x00\x00\x00\x00\x00L@\x03\x00 \xe7\xe9\xd2\xdbyB\x00\x03\x00\x00\x00\x00\x00@X@' @ 15364 : 1
+2026/04/24-09:22:37.058 dfe8f9 Compacting 1@1 + 1@2 files
+2026/04/24-09:22:37.062 dfe8f9 Generated table #112@1: 186 keys, 17592 bytes
+2026/04/24-09:22:37.062 dfe8f9 Compacted 1@1 + 1@2 files => 17592 bytes
+2026/04/24-09:22:37.063 dfe8f9 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/24-09:22:37.064 dfe8f9 Delete type=2 #111
+2026/04/24-09:22:37.064 dfe8f9 Delete type=2 #108
+2026/04/24-09:22:37.072 dfe8f9 Manual compaction at level-1 from '\x00\x07\x01\x1f\x04\x03\x01\x06\x00Q\x00U\x00E\x00U\x00E\x00D\x03\x00\x00\x00\x00\x00\x00L@\x03\x00 \xe7\xe9\xd2\xdbyB\x00\x03\x00\x00\x00\x00\x00@X@' @ 15364 : 1 .. (end); will stop at (end)

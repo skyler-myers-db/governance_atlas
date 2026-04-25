@@ -24,7 +24,7 @@ export function TopbarSearch({
   onSearchNoticeReset,
   onSelectAsset,
   topDirectResult,
-  placeholder = "Search across Databricks Unity Catalog, tables, views, and metrics…",
+  placeholder = "Search assets, domains, policies, people...",
 }) {
   return (
     <form
@@ -42,7 +42,7 @@ export function TopbarSearch({
           <SearchIcon />
         </span>
         <input
-          aria-label="Search Databricks Unity Catalog, tables, views, and metrics"
+          aria-label="Search assets, domains, policies, and people"
           className="gh-topbar-search-input"
           disabled={shellDisabled}
           onBlur={() => {
@@ -72,6 +72,10 @@ export function TopbarSearch({
           type="search"
           value={searchQuery}
         />
+        <span className="gh-topbar-search-shortcut" aria-hidden="true">
+          <kbd>⌘</kbd>
+          <kbd>K</kbd>
+        </span>
         {searchEnabled ? (
           <GlobalSearchDropdown
             assets={searchAssets}

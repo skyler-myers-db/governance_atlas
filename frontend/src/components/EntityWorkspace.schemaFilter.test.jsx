@@ -43,6 +43,17 @@ vi.mock("../hooks/useLineage", () => ({
   useLineage: (...args) => useLineageMock(...args),
 }));
 
+vi.mock("../hooks/useAsset360", () => ({
+  useAsset360: () => ({
+    data: null,
+    loading: false,
+    refreshing: false,
+    error: "",
+    meta: null,
+    refetch: vi.fn(),
+  }),
+}));
+
 vi.mock("../hooks/useSeededAssetContext", () => ({
   useSeededAssetContext: (...args) => useSeededAssetContextMock(...args),
 }));

@@ -5,6 +5,7 @@ import {
   updateAssetColumnTags,
 } from "../lib/api";
 import { useAssetMetadataEditor } from "../hooks/useAssetMetadataEditor";
+import { useAsset360 } from "../hooks/useAsset360";
 import {
   canOpenLinkedAssetRecord,
   invalidateAssetDetail,
@@ -45,7 +46,6 @@ import { EntityHero } from "./primitives/EntityHero";
 import { TabIcon } from "./primitives/TabIcon";
 import { AccessExplainerBanner } from "./primitives/AccessExplainerBanner";
 import { InlineEditableDescription } from "./primitives/InlineEditableDescription";
-import { MarkdownBlock } from "./primitives/MarkdownBlock";
 import { CustomPropertiesPanel } from "./primitives/CustomPropertiesPanel";
 import { ProfilePanel } from "./primitives/ProfilePanel";
 import { QualityPanel } from "./primitives/QualityPanel";
@@ -691,6 +691,91 @@ function PropertyList({ title, items = [], renderValue = (item) => item.value, c
   );
 }
 
+function statusText(value, fallback = "Unavailable") {
+  const text = String(value || "").trim();
+  if (!text) return fallback;
+  return text.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function Asset360Panel({ data, loading = false, refreshing = false, error = "" }) {
+  if (loading && !data) {
+    return (
+      <EntityRecordSection
+        className="gh-entity-record-asset360-section"
+        description="Loading the composite Asset 360 payload for this record."
+        title="Asset 360"
+      >
+        <SkeletonBlock lines={4} message="Loading Asset 360…" />
+      </EntityRecordSection>
+    );
+  }
+
+  if (!data) {
+    return (
+      <EntityRecordSection
+        className="gh-entity-record-asset360-section"
+        description={error || "The composite Asset 360 payload is not available for this asset yet."}
+        title="Asset 360"
+      >
+        <div className="gh-empty-state">
+          {error || "Asset 360 is unavailable for this asset right now."}
+        </div>
+      </EntityRecordSection>
+    );
+  }
+
+  const governance = data.governance || {};
+  const usage = data.usage || {};
+  const quality = data.quality || {};
+  const freshness = data.freshness || {};
+  const openActivity = Array.isArray(governance.openActivity) ? governance.openActivity.length : 0;
+  const activityCount = Array.isArray(data.activity) ? data.activity.length : 0;
+  const dashboardCount = Array.isArray(data.downstreamDashboards) ? data.downstreamDashboards.length : 0;
+  const stewardCount = Array.isArray(data.stewards) ? data.stewards.length : 0;
+  const schemaCount = Array.isArray(data.schema) ? data.schema.length : 0;
+  const loadedSections = Array.isArray(data.loadedSections) ? data.loadedSections : [];
+  const facts = [
+    { label: "Composite state", value: refreshing ? "Refreshing…" : "Loaded" },
+    { label: "Loaded sections", value: loadedSections.length ? loadedSections.join(", ") : "—" },
+    { label: "Schema", value: schemaCount ? `${schemaCount} columns` : "No columns surfaced" },
+    { label: "Stewards", value: stewardCount ? `${stewardCount}` : "None assigned" },
+    { label: "Governance activity", value: openActivity || activityCount ? `${openActivity || activityCount}` : "None recorded" },
+    { label: "Downstream dashboards", value: dashboardCount ? `${dashboardCount}` : "None surfaced" },
+    {
+      label: "Usage",
+      value:
+        usage.queryCount || usage.downstreamConsumerCount || usage.downstreamAssetCount
+          ? [
+              usage.queryCount ? `${usage.queryCount} queries` : null,
+              usage.downstreamConsumerCount ? `${usage.downstreamConsumerCount} consumers` : null,
+              usage.downstreamAssetCount ? `${usage.downstreamAssetCount} related` : null,
+            ].filter(Boolean).join(" · ")
+          : "No usage surfaced",
+    },
+    { label: "Freshness", value: freshness.message || statusText(freshness.state) },
+    { label: "Quality", value: quality.message || statusText(quality.state) },
+  ];
+
+  return (
+    <EntityRecordSection
+      className="gh-entity-record-asset360-section"
+      description="Composite live context returned by the Atlas Asset 360 endpoint for the selected record."
+      title="Asset 360"
+      titleMeta={refreshing ? <span className="gh-state-pill">Refreshing</span> : null}
+    >
+      {error ? <div className="gh-inline-alert tone-warn">{error}</div> : null}
+      {data.badges?.length ? (
+        <div className="gh-chip-row">
+          {data.badges.slice(0, 8).map((badge) => (
+            <span className="gh-chip gh-chip-soft" key={badge}>{badge}</span>
+          ))}
+        </div>
+      ) : null}
+      <AttributeList items={facts} />
+    </EntityRecordSection>
+  );
+}
+
 export default function EntityWorkspace({
   assetFqn,
   bootstrap,
@@ -821,9 +906,41 @@ export default function EntityWorkspace({
   const assetDetail = useAssetDetail(assetFqn || "", { sections: requestedDetailSections });
   const usableDetail = isUsableAssetDetail(assetDetail.detail) ? assetDetail.detail : null;
   const baseAsset = usableDetail || seeded.summary;
+  const asset360 = useAsset360(assetFqn || "", {
+    enabled: Boolean(assetFqn && baseAsset?.fqn === assetFqn),
+  });
+  const asset360Data =
+    asset360.data?.sameAsset && asset360.data?.asset?.fqn === assetFqn ? asset360.data : null;
+  const compositeBaseAsset = useMemo(() => {
+    if (!baseAsset || !asset360Data?.asset) return baseAsset;
+    const mergedUsage = {
+      ...(baseAsset.usage || {}),
+      ...(asset360Data.asset.usage || {}),
+      ...(asset360Data.usage || {}),
+    };
+    const mergedColumns =
+      Array.isArray(asset360Data.schema) && asset360Data.schema.length
+        ? asset360Data.schema
+        : asset360Data.asset.columns || baseAsset.columns;
+    return {
+      ...baseAsset,
+      ...asset360Data.asset,
+      usage: mergedUsage,
+      columns: mergedColumns,
+      activity: Array.isArray(asset360Data.activity) && asset360Data.activity.length
+        ? asset360Data.activity
+        : asset360Data.asset.activity || baseAsset.activity,
+      relatedAssets: Array.isArray(asset360Data.relatedAssets) && asset360Data.relatedAssets.length
+        ? asset360Data.relatedAssets
+        : asset360Data.asset.relatedAssets || baseAsset.relatedAssets,
+      loadedSections: Array.isArray(asset360Data.loadedSections) && asset360Data.loadedSections.length
+        ? [...new Set([...(baseAsset.loadedSections || []), ...asset360Data.loadedSections])]
+        : baseAsset.loadedSections,
+    };
+  }, [asset360Data, baseAsset]);
   const asset = useMemo(
-    () => (baseAsset ? { ...baseAsset, ...localOverrides } : baseAsset),
-    [baseAsset, localOverrides],
+    () => (compositeBaseAsset ? { ...compositeBaseAsset, ...localOverrides } : compositeBaseAsset),
+    [compositeBaseAsset, localOverrides],
   );
   const loadedSections = useMemo(
     () => new Set(assetDetail.detail?.loadedSections || []),
@@ -1761,6 +1878,13 @@ export default function EntityWorkspace({
                 <AttributeList items={recordFacts} />
               </EntityRecordSection>
 
+              <Asset360Panel
+                data={asset360Data}
+                error={asset360.error}
+                loading={asset360.loading}
+                refreshing={asset360.refreshing}
+              />
+
               {livePreview.length ? (
                 <EntityRecordSection
                   actions={
@@ -1855,7 +1979,6 @@ export default function EntityWorkspace({
                 setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
                 onSelectAsset(nextAssetFqn, "Overview");
               }}
-              onOpenFullGraph={(nextContext) => onOpenLineage(asset.fqn, nextContext)}
               onOpenGovernance={onOpenGovernance}
               onSelectAsset={(nextAssetFqn) => {
                 setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);

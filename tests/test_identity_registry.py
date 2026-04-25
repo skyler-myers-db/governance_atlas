@@ -4,7 +4,7 @@ import unittest
 
 import pandas as pd
 
-from govhub.store import GovernanceStore
+from atlas.store import GovernanceStore
 
 
 class FakeUC:
@@ -23,7 +23,7 @@ class FakeUC:
 class IdentityRegistryTests(unittest.TestCase):
     def test_identity_directory_upsert_merges_and_audits(self) -> None:
         uc = FakeUC()
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         payload = store.upsert_identity_directory_entry(
             external_key="alice@example.com",
@@ -38,16 +38,16 @@ class IdentityRegistryTests(unittest.TestCase):
         self.assertEqual(payload["externalKey"], "alice@example.com")
         self.assertEqual(payload["principalType"], "user")
         self.assertTrue(
-            any("MERGE INTO `main`.`governance_hub`.`identity_directory_entries`" in sql for sql in uc.executed)
+            any("MERGE INTO `main`.`atlas`.`identity_directory_entries`" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("INSERT INTO `main`.`governance_hub`.`metadata_audit_log`" in sql for sql in uc.executed)
+            any("INSERT INTO `main`.`atlas`.`metadata_audit_log`" in sql for sql in uc.executed)
         )
         self.assertTrue(any("identity-directory-upserted" in sql for sql in uc.executed))
 
     def test_entity_registry_and_aliases_are_durable(self) -> None:
         uc = FakeUC()
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         entity_payload = store.upsert_entity_registry(
             entity_id="entity-123",
@@ -69,13 +69,13 @@ class IdentityRegistryTests(unittest.TestCase):
 
         self.assertEqual(entity_payload["entityId"], "entity-123")
         self.assertEqual(alias_payload["aliasValue"], "main.sales.orders_old")
-        self.assertTrue(any("MERGE INTO `main`.`governance_hub`.`entity_registry`" in sql for sql in uc.executed))
-        self.assertTrue(any("DELETE FROM `main`.`governance_hub`.`entity_aliases`" in sql for sql in uc.executed))
-        self.assertTrue(any("INSERT INTO `main`.`governance_hub`.`entity_aliases`" in sql for sql in uc.executed))
+        self.assertTrue(any("MERGE INTO `main`.`atlas`.`entity_registry`" in sql for sql in uc.executed))
+        self.assertTrue(any("DELETE FROM `main`.`atlas`.`entity_aliases`" in sql for sql in uc.executed))
+        self.assertTrue(any("INSERT INTO `main`.`atlas`.`entity_aliases`" in sql for sql in uc.executed))
 
     def test_registry_read_helpers_apply_expected_filters(self) -> None:
         uc = FakeUC()
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         store.list_identity_directory_entries("user", active_only=True)
         store.list_entity_registry("table")

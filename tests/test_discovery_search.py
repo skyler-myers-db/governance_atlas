@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from govhub.services import assets
+from atlas.services import assets
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = ROOT / "scripts" / "generate_runtime_api_openapi_snapshot.py"

@@ -1,0 +1,24 @@
+2026/04/09-10:41:30.794 2118 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/70/IndexedDB/indexeddb.leveldb/MANIFEST-000001
+2026/04/09-10:41:30.794 2118 Recovering log #14
+2026/04/09-10:41:30.797 2118 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/70/IndexedDB/indexeddb.leveldb/000014.log 
+2026/04/09-10:41:35.835 2118 Level-0 table #19: started
+2026/04/09-10:41:35.846 2118 Level-0 table #19: 1585717 bytes OK
+2026/04/09-10:41:35.847 2118 Delete type=0 #14
+2026/04/09-10:41:37.054 2151 Compacting 1@1 + 1@2 files
+2026/04/09-10:41:37.066 2151 Generated table #20@1: 1949 keys, 1197476 bytes
+2026/04/09-10:41:37.066 2151 Compacted 1@1 + 1@2 files => 1197476 bytes
+2026/04/09-10:41:37.067 2151 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/09-10:41:37.068 2151 Delete type=2 #16
+2026/04/09-10:41:37.068 2151 Delete type=2 #19
+2026/04/09-10:42:19.285 2118 Level-0 table #22: started
+2026/04/09-10:42:19.289 2118 Level-0 table #22: 367636 bytes OK
+2026/04/09-10:42:19.292 2118 Delete type=0 #18
+2026/04/09-10:42:19.292 2118 Manual compaction at level-0 from (begin) .. (end); will stop at (end)
+2026/04/09-10:42:19.292 2118 Manual compaction at level-1 from (begin) .. (end); will stop at '\x00\x05\x0a%\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01T\x00A\x00A\x00k\x00B\x00O\x00Q\x00A\x00I\x00C\x00N\x007\x00C\x00l\x00W\x00L\x00/\x00Q\x00A\x00A\x00u\x00A\x00A\x00A\x00A\x00A\x00B\x002\x00E\x00A\x00x\x00G\x00q\x00Z\x00h\x00H\x00N\x00m\x008\x00g\x00A\x00q\x00g\x00A\x00v\x00x\x00F\x00o\x00N\x00A\x00E\x00P\x00/\x008\x001\x00M\x00N\x00A\x00e\x00x\x00P\x00l\x00i\x00w\x00V\x00i\x00p\x00f\x00Y\x00L\x00n\x00s\x00A\x00A\x00D\x00i\x00c\x00G\x00F\x00s\x00A\x00A\x00B\x00A\x00=' @ 28428 : 1
+2026/04/09-10:42:19.292 2118 Compacting 1@1 + 1@2 files
+2026/04/09-10:42:19.303 2118 Generated table #23@1: 1896 keys, 1250543 bytes
+2026/04/09-10:42:19.303 2118 Compacted 1@1 + 1@2 files => 1250543 bytes
+2026/04/09-10:42:19.304 2118 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/09-10:42:19.304 2118 Delete type=2 #20
+2026/04/09-10:42:19.304 2118 Delete type=2 #22
+2026/04/09-10:42:19.304 2118 Manual compaction at level-1 from '\x00\x05\x0a%\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01T\x00A\x00A\x00k\x00B\x00O\x00Q\x00A\x00I\x00C\x00N\x007\x00C\x00l\x00W\x00L\x00/\x00Q\x00A\x00A\x00u\x00A\x00A\x00A\x00A\x00A\x00B\x002\x00E\x00A\x00x\x00G\x00q\x00Z\x00h\x00H\x00N\x00m\x008\x00g\x00A\x00q\x00g\x00A\x00v\x00x\x00F\x00o\x00N\x00A\x00E\x00P\x00/\x008\x001\x00M\x00N\x00A\x00e\x00x\x00P\x00l\x00i\x00w\x00V\x00i\x00p\x00f\x00Y\x00L\x00n\x00s\x00A\x00A\x00D\x00i\x00c\x00G\x00F\x00s\x00A\x00A\x00B\x00A\x00=' @ 28428 : 1 .. (end); will stop at (end)

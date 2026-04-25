@@ -73,7 +73,7 @@ function FrameHarness({
 }
 
 describe("AppFrame", () => {
-  it("opens workspace setup via the rail Settings button when diagnostics are available", () => {
+  it("opens workspace setup from the profile menu when diagnostics are available", () => {
     const onToggle = vi.fn();
     render(
       <AppFrame
@@ -100,20 +100,17 @@ describe("AppFrame", () => {
       </AppFrame>,
     );
 
-    // Diagnostics live behind the rail Settings icon now — the topbar
-    // "Workspace setup" trigger was removed to match the target mockup.
-    const settings = screen.getByRole("button", { name: "Settings" });
+    fireEvent.click(screen.getByRole("button", { name: /Open profile menu/i }));
+    const settings = screen.getByRole("menuitem", { name: "Settings & diagnostics" });
     fireEvent.click(settings);
     expect(onToggle).toHaveBeenCalled();
   });
 
-  it("keeps the rail Settings button available regardless of diagnostics state", () => {
+  it("keeps profile settings available regardless of diagnostics state", () => {
     render(<FrameHarness diagnosticsAvailable={false} />);
 
-    // The rail's Settings button is the unified entry point for diagnostics
-    // / preferences and always renders. The old topbar "Workspace setup"
-    // trigger that was conditional on diagnostics availability is gone.
-    expect(screen.getByRole("button", { name: "Settings" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Open profile menu/i }));
+    expect(screen.getByRole("menuitem", { name: "Settings & diagnostics" })).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Workspace setup" })).toBeNull();
   });
 
@@ -141,11 +138,11 @@ describe("AppFrame", () => {
     // placeholder guidance used to live in a separate command-bar block; it
     // now reads from the input's placeholder attribute instead.
     const searchInput = screen.getByLabelText(
-      /Search Databricks Unity Catalog/i,
+      /Search assets, domains, policies, and people/i,
     );
     expect(searchInput).not.toBeNull();
     expect(searchInput.getAttribute("placeholder")).toMatch(
-      /Search across Databricks Unity Catalog/i,
+      /Search assets, domains, policies, people/i,
     );
   });
 
@@ -190,21 +187,94 @@ describe("AppFrame", () => {
     }
   });
 
-  it("routes the brand button and discovery tab through the shared discovery module callback", () => {
+  it("routes the brand button to Home and discovery tab through the shared module callback", () => {
     const onModuleChange = vi.fn();
 
     render(<FrameHarness onModuleChange={onModuleChange} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Governance Hub/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Governance Atlas/i }));
     fireEvent.click(screen.getByRole("button", { name: "Discovery" }));
     fireEvent.click(screen.getByRole("button", { name: "Lineage" }));
 
-    expect(onModuleChange).toHaveBeenNthCalledWith(1, "discovery");
+    expect(onModuleChange).toHaveBeenNthCalledWith(1, "home");
     expect(onModuleChange).toHaveBeenNthCalledWith(2, "discovery");
     expect(onModuleChange).toHaveBeenNthCalledWith(3, "lineage");
   });
 
-  it("keeps diagnostics reachable via the rail Settings button even without a 'Workspace setup' trigger", () => {
+  it("routes AI Copilot to Home without opening the command palette", () => {
+    const onModuleChange = vi.fn();
+
+    render(<FrameHarness onModuleChange={onModuleChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "AI Copilot" }));
+
+    expect(onModuleChange).toHaveBeenCalledWith("home");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("collapses and expands the side navigation", () => {
+    const { container } = render(<FrameHarness />);
+
+    expect(container.querySelector(".gh-app")?.getAttribute("data-rail-collapsed")).toBe("false");
+    fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
+    expect(container.querySelector(".gh-app")?.getAttribute("data-rail-collapsed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Expand navigation" }));
+    expect(container.querySelector(".gh-app")?.getAttribute("data-rail-collapsed")).toBe("false");
+  });
+
+  it("routes footer links to help and system status surfaces", () => {
+    const onModuleChange = vi.fn();
+    const onOpenCapabilities = vi.fn();
+
+    render(
+      <AppFrame
+        activeModule="home"
+        bootMessage=""
+        bootState="live"
+        diagnosticsAvailable
+        diagnosticsStatus={null}
+        diagnosticsOpen={false}
+        liveCatalogVisibleCount={3}
+        navigationState={{ pending: false, label: "" }}
+        onBrowseCatalog={() => { }}
+        onInboxItemAction={() => { }}
+        onModuleChange={onModuleChange}
+        onNavigationStateChange={() => { }}
+        onOpenCapabilities={onOpenCapabilities}
+        onSearchResultSelect={() => { }}
+        onToggleDiagnostics={() => { }}
+        onToggleInbox={() => { }}
+        searchSeedAssets={[]}
+        shell={{ role: "Admin", userEmail: "admin@example.com" }}
+        visibleAssetSet={new Set()}
+      >
+        <div>Workspace body</div>
+      </AppFrame>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Privacy" }));
+    fireEvent.click(screen.getByRole("button", { name: "Support" }));
+    fireEvent.click(screen.getByRole("button", { name: /System Status/i }));
+
+    expect(onModuleChange).toHaveBeenNthCalledWith(1, "help");
+    expect(onModuleChange).toHaveBeenNthCalledWith(2, "help");
+    expect(onOpenCapabilities).toHaveBeenCalledTimes(1);
+  });
+
+  it("only shows a success system-status dot when diagnostics report ready", () => {
+    const { container, rerender } = render(<FrameHarness diagnosticsStatus={null} />);
+
+    expect(container.querySelector(".ga-system-status i")).toBeNull();
+
+    rerender(<FrameHarness diagnosticsStatus={{ state: "attention_required" }} />);
+    expect(screen.getByRole("button", { name: /System Status: Attention Required/i }).className).toContain("tone-warn");
+    expect(container.querySelector(".ga-system-status.tone-good")).toBeNull();
+
+    rerender(<FrameHarness diagnosticsStatus={{ state: "ready" }} />);
+    expect(screen.getByRole("button", { name: /System Status: Ready/i }).className).toContain("tone-good");
+  });
+
+  it("keeps diagnostics reachable via the profile menu even without a 'Workspace setup' trigger", () => {
     render(
       <FrameHarness
         diagnosticsAvailable={false}
@@ -215,13 +285,10 @@ describe("AppFrame", () => {
       />,
     );
 
-    // The topbar no longer surfaces "Setup attention" copy or a dedicated
-    // "Workspace setup" button — those moved behind the rail Settings icon
-    // to match the target mockup. What we still guarantee is that the rail
-    // Settings entry point is present so stewards can still reach diagnostics.
     expect(screen.queryByText("Setup attention")).toBeNull();
     expect(screen.queryByRole("button", { name: "Workspace setup" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Settings" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Open profile menu/i }));
+    expect(screen.getByRole("menuitem", { name: "Settings & diagnostics" })).not.toBeNull();
   });
 
   it("shows a shell-owned inbox trigger and panel for unread notifications", () => {
@@ -257,11 +324,8 @@ describe("AppFrame", () => {
       />,
     );
 
-    // The inbox trigger lives in the top bar as a dedicated tray icon
-    // (separate from the user chip). Its accessible name reads "Inbox (N
-    // unread)" when there are unread items.
     fireEvent.click(
-      screen.getByRole("button", { name: /Inbox \(2 unread\)/i }),
+      screen.getByRole("button", { name: /Notifications \(2 unread\)/i }),
     );
 
     expect(screen.getByText("Inbox ready")).not.toBeNull();

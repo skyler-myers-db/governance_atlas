@@ -3,6 +3,9 @@ import { Breadcrumbs } from "./primitives/Breadcrumbs";
 import LineageGraph from "./LineageGraph";
 import { EmptyStateBlock, InlineStatusBanner } from "./ShellStatePrimitives";
 
+/** @type {(...args: any[]) => void} */
+const NOOP = () => {};
+
 function selectGraph(graphBundle, context, modeFlags) {
   if (!graphBundle) return null;
   // Round 18 defect #7: Data + Operational are independent on/off flags
@@ -402,24 +405,24 @@ export default function LineageStage({
   provisional = false,
   context,
   modeFlags = null,
-  onModeChange,
+  onModeChange = NOOP,
   linkedRecordUnavailableOverrides = {},
   upstreamLevels = 2,
   downstreamLevels = 2,
   maxDepth = 2,
   nodesPerLayer = 10,
   includeColumns = false,
-  onUpstreamLevelsChange,
-  onDownstreamLevelsChange,
-  onMaxDepthChange,
-  onNodesPerLayerChange,
-  onIncludeColumnsChange,
-  onContextChange,
-  onOpenGovernance,
-  onSelectAsset,
-  onOpenAsset,
+  onUpstreamLevelsChange = NOOP,
+  onDownstreamLevelsChange = NOOP,
+  onMaxDepthChange = NOOP,
+  onNodesPerLayerChange = NOOP,
+  onIncludeColumnsChange = NOOP,
+  onContextChange = NOOP,
+  onOpenGovernance = NOOP,
+  onSelectAsset = NOOP,
+  onOpenAsset = NOOP,
   assetSearchQuery,
-  onAssetSearchQueryChange,
+  onAssetSearchQueryChange = NOOP,
   assetSearchResults,
   assetSearchResolvedQuery,
   assetSearchLoading,

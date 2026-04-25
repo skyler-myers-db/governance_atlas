@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Entrada</title>
+  <desc id="desc">Entrada brand mark built from geometric paths.</desc>
+  <defs>
+    <linearGradient id="entrada-mark-fill" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0F766E"/>
+      <stop offset="0.52" stop-color="#155E75"/>
+      <stop offset="1" stop-color="#312E81"/>
+    </linearGradient>
+    <linearGradient id="entrada-mark-light" x1="12" y1="8" x2="42" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#entrada-mark-fill)"/>
+  <rect x="4" y="4" width="56" height="56" rx="16" fill="url(#entrada-mark-light)"/>
+  <path d="M20 18H46V25H28V29H42V35H28V39H46V46H20V18Z" fill="#FFFFFF"/>
+  <path d="M46 18L54 10V54L46 46V18Z" fill="#FFFFFF" opacity="0.28"/>
+</svg>

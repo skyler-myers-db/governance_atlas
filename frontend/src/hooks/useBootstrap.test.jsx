@@ -2,7 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createGovhubQueryClient } from "../lib/queryClient";
+import { createAtlasQueryClient } from "../lib/queryClient";
 import { useBootstrap } from "./useBootstrap";
 
 const fetchBootstrapMock = vi.fn();
@@ -12,7 +12,7 @@ vi.mock("../lib/api", () => ({
 }));
 
 function createWrapper() {
-  const queryClient = createGovhubQueryClient();
+  const queryClient = createAtlasQueryClient();
   return function Wrapper({ children }) {
     return (
       <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
@@ -25,7 +25,7 @@ function createWrapper() {
 describe("useBootstrap", () => {
   beforeEach(() => {
     fetchBootstrapMock.mockReset();
-    window.__GOVHUB_BOOTSTRAP__ = {
+    window.__GOVAT_BOOTSTRAP__ = {
       bootState: "live",
       shell: {
         userEmail: "qa@example.com",
@@ -134,7 +134,7 @@ describe("useBootstrap", () => {
   });
 
   it("preserves additive top-level capability flags through the seed and refresh path", async () => {
-    window.__GOVHUB_BOOTSTRAP__ = {
+    window.__GOVAT_BOOTSTRAP__ = {
       bootState: "live",
       shell: {
         userEmail: "qa@example.com",

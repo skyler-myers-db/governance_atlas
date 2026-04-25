@@ -31,12 +31,11 @@ function hashString(s) {
 function ownerInitials(label) {
   const raw = String(label || "").trim();
   if (!raw) return "—";
-  // email → first letter + first letter after non-alphanum separator
   const local = raw.includes("@") ? raw.split("@")[0] : raw;
   const parts = local.split(/[\s._+-]+/).filter(Boolean);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return raw.slice(0, 2).toUpperCase();
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return raw[0]?.toUpperCase() || "—";
 }
 
 export function OwnerAvatar({ owner = "", size = 22, className = "" }) {

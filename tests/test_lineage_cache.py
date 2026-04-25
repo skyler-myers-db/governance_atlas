@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from govhub.services import lineage as lineage_service
+from atlas.services import lineage as lineage_service
 
 
 class FakeUC:
@@ -31,7 +31,7 @@ class LineageCacheTests(unittest.TestCase):
                 "sequence": len(load_calls),
             }
 
-        with patch("govhub.services.lineage._build_lineage_payload", side_effect=fake_build):
+        with patch("atlas.services.lineage._build_lineage_payload", side_effect=fake_build):
             alice_first = lineage_service.lineage_payload(
                 uc,
                 store,
@@ -76,7 +76,7 @@ class LineageCacheTests(unittest.TestCase):
                 "sequence": len(load_calls),
             }
 
-        with patch("govhub.services.lineage._build_lineage_payload", side_effect=fake_build):
+        with patch("atlas.services.lineage._build_lineage_payload", side_effect=fake_build):
             lineage_service.lineage_payload(
                 uc,
                 store,
@@ -97,7 +97,7 @@ class LineageCacheTests(unittest.TestCase):
 
         self.assertEqual(lineage_service._TTL_CACHE, {})
 
-        with patch("govhub.services.lineage._build_lineage_payload", side_effect=fake_build):
+        with patch("atlas.services.lineage._build_lineage_payload", side_effect=fake_build):
             lineage_service.lineage_payload(
                 uc,
                 store,
@@ -160,7 +160,7 @@ class LineageCacheTests(unittest.TestCase):
         )
         visible_inventory = pd.DataFrame(columns=["fqn"])
 
-        with patch("govhub.services.lineage.asset_service.inventory_row", return_value=row):
+        with patch("atlas.services.lineage.asset_service.inventory_row", return_value=row):
             node = lineage_service.graph_node_for_asset(
                 FakeUC(),
                 object(),

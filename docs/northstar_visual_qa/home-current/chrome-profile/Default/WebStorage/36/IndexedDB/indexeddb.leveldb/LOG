@@ -1,0 +1,7 @@
+2026/04/21-00:19:17.642 2a02 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/36/IndexedDB/indexeddb.leveldb/MANIFEST-000001
+2026/04/21-00:19:17.642 2a02 Recovering log #3
+2026/04/21-00:19:17.642 2a02 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/36/IndexedDB/indexeddb.leveldb/000003.log 
+2026/04/21-00:20:34.005 2a04 Level-0 table #5: started
+2026/04/21-00:20:34.007 2a04 Level-0 table #5: 15759 bytes OK
+2026/04/21-00:20:34.009 2a04 Delete type=0 #3
+2026/04/21-00:20:34.011 2a04 Manual compaction at level-0 from (begin) .. (end); will stop at (end)

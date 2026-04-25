@@ -6,7 +6,7 @@ import { AssetTypeIcon } from "./AssetTypeIcon";
  * in the app. Matches Linear / Raycast / GitHub's palette pattern.
  *
  * Ships with three command sources:
- *  - Navigation (Discovery / Lineage / Governance / Taxonomy / Audit)
+ *  - Navigation (Discovery / Lineage / Governance / Insights / Taxonomy / CDEs / Audit / Admin)
  *  - Recent assets (localStorage "gh-recent-assets")
  *  - Favorites (localStorage "gh-favorite-assets")
  *  - Fuzzy search on the current asset inventory
@@ -77,11 +77,15 @@ export function CommandPalette({ assets = [], navigate, onClose }) {
     };
     const rows = [];
     rows.push(
+      { id: "nav-home", group: "Jump to", title: "Home", subtitle: "Enterprise governance command center", run: () => navigate?.({ surface: "home" }) },
       { id: "nav-discovery", group: "Jump to", title: "Discovery", subtitle: "Browse the metadata catalog", run: () => navigate?.({ surface: "discovery" }) },
       { id: "nav-lineage", group: "Jump to", title: "Lineage", subtitle: "Connected asset graph", run: () => navigate?.({ surface: "lineage" }) },
       { id: "nav-governance", group: "Jump to", title: "Governance", subtitle: "Stewardship workbench", run: () => navigate?.({ surface: "governance" }) },
+      { id: "nav-insights", group: "Jump to", title: "Insights", subtitle: "Governance signals and trends", run: () => navigate?.({ surface: "insights" }) },
       { id: "nav-taxonomy", group: "Jump to", title: "Taxonomy", subtitle: "Classifications, domains, data products", run: () => navigate?.({ surface: "taxonomy" }) },
+      { id: "nav-cde", group: "Jump to", title: "CDEs", subtitle: "Critical data elements registry", run: () => navigate?.({ surface: "cde" }) },
       { id: "nav-audit", group: "Jump to", title: "Audit", subtitle: "Cross-entity audit events", run: () => navigate?.({ surface: "audit" }) },
+      { id: "nav-admin", group: "Jump to", title: "Admin", subtitle: "Administration and control center", run: () => navigate?.({ surface: "admin" }) },
     );
     for (const fqn of favorites) {
       const item = asAssetAction(fqn, "Favorites");

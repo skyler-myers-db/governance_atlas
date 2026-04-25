@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchLineage } from "../lib/api";
-import { govhubQueryClient } from "../lib/queryClient";
+import { atlasQueryClient } from "../lib/queryClient";
 
 const LINEAGE_CACHE_TTL_MS = 300_000;
 // Keep prefetched neighbor payloads alive long enough to be useful. The
@@ -15,7 +15,7 @@ function lineageQueryKey(assetFqn) {
 }
 
 function queryUpdatedAt(queryKey) {
-  return govhubQueryClient.getQueryState(queryKey)?.dataUpdatedAt || 0;
+  return atlasQueryClient.getQueryState(queryKey)?.dataUpdatedAt || 0;
 }
 
 function isFresh(queryKey, maxAgeMs = null) {
@@ -28,7 +28,7 @@ function isFresh(queryKey, maxAgeMs = null) {
 function readCachedLineage(assetFqn, { maxAgeMs = LINEAGE_CACHE_TTL_MS } = {}) {
   if (!assetFqn) return null;
   const queryKey = lineageQueryKey(assetFqn);
-  const payload = govhubQueryClient.getQueryData(queryKey) || null;
+  const payload = atlasQueryClient.getQueryData(queryKey) || null;
   if (!payload) return null;
   if (!isFresh(queryKey, maxAgeMs)) return null;
   return payload;
@@ -47,7 +47,7 @@ function normalizeCanonicalPayload(assetFqn, payload, { authoritative = true, so
 function setCachedLineage(assetFqn, payload) {
   const normalized = normalizeCanonicalPayload(assetFqn, payload);
   if (!normalized) return payload;
-  govhubQueryClient.setQueryData(lineageQueryKey(assetFqn), normalized);
+  atlasQueryClient.setQueryData(lineageQueryKey(assetFqn), normalized);
   return normalized;
 }
 
@@ -57,7 +57,7 @@ export function primeLineagePayload(assetFqn, payload) {
 
 export function invalidateLineage(assetFqn) {
   if (!assetFqn) return;
-  govhubQueryClient.removeQueries({
+  atlasQueryClient.removeQueries({
     queryKey: lineageQueryKey(assetFqn),
     exact: true,
   });
@@ -68,7 +68,7 @@ export function prefetchLineage(assetFqn, options = {}) {
   const force = options.force === true;
   const cached = force ? null : readCachedLineage(assetFqn);
   if (cached) return Promise.resolve(cached);
-  return govhubQueryClient
+  return atlasQueryClient
     .fetchQuery({
       queryKey: lineageQueryKey(assetFqn),
       staleTime: LINEAGE_CACHE_TTL_MS,

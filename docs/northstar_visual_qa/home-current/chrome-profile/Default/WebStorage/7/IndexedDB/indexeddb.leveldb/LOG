@@ -1,0 +1,44 @@
+2026/04/20-14:00:28.292 2e75 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/7/IndexedDB/indexeddb.leveldb/MANIFEST-000001
+2026/04/20-14:00:28.294 2e75 Recovering log #262
+2026/04/20-14:00:28.298 2e75 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/7/IndexedDB/indexeddb.leveldb/000262.log 
+2026/04/20-14:00:28.317 2e75 Compacting 1@1 + 2@2 files
+2026/04/20-14:00:28.332 2e75 Generated table #265@1: 7602 keys, 2161968 bytes
+2026/04/20-14:00:28.339 2e75 Generated table #266@1: 715 keys, 942722 bytes
+2026/04/20-14:00:28.339 2e75 Compacted 1@1 + 2@2 files => 3104690 bytes
+2026/04/20-14:00:28.341 2e75 compacted to: files[ 0 0 2 0 0 0 0 ]
+2026/04/20-14:00:28.341 2e75 Delete type=2 #260
+2026/04/20-14:00:28.341 2e75 Delete type=2 #261
+2026/04/20-14:00:28.342 2e75 Delete type=2 #263
+2026/04/20-14:00:29.914 2e75 Level-0 table #268: started
+2026/04/20-14:00:29.932 2e75 Level-0 table #268: 2118014 bytes OK
+2026/04/20-14:00:29.938 2e75 Delete type=0 #262
+2026/04/20-14:00:32.516 2e75 Compacting 1@1 + 2@2 files
+2026/04/20-14:00:32.550 2e75 Generated table #269@1: 8593 keys, 2151223 bytes
+2026/04/20-14:00:32.559 2e75 Generated table #270@1: 1820 keys, 1104780 bytes
+2026/04/20-14:00:32.559 2e75 Compacted 1@1 + 2@2 files => 3256003 bytes
+2026/04/20-14:00:32.580 2e75 compacted to: files[ 0 0 2 0 0 0 0 ]
+2026/04/20-14:00:32.580 2e75 Delete type=2 #266
+2026/04/20-14:00:32.580 2e75 Delete type=2 #265
+2026/04/20-14:00:32.580 2e75 Delete type=2 #268
+2026/04/20-14:00:33.486 2e75 Level-0 table #272: started
+2026/04/20-14:00:33.497 2e75 Level-0 table #272: 2201870 bytes OK
+2026/04/20-14:00:33.500 2e75 Delete type=0 #267
+2026/04/20-14:00:33.501 2e75 Compacting 1@1 + 2@2 files
+2026/04/20-14:00:33.517 2e75 Generated table #273@1: 9423 keys, 2162600 bytes
+2026/04/20-14:00:33.521 2e75 Generated table #274@1: 661 keys, 961562 bytes
+2026/04/20-14:00:33.521 2e75 Compacted 1@1 + 2@2 files => 3124162 bytes
+2026/04/20-14:00:33.522 2e75 compacted to: files[ 0 0 2 0 0 0 0 ]
+2026/04/20-14:00:33.523 2e75 Delete type=2 #272
+2026/04/20-14:00:33.523 2e75 Delete type=2 #270
+2026/04/20-14:00:33.523 2e75 Delete type=2 #269
+2026/04/20-14:00:41.475 2e75 Level-0 table #276: started
+2026/04/20-14:00:41.493 2e75 Level-0 table #276: 2621655 bytes OK
+2026/04/20-14:00:41.495 2e75 Delete type=0 #271
+2026/04/20-14:00:49.430 2e73 Compacting 1@1 + 2@2 files
+2026/04/20-14:00:49.475 2e73 Generated table #277@1: 7706 keys, 2158282 bytes
+2026/04/20-14:00:49.482 2e73 Generated table #278@1: 882 keys, 1266764 bytes
+2026/04/20-14:00:49.482 2e73 Compacted 1@1 + 2@2 files => 3425046 bytes
+2026/04/20-14:00:49.483 2e73 compacted to: files[ 0 0 2 0 0 0 0 ]
+2026/04/20-14:00:49.483 2e73 Delete type=2 #274
+2026/04/20-14:00:49.483 2e73 Delete type=2 #276
+2026/04/20-14:00:49.483 2e73 Delete type=2 #273

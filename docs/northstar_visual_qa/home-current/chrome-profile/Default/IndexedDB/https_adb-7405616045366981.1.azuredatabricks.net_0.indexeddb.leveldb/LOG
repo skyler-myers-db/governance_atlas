@@ -1,0 +1,21 @@
+2026/01/12-12:28:26.359 1c4f Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_adb-7405616045366981.1.azuredatabricks.net_0.indexeddb.leveldb/MANIFEST-000001
+2026/01/12-12:28:26.359 1c4f Recovering log #4
+2026/01/12-12:28:26.360 1c4f Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_adb-7405616045366981.1.azuredatabricks.net_0.indexeddb.leveldb/000004.log 
+2026/01/12-12:40:52.375 1c90 Level-0 table #8: started
+2026/01/12-12:40:52.387 1c90 Level-0 table #8: 3794284 bytes OK
+2026/01/12-12:40:52.391 1c90 Delete type=0 #4
+2026/01/12-12:42:26.484 1c90 Compacting 1@1 + 1@2 files
+2026/01/12-12:42:26.498 1c90 Generated table #9@1: 179 keys, 279588 bytes
+2026/01/12-12:42:26.498 1c90 Compacted 1@1 + 1@2 files => 279588 bytes
+2026/01/12-12:42:26.500 1c90 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/01/12-12:42:26.500 1c90 Delete type=2 #5
+2026/01/12-12:42:26.500 1c90 Delete type=2 #8
+2026/01/12-17:19:40.921 1c90 Level-0 table #11: started
+2026/01/12-17:19:40.932 1c90 Level-0 table #11: 3770897 bytes OK
+2026/01/12-17:19:40.934 1c90 Delete type=0 #7
+2026/01/12-17:19:41.899 1c90 Compacting 1@1 + 1@2 files
+2026/01/12-17:19:41.904 1c90 Generated table #12@1: 413 keys, 429265 bytes
+2026/01/12-17:19:41.904 1c90 Compacted 1@1 + 1@2 files => 429265 bytes
+2026/01/12-17:19:41.905 1c90 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/01/12-17:19:41.905 1c90 Delete type=2 #11
+2026/01/12-17:19:41.905 1c90 Delete type=2 #9

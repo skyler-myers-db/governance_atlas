@@ -1,0 +1,69 @@
+2026/01/21-09:32:28.362 1d8b Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/21/IndexedDB/indexeddb.leveldb/MANIFEST-000001
+2026/01/21-09:32:28.362 1d8b Recovering log #7
+2026/01/21-09:32:28.362 1d8b Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/21/IndexedDB/indexeddb.leveldb/000007.log 
+2026/01/21-15:26:07.276 1d8b Level-0 table #12: started
+2026/01/21-15:26:07.299 1d8b Level-0 table #12: 594032 bytes OK
+2026/01/21-15:26:07.301 1d8b Delete type=0 #7
+2026/01/21-15:28:37.569 1dbe Compacting 1@1 + 1@2 files
+2026/01/21-15:28:37.581 1dbe Generated table #13@1: 50 keys, 5175 bytes
+2026/01/21-15:28:37.581 1dbe Compacted 1@1 + 1@2 files => 5175 bytes
+2026/01/21-15:28:37.585 1dbe compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/01/21-15:28:37.586 1dbe Delete type=2 #12
+2026/01/21-15:28:37.586 1dbe Delete type=2 #9
+2026/01/21-23:40:38.398 1dbe Level-0 table #15: started
+2026/01/21-23:40:38.420 1dbe Level-0 table #15: 566123 bytes OK
+2026/01/21-23:40:38.423 1dbe Delete type=0 #11
+2026/01/21-23:44:44.502 1dbe Compacting 1@1 + 1@2 files
+2026/01/21-23:44:44.516 1dbe Generated table #16@1: 49 keys, 5204 bytes
+2026/01/21-23:44:44.517 1dbe Compacted 1@1 + 1@2 files => 5204 bytes
+2026/01/21-23:44:44.521 1dbe compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/01/21-23:44:44.521 1dbe Delete type=2 #15
+2026/01/21-23:44:44.521 1dbe Delete type=2 #13
+2026/01/22-08:00:52.037 1d8b Level-0 table #18: started
+2026/01/22-08:00:52.064 1d8b Level-0 table #18: 565849 bytes OK
+2026/01/22-08:00:52.067 1d8b Delete type=0 #14
+2026/01/22-09:45:09.755 1d8b Compacting 1@1 + 1@2 files
+2026/01/22-09:45:09.763 1d8b Generated table #19@1: 50 keys, 5177 bytes
+2026/01/22-09:45:09.764 1d8b Compacted 1@1 + 1@2 files => 5177 bytes
+2026/01/22-09:45:09.767 1d8b compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/01/22-09:45:09.767 1d8b Delete type=2 #16
+2026/01/22-09:45:09.767 1d8b Delete type=2 #18
+2026/01/22-13:15:05.240 1dbe Level-0 table #21: started
+2026/01/22-13:15:05.260 1dbe Level-0 table #21: 567464 bytes OK
+2026/01/22-13:15:05.263 1dbe Delete type=0 #17
+2026/01/22-13:21:45.671 1d8b Compacting 1@1 + 1@2 files
+2026/01/22-13:21:45.684 1d8b Generated table #22@1: 49 keys, 5204 bytes
+2026/01/22-13:21:45.684 1d8b Compacted 1@1 + 1@2 files => 5204 bytes
+2026/01/22-13:21:45.687 1d8b compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/01/22-13:21:45.687 1d8b Delete type=2 #21
+2026/01/22-13:21:45.687 1d8b Delete type=2 #19
+2026/01/22-21:11:34.915 1d8b Level-0 table #24: started
+2026/01/22-21:11:34.941 1d8b Level-0 table #24: 570291 bytes OK
+2026/01/22-21:11:34.945 1d8b Delete type=0 #20
+2026/01/22-23:11:51.342 1d8b Compacting 1@1 + 1@2 files
+2026/01/22-23:11:51.353 1d8b Generated table #25@1: 49 keys, 5208 bytes
+2026/01/22-23:11:51.354 1d8b Compacted 1@1 + 1@2 files => 5208 bytes
+2026/01/22-23:11:51.357 1d8b compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/01/22-23:11:51.357 1d8b Delete type=2 #22
+2026/01/22-23:11:51.357 1d8b Delete type=2 #24
+2026/01/23-12:19:41.455 1d8b Level-0 table #27: started
+2026/01/23-12:19:41.498 1d8b Level-0 table #27: 570951 bytes OK
+2026/01/23-12:19:41.501 1d8b Delete type=0 #23
+2026/01/23-12:25:46.001 1d8b Compacting 1@1 + 1@2 files
+2026/01/23-12:25:46.012 1d8b Generated table #28@1: 50 keys, 5183 bytes
+2026/01/23-12:25:46.012 1d8b Compacted 1@1 + 1@2 files => 5183 bytes
+2026/01/23-12:25:46.014 1d8b compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/01/23-12:25:46.014 1d8b Delete type=2 #27
+2026/01/23-12:25:46.014 1d8b Delete type=2 #25
+2026/01/23-13:22:00.107 1dbf Level-0 table #30: started
+2026/01/23-13:22:00.115 1dbf Level-0 table #30: 113972 bytes OK
+2026/01/23-13:22:00.118 1dbf Delete type=0 #26
+2026/01/23-13:22:00.120 1d8b Manual compaction at level-0 from (begin) .. (end); will stop at (end)
+2026/01/23-13:22:00.121 1d8b Manual compaction at level-1 from (begin) .. (end); will stop at '\x00\x01\x01\x02\x01$\x005\x008\x001\x009\x009\x004\x000\x008\x00-\x00b\x003\x00c\x005\x00-\x004\x00c\x008\x00d\x00-\x009\x006\x00b\x008\x00-\x00a\x007\x00d\x006\x00e\x00d\x00c\x00d\x00c\x008\x000\x00b' @ 280586 : 1
+2026/01/23-13:22:00.121 1d8b Compacting 1@1 + 1@2 files
+2026/01/23-13:22:00.123 1d8b Generated table #31@1: 46 keys, 5058 bytes
+2026/01/23-13:22:00.123 1d8b Compacted 1@1 + 1@2 files => 5058 bytes
+2026/01/23-13:22:00.124 1d8b compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/01/23-13:22:00.125 1d8b Delete type=2 #28
+2026/01/23-13:22:00.125 1d8b Delete type=2 #30
+2026/01/23-13:22:00.127 1d8b Manual compaction at level-1 from '\x00\x01\x01\x02\x01$\x005\x008\x001\x009\x009\x004\x000\x008\x00-\x00b\x003\x00c\x005\x00-\x004\x00c\x008\x00d\x00-\x009\x006\x00b\x008\x00-\x00a\x007\x00d\x006\x00e\x00d\x00c\x00d\x00c\x008\x000\x00b' @ 280586 : 1 .. (end); will stop at (end)

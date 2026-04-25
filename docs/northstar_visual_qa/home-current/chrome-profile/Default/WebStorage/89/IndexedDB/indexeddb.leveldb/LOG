@@ -1,0 +1,24 @@
+2026/04/23-17:17:28.807 dfe8f6 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/89/IndexedDB/indexeddb.leveldb/MANIFEST-000001
+2026/04/23-17:17:28.808 dfe8f6 Recovering log #246
+2026/04/23-17:17:28.808 dfe8f6 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/89/IndexedDB/indexeddb.leveldb/000246.log 
+2026/04/23-17:17:30.030 dfe8f9 Level-0 table #253: started
+2026/04/23-17:17:30.039 dfe8f9 Level-0 table #253: 1995737 bytes OK
+2026/04/23-17:17:30.043 dfe8f9 Delete type=0 #246
+2026/04/23-17:17:30.045 dfe8f9 Compacting 1@1 + 2@2 files
+2026/04/23-17:17:30.055 dfe8f9 Generated table #254@1: 2706 keys, 2136787 bytes
+2026/04/23-17:17:30.080 dfe8f9 Generated table #255@1: 12931 keys, 2299707 bytes
+2026/04/23-17:17:30.086 dfe8f9 Generated table #256@1: 2271 keys, 1150270 bytes
+2026/04/23-17:17:30.086 dfe8f9 Compacted 1@1 + 2@2 files => 5586764 bytes
+2026/04/23-17:17:30.087 dfe8f9 compacted to: files[ 0 0 4 0 0 0 0 ]
+2026/04/23-17:17:30.087 dfe8f9 Delete type=2 #248
+2026/04/23-17:17:30.087 dfe8f9 Delete type=2 #249
+2026/04/23-17:17:30.087 dfe8f9 Delete type=2 #253
+2026/04/23-17:17:30.103 dfe8f9 Level-0 table #258: started
+2026/04/23-17:17:30.111 dfe8f9 Level-0 table #258: 1925615 bytes OK
+2026/04/23-17:17:30.113 dfe8f9 Delete type=0 #252
+2026/04/23-17:17:30.115 dfe8f9 Compacting 1@1 + 2@2 files
+2026/04/23-17:17:30.124 dfe8f9 Generated table #259@1: 4091 keys, 2122074 bytes
+2026/04/23-17:17:30.138 dfe8f9 Generated table #260@1: 5020 keys, 2196416 bytes
+2026/04/23-17:17:30.152 dfe8f9 Generated table #261@1: 9088 keys, 1313325 bytes
+2026/04/23-17:17:30.152 dfe8f9 Compacted 1@1 + 2@2 files => 5631815 bytes
+2026/04/23-17:17:30.154 dfe8f9 compacted to: files[ 0 0 5 0 0 0 0 ]

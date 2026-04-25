@@ -21,13 +21,13 @@
  * Then run (from the repo root):
  *
  *   node frontend/scripts/phase2_screenshot_pack.mjs \
- *     https://governance-hub-7405619023278880.0.azure.databricksapps.com
+ *     https://atlas-2543889327043640.aws.databricksapps.com
  *
  * Environment overrides:
- *   GOVHUB_BASE_URL            base URL of the deployed app
- *   GOVHUB_CDP_URL             CDP endpoint (default http://127.0.0.1:9223)
- *   GOVHUB_SCREENSHOT_OUT_DIR  output dir (default docs/screenshots/phase2)
- *   GOVHUB_SCREENSHOT_ASSET    entity FQN (default prod.silver.ap_self_assessed_tax_dist)
+ *   GOVAT_BASE_URL             base URL of the deployed app
+ *   GOVAT_CDP_URL              CDP endpoint (default http://127.0.0.1:9223)
+ *   GOVAT_SCREENSHOT_OUT_DIR   output dir (default docs/screenshots/phase2)
+ *   GOVAT_SCREENSHOT_ASSET     entity FQN (default prod.silver.ap_self_assessed_tax_dist)
  */
 
 import fs from "node:fs/promises";
@@ -38,13 +38,14 @@ import { chromium } from "playwright";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 
-const BASE_URL = process.env.GOVHUB_BASE_URL || process.argv[2] || "";
-const CDP_URL = process.env.GOVHUB_CDP_URL || "http://127.0.0.1:9223";
+const BASE_URL = process.env.GOVAT_BASE_URL || process.argv[2] || "";
+const CDP_URL = process.env.GOVAT_CDP_URL || "http://127.0.0.1:9223";
 const OUT_DIR =
-  process.env.GOVHUB_SCREENSHOT_OUT_DIR ||
+  process.env.GOVAT_SCREENSHOT_OUT_DIR ||
   path.join(REPO_ROOT, "docs", "screenshots", "phase2");
 const ENTITY_FQN =
-  process.env.GOVHUB_SCREENSHOT_ASSET || "prod.silver.ap_self_assessed_tax_dist";
+  process.env.GOVAT_SCREENSHOT_ASSET ||
+  "prod.silver.ap_self_assessed_tax_dist";
 const VIEWPORT = { width: 1440, height: 900 };
 
 if (!BASE_URL) {
@@ -69,7 +70,7 @@ async function waitForMainReady(page) {
   // The shell always renders the brand link; wait for that as the
   // broadest "page reacted" signal, then give late-mount content a
   // short settle window.
-  await page.getByRole("button", { name: /Governance Hub/i }).first().waitFor({
+  await page.getByRole("button", { name: /Governance Atlas/i }).first().waitFor({
     state: "visible",
     timeout: 30_000,
   });

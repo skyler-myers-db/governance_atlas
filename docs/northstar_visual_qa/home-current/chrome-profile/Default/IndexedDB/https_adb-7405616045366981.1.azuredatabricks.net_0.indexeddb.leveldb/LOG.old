@@ -1,0 +1,5 @@
+2026/01/09-16:17:13.677 194c Creating DB /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_adb-7405616045366981.1.azuredatabricks.net_0.indexeddb.leveldb since it was missing.
+2026/01/09-16:17:13.679 194c Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_adb-7405616045366981.1.azuredatabricks.net_0.indexeddb.leveldb/MANIFEST-000001
+2026/01/09-16:52:38.217 1994 Level-0 table #5: started
+2026/01/09-16:52:38.236 1994 Level-0 table #5: 3596009 bytes OK
+2026/01/09-16:52:38.238 1994 Delete type=0 #3

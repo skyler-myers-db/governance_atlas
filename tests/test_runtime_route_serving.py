@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from govhub import runtime_contract
+from atlas import runtime_contract
 import run_app
 
 
@@ -42,7 +42,7 @@ class RuntimeRouteServingTests(unittest.TestCase):
         self.assertTrue(run_app.FRONTEND_ASSETS.as_posix().endswith("frontend/dist/assets"))
         self.assertTrue(
             run_app.FRONTEND_BUILD_MANIFEST.as_posix().endswith(
-                "frontend/dist/govhub-build-manifest.json"
+                "frontend/dist/atlas-build-manifest.json"
             )
         )
 
@@ -55,7 +55,7 @@ class RuntimeRouteServingTests(unittest.TestCase):
         self.assertEqual(manifest["runtime"]["frontend_dist"], "frontend/dist/index.html")
         self.assertEqual(
             manifest["runtime"]["frontend_build_manifest"],
-            "frontend/dist/govhub-build-manifest.json",
+            "frontend/dist/atlas-build-manifest.json",
         )
 
     def test_runtime_app_exposes_shell_and_runtime_routes(self) -> None:

@@ -1,0 +1,6 @@
+2026/04/23-16:53:24.848 dfe8f6 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_planner.cloud.microsoft_0.indexeddb.leveldb/MANIFEST-000001
+2026/04/23-16:53:24.849 dfe8f6 Recovering log #343
+2026/04/23-16:53:24.855 dfe8f6 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_planner.cloud.microsoft_0.indexeddb.leveldb/000343.log 
+2026/04/23-16:53:32.683 dfe8f9 Level-0 table #348: started
+2026/04/23-16:53:32.696 dfe8f9 Level-0 table #348: 989890 bytes OK
+2026/04/23-16:53:32.698 dfe8f9 Delete type=0 #343

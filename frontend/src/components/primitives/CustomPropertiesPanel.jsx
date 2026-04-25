@@ -1,5 +1,5 @@
 import { useAssetCustomProperties } from "../../hooks/useAssetCustomProperties";
-import { EmptyStateBlock, LoadingState, SkeletonBlock } from "../ShellStatePrimitives";
+import { EmptyStateBlock, SkeletonBlock } from "../ShellStatePrimitives";
 
 /**
  * Phase 8 — persisted custom property assignments for an asset.

@@ -1,0 +1,82 @@
+2025/12/19-16:13:07.555 bc967 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_adb-2830245288990861.1.azuredatabricks.net_0.indexeddb.leveldb/MANIFEST-000001
+2025/12/19-16:13:07.555 bc967 Recovering log #23
+2025/12/19-16:13:07.556 bc967 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_adb-2830245288990861.1.azuredatabricks.net_0.indexeddb.leveldb/000023.log 
+2025/12/19-16:13:35.586 bc970 Level-0 table #28: started
+2025/12/19-16:13:35.596 bc970 Level-0 table #28: 3715906 bytes OK
+2025/12/19-16:13:35.599 bc970 Delete type=0 #23
+2025/12/19-16:13:36.548 bc970 Compacting 1@1 + 1@2 files
+2025/12/19-16:13:36.554 bc970 Generated table #29@1: 287 keys, 371540 bytes
+2025/12/19-16:13:36.554 bc970 Compacted 1@1 + 1@2 files => 371540 bytes
+2025/12/19-16:13:36.555 bc970 compacted to: files[ 0 0 1 0 0 0 0 ]
+2025/12/19-16:13:36.555 bc970 Delete type=2 #28
+2025/12/19-16:13:36.555 bc970 Delete type=2 #25
+2025/12/19-16:15:18.918 bc970 Level-0 table #31: started
+2025/12/19-16:15:18.935 bc970 Level-0 table #31: 3711446 bytes OK
+2025/12/19-16:15:18.936 bc970 Delete type=0 #27
+2025/12/19-16:15:39.553 bc970 Compacting 1@1 + 1@2 files
+2025/12/19-16:15:39.558 bc970 Generated table #32@1: 189 keys, 303539 bytes
+2025/12/19-16:15:39.558 bc970 Compacted 1@1 + 1@2 files => 303539 bytes
+2025/12/19-16:15:39.559 bc970 compacted to: files[ 0 0 1 0 0 0 0 ]
+2025/12/19-16:15:39.559 bc970 Delete type=2 #29
+2025/12/19-16:15:39.559 bc970 Delete type=2 #31
+2025/12/19-16:16:52.998 bc970 Level-0 table #34: started
+2025/12/19-16:16:53.010 bc970 Level-0 table #34: 3808986 bytes OK
+2025/12/19-16:16:53.012 bc970 Delete type=0 #30
+2025/12/19-16:16:55.322 bc970 Compacting 1@1 + 1@2 files
+2025/12/19-16:16:55.329 bc970 Generated table #35@1: 289 keys, 509704 bytes
+2025/12/19-16:16:55.330 bc970 Compacted 1@1 + 1@2 files => 509704 bytes
+2025/12/19-16:16:55.333 bc970 compacted to: files[ 0 0 1 0 0 0 0 ]
+2025/12/19-16:16:55.333 bc970 Delete type=2 #34
+2025/12/19-16:16:55.333 bc970 Delete type=2 #32
+2025/12/19-16:17:13.597 bc971 Level-0 table #37: started
+2025/12/19-16:17:13.607 bc971 Level-0 table #37: 3725835 bytes OK
+2025/12/19-16:17:13.610 bc971 Delete type=0 #33
+2025/12/19-16:17:15.831 bc970 Compacting 1@1 + 1@2 files
+2025/12/19-16:17:15.835 bc970 Generated table #38@1: 105 keys, 143152 bytes
+2025/12/19-16:17:15.835 bc970 Compacted 1@1 + 1@2 files => 143152 bytes
+2025/12/19-16:17:15.836 bc970 compacted to: files[ 0 0 1 0 0 0 0 ]
+2025/12/19-16:17:15.836 bc970 Delete type=2 #35
+2025/12/19-16:17:15.836 bc970 Delete type=2 #37
+2025/12/19-16:17:24.024 bc970 Level-0 table #40: started
+2025/12/19-16:17:24.033 bc970 Level-0 table #40: 3850741 bytes OK
+2025/12/19-16:17:24.036 bc970 Delete type=0 #36
+2025/12/19-16:17:25.538 bc970 Compacting 1@1 + 1@2 files
+2025/12/19-16:17:25.543 bc970 Generated table #41@1: 507 keys, 1165892 bytes
+2025/12/19-16:17:25.543 bc970 Compacted 1@1 + 1@2 files => 1165892 bytes
+2025/12/19-16:17:25.544 bc970 compacted to: files[ 0 0 1 0 0 0 0 ]
+2025/12/19-16:17:25.544 bc970 Delete type=2 #38
+2025/12/19-16:17:25.544 bc970 Delete type=2 #40
+2025/12/19-16:17:54.230 bc970 Level-0 table #43: started
+2025/12/19-16:17:54.242 bc970 Level-0 table #43: 3568753 bytes OK
+2025/12/19-16:17:54.245 bc970 Delete type=0 #39
+2025/12/19-16:18:07.666 bc970 Compacting 1@1 + 1@2 files
+2025/12/19-16:18:07.677 bc970 Generated table #44@1: 102 keys, 115937 bytes
+2025/12/19-16:18:07.677 bc970 Compacted 1@1 + 1@2 files => 115937 bytes
+2025/12/19-16:18:07.678 bc970 compacted to: files[ 0 0 1 0 0 0 0 ]
+2025/12/19-16:18:07.679 bc970 Delete type=2 #43
+2025/12/19-16:18:07.679 bc970 Delete type=2 #41
+2025/12/19-16:27:30.626 bc967 Level-0 table #46: started
+2025/12/19-16:27:30.640 bc967 Level-0 table #46: 3664394 bytes OK
+2025/12/19-16:27:30.642 bc967 Delete type=0 #42
+2025/12/19-16:27:30.733 bc970 Compacting 1@1 + 1@2 files
+2025/12/19-16:27:30.736 bc970 Generated table #47@1: 549 keys, 106712 bytes
+2025/12/19-16:27:30.736 bc970 Compacted 1@1 + 1@2 files => 106712 bytes
+2025/12/19-16:27:30.737 bc970 compacted to: files[ 0 0 1 0 0 0 0 ]
+2025/12/19-16:27:30.737 bc970 Delete type=2 #44
+2025/12/19-16:27:30.737 bc970 Delete type=2 #46
+2025/12/19-20:47:41.416 bc971 Level-0 table #49: started
+2025/12/19-20:47:41.429 bc971 Level-0 table #49: 3702630 bytes OK
+2025/12/19-20:47:41.435 bc971 Delete type=0 #45
+2025/12/19-20:50:08.611 bc970 Compacting 1@1 + 1@2 files
+2025/12/19-20:50:08.620 bc970 Generated table #50@1: 81 keys, 113565 bytes
+2025/12/19-20:50:08.621 bc970 Compacted 1@1 + 1@2 files => 113565 bytes
+2025/12/19-20:50:08.622 bc970 compacted to: files[ 0 0 1 0 0 0 0 ]
+2025/12/19-20:50:08.622 bc970 Delete type=2 #49
+2025/12/19-20:50:08.622 bc970 Delete type=2 #47
+2026/01/04-22:12:05.289 bc971 Level-0 table #52: started
+2026/01/04-22:12:05.309 bc971 Level-0 table #52: 3777012 bytes OK
+2026/01/04-22:12:05.312 bc971 Delete type=0 #48
+2026/01/04-22:22:24.160 bc970 Compacting 1@1 + 1@2 files
+2026/01/04-22:22:24.171 bc970 Generated table #53@1: 770 keys, 1766819 bytes
+2026/01/04-22:22:24.171 bc970 Compacted 1@1 + 1@2 files => 1766819 bytes
+2026/01/04-22:22:24.173 bc970 compacted to: files[ 0 0 1 0 0 0 0 ]

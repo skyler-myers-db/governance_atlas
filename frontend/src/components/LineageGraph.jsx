@@ -877,11 +877,18 @@ function LineageNodeDrawerBody({
   tab,
   onTabChange,
   neighbors,
+  nodeStats,
+  pathNodes,
+  pathEdgesCount,
+  columnTrace,
   isRecordUnavailable,
   onOpenInCatalog,
   catalogUrl,
   onAddSteward,
   onNeighborSelect,
+  onTraceUpstream,
+  onTraceImpact,
+  onTracePath,
 }) {
   const detail = Array.isArray(node?.details) ? node.details[0] || {} : node?.details || {};
   const record = node?.record || detail || {};
@@ -898,6 +905,10 @@ function LineageNodeDrawerBody({
     { key: "stewardship", label: "Stewardship" },
     { key: "dependencies", label: "Neighbors" },
   ];
+  const hasPathToFocus = Array.isArray(pathNodes) && pathNodes.length > 1;
+  const columnTraceAvailable = Boolean(columnTrace?.available);
+  const upstreamTraceCount = Number(columnTrace?.upstreamCount || 0);
+  const downstreamTraceCount = Number(columnTrace?.downstreamCount || 0);
 
   const handleTabKey = (event) => {
     const current = TAB_ORDER.indexOf(tab);
@@ -937,6 +948,98 @@ function LineageNodeDrawerBody({
           </div>
         </div>
       </header>
+
+      <section className="gh-lineage-node-inspector" aria-label="Selected node inspector">
+        <div className="gh-lineage-node-inspector-grid">
+          <div className="gh-lineage-node-inspector-stat">
+            <span>Upstream</span>
+            <strong>{Number(nodeStats?.upstream || 0)}</strong>
+          </div>
+          <div className="gh-lineage-node-inspector-stat">
+            <span>Downstream</span>
+            <strong>{Number(nodeStats?.downstream || 0)}</strong>
+          </div>
+          <div className="gh-lineage-node-inspector-stat">
+            <span>Column trace</span>
+            <strong>{columnTraceAvailable ? upstreamTraceCount + downstreamTraceCount : "Unavailable"}</strong>
+          </div>
+        </div>
+
+        <div className="gh-lineage-node-path-card">
+          <div className="gh-lineage-node-path-head">
+            <div>
+              <div className="gh-panel-title">Path tracer</div>
+              <div className="gh-support-copy">
+                {hasPathToFocus
+                  ? `${pathEdgesCount} edge${pathEdgesCount === 1 ? "" : "s"} on the visible path to focus.`
+                  : node?.role === "focus"
+                    ? "This is the current focus asset."
+                    : "No visible path to the focus asset in the current graph."}
+              </div>
+            </div>
+            <button
+              className="gh-secondary-button gh-secondary-button-compact"
+              disabled={!hasPathToFocus}
+              onClick={onTracePath}
+              type="button"
+            >
+              Trace Path
+            </button>
+          </div>
+          {hasPathToFocus ? (
+            <ol className="gh-lineage-node-path-list" aria-label="Visible path to focus">
+              {pathNodes.map((pathNode) => (
+                <li key={`path-${node?.id || "node"}-${pathNode.id}`}>
+                  <span>{pathNode.label || pathNode.id}</span>
+                  <small>{pathNode.subtitle || pathNode.kind || ""}</small>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </div>
+
+        <div className="gh-lineage-node-trace-actions" aria-label="Lineage trace actions">
+          <button
+            className="gh-secondary-button gh-secondary-button-compact"
+            disabled={!Number(nodeStats?.upstream || 0)}
+            onClick={onTraceUpstream}
+            type="button"
+          >
+            Trace Upstream
+          </button>
+          <button
+            className="gh-secondary-button gh-secondary-button-compact"
+            disabled={!Number(nodeStats?.downstream || 0)}
+            onClick={onTraceImpact}
+            type="button"
+          >
+            Trace Impact
+          </button>
+        </div>
+
+        <div className={`gh-lineage-node-column-trace ${columnTraceAvailable ? "" : "is-unavailable"}`.trim()}>
+          <div className="gh-lineage-node-column-trace-head">
+            <div className="gh-panel-title">Column trace</div>
+            {columnTrace?.truncated ? <span className="gh-chip gh-chip-soft">Partial</span> : null}
+          </div>
+          {columnTraceAvailable ? (
+            <div className="gh-lineage-node-column-trace-grid">
+              <div>
+                <span>Upstream mappings</span>
+                <strong>{upstreamTraceCount}</strong>
+              </div>
+              <div>
+                <span>Downstream mappings</span>
+                <strong>{downstreamTraceCount}</strong>
+              </div>
+            </div>
+          ) : (
+            <div className="gh-support-copy">
+              {columnTrace?.reason || "Column-lineage evidence is unavailable for this selected node."}
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Tab row — 5 tabs, keyboard navigable. */}
       <div
@@ -1341,6 +1444,40 @@ function LineageNodeDependenciesPanel({ neighbors, onNeighborSelect }) {
   );
 }
 
+function columnTraceForNode(node, lineagePayload) {
+  if (!node?.assetFqn) {
+    return { available: false, reason: "Column-lineage evidence is unavailable for this selected node." };
+  }
+  const payloadFqn = String(lineagePayload?.fqn || "").trim();
+  if (payloadFqn && payloadFqn !== node.assetFqn) {
+    return {
+      available: false,
+      reason: "Column trace is only available for the current focus asset in this lineage payload.",
+    };
+  }
+  const columnLineage = lineagePayload?.columnLineage;
+  if (!columnLineage || !Array.isArray(columnLineage.upstream) || !Array.isArray(columnLineage.downstream)) {
+    return {
+      available: false,
+      reason: "Column-lineage evidence was not returned by the live lineage payload.",
+    };
+  }
+  const upstreamCount = columnLineage.upstream.reduce(
+    (total, entry) => total + (Array.isArray(entry?.sources) ? entry.sources.length : 0),
+    0,
+  );
+  const downstreamCount = columnLineage.downstream.reduce(
+    (total, entry) => total + (Array.isArray(entry?.targets) ? entry.targets.length : 0),
+    0,
+  );
+  return {
+    available: true,
+    upstreamCount,
+    downstreamCount,
+    truncated: Boolean(columnLineage.meta?.truncated),
+  };
+}
+
 export default function LineageGraph({
   asset,
   assetSearchLoading,
@@ -1688,6 +1825,20 @@ export default function LineageGraph({
         downstream: transformed.edges.filter((edge) => edge.source === selectedNode.id).length,
       }
     : { upstream: 0, downstream: 0 };
+  const selectedNodePath = useMemo(() => {
+    if (!selectedNode?.id || !defaultFocusNodeId) return { nodeIds: [], edgeIds: [] };
+    if (selectedNode.id === defaultFocusNodeId) {
+      return { nodeIds: [selectedNode.id], edgeIds: [] };
+    }
+    return lineagePath(transformed.edges, selectedNode.id, defaultFocusNodeId);
+  }, [defaultFocusNodeId, selectedNode?.id, transformed.edges]);
+  const selectedNodePathNodes = useMemo(() => {
+    return selectedNodePath.nodeIds.map((nodeId) => nodesById[nodeId]).filter(Boolean);
+  }, [nodesById, selectedNodePath.nodeIds]);
+  const selectedNodeColumnTrace = useMemo(
+    () => columnTraceForNode(selectedNode, lineagePayload),
+    [lineagePayload, selectedNode],
+  );
   const neighborBuckets = useMemo(() => {
     if (!selectedNode) return { upstream: [], downstream: [] };
     const upstream = transformed.edges
@@ -2583,6 +2734,10 @@ export default function LineageGraph({
             tab={nodeDrawerTab}
             onTabChange={setNodeDrawerTab}
             neighbors={neighborBuckets}
+            nodeStats={nodeStats}
+            pathNodes={selectedNodePathNodes}
+            pathEdgesCount={selectedNodePath.edgeIds.length}
+            columnTrace={selectedNodeColumnTrace}
             isRecordUnavailable={
               linkedRecordUnavailableOverrides?.[selectedNode?.assetFqn] === true
             }
@@ -2613,6 +2768,21 @@ export default function LineageGraph({
                 setGraphMode("explore");
               }
             }}
+            onTraceUpstream={() => {
+              if (!selectedNode?.id) return;
+              setGraphMode("upstream");
+              setDrawerOpen(true);
+            }}
+            onTraceImpact={() => {
+              if (!selectedNode?.id) return;
+              setGraphMode("impact");
+              setDrawerOpen(true);
+            }}
+            onTracePath={() => {
+              if (!selectedNodePath.edgeIds.length) return;
+              setGraphMode("path");
+              setDrawerOpen(true);
+            }}
           />
         ) : (
           <div className="gh-empty-state">Select a node or edge to inspect the graph.</div>
@@ -2624,7 +2794,7 @@ export default function LineageGraph({
 
 // A5.2 — collapsible "SQL evidence" section for the edge drawer. Renders
 // whichever SQL-ish derivation field the backend populated for the edge —
-// today the backend does not emit a SQL snippet (see govhub/services/
+// today the backend does not emit a SQL snippet (see backend services/
 // lineage.py edge details), so most edges fall through to the muted
 // placeholder. When the backend starts emitting sqlSnippet (or producerSql
 // / derivation / viewDefinition as common aliases), the drawer will pick

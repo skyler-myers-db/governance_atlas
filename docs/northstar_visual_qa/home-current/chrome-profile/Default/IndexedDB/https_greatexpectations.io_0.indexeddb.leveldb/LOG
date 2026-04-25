@@ -1,0 +1,6 @@
+2026/01/07-10:59:13.946 2362 Creating DB /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_greatexpectations.io_0.indexeddb.leveldb since it was missing.
+2026/01/07-10:59:13.948 2362 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_greatexpectations.io_0.indexeddb.leveldb/MANIFEST-000001
+2026/01/07-10:59:55.191 2362 Level-0 table #5: started
+2026/01/07-10:59:55.193 2362 Level-0 table #5: 823 bytes OK
+2026/01/07-10:59:55.196 2362 Delete type=0 #3
+2026/01/07-10:59:55.196 2362 Manual compaction at level-0 from (begin) .. (end); will stop at (end)

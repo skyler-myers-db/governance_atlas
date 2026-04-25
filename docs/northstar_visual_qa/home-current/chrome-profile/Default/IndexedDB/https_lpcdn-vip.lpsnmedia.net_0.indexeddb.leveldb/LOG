@@ -1,0 +1,6 @@
+2025/12/15-14:13:38.802 13cee4f Creating DB /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_lpcdn-vip.lpsnmedia.net_0.indexeddb.leveldb since it was missing.
+2025/12/15-14:13:38.803 13cee4f Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_lpcdn-vip.lpsnmedia.net_0.indexeddb.leveldb/MANIFEST-000001
+2025/12/15-14:16:41.936 13cee51 Level-0 table #5: started
+2025/12/15-14:16:41.938 13cee51 Level-0 table #5: 7895 bytes OK
+2025/12/15-14:16:41.940 13cee51 Delete type=0 #3
+2025/12/15-14:16:41.940 13cee51 Manual compaction at level-0 from (begin) .. (end); will stop at (end)

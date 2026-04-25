@@ -7,12 +7,17 @@ command:
 env:
   # ── Required ──────────────────────────────────────────────
   - name: DATABRICKS_WAREHOUSE_ID
-    valueFrom: "uc_warehouse"
+    valueFrom: "sql-warehouse"
 
-  # ── Governance Hub defaults ───────────────────────────────
-  - name: GOVHUB_CATALOG
-    value: prod
-  - name: GOVHUB_SCHEMA
-    value: governance_hub
-  - name: GOVHUB_ADMIN_EMAILS
-    value: ""
+  # ── Governance Atlas target config ────────────────────────
+  # Databricks Asset Bundles inject these per target through
+  # resources.apps.atlas.config.env. Direct API deploys must provide
+  # explicit env_vars rather than relying on source defaults.
+  - name: GOVAT_CATALOG
+    value: "datapact"
+  - name: GOVAT_SCHEMA
+    value: "atlas"
+  - name: GOVAT_ADMIN_EMAILS
+    value: "skyler@entrada.ai"
+  - name: GOVAT_ENVIRONMENT_LABEL
+    value: "Dev - DEFAULT"

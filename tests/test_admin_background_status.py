@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 def _load_admin_module():
     try:
-        from govhub.api import admin as module
+        from atlas.api import admin as module
 
         return module
     except ModuleNotFoundError as exc:
@@ -56,7 +56,7 @@ def _load_admin_module():
     sys.modules["fastapi"] = fastapi
     sys.modules["fastapi.responses"] = responses
 
-    from govhub.api import admin as module  # type: ignore
+    from atlas.api import admin as module  # type: ignore
 
     return module
 

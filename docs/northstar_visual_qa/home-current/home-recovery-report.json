@@ -1,0 +1,382 @@
+{
+  "generatedAt": "2026-04-24T22:31:35.711Z",
+  "baseUrl": "http://127.0.0.1:3000/",
+  "fixture": "local intercepted API; not live Databricks evidence",
+  "results": [
+    {
+      "viewport": {
+        "width": 1536,
+        "height": 1024
+      },
+      "screenshot": "/Users/entrada-mac/repos/governance_atlas/docs/northstar_visual_qa/home-current/home-recovery-1536x1024.png",
+      "metrics": {
+        "body": {
+          "scrollWidth": 1536,
+          "scrollHeight": 1024,
+          "clientWidth": 1536,
+          "clientHeight": 1024
+        },
+        "app": {
+          "top": 0,
+          "left": 0,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1536,
+          "height": 1024
+        },
+        "header": {
+          "top": 0,
+          "left": 210,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1326,
+          "height": 72
+        },
+        "topbar": {
+          "top": 0,
+          "left": 210,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1326,
+          "height": 72
+        },
+        "sidebar": {
+          "top": 0,
+          "left": 0,
+          "right": 210,
+          "bottom": 1024,
+          "width": 210,
+          "height": 1024
+        },
+        "main": {
+          "top": 72,
+          "left": 210,
+          "right": 1536,
+          "bottom": 968,
+          "width": 1326,
+          "height": 896
+        },
+        "home": {
+          "top": 72,
+          "left": 210,
+          "right": 1536,
+          "bottom": 968,
+          "width": 1326,
+          "height": 896
+        },
+        "footer": {
+          "top": 968,
+          "left": 210,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1326,
+          "height": 56
+        },
+        "topDomains": {
+          "top": 678.375,
+          "left": 238,
+          "right": 535.328125,
+          "bottom": 936.375,
+          "width": 297.328125,
+          "height": 258
+        },
+        "events": {
+          "top": 678.375,
+          "left": 549.328125,
+          "right": 846.65625,
+          "bottom": 936.375,
+          "width": 297.328125,
+          "height": 258
+        },
+        "actions": {
+          "top": 678.375,
+          "left": 860.65625,
+          "right": 1158,
+          "bottom": 936.375,
+          "width": 297.34375,
+          "height": 258
+        },
+        "ai": {
+          "top": 361.375,
+          "left": 1172,
+          "right": 1508,
+          "bottom": 939.375,
+          "width": 336,
+          "height": 578
+        },
+        "heatmapTitleOverlap": false,
+        "heatmapHeaderOverflow": false,
+        "aiBottomAligned": true,
+        "quickActionsClipped": false,
+        "eventsClipped": false,
+        "mainScrollHeight": 896,
+        "mainClientHeight": 896,
+        "bodyHorizontalOverflow": false,
+        "footerVisible": true,
+        "viewAllCount": 3,
+        "infoTooltipCount": 11,
+        "alertButtonBorderWidth": "0px",
+        "logo": {
+          "top": 22.5,
+          "left": 20,
+          "right": 189,
+          "bottom": 46.5,
+          "width": 169,
+          "height": 24
+        },
+        "topbarBackground": "linear-gradient(rgba(8, 36, 58, 0.98) 0%, rgba(7, 27, 44, 0.98) 100%)",
+        "headerBackground": "linear-gradient(rgba(8, 36, 58, 0.98) 0%, rgba(7, 27, 44, 0.98) 100%)"
+      }
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "screenshot": "/Users/entrada-mac/repos/governance_atlas/docs/northstar_visual_qa/home-current/home-recovery-1440x900.png",
+      "metrics": {
+        "body": {
+          "scrollWidth": 1440,
+          "scrollHeight": 900,
+          "clientWidth": 1440,
+          "clientHeight": 900
+        },
+        "app": {
+          "top": 0,
+          "left": 0,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1440,
+          "height": 900
+        },
+        "header": {
+          "top": 0,
+          "left": 210,
+          "right": 1440,
+          "bottom": 72,
+          "width": 1230,
+          "height": 72
+        },
+        "topbar": {
+          "top": 0,
+          "left": 210,
+          "right": 1440,
+          "bottom": 72,
+          "width": 1230,
+          "height": 72
+        },
+        "sidebar": {
+          "top": 0,
+          "left": 0,
+          "right": 210,
+          "bottom": 900,
+          "width": 210,
+          "height": 900
+        },
+        "main": {
+          "top": 72,
+          "left": 210,
+          "right": 1440,
+          "bottom": 844,
+          "width": 1230,
+          "height": 772
+        },
+        "home": {
+          "top": 72,
+          "left": 210,
+          "right": 1440,
+          "bottom": 844,
+          "width": 1230,
+          "height": 772
+        },
+        "footer": {
+          "top": 844,
+          "left": 210,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1230,
+          "height": 56
+        },
+        "topDomains": {
+          "top": 604,
+          "left": 234,
+          "right": 506,
+          "bottom": 814,
+          "width": 272,
+          "height": 210
+        },
+        "events": {
+          "top": 604,
+          "left": 516,
+          "right": 788,
+          "bottom": 814,
+          "width": 272,
+          "height": 210
+        },
+        "actions": {
+          "top": 604,
+          "left": 798,
+          "right": 1070,
+          "bottom": 814,
+          "width": 272,
+          "height": 210
+        },
+        "ai": {
+          "top": 329,
+          "left": 1080,
+          "right": 1416,
+          "bottom": 809,
+          "width": 336,
+          "height": 480
+        },
+        "heatmapTitleOverlap": false,
+        "heatmapHeaderOverflow": false,
+        "aiBottomAligned": true,
+        "quickActionsClipped": false,
+        "eventsClipped": false,
+        "mainScrollHeight": 772,
+        "mainClientHeight": 772,
+        "bodyHorizontalOverflow": false,
+        "footerVisible": true,
+        "viewAllCount": 3,
+        "infoTooltipCount": 11,
+        "alertButtonBorderWidth": "0px",
+        "logo": {
+          "top": 22.5,
+          "left": 20,
+          "right": 189,
+          "bottom": 46.5,
+          "width": 169,
+          "height": 24
+        },
+        "topbarBackground": "linear-gradient(rgba(8, 36, 58, 0.98) 0%, rgba(7, 27, 44, 0.98) 100%)",
+        "headerBackground": "linear-gradient(rgba(8, 36, 58, 0.98) 0%, rgba(7, 27, 44, 0.98) 100%)"
+      }
+    },
+    {
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "screenshot": "/Users/entrada-mac/repos/governance_atlas/docs/northstar_visual_qa/home-current/home-recovery-1280x720.png",
+      "metrics": {
+        "body": {
+          "scrollWidth": 1280,
+          "scrollHeight": 720,
+          "clientWidth": 1280,
+          "clientHeight": 720
+        },
+        "app": {
+          "top": 0,
+          "left": 0,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1280,
+          "height": 720
+        },
+        "header": {
+          "top": 0,
+          "left": 210,
+          "right": 1280,
+          "bottom": 58,
+          "width": 1070,
+          "height": 58
+        },
+        "topbar": {
+          "top": 0,
+          "left": 210,
+          "right": 1280,
+          "bottom": 58,
+          "width": 1070,
+          "height": 58
+        },
+        "sidebar": {
+          "top": 0,
+          "left": 0,
+          "right": 210,
+          "bottom": 720,
+          "width": 210,
+          "height": 720
+        },
+        "main": {
+          "top": 58,
+          "left": 210,
+          "right": 1280,
+          "bottom": 676,
+          "width": 1070,
+          "height": 618
+        },
+        "home": {
+          "top": 58,
+          "left": 210,
+          "right": 1280,
+          "bottom": 676,
+          "width": 1070,
+          "height": 618
+        },
+        "footer": {
+          "top": 676,
+          "left": 210,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1070,
+          "height": 44
+        },
+        "topDomains": {
+          "top": 467.328125,
+          "left": 230,
+          "right": 451.328125,
+          "bottom": 657.328125,
+          "width": 221.328125,
+          "height": 190
+        },
+        "events": {
+          "top": 467.328125,
+          "left": 461.328125,
+          "right": 682.65625,
+          "bottom": 657.328125,
+          "width": 221.328125,
+          "height": 190
+        },
+        "actions": {
+          "top": 467.328125,
+          "left": 692.65625,
+          "right": 913.984375,
+          "bottom": 657.328125,
+          "width": 221.328125,
+          "height": 190
+        },
+        "ai": {
+          "top": 269.328125,
+          "left": 924,
+          "right": 1260,
+          "bottom": 653.328125,
+          "width": 336,
+          "height": 384
+        },
+        "heatmapTitleOverlap": false,
+        "heatmapHeaderOverflow": false,
+        "aiBottomAligned": true,
+        "quickActionsClipped": false,
+        "eventsClipped": false,
+        "mainScrollHeight": 618,
+        "mainClientHeight": 618,
+        "bodyHorizontalOverflow": false,
+        "footerVisible": true,
+        "viewAllCount": 3,
+        "infoTooltipCount": 11,
+        "alertButtonBorderWidth": "0px",
+        "logo": {
+          "top": 14.140625,
+          "left": 20,
+          "right": 180,
+          "bottom": 36.859375,
+          "width": 160,
+          "height": 22.71875
+        },
+        "topbarBackground": "linear-gradient(rgba(8, 36, 58, 0.98) 0%, rgba(7, 27, 44, 0.98) 100%)",
+        "headerBackground": "linear-gradient(rgba(8, 36, 58, 0.98) 0%, rgba(7, 27, 44, 0.98) 100%)"
+      }
+    }
+  ]
+}

@@ -9,7 +9,7 @@
  *
  * Canonical names (use these going forward):
  *   --gh-topbar-h             intrinsic title-bar min-height (72px)
- *   --gh-side-rail-w          left icon-rail column width (64px)
+ *   --gh-side-rail-w          expanded left navigation width (210px)
  *   --gh-left-panel-w         filter-rail column width (240px)
  *   --gh-right-panel-w        preview/sidecar column width (360px)
  *   --gh-content-gutter       page-edge horizontal gutter (20px)
@@ -25,7 +25,7 @@
 
 :root {
   --gh-topbar-h: 72px;
-  --gh-side-rail-w: 64px;
+  --gh-side-rail-w: 210px;
   --gh-left-panel-w: 240px;
   --gh-right-panel-w: 360px;
   --gh-content-gutter: 20px;

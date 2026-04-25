@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 
-export function createGovhubQueryClient() {
+export function createAtlasQueryClient() {
   return new QueryClient({
     defaultOptions: {
       queries: {
@@ -17,4 +17,4 @@ export function createGovhubQueryClient() {
   });
 }
 
-export const govhubQueryClient = createGovhubQueryClient();
+export const atlasQueryClient = createAtlasQueryClient();

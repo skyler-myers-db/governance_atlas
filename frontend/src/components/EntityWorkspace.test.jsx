@@ -4,6 +4,7 @@ import EntityWorkspace from "./EntityWorkspace";
 
 const useAssetDetailMock = vi.fn();
 const useAssetAvailabilityMock = vi.fn();
+const useAsset360Mock = vi.fn();
 const useLineageMock = vi.fn();
 const useSeededAssetContextMock = vi.fn();
 const useAssetMetadataEditorMock = vi.fn();
@@ -33,6 +34,10 @@ vi.mock("../hooks/useAssetDetail", () => ({
   primeAssetDetail: vi.fn(),
   useAssetAvailability: (...args) => useAssetAvailabilityMock(...args),
   useAssetDetail: (...args) => useAssetDetailMock(...args),
+}));
+
+vi.mock("../hooks/useAsset360", () => ({
+  useAsset360: (...args) => useAsset360Mock(...args),
 }));
 
 vi.mock("../hooks/useAssetSearch", () => ({
@@ -189,6 +194,7 @@ describe("EntityWorkspace", () => {
   beforeEach(() => {
     useAssetDetailMock.mockReset();
     useAssetAvailabilityMock.mockReset();
+    useAsset360Mock.mockReset();
     useLineageMock.mockReset();
     useSeededAssetContextMock.mockReset();
     useAssetMetadataEditorMock.mockReset();
@@ -205,6 +211,12 @@ describe("EntityWorkspace", () => {
       error: "",
     });
     useAssetAvailabilityMock.mockReturnValue({});
+    useAsset360Mock.mockReturnValue({
+      data: null,
+      loading: false,
+      refreshing: false,
+      error: "",
+    });
     useLineageMock.mockReturnValue({
       authoritative: false,
       provisional: false,
@@ -273,6 +285,69 @@ describe("EntityWorkspace", () => {
     expect(screen.getByRole("button", { name: "Lineage unavailable" }).disabled).toBe(true);
     expect(screen.getAllByText(lineageUnavailableReason)[0]).not.toBeNull();
     expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false);
+  });
+
+  it("renders same-FQN Asset 360 composite context without replacing it with seeded data", () => {
+    useAsset360Mock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      data: {
+        sameAsset: true,
+        asset: {
+          ...asset,
+          fqn: asset.fqn,
+          name: "orders",
+          usage: { queryCount: 9 },
+        },
+        schema: [{ name: "order_id", type: "BIGINT" }],
+        badges: ["Certified"],
+        usage: {
+          queryCount: 9,
+          downstreamConsumerCount: 2,
+        },
+        governance: {
+          openActivity: [{ id: "req-1", title: "Review owner" }],
+        },
+        quality: {
+          state: "unavailable",
+          runs: [],
+          message: "Quality runs are not included in this composite payload yet.",
+        },
+        freshness: {
+          state: "unavailable",
+          message: "Freshness is unavailable for this asset until a live freshness signal is present.",
+        },
+        activity: [{ id: "audit-1", title: "Metadata changed" }],
+        relatedAssets: [],
+        downstreamDashboards: [],
+        loadedSections: ["header", "schema"],
+      },
+    });
+
+    render(
+      <EntityWorkspace
+        assetFqn={asset.fqn}
+        bootstrap={bootstrapPayload()}
+        contextSeedAssets={[asset]}
+        onBack={() => {}}
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenGovernance={() => {}}
+        onOpenLineage={() => {}}
+        onSelectAsset={() => {}}
+        onSurfaceReady={() => {}}
+        runtimeFeatureFlags={[]}
+        sharedVisibleAssetSet={new Set([asset.fqn])}
+        workspaceAccess={fullWorkspaceAccess}
+      />,
+    );
+
+    const section = screen.getByText("Asset 360").closest(".gh-entity-record-section");
+    expect(section).not.toBeNull();
+    expect(within(section).getByText("Certified")).not.toBeNull();
+    expect(within(section).getByText("9 queries · 2 consumers")).not.toBeNull();
+    expect(within(section).getByText("header, schema")).not.toBeNull();
   });
 
   it("hides lineage and workload tabs when rollout flags are disabled", async () => {

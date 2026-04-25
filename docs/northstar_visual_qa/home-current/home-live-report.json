@@ -1,0 +1,682 @@
+{
+  "capturedAt": "2026-04-24T23:56:31.146Z",
+  "runtime": "live-databricks-app",
+  "appUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f14038859e10659bbb6012b83460ca",
+  "build": {
+    "liveBuildId": "frontend-66323aca43a6",
+    "localBuildManifest": {
+      "buildId": "frontend-66323aca43a6",
+      "generatedAt": "2026-04-24T23:50:07.864Z",
+      "sourceHash": "66323aca43a69d0b05ba1939091041921b2efcc1efa5f7158fc83f3c1b7c5b10",
+      "runtimeChain": {
+        "appYaml": "app.yaml",
+        "launcher": "run_app.py",
+        "backendModule": "runtime_app.py",
+        "frontendDist": "frontend/dist/index.html"
+      }
+    }
+  },
+  "api": {
+    "bootstrap": {
+      "ok": true,
+      "status": 200,
+      "buildId": "frontend-66323aca43a6",
+      "version": "atlas-runtime-6",
+      "bootState": "live",
+      "identity": {
+        "actorEmail": "skyler@entrada.ai",
+        "actorRole": "Admin",
+        "actorRoleProvisional": true,
+        "authenticatedUserPresent": true,
+        "authMode": "obo-available",
+        "visibilityScope": "actor-scoped",
+        "source": "x-forwarded-email | x-forwarded-preferred-username"
+      },
+      "meta": {
+        "state": "live",
+        "entityId": null,
+        "entityFqn": null,
+        "source": "runtime-shell",
+        "authoritative": true,
+        "observedAt": "2026-04-24T23:56:08Z",
+        "staleAfter": "2026-04-24T23:57:08Z",
+        "capabilities": {
+          "shellOnly": true
+        },
+        "allowedActions": {},
+        "warnings": [],
+        "degraded": false,
+        "visibilityScope": "actor-scoped",
+        "readScope": "actor-scoped",
+        "authMode": "obo-available",
+        "productMode": "obo-available",
+        "unavailableReason": ""
+      }
+    },
+    "runtimeStatus": {
+      "ok": true,
+      "status": 200,
+      "buildId": "frontend-66323aca43a6",
+      "runtime": {
+        "state": "live",
+        "message": "",
+        "catalogCount": 15,
+        "client": {
+          "authMode": "oauth-m2m-env",
+          "authType": "oauth-m2m",
+          "appName": "atlas",
+          "host": "dbc-3aa503a9-4fa8.cloud.databricks.com",
+          "hostPresent": true,
+          "clientIdPresent": true,
+          "clientSecretPresent": true,
+          "warehouseId": "b50e5cec5077ea22",
+          "workspaceId": "2543889327043640",
+          "userAccessTokenPresent": false
+        }
+      },
+      "identity": {
+        "actorEmail": "skyler@entrada.ai",
+        "actorName": "Skyler Myers",
+        "actorRole": "Admin",
+        "actorRoleProvisional": false,
+        "authenticatedUserPresent": true,
+        "authMode": "obo-available",
+        "visibilityScope": "actor-scoped",
+        "source": "x-forwarded-email | x-forwarded-preferred-username"
+      },
+      "capabilities": {
+        "governanceWrite": {
+          "available": true,
+          "state": "available",
+          "reason": "",
+          "actorScoped": true,
+          "workspaceScoped": false,
+          "visibilityScope": "forwarded-actor-control-plane",
+          "source": "governance-control-plane",
+          "protectedRead": false,
+          "productMode": "obo-available"
+        },
+        "governanceApproval": {
+          "available": true,
+          "state": "available",
+          "reason": "",
+          "actorScoped": true,
+          "workspaceScoped": false,
+          "visibilityScope": "forwarded-actor-control-plane",
+          "source": "governance-control-plane",
+          "protectedRead": false,
+          "productMode": "obo-available"
+        },
+        "systemInventoryRead": {
+          "available": true,
+          "state": "available",
+          "reason": "",
+          "actorScoped": false,
+          "workspaceScoped": true,
+          "visibilityScope": "workspace-app-principal",
+          "source": "unity-catalog-app-principal",
+          "protectedRead": false,
+          "productMode": "obo-available"
+        },
+        "tableLineage": {
+          "available": true,
+          "state": "unknown",
+          "reason": "No lineage-observed catalogs are detected yet; lineage surfaces will hydrate once system lineage tables report activity for the visible catalogs.",
+          "actorScoped": false,
+          "workspaceScoped": true,
+          "visibilityScope": "workspace-app-principal",
+          "source": "unity-catalog-app-principal",
+          "protectedRead": true,
+          "productMode": "obo-available"
+        },
+        "columnLineage": {
+          "available": true,
+          "state": "unknown",
+          "reason": "Column lineage uses the same system lineage plane and still requires per-asset verification.",
+          "actorScoped": false,
+          "workspaceScoped": true,
+          "visibilityScope": "workspace-app-principal",
+          "source": "unity-catalog-app-principal",
+          "protectedRead": true,
+          "productMode": "obo-available"
+        },
+        "workloadVisibility": {
+          "available": false,
+          "state": "unknown",
+          "reason": "Operational query and workload visibility is preview/admin-governed and must be rechecked per request.",
+          "actorScoped": false,
+          "workspaceScoped": true,
+          "visibilityScope": "workspace-app-principal",
+          "source": "unity-catalog-app-principal",
+          "protectedRead": true,
+          "productMode": "obo-available"
+        },
+        "qualityRunEligibility": {
+          "available": false,
+          "state": "unavailable",
+          "reason": "Persisted quality run execution is not implemented in the live runtime yet.",
+          "actorScoped": true,
+          "workspaceScoped": false,
+          "visibilityScope": "actor-scoped",
+          "source": "quality-control-plane",
+          "protectedRead": true,
+          "productMode": "obo-available"
+        },
+        "exportAllowed": {
+          "available": false,
+          "state": "unavailable",
+          "reason": "Authenticated export endpoints are not implemented in the live runtime yet.",
+          "actorScoped": false,
+          "workspaceScoped": true,
+          "visibilityScope": "workspace-app-principal",
+          "source": "unity-catalog-app-principal",
+          "protectedRead": true,
+          "productMode": "obo-available"
+        },
+        "manualLineageOverrides": {
+          "available": false,
+          "state": "unavailable",
+          "reason": "Governed lineage overrides are not implemented in the live runtime yet.",
+          "actorScoped": true,
+          "workspaceScoped": false,
+          "visibilityScope": "forwarded-actor-control-plane",
+          "source": "governance-control-plane",
+          "protectedRead": false,
+          "productMode": "obo-available"
+        }
+      }
+    },
+    "commandCenter": {
+      "ok": true,
+      "status": 200,
+      "buildId": "frontend-66323aca43a6",
+      "state": "available",
+      "authoritative": true,
+      "warnings": [],
+      "visibleAssetCount": 710,
+      "coverageScore": 7.8,
+      "kpiCount": 6,
+      "recentEventCount": 6
+    },
+    "atlasAiQuestionMatrix": [
+      {
+        "question": "Which domains have the lowest metadata coverage?",
+        "ok": true,
+        "status": 200,
+        "buildId": "frontend-66323aca43a6",
+        "intent": "coverage",
+        "answer": "Unassigned coverage is 7.8% across 710 visible assets.",
+        "confidence": "evidence-backed",
+        "evidenceCount": 1,
+        "recommendationCount": 1,
+        "state": "available",
+        "warnings": [],
+        "firstEvidence": {
+          "type": "domain",
+          "id": "Unassigned",
+          "metric": "metadataCoverage",
+          "value": 7.8,
+          "assetCount": 710
+        }
+      },
+      {
+        "question": "Which critical assets are not certified?",
+        "ok": true,
+        "status": 200,
+        "buildId": "frontend-66323aca43a6",
+        "intent": "certification",
+        "answer": "Criticality and certification signals are not available for the current visible metadata.",
+        "confidence": "low",
+        "evidenceCount": 0,
+        "recommendationCount": 0,
+        "state": "degraded",
+        "warnings": [
+          "Criticality and certification signals are not available for the current visible metadata."
+        ],
+        "firstEvidence": null
+      },
+      {
+        "question": "What changed in governance metadata recently?",
+        "ok": true,
+        "status": 200,
+        "buildId": "frontend-66323aca43a6",
+        "intent": "changes",
+        "answer": "identity-directory-upserted: skyler@entrada.ai",
+        "confidence": "evidence-backed",
+        "evidenceCount": 3,
+        "recommendationCount": 3,
+        "state": "available",
+        "warnings": [],
+        "firstEvidence": {
+          "type": "audit",
+          "id": "6c7d8500b612461f8b5b5071af4fab6d",
+          "metric": "metadataChange",
+          "createdAt": "2026-04-24T14:38:08.000Z",
+          "actorEmail": "skyler@entrada.ai"
+        }
+      },
+      {
+        "question": "Which assets need stewardship attention?",
+        "ok": true,
+        "status": 200,
+        "buildId": "frontend-66323aca43a6",
+        "intent": "stewardship",
+        "answer": "Unassigned has 710 actor-visible assets without an owner.",
+        "confidence": "evidence-backed",
+        "evidenceCount": 1,
+        "recommendationCount": 1,
+        "state": "available",
+        "warnings": [],
+        "firstEvidence": {
+          "type": "domain",
+          "id": "Unassigned",
+          "metric": "assetsWithoutOwner",
+          "value": 710
+        }
+      },
+      {
+        "question": "Which governance issue should I prioritize next?",
+        "ok": true,
+        "status": 200,
+        "buildId": "frontend-66323aca43a6",
+        "intent": "priority",
+        "answer": "Unassigned coverage is 7.8% across 710 visible assets.",
+        "confidence": "evidence-backed",
+        "evidenceCount": 1,
+        "recommendationCount": 1,
+        "state": "available",
+        "warnings": [],
+        "firstEvidence": {
+          "type": "domain",
+          "id": "Unassigned",
+          "metric": "metadataCoverage",
+          "value": 7.8,
+          "assetCount": 710
+        }
+      },
+      {
+        "question": "Draft a launch announcement",
+        "ok": true,
+        "status": 200,
+        "buildId": "frontend-66323aca43a6",
+        "intent": "unsupported",
+        "answer": "Atlas AI on Home currently supports evidence-backed questions about metadata coverage, critical asset certification, recent metadata changes, stewardship, and next governance priority.",
+        "confidence": "low",
+        "evidenceCount": 0,
+        "recommendationCount": 0,
+        "state": "degraded",
+        "warnings": [
+          "Unsupported Home Atlas AI question type."
+        ],
+        "firstEvidence": null
+      }
+    ],
+    "directAtlasAiRecommendations": {
+      "question": "Which domains have the lowest metadata coverage?",
+      "ok": true,
+      "status": 200,
+      "buildId": "frontend-66323aca43a6",
+      "intent": "coverage",
+      "answer": "Unassigned coverage is 7.8% across 710 visible assets.",
+      "confidence": "evidence-backed",
+      "evidenceCount": 1,
+      "recommendationCount": 1,
+      "state": "available",
+      "warnings": [],
+      "firstEvidence": {
+        "type": "domain",
+        "id": "Unassigned",
+        "metric": "metadataCoverage",
+        "value": 7.8,
+        "assetCount": 710
+      }
+    }
+  },
+  "viewports": {
+    "1536x1024": {
+      "screenshot": "docs/northstar_visual_qa/home-current/home-live-1536x1024.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/home?live_gate=final-1777074991263-1536x1024",
+        "viewport": {
+          "width": 1536,
+          "height": 1024
+        },
+        "expectedCopy": true,
+        "aiCopilotLabel": true,
+        "atlasAiTitleInline": true,
+        "expectedGreeting": true,
+        "opaqueUserIdLeaked": false,
+        "disclaimerExact": true,
+        "placeholderText": "Coverage, certs, owners...",
+        "scopedPlaceholder": true,
+        "oldDisclaimerPresent": false,
+        "notificationBorderWidth": "0px",
+        "usernameTextVisible": false,
+        "footerLinks": [
+          {
+            "label": "Privacy",
+            "found": true
+          },
+          {
+            "label": "Terms",
+            "found": true
+          },
+          {
+            "label": "Support",
+            "found": true
+          },
+          {
+            "label": "System Status",
+            "found": true
+          }
+        ],
+        "footerVisible": true,
+        "mainScrollHeight": 896,
+        "mainClientHeight": 896,
+        "mainFitsViewport": true,
+        "bodyFitsViewport": true,
+        "heatmapNoTitleOverlap": true,
+        "topDomainsGap": 14,
+        "topDomainsSpacingOk": true,
+        "viewAllCount": 3,
+        "viewAllWrapped": false,
+        "overflowCount": 0,
+        "overflowingText": [],
+        "eventListVisible": true,
+        "quickActionsVisible": true,
+        "aiPanelRect": {
+          "x": 1172,
+          "y": 357,
+          "width": 336,
+          "height": 578,
+          "top": 357,
+          "right": 1508,
+          "bottom": 935,
+          "left": 1172
+        },
+        "heatmapTitleRect": {
+          "x": 722,
+          "y": 374,
+          "width": 168,
+          "height": 18,
+          "top": 374,
+          "right": 890,
+          "bottom": 392,
+          "left": 722
+        },
+        "heatmapHeadRect": {
+          "x": 722,
+          "y": 406,
+          "width": 419,
+          "height": 20,
+          "top": 406,
+          "right": 1141,
+          "bottom": 426,
+          "left": 722
+        },
+        "topDomainsTitleRect": {
+          "x": 255,
+          "y": 648,
+          "width": 122,
+          "height": 18,
+          "top": 648,
+          "right": 377,
+          "bottom": 666,
+          "left": 255
+        },
+        "topDomainsListRect": {
+          "x": 255,
+          "y": 680,
+          "width": 263,
+          "height": 18,
+          "top": 680,
+          "right": 518,
+          "bottom": 698,
+          "left": 255
+        }
+      }
+    },
+    "1440x900": {
+      "screenshot": "docs/northstar_visual_qa/home-current/home-live-1440x900.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/home?live_gate=final-1777074998334-1440x900",
+        "viewport": {
+          "width": 1440,
+          "height": 900
+        },
+        "expectedCopy": true,
+        "aiCopilotLabel": true,
+        "atlasAiTitleInline": true,
+        "expectedGreeting": true,
+        "opaqueUserIdLeaked": false,
+        "disclaimerExact": true,
+        "placeholderText": "Coverage, certs, owners...",
+        "scopedPlaceholder": true,
+        "oldDisclaimerPresent": false,
+        "notificationBorderWidth": "0px",
+        "usernameTextVisible": false,
+        "footerLinks": [
+          {
+            "label": "Privacy",
+            "found": true
+          },
+          {
+            "label": "Terms",
+            "found": true
+          },
+          {
+            "label": "Support",
+            "found": true
+          },
+          {
+            "label": "System Status",
+            "found": true
+          }
+        ],
+        "footerVisible": true,
+        "mainScrollHeight": 772,
+        "mainClientHeight": 772,
+        "mainFitsViewport": true,
+        "bodyFitsViewport": true,
+        "heatmapNoTitleOverlap": true,
+        "topDomainsGap": 8,
+        "topDomainsSpacingOk": true,
+        "viewAllCount": 3,
+        "viewAllWrapped": false,
+        "overflowCount": 0,
+        "overflowingText": [],
+        "eventListVisible": true,
+        "quickActionsVisible": true,
+        "aiPanelRect": {
+          "x": 1080,
+          "y": 329,
+          "width": 336,
+          "height": 480,
+          "top": 329,
+          "right": 1416,
+          "bottom": 809,
+          "left": 1080
+        },
+        "heatmapTitleRect": {
+          "x": 671,
+          "y": 343,
+          "width": 166,
+          "height": 18,
+          "top": 343,
+          "right": 837,
+          "bottom": 361,
+          "left": 671
+        },
+        "heatmapHeadRect": {
+          "x": 671,
+          "y": 369,
+          "width": 385,
+          "height": 17,
+          "top": 369,
+          "right": 1056,
+          "bottom": 386,
+          "left": 671
+        },
+        "topDomainsTitleRect": {
+          "x": 248,
+          "y": 571,
+          "width": 121,
+          "height": 18,
+          "top": 571,
+          "right": 369,
+          "bottom": 589,
+          "left": 248
+        },
+        "topDomainsListRect": {
+          "x": 248,
+          "y": 597,
+          "width": 244,
+          "height": 15,
+          "top": 597,
+          "right": 492,
+          "bottom": 612,
+          "left": 248
+        }
+      }
+    },
+    "1280x720": {
+      "screenshot": "docs/northstar_visual_qa/home-current/home-live-1280x720.png",
+      "consoleErrors": [],
+      "networkErrors": [],
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/home?live_gate=final-1777075004575-1280x720",
+        "viewport": {
+          "width": 1280,
+          "height": 720
+        },
+        "expectedCopy": true,
+        "aiCopilotLabel": true,
+        "atlasAiTitleInline": true,
+        "expectedGreeting": true,
+        "opaqueUserIdLeaked": false,
+        "disclaimerExact": true,
+        "placeholderText": "Coverage, certs, owners...",
+        "scopedPlaceholder": true,
+        "oldDisclaimerPresent": false,
+        "notificationBorderWidth": "0px",
+        "usernameTextVisible": false,
+        "footerLinks": [
+          {
+            "label": "Privacy",
+            "found": true
+          },
+          {
+            "label": "Terms",
+            "found": true
+          },
+          {
+            "label": "Support",
+            "found": true
+          },
+          {
+            "label": "System Status",
+            "found": true
+          }
+        ],
+        "footerVisible": true,
+        "mainScrollHeight": 618,
+        "mainClientHeight": 618,
+        "mainFitsViewport": true,
+        "bodyFitsViewport": true,
+        "heatmapNoTitleOverlap": true,
+        "topDomainsGap": 6,
+        "topDomainsSpacingOk": true,
+        "viewAllCount": 3,
+        "viewAllWrapped": false,
+        "overflowCount": 0,
+        "overflowingText": [],
+        "eventListVisible": true,
+        "quickActionsVisible": true,
+        "aiPanelRect": {
+          "x": 924,
+          "y": 264,
+          "width": 336,
+          "height": 384,
+          "top": 264,
+          "right": 1260,
+          "bottom": 648,
+          "left": 924
+        },
+        "heatmapTitleRect": {
+          "x": 590,
+          "y": 277,
+          "width": 163,
+          "height": 18,
+          "top": 277,
+          "right": 753,
+          "bottom": 295,
+          "left": 590
+        },
+        "heatmapHeadRect": {
+          "x": 590,
+          "y": 301,
+          "width": 311,
+          "height": 17,
+          "top": 301,
+          "right": 901,
+          "bottom": 318,
+          "left": 590
+        },
+        "topDomainsTitleRect": {
+          "x": 243,
+          "y": 475,
+          "width": 119,
+          "height": 18,
+          "top": 475,
+          "right": 362,
+          "bottom": 493,
+          "left": 243
+        },
+        "topDomainsListRect": {
+          "x": 243,
+          "y": 499,
+          "width": 195,
+          "height": 14,
+          "top": 499,
+          "right": 438,
+          "bottom": 513,
+          "left": 243
+        }
+      }
+    }
+  },
+  "aiInteraction": {
+    "screenshot": "docs/northstar_visual_qa/home-current/home-live-ai-1440x900.png",
+    "topbarClicked": true,
+    "promptClicked": true,
+    "promptText": "Which domains have the lowest metadata coverage? ↗",
+    "consoleErrors": [],
+    "networkErrors": [],
+    "metrics": {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/home?live_gate=ai-retry-1777075403886-1",
+      "path": "/home",
+      "promptButtonsEnabled": true,
+      "resultVisible": true,
+      "resultText": "Unassigned coverage is 7.8% across 710 visible assets.1 evidence record returned.",
+      "answerVisible": true,
+      "evidenceTextVisible": true,
+      "exactDisclaimer": true,
+      "placeholderText": "Coverage, certs, owners...",
+      "scopedPlaceholder": true,
+      "oldDisclaimerPresent": false,
+      "expectedGreeting": true,
+      "opaqueUserIdLeaked": false
+    }
+  },
+  "placeholderEvidence": {
+    "checkedAt": "2026-04-25T00:03:33.364Z",
+    "inputSelector": ".gh-home-ai-input input",
+    "placeholderText": "Coverage, certs, owners...",
+    "scopedPlaceholder": true
+  }
+}

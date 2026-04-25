@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from govhub.services import runtime_setup
+from atlas.services import runtime_setup
 
 
 class RuntimeSetupPayloadTests(unittest.TestCase):

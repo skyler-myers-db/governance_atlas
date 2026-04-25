@@ -1,0 +1,15 @@
+2026/04/20-16:29:07.412 2e75 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_dbc-3aa503a9-4fa8.cloud.databricks.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/04/20-16:29:07.413 2e75 Recovering log #19
+2026/04/20-16:29:07.413 2e75 Reusing old log /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_dbc-3aa503a9-4fa8.cloud.databricks.com_0.indexeddb.leveldb/000019.log 
+2026/04/20-16:29:11.252 2e75 Level-0 table #24: started
+2026/04/20-16:29:11.253 2e75 Level-0 table #24: 209 bytes OK
+2026/04/20-16:29:11.255 2e75 Delete type=0 #19
+2026/04/20-16:29:11.256 2e75 Manual compaction at level-0 from (begin) .. (end); will stop at (end)
+2026/04/20-16:29:11.256 2e75 Manual compaction at level-1 from (begin) .. (end); will stop at '\x00\x00\x00\x00\x06' @ 85 : 1
+2026/04/20-16:29:11.256 2e75 Compacting 1@1 + 1@2 files
+2026/04/20-16:29:11.257 2e75 Generated table #25@1: 28 keys, 675 bytes
+2026/04/20-16:29:11.257 2e75 Compacted 1@1 + 1@2 files => 675 bytes
+2026/04/20-16:29:11.258 2e75 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/04/20-16:29:11.259 2e75 Delete type=2 #21
+2026/04/20-16:29:11.259 2e75 Delete type=2 #24
+2026/04/20-16:29:11.259 2e75 Manual compaction at level-1 from '\x00\x00\x00\x00\x06' @ 85 : 1 .. (end); will stop at (end)

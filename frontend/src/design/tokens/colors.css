@@ -1,53 +1,73 @@
 /*
- * Color tokens.
- * Semantic surfaces, borders, text, accent, and status.
- * Names and values match the original :root block in app.css — any change here
- * is a visible change to the product surface and must be intentional.
+ * Entrada Governance Atlas color tokens.
+ *
+ * The --ga-* names are the North Star design contract. The --gh-* aliases are
+ * kept intentionally because the existing product CSS still consumes them.
  */
 
 :root {
-  /* Palette tuned against docs/mockups/discovery_mockup.png. The base
-     surface (side rail, top header, main body) is a warm cream/tan,
-     NOT cool grey — the mockup reads as off-white beige with a slight
-     warmth. ONLY the search field, asset cards, sort select, and
-     checkboxes are pure white, which is how they "pop" off the base.
-     Accent stays magenta (brand mark, Quick action button, progress
-     rail); indigo stays as a soft secondary for selection/focus. */
-  --gh-bg: #faf6ec;
-  --gh-bg-2: #f5efe2;
-  --gh-surface: #ffffff;
-  --gh-surface-soft: #fdfaf2;
-  --gh-surface-muted: #f7f1e3;
+  color-scheme: dark;
 
-  /* Border lines in warm beige. Round 11 lightens a shade — operator
-     asked for "all borders a shade lighter" after round 10's bump.
-     Round 12: --gh-line-strong folded onto --gh-line so side-rail,
-     subtab, filter-rail borders all paint the same uniform shade
-     (operator: "are you sure all the borders are the same darkness
-     now? the left vertical looks slightly darker"). */
-  --gh-line: #b9ac82;
-  --gh-line-strong: #b9ac82;
+  --ga-navy-980: #071827;
+  --ga-navy-950: #082033;
+  --ga-navy-925: #092941;
+  --ga-navy-900: #0a3150;
+  --ga-navy-850: #0d3c61;
 
-  --gh-ink: #1a2236;
-  --gh-ink-soft: #525e74;
-  --gh-ink-muted: #7a859a;
+  --ga-entrada-blue: #025080;
+  --ga-highlight-blue: #3d84ad;
+  --ga-bright-blue: #55bdf4;
+  --ga-light-blue: #cfefff;
+  --ga-gray: #b2bdc2;
+  --ga-white: #ffffff;
+  --ga-teal: #5ce1e6;
 
-  /* Brand magenta — owns the left-rail active mark, Quick action
-     button, primary buttons in the preview sidecar, and the thin
-     progress rail above panels. */
-  --gh-accent: #e11d74;
-  --gh-accent-2: #b81560;
-  --gh-accent-soft: #fce6ef;
+  --ga-success: #2ee6a6;
+  --ga-warning: #ffb547;
+  --ga-danger: #ff5c6c;
+  --ga-purple: #9d7cff;
 
-  /* Secondary indigo — used for the Quick action button, checkbox
-     accents, focus rings, and filter-section activation. Operator
-     2026-04-19 round 2 asked for a darker / deeper purple so the
-     Quick action button reads as decisive, not candy-floss. */
-  --gh-indigo: #3d2bc4;
-  --gh-indigo-2: #2d1f93;
-  --gh-indigo-soft: #e6e3ff;
+  --ga-bg: var(--ga-navy-980);
+  --ga-shell: #071927;
+  --ga-chrome-bg: linear-gradient(180deg, rgba(8, 36, 58, 0.98) 0%, rgba(7, 27, 44, 0.98) 100%);
+  --ga-surface: rgba(9, 42, 67, 0.84);
+  --ga-surface-strong: rgba(10, 49, 78, 0.96);
+  --ga-surface-raised: rgba(8, 33, 54, 0.92);
+  --ga-surface-soft: rgba(102, 197, 255, 0.08);
+  --ga-surface-muted: rgba(10, 45, 73, 0.68);
+  --ga-border: rgba(102, 197, 255, 0.18);
+  --ga-border-strong: rgba(102, 197, 255, 0.34);
+  --ga-border-muted: rgba(207, 239, 255, 0.1);
 
-  --gh-good: #1f8b67;
-  --gh-warn: #b67b1f;
-  --gh-bad: #c1545f;
+  --ga-text: #f5fbff;
+  --ga-text-soft: #cfefff;
+  --ga-text-muted: #8fa8b6;
+  --ga-text-faint: #668396;
+
+  --ga-focus: rgba(102, 197, 255, 0.42);
+
+  --gh-bg: var(--ga-bg);
+  --gh-bg-2: var(--ga-shell);
+  --gh-surface: var(--ga-surface);
+  --gh-surface-soft: var(--ga-surface-soft);
+  --gh-surface-muted: var(--ga-surface-muted);
+  --gh-line: var(--ga-border);
+  --gh-line-strong: var(--ga-border-strong);
+  --gh-ink: var(--ga-text);
+  --gh-ink-soft: var(--ga-text-soft);
+  --gh-ink-muted: var(--ga-text-muted);
+  --gh-text: var(--ga-text);
+  --gh-text-soft: var(--ga-text-soft);
+  --gh-text-muted: var(--ga-text-muted);
+  --gh-border: var(--ga-border);
+  --gh-border-strong: var(--ga-border-strong);
+  --gh-accent: var(--ga-bright-blue);
+  --gh-accent-2: var(--ga-highlight-blue);
+  --gh-accent-soft: rgba(102, 197, 255, 0.16);
+  --gh-indigo: var(--ga-purple);
+  --gh-indigo-2: #bdaeff;
+  --gh-indigo-soft: rgba(157, 124, 255, 0.16);
+  --gh-good: var(--ga-success);
+  --gh-warn: var(--ga-warning);
+  --gh-bad: var(--ga-danger);
 }
