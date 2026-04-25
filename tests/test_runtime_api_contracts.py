@@ -28,8 +28,8 @@ def _load_snapshot_script():
 snapshot_script = _load_snapshot_script()
 
 from fastapi.responses import JSONResponse  # noqa: E402
-from govhub.api import response as _response_api  # noqa: E402
-from govhub.api.runtime import build_runtime_router  # noqa: E402
+from atlas.api import response as _response_api  # noqa: E402
+from atlas.api.runtime import build_runtime_router  # noqa: E402
 
 
 def _response_json(response) -> dict[str, object]:
@@ -51,7 +51,12 @@ class RuntimeApiContractsTests(unittest.TestCase):
                 "query": "",
             },
             _build_id=lambda: "build-123",
-            _config=lambda: SimpleNamespace(diagnostics_enabled=True, admin_emails=[]),
+            _config=lambda: SimpleNamespace(
+                diagnostics_enabled=True,
+                admin_emails=[],
+                environment_label="Dev - DEFAULT",
+                workspace_host="https://example.cloud.databricks.com",
+            ),
         ):
             payload = runtime_app._shell_payload(
                 request,
@@ -70,7 +75,30 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertEqual(payload["routeHints"]["surface"], "entity")
         self.assertEqual(payload["routeHints"]["asset"], "main.sales.orders")
         self.assertEqual(payload["apiContract"]["bootstrap"], "/api/bootstrap")
+        self.assertEqual(payload["apiContract"]["commandCenter"], "/api/atlas/command-center")
+        self.assertEqual(payload["apiContract"]["asset360"], "/api/atlas/assets/{asset_fqn}/360")
+        self.assertEqual(
+            payload["apiContract"]["governanceWorkbench"],
+            "/api/atlas/governance/workbench",
+        )
+        self.assertEqual(payload["apiContract"]["insightsDashboard"], "/api/atlas/insights")
+        self.assertEqual(payload["apiContract"]["cdeDashboard"], "/api/atlas/cde")
+        self.assertEqual(
+            payload["apiContract"]["atlasAiRecommendations"],
+            "/api/atlas-ai/recommendations",
+        )
         self.assertEqual(payload["shell"]["buildId"], "build-123")
+        self.assertEqual(payload["shell"]["environment"]["label"], "Dev - DEFAULT")
+        self.assertEqual(payload["shell"]["workspaceHost"], "https://example.cloud.databricks.com")
+        self.assertEqual(
+            payload["shell"]["product"],
+            {
+                "companyName": "Entrada",
+                "productName": "Governance Atlas",
+                "shortName": "Atlas",
+                "aiName": "Atlas AI",
+            },
+        )
         flag_keys = {item["key"] for item in payload["featureFlags"]}
         self.assertIn("workspace_setup_diagnostics", flag_keys)
         self.assertIn("table_lineage_surface", flag_keys)
@@ -93,7 +121,12 @@ class RuntimeApiContractsTests(unittest.TestCase):
                 "query": "",
             },
             _build_id=lambda: "build-123",
-            _config=lambda: SimpleNamespace(diagnostics_enabled=True, admin_emails=[]),
+            _config=lambda: SimpleNamespace(
+                diagnostics_enabled=True,
+                admin_emails=[],
+                environment_label="Dev - DEFAULT",
+                workspace_host="https://example.cloud.databricks.com",
+            ),
         ):
             response = runtime_app._api_bootstrap_response(request)
 
@@ -104,6 +137,7 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertNotIn("assetIndex", payload)
         self.assertNotIn("diagnostics", payload)
         self.assertEqual(payload["apiContract"]["runtimeStatus"], "/api/runtime/status")
+        self.assertEqual(payload["apiContract"]["adminControlCenter"], "/api/atlas/admin/control-center")
 
     def test_unavailable_bootstrap_payload_preserves_minimal_contract(self) -> None:
         runtime_app = snapshot_script.runtime_app
@@ -111,7 +145,12 @@ class RuntimeApiContractsTests(unittest.TestCase):
         with patch.multiple(
             runtime_app,
             _build_id=lambda: "build-123",
-            _config=lambda: SimpleNamespace(diagnostics_enabled=False, admin_emails=[]),
+            _config=lambda: SimpleNamespace(
+                diagnostics_enabled=False,
+                admin_emails=[],
+                environment_label="",
+                workspace_host="",
+            ),
         ):
             payload = runtime_app._bootstrap_unavailable_payload(
                 None, "Warehouse unavailable."
@@ -126,11 +165,52 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertNotIn("diagnostics", payload)
         self.assertNotIn("summary", payload["discovery"])
         self.assertEqual(payload["apiContract"]["bootstrap"], "/api/bootstrap")
+        self.assertEqual(payload["apiContract"]["auditEvidence"], "/api/atlas/audit/evidence")
 
     def test_request_obo_token_reads_forwarded_access_token_header(self) -> None:
         runtime_app = snapshot_script.runtime_app
         request = SimpleNamespace(headers={"x-forwarded-access-token": "obo-token-abc"})
         self.assertEqual(runtime_app._request_obo_token(request), "obo-token-abc")
+
+    def test_user_display_name_prefers_display_header(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(
+            headers={
+                "x-forwarded-user": "5882225431657870",
+                "x-forwarded-email": "skyler@entrada.ai",
+                "x-forwarded-display-name": "Skyler Kohler",
+            }
+        )
+
+        self.assertEqual(runtime_app._user_display_name(request), "Skyler Kohler")
+
+    def test_user_display_name_falls_back_to_email_over_opaque_user_id(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(
+            headers={
+                "x-forwarded-user": "5882225431657870",
+                "x-forwarded-email": "skyler@entrada.ai",
+            }
+        )
+
+        self.assertEqual(runtime_app._user_display_name(request), "skyler@entrada.ai")
+
+    def test_runtime_diagnostics_headers_use_govat_names(
+        self,
+    ) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(
+            headers={"X-GOVAT-Client-Request-ID": "govat-request-id"},
+            state=SimpleNamespace(),
+        )
+
+        self.assertEqual(runtime_app._http_request_id(request), "govat-request-id")
+        self.assertEqual(
+            runtime_app.CLIENT_REQUEST_ID_HEADER,
+            "X-GOVAT-Client-Request-ID",
+        )
+        self.assertEqual(runtime_app.BUILD_ID_HEADER, "X-GOVAT-Build-ID")
+        self.assertEqual(runtime_app.DURATION_HEADER, "X-GOVAT-Request-Duration-Ms")
 
     def test_request_auth_mode_flips_to_obo_when_token_forwarded(self) -> None:
         runtime_app = snapshot_script.runtime_app
@@ -154,7 +234,7 @@ class RuntimeApiContractsTests(unittest.TestCase):
         )
 
     def test_runtime_app_routes_delegate_to_runtime_helpers(self) -> None:
-        from govhub.api import runtime as _runtime_api
+        from atlas.api import runtime as _runtime_api
 
         runtime_app = snapshot_script.runtime_app
         routes = {

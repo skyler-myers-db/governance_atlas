@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from govhub.api import insights as insights_api
+from atlas.api import insights as insights_api
 
 
 NOW = datetime(2026, 4, 20, 12, 0, 0, tzinfo=timezone.utc)

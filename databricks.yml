@@ -1,5 +1,9 @@
 bundle:
-  name: governance-hub
+  name: atlas
+
+workspace:
+  profile: DEFAULT
+  root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
 
 # ── Sync overrides ─────────────────────────────────────────
 # The repo-level .gitignore excludes frontend/dist/ from git tracking, but the
@@ -10,9 +14,26 @@ bundle:
 sync:
   include:
     - frontend/dist/**
+  exclude:
+    - .git/**
+    - .github/**
+    - .databricks/**
+    - .venv/**
+    - frontend/node_modules/**
+    - node_modules/**
+    - docs/northstar_visual_qa/**
+    - docs/northstar_baseline_screenshots/**
+    - docs/screenshots/**
+    - docs/mockups/*.png
+    - docs/mockups/*.jpg
+    - docs/mockups/*.jpeg
+    - frontend/test-results/**
+    - frontend/playwright-report/**
+    - tests/**
 
 # ── Variables ──────────────────────────────────────────────
-# Override per-target or via CLI: databricks bundle deploy -t prod
+# Override per-target or via CLI:
+# databricks bundle deploy --profile DEFAULT -t prod --var="warehouse_id=<warehouse-id>"
 variables:
   warehouse_id:
     description: "SQL Warehouse ID the app uses for UC queries"
@@ -25,16 +46,34 @@ variables:
   admin_emails:
     description: "Comma-separated bootstrap admin emails"
     default: ""
+  environment_label:
+    description: "User-facing environment label for the app shell"
+    default: ""
 
 # ── App resource ────────────────────────────────────────────
 resources:
   apps:
-    governance_hub:
-      name: governance-hub
+    atlas:
+      name: atlas
       description: >
-        Governance Hub — a Databricks-native enterprise metadata workspace
+        Governance Atlas - a Databricks-native enterprise metadata workspace
         extending Unity Catalog, deployable to any Databricks workspace.
-      source_code_path: .
+      source_code_path: ${workspace.root_path}/files
+      config:
+        command:
+          - python
+          - run_app.py
+        env:
+          - name: DATABRICKS_WAREHOUSE_ID
+            value_from: sql-warehouse
+          - name: GOVAT_CATALOG
+            value: ${var.gov_catalog}
+          - name: GOVAT_SCHEMA
+            value: ${var.gov_schema}
+          - name: GOVAT_ADMIN_EMAILS
+            value: ${var.admin_emails}
+          - name: GOVAT_ENVIRONMENT_LABEL
+            value: ${var.environment_label}
       # OBO (on-behalf-of-user) scopes. Without these declared here, every
       # `bundle deploy` wipes scopes the operator set in the Databricks UI,
       # which silently demotes user reads to app-principal fallback and makes
@@ -52,7 +91,7 @@ resources:
         - catalog.connections
         - dashboards.genie
       resources:
-        - name: uc_warehouse
+        - name: sql-warehouse
           sql_warehouse:
             id: ${var.warehouse_id}
             permission: CAN_USE
@@ -63,21 +102,25 @@ resources:
 
 # ── Targets (environments) ──────────────────────────────────
 # Each target maps to a Databricks workspace + profile.
-# `databricks bundle deploy -t <target>` selects the environment.
+# `databricks bundle deploy --profile DEFAULT -t <target>` selects the environment.
 targets:
   dev:
     mode: development
     default: true
     variables:
-      gov_catalog: dev
-      gov_schema: governance_hub
+      gov_catalog: datapact
+      gov_schema: atlas
+      admin_emails: "skyler@entrada.ai"
+      environment_label: "Dev - DEFAULT"
 
   staging:
     variables:
       gov_catalog: staging
-      gov_schema: governance_hub
+      gov_schema: atlas
+      environment_label: "Stage - DEFAULT"
 
   prod:
     variables:
       gov_catalog: prod
-      gov_schema: governance_hub
+      gov_schema: atlas
+      environment_label: "Prod - DEFAULT"

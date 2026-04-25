@@ -19,7 +19,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock
 
-from govhub import uc as uc_module
+from atlas import uc as uc_module
 
 # Import lazily inside tests to avoid pulling in the entire FastAPI app
 # at module-import time (runtime_app imports lots of side-effecting

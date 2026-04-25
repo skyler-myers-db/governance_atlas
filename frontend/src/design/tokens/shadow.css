@@ -1,21 +1,21 @@
 /*
- * Elevation shadow tokens.
- * Original set (shadow, shadow-soft) kept verbatim. Added named presets that
- * consolidate the 27+ scattered one-off shadow declarations catalogued in
- * Tranche B step 1. The glass-highlight inset is the top-edge bevel effect
- * used throughout the app for glassmorphism.
+ * Governance Atlas elevation and glow tokens.
  */
 
 :root {
-  --gh-shadow: 0 16px 44px rgba(18, 35, 58, 0.08);
-  --gh-shadow-soft: 0 6px 18px rgba(18, 35, 58, 0.05);
+  --ga-shadow-sm: 0 8px 20px rgba(0, 0, 0, 0.18);
+  --ga-shadow-md: 0 18px 44px rgba(0, 0, 0, 0.28);
+  --ga-shadow-lg: 0 28px 72px rgba(0, 0, 0, 0.36);
+  --ga-shadow-glow: 0 0 32px rgba(102, 197, 255, 0.18);
+  --ga-shadow-focus: 0 0 0 3px var(--ga-focus);
+  --ga-glass-highlight: inset 0 1px 0 rgba(207, 239, 255, 0.12);
 
-  --gh-shadow-sm: 0 2px 6px rgba(18, 35, 58, 0.06);
-  --gh-shadow-md: 0 10px 22px rgba(18, 35, 58, 0.08);
-  --gh-shadow-lg: 0 22px 40px rgba(18, 35, 58, 0.12);
-
-  --gh-shadow-focus: 0 0 0 3px rgba(15, 92, 192, 0.22);
-  --gh-shadow-accent: 0 10px 24px rgba(91, 67, 238, 0.18);
-
-  --gh-glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  --gh-shadow: var(--ga-shadow-md);
+  --gh-shadow-soft: var(--ga-shadow-sm);
+  --gh-shadow-sm: var(--ga-shadow-sm);
+  --gh-shadow-md: var(--ga-shadow-md);
+  --gh-shadow-lg: var(--ga-shadow-lg);
+  --gh-shadow-focus: var(--ga-shadow-focus);
+  --gh-shadow-accent: var(--ga-shadow-glow);
+  --gh-glass-highlight: var(--ga-glass-highlight);
 }

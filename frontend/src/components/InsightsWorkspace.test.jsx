@@ -1,107 +1,50 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import InsightsWorkspace from "./InsightsWorkspace";
 
-// The component accepts a `gapAnalysisOverride` prop so we can feed it a
-// synthetic hook payload without having to mount the TanStack QueryClient
-// in every test.
 function renderWorkspace(overrides = {}) {
   const baseOverride = {
-    tiles: {
-      ownershipGaps: 2,
-      policyGaps: 1,
-      freshnessGaps: 1,
-      qualityIncidents: 1,
-      totalAssets: 10,
+    data: {
+      kpis: [
+        { key: "maturity", label: "Governance Maturity Score", value: 82.4, format: "score" },
+        { key: "policyCompliance", label: "Policy Compliance", value: null, format: "percent", state: "unavailable" },
+        { key: "certifiedAssets", label: "Certified Assets", value: 3 },
+      ],
+      metadataCoverageHeatmap: [
+        { row: "Sales", column: "description", value: 90 },
+        { row: "Sales", column: "owners", value: 70 },
+      ],
+      domainLeaderboard: [{ domain: "Sales", score: 80, assetCount: 4 }],
+      recommendations: [
+        {
+          key: "metadataCoverage",
+          title: "Improve Finance metadata coverage",
+          detail: "Finance has 55% average metadata coverage across 2 assets.",
+          evidence: [{ type: "domain", id: "Finance", metric: "metadataCoverage", value: 55 }],
+        },
+      ],
+      scoring: {
+        maturityFormula: [
+          { signal: "metadataCoverage", weight: 0.3 },
+          { signal: "qualityHealth", weight: 0.1 },
+        ],
+        availableSignals: ["metadataCoverage"],
+      },
+      signalAvailability: { quality: false, audit: true },
+      meta: { state: "available", warnings: [] },
     },
-    lanes: {
-      ownership: [
-        {
-          assetFqn: "main.sales.alpha",
-          assetName: "alpha",
-          objectType: "Delta Table",
-          gapKind: "ownership",
-          gapReason: "No owners assigned",
-          evidence: [],
-          remediation: {
-            label: "Assign owner",
-            action: "governance.requestOwner",
-            href: "/governance?lane=ownership&asset=main.sales.alpha",
-          },
-        },
-        {
-          assetFqn: "main.sales.beta",
-          assetName: "beta",
-          objectType: "Delta Table",
-          gapKind: "ownership",
-          gapReason: "No owners assigned",
-          evidence: [],
-          remediation: {
-            label: "Assign owner",
-            action: "governance.requestOwner",
-            href: "/governance?lane=ownership&asset=main.sales.beta",
-          },
-        },
-      ],
-      policy: [
-        {
-          assetFqn: "main.raw.gamma",
-          assetName: "gamma",
-          objectType: "Delta Table",
-          gapKind: "policy",
-          gapReason: "Missing sensitivity, certification, domain, tier",
-          evidence: [],
-          remediation: {
-            label: "Approve classification",
-            action: "governance.approveClassification",
-            href: "/governance?lane=policy&asset=main.raw.gamma",
-          },
-        },
-      ],
-      freshness: [
-        {
-          assetFqn: "main.sales.delta",
-          assetName: "delta",
-          objectType: "Delta Table",
-          gapKind: "freshness",
-          gapReason: "Last observation is older than 7 days",
-          evidence: [],
-          remediation: {
-            label: "Run profile",
-            action: "governance.runProfile",
-            href: "/governance?lane=freshness&asset=main.sales.delta",
-          },
-        },
-      ],
-      quality: [
-        {
-          assetFqn: "main.sales.epsilon",
-          assetName: "epsilon",
-          objectType: "Delta Table",
-          gapKind: "quality",
-          gapReason: "Quality incidents in the last 7 days: 1 failed",
-          evidence: [],
-          remediation: {
-            label: "View quality incident",
-            action: "governance.viewQualityIncident",
-            href: "/governance?lane=quality&asset=main.sales.epsilon",
-          },
-        },
-      ],
-    },
-    lanesOrder: ["ownership", "policy", "freshness", "quality"],
-    qualitySignalAvailable: true,
-    meta: { state: "available" },
-    isLoading: false,
+    state: "ready",
+    loading: false,
     refreshing: false,
     error: "",
     refreshError: "",
-    refresh: () => {},
+    warnings: [],
+    refresh: vi.fn(),
     ...overrides,
   };
   return render(
     <InsightsWorkspace
-      gapAnalysisOverride={baseOverride}
+      insightsOverride={baseOverride}
       onNavigate={() => {}}
       onSurfaceReady={() => {}}
     />,
@@ -109,84 +52,82 @@ function renderWorkspace(overrides = {}) {
 }
 
 describe("InsightsWorkspace", () => {
-  it("renders the four tile counts", () => {
+  it("renders composite API KPI values without replacing unavailable metrics", () => {
     renderWorkspace();
-    const tiles = document.querySelectorAll("[data-lane]");
-    expect(tiles.length).toBeGreaterThanOrEqual(4);
-    // Tile values (buttons show the integer values)
-    expect(screen.getByText("Ownership gaps")).toBeDefined();
-    expect(screen.getByText("Policy gaps")).toBeDefined();
-    expect(screen.getByText("Freshness blind spots")).toBeDefined();
-    expect(screen.getByText("Quality incidents")).toBeDefined();
+
+    expect(screen.getByText("Governance Maturity Score")).toBeDefined();
+    expect(screen.getByText("82")).toBeDefined();
+    expect(screen.getByText("Policy Compliance")).toBeDefined();
+    expect(screen.getAllByText("Unavailable").length).toBeGreaterThan(0);
+    expect(screen.getByText("Certified Assets")).toBeDefined();
   });
 
-  it("defaults to ownership lane and shows its rows", () => {
+  it("renders evidence-backed recommendations from the composite payload", () => {
     renderWorkspace();
-    // Ownership rows are visible by default.
-    expect(screen.getByText("main.sales.alpha")).toBeDefined();
-    expect(screen.getByText("main.sales.beta")).toBeDefined();
-    const actions = screen.getAllByText(/Assign owner →/);
-    expect(actions.length).toBeGreaterThanOrEqual(2);
-    expect(actions[0].getAttribute("href")).toBe(
-      "/governance?lane=ownership&asset=main.sales.alpha",
-    );
+
+    expect(screen.getByText("Evidence-backed recommendations")).toBeDefined();
+    expect(screen.getByText("Improve Finance metadata coverage")).toBeDefined();
+    expect(screen.getByText("domain:Finance")).toBeDefined();
   });
 
-  it("switches lanes when a tile is clicked", () => {
-    renderWorkspace();
-    const policyTile = document.querySelector('button[data-lane="policy"]');
-    expect(policyTile).not.toBeNull();
-    fireEvent.click(policyTile);
-    expect(screen.getByText("main.raw.gamma")).toBeDefined();
-    expect(screen.getByText(/Approve classification/)).toBeDefined();
-  });
-
-  it("renders empty state for an empty lane", () => {
+  it("does not fabricate recommendation rows when none are returned", () => {
     renderWorkspace({
-      tiles: {
-        ownershipGaps: 0,
-        policyGaps: 0,
-        freshnessGaps: 0,
-        qualityIncidents: 0,
-        totalAssets: 10,
-      },
-      lanes: {
-        ownership: [],
-        policy: [],
-        freshness: [],
-        quality: [],
+      data: {
+        kpis: [],
+        metadataCoverageHeatmap: [],
+        domainLeaderboard: [],
+        recommendations: [],
+        scoring: { maturityFormula: [], availableSignals: [] },
+        meta: { state: "available", warnings: [] },
       },
     });
-    expect(screen.getByText(/No current gaps in this lane/)).toBeDefined();
+
+    expect(screen.getByText("No evidence-backed recommendations are available from the current live signals.")).toBeDefined();
+    expect(screen.queryByText(/Assign owner/)).toBeNull();
   });
 
-  it("flags quality ledger unavailability in the header", () => {
-    renderWorkspace({ qualitySignalAvailable: false });
-    expect(screen.getByText(/Quality ledger unavailable/)).toBeDefined();
+  it("shows degraded warnings from the live response metadata", () => {
+    renderWorkspace({
+      degraded: true,
+      data: {
+        kpis: [],
+        metadataCoverageHeatmap: [],
+        domainLeaderboard: [],
+        recommendations: [],
+        scoring: { maturityFormula: [], availableSignals: [] },
+        meta: { state: "degraded", warnings: ["Quality-runner signal is unavailable."] },
+      },
+    });
+
+    expect(screen.getByText("Insights data is partially available")).toBeDefined();
+    expect(screen.getByText("Quality-runner signal is unavailable.")).toBeDefined();
   });
 
-  it("shows error banner when the hook reports an error", () => {
-    renderWorkspace({ error: "boom", isLoading: false });
-    expect(screen.getByText(/Insights unavailable/)).toBeDefined();
-    expect(screen.getByText(/boom/)).toBeDefined();
+  it("surfaces errors with retry without hiding the page shell", () => {
+    const refresh = vi.fn();
+    renderWorkspace({ error: "boom", refresh });
+
+    expect(screen.getByText("Insights unavailable.")).toBeDefined();
+    expect(screen.getByText("boom")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Gap analysis across your estate")).toBeDefined();
   });
 
   it("calls onSurfaceReady once the hook is settled", () => {
     const ready = vi.fn();
     render(
       <InsightsWorkspace
-        gapAnalysisOverride={{
-          tiles: {
-            ownershipGaps: 0,
-            policyGaps: 0,
-            freshnessGaps: 0,
-            qualityIncidents: 0,
-            totalAssets: 0,
+        insightsOverride={{
+          data: {
+            kpis: [],
+            metadataCoverageHeatmap: [],
+            domainLeaderboard: [],
+            recommendations: [],
+            scoring: { maturityFormula: [], availableSignals: [] },
+            meta: { state: "available", warnings: [] },
           },
-          lanes: { ownership: [], policy: [], freshness: [], quality: [] },
-          lanesOrder: ["ownership", "policy", "freshness", "quality"],
-          qualitySignalAvailable: true,
-          isLoading: false,
+          loading: false,
           error: "",
         }}
         onSurfaceReady={ready}

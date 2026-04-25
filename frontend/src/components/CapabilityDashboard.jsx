@@ -404,7 +404,7 @@ export function CapabilityDashboard({ onBack = null }) {
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
     const previous = document.title;
-    document.title = "Capabilities — Governance Hub";
+    document.title = "Capabilities — Governance Atlas";
     return () => {
       document.title = previous;
     };

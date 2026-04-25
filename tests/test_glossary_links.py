@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from govhub.services import assets
+from atlas.services import assets
 
 
 class FakeRow:

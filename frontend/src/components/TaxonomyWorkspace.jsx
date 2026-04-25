@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchClassifications,
@@ -7,9 +7,20 @@ import {
   fetchDataProducts,
   fetchLogicalColumnGroups,
   fetchLogicalColumnGroup,
+  fetchTaxonomyOverview,
 } from "../lib/api";
 import { EmptyStateBlock, LoadingState } from "./ShellStatePrimitives";
-import { SurfaceDrawer, SurfaceDrawerSection, SurfacePanelSection } from "./ShellLayoutPrimitives";
+import { SurfaceDrawer, SurfaceDrawerSection } from "./ShellLayoutPrimitives";
+import {
+  DataTable,
+  DegradedBanner,
+  EmptyState,
+  MetricCard,
+  PageHero,
+  SectionCard,
+  StatusPill,
+} from "./northstar";
+import "../styles/operations-pages.css";
 
 const TAXONOMY_TABS = [
   { key: "classifications", label: "Classifications" },
@@ -18,12 +29,38 @@ const TAXONOMY_TABS = [
   { key: "columnGroups", label: "Column Groups" },
 ];
 
+function envelopeData(payload) {
+  return payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
+}
+
+function envelopeMeta(payload) {
+  return payload && typeof payload === "object" ? payload.meta || {} : {};
+}
+
+function queryRows(query, overview, key) {
+  const overviewRows = Array.isArray(overview?.[key]) ? overview[key] : [];
+  if (overviewRows.length) return overviewRows;
+  return Array.isArray(query.data) ? query.data : [];
+}
+
+function rowId(row, ...keys) {
+  for (const key of keys) {
+    if (row?.[key]) return row[key];
+  }
+  return row?.display_name || row?.name || "";
+}
+
 export default function TaxonomyWorkspace() {
   const [active, setActive] = useState("classifications");
   const [selected, setSelected] = useState(null); // { kind, id, row }
 
   const closeDrawer = () => setSelected(null);
 
+  const overviewQuery = useQuery({
+    queryKey: ["atlas", "taxonomy-overview"],
+    queryFn: ({ signal }) => fetchTaxonomyOverview({ signal }),
+    staleTime: 60_000,
+  });
   const classifications = useQuery({
     queryKey: ["taxonomy", "classifications"],
     queryFn: ({ signal }) => fetchClassifications({ signal }),
@@ -44,23 +81,39 @@ export default function TaxonomyWorkspace() {
     queryFn: ({ signal }) => fetchLogicalColumnGroups({ signal }),
     enabled: active === "columnGroups",
   });
+  const overview = envelopeData(overviewQuery.data) || {};
+  const meta = envelopeMeta(overviewQuery.data);
+  const rowsByTab = useMemo(() => ({
+    classifications: queryRows(classifications, overview, "classifications"),
+    domains: queryRows(domains, overview, "domains"),
+    dataProducts: queryRows(dataProducts, overview, "dataProducts"),
+    columnGroups: queryRows(columnGroups, overview, "columnGroups"),
+  }), [classifications.data, columnGroups.data, dataProducts.data, domains.data, overview]);
+  const activeRows = rowsByTab[active] || [];
 
   return (
-    <section className="gh-taxonomy-workspace">
-      <SurfacePanelSection
-        title="Taxonomy"
-        titleMeta={
-          <span className="gh-support-copy">
-            Classifications, domains, data products, and logical column groups.
-            Managed by admins; referenced by policies and entity metadata.
-          </span>
-        }
-      >
-        <nav className="gh-taxonomy-tabs" role="tablist" aria-label="Taxonomy facets">
+    <section className="ga-page ga-operations-page ga-taxonomy-page">
+      <PageHero
+        eyebrow="Taxonomy"
+        title="Taxonomy Workbench"
+        subtitle="Classifications, domains, data products, glossary terms, and column groups backed by the governance store."
+      />
+      <DegradedBanner meta={meta} />
+      <div className="ga-kpi-grid four">
+        <MetricCard label="Classifications" value={rowsByTab.classifications.length.toLocaleString()} />
+        <MetricCard label="Domains" value={rowsByTab.domains.length.toLocaleString()} />
+        <MetricCard label="Data Products" value={rowsByTab.dataProducts.length.toLocaleString()} />
+        <MetricCard label="Glossary Terms" value={(overview.summary?.termCount ?? overview.glossaryTerms?.length ?? "Unavailable").toLocaleString?.() || String(overview.summary?.termCount ?? "Unavailable")} />
+      </div>
+      <SectionCard
+        title="Governance taxonomy"
+        eyebrow="Live store"
+        actions={
+          <nav className="ga-tab-row" role="tablist" aria-label="Taxonomy facets">
           {TAXONOMY_TABS.map((tab) => (
             <button
               aria-pressed={active === tab.key}
-              className={`gh-product-tab ${active === tab.key ? "is-active" : ""}`}
+              className={`ga-tab-button ${active === tab.key ? "is-active" : ""}`}
               key={tab.key}
               onClick={() => {
                 setActive(tab.key);
@@ -72,10 +125,14 @@ export default function TaxonomyWorkspace() {
               {tab.label}
             </button>
           ))}
-        </nav>
+          </nav>
+        }
+      >
+        {overviewQuery.isPending && !activeRows.length ? <LoadingState message="Loading taxonomy overview…" /> : null}
         {active === "classifications" ? (
           <TaxonomyList
             query={classifications}
+            rows={activeRows}
             emptyTitle="No classifications defined"
             emptyMessage="Classifications declare the taxonomy for sensitive/PII/financial tagging. Admins create these in the governance catalog."
             rowKey={(row) => row.classification_id}
@@ -100,6 +157,7 @@ export default function TaxonomyWorkspace() {
         {active === "domains" ? (
           <TaxonomyList
             query={domains}
+            rows={activeRows}
             emptyTitle="No domains defined"
             emptyMessage="Domains let you scope data products and policies to a business area (finance, ops, growth, …)."
             rowKey={(row) => row.domain_id}
@@ -119,6 +177,7 @@ export default function TaxonomyWorkspace() {
         {active === "dataProducts" ? (
           <TaxonomyList
             query={dataProducts}
+            rows={activeRows}
             emptyTitle="No data products defined"
             emptyMessage="Data products bundle one or more physical assets into a governed, consumer-facing unit."
             rowKey={(row) => row.data_product_id}
@@ -137,7 +196,7 @@ export default function TaxonomyWorkspace() {
                 key: "state",
                 label: "State",
                 render: (row) => (
-                  <span className="gh-chip gh-chip-soft">{row.state || "draft"}</span>
+                  <StatusPill tone="info">{row.state || "draft"}</StatusPill>
                 ),
               },
             ]}
@@ -146,6 +205,7 @@ export default function TaxonomyWorkspace() {
         {active === "columnGroups" ? (
           <TaxonomyList
             query={columnGroups}
+            rows={activeRows}
             emptyTitle="No logical column groups defined"
             emptyMessage="Logical column groups bundle related columns across tables for bulk metadata operations."
             rowKey={(row) => row.group_id}
@@ -173,48 +233,43 @@ export default function TaxonomyWorkspace() {
             ]}
           />
         ) : null}
-      </SurfacePanelSection>
+      </SectionCard>
 
       <TaxonomyDetailDrawer selected={selected} onClose={closeDrawer} />
     </section>
   );
 }
 
-function TaxonomyList({ query, columns, emptyTitle, emptyMessage, rowKey, onSelect }) {
-  if (query.isPending) return <LoadingState message="Loading…" />;
+function TaxonomyList({ query, rows: providedRows, columns, emptyTitle, emptyMessage, rowKey, onSelect }) {
+  const rows = Array.isArray(providedRows) ? providedRows : [];
+  if (query.isPending && !rows.length) return <LoadingState message="Loading…" />;
   if (query.isError) {
     return <EmptyStateBlock title="Unavailable" message={query.error?.message || "Failed to load."} />;
   }
-  const rows = Array.isArray(query.data) ? query.data : [];
-  if (!rows.length) return <EmptyStateBlock title={emptyTitle} message={emptyMessage} />;
+  if (!rows.length) return <EmptyState title={emptyTitle} message={emptyMessage} />;
   return (
-    <div className="gh-taxonomy-table">
-      <div className="gh-taxonomy-row gh-taxonomy-head">
-        {columns.map((col) => (
-          <div className={col.className || ""} key={col.key}>
-            {col.label}
-          </div>
-        ))}
-      </div>
-      {rows.map((row, index) => {
-        const key = rowKey ? rowKey(row) ?? index : index;
-        return (
-          <button
-            aria-label={`Open ${row.display_name || "row"}`}
-            className="gh-taxonomy-row gh-taxonomy-row-interactive"
-            key={key}
-            onClick={() => onSelect?.(row)}
-            type="button"
-          >
-            {columns.map((col) => (
-              <div className={col.className || ""} key={col.key}>
-                {col.render ? col.render(row) : row[col.key] ?? "—"}
-              </div>
-            ))}
-          </button>
-        );
-      })}
-    </div>
+    <DataTable
+      columns={columns.map((col) => ({
+        key: col.key,
+        header: col.label,
+        render: (row) => {
+          const value = col.render ? col.render(row) : row[col.key] ?? "—";
+          if (col.key !== "display_name") return value;
+          return (
+            <button
+              aria-label={`Open ${row.display_name || "row"}`}
+              className="ga-link-button"
+              onClick={() => onSelect?.(row)}
+              type="button"
+            >
+              {value}
+            </button>
+          );
+        },
+      }))}
+      rows={rows.map((row, index) => ({ ...row, __rowKey: rowKey ? rowKey(row) ?? index : rowId(row) || index }))}
+      rowKey="__rowKey"
+    />
   );
 }
 

@@ -24,7 +24,7 @@ const EMPTY_LANES = {
  * can render tile counts, lane tables, and empty states without re-
  * implementing cache / retry / abort semantics.
  *
- * @param {{enabled?: boolean, limit?: number, staleTime?: number} | boolean} [options]
+ * @param {{enabled?: boolean, limit?: number, staleTime?: number, refetchInterval?: number | false} | boolean} [options]
  */
 export function useGapAnalysis(options = {}) {
   const resolvedOptions =

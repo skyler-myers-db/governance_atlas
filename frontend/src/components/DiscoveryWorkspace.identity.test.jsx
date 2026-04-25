@@ -10,7 +10,7 @@
  *
  * These tests fail the moment we regress to any of those sins.
  */
-import { render, screen, within, fireEvent } from "@testing-library/react";
+import { render, within, fireEvent } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DiscoveryWorkspace from "./DiscoveryWorkspace";
 
@@ -63,7 +63,7 @@ const richAsset = {
   ...bareAsset,
   fqn: "prod.silver.invoices",
   name: "invoices",
-  owners: [{ name: "Jane Steward", email: "jane@tristategt.org" }],
+  owners: [{ name: "Jane Steward", email: "jane@entrada.ai" }],
   tags: ["Finance", "Curated"],
   tagEntries: [{ label: "Finance" }, { label: "Curated" }],
   coverageScore: 82,
@@ -150,7 +150,7 @@ function renderWith(assets) {
       querySeedKey="identity"
       runtimeFeatureFlags={[]}
       sharedVisibleAssetSet={new Set(assets.map((a) => a.fqn))}
-      userEmail="skyler@tristategt.org"
+      userEmail="skyler@entrada.ai"
       workspaceAccess={{ mode: "obo-available", canUseAssetPreview: true, canUseLineage: true, canUseQueryHistory: true, gates: [] }}
     />,
   );
@@ -251,7 +251,7 @@ describe("DiscoveryWorkspace — card three-dot menu (Tranche E, defect 11)", ()
         querySeedKey="identity"
         runtimeFeatureFlags={[]}
         sharedVisibleAssetSet={new Set([richAsset.fqn])}
-        userEmail="skyler@tristategt.org"
+        userEmail="skyler@entrada.ai"
         workspaceAccess={{ mode: "obo-available", canUseAssetPreview: true, canUseLineage: true, canUseQueryHistory: true, gates: [] }}
       />,
     );
@@ -392,7 +392,7 @@ describe("DiscoveryWorkspace — mockup parity lock (2026-04-19 audit)", () => {
         querySeedKey="identity"
         runtimeFeatureFlags={[]}
         sharedVisibleAssetSet={new Set()}
-        userEmail="skyler@tristategt.org"
+        userEmail="skyler@entrada.ai"
         workspaceAccess={{ mode: "obo-available", canUseAssetPreview: true, canUseLineage: true, canUseQueryHistory: true, gates: [] }}
       />,
     );

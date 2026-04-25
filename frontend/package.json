@@ -1,5 +1,5 @@
 {
-  "name": "governance-hub-frontend",
+  "name": "atlas-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -9,10 +9,10 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "vite build && node scripts/write_build_manifest.mjs",
-    "smoke:deployed": "node scripts/govhub_deployed_smoke.mjs",
+    "smoke:deployed": "node scripts/atlas_deployed_smoke.mjs",
     "screenshots:phase2": "node scripts/phase2_screenshot_pack.mjs",
-    "qa:deployed": "node scripts/govhub_comprehensive_qa.mjs",
-    "identity:deployed": "node scripts/govhub_structural_identity.mjs",
+    "qa:deployed": "node scripts/atlas_comprehensive_qa.mjs",
+    "identity:deployed": "node scripts/atlas_structural_identity.mjs",
     "preview": "vite preview --host 0.0.0.0 --port 4173"
   },
   "dependencies": {

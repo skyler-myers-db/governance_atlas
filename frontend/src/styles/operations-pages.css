@@ -1,0 +1,128 @@
+.ga-operations-page {
+  display: grid;
+  gap: 18px;
+}
+
+.ga-operations-page .ga-page-hero {
+  margin-bottom: 0;
+}
+
+.ga-operations-two-column {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 16px;
+  align-items: start;
+}
+
+.ga-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ga-filter {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ga-filter .gh-filter-label {
+  color: var(--ga-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.ga-filter .gh-input {
+  width: 100%;
+  min-height: 38px;
+  border-color: var(--ga-border);
+  background: rgba(207, 239, 255, 0.07);
+  color: var(--ga-text);
+}
+
+.ga-tab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.ga-tab-button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--ga-border);
+  border-radius: var(--ga-radius-md);
+  background: rgba(207, 239, 255, 0.06);
+  color: var(--ga-text-soft);
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.ga-tab-button:hover,
+.ga-tab-button:focus-visible {
+  border-color: var(--ga-border-strong);
+  background: rgba(102, 197, 255, 0.11);
+  color: var(--ga-text);
+  outline: none;
+}
+
+.ga-tab-button.is-active {
+  border-color: rgba(102, 197, 255, 0.36);
+  background: rgba(102, 197, 255, 0.16);
+  color: var(--ga-white);
+}
+
+.ga-evidence-block {
+  display: grid;
+  gap: 8px;
+}
+
+.ga-evidence-block h3 {
+  margin: 0;
+  color: var(--ga-text-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.ga-evidence-block pre {
+  max-height: 220px;
+  overflow: auto;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--ga-border-muted);
+  border-radius: var(--ga-radius-md);
+  background: rgba(2, 9, 20, 0.42);
+  color: var(--ga-text-soft);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ga-admin-page .ga-section-card,
+.ga-taxonomy-page .ga-section-card,
+.ga-audit-page .ga-section-card {
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .ga-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ga-operations-two-column {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .ga-filter-grid,
+  .ga-kpi-grid.four {
+    grid-template-columns: 1fr;
+  }
+
+  .ga-tab-row {
+    justify-content: flex-start;
+  }
+}

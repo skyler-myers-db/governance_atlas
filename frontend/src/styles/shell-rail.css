@@ -1989,7 +1989,7 @@ h3.gh-asset-preview-header-name {
 .gh-labeled-pill-domain {
   /* Real domain labels render as a muted indigo pill to match the
      mockup's restrained brand accent. Magenta is reserved for the
-     Governance Hub brand mark only. */
+     Governance Atlas brand mark only. */
   background: rgba(91, 67, 238, 0.08);
   border-color: rgba(91, 67, 238, 0.28);
   color: #3a28c5;

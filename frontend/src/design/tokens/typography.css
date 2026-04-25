@@ -1,17 +1,19 @@
 /*
- * Typography tokens.
- * The font stack is authoritative — every surface should inherit it.
- * Responsive font-size uses clamp() at the document level in app.css and
- * must be preserved. Tranche B does not attempt to normalize the 19+
- * clamp() expressions; that's a Tranche C decision with visible impact.
+ * Entrada Governance Atlas typography tokens.
  */
 
 :root {
-  --gh-font: "Avenir Next", "Inter", "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  --ga-font-heading: "Hanken Grotesk", "Instrument Sans", "Inter", "Segoe UI", sans-serif;
+  --ga-font-body: "Instrument Sans", "Inter", "Segoe UI", sans-serif;
 
-  --gh-font-weight-bold: 700;
-  --gh-font-weight-heavy: 800;
-  --gh-font-weight-black: 900;
+  --gh-font: var(--ga-font-body);
+
+  --ga-heading-weight: 600;
+  --ga-body-weight: 400;
+
+  --gh-font-weight-bold: 600;
+  --gh-font-weight-heavy: 700;
+  --gh-font-weight-black: 800;
 
   --gh-line-height-tight: 1.2;
   --gh-line-height-snug: 1.35;

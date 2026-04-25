@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from govhub.services import assets as asset_service
+from atlas.services import assets as asset_service
 
 
 class AssetDetailSectionTests(unittest.TestCase):

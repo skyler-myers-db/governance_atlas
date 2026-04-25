@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { govhubQueryClient } from "../lib/queryClient";
+import { atlasQueryClient } from "../lib/queryClient";
 import {
   prefetchAssetDetail,
   primeAssetDetail,
@@ -17,14 +17,14 @@ vi.mock("../lib/api", () => ({
 }));
 
 function Wrapper({ children }) {
-  return <QueryClientProvider client={govhubQueryClient}>{children}</QueryClientProvider>;
+  return <QueryClientProvider client={atlasQueryClient}>{children}</QueryClientProvider>;
 }
 
 describe("useAssetDetail", () => {
   beforeEach(() => {
     fetchAssetAvailabilityMock.mockReset();
     fetchAssetDetailMock.mockReset();
-    govhubQueryClient.clear();
+    atlasQueryClient.clear();
   });
 
   it("merges activity payloads into the canonical asset record, including metadata audit updates", async () => {

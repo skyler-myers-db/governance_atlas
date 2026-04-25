@@ -1,0 +1,30 @@
+.git/
+.github/
+.databricks/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage*
+
+node_modules/
+frontend/node_modules/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+
+# Local QA artifacts are intentionally kept in the repo workspace for review,
+# but they must never be uploaded as Databricks App source. The compiled app
+# bundle is explicitly included from frontend/dist in databricks.yml.
+docs/northstar_visual_qa/
+docs/northstar_baseline_screenshots/
+docs/screenshots/
+docs/mockups/*.png
+docs/mockups/*.jpg
+docs/mockups/*.jpeg
+
+AGENT_CHANGELOG_ARCHIVE.md
+*.log
+.DS_Store

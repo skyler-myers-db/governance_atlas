@@ -1,6 +1,6 @@
 function bootstrapConfig() {
   if (typeof window === "undefined") return null;
-  return window.__GOVHUB_BOOTSTRAP__ || null;
+  return window.__GOVAT_BOOTSTRAP__ || null;
 }
 
 function arrayValue(value) {
@@ -306,6 +306,54 @@ function normalizeRuntimeStatusPayload(payload) {
   };
 }
 
+function numberOrNull(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function normalizeCommandCenterPayload(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
+  const estate = objectValue(payload.estate);
+  const governance = objectValue(payload.governance);
+  const insights = objectValue(payload.insights);
+  const meta = objectValue(payload.meta);
+  return {
+    ...payload,
+    estate: {
+      ...estate,
+      visibleAssetCount: numberOrNull(estate.visibleAssetCount),
+      catalogCount: numberOrNull(estate.catalogCount),
+      openRequests: numberOrNull(estate.openRequests),
+      coverageScore: numberOrNull(estate.coverageScore),
+    },
+    kpis: arrayValue(payload.kpis).map((kpi) => objectValue(kpi)),
+    posture: {
+      ...objectValue(payload.posture),
+      byDomain: arrayValue(objectValue(payload.posture).byDomain),
+      heatmap: arrayValue(objectValue(payload.posture).heatmap),
+      trend: arrayValue(objectValue(payload.posture).trend),
+    },
+    topDomains: arrayValue(payload.topDomains),
+    recentEvents: arrayValue(payload.recentEvents),
+    recentAssets: arrayValue(payload.recentAssets).map((asset) => normalizeAssetRecord(asset)),
+    governance: {
+      ...governance,
+      pendingRequests: arrayValue(governance.pendingRequests),
+    },
+    insights: {
+      ...insights,
+      tiles: objectValue(insights.tiles),
+    },
+    quickActions: arrayValue(payload.quickActions),
+    aiPrompts: arrayValue(payload.aiPrompts),
+    signalAvailability: objectValue(payload.signalAvailability),
+    meta: {
+      ...meta,
+      warnings: arrayValue(meta.warnings),
+    },
+  };
+}
+
 function normalizeDiscoveryPayload(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
   const queryState = objectValue(payload.queryState);
@@ -355,9 +403,9 @@ class ApiError extends Error {
 }
 
 const REQUEST_ID_HEADER = "X-Request-ID";
-const CLIENT_REQUEST_ID_HEADER = "X-GovHub-Client-Request-ID";
-const BUILD_ID_HEADER = "X-GovHub-Build-ID";
-const DURATION_HEADER = "X-GovHub-Request-Duration-Ms";
+const CLIENT_REQUEST_ID_HEADER = "X-GOVAT-Client-Request-ID";
+const BUILD_ID_HEADER = "X-GOVAT-Build-ID";
+const DURATION_HEADER = "X-GOVAT-Request-Duration-Ms";
 
 function nowMs() {
   if (typeof performance !== "undefined" && typeof performance.now === "function") {
@@ -376,35 +424,35 @@ function createClientRequestId() {
 function diagnosticsStore() {
   if (typeof window === "undefined") return null;
   const runtimeWindow = /** @type {Window & {
-    __GOVHUB_DIAGNOSTICS__?: {
+    __GOVAT_DIAGNOSTICS__?: {
       initialNavigation: unknown,
       lastRequest: unknown,
       requests: unknown[]
     },
-    __GOVHUB_NAVIGATION_DIAGNOSTICS_RECORDED__?: boolean
+    __GOVAT_NAVIGATION_DIAGNOSTICS_RECORDED__?: boolean
   }} */ (window);
-  if (runtimeWindow.__GOVHUB_DIAGNOSTICS__ && typeof runtimeWindow.__GOVHUB_DIAGNOSTICS__ === "object") {
-    return runtimeWindow.__GOVHUB_DIAGNOSTICS__;
+  if (runtimeWindow.__GOVAT_DIAGNOSTICS__ && typeof runtimeWindow.__GOVAT_DIAGNOSTICS__ === "object") {
+    return runtimeWindow.__GOVAT_DIAGNOSTICS__;
   }
-  runtimeWindow.__GOVHUB_DIAGNOSTICS__ = {
+  runtimeWindow.__GOVAT_DIAGNOSTICS__ = {
     initialNavigation: null,
     lastRequest: null,
     requests: [],
   };
-  return runtimeWindow.__GOVHUB_DIAGNOSTICS__;
+  return runtimeWindow.__GOVAT_DIAGNOSTICS__;
 }
 
 function recordInitialNavigationTiming() {
   if (typeof window === "undefined") return;
   const runtimeWindow = /** @type {Window & {
-    __GOVHUB_DIAGNOSTICS__?: {
+    __GOVAT_DIAGNOSTICS__?: {
       initialNavigation: unknown,
       lastRequest: unknown,
       requests: unknown[]
     },
-    __GOVHUB_NAVIGATION_DIAGNOSTICS_RECORDED__?: boolean
+    __GOVAT_NAVIGATION_DIAGNOSTICS_RECORDED__?: boolean
   }} */ (window);
-  if (runtimeWindow.__GOVHUB_NAVIGATION_DIAGNOSTICS_RECORDED__) return;
+  if (runtimeWindow.__GOVAT_NAVIGATION_DIAGNOSTICS_RECORDED__) return;
   const store = diagnosticsStore();
   if (!store || typeof performance === "undefined" || typeof performance.getEntriesByType !== "function") {
     return;
@@ -423,7 +471,7 @@ function recordInitialNavigationTiming() {
           duration: Number(entry?.duration || 0),
         })),
   };
-  runtimeWindow.__GOVHUB_NAVIGATION_DIAGNOSTICS_RECORDED__ = true;
+  runtimeWindow.__GOVAT_NAVIGATION_DIAGNOSTICS_RECORDED__ = true;
 }
 
 function recordRequestDiagnostics(entry) {
@@ -442,7 +490,7 @@ recordInitialNavigationTiming();
 
 function apiBase() {
   return (
-    import.meta.env.VITE_GOVHUB_API_BASE ||
+    import.meta.env.VITE_GOVAT_API_BASE ||
     bootstrapConfig()?.apiBase ||
     "/api"
   );
@@ -649,6 +697,76 @@ export function fetchRuntimeStatus(options = {}) {
   return request(path, options).then((payload) => normalizeRuntimeStatusPayload(payload));
 }
 
+export function fetchCommandCenter(options = {}) {
+  const params = new URLSearchParams();
+  if (options.refresh) params.set("refresh", "1");
+  const query = params.toString();
+  const path = contractPath("commandCenter") || "/atlas/command-center";
+  return request(`${path}${query ? `?${query}` : ""}`, {
+    signal: options.signal,
+  }).then((payload) => normalizeCommandCenterPayload(payload));
+}
+
+export function fetchAtlasAiRecommendations(question = "", options = {}) {
+  const path = contractPath("atlasAiRecommendations") || "/atlas-ai/recommendations";
+  return requestJson(path, "POST", { question: String(question || "").trim() }, {
+    signal: options.signal,
+  }).then(unwrapEnvelope);
+}
+
+export function fetchAsset360(assetFqn, options = {}) {
+  const template = contractPath("asset360") || "/atlas/assets/{asset_fqn}/360";
+  return request(routeToken(assetRoute(template, assetFqn), "asset_fqn", assetFqn), {
+    signal: options.signal,
+  });
+}
+
+export function fetchGovernanceWorkbench(options = {}) {
+  const path = contractPath("governanceWorkbench") || "/atlas/governance/workbench";
+  return request(path, { signal: options.signal });
+}
+
+export function fetchGovernanceRequestDetail(requestId, options = {}) {
+  const template = contractPath("governanceRequestDetail") || "/atlas/governance/requests/{request_id}";
+  return request(routeToken(template, "request_id", requestId), {
+    signal: options.signal,
+  });
+}
+
+export function fetchInsightsDashboard(options = {}) {
+  const path = contractPath("insightsDashboard") || "/atlas/insights";
+  return request(path, { signal: options.signal });
+}
+
+export function fetchTaxonomyOverview(options = {}) {
+  const path = contractPath("taxonomyOverview") || "/atlas/taxonomy/overview";
+  return request(path, { signal: options.signal });
+}
+
+export function fetchCdeDashboard(options = {}) {
+  const path = contractPath("cdeDashboard") || "/atlas/cde";
+  return request(path, { signal: options.signal });
+}
+
+export function fetchCdeDetail(cdeId, options = {}) {
+  const template = contractPath("cdeDetail") || "/atlas/cde/{cde_id}";
+  return request(routeToken(template, "cde_id", cdeId), { signal: options.signal });
+}
+
+export function fetchAuditEvidence(options = {}) {
+  const params = new URLSearchParams();
+  if (options.auditId) params.set("audit_id", options.auditId);
+  if (options.limit) params.set("limit", String(options.limit));
+  const query = params.toString();
+  const path = contractPath("auditEvidence") || "/atlas/audit/evidence";
+  return request(`${path}${query ? `?${query}` : ""}`, { signal: options.signal });
+}
+
+export function fetchAdminControlCenter(options = {}) {
+  const path = contractPath("adminControlCenter") || "/atlas/admin/control-center";
+  return request(path, { signal: options.signal });
+}
+
 export function fetchAdminBackgroundStatus(options = {}) {
   // The contract normally advertises the full `/api/...` path. Strip the
   // api prefix so `request()` can layer it back on via `buildUrl`.
@@ -829,6 +947,9 @@ function normalizeClassificationRecord(record) {
   };
 }
 
+/**
+ * @param {{ status?: string, assetFqn?: string, signal?: AbortSignal }} [options]
+ */
 export function fetchClassificationRecommendations({ status = "pending", assetFqn = "", signal } = {}) {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
@@ -847,6 +968,10 @@ export function fetchClassificationRecommendations({ status = "pending", assetFq
   });
 }
 
+/**
+ * @param {string} recommendationId
+ * @param {{ signal?: AbortSignal }} [options]
+ */
 export function fetchClassificationRecommendation(recommendationId, { signal } = {}) {
   const normalized = String(recommendationId || "").trim();
   if (!normalized) return Promise.resolve(null);
@@ -856,6 +981,10 @@ export function fetchClassificationRecommendation(recommendationId, { signal } =
   ).then((payload) => normalizeClassificationRecord(payload?.recommendation));
 }
 
+/**
+ * @param {string} recommendationId
+ * @param {{ decision?: string, note?: string }} [payload]
+ */
 export function reviewClassificationRecommendation(recommendationId, { decision, note = "" } = {}) {
   const normalized = String(recommendationId || "").trim();
   if (!normalized) {

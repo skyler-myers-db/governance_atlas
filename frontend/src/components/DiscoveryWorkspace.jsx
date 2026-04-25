@@ -8,10 +8,9 @@ import {
 } from "../hooks/useAssetDetail";
 import { useLineage } from "../hooks/useLineage";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
-import { assetPathLabel, displayObjectType } from "../lib/assetPresentation";
+import { displayObjectType } from "../lib/assetPresentation";
 import { AssetTypeIcon } from "./primitives";
 import { OwnerAvatar, OwnerAvatarStack } from "./primitives/OwnerAvatar";
-import { WithAssetHoverCard } from "./primitives/AssetHoverCard";
 import {
   runtimeFeatureFlagAvailable,
   runtimeFeatureFlagReason,
@@ -24,7 +23,7 @@ import {
 } from "../lib/capabilities";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { applyTargetMockupFixtureToAll, isFixtureMode } from "../lib/discoveryFixture";
-import { SurfaceHeader, SurfaceRail, SurfaceRailSection } from "./ShellLayoutPrimitives";
+import { SurfaceRail, SurfaceRailSection } from "./ShellLayoutPrimitives";
 import { EmptyStateBlock, InlineStatusBanner, WorkspaceStateCard } from "./ShellStatePrimitives";
 
 const DISCOVERY_RESULT_PAGE_SIZE = 60;
@@ -1064,7 +1063,7 @@ function DiscoveryResultCard({
               <OwnerAvatarStack
                 owners={ownerLabels.slice(0, 3).map((label) => ({ name: prettyOwnerName(label), email: label }))}
                 size={20}
-                maxVisible={3}
+                limit={3}
               />
             ) : (
               <OwnerAvatar owner={primaryOwner} size={20} />
@@ -1626,6 +1625,52 @@ function PreviewProfileList({ items }) {
   );
 }
 
+function DiscoveryNorthstarStrip({
+  authoritative = false,
+  visibleCount = 0,
+  totalCount = 0,
+  selectedSchemaCount = 0,
+  filtersAppliedCount = 0,
+  queryState = null,
+  loading = false,
+}) {
+  const queryStateLabel = queryState?.state
+    ? String(queryState.state).replace(/[_-]+/g, " ")
+    : "Search ready";
+  const items = [
+    {
+      label: "Source",
+      value: authoritative ? "Live Unity Catalog" : loading ? "Refreshing" : "Degraded",
+    },
+    {
+      label: "Results",
+      value: totalCount ? `${visibleCount.toLocaleString()} of ${totalCount.toLocaleString()}` : `${visibleCount.toLocaleString()}`,
+    },
+    {
+      label: "Scopes",
+      value: selectedSchemaCount ? `${selectedSchemaCount} selected` : "All visible schemas",
+    },
+    {
+      label: "Filters",
+      value: filtersAppliedCount ? `${filtersAppliedCount} active` : "None",
+    },
+    {
+      label: "Query",
+      value: queryStateLabel,
+    },
+  ];
+  return (
+    <section className="gh-panel gh-discovery-northstar-strip" aria-label="Discovery source and filter summary">
+      {items.map((item) => (
+        <div className="gh-preview-profile-row" key={item.label}>
+          <span>{item.label}</span>
+          <strong>{item.value}</strong>
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function SelectionPreview({
   asset,
   detailLoading,
@@ -1789,8 +1834,10 @@ function SelectionPreview({
     ? String(previewRelatedAssets[0]).split(".").pop()
     : "upstream";
   const currentLabel = asset.name;
-  const needsWorkList = needsWorkMessages(asset);
-  const associatedTask = needsWorkList[0] || "Review stewardship posture for this asset";
+  const workflowActivity = [
+    ...(Array.isArray(asset.activity) ? asset.activity : []),
+    ...(Array.isArray(asset.metadataAudit) ? asset.metadataAudit : []),
+  ].filter((item) => item && (item.title || item.action || item.detail || item.status || item.createdAt));
 
   const domainLabel =
     asset.domain && asset.domain !== "Unassigned" ? String(asset.domain).toUpperCase() : "UNCATEGORIZED";
@@ -2231,15 +2278,17 @@ function SelectionPreview({
           </section>
         ) : null}
 
-        {/* 8 — Associated tasks: nested task with info tooltip + child row */}
+        {/* 8 — Workflow activity: render only backend-provided governance
+            activity. Do not synthesize checklist/task rows just to fill the
+            preview rail. */}
         <section className="gh-asset-preview-section">
           <div className="gh-panel-title gh-asset-preview-tasks-title">
-            <span>Associated tasks</span>
+            <span>Workflow activity</span>
             <span
-              aria-label="Stewardship tasks are linked to this asset's governance workflow"
+              aria-label="Workflow activity is sourced from this asset's governance records"
               className="gh-info-glyph"
               role="img"
-              title="Stewardship tasks are linked to this asset's governance workflow."
+              title="Workflow activity is sourced from this asset's governance records."
             >
               <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="9" />
@@ -2248,18 +2297,30 @@ function SelectionPreview({
               </svg>
             </span>
           </div>
-          <div className="gh-asset-preview-task-tree">
-            <label className="gh-asset-preview-task-row is-parent">
-              <input type="checkbox" defaultChecked readOnly />
-              <span className="gh-asset-preview-task-title">Published task</span>
-              <span className="gh-asset-preview-task-detail gh-truncate" title={asset.fqn}>
-                {asset.name}
-              </span>
-            </label>
-            <div className="gh-asset-preview-task-child gh-truncate" title={asset.fqn}>
-              {asset.name}
+          {workflowActivity.length ? (
+            <div className="gh-task-list gh-task-list-rows">
+              {workflowActivity.slice(0, 3).map((item, index) => (
+                <div className="gh-task-row" key={item.id || `${item.title || item.action}-${item.createdAt || index}`}>
+                  <div className="gh-task-row-main">
+                    <div className="gh-task-row-head">
+                      <span className="gh-task-title">{item.title || item.action || "Governance activity"}</span>
+                      {item.status ? <span className="gh-status-chip tone-neutral">{item.status}</span> : null}
+                    </div>
+                    {item.detail ? <div className="gh-support-copy">{item.detail}</div> : null}
+                    {item.createdAt || item.createdBy || item.actorEmail ? (
+                      <div className="gh-support-copy">
+                        {[item.createdBy || item.actorEmail, item.createdAt].filter(Boolean).join(" · ")}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          ) : (
+            <div className="gh-empty-state">
+              No workflow tasks or governance activity are recorded for this asset.
+            </div>
+          )}
         </section>
 
         {/* Always-visible strip for unavailable lineage so stewards don't
@@ -3437,10 +3498,12 @@ export default function DiscoveryWorkspace({
       error: resultsError,
       baselineScope: filtersApplied.length === 0,
       authoritative: discoveryResults.authoritative === true,
+      facets: discoveryResults.facets || null,
     });
   }, [
     discoveryResults.authoritative,
     discoveryResults.assets,
+    discoveryResults.facets,
     filtersApplied.length,
     onLiveCatalogStateChange,
     resultsCount,
@@ -4058,6 +4121,15 @@ export default function DiscoveryWorkspace({
             onDiscoveryStateChange={onDiscoveryStateChange}
             onOpenFilters={() => setShowAdvancedFilters((current) => !current)}
             showFiltersBadge={filtersApplied.length + (selectedSchema ? 1 : 0)}
+          />
+          <DiscoveryNorthstarStrip
+            authoritative={discoveryResults.authoritative === true}
+            filtersAppliedCount={filtersApplied.length + (ownerFilterText ? 1 : 0) + (glossaryFilterText ? 1 : 0)}
+            loading={resultsLoading}
+            queryState={discoveryResults.queryState}
+            selectedSchemaCount={selectedSchemas.size}
+            totalCount={Number(resultsCount || 0)}
+            visibleCount={renderedDiscoveryAssets.length}
           />
           <div className="gh-panel gh-discovery-command-panel" ref={filterCommandRef}>
             {/* Discovery / Navigation sub-tab row deliberately removed —

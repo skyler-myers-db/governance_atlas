@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 const FRONTEND_ROOT = path.resolve(__dirname, "..");
 const PROJECT_ROOT = path.resolve(FRONTEND_ROOT, "..");
 const DIST_DIR = path.join(FRONTEND_ROOT, "dist");
-const OUTPUT_PATH = path.join(DIST_DIR, "govhub-build-manifest.json");
+const OUTPUT_PATH = path.join(DIST_DIR, "atlas-build-manifest.json");
 
 const FRONTEND_HASH_FILE_PATHS = [
   "frontend/index.html",
@@ -59,7 +59,7 @@ async function collectDirFiles(relativeDir) {
   // before sibling directories when those directory names start with a
   // code-point-higher character (e.g. `ActionButton.jsx` before `__tests__/...`).
   // Using localeCompare or per-directory name sorting produces a different
-  // order and would break hash parity with govhub/runtime_contract.py.
+  // order and would break hash parity with the backend runtime contract.
   files.sort((left, right) => {
     const leftRelative = path.relative(PROJECT_ROOT, left).split(path.sep).join("/");
     const rightRelative = path.relative(PROJECT_ROOT, right).split(path.sep).join("/");
@@ -95,7 +95,7 @@ async function frontendSourceHash() {
 await fs.mkdir(DIST_DIR, { recursive: true });
 
 const sourceHash = await frontendSourceHash();
-const buildId = process.env.GOVHUB_BUILD_ID || `frontend-${sourceHash.slice(0, 12)}`;
+const buildId = process.env.GOVAT_BUILD_ID || `frontend-${sourceHash.slice(0, 12)}`;
 const manifest = {
   buildId,
   generatedAt: new Date().toISOString(),

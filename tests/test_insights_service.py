@@ -1,4 +1,4 @@
-"""Unit tests for `govhub.services.insights.compute_gap_analysis`.
+"""Unit tests for `atlas.services.insights.compute_gap_analysis`.
 
 These tests pin the four-lane contract the A9.5 insights surface depends
 on. The service must:
@@ -22,7 +22,7 @@ from urllib.parse import unquote
 
 import pandas as pd
 
-from govhub.services import insights as insights_service
+from atlas.services import insights as insights_service
 
 
 NOW = datetime(2026, 4, 20, 12, 0, 0, tzinfo=timezone.utc)

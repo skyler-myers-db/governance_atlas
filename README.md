@@ -1,11 +1,11 @@
-# Governance Hub
+# Governance Atlas
 
-Governance Hub is a Databricks-native metadata workspace built on Unity Catalog.
-The product goal is Governance Hub branding with OpenMetadata-class workflow depth
+Governance Atlas is a Databricks-native metadata workspace built on Unity Catalog.
+The product goal is Governance Atlas branding with OpenMetadata-class workflow depth
 across discovery, entity detail, lineage, governance, tasks, and quality.
 
 The authoritative reconstruction spec lives in
-[docs/RECONSTRUCTION_PLAN.md](/Users/entrada-mac/Documents/GitHub/governance_hub/docs/RECONSTRUCTION_PLAN.md).
+[docs/RECONSTRUCTION_PLAN.md](docs/RECONSTRUCTION_PLAN.md).
 
 ## Supported Runtime
 
@@ -15,7 +15,7 @@ The only supported app runtime path is:
 app.yaml -> run_app.py -> runtime_app.py -> frontend/dist generated at package time
 ```
 
-`runtime_app.py` is the single backend runtime module behind the Governance Hub
+`runtime_app.py` is the single backend runtime module behind the Governance Atlas
 launcher.
 
 There is no legacy Streamlit mode and no OpenMetadata bridge in the supported product.
@@ -34,13 +34,13 @@ There is no legacy Streamlit mode and no OpenMetadata bridge in the supported pr
 Databricks App
   -> run_app.py
   -> backend runtime in runtime_app.py
-  -> govhub/uc.py
-  -> govhub/store.py
-  -> govhub/services/*
+  -> atlas/uc.py (internal compatibility package)
+  -> atlas/store.py
+  -> atlas/services/*
   -> React frontend built to frontend/dist
 ```
 
-Governance Hub reads live Unity Catalog and Databricks system metadata directly and
+Governance Atlas reads live Unity Catalog and Databricks system metadata directly and
 stores governance workflow state in Delta tables inside the configured governance schema.
 
 ## Local Development
@@ -74,15 +74,32 @@ The repo is deployed as a Databricks App through Databricks Asset Bundles.
 
 ```bash
 databricks auth login --host https://<workspace>.cloud.databricks.com
-python scripts/prepare_bundle.py --output /tmp/govhub_bundle
-cd /tmp/govhub_bundle
-databricks bundle deploy -t dev --var="warehouse_id=<warehouse-id>"
+python scripts/prepare_bundle.py --output /tmp/atlas_bundle
+cd /tmp/atlas_bundle
+databricks bundle deploy --profile DEFAULT -t dev --var="warehouse_id=<warehouse-id>"
+cat > /tmp/atlas-app-deploy.json <<JSON
+{
+  "source_code_path": "/Workspace/Users/$(databricks current-user me --profile DEFAULT -o json | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"userName\"])')/.bundle/atlas/dev/files",
+  "mode": "SNAPSHOT",
+  "env_vars": [
+    {"name": "DATABRICKS_WAREHOUSE_ID", "value_from": "sql-warehouse"},
+    {"name": "GOVAT_CATALOG", "value": "datapact"},
+    {"name": "GOVAT_SCHEMA", "value": "atlas"},
+    {"name": "GOVAT_ADMIN_EMAILS", "value": ""}
+  ]
+}
+JSON
+databricks apps start atlas --profile DEFAULT --timeout 20m
+databricks apps deploy atlas \
+  --profile DEFAULT \
+  --json @/tmp/atlas-app-deploy.json \
+  --timeout 20m
 ```
 
 ### Packaging contract
 
 - `frontend/dist` is built in CI or a predeploy packaging step
-- `frontend/dist/govhub-build-manifest.json` proves the bundle matches the current frontend source tree
+- `frontend/dist/atlas-build-manifest.json` proves the bundle matches the current frontend source tree; the filename is retained as a frontend-build compatibility artifact
 - `frontend/dist` is not source-controlled
 - the Databricks bundle is deployed from a clean packaged directory that includes the built frontend output
 - the runtime does not build frontend assets on startup
@@ -95,17 +112,18 @@ databricks bundle deploy -t dev --var="warehouse_id=<warehouse-id>"
 
 ### Runtime configuration
 
-- `GOVHUB_CATALOG`
-- `GOVHUB_SCHEMA`
-- `GOVHUB_ADMIN_EMAILS`
+- `GOVAT_CATALOG`
+- `GOVAT_SCHEMA`
+- `GOVAT_ADMIN_EMAILS`
 
-These should be injected explicitly per deployment target. Source defaults should
-remain neutral and must not encode personal emails or production-only settings.
+These are injected explicitly per deployment target from `databricks.yml`.
+Source defaults remain neutral and must not encode personal emails or
+production-only settings.
 
 ## Governance Tables
 
-Governance Hub currently persists governance state in Delta tables under
-`<GOVHUB_CATALOG>.<GOVHUB_SCHEMA>`.
+Governance Atlas currently persists governance state in Delta tables under
+`<GOVAT_CATALOG>.<GOVAT_SCHEMA>`.
 
 - `user_roles`
 - `glossary_terms`

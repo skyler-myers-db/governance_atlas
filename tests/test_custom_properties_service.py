@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from govhub.services import custom_properties as cp_service
+from atlas.services import custom_properties as cp_service
 
 
 class ValidateValueTests(unittest.TestCase):

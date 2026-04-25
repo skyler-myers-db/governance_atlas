@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAssetAvailability, fetchAssetDetail } from "../lib/api";
-import { govhubQueryClient } from "../lib/queryClient";
+import { atlasQueryClient } from "../lib/queryClient";
 
 const PLACEHOLDER_DESCRIPTION = "No description has been captured for this asset yet.";
 const DETAIL_CACHE_TTL_MS = 20_000;
@@ -78,7 +78,7 @@ function assetAvailabilityRequestKey(targets = [], strict = false, requireRender
 }
 
 function queryUpdatedAt(queryKey) {
-  return govhubQueryClient.getQueryState(queryKey)?.dataUpdatedAt || 0;
+  return atlasQueryClient.getQueryState(queryKey)?.dataUpdatedAt || 0;
 }
 
 function isFresh(queryKey, maxAgeMs = null) {
@@ -91,7 +91,7 @@ function isFresh(queryKey, maxAgeMs = null) {
 function readCanonicalDetail(assetFqn, options = {}) {
   if (!assetFqn) return null;
   const queryKey = assetDetailCanonicalKey(assetFqn);
-  const detail = govhubQueryClient.getQueryData(queryKey) || null;
+  const detail = atlasQueryClient.getQueryData(queryKey) || null;
   if (!detail) return null;
   if (!isFresh(queryKey, options.maxAgeMs ?? DETAIL_CACHE_TTL_MS)) return null;
   return detail;
@@ -100,7 +100,7 @@ function readCanonicalDetail(assetFqn, options = {}) {
 function readCanonicalAvailability(assetFqn, options = {}) {
   if (!assetFqn) return null;
   const queryKey = assetAvailabilityCanonicalKey(assetFqn);
-  const detail = govhubQueryClient.getQueryData(queryKey) || null;
+  const detail = atlasQueryClient.getQueryData(queryKey) || null;
   if (!detail) return null;
   if (!isFresh(queryKey, options.maxAgeMs ?? AVAILABILITY_CACHE_TTL_MS)) return null;
   return detail;
@@ -148,8 +148,8 @@ function mergeAssetDetail(currentDetail, incomingDetail) {
 function setCanonicalDetail(assetFqn, detail) {
   const current = readCanonicalDetail(assetFqn, { maxAgeMs: null });
   const mergedDetail = mergeAssetDetail(current, detail);
-  govhubQueryClient.setQueryData(assetDetailCanonicalKey(assetFqn), mergedDetail);
-  govhubQueryClient.setQueriesData(
+  atlasQueryClient.setQueryData(assetDetailCanonicalKey(assetFqn), mergedDetail);
+  atlasQueryClient.setQueriesData(
     { queryKey: [ASSET_DETAIL_REQUEST_PREFIX, assetFqn] },
     mergedDetail,
   );
@@ -158,7 +158,7 @@ function setCanonicalDetail(assetFqn, detail) {
 }
 
 function setCanonicalAvailability(assetFqn, availability) {
-  govhubQueryClient.setQueryData(assetAvailabilityCanonicalKey(assetFqn), availability);
+  atlasQueryClient.setQueryData(assetAvailabilityCanonicalKey(assetFqn), availability);
   syncAvailabilityRequestsForAsset(assetFqn);
   return availability;
 }
@@ -189,13 +189,13 @@ function parseAvailabilityRequestKey(queryKey = /** @type {readonly unknown[]} *
 }
 
 function syncAvailabilityRequestsForAsset(assetFqn) {
-  govhubQueryClient
+  atlasQueryClient
     .getQueryCache()
     .findAll({ queryKey: [ASSET_AVAILABILITY_REQUEST_PREFIX] })
     .forEach((query) => {
       const { targets, strict, requireRenderableDetail, visibilitySignature } = parseAvailabilityRequestKey(query.queryKey);
       if (!targets.includes(assetFqn)) return;
-      govhubQueryClient.setQueryData(
+      atlasQueryClient.setQueryData(
         query.queryKey,
         buildAvailabilityStateMap(
           targets,
@@ -372,16 +372,16 @@ export function primeAssetAvailability(assetFqn, availability) {
 
 export function invalidateAssetDetail(assetFqn) {
   if (!assetFqn) return Promise.resolve();
-  govhubQueryClient.removeQueries({ queryKey: assetDetailCanonicalKey(assetFqn), exact: true });
-  return govhubQueryClient.invalidateQueries({ queryKey: [ASSET_DETAIL_REQUEST_PREFIX, assetFqn] });
+  atlasQueryClient.removeQueries({ queryKey: assetDetailCanonicalKey(assetFqn), exact: true });
+  return atlasQueryClient.invalidateQueries({ queryKey: [ASSET_DETAIL_REQUEST_PREFIX, assetFqn] });
 }
 
 export function invalidateAssetAvailability(assetFqns = []) {
   const targets = [...new Set((assetFqns || []).filter(Boolean))];
   targets.forEach((assetFqn) => {
-    govhubQueryClient.removeQueries({ queryKey: assetAvailabilityCanonicalKey(assetFqn), exact: true });
+    atlasQueryClient.removeQueries({ queryKey: assetAvailabilityCanonicalKey(assetFqn), exact: true });
   });
-  return govhubQueryClient.invalidateQueries({ queryKey: [ASSET_AVAILABILITY_REQUEST_PREFIX] });
+  return atlasQueryClient.invalidateQueries({ queryKey: [ASSET_AVAILABILITY_REQUEST_PREFIX] });
 }
 
 export function prefetchAssetDetail(assetFqn, options = {}) {
@@ -395,7 +395,7 @@ export function prefetchAssetDetail(assetFqn, options = {}) {
       });
   if (cachedDetail) return Promise.resolve(cachedDetail);
 
-  return govhubQueryClient.fetchQuery({
+  return atlasQueryClient.fetchQuery({
     queryKey: assetDetailRequestKey(assetFqn, options.sections),
     staleTime: force ? 0 : DETAIL_CACHE_TTL_MS,
     queryFn: ({ signal }) =>
@@ -429,7 +429,7 @@ export function prefetchAssetAvailability(assetFqns = [], options = {}) {
     return Promise.resolve(cachedAvailability);
   }
 
-  return govhubQueryClient.fetchQuery({
+  return atlasQueryClient.fetchQuery({
     queryKey: assetAvailabilityRequestKey(
       targets,
       strict,

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { setWorkspaceIntent } from "../lib/workspaceIntent";
 
-const KNOWN_SURFACES = ["home", "discovery", "entity", "lineage", "governance", "audit", "taxonomy", "help", "inbox", "capabilities", "insights"];
+const KNOWN_SURFACES = ["home", "discovery", "entity", "lineage", "governance", "audit", "taxonomy", "cde", "help", "inbox", "admin", "capabilities", "insights"];
 const DISCOVERY_GROUPED_FILTER_KEYS = [
   "types",
   "catalogs",
@@ -122,6 +122,12 @@ function parsePathRoute(pathname = "/") {
       asset: "",
     };
   }
+  if (root === "cde" || root === "cdes") {
+    return {
+      surface: "cde",
+      asset: "",
+    };
+  }
   if (root === "help") {
     return {
       surface: "help",
@@ -131,6 +137,12 @@ function parsePathRoute(pathname = "/") {
   if (root === "inbox") {
     return {
       surface: "inbox",
+      asset: "",
+    };
+  }
+  if (root === "admin") {
+    return {
+      surface: "admin",
       asset: "",
     };
   }
@@ -210,8 +222,10 @@ function canonicalPath(surface, routeAssetFqn) {
   if (surface === "governance") return "/governance";
   if (surface === "audit") return "/audit";
   if (surface === "taxonomy") return "/taxonomy";
+  if (surface === "cde") return "/cde";
   if (surface === "help") return "/help";
   if (surface === "inbox") return "/inbox";
+  if (surface === "admin") return "/admin";
   if (surface === "home") return "/home";
   if (surface === "capabilities") return "/capabilities";
   if (surface === "insights") return "/insights";
@@ -540,6 +554,19 @@ export function useAppRouteState() {
       ), { state: { fresh: false } });
       return;
     }
+    if (nextModule === "cde") {
+      navigate(buildCanonicalUrl(
+        "cde",
+        "",
+        discoveryRouteState.query,
+        location.search,
+        discoveryRouteState.sortBy,
+        discoveryRouteState.previewAssetFqn,
+        discoveryRouteState.views,
+        discoveryRouteState.filterGroups,
+      ), { state: { fresh: false } });
+      return;
+    }
     if (nextModule === "help") {
       navigate(buildCanonicalUrl(
         "help",
@@ -556,6 +583,19 @@ export function useAppRouteState() {
     if (nextModule === "inbox") {
       navigate(buildCanonicalUrl(
         "inbox",
+        "",
+        discoveryRouteState.query,
+        location.search,
+        discoveryRouteState.sortBy,
+        discoveryRouteState.previewAssetFqn,
+        discoveryRouteState.views,
+        discoveryRouteState.filterGroups,
+      ), { state: { fresh: false } });
+      return;
+    }
+    if (nextModule === "admin") {
+      navigate(buildCanonicalUrl(
+        "admin",
         "",
         discoveryRouteState.query,
         location.search,

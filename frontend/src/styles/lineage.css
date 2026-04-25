@@ -1227,7 +1227,7 @@
 
 .gh-lineage-header {
   /* Round 18 defect #4: left-pad to align "Lineage: …" with the
-     "Governance Hub" wordmark in the topbar. The shell brand-band uses
+     "Governance Atlas" wordmark in the topbar. The shell brand-band uses
      `padding-left: 32px` inside the main column, putting the G glyph at
      x≈106. The same 32px offset here matches that column visually. */
   display: grid;
@@ -1846,4 +1846,289 @@
   padding: 2px 0;
   border: 0;
   background: transparent;
+}
+
+/* Phase 5 / Worker C — North Star lineage shell. Keep the graph logic
+   untouched; this layer only restyles the canvas, drawer, and selected-node
+   affordances around real lineage payload fields. */
+.gh-lineage-graph-panel {
+  border-color: var(--ga-border);
+  background: rgba(2, 9, 20, 0.34);
+  box-shadow: inset 0 1px 0 rgba(207, 239, 255, 0.06);
+}
+
+.gh-lineage-header {
+  color: var(--ga-text);
+}
+
+.gh-lineage-header-title,
+.gh-lineage-header-chip-value {
+  color: var(--ga-text);
+}
+
+.gh-lineage-header-asset-name {
+  color: var(--ga-bright-blue);
+}
+
+.gh-lineage-header-breadcrumbs,
+.gh-lineage-header-chip-label {
+  color: var(--ga-text-muted);
+}
+
+.gh-lineage-controls,
+.gh-lineage-canvas-controls,
+.gh-lineage-filter-panel,
+.gh-lineage-command-popover {
+  border-color: var(--ga-border);
+  background: rgba(6, 26, 45, 0.9);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(16px);
+}
+
+.gh-lineage-controls-action,
+.gh-lineage-stepper,
+.gh-lineage-slider-toggle,
+.gh-filter-label,
+.gh-filter-title {
+  color: var(--ga-text-soft);
+}
+
+.gh-lineage-stepper-button,
+.gh-lineage-stepper-value {
+  border-color: var(--ga-border);
+  background: rgba(207, 239, 255, 0.07);
+  color: var(--ga-text);
+}
+
+.gh-lineage-stepper-button:hover:not(:disabled),
+.gh-lineage-controls-action:hover {
+  border-color: var(--ga-border-strong);
+  background: rgba(102, 197, 255, 0.12);
+  color: var(--ga-white);
+}
+
+.gh-lineage-stage-canvas,
+.gh-lineage-canvas,
+.gh-lineage-viewport {
+  background:
+    linear-gradient(180deg, rgba(3, 17, 31, 0.98) 0%, rgba(6, 26, 45, 0.96) 100%);
+}
+
+.gh-lineage-viewport {
+  border-color: var(--ga-border);
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px 0 rgba(207, 239, 255, 0.08),
+    0 22px 48px rgba(0, 0, 0, 0.18);
+}
+
+.gh-lineage-viewport::before {
+  background:
+    linear-gradient(90deg, rgba(102, 197, 255, 0.08), transparent 34%),
+    linear-gradient(270deg, rgba(157, 124, 255, 0.08), transparent 38%);
+  filter: none;
+  opacity: 1;
+}
+
+.gh-lineage-viewport::after {
+  background-image:
+    linear-gradient(rgba(207, 239, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(207, 239, 255, 0.08) 1px, transparent 1px);
+  background-size: 44px 44px;
+  opacity: 0.72;
+}
+
+.gh-lineage-canvas .react-flow__edge-path {
+  stroke: var(--ga-bright-blue);
+}
+
+.gh-lineage-canvas .react-flow__edge.is-active .react-flow__edge-path,
+.gh-lineage-canvas .react-flow__edge.is-active path {
+  stroke: var(--ga-teal);
+}
+
+.gh-lineage-canvas .react-flow__controls,
+.gh-lineage-canvas .react-flow__minimap {
+  border-color: var(--ga-border);
+  background: rgba(6, 26, 45, 0.92);
+  color: var(--ga-text);
+}
+
+.gh-lineage-drawer {
+  border-color: var(--ga-border);
+  border-radius: 18px;
+  background: rgba(6, 26, 45, 0.96);
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.24);
+  color: var(--ga-text);
+}
+
+.gh-lineage-record-card,
+.gh-lineage-linked-row,
+.gh-lineage-overlay-card {
+  border-color: var(--ga-border);
+  background: rgba(8, 35, 58, 0.72);
+  box-shadow: inset 0 1px 0 rgba(207, 239, 255, 0.06);
+}
+
+.gh-lineage-linked-row.is-readonly {
+  background: rgba(8, 35, 58, 0.58);
+}
+
+.gh-lineage-edge-summary,
+.gh-lineage-node-header,
+.gh-lineage-node-tabs,
+.gh-lineage-node-footer {
+  border-color: var(--ga-border);
+}
+
+.gh-lineage-node-footer {
+  background: rgba(6, 26, 45, 0.98);
+}
+
+.gh-lineage-node-header-fqn,
+.gh-lineage-edge-summary h2,
+.gh-lineage-record-card-copy h3,
+.gh-lineage-node-details .gh-attribute-value,
+.gh-lineage-node-columns td {
+  color: var(--ga-text);
+}
+
+.gh-graph-node-card .gh-graph-node-title {
+  color: #102136;
+}
+
+.gh-lineage-node-tab {
+  color: var(--ga-text-muted);
+}
+
+.gh-lineage-node-tab:hover,
+.gh-lineage-node-tab.is-active {
+  background: rgba(102, 197, 255, 0.12);
+  color: var(--ga-white);
+}
+
+.gh-graph-node-card {
+  color: #102136;
+}
+
+.gh-lineage-node-inspector {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--ga-border);
+  border-radius: 14px;
+  background: rgba(207, 239, 255, 0.06);
+}
+
+.gh-lineage-node-inspector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gh-lineage-node-inspector-stat,
+.gh-lineage-node-column-trace-grid > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 9px;
+  border: 1px solid rgba(102, 197, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(2, 9, 20, 0.32);
+}
+
+.gh-lineage-node-inspector-stat span,
+.gh-lineage-node-column-trace-grid span {
+  color: var(--ga-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.gh-lineage-node-inspector-stat strong,
+.gh-lineage-node-column-trace-grid strong {
+  color: var(--ga-text);
+  font-size: 1rem;
+  line-height: 1.1;
+}
+
+.gh-lineage-node-path-card,
+.gh-lineage-node-column-trace {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(102, 197, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(2, 9, 20, 0.22);
+}
+
+.gh-lineage-node-path-head,
+.gh-lineage-node-column-trace-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gh-lineage-node-path-list {
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+}
+
+.gh-lineage-node-path-list li {
+  display: grid;
+  gap: 2px;
+  padding-left: 14px;
+  position: relative;
+}
+
+.gh-lineage-node-path-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ga-teal);
+}
+
+.gh-lineage-node-path-list span {
+  color: var(--ga-text);
+  font-size: 0.84rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.gh-lineage-node-path-list small {
+  color: var(--ga-text-muted);
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.gh-lineage-node-trace-actions,
+.gh-lineage-node-column-trace-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.gh-lineage-node-column-trace.is-unavailable {
+  border-style: dashed;
+}
+
+@media (max-width: 720px) {
+  .gh-lineage-node-inspector-grid,
+  .gh-lineage-node-trace-actions,
+  .gh-lineage-node-column-trace-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gh-lineage-node-path-head {
+    display: grid;
+  }
 }

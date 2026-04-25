@@ -5,7 +5,7 @@ export function InboxPage({ governanceInbox, onInboxItemAction, onBack }) {
   useEffect(() => {
     if (typeof document === "undefined") return;
     const previous = document.title;
-    document.title = "Inbox — Governance Hub";
+    document.title = "Inbox — Governance Atlas";
     return () => {
       document.title = previous;
     };

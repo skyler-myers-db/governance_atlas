@@ -13,9 +13,13 @@ const EMPTY_LIST = {
 };
 
 /**
+ * @typedef {{ recommendationId: string, decision: string, note?: string }} ClassificationReviewArgs
+ */
+
+/**
  * List hook for the Classification lane in GovernanceWorkspace.
  *
- * @param {{ status?: string, assetFqn?: string, enabled?: boolean, refetchInterval?: number | false } | boolean} [options]
+ * @param {{ status?: string, assetFqn?: string, enabled?: boolean, staleTime?: number, refetchInterval?: number | false } | boolean} [options]
  */
 export function useClassificationRecommendations(options = {}) {
   const resolvedOptions =
@@ -73,9 +77,11 @@ export function useClassificationRecommendation(recommendationId, options = {}) 
  */
 export function useClassificationReview() {
   const queryClient = useQueryClient();
+  /** @param {ClassificationReviewArgs} args */
+  const submitReview = ({ recommendationId, decision, note }) =>
+    reviewClassificationRecommendation(recommendationId, { decision, note });
   const mutation = useMutation({
-    mutationFn: ({ recommendationId, decision, note }) =>
-      reviewClassificationRecommendation(recommendationId, { decision, note }),
+    mutationFn: submitReview,
     onSuccess: (record) => {
       if (record?.recommendationId) {
         queryClient.setQueryData(

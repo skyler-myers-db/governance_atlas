@@ -41,7 +41,7 @@ from unittest.mock import patch
 
 import importlib
 
-from govhub.services import capabilities as capability_service
+from atlas.services import capabilities as capability_service
 
 
 def _load_runtime_app():

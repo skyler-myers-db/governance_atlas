@@ -490,6 +490,146 @@ describe("LineageGraph", () => {
     }
   });
 
+  it("renders selected-node inspector and focus column trace from real lineage payload fields", () => {
+    const { container } = render(
+      <LineageGraph
+        asset={{ fqn: "main.sales.orders", name: "orders" }}
+        assetSearchLoading={false}
+        assetSearchQuery=""
+        assetSearchResolvedQuery=""
+        assetSearchResults={[]}
+        context="Data Lineage"
+        graph={{
+          nodes: [
+            {
+              id: "focus",
+              assetFqn: "main.sales.orders",
+              kind: "Table",
+              label: "orders",
+              role: "focus",
+              subtitle: "main.sales.orders",
+            },
+            {
+              id: "upstream",
+              assetFqn: "main.sales.raw_orders",
+              kind: "Table",
+              label: "raw_orders",
+              role: "source",
+              subtitle: "main.sales.raw_orders",
+            },
+            {
+              id: "downstream",
+              assetFqn: "main.sales.orders_summary",
+              kind: "View",
+              label: "orders_summary",
+              role: "target",
+              subtitle: "main.sales.orders_summary",
+            },
+          ],
+          edges: [
+            { id: "edge-1", source: "upstream", target: "focus", data: { kind: "Lineage" } },
+            { id: "edge-2", source: "focus", target: "downstream", data: { kind: "Lineage" } },
+          ],
+        }}
+        hasEdges
+        lineagePayload={{
+          fqn: "main.sales.orders",
+          columnLineage: {
+            upstream: [
+              {
+                column: "order_id",
+                sources: [{ assetFqn: "main.sales.raw_orders", column: "order_id" }],
+              },
+            ],
+            downstream: [
+              {
+                column: "order_id",
+                targets: [{ assetFqn: "main.sales.orders_summary", column: "order_id" }],
+              },
+            ],
+            meta: { truncated: true },
+          },
+        }}
+        onAssetSearchQueryChange={() => {}}
+        onContextChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenGovernance={() => {}}
+        onSelectAsset={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "orders" }));
+
+    const inspector = container.querySelector(".gh-lineage-node-inspector");
+    expect(inspector).not.toBeNull();
+    expect(inspector.textContent).toContain("Upstream");
+    expect(inspector.textContent).toContain("Downstream");
+    expect(screen.getByText("Upstream mappings")).not.toBeNull();
+    expect(screen.getByText("Downstream mappings")).not.toBeNull();
+    expect(screen.getByText("Partial")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Trace Path" }).disabled).toBe(true);
+    expect(screen.getByRole("button", { name: "Trace Upstream" }).disabled).toBe(false);
+    expect(screen.getByRole("button", { name: "Trace Impact" }).disabled).toBe(false);
+  });
+
+  it("shows unavailable column trace for non-focus lineage references without inventing evidence", () => {
+    render(
+      <LineageGraph
+        asset={{ fqn: "main.sales.orders", name: "orders" }}
+        assetSearchLoading={false}
+        assetSearchQuery=""
+        assetSearchResolvedQuery=""
+        assetSearchResults={[]}
+        context="Data Lineage"
+        graph={{
+          nodes: [
+            {
+              id: "focus",
+              assetFqn: "main.sales.orders",
+              kind: "Table",
+              label: "orders",
+              role: "focus",
+              subtitle: "main.sales.orders",
+            },
+            {
+              id: "upstream",
+              assetFqn: "main.sales.raw_orders",
+              kind: "Table",
+              label: "raw_orders",
+              role: "source",
+              subtitle: "main.sales.raw_orders",
+            },
+          ],
+          edges: [
+            { id: "edge-1", source: "upstream", target: "focus", data: { kind: "Lineage" } },
+          ],
+        }}
+        hasEdges
+        lineagePayload={{
+          fqn: "main.sales.orders",
+          columnLineage: {
+            upstream: [],
+            downstream: [],
+            meta: { truncated: false },
+          },
+        }}
+        onAssetSearchQueryChange={() => {}}
+        onContextChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenGovernance={() => {}}
+        onSelectAsset={() => {}}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "raw_orders" }));
+
+    expect(
+      screen.getByText("Column trace is only available for the current focus asset in this lineage payload."),
+    ).not.toBeNull();
+    expect(screen.getByText("1 edge on the visible path to focus.")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Trace Path" }).disabled).toBe(false);
+  });
+
   it("shows a muted placeholder when no SQL evidence is available (A5.2)", () => {
     render(
       <LineageGraph

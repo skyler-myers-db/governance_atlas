@@ -16,12 +16,14 @@ export default function AppFrame({
   visibleAssetSet = new Set(),
   workspaceAccess = null,
   activeModule,
+  currentAssetFqn = "",
   diagnosticsAvailable = false,
   diagnosticsStatus = null,
   diagnosticsOpen = false,
   governanceInbox = null,
   inboxOpen = false,
   onModuleChange,
+  onOpenAsset360,
   onToggleDiagnostics,
   onOpenCapabilities,
   onToggleInbox,
@@ -40,16 +42,13 @@ export default function AppFrame({
   const [searchNotice, setSearchNotice] = useState("");
   const [shellHeaderHeight, setShellHeaderHeight] = useState(0);
   const [commandOpen, setCommandOpen] = useState(false);
-  const [alertsOpen, setAlertsOpen] = useState(false);
+  const [railCollapsed, setRailCollapsed] = useState(false);
   const shellHeaderRef = useRef(null);
   const searchRootRef = useRef(null);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
-    // Light cream theme is the only supported theme for now — operator
-    // 2026-04-19 round 3 removed the dark-mode toggle. Pin the
-    // data-theme attribute so any remaining dark-mode CSS stays inert.
-    document.documentElement.setAttribute("data-theme", "light");
+    document.documentElement.setAttribute("data-theme", "dark");
   }, []);
 
   useEffect(() => {
@@ -110,6 +109,10 @@ export default function AppFrame({
   );
   const showInboxPanel = showInbox && inboxOpen;
   const accessBanner = workspaceAccessBanner({ workspaceAccess });
+  const accessBannerMessage =
+    accessBanner?.title === "Workspace-scoped metadata"
+      ? "Workspace-scoped app-principal view; actor-scoped protected reads stay restricted."
+      : accessBanner?.message || "";
   const searchScopeSubject =
     accessBanner?.title === "Workspace-scoped metadata"
       ? "workspace inventory"
@@ -144,22 +147,62 @@ export default function AppFrame({
       },
     });
   };
-  const openDiscoveryModule = () => {
-    onModuleChange?.("discovery");
+  const openHomeModule = () => {
+    onModuleChange?.("home");
+  };
+
+  const openFooterDestination = (destination) => {
+    if (destination === "status") {
+      onOpenCapabilities?.();
+      return;
+    }
+    onModuleChange?.("help");
+    if (typeof window !== "undefined") {
+      window.setTimeout(() => {
+        window.location.hash = destination;
+      }, 0);
+    }
   };
 
   const handleSignOut = () => {
     if (typeof window === "undefined") return;
+    const workspaceHost = String(shell?.workspaceHost || shell?.workspace?.host || "").trim();
+    const signOutUrl = workspaceHost
+      ? `${workspaceHost.replace(/\/+$/, "")}/login.html?action=logOut`
+      : "";
     const proceed = typeof window.confirm === "function"
       ? window.confirm(
-          "Sign out?\n\nGovernance Hub uses your Databricks workspace login. Continuing opens the Databricks sign-out page in a new tab.",
+          "Sign out?\n\nGovernance Atlas uses your Databricks workspace login. Continuing opens the Databricks sign-out page in a new tab.",
         )
       : true;
     if (!proceed) return;
-    const { protocol, hostname } = window.location;
-    const workspaceHost = hostname.replace(/^[^.]+\./, "").replace(/databricksapps\.com$/, "databricks.net");
-    const signOutUrl = `${protocol}//${workspaceHost}/login.html?action=logOut`;
+    if (!signOutUrl) {
+      window.alert?.("Workspace sign-out is unavailable because the Databricks host was not provided by the runtime.");
+      return;
+    }
     window.open(signOutUrl, "_blank", "noopener,noreferrer");
+  };
+  const footerStatusState = String(diagnosticsStatus?.state || "").trim().toLowerCase();
+  const footerStatusTone =
+    ["ready", "complete", "healthy", "available"].includes(footerStatusState)
+      ? "good"
+      : ["attention_required", "degraded", "warning", "loading", "pending"].includes(footerStatusState)
+        ? "warn"
+        : ["error", "failed", "unavailable"].includes(footerStatusState)
+          ? "bad"
+          : "";
+  const footerStatusLabel = footerStatusTone
+    ? humanizeStatusLabel(footerStatusState)
+    : "";
+  const openAiCopilot = () => {
+    openHomeModule();
+    if (typeof window === "undefined") return;
+    window.setTimeout(() => {
+      document.querySelector(".ga-atlas-ai-panel")?.scrollIntoView({
+        block: "nearest",
+        inline: "nearest",
+      });
+    }, 0);
   };
 
   useEffect(() => {
@@ -272,6 +315,7 @@ export default function AppFrame({
   return (
     <div
       className="gh-app gh-app-with-rail"
+      data-rail-collapsed={railCollapsed ? "true" : "false"}
       data-shell-sticky-ready={shellHeaderHeight > 0 ? "true" : "false"}
       style={/** @type {import("react").CSSProperties} */ ({
         "--gh-shell-header-height": `${shellHeaderHeight}px`,
@@ -279,9 +323,11 @@ export default function AppFrame({
     >
       <SideIconRail
         activeModule={activeModule}
+        currentAssetFqn={currentAssetFqn}
+        collapsed={railCollapsed}
         onModuleChange={onModuleChange}
-        onOpenSettings={onToggleDiagnostics}
-        onSignOut={handleSignOut}
+        onOpenAsset360={onOpenAsset360}
+        onToggleCollapse={() => setRailCollapsed((current) => !current)}
         shellDisabled={shellDisabled}
         shellDisabledReason={shellDisabledReason}
       />
@@ -290,29 +336,15 @@ export default function AppFrame({
           shell={shell}
           shellDisabled={shellDisabled}
           shellDisabledReason={shellDisabledReason}
-          activeModule={activeModule}
-          onOpenDiscovery={openDiscoveryModule}
-          onModuleChange={onModuleChange}
-          showRuntimeStatus={showRuntimeStatus}
-          bootState={bootState}
-          bootMessage={bootMessage}
-          showSetupStatus={showSetupStatus}
-          setupStatusState={setupStatusState}
-          setupStatusNextStep={setupStatusNextStep}
-          diagnosticsAvailable={diagnosticsAvailable}
-          diagnosticsOpen={diagnosticsOpen}
-          onToggleDiagnostics={onToggleDiagnostics}
+          onOpenHome={openHomeModule}
           showInbox={showInbox}
           inboxOpen={inboxOpen}
           inboxUnreadCount={inboxUnreadCount}
           onToggleInbox={onToggleInbox}
-          alertsOpen={alertsOpen}
-          alertsUnreadCount={0}
-          onToggleAlerts={() => setAlertsOpen((current) => !current)}
           onOpenSettings={onToggleDiagnostics}
           onOpenCapabilities={onOpenCapabilities}
           onSignOut={handleSignOut}
-          onOpenCommandPalette={() => setCommandOpen(true)}
+          onOpenAiCopilot={openAiCopilot}
           topbarSearchSlot={(
             <TopbarSearch
               searchRootRef={searchRootRef}
@@ -336,44 +368,39 @@ export default function AppFrame({
             />
           )}
         />
-        {accessBanner ? (
-          <InlineStatusBanner
-            className="gh-shell-access-banner"
-            message={accessBanner.message}
-            title={accessBanner.title}
-            tone={accessBanner.tone}
-          />
-        ) : null}
       </header>
 
       {showInboxPanel ? (
         <InboxPanel governanceInbox={governanceInbox} onInboxItemAction={onInboxItemAction} />
       ) : null}
 
-      {alertsOpen ? (
-        <div className="gh-alerts-panel" role="dialog" aria-label="Alerts">
-          <div className="gh-alerts-panel-head">
-            <span className="gh-alerts-panel-title">Alerts</span>
-            <button
-              aria-label="Close alerts"
-              className="gh-alerts-panel-close"
-              onClick={() => setAlertsOpen(false)}
-              type="button"
-            >
-              ×
-            </button>
-          </div>
-          <div className="gh-alerts-panel-body">
-            <p className="gh-support-copy">
-              No governance alerts in the last 24 hours. Steward follow-ups,
-              broken lineage edges, and quality breaches will appear here
-              when they fire.
-            </p>
-          </div>
-        </div>
-      ) : null}
+      <main className="gh-main">
+        {accessBanner ? (
+          <InlineStatusBanner
+            className="gh-shell-access-banner"
+            details={accessBanner.message}
+            message={accessBannerMessage}
+            title={accessBanner.title}
+            tone={accessBanner.tone}
+          />
+        ) : null}
+        {children}
+      </main>
 
-      <main className="gh-main">{children}</main>
+      <footer className="ga-shell-footer" aria-label="Governance Atlas footer">
+        <button type="button" onClick={() => openFooterDestination("privacy")}>Privacy</button>
+        <button type="button" onClick={() => openFooterDestination("terms")}>Terms</button>
+        <button type="button" onClick={() => openFooterDestination("support")}>Support</button>
+        <button
+          aria-label={footerStatusLabel ? `System Status: ${footerStatusLabel}` : "System Status"}
+          className={`ga-system-status ${footerStatusTone ? `tone-${footerStatusTone}` : ""}`.trim()}
+          type="button"
+          onClick={() => openFooterDestination("status")}
+        >
+          System Status
+          {footerStatusTone ? <i aria-hidden="true" /> : null}
+        </button>
+      </footer>
 
       {/* ⌘K hint pill in the bottom-right. The floating dark-mode
           toggle was removed 2026-04-19 round 3 — operator asked for

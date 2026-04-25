@@ -1,246 +1,109 @@
-import { useEffect, useMemo, useState } from "react";
-import { MetadataChip, StatusBadge } from "./primitives";
+import { useEffect, useState } from "react";
 import {
-  SurfaceHeader,
-  SurfaceTabs,
-  SurfaceWorkbench,
-  SurfaceWorkbenchMain,
-} from "./ShellLayoutPrimitives";
-import { useGapAnalysis as defaultUseGapAnalysis } from "../hooks/useGapAnalysis";
+  BarList,
+  DataTable,
+  DegradedBanner,
+  EmptyState,
+  HeatmapMatrix,
+  MetricCard,
+  PageHero,
+  SectionCard,
+  StatusPill,
+} from "./northstar";
+import { useInsightsDashboard as defaultUseInsightsDashboard } from "../hooks/useInsightsDashboard";
 
-const LANE_META = {
-  ownership: {
-    label: "Ownership",
-    tileLabel: "Ownership gaps",
-    emptyHint: "No assets missing owners — keep it up.",
-    tileTone: "warn",
-    tileHint: "Assets with zero owner entries",
-  },
-  policy: {
-    label: "Policy",
-    tileLabel: "Policy gaps",
-    emptyHint: "Every asset carries a classification, domain, and tier.",
-    tileTone: "warn",
-    tileHint: "Assets missing classification + sensitivity + domain + tier",
-  },
-  freshness: {
-    label: "Freshness",
-    tileLabel: "Freshness blind spots",
-    emptyHint: "All visible assets have a recent freshness signal.",
-    tileTone: "warn",
-    tileHint: "No last_observed_at and no recent freshness pass",
-  },
-  quality: {
-    label: "Quality",
-    tileLabel: "Quality incidents",
-    emptyHint: "No failing or errored quality runs in the last 7 days.",
-    tileTone: "bad",
-    tileHint: "Assets with failed or errored quality runs (last 7 days)",
-  },
-};
-
-const LANE_FALLBACK_ORDER = ["ownership", "policy", "freshness", "quality"];
-
-function tileCountFor(tiles, lane) {
-  const key = {
-    ownership: "ownershipGaps",
-    policy: "policyGaps",
-    freshness: "freshnessGaps",
-    quality: "qualityIncidents",
-  }[lane];
-  return Number(tiles?.[key] ?? 0) || 0;
-}
-
-function formatCount(value) {
+function formatValue(value, format = "") {
+  if (value === null || value === undefined || value === "") return "Unavailable";
   const n = Number(value);
-  if (!Number.isFinite(n)) return "—";
+  if (!Number.isFinite(n)) return "Unavailable";
+  if (format === "percent") return `${Math.round(n)}%`;
+  if (format === "score") return String(Math.round(n));
   return Math.max(0, Math.trunc(n)).toLocaleString();
 }
 
-function GapTile({ lane, count, total, onClick, active }) {
-  const meta = LANE_META[lane] || {};
-  return (
-    <button
-      aria-pressed={Boolean(active)}
-      className={`gh-insights-tile ${active ? "is-active" : ""}`.trim()}
-      onClick={onClick}
-      type="button"
-      data-lane={lane}
-    >
-      <div className="gh-insights-tile-head">
-        <div className="gh-insights-tile-eyebrow">{meta.tileLabel}</div>
-        {count > 0 ? (
-          <StatusBadge
-            ariaLabel={`${count} ${meta.tileLabel}`}
-            label={String(count)}
-            tone={count > 0 ? meta.tileTone || "warn" : "neutral"}
-          />
-        ) : (
-          <StatusBadge ariaLabel="healthy" label="0" tone="good" />
-        )}
-      </div>
-      <div className="gh-insights-tile-value">{formatCount(count)}</div>
-      <div className="gh-insights-tile-hint">{meta.tileHint}</div>
-      {Number.isFinite(Number(total)) && Number(total) > 0 ? (
-        <div className="gh-insights-tile-total">of {formatCount(total)} visible</div>
-      ) : null}
-    </button>
-  );
+function metricTone(kpi) {
+  if (kpi?.state === "unavailable" || kpi?.value === null || kpi?.value === undefined) return "muted";
+  if (String(kpi?.key || "").toLowerCase().includes("exception")) return Number(kpi.value) > 0 ? "warn" : "good";
+  return "info";
 }
 
-function GapTable({ rows, lane }) {
-  const meta = LANE_META[lane] || {};
-  if (!rows || rows.length === 0) {
-    return (
-      <div className="gh-insights-empty" role="status">
-        <div className="gh-insights-empty-title">
-          No current gaps in this lane
-        </div>
-        <div className="gh-insights-empty-hint">
-          {meta.emptyHint || "Nothing to triage here right now."}
-        </div>
-      </div>
-    );
+function heatmapRows(cells = []) {
+  const byRow = new Map();
+  for (const cell of cells) {
+    const rowName = cell.row || cell.domain || cell.label || "Unassigned";
+    const column = cell.column || cell.metric || "Coverage";
+    const current = byRow.get(rowName) || { domain: rowName, values: {} };
+    current.values[column] = cell.value;
+    byRow.set(rowName, current);
   }
-  return (
-    <table
-      aria-label={`${meta.label || lane} gap rows`}
-      className="gh-insights-lane-table"
-    >
-      <thead>
-        <tr>
-          <th scope="col">Asset</th>
-          <th scope="col">FQN</th>
-          <th scope="col">Reason</th>
-          <th scope="col" aria-label="Remediation">
-            Action
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={row.assetFqn} data-lane={lane}>
-            <th scope="row" className="gh-insights-lane-asset-cell">
-              <div className="gh-insights-lane-asset-name">{row.assetName}</div>
-              <div className="gh-insights-lane-asset-type">
-                <MetadataChip
-                  soft
-                  label={row.objectType || "Asset"}
-                  tone="neutral"
-                />
-              </div>
-            </th>
-            <td className="gh-insights-lane-fqn-cell">
-              <code>{row.assetFqn}</code>
-            </td>
-            <td className="gh-insights-lane-reason-cell">{row.gapReason}</td>
-            <td className="gh-insights-lane-action-cell">
-              <a
-                className="gh-insights-lane-action-link"
-                href={row.remediation?.href || `/governance?lane=${lane}&asset=${encodeURIComponent(row.assetFqn)}`}
-                data-action={row.remediation?.action || ""}
-              >
-                {row.remediation?.label || "Open"} →
-              </a>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+  return Array.from(byRow.values());
 }
 
 /**
- * A9.5 Insights surface — 4 tiles + 4 lane tabs pulling from
- * /api/insights/gap-analysis. Keeps the shell primitives (SurfaceHeader,
- * SurfaceWorkbench, SurfaceTabs) consistent with every other surface.
+ * Insights surface backed by the Phase 5 Atlas composite API.
  */
 export function InsightsWorkspace({
   onNavigate,
   onSurfaceReady,
-  limit = 200,
-  initialLane = "ownership",
-  /** Optional: let the parent inject a mocked hook result for tests. */
+  insightsOverride = null,
   gapAnalysisOverride = null,
-  /** Optional hook override so tests can bypass the QueryClient. */
-  useGapAnalysisImpl = defaultUseGapAnalysis,
+  useInsightsDashboardImpl = defaultUseInsightsDashboard,
 }) {
-  // Tests may pass `gapAnalysisOverride` to avoid mounting the
-  // QueryClient. We still need to call a hook unconditionally to
-  // satisfy the Rules of Hooks, so use a no-op stub when override is
-  // present.
-  const hookImpl = gapAnalysisOverride ? () => ({}) : useGapAnalysisImpl;
-  const liveGapAnalysis = hookImpl({ enabled: !gapAnalysisOverride, limit });
-  const gapAnalysis = gapAnalysisOverride || liveGapAnalysis;
-
-  const lanesOrder = useMemo(() => {
-    const order = Array.isArray(gapAnalysis?.lanesOrder) && gapAnalysis.lanesOrder.length
-      ? gapAnalysis.lanesOrder
-      : LANE_FALLBACK_ORDER;
-    return order.filter((lane) => LANE_META[lane]);
-  }, [gapAnalysis?.lanesOrder]);
-
-  const [activeLane, setActiveLane] = useState(() =>
-    lanesOrder.includes(initialLane) ? initialLane : lanesOrder[0] || "ownership",
-  );
+  const override = insightsOverride || gapAnalysisOverride;
+  const hookImpl = override ? () => ({}) : useInsightsDashboardImpl;
+  const liveInsights = hookImpl({ enabled: !override });
+  const insights = override || liveInsights;
+  const data = insights.data || insights;
+  const [showFormula, setShowFormula] = useState(false);
 
   useEffect(() => {
-    if (!lanesOrder.includes(activeLane)) {
-      setActiveLane(lanesOrder[0] || "ownership");
-    }
-  }, [activeLane, lanesOrder]);
-
-  useEffect(() => {
-    if (!gapAnalysis.isLoading) {
+    if (!insights.loading && !insights.isLoading) {
       onSurfaceReady?.();
     }
-  }, [gapAnalysis.isLoading, onSurfaceReady]);
+  }, [insights.isLoading, insights.loading, onSurfaceReady]);
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
     const previous = document.title;
-    document.title = "Insights — Governance Hub";
+    document.title = "Insights — Governance Atlas";
     return () => {
       document.title = previous;
     };
   }, []);
 
-  const tiles = gapAnalysis.tiles || {};
-  const lanes = gapAnalysis.lanes || {};
-
-  const surfaceState = gapAnalysis.error
+  const meta = {
+    ...(data.meta || {}),
+    degraded: insights.degraded || data.meta?.state === "degraded",
+    warnings: insights.refreshError
+      ? [insights.refreshError]
+      : Array.isArray(data.meta?.warnings)
+        ? data.meta.warnings
+        : [],
+  };
+  const kpis = Array.isArray(data.kpis) ? data.kpis : [];
+  const heatmap = heatmapRows(data.metadataCoverageHeatmap);
+  const heatmapColumns = Array.from(
+    new Set((data.metadataCoverageHeatmap || []).map((cell) => cell.column || cell.metric || "Coverage")),
+  );
+  const recommendations = Array.isArray(data.recommendations) ? data.recommendations : [];
+  const surfaceState = insights.error
     ? "error"
-    : gapAnalysis.isLoading
+    : insights.loading || insights.isLoading
       ? "loading"
-      : "ready";
-
-  const totalAssets = Number(tiles.totalAssets ?? 0) || 0;
-  const headerMeta = [
-    { key: "total", content: `${formatCount(totalAssets)} visible assets` },
-  ];
-  if (!gapAnalysis.qualitySignalAvailable) {
-    headerMeta.push({
-      key: "quality-degraded",
-      content: "Quality ledger unavailable",
-    });
-  }
-
-  const laneTabs = lanesOrder.map((lane) => ({
-    key: lane,
-    label: `${LANE_META[lane]?.label || lane} (${tileCountFor(tiles, lane)})`,
-  }));
+      : meta.degraded
+        ? "degraded"
+        : "ready";
 
   return (
     <section
       aria-label="Governance insights"
-      className="gh-workspace gh-insights-workspace"
+      className="gh-workspace gh-insights-workspace ga-page"
       data-surface="insights"
       data-state={surfaceState}
     >
-      <SurfaceHeader
-        eyebrow="Governance insights"
+      <PageHero
+        eyebrow="Governance Atlas"
         title="Gap analysis across your estate"
-        meta={headerMeta}
         actions={(
           <button
             className="gh-tertiary-button gh-inline-link-button"
@@ -252,90 +115,114 @@ export function InsightsWorkspace({
         )}
       >
         <p className="gh-support-copy">
-          One pane across the four gap lanes the stewardship team works
-          weekly: ownership, policy, freshness, and data-quality incidents.
-          Every row deep-links into the Governance workbench with the right
-          lane preselected.
+          Live maturity, coverage, and remediation signals from the Atlas composite insights API.
+          Empty trends or missing quality data stay explicitly unavailable.
         </p>
-      </SurfaceHeader>
+      </PageHero>
 
-      <SurfaceWorkbench className="gh-insights-surface-workbench">
-        <SurfaceWorkbenchMain className="gh-insights-main-pane" dense>
-          {gapAnalysis.error ? (
-            <div className="gh-insights-error" role="alert">
-              <strong>Insights unavailable.</strong> {gapAnalysis.error}
-            </div>
+      {insights.error ? (
+        <EmptyState
+          tone="danger"
+          title="Insights unavailable."
+          message={insights.error}
+          actions={insights.refresh ? (
+            <button className="gh-tertiary-button gh-inline-link-button" type="button" onClick={() => insights.refresh()}>
+              Retry
+            </button>
           ) : null}
-          {gapAnalysis.oboScopeFallback ? (
-            <div
-              aria-live="polite"
-              className="gh-insights-degraded-banner"
-              role="status"
-            >
-              <div>
-                <strong>Showing app-principal view.</strong>{" "}
-                {gapAnalysis.oboFallbackReason ||
-                  "The forwarded user token is missing the `sql` scope; insights are computed from the app-principal view of the catalog."}
-              </div>
-              <button
-                className="gh-tertiary-button gh-inline-link-button"
-                disabled={gapAnalysis.refreshing}
-                onClick={() => gapAnalysis.refreshActorScope?.()}
-                type="button"
-              >
-                {gapAnalysis.refreshing ? "Retrying…" : "Retry with actor scope"}
-              </button>
-            </div>
-          ) : null}
+        />
+      ) : null}
 
-          <section
-            aria-label="Gap tiles"
-            className="gh-insights-tiles"
-            role="group"
-          >
-            {LANE_FALLBACK_ORDER.map((lane) => (
-              <GapTile
-                active={activeLane === lane}
-                count={tileCountFor(tiles, lane)}
-                key={lane}
-                lane={lane}
-                onClick={() => setActiveLane(lane)}
-                total={totalAssets}
-              />
-            ))}
-          </section>
+      <DegradedBanner meta={meta} title="Insights data is partially available" />
 
-          <section aria-label="Gap lanes" className="gh-insights-lanes">
-            <SurfaceTabs
-              ariaLabel="Gap lanes"
-              activeKey={activeLane}
-              items={laneTabs}
-              onChange={(nextKey) => setActiveLane(nextKey)}
-              variant="segment"
-              className="gh-insights-lane-tabs"
+      <section className="gh-insights-tiles ga-kpi-grid six" aria-label="Insights metrics">
+        {kpis.length ? (
+          kpis.map((kpi) => (
+            <MetricCard
+              key={kpi.key || kpi.label}
+              label={kpi.label || kpi.key}
+              value={formatValue(kpi.value, kpi.format)}
+              progress={typeof kpi.progress === "number" ? kpi.progress : undefined}
+              meta={kpi.state === "unavailable" ? "Unavailable in current live scope" : ""}
+              delta={kpi.state === "unavailable" ? "Unavailable" : "Live"}
+              deltaTone={metricTone(kpi)}
             />
-            <div
-              aria-live="polite"
-              className="gh-insights-lane-body"
-              data-lane={activeLane}
-            >
-              {gapAnalysis.isLoading ? (
-                <div className="gh-insights-empty" role="status">
-                  <div className="gh-insights-empty-title">Loading…</div>
-                  <div className="gh-insights-empty-hint">
-                    Computing the cross-estate gap snapshot.
-                  </div>
-                </div>
-              ) : (
-                <GapTable
-                  lane={activeLane}
-                  rows={Array.isArray(lanes[activeLane]) ? lanes[activeLane] : []}
-                />
-              )}
-            </div>
-          </section>
-        </SurfaceWorkbenchMain>
-      </SurfaceWorkbench>
+          ))
+        ) : (
+          <EmptyState title="No insight metrics available" message="The composite insights API returned no KPI rows for the current visibility scope." />
+        )}
+      </section>
+
+      <div className="gh-insights-grid">
+        <SectionCard title="Metadata coverage by domain" eyebrow="Coverage">
+          <HeatmapMatrix data={heatmap} columns={heatmapColumns} />
+        </SectionCard>
+
+        <SectionCard title="Domain leaderboard" eyebrow="Visible estate">
+          <BarList items={data.domainLeaderboard || []} labelKey="domain" valueKey="score" />
+        </SectionCard>
+
+        <SectionCard
+          title="Evidence-backed recommendations"
+          eyebrow="Remediation"
+          actions={(
+            <button className="gh-tertiary-button gh-inline-link-button" type="button" onClick={() => onNavigate?.("governance")}>
+              Open Governance →
+            </button>
+          )}
+        >
+          <DataTable
+            columns={[
+              { key: "title", header: "Recommendation", render: (row) => row.title || "Unavailable" },
+              { key: "detail", header: "Evidence", render: (row) => row.detail || "Unavailable" },
+              {
+                key: "source",
+                header: "Source",
+                render: (row) => {
+                  const evidence = Array.isArray(row.evidence) ? row.evidence[0] : null;
+                  return evidence ? `${evidence.type || "signal"}:${evidence.id || evidence.metric || "unknown"}` : "Unavailable";
+                },
+              },
+            ]}
+            rows={recommendations}
+            rowKey="key"
+            emptyMessage="No evidence-backed recommendations are available from the current live signals."
+          />
+        </SectionCard>
+
+        <SectionCard
+          title="Maturity scoring inputs"
+          eyebrow="Provenance"
+          actions={(
+            <button className="gh-tertiary-button gh-inline-link-button" type="button" onClick={() => setShowFormula((value) => !value)}>
+              {showFormula ? "Hide formula" : "Show formula"}
+            </button>
+          )}
+        >
+          {showFormula ? (
+            <DataTable
+              columns={[
+                { key: "signal", header: "Signal", render: (row) => row.signal || "Unavailable" },
+                { key: "weight", header: "Weight", render: (row) => formatValue(Number(row.weight) * 100, "percent") },
+                {
+                  key: "state",
+                  header: "State",
+                  render: (row) => (
+                    <StatusPill tone={(data.scoring?.availableSignals || []).includes(row.signal) ? "good" : "muted"}>
+                      {(data.scoring?.availableSignals || []).includes(row.signal) ? "Available" : "Unavailable"}
+                    </StatusPill>
+                  ),
+                },
+              ]}
+              rows={data.scoring?.maturityFormula || []}
+              rowKey="signal"
+              emptyMessage="No scoring formula was returned by the composite API."
+            />
+          ) : (
+            <EmptyState title="Scoring formula hidden" message="Open the formula to inspect which returned signals are included in the current score." />
+          )}
+        </SectionCard>
+      </div>
     </section>
   );
 }

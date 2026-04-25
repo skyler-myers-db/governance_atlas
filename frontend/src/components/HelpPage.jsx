@@ -6,9 +6,9 @@ const SECTIONS = [
     title: "Getting started",
     entries: [
       {
-        heading: "What is Governance Hub?",
+        heading: "What is Governance Atlas?",
         body:
-          "Governance Hub is a Databricks-native metadata command center. It discovers Unity Catalog tables, views, columns, and notebook usage in your workspace and surfaces governance context (domain, owner, sensitivity, glossary term, workflow state, lineage) in one place.",
+          "Governance Atlas is a Databricks-native metadata command center. It discovers Unity Catalog tables, views, columns, and notebook usage in your workspace and surfaces governance context (domain, owner, sensitivity, glossary term, workflow state, lineage) in one place.",
       },
       {
         heading: "How do I find an asset?",
@@ -29,7 +29,7 @@ const SECTIONS = [
       {
         heading: "On-behalf-of access",
         body:
-          "When your workspace grants the app the OBO (on-behalf-of) scope, Governance Hub scopes every Unity Catalog read to your identity — you see only the catalogs, schemas, and tables your Databricks permissions allow. When OBO is unavailable, the app falls back to a workspace-wide view using the service principal, and a banner surfaces the degraded scope.",
+          "When your workspace grants the app the OBO (on-behalf-of) scope, Governance Atlas scopes every Unity Catalog read to your identity — you see only the catalogs, schemas, and tables your Databricks permissions allow. When OBO is unavailable, the app falls back to a workspace-wide view using the service principal, and a banner surfaces the degraded scope.",
       },
       {
         heading: "Why can't I see a catalog I have access to?",
@@ -39,7 +39,7 @@ const SECTIONS = [
       {
         heading: "Signing out",
         body:
-          "The Sign out button in the bottom-left rail opens your Databricks workspace sign-out page in a new tab. Governance Hub inherits your workspace session; signing out of Databricks also ends your app session.",
+          "Open the profile menu in the top-right corner and choose Sign out to open your Databricks workspace sign-out page in a new tab. Governance Atlas inherits your workspace session; signing out of Databricks also ends your app session.",
       },
     ],
   },
@@ -68,17 +68,49 @@ const SECTIONS = [
       {
         heading: "Who owns this app in my organization?",
         body:
-          "Governance Hub is deployed from your Databricks workspace. The workspace admin who deployed the app is the first contact for access issues, permission changes, and scope grants.",
+          "Governance Atlas is deployed from your Databricks workspace. The workspace admin who deployed the app is the first contact for access issues, permission changes, and scope grants.",
       },
       {
         heading: "Report a bug or request a feature",
         body:
-          "Use the GitHub issue tracker at github.com/entrada-ai/governance_hub/issues. Include: your workspace region, the surface you were on, the asset FQN (if applicable), and a screenshot. The app version is visible in Settings → Diagnostics.",
+          "Use the GitHub issue tracker at github.com/entrada-ai/atlas/issues. Include: your workspace region, the surface you were on, the asset FQN (if applicable), and a screenshot. The app version is visible in Settings -> Diagnostics.",
       },
       {
         heading: "Security & compliance",
         body:
-          "Governance Hub runs inside your Databricks workspace. No data leaves the workspace. All Unity Catalog reads respect your identity's permissions when OBO is enabled. Governance events (ownership changes, glossary edits, stewardship actions) are persisted in the governance schema you configured during setup.",
+          "Governance Atlas runs inside your Databricks workspace. No data leaves the workspace. All Unity Catalog reads respect your identity's permissions when OBO is enabled. Governance events (ownership changes, glossary edits, stewardship actions) are persisted in the governance schema you configured during setup.",
+      },
+    ],
+  },
+  {
+    id: "privacy",
+    title: "Privacy",
+    entries: [
+      {
+        heading: "Data boundary",
+        body:
+          "Governance Atlas runs inside your Databricks workspace. Metadata reads are scoped by the runtime authorization mode, and sample row values are not required for the Home command center.",
+      },
+      {
+        heading: "Identity",
+        body:
+          "The app uses your Databricks identity for actor-scoped reads when on-behalf-of access is available. If the workspace falls back to app-principal reads, the shell surfaces that degraded visibility state.",
+      },
+    ],
+  },
+  {
+    id: "terms",
+    title: "Terms",
+    entries: [
+      {
+        heading: "Operational use",
+        body:
+          "Use Governance Atlas as an internal metadata and governance workspace. Review generated or AI-assisted recommendations before taking action.",
+      },
+      {
+        heading: "Source of truth",
+        body:
+          "Unity Catalog, the configured governance schema, quality signals, lineage metadata, and audit events remain the authoritative sources for product surfaces.",
       },
     ],
   },
@@ -88,7 +120,7 @@ export function HelpPage({ onBack }) {
   useEffect(() => {
     if (typeof document === "undefined") return;
     const previous = document.title;
-    document.title = "Help — Governance Hub";
+    document.title = "Help — Governance Atlas";
     return () => {
       document.title = previous;
     };
@@ -99,7 +131,7 @@ export function HelpPage({ onBack }) {
       <header className="gh-help-page-head">
         <div>
           <div className="gh-eyebrow">Help &amp; docs</div>
-          <h1 className="gh-help-page-title">How Governance Hub works</h1>
+          <h1 className="gh-help-page-title">How Governance Atlas works</h1>
           <p className="gh-help-page-lede">
             A short, task-oriented guide to discovery, governance, and access.
             For a deeper reference and the full change log, visit the GitHub README.

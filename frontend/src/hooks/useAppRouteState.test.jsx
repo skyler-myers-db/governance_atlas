@@ -37,6 +37,9 @@ function RouteHarness() {
       <button onClick={() => route.onModuleChange("discovery")} type="button">
         Module Discovery
       </button>
+      <button onClick={() => route.onModuleChange("admin")} type="button">
+        Module Admin
+      </button>
       <button onClick={() => route.openLineageWorkspace("")} type="button">
         Clear Lineage
       </button>
@@ -145,6 +148,34 @@ describe("useAppRouteState", () => {
       expect(screen.getByTestId("sort").textContent).toBe("");
       expect(screen.getByTestId("path").textContent).toBe("/discovery");
       expect(screen.getByTestId("search").textContent).toBe("?q=finance");
+    });
+  });
+
+  it("canonicalizes admin routes from path and module navigation", async () => {
+    render(
+      <MemoryRouter
+        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+        initialEntries={["/?module=admin"]}
+      >
+        <RouteHarness />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("surface").textContent).toBe("admin");
+      expect(screen.getByTestId("path").textContent).toBe("/admin");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Module Discovery" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("surface").textContent).toBe("discovery");
+      expect(screen.getByTestId("path").textContent).toBe("/discovery");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Module Admin" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("surface").textContent).toBe("admin");
+      expect(screen.getByTestId("path").textContent).toBe("/admin");
     });
   });
 

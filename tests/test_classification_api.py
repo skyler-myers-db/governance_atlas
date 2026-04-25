@@ -10,8 +10,8 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from govhub.api import classification as classification_api
-from govhub.services import classification as classification_service
+from atlas.api import classification as classification_api
+from atlas.services import classification as classification_service
 
 
 class FakeStore:

@@ -5,9 +5,9 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from govhub.services import assets as asset_service
-from govhub.services import governance as governance_service
-from govhub.store import GovernanceStore
+from atlas.services import assets as asset_service
+from atlas.services import governance as governance_service
+from atlas.store import GovernanceStore
 
 
 class FakeUC:
@@ -77,20 +77,20 @@ class GovernanceWorkflowTests(unittest.TestCase):
 
     def test_ensure_tables_bootstraps_projection_tables(self) -> None:
         uc = FakeUC()
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         store.ensure_tables()
 
         self.assertTrue(
             any(
-                "CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`governance_queue_projection`"
+                "CREATE TABLE IF NOT EXISTS `main`.`atlas`.`governance_queue_projection`"
                 in sql
                 for sql in uc.executed
             )
         )
         self.assertTrue(
             any(
-                "CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`glossary_summary_projection`"
+                "CREATE TABLE IF NOT EXISTS `main`.`atlas`.`glossary_summary_projection`"
                 in sql
                 for sql in uc.executed
             )
@@ -98,7 +98,7 @@ class GovernanceWorkflowTests(unittest.TestCase):
 
     def test_create_change_request_persists_threads_tasks_and_activity(self) -> None:
         uc = FakeUC()
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         request_id = store.create_change_request(
             created_by="writer@example.com",
@@ -108,12 +108,12 @@ class GovernanceWorkflowTests(unittest.TestCase):
         )
 
         self.assertTrue(request_id)
-        self.assertTrue(any("INSERT INTO `main`.`governance_hub`.`threads`" in sql for sql in uc.executed))
-        self.assertTrue(any("INSERT INTO `main`.`governance_hub`.`thread_posts`" in sql for sql in uc.executed))
-        self.assertTrue(any("INSERT INTO `main`.`governance_hub`.`tasks`" in sql for sql in uc.executed))
-        self.assertTrue(any("INSERT INTO `main`.`governance_hub`.`activity_events`" in sql for sql in uc.executed))
+        self.assertTrue(any("INSERT INTO `main`.`atlas`.`threads`" in sql for sql in uc.executed))
+        self.assertTrue(any("INSERT INTO `main`.`atlas`.`thread_posts`" in sql for sql in uc.executed))
+        self.assertTrue(any("INSERT INTO `main`.`atlas`.`tasks`" in sql for sql in uc.executed))
+        self.assertTrue(any("INSERT INTO `main`.`atlas`.`activity_events`" in sql for sql in uc.executed))
         self.assertTrue(any("task-created" in sql for sql in uc.executed))
-        self.assertFalse(any("INSERT INTO `main`.`governance_hub`.`change_requests`" in sql for sql in uc.executed))
+        self.assertFalse(any("INSERT INTO `main`.`atlas`.`change_requests`" in sql for sql in uc.executed))
 
     def test_list_change_requests_reads_task_backed_workflow_rows(self) -> None:
         workflow_rows = pd.DataFrame(
@@ -148,11 +148,11 @@ class GovernanceWorkflowTests(unittest.TestCase):
         )
         uc = FakeUC(
             responses=[
-                ("FROM `main`.`governance_hub`.`tasks` t", workflow_rows),
-                ("FROM `main`.`governance_hub`.`change_requests`", pd.DataFrame()),
+                ("FROM `main`.`atlas`.`tasks` t", workflow_rows),
+                ("FROM `main`.`atlas`.`change_requests`", pd.DataFrame()),
             ]
         )
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         requests_df = store.list_change_requests(status="pending", limit=10)
 
@@ -208,11 +208,11 @@ class GovernanceWorkflowTests(unittest.TestCase):
         )
         uc = FakeUC(
             responses=[
-                ("FROM `main`.`governance_hub`.`tasks` t", workflow_rows),
-                ("FROM `main`.`governance_hub`.`change_requests`", legacy_rows),
+                ("FROM `main`.`atlas`.`tasks` t", workflow_rows),
+                ("FROM `main`.`atlas`.`change_requests`", legacy_rows),
             ]
         )
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         requests_df = store.list_change_requests(status="pending", limit=10)
 
@@ -252,10 +252,10 @@ class GovernanceWorkflowTests(unittest.TestCase):
         )
         uc = FakeUC(
             responses=[
-                ("FROM `main`.`governance_hub`.`tasks` t", workflow_rows),
+                ("FROM `main`.`atlas`.`tasks` t", workflow_rows),
             ]
         )
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         store.set_request_status(
             request_id="task-123",
@@ -265,12 +265,12 @@ class GovernanceWorkflowTests(unittest.TestCase):
             actor_role="steward",
         )
 
-        self.assertTrue(any("UPDATE `main`.`governance_hub`.`tasks`" in sql for sql in uc.executed))
-        self.assertTrue(any("UPDATE `main`.`governance_hub`.`threads`" in sql for sql in uc.executed))
-        self.assertTrue(any("INSERT INTO `main`.`governance_hub`.`thread_posts`" in sql for sql in uc.executed))
-        self.assertTrue(any("INSERT INTO `main`.`governance_hub`.`activity_events`" in sql for sql in uc.executed))
+        self.assertTrue(any("UPDATE `main`.`atlas`.`tasks`" in sql for sql in uc.executed))
+        self.assertTrue(any("UPDATE `main`.`atlas`.`threads`" in sql for sql in uc.executed))
+        self.assertTrue(any("INSERT INTO `main`.`atlas`.`thread_posts`" in sql for sql in uc.executed))
+        self.assertTrue(any("INSERT INTO `main`.`atlas`.`activity_events`" in sql for sql in uc.executed))
         self.assertTrue(any("task-status-updated" in sql for sql in uc.executed))
-        self.assertFalse(any("UPDATE `main`.`governance_hub`.`change_requests`" in sql for sql in uc.executed))
+        self.assertFalse(any("UPDATE `main`.`atlas`.`change_requests`" in sql for sql in uc.executed))
 
     def test_create_change_request_fans_out_owner_inbox_notification(self) -> None:
         owners_df = pd.DataFrame(
@@ -285,10 +285,10 @@ class GovernanceWorkflowTests(unittest.TestCase):
         )
         uc = FakeUC(
             responses=[
-                ("FROM `main`.`governance_hub`.`data_owners`", owners_df),
+                ("FROM `main`.`atlas`.`data_owners`", owners_df),
             ]
         )
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         store.create_change_request(
             created_by="writer@example.com",
@@ -297,8 +297,8 @@ class GovernanceWorkflowTests(unittest.TestCase):
             actor_role="writer",
         )
 
-        self.assertTrue(any("MERGE INTO `main`.`governance_hub`.`notifications`" in sql for sql in uc.executed))
-        self.assertTrue(any("MERGE INTO `main`.`governance_hub`.`notification_receipts`" in sql for sql in uc.executed))
+        self.assertTrue(any("MERGE INTO `main`.`atlas`.`notifications`" in sql for sql in uc.executed))
+        self.assertTrue(any("MERGE INTO `main`.`atlas`.`notification_receipts`" in sql for sql in uc.executed))
 
     def test_set_request_status_fans_out_creator_inbox_notification(self) -> None:
         workflow_rows = pd.DataFrame(
@@ -347,11 +347,11 @@ class GovernanceWorkflowTests(unittest.TestCase):
         )
         uc = FakeUC(
             responses=[
-                ("FROM `main`.`governance_hub`.`tasks` t", workflow_rows),
-                ("FROM `main`.`governance_hub`.`thread_posts` p", thread_posts),
+                ("FROM `main`.`atlas`.`tasks` t", workflow_rows),
+                ("FROM `main`.`atlas`.`thread_posts` p", thread_posts),
             ]
         )
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         store.set_request_status(
             request_id="task-123",
@@ -361,8 +361,8 @@ class GovernanceWorkflowTests(unittest.TestCase):
             actor_role="steward",
         )
 
-        self.assertTrue(any("MERGE INTO `main`.`governance_hub`.`notifications`" in sql for sql in uc.executed))
-        self.assertTrue(any("MERGE INTO `main`.`governance_hub`.`notification_receipts`" in sql for sql in uc.executed))
+        self.assertTrue(any("MERGE INTO `main`.`atlas`.`notifications`" in sql for sql in uc.executed))
+        self.assertTrue(any("MERGE INTO `main`.`atlas`.`notification_receipts`" in sql for sql in uc.executed))
 
     def test_update_notification_receipt_marks_read_and_audits(self) -> None:
         receipt_df = pd.DataFrame(
@@ -378,10 +378,10 @@ class GovernanceWorkflowTests(unittest.TestCase):
         )
         uc = FakeUC(
             responses=[
-                ("FROM `main`.`governance_hub`.`notification_receipts`", receipt_df),
+                ("FROM `main`.`atlas`.`notification_receipts`", receipt_df),
             ]
         )
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         store.update_notification_receipt(
             notification_id="note-1",
@@ -389,7 +389,7 @@ class GovernanceWorkflowTests(unittest.TestCase):
             action="read",
         )
 
-        self.assertTrue(any("UPDATE `main`.`governance_hub`.`notification_receipts`" in sql for sql in uc.executed))
+        self.assertTrue(any("UPDATE `main`.`atlas`.`notification_receipts`" in sql for sql in uc.executed))
         self.assertTrue(any("notification-receipt-updated" in sql for sql in uc.executed))
 
     def test_governance_summary_does_not_fabricate_backlog_from_owner_gaps(self) -> None:
@@ -869,10 +869,10 @@ class GovernanceWorkflowTests(unittest.TestCase):
         )
         uc = FakeUC(
             responses=[
-                ("FROM `main`.`governance_hub`.`governance_queue_projection`", projection_rows),
+                ("FROM `main`.`atlas`.`governance_queue_projection`", projection_rows),
             ]
         )
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         upserted = store.upsert_governance_queue_projection(
             scope_key="workspace:default",
@@ -886,7 +886,7 @@ class GovernanceWorkflowTests(unittest.TestCase):
 
         self.assertTrue(
             any(
-                "MERGE INTO `main`.`governance_hub`.`governance_queue_projection`" in sql
+                "MERGE INTO `main`.`atlas`.`governance_queue_projection`" in sql
                 for sql in uc.executed
             )
         )
@@ -930,11 +930,11 @@ class GovernanceWorkflowTests(unittest.TestCase):
         )
         uc = FakeUC(
             responses=[
-                ("FROM `main`.`governance_hub`.`tasks` t", workflow_rows),
-                ("FROM `main`.`governance_hub`.`change_requests`", pd.DataFrame()),
+                ("FROM `main`.`atlas`.`tasks` t", workflow_rows),
+                ("FROM `main`.`atlas`.`change_requests`", pd.DataFrame()),
             ]
         )
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         projection = store.refresh_governance_queue_projection(updated_by="system")
 
@@ -943,7 +943,7 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertEqual(projection["laneCounts"]["ownership"], 1)
         self.assertTrue(
             any(
-                "MERGE INTO `main`.`governance_hub`.`governance_queue_projection`" in sql
+                "MERGE INTO `main`.`atlas`.`governance_queue_projection`" in sql
                 for sql in uc.executed
             )
         )
@@ -967,10 +967,10 @@ class GovernanceWorkflowTests(unittest.TestCase):
         )
         uc = FakeUC(
             responses=[
-                ("FROM `main`.`governance_hub`.`glossary_summary_projection`", projection_rows),
+                ("FROM `main`.`atlas`.`glossary_summary_projection`", projection_rows),
             ]
         )
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         upserted = store.upsert_glossary_summary_projection(
             term_id="term-1",
@@ -985,7 +985,7 @@ class GovernanceWorkflowTests(unittest.TestCase):
 
         self.assertTrue(
             any(
-                "MERGE INTO `main`.`governance_hub`.`glossary_summary_projection`" in sql
+                "MERGE INTO `main`.`atlas`.`glossary_summary_projection`" in sql
                 for sql in uc.executed
             )
         )
@@ -1038,13 +1038,13 @@ class GovernanceWorkflowTests(unittest.TestCase):
         )
         uc = FakeUC(
             responses=[
-                ("SELECT * FROM `main`.`governance_hub`.`glossary_terms` WHERE term_id = 'term-1' LIMIT 1", glossary_terms_df.head(1)),
-                ("FROM `main`.`governance_hub`.`glossary_term_reviewers` WHERE term_id = 'term-1'", glossary_reviewers_df),
-                ("SELECT * FROM `main`.`governance_hub`.`glossary_terms`  ORDER BY lower(name) LIMIT 5000", glossary_terms_df),
-                ("FROM `main`.`governance_hub`.`glossary_term_links`", glossary_links_df),
+                ("SELECT * FROM `main`.`atlas`.`glossary_terms` WHERE term_id = 'term-1' LIMIT 1", glossary_terms_df.head(1)),
+                ("FROM `main`.`atlas`.`glossary_term_reviewers` WHERE term_id = 'term-1'", glossary_reviewers_df),
+                ("SELECT * FROM `main`.`atlas`.`glossary_terms`  ORDER BY lower(name) LIMIT 5000", glossary_terms_df),
+                ("FROM `main`.`atlas`.`glossary_term_links`", glossary_links_df),
             ]
         )
-        store = GovernanceStore(uc, "main", "governance_hub")
+        store = GovernanceStore(uc, "main", "atlas")
 
         projection = store.refresh_glossary_summary_projection(term_id="term-1", updated_by="system")
 
@@ -1054,7 +1054,7 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertEqual(projection["reviewerCount"], 2)
         self.assertTrue(
             any(
-                "MERGE INTO `main`.`governance_hub`.`glossary_summary_projection`" in sql
+                "MERGE INTO `main`.`atlas`.`glossary_summary_projection`" in sql
                 for sql in uc.executed
             )
         )

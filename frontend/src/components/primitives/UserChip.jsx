@@ -33,6 +33,7 @@ function prettyRole(role = "") {
 
 export function UserChip({
   userEmail = "",
+  userName = "",
   role = "",
   roleProvisional = false,
   inboxUnreadCount = 0,
@@ -43,8 +44,9 @@ export function UserChip({
   onOpenSettings,
   onOpenCapabilities,
 }) {
-  const displayName = prettyName(userEmail);
-  const displayRole = prettyRole(role) + (roleProvisional ? " (verifying)" : "");
+  const displayName = prettyName(userName || userEmail);
+  const displayRole = prettyRole(role);
+  const avatarLabel = userName || displayName || userEmail;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -95,16 +97,12 @@ export function UserChip({
       <button
         aria-expanded={menuOpen}
         aria-haspopup="menu"
-        aria-label={`Open profile menu for ${displayName}`}
+        aria-label={`Open profile menu for ${displayName}${roleProvisional ? ". Role verification pending." : ""}`}
         className="gh-user-chip-trigger"
         onClick={() => setMenuOpen((current) => !current)}
         type="button"
       >
-        <OwnerAvatar owner={userEmail || displayName} size={42} className="gh-user-chip-avatar" />
-        <div className="gh-user-chip-identity">
-          <div className="gh-user-chip-name">{displayName}</div>
-          <div className="gh-user-chip-role">{displayRole}</div>
-        </div>
+        <OwnerAvatar owner={avatarLabel} size={42} className="gh-user-chip-avatar" />
         {/* Chevron signals this is a dropdown trigger — operator 2026-04-19
             flagged the missing disclosure cue next to the name. */}
         <span
@@ -119,6 +117,9 @@ export function UserChip({
           <div className="gh-user-chip-menu-header">
             <div className="gh-user-chip-menu-name">{displayName}</div>
             <div className="gh-user-chip-menu-email">{userEmail || "Workspace user"}</div>
+            {roleProvisional ? (
+              <div className="gh-user-chip-menu-email">Role verification pending.</div>
+            ) : null}
           </div>
           {onOpenSettings ? (
             <button

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import unittest
 
-from govhub import migrations
+from atlas import migrations
 
 
 class FakeColumn:
@@ -32,7 +32,7 @@ class FakeUC:
 
     def execute(self, sql: str) -> None:
         self.executed.append(sql)
-        if "INSERT INTO `main`.`governance_hub`.`schema_migrations`" not in sql:
+        if "INSERT INTO `main`.`atlas`.`schema_migrations`" not in sql:
             return
         match = re.search(r"VALUES \(\s*(\d+),", sql)
         if match:
@@ -48,11 +48,11 @@ class MigrationTests(unittest.TestCase):
     def test_apply_migrations_creates_schema_migration_table_and_marks_baseline(self) -> None:
         uc = FakeUC()
 
-        applied = migrations.apply_migrations(uc, "main", "governance_hub")
+        applied = migrations.apply_migrations(uc, "main", "atlas")
 
         self.assertEqual(applied, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`schema_migrations`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`schema_migrations`" in sql for sql in uc.executed)
         )
         self.assertTrue(
             any("metadata_audit_log" in sql for sql in uc.executed)
@@ -70,48 +70,48 @@ class MigrationTests(unittest.TestCase):
             any("entity_aliases" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`threads`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`threads`" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`thread_posts`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`thread_posts`" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`tasks`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`tasks`" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`activity_events`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`activity_events`" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`notifications`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`notifications`" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`notification_receipts`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`notification_receipts`" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`notification_preferences`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`notification_preferences`" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`governance_queue_projection`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`governance_queue_projection`" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`glossary_summary_projection`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`glossary_summary_projection`" in sql for sql in uc.executed)
         )
         # Phase 5 Tranche A tables landed in migration v8.
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`change_events`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`change_events`" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`entity_versions`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`entity_versions`" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`entity_relationships`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`entity_relationships`" in sql for sql in uc.executed)
         )
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`identity_directory_memberships`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`identity_directory_memberships`" in sql for sql in uc.executed)
         )
         # Phase 4 Tranche 2 / Phase 12 — export_jobs landed in migration v9.
         self.assertTrue(
-            any("CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`export_jobs`" in sql for sql in uc.executed)
+            any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`export_jobs`" in sql for sql in uc.executed)
         )
         # Phase 12 — background_work queue + dead letters landed in migration v10.
         for table in (
@@ -120,7 +120,7 @@ class MigrationTests(unittest.TestCase):
             "background_dead_letters",
         ):
             self.assertTrue(
-                any(f"CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`{table}`" in sql for sql in uc.executed),
+                any(f"CREATE TABLE IF NOT EXISTS `main`.`atlas`.`{table}`" in sql for sql in uc.executed),
                 f"expected {table} create statement",
             )
         # Phase 8 — custom properties + profile tables landed in migration v11.
@@ -133,7 +133,7 @@ class MigrationTests(unittest.TestCase):
             "profile_column_metrics",
         ):
             self.assertTrue(
-                any(f"CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`{table}`" in sql for sql in uc.executed),
+                any(f"CREATE TABLE IF NOT EXISTS `main`.`atlas`.`{table}`" in sql for sql in uc.executed),
                 f"expected {table} create statement",
             )
         # Phase 10 — quality core tables landed in migration v12.
@@ -147,7 +147,7 @@ class MigrationTests(unittest.TestCase):
             "quality_alerts",
         ):
             self.assertTrue(
-                any(f"CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`{table}`" in sql for sql in uc.executed),
+                any(f"CREATE TABLE IF NOT EXISTS `main`.`atlas`.`{table}`" in sql for sql in uc.executed),
                 f"expected {table} create statement",
             )
         # Phase 11 — breadth + scale tables landed in migration v13.
@@ -163,13 +163,13 @@ class MigrationTests(unittest.TestCase):
             "contracts",
         ):
             self.assertTrue(
-                any(f"CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`{table}`" in sql for sql in uc.executed),
+                any(f"CREATE TABLE IF NOT EXISTS `main`.`atlas`.`{table}`" in sql for sql in uc.executed),
                 f"expected {table} create statement",
             )
         # Phase A9.4 — classification_recommendations landed in migration v15.
         self.assertTrue(
             any(
-                "CREATE TABLE IF NOT EXISTS `main`.`governance_hub`.`classification_recommendations`" in sql
+                "CREATE TABLE IF NOT EXISTS `main`.`atlas`.`classification_recommendations`" in sql
                 for sql in uc.executed
             ),
             "expected classification_recommendations create statement",
@@ -178,10 +178,10 @@ class MigrationTests(unittest.TestCase):
 
     def test_apply_migrations_is_idempotent(self) -> None:
         uc = FakeUC()
-        migrations.apply_migrations(uc, "main", "governance_hub")
+        migrations.apply_migrations(uc, "main", "atlas")
         executed_after_first_run = len(uc.executed)
 
-        applied = migrations.apply_migrations(uc, "main", "governance_hub")
+        applied = migrations.apply_migrations(uc, "main", "atlas")
 
         self.assertEqual(applied, [])
         # Idempotent replay re-runs `ensure_schema_migrations_table`

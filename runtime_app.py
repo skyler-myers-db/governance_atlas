@@ -1,4 +1,4 @@
-"""Governance Hub application runtime."""
+"""Governance Atlas application runtime."""
 
 from __future__ import annotations
 
@@ -20,8 +20,10 @@ from pydantic import BaseModel, Field, field_validator
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from govhub.api import (
+from atlas.api import (
     build_admin_router,
+    build_atlas_ai_router,
+    build_atlas_router,
     build_assets_router,
     build_catalog_router,
     build_classification_router,
@@ -32,7 +34,7 @@ from govhub.api import (
     build_lineage_router,
     build_runtime_router,
 )
-from govhub.api.cache import (
+from atlas.api.cache import (
     _CACHE_LOCK,
     _OBO_CLIENT_CACHE,
     _OBO_CLIENT_MAX_ENTRIES,
@@ -43,13 +45,14 @@ from govhub.api.cache import (
     _ttl_cache_pop,
     _ttl_value,
 )
-from govhub.api.identity import (
+from atlas.api.identity import (
     _request_auth_mode,
     _request_obo_token,
     _request_read_visibility_scope,
+    _user_display_name,
     _user_email,
 )
-from govhub.api.response import (
+from atlas.api.response import (
     _error_response,
     _future_iso,
     _now_iso,
@@ -58,37 +61,69 @@ from govhub.api.response import (
     _utc_iso,
     _with_meta,
 )
-from govhub.config import AppConfig
-from govhub.runtime_contract import validate_frontend_bundle
-from govhub.services import assets as asset_service
-from govhub.services import capabilities as capability_service
-from govhub.services import governance as governance_service
-from govhub.services import lineage as lineage_service
-from govhub.services import runtime_setup as runtime_setup_service
-from govhub.store import GovernanceStore
-from govhub.uc import UCSQLClient, _is_skippable_metadata_error, is_missing_sql_scope_error
+from atlas.config import AppConfig
+from atlas.runtime_contract import validate_frontend_bundle
+from atlas.services import assets as asset_service
+from atlas.services import capabilities as capability_service
+from atlas.services import governance as governance_service
+from atlas.services import lineage as lineage_service
+from atlas.services import runtime_setup as runtime_setup_service
+from atlas.store import GovernanceStore
+from atlas.uc import UCSQLClient, _is_skippable_metadata_error, is_missing_sql_scope_error
 
 
 ROOT = Path(__file__).resolve().parent
 REACT_DIST_DIR = ROOT / "frontend" / "dist"
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
-KNOWN_SURFACES = {"discovery", "entity", "lineage", "governance"}
-CLIENT_ROUTE_PREFIXES = {"discovery", "entity", "lineage", "governance", "glossary", "audit", "taxonomy", "help", "inbox", "home", "capabilities", "insights"}
+KNOWN_SURFACES = {
+    "admin",
+    "audit",
+    "capabilities",
+    "cde",
+    "discovery",
+    "entity",
+    "governance",
+    "help",
+    "home",
+    "inbox",
+    "insights",
+    "lineage",
+    "taxonomy",
+}
+CLIENT_ROUTE_PREFIXES = {
+    "admin",
+    "audit",
+    "capabilities",
+    "cde",
+    "cdes",
+    "discovery",
+    "entity",
+    "governance",
+    "glossary",
+    "help",
+    "home",
+    "inbox",
+    "insights",
+    "lineage",
+    "taxonomy",
+}
 MUTATION_ROLES = {"writer", "steward", "admin"}
-APP_VERSION = "governance-hub-runtime-6"
+APP_VERSION = "atlas-runtime-6"
 REQUEST_ID_HEADER = "X-Request-ID"
-CLIENT_REQUEST_ID_HEADER = "X-GovHub-Client-Request-ID"
-BUILD_ID_HEADER = "X-GovHub-Build-ID"
-DURATION_HEADER = "X-GovHub-Request-Duration-Ms"
+CLIENT_REQUEST_ID_HEADER = "X-GOVAT-Client-Request-ID"
+BUILD_ID_HEADER = "X-GOVAT-Build-ID"
+DURATION_HEADER = "X-GOVAT-Request-Duration-Ms"
 
-LOGGER = logging.getLogger("govhub.runtime")
+LOGGER = logging.getLogger("atlas.runtime")
 if not LOGGER.handlers:
     _handler = logging.StreamHandler()
     _handler.setFormatter(logging.Formatter("%(message)s"))
     LOGGER.addHandler(_handler)
 LOGGER.setLevel(
     getattr(
-        logging, os.getenv("GOVHUB_LOG_LEVEL", "INFO").strip().upper(), logging.INFO
+        logging,
+        (os.getenv("GOVAT_LOG_LEVEL") or "INFO").strip().upper(),
+        logging.INFO,
     )
 )
 LOGGER.propagate = False
@@ -143,10 +178,22 @@ SHELL_API_CONTRACT = {
     "governanceGlossaryTerm": "/api/governance/glossary/:id",
     "runtimeStatus": "/api/runtime/status",
     "adminBackgroundStatus": "/api/admin/background/status",
+    "commandCenter": "/api/atlas/command-center",
+    "asset360": "/api/atlas/assets/{asset_fqn}/360",
+    "governanceWorkbench": "/api/atlas/governance/workbench",
+    "governanceRequestDetail": "/api/atlas/governance/requests/{request_id}",
+    "insightsDashboard": "/api/atlas/insights",
+    "taxonomyOverview": "/api/atlas/taxonomy/overview",
+    "cdeDashboard": "/api/atlas/cde",
+    "cdeDetail": "/api/atlas/cde/{cde_id}",
+    "auditEvidence": "/api/atlas/audit/evidence",
+    "adminControlCenter": "/api/atlas/admin/control-center",
+    "atlasAiRecommendations": "/api/atlas-ai/recommendations",
+    "atlasAiChat": "/api/atlas-ai/chat",
 }
 
 
-app = FastAPI(title="Governance Hub Runtime")
+app = FastAPI(title="Governance Atlas Runtime")
 app.mount(
     "/assets",
     StaticFiles(directory=str(REACT_DIST_DIR / "assets"), check_dir=False),
@@ -543,6 +590,9 @@ def _route_context(request: Request) -> Dict[str, str]:
             requested_asset = remainder
         elif root in {"governance", "glossary"}:
             requested_surface = "governance"
+        elif root in {"admin", "audit", "capabilities", "cde", "cdes", "help", "home", "inbox", "insights", "taxonomy"}:
+            requested_surface = "cde" if root == "cdes" else root
+            requested_asset = ""
     if requested_surface not in KNOWN_SURFACES:
         requested_surface = (
             requested_module if requested_module in KNOWN_SURFACES else ""
@@ -632,9 +682,7 @@ def _log_request_event(
     payload = {
         "event": "http_request",
         "httpRequestId": _http_request_id(request),
-        "clientRequestId": (
-            request.headers.get(CLIENT_REQUEST_ID_HEADER) or ""
-        ).strip(),
+        "clientRequestId": (request.headers.get(CLIENT_REQUEST_ID_HEADER) or "").strip(),
         "buildId": _build_id(),
         "method": request.method,
         "path": path,
@@ -794,7 +842,7 @@ def _runtime_diagnostics_payload(
     }
 
 
-from govhub.services.inventory import (
+from atlas.services.inventory import (
     asset_exists as _asset_exists,
     asset_is_openable as _asset_is_openable,
     asset_is_visible as _asset_is_visible,
@@ -859,7 +907,7 @@ def _safe_int(value: Any) -> int:
         return 0
 
 
-from govhub.services.inventory import (
+from atlas.services.inventory import (
     inventory_option_counts as _inventory_option_counts,
 )
 
@@ -915,7 +963,7 @@ def _asset_detail_payload(
     )
 
 
-from govhub.services.metadata_audit import (
+from atlas.services.metadata_audit import (
     audit_asset_snapshot as _metadata_audit_asset_snapshot,
     audit_column_snapshot as _metadata_audit_column_snapshot,
     record_audit_log as _record_metadata_audit,
@@ -952,7 +1000,7 @@ def _governance_summary(request: Optional[Request] = None) -> Dict[str, Any]:
     return payload
 
 
-from govhub.services.inventory import (
+from atlas.services.inventory import (
     bootstrap_inventory_summary as _bootstrap_inventory_summary,
 )
 
@@ -979,7 +1027,7 @@ def _empty_inventory_boot_message(summary: Dict[str, Any]) -> str:
     )
 
 
-from govhub.services.inventory import (
+from atlas.services.inventory import (
     inventory_option_values as _inventory_option_values,
 )
 
@@ -1008,7 +1056,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     # needing workspace log access.
     import logging
     import traceback
-    logger = logging.getLogger("govhub")
+    logger = logging.getLogger("atlas")
     logger.error("Unhandled %s on %s: %s", exc.__class__.__name__, request.url.path, exc)
     logger.debug("Traceback:\n%s", traceback.format_exc())
 
@@ -1045,7 +1093,7 @@ def _ensure_governance_store() -> GovernanceStore:
     return _store()
 
 
-from govhub.api.assets import (
+from atlas.api.assets import (
     AssetAvailabilityRequest,
     AssetDescriptionPatch,
     AssetMetadataPatch,
@@ -1058,7 +1106,7 @@ from govhub.api.assets import (
 )
 
 
-from govhub.api.governance import (
+from atlas.api.governance import (
     GlossaryTermUpsert,
     GovernanceNotificationPatch,
     GovernanceRequestStatusPatch,
@@ -1470,9 +1518,20 @@ def _shell_payload(
             "metrics": [],
             "role": _lightweight_user_role(request),
             "roleProvisional": True,
+            "userName": _user_display_name(request),
             "userEmail": _user_email(request),
             "buildId": _build_id(),
             "diagnosticsEnabled": _config().diagnostics_enabled,
+            "environment": {
+                "label": _config().environment_label or "Live workspace",
+            },
+            "workspaceHost": _config().workspace_host,
+            "product": {
+                "companyName": "Entrada",
+                "productName": "Governance Atlas",
+                "shortName": "Atlas",
+                "aiName": "Atlas AI",
+            },
         },
         "identity": {
             "actorEmail": _user_email(request),
@@ -1533,7 +1592,7 @@ def _inject_bootstrap(html_text: str, payload: Optional[Dict[str, Any]]) -> str:
     if payload is None:
         return html_text
     bootstrap = json.dumps(payload, default=str).replace("</", "<\\/")
-    inline_bootstrap = f"<script>window.__GOVHUB_BOOTSTRAP__ = {bootstrap};</script>"
+    inline_bootstrap = f"<script>window.__GOVAT_BOOTSTRAP__ = {bootstrap};</script>"
     return html_text.replace("</head>", f"{inline_bootstrap}\n  </head>")
 
 
@@ -1560,7 +1619,7 @@ def index(request: Request) -> HTMLResponse:
     return _spa_shell_response(request)
 
 
-from govhub.api.runtime import (  # noqa: E402
+from atlas.api.runtime import (  # noqa: E402
     _api_bootstrap_response,
     _api_runtime_status_response,
 )
@@ -1589,7 +1648,7 @@ def _warmup_live_runtime() -> None:
         except Exception:
             pass
 
-    thread = threading.Thread(target=_warm, name="govhub-warmup", daemon=True)
+    thread = threading.Thread(target=_warm, name="atlas-warmup", daemon=True)
     thread.start()
 
 
@@ -1631,8 +1690,8 @@ def _start_background_drainer() -> None:
     teardown.
     """
     import time
-    from govhub.services.background_runner import drain_queued_batch
-    from govhub.api.export import _handle_export_work
+    from atlas.services.background_runner import drain_queued_batch
+    from atlas.api.export import _handle_export_work
 
     def _drain_loop() -> None:
         _DRAINER_STATE["running"] = True
@@ -1661,7 +1720,7 @@ def _start_background_drainer() -> None:
                 time.sleep(1)
         _DRAINER_STATE["running"] = False
 
-    thread = threading.Thread(target=_drain_loop, name="govhub-bg-drainer", daemon=True)
+    thread = threading.Thread(target=_drain_loop, name="atlas-bg-drainer", daemon=True)
     thread.start()
 
 
@@ -1671,7 +1730,7 @@ def _stop_background_drainer() -> None:
     _BACKGROUND_DRAINER_STOPPED = True
 
 
-from govhub.api.assets import (  # noqa: E402
+from atlas.api.assets import (  # noqa: E402
     api_asset_availability,
     api_asset_detail,
     api_patch_asset_description,
@@ -1682,13 +1741,13 @@ from govhub.api.assets import (  # noqa: E402
     api_patch_column_metadata,
     api_patch_column_tags,
 )
-from govhub.api.discovery import api_discovery_search  # noqa: E402
+from atlas.api.discovery import api_discovery_search  # noqa: E402
 
 
-from govhub.api.lineage import api_lineage  # noqa: E402
+from atlas.api.lineage import api_lineage  # noqa: E402
 
 
-from govhub.api.governance import (  # noqa: E402
+from atlas.api.governance import (  # noqa: E402
     api_governance_create_request,
     api_governance_glossary,
     api_governance_glossary_term,
@@ -1712,6 +1771,8 @@ app.include_router(build_classification_router())
 app.include_router(build_export_router())
 app.include_router(build_admin_router())
 app.include_router(build_insights_router())
+app.include_router(build_atlas_router())
+app.include_router(build_atlas_ai_router())
 
 
 @app.get("/{client_path:path}", response_class=HTMLResponse, include_in_schema=False)

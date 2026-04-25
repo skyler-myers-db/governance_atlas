@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { govhubQueryClient } from "../lib/queryClient";
+import { atlasQueryClient } from "../lib/queryClient";
 import { primeLineagePayload, useLineage } from "./useLineage";
 
 const fetchLineageMock = vi.fn();
@@ -11,13 +11,13 @@ vi.mock("../lib/api", () => ({
 }));
 
 function Wrapper({ children }) {
-  return <QueryClientProvider client={govhubQueryClient}>{children}</QueryClientProvider>;
+  return <QueryClientProvider client={atlasQueryClient}>{children}</QueryClientProvider>;
 }
 
 describe("useLineage", () => {
   beforeEach(() => {
     fetchLineageMock.mockReset();
-    govhubQueryClient.clear();
+    atlasQueryClient.clear();
   });
 
   it("starts without provisional seeded lineage and resolves to the live payload", async () => {

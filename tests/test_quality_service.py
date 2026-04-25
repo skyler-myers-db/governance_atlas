@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from govhub.services import quality as quality_service
+from atlas.services import quality as quality_service
 
 
 class ValidateCustomSqlTests(unittest.TestCase):
