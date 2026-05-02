@@ -9,9 +9,11 @@ const LINEAGE_CACHE_TTL_MS = 300_000;
 // before the user can click them, causing a full refetch on refocus.
 const LINEAGE_GC_TIME_MS = 15 * 60 * 1000;
 const LINEAGE_QUERY_PREFIX = "lineage";
+const LINEAGE_PROFILE_FULL = "full";
+const LINEAGE_PROFILE_INITIAL = "initial";
 
-function lineageQueryKey(assetFqn) {
-  return [LINEAGE_QUERY_PREFIX, assetFqn];
+function lineageQueryKey(assetFqn, profile = LINEAGE_PROFILE_FULL) {
+  return [LINEAGE_QUERY_PREFIX, profile, assetFqn];
 }
 
 function queryUpdatedAt(queryKey) {
@@ -25,9 +27,9 @@ function isFresh(queryKey, maxAgeMs = null) {
   return Date.now() - updatedAt <= maxAgeMs;
 }
 
-function readCachedLineage(assetFqn, { maxAgeMs = LINEAGE_CACHE_TTL_MS } = {}) {
+function readCachedLineage(assetFqn, { maxAgeMs = LINEAGE_CACHE_TTL_MS, profile = LINEAGE_PROFILE_FULL } = {}) {
   if (!assetFqn) return null;
-  const queryKey = lineageQueryKey(assetFqn);
+  const queryKey = lineageQueryKey(assetFqn, profile);
   const payload = atlasQueryClient.getQueryData(queryKey) || null;
   if (!payload) return null;
   if (!isFresh(queryKey, maxAgeMs)) return null;
@@ -36,18 +38,28 @@ function readCachedLineage(assetFqn, { maxAgeMs = LINEAGE_CACHE_TTL_MS } = {}) {
 
 function normalizeCanonicalPayload(assetFqn, payload, { authoritative = true, source = "live" } = {}) {
   if (!assetFqn || !payload) return null;
+  const meta = payload.meta && typeof payload.meta === "object" ? payload.meta : {};
+  const payloadState = String(meta.state || payload.state || "").trim().toLowerCase();
+  const payloadSource = String(meta.source || payload.source || source || "").trim().toLowerCase();
+  const mockPayload = payloadState === "prototype_mock" || payloadSource === "local-prototype-mock";
+  const resolvedAuthoritative = mockPayload
+    ? false
+    : typeof payload.authoritative === "boolean"
+      ? payload.authoritative
+      : authoritative;
   return {
     ...payload,
     fqn: payload.fqn || assetFqn,
-    authoritative,
-    source,
+    authoritative: resolvedAuthoritative,
+    source: payload.source || meta.source || source,
   };
 }
 
 function setCachedLineage(assetFqn, payload) {
   const normalized = normalizeCanonicalPayload(assetFqn, payload);
   if (!normalized) return payload;
-  atlasQueryClient.setQueryData(lineageQueryKey(assetFqn), normalized);
+  const profile = normalized.profile === LINEAGE_PROFILE_INITIAL ? LINEAGE_PROFILE_INITIAL : LINEAGE_PROFILE_FULL;
+  atlasQueryClient.setQueryData(lineageQueryKey(assetFqn, profile), normalized);
   return normalized;
 }
 
@@ -58,39 +70,55 @@ export function primeLineagePayload(assetFqn, payload) {
 export function invalidateLineage(assetFqn) {
   if (!assetFqn) return;
   atlasQueryClient.removeQueries({
-    queryKey: lineageQueryKey(assetFqn),
-    exact: true,
+    queryKey: [LINEAGE_QUERY_PREFIX],
+    exact: false,
+    predicate: (query) => query.queryKey?.[2] === assetFqn,
   });
 }
 
 export function prefetchLineage(assetFqn, options = {}) {
   if (!assetFqn) return Promise.resolve(null);
   const force = options.force === true;
-  const cached = force ? null : readCachedLineage(assetFqn);
+  const profile = options.profile === LINEAGE_PROFILE_INITIAL ? LINEAGE_PROFILE_INITIAL : LINEAGE_PROFILE_FULL;
+  const cached = force ? null : readCachedLineage(assetFqn, { profile });
   if (cached) return Promise.resolve(cached);
   return atlasQueryClient
     .fetchQuery({
-      queryKey: lineageQueryKey(assetFqn),
+      queryKey: lineageQueryKey(assetFqn, profile),
       staleTime: LINEAGE_CACHE_TTL_MS,
       gcTime: LINEAGE_GC_TIME_MS,
-      queryFn: ({ signal }) => fetchLineage(assetFqn, { signal }),
+      queryFn: ({ signal }) => fetchLineage(assetFqn, { signal, profile }),
     })
     .then((payload) => setCachedLineage(assetFqn, payload))
-    .catch(() => readCachedLineage(assetFqn, { maxAgeMs: null }) || null);
+    .catch(() => readCachedLineage(assetFqn, { maxAgeMs: null, profile }) || null);
 }
 
 export function useLineage(assetFqn, enabled = true) {
-  const cachedPayload = useMemo(
-    () => readCachedLineage(assetFqn, { maxAgeMs: null }),
+  const cachedFullPayload = useMemo(
+    () => readCachedLineage(assetFqn, { maxAgeMs: null, profile: LINEAGE_PROFILE_FULL }),
+    [assetFqn],
+  );
+  const cachedInitialPayload = useMemo(
+    () => readCachedLineage(assetFqn, { maxAgeMs: null, profile: LINEAGE_PROFILE_INITIAL }),
     [assetFqn],
   );
 
-  const query = useQuery({
-    queryKey: lineageQueryKey(assetFqn || ""),
+  const initialQuery = useQuery({
+    queryKey: lineageQueryKey(assetFqn || "", LINEAGE_PROFILE_INITIAL),
     enabled: Boolean(assetFqn) && enabled,
     staleTime: LINEAGE_CACHE_TTL_MS,
     gcTime: LINEAGE_GC_TIME_MS,
-    queryFn: ({ signal }) => fetchLineage(assetFqn, { signal }),
+    retry: false,
+    queryFn: ({ signal }) => fetchLineage(assetFqn, { signal, profile: LINEAGE_PROFILE_INITIAL }),
+  });
+
+  const fullQuery = useQuery({
+    queryKey: lineageQueryKey(assetFqn || "", LINEAGE_PROFILE_FULL),
+    enabled: Boolean(assetFqn) && enabled && Boolean(initialQuery.data || cachedInitialPayload || cachedFullPayload),
+    staleTime: LINEAGE_CACHE_TTL_MS,
+    gcTime: LINEAGE_GC_TIME_MS,
+    retry: false,
+    queryFn: ({ signal }) => fetchLineage(assetFqn, { signal, profile: LINEAGE_PROFILE_FULL }),
   });
   // Neighbor prefetch is intentionally *not* auto-triggered here. Eager
   // stampedes (8 parallel lineage queries) starved the SQL warehouse and
@@ -109,8 +137,22 @@ export function useLineage(assetFqn, enabled = true) {
     };
   }
 
-  const payload = query.data || cachedPayload || null;
-  const authoritative = Boolean(payload && payload.authoritative !== false);
+  const initialPayload = initialQuery.data
+    ? normalizeCanonicalPayload(assetFqn, initialQuery.data, { authoritative: true, source: "live" })
+    : cachedInitialPayload || null;
+  const fullPayload = fullQuery.data
+    ? normalizeCanonicalPayload(assetFqn, fullQuery.data, { authoritative: true, source: "live" })
+    : null;
+  const payload = fullPayload || cachedFullPayload || initialPayload || null;
+  const meta = payload?.meta && typeof payload.meta === "object" ? payload.meta : {};
+  const payloadState = String(meta.state || payload?.state || "").trim().toLowerCase();
+  const payloadSource = String(meta.source || payload?.source || "").trim().toLowerCase();
+  const authoritative = Boolean(
+    payload &&
+      payloadState !== "prototype_mock" &&
+      payloadSource !== "local-prototype-mock" &&
+      (payload.authoritative === true || meta.authoritative === true || ["authoritative", "live"].includes(payloadState)),
+  );
   const provisional = Boolean(payload) && !authoritative;
 
   if (!enabled) {
@@ -125,8 +167,10 @@ export function useLineage(assetFqn, enabled = true) {
   }
 
   return {
-    loading: query.isPending || (query.isFetching && !authoritative),
-    error: query.isError ? query.error?.message || "Failed to load lineage." : "",
+    loading: !payload && initialQuery.isPending && !initialQuery.isError,
+    error: !payload && (initialQuery.isError || fullQuery.isError)
+      ? initialQuery.error?.message || fullQuery.error?.message || "Failed to load lineage."
+      : "",
     graph: payload?.graphs || null,
     payload: payload || null,
     authoritative,

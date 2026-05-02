@@ -1,0 +1,86 @@
+{
+  "generatedAt": "2026-05-01T13:27:37.009Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f1455d0c6b10809cde14296fa99d23",
+  "buildId": "frontend-0821ce3424c6",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "route": "audit",
+  "captures": [
+    {
+      "route": "audit",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/audit-live-v285-databricks/audit-live-1536x1024.png",
+      "loaded": true
+    }
+  ],
+  "interactions": [
+    {
+      "route": "audit",
+      "interaction": "deployed-audit-date-filter-and-detail",
+      "loaded": false,
+      "error": "Copy request ID was not visible and enabled",
+      "screenshot": "docs/northstar_visual_qa/audit-live-v285-databricks/audit-live-failure-deployed-audit-date-filter-and-detail.png"
+    },
+    {
+      "route": "audit",
+      "interaction": "deployed-audit-report-artifact",
+      "loaded": true,
+      "artifact": {
+        "type": "audit-report",
+        "path": "docs/northstar_visual_qa/audit-live-v285-databricks/downloads/audit-report-governance-audit-report-24h.json",
+        "suggestedFilename": "governance-audit-report-24h.json",
+        "bytes": 46911
+      },
+      "artifactEvidenceKind": "runtime_evidence",
+      "authoritative": true,
+      "eventCount": 25,
+      "validation": {
+        "checks": {
+          "hasEvents": true,
+          "hasSummary": true,
+          "hasEvidenceKind": true,
+          "notPrototypeMock": true
+        }
+      }
+    },
+    {
+      "route": "audit",
+      "interaction": "deployed-audit-csv-artifact",
+      "loaded": true,
+      "artifact": {
+        "type": "audit-events",
+        "path": "docs/northstar_visual_qa/audit-live-v285-databricks/downloads/audit-events-governance-audit-24h.csv",
+        "suggestedFilename": "governance-audit-24h.csv",
+        "bytes": 5429
+      },
+      "header": "\"time_utc\",\"actor\",\"action\",\"status\",\"target\",\"evidence\",\"request_id\",\"evidence_kind\",\"authoritative\"",
+      "validation": {
+        "checks": {
+          "hasRows": true,
+          "hasEvidenceKindColumn": true,
+          "hasAuthoritativeColumn": true,
+          "notPrototypeMockCsv": true
+        }
+      }
+    }
+  ],
+  "downloads": [
+    {
+      "type": "audit-report",
+      "path": "docs/northstar_visual_qa/audit-live-v285-databricks/downloads/audit-report-governance-audit-report-24h.json",
+      "suggestedFilename": "governance-audit-report-24h.json",
+      "bytes": 46911
+    },
+    {
+      "type": "audit-events",
+      "path": "docs/northstar_visual_qa/audit-live-v285-databricks/downloads/audit-events-governance-audit-24h.csv",
+      "suggestedFilename": "governance-audit-24h.csv",
+      "bytes": 5429
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "console": [],
+  "passed": false
+}

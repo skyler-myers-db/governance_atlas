@@ -1,0 +1,1730 @@
+{
+  "generatedAt": "2026-04-30T17:31:22.247Z",
+  "baseUrl": "http://127.0.0.1:5173",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "evidenceKind": "prototype_mock",
+  "mockEvidenceWarning": "Prototype mock data, not live Databricks evidence.",
+  "routeFilter": [
+    "control-center"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "control-center"
+  ],
+  "viewports": [
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    }
+  ],
+  "expectedCaptureCount": 1,
+  "captures": [
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/control-functional-v53-local/control-center-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/control-functional-v53-local/control-center-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1296,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 952
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 977,
+          "clientHeight": 952,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": {
+            "top": 72,
+            "left": 240,
+            "right": 1536,
+            "bottom": 1024,
+            "width": 1296,
+            "height": 952
+          },
+          "shell": {
+            "top": 98,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1049.09375,
+            "width": 1120,
+            "height": 951.09375
+          },
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Prototype diagnostic rows preserve the Control Center structure but are not live Databricks runtime, connection, or policy proof. Scheduled jobs Reported runtime job inventory JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Prototype Lineage collector Every 1 hr 21 min ago Prototype Quality + freshness check Every 1 hr 32 min ago Prototype Policy engine evaluator Hourly + on-write 7 min ago Prototype PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype Trust score recompute Daily 03:00 UTC 7 hr ago Prototype Integrations ▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype ▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype ▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype ▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype ▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype ▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype Policy coverage Policy checks are shown when diagnostics report coverage Owner required on production (prototype) Prototype 96% CDEs must have description (prototype) Prototype 100% PII columns require tag (prototype) Prototype ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "UC metadata sweeper Every 15 min 4 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage collector Every 1 hr 21 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Quality + freshness check Every 1 hr 32 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policy engine evaluator Hourly + on-write 7 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trust score recompute Daily 03:00 UTC 7 hr ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Owner required on production (prototype) Prototype 96%",
+            "disabled": false,
+            "aria": "Owner required on production (prototype) Prototype 96%"
+          },
+          {
+            "text": "CDEs must have description (prototype) Prototype 100%",
+            "disabled": false,
+            "aria": "CDEs must have description (prototype) Prototype 100%"
+          },
+          {
+            "text": "PII columns require tag (prototype) Prototype 92%",
+            "disabled": false,
+            "aria": "PII columns require tag (prototype) Prototype 92%"
+          },
+          {
+            "text": "90-day re-certification (prototype) Prototype 87%",
+            "disabled": false,
+            "aria": "90-day re-certification (prototype) Prototype 87%"
+          },
+          {
+            "text": "Restricted catalogs require justified grant (prototype) Prototype 100%",
+            "disabled": false,
+            "aria": "Restricted catalogs require justified grant (prototype) Prototype 100%"
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "1536x1024",
+      "interaction": "control-controls",
+      "description": "Exercise Control Center linked-resource truth handling, no-URL fallback, integration detail, and policy detail.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/control-functional-v53-local/control-center-control-controls-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/control-functional-v53-local/control-center-control-controls-1536x1024-full.png",
+      "runResult": {
+        "job": {
+          "selected": true
+        },
+        "openLinkedWithUrl": {
+          "text": "Open linked resource",
+          "ariaLabel": "",
+          "title": "Prototype URL was reported by fixture data, but it is not opened as live Databricks proof.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1233,
+            "left": 277,
+            "width": 180,
+            "height": 32
+          }
+        },
+        "clickedOpenLinked": false,
+        "openedUrls": [],
+        "openedStatus": {
+          "opened": false,
+          "withheld": true
+        },
+        "openLinkedNoUrl": {
+          "text": "Open linked resource",
+          "ariaLabel": "",
+          "title": "",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1176,
+            "left": 277,
+            "width": 180,
+            "height": 32
+          }
+        },
+        "integration": {
+          "selected": true
+        },
+        "policy": {
+          "selected": true
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "checks": {
+          "control": true
+        },
+        "runResult": {
+          "job": {
+            "selected": true
+          },
+          "openLinkedWithUrl": {
+            "text": "Open linked resource",
+            "ariaLabel": "",
+            "title": "Prototype URL was reported by fixture data, but it is not opened as live Databricks proof.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1233,
+              "left": 277,
+              "width": 180,
+              "height": 32
+            }
+          },
+          "clickedOpenLinked": false,
+          "openedUrls": [],
+          "openedStatus": {
+            "opened": false,
+            "withheld": true
+          },
+          "openLinkedNoUrl": {
+            "text": "Open linked resource",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1176,
+              "left": 277,
+              "width": 180,
+              "height": 32
+            }
+          },
+          "integration": {
+            "selected": true
+          },
+          "policy": {
+            "selected": true
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1296,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 952
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1191,
+          "clientHeight": 952,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": {
+            "top": 72,
+            "left": 240,
+            "right": 1536,
+            "bottom": 1024,
+            "width": 1296,
+            "height": 952
+          },
+          "shell": {
+            "top": 98,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1263.09375,
+            "width": 1120,
+            "height": 1165.09375
+          },
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Prototype diagnostic rows preserve the Control Center structure but are not live Databricks runtime, connection, or policy proof. Scheduled jobs Reported runtime job inventory JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Prototype Lineage collector Every 1 hr 21 min ago Prototype Quality + freshness check Every 1 hr 32 min ago Prototype Policy engine evaluator Hourly + on-write 7 min ago Prototype PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype Trust score recompute Daily 03:00 UTC 7 hr ago Prototype Integrations ▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype ▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype ▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype ▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype ▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype ▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype Policy coverage Policy checks are shown when diagnostics report coverage Owner required on production (prototype) Prototype 96% CDEs must have description (prototype) Prototype 100% PII columns require tag (prototype) Prototype ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "UC metadata sweeper Every 15 min 4 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage collector Every 1 hr 21 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Quality + freshness check Every 1 hr 32 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policy engine evaluator Hourly + on-write 7 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trust score recompute Daily 03:00 UTC 7 hr ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Owner required on production (prototype) Prototype 96%",
+            "disabled": false,
+            "aria": "Owner required on production (prototype) Prototype 96%"
+          },
+          {
+            "text": "CDEs must have description (prototype) Prototype 100%",
+            "disabled": false,
+            "aria": "CDEs must have description (prototype) Prototype 100%"
+          },
+          {
+            "text": "PII columns require tag (prototype) Prototype 92%",
+            "disabled": false,
+            "aria": "PII columns require tag (prototype) Prototype 92%"
+          },
+          {
+            "text": "90-day re-certification (prototype) Prototype 87%",
+            "disabled": false,
+            "aria": "90-day re-certification (prototype) Prototype 87%"
+          },
+          {
+            "text": "Restricted catalogs require justified grant (prototype) Prototype 100%",
+            "disabled": false,
+            "aria": "Restricted catalogs require justified grant (prototype) Prototype 100%"
+          },
+          {
+            "text": "Open linked resource",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "1536x1024",
+      "interaction": "control-shell-chrome",
+      "description": "Exercise topbar search, notifications, help, and profile controls from Control Center.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/control-functional-v53-local/control-center-control-shell-chrome-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/control-functional-v53-local/control-center-control-shell-chrome-1536x1024-full.png",
+      "runResult": {
+        "pathAfterSearch": "/discovery?q=net+revenue",
+        "searchState": {
+          "url": "http://127.0.0.1:5173/discovery?q=net+revenue",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CERTIFICATION 1 results Certified 1 In Review 0 Uncertified 0 DOMAIN Revenue & Sales 0 Customer 0 Marketing 0 Finance 1 Operations 0 People 0 CLASSIFICATION Restricted 0 Confidential 1 Internal 0 Unclassified 0 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Prototype results are permission-aware in shape and ranked by non-live trust fixtures. ▱ Saved searches ◇ Advanced Showing 1 of 1 assets Prototype mock · not live Databricks evidence Asset values shown here are not live Databricks proof unless the source is explicitly live and authoritative. Sort: Trust score revenue_daily finance_prod.curated.revenue_daily Certified 96 Prototype trust fixture, not live score proof Confidential CDE Prototype day-grain revenue grain by product line, channel, and region. Prototype reference for the CFO dashboard and quarterly board reporting. Marisol Reyes Prototype metadata not live proof ⋮ Open Record Open lineage Certified Saved Views View all Needs Owner 0 visible › Needs Certification 0 visible › Certified Data 1 visible › High Coverage Assets 1 visible › Recommended Assets View all revenue_daily Finance 96% ✦ Atlas AI Recommendations BETA View all Run Atlas AI to generate evidence-backed recommendations for this r",
+          "checks": {
+            "revenueDaily": true
+          }
+        },
+        "pathAfterNotifications": "/inbox",
+        "inboxState": {
+          "url": "http://127.0.0.1:5173/inbox",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI Governance Inbox Prototype inbox rows are local mock governance notifications, not live Databricks workflow evidence. ← Back to Discovery Inbox Unread workflow notifications from governance activity. Inbox No unread items No inbox items are currently available.",
+          "checks": {
+            "inbox": true
+          }
+        },
+        "pathAfterHelp": "/help",
+        "helpState": {
+          "url": "http://127.0.0.1:5173/help",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI Help & docs How Governance Atlas works Prototype QA captures describe intended live Databricks behavior, but this current page evidence is local prototype mock data only. ← Back to Discovery Getting started Who sees what Keyboard shortcuts Getting help Privacy Terms Getting started What is Governance Atlas? Governance Atlas is a Databricks-native metadata command center. It discovers Unity Catalog tables, views, columns, and notebook usage in your workspace and surfaces governance context (domain, owner, sensitivity, glossary term, workflow state, lineage) in one place. How do I find an asset? Use the global search bar at the top of the shell, the Discovery tab for faceted browsing across the catalog, or the Navigation tab for breadth-first catalog-tree browsing. Filters on the left rail narrow by catalog, schema, asset type, domain, owner, sensitivity, glossary term, and workflow state. What do the coverage badges mean? The coverage score on each asset card reflects how complete the asset's governance record is (description, owner, domain, glossary term, quality rules). High Coverage is at least 75%. Mid Coverage is 50-74%. Low Coverage is below 50%. The chip is hidden when the governance backfill has not run for that asset. Who sees what On-behalf-of access When your workspace grants the app the OBO (on-behalf-of) scope,",
+          "checks": {
+            "help": true
+          }
+        },
+        "profileState": {
+          "url": "http://127.0.0.1:5173/admin",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Marisol Reyes marisol.reyes@entrada.ai Settings & diagnostics Upload local avatar Capability dashboard Sign out Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Prototype diagnostic rows preserve the Control Center structure but are not live Databricks runtime, connection, or policy proof. Scheduled jobs Reported runtime job inventory JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Prototype Lineage collector Every 1 hr 21 min ago Prototype Quality + freshness check Every 1 hr 32 min ago Prototype Policy engine evaluator Hourly + on-write 7 min ago Prototype PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype Trust score recompute Daily 03:00 UTC 7 hr ago Prototype Integrations ▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype ▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype ▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype ▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype ▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype ▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype Policy coverage Policy checks are shown when diagnostics report coverage Owner required on production (prototype) Pr",
+          "checks": {
+            "settings": true,
+            "avatar": true,
+            "signOut": true
+          },
+          "localAvatarState": {
+            "label": "Upload local avatar",
+            "title": "Stored only in this browser. This does not update a Databricks profile.",
+            "localOnly": true,
+            "databricksProfileExcluded": true
+          }
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "pathAfterSearch": "/discovery?q=net+revenue",
+          "searchState": {
+            "url": "http://127.0.0.1:5173/discovery?q=net+revenue",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CERTIFICATION 1 results Certified 1 In Review 0 Uncertified 0 DOMAIN Revenue & Sales 0 Customer 0 Marketing 0 Finance 1 Operations 0 People 0 CLASSIFICATION Restricted 0 Confidential 1 Internal 0 Unclassified 0 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Prototype results are permission-aware in shape and ranked by non-live trust fixtures. ▱ Saved searches ◇ Advanced Showing 1 of 1 assets Prototype mock · not live Databricks evidence Asset values shown here are not live Databricks proof unless the source is explicitly live and authoritative. Sort: Trust score revenue_daily finance_prod.curated.revenue_daily Certified 96 Prototype trust fixture, not live score proof Confidential CDE Prototype day-grain revenue grain by product line, channel, and region. Prototype reference for the CFO dashboard and quarterly board reporting. Marisol Reyes Prototype metadata not live proof ⋮ Open Record Open lineage Certified Saved Views View all Needs Owner 0 visible › Needs Certification 0 visible › Certified Data 1 visible › High Coverage Assets 1 visible › Recommended Assets View all revenue_daily Finance 96% ✦ Atlas AI Recommendations BETA View all Run Atlas AI to generate evidence-backed recommendations for this r",
+            "checks": {
+              "revenueDaily": true
+            }
+          },
+          "pathAfterNotifications": "/inbox",
+          "inboxState": {
+            "url": "http://127.0.0.1:5173/inbox",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI Governance Inbox Prototype inbox rows are local mock governance notifications, not live Databricks workflow evidence. ← Back to Discovery Inbox Unread workflow notifications from governance activity. Inbox No unread items No inbox items are currently available.",
+            "checks": {
+              "inbox": true
+            }
+          },
+          "pathAfterHelp": "/help",
+          "helpState": {
+            "url": "http://127.0.0.1:5173/help",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI Help & docs How Governance Atlas works Prototype QA captures describe intended live Databricks behavior, but this current page evidence is local prototype mock data only. ← Back to Discovery Getting started Who sees what Keyboard shortcuts Getting help Privacy Terms Getting started What is Governance Atlas? Governance Atlas is a Databricks-native metadata command center. It discovers Unity Catalog tables, views, columns, and notebook usage in your workspace and surfaces governance context (domain, owner, sensitivity, glossary term, workflow state, lineage) in one place. How do I find an asset? Use the global search bar at the top of the shell, the Discovery tab for faceted browsing across the catalog, or the Navigation tab for breadth-first catalog-tree browsing. Filters on the left rail narrow by catalog, schema, asset type, domain, owner, sensitivity, glossary term, and workflow state. What do the coverage badges mean? The coverage score on each asset card reflects how complete the asset's governance record is (description, owner, domain, glossary term, quality rules). High Coverage is at least 75%. Mid Coverage is 50-74%. Low Coverage is below 50%. The chip is hidden when the governance backfill has not run for that asset. Who sees what On-behalf-of access When your workspace grants the app the OBO (on-behalf-of) scope,",
+            "checks": {
+              "help": true
+            }
+          },
+          "profileState": {
+            "url": "http://127.0.0.1:5173/admin",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Marisol Reyes marisol.reyes@entrada.ai Settings & diagnostics Upload local avatar Capability dashboard Sign out Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Prototype diagnostic rows preserve the Control Center structure but are not live Databricks runtime, connection, or policy proof. Scheduled jobs Reported runtime job inventory JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Prototype Lineage collector Every 1 hr 21 min ago Prototype Quality + freshness check Every 1 hr 32 min ago Prototype Policy engine evaluator Hourly + on-write 7 min ago Prototype PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype Trust score recompute Daily 03:00 UTC 7 hr ago Prototype Integrations ▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype ▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype ▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype ▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype ▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype ▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype Policy coverage Policy checks are shown when diagnostics report coverage Owner required on production (prototype) Pr",
+            "checks": {
+              "settings": true,
+              "avatar": true,
+              "signOut": true
+            },
+            "localAvatarState": {
+              "label": "Upload local avatar",
+              "title": "Stored only in this browser. This does not update a Databricks profile.",
+              "localOnly": true,
+              "databricksProfileExcluded": true
+            }
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1296,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 952
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 977,
+          "clientHeight": 952,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": {
+            "top": 72,
+            "left": 240,
+            "right": 1536,
+            "bottom": 1024,
+            "width": 1296,
+            "height": 952
+          },
+          "shell": {
+            "top": 98,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1049.09375,
+            "width": 1120,
+            "height": 951.09375
+          },
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Marisol Reyes marisol.reyes@entrada.ai Settings & diagnostics Upload local avatar Capability dashboard Sign out Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Prototype diagnostic rows preserve the Control Center structure but are not live Databricks runtime, connection, or policy proof. Scheduled jobs Reported runtime job inventory JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Prototype Lineage collector Every 1 hr 21 min ago Prototype Quality + freshness check Every 1 hr 32 min ago Prototype Policy engine evaluator Hourly + on-write 7 min ago Prototype PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype Trust score recompute Daily 03:00 UTC 7 hr ago Prototype Integrations ▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype ▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype ▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype ▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype ▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype ▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype Policy coverage Policy checks are shown when diagnostics report coverage Owner required on production (prototype) Pr",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Settings & diagnostics",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Upload local avatar",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Capability dashboard",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Sign out",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "UC metadata sweeper Every 15 min 4 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage collector Every 1 hr 21 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Quality + freshness check Every 1 hr 32 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policy engine evaluator Hourly + on-write 7 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trust score recompute Daily 03:00 UTC 7 hr ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Owner required on production (prototype) Prototype 96%",
+            "disabled": false,
+            "aria": "Owner required on production (prototype) Prototype 96%"
+          },
+          {
+            "text": "CDEs must have description (prototype) Prototype 100%",
+            "disabled": false,
+            "aria": "CDEs must have description (prototype) Prototype 100%"
+          },
+          {
+            "text": "PII columns require tag (prototype) Prototype 92%",
+            "disabled": false,
+            "aria": "PII columns require tag (prototype) Prototype 92%"
+          },
+          {
+            "text": "90-day re-certification (prototype) Prototype 87%",
+            "disabled": false,
+            "aria": "90-day re-certification (prototype) Prototype 87%"
+          },
+          {
+            "text": "Restricted catalogs require justified grant (prototype) Prototype 100%",
+            "disabled": false,
+            "aria": "Restricted catalogs require justified grant (prototype) Prototype 100%"
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "1536x1024",
+      "interaction": "atlas-ai",
+      "description": "Submit a Control Center-specific Atlas AI prompt and verify grounded evidence appears.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/control-functional-v53-local/control-center-atlas-ai-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/control-functional-v53-local/control-center-atlas-ai-1536x1024-full.png",
+      "runResult": {
+        "url": "http://127.0.0.1:5173/admin",
+        "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Prototype diagnostic rows preserve the Control Center structure but are not live Databricks runtime, connection, or policy proof. Scheduled jobs Reported runtime job inventory JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Prototype Lineage collector Every 1 hr 21 min ago Prototype Quality + freshness check Every 1 hr 32 min ago Prototype Policy engine evaluator Hourly + on-write 7 min ago Prototype PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype Trust score recompute Daily 03:00 UTC 7 hr ago Prototype Integrations ▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype ▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype ▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype ▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype ▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype ▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype Policy coverage Policy checks are shown when diagnostics report coverage Owner required on production (prototype) Prototype 96% CDEs must have description (prototype) Prototype 100% PII columns require tag (prototype) Prototype ",
+        "checks": {
+          "answer": true,
+          "evidence": true,
+          "disclaimer": true
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "url": "http://127.0.0.1:5173/admin",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Prototype diagnostic rows preserve the Control Center structure but are not live Databricks runtime, connection, or policy proof. Scheduled jobs Reported runtime job inventory JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Prototype Lineage collector Every 1 hr 21 min ago Prototype Quality + freshness check Every 1 hr 32 min ago Prototype Policy engine evaluator Hourly + on-write 7 min ago Prototype PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype Trust score recompute Daily 03:00 UTC 7 hr ago Prototype Integrations ▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype ▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype ▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype ▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype ▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype ▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype Policy coverage Policy checks are shown when diagnostics report coverage Owner required on production (prototype) Prototype 96% CDEs must have description (prototype) Prototype 100% PII columns require tag (prototype) Prototype ",
+          "checks": {
+            "answer": true,
+            "evidence": true,
+            "disclaimer": true
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1296,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 952
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 977,
+          "clientHeight": 952,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": {
+            "top": 72,
+            "left": 240,
+            "right": 1536,
+            "bottom": 1024,
+            "width": 1296,
+            "height": 952
+          },
+          "shell": {
+            "top": 98,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1049.09375,
+            "width": 1120,
+            "height": 951.09375
+          },
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Prototype diagnostic rows preserve the Control Center structure but are not live Databricks runtime, connection, or policy proof. Scheduled jobs Reported runtime job inventory JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Prototype Lineage collector Every 1 hr 21 min ago Prototype Quality + freshness check Every 1 hr 32 min ago Prototype Policy engine evaluator Hourly + on-write 7 min ago Prototype PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype Trust score recompute Daily 03:00 UTC 7 hr ago Prototype Integrations ▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype ▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype ▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype ▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype ▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype ▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype Policy coverage Policy checks are shown when diagnostics report coverage Owner required on production (prototype) Prototype 96% CDEs must have description (prototype) Prototype 100% PII columns require tag (prototype) Prototype ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "UC metadata sweeper Every 15 min 4 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage collector Every 1 hr 21 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Quality + freshness check Every 1 hr 32 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policy engine evaluator Hourly + on-write 7 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trust score recompute Daily 03:00 UTC 7 hr ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Owner required on production (prototype) Prototype 96%",
+            "disabled": false,
+            "aria": "Owner required on production (prototype) Prototype 96%"
+          },
+          {
+            "text": "CDEs must have description (prototype) Prototype 100%",
+            "disabled": false,
+            "aria": "CDEs must have description (prototype) Prototype 100%"
+          },
+          {
+            "text": "PII columns require tag (prototype) Prototype 92%",
+            "disabled": false,
+            "aria": "PII columns require tag (prototype) Prototype 92%"
+          },
+          {
+            "text": "90-day re-certification (prototype) Prototype 87%",
+            "disabled": false,
+            "aria": "90-day re-certification (prototype) Prototype 87%"
+          },
+          {
+            "text": "Restricted catalogs require justified grant (prototype) Prototype 100%",
+            "disabled": false,
+            "aria": "Restricted catalogs require justified grant (prototype) Prototype 100%"
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "finance_prod.curated.revenue_daily Open prototype asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2482 Open prototype stewardship context",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which runtime job or integration needs attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Atlas AI accuracy notice"
+          }
+        ]
+      }
+    },
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "1536x1024",
+      "interaction": "responsive-control-layout",
+      "description": "Validate Control Center job, integration, policy, and detail controls remain visible within the main content region.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/control-functional-v53-local/control-center-responsive-control-layout-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/control-functional-v53-local/control-center-responsive-control-layout-1536x1024-full.png",
+      "runResult": {
+        "layout": {
+          "viewport": {
+            "width": 1536,
+            "height": 1024
+          },
+          "main": {
+            "top": 72,
+            "left": 240,
+            "right": 1536,
+            "bottom": 1024,
+            "width": 1296,
+            "height": 952
+          },
+          "groups": [
+            {
+              "label": "job",
+              "count": 6,
+              "failures": []
+            },
+            {
+              "label": "integration",
+              "count": 6,
+              "failures": []
+            },
+            {
+              "label": "policy",
+              "count": 5,
+              "failures": []
+            },
+            {
+              "label": "detail",
+              "count": 1,
+              "failures": []
+            },
+            {
+              "label": "detail-action",
+              "count": 1,
+              "failures": []
+            }
+          ]
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "layout": {
+            "viewport": {
+              "width": 1536,
+              "height": 1024
+            },
+            "main": {
+              "top": 72,
+              "left": 240,
+              "right": 1536,
+              "bottom": 1024,
+              "width": 1296,
+              "height": 952
+            },
+            "groups": [
+              {
+                "label": "job",
+                "count": 6,
+                "failures": []
+              },
+              {
+                "label": "integration",
+                "count": 6,
+                "failures": []
+              },
+              {
+                "label": "policy",
+                "count": 5,
+                "failures": []
+              },
+              {
+                "label": "detail",
+                "count": 1,
+                "failures": []
+              },
+              {
+                "label": "detail-action",
+                "count": 1,
+                "failures": []
+              }
+            ]
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1296,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 952
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1248,
+          "clientHeight": 952,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": {
+            "top": 72,
+            "left": 240,
+            "right": 1536,
+            "bottom": 1024,
+            "width": 1296,
+            "height": 952
+          },
+          "shell": {
+            "top": 98,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1320.09375,
+            "width": 1120,
+            "height": 1222.09375
+          },
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Prototype diagnostic rows preserve the Control Center structure but are not live Databricks runtime, connection, or policy proof. Scheduled jobs Reported runtime job inventory JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Prototype Lineage collector Every 1 hr 21 min ago Prototype Quality + freshness check Every 1 hr 32 min ago Prototype Policy engine evaluator Hourly + on-write 7 min ago Prototype PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype Trust score recompute Daily 03:00 UTC 7 hr ago Prototype Integrations ▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype ▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype ▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype ▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype ▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype ▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype Policy coverage Policy checks are shown when diagnostics report coverage Owner required on production (prototype) Prototype 96% CDEs must have description (prototype) Prototype 100% PII columns require tag (prototype) Prototype ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "UC metadata sweeper Every 15 min 4 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage collector Every 1 hr 21 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Quality + freshness check Every 1 hr 32 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policy engine evaluator Hourly + on-write 7 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trust score recompute Daily 03:00 UTC 7 hr ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Owner required on production (prototype) Prototype 96%",
+            "disabled": false,
+            "aria": "Owner required on production (prototype) Prototype 96%"
+          },
+          {
+            "text": "CDEs must have description (prototype) Prototype 100%",
+            "disabled": false,
+            "aria": "CDEs must have description (prototype) Prototype 100%"
+          },
+          {
+            "text": "PII columns require tag (prototype) Prototype 92%",
+            "disabled": false,
+            "aria": "PII columns require tag (prototype) Prototype 92%"
+          },
+          {
+            "text": "90-day re-certification (prototype) Prototype 87%",
+            "disabled": false,
+            "aria": "90-day re-certification (prototype) Prototype 87%"
+          },
+          {
+            "text": "Restricted catalogs require justified grant (prototype) Prototype 100%",
+            "disabled": false,
+            "aria": "Restricted catalogs require justified grant (prototype) Prototype 100%"
+          },
+          {
+            "text": "Open linked resource",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      }
+    }
+  ],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/admin"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

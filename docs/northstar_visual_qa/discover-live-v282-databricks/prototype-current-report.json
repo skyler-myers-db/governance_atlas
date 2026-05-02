@@ -1,0 +1,242 @@
+{
+  "generatedAt": "2026-05-01T13:14:48.925Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f1455d0c6b10809cde14296fa99d23",
+  "buildId": "frontend-0821ce3424c6",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "route": "discover",
+  "captures": [
+    {
+      "route": "discover",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/discover-live-v282-databricks/discover-live-1536x1024.png",
+      "loaded": true
+    }
+  ],
+  "interactions": [
+    {
+      "route": "discover",
+      "interaction": "deployed-discover-search-and-layout-controls",
+      "loaded": false,
+      "error": "List view was not visible and enabled",
+      "screenshot": "docs/northstar_visual_qa/discover-live-v282-databricks/discover-live-failure-deployed-discover-search-and-layout-controls.png"
+    },
+    {
+      "route": "discover",
+      "interaction": "deployed-discover-row-menu-routing",
+      "loaded": true,
+      "originalFqn": "datapact.governance_atlas_demo.risk_critical_asset_monitor",
+      "detailPath": "/entity/datapact.governance_atlas_demo.risk_critical_asset_monitor",
+      "governancePath": "/governance?asset=datapact.governance_atlas_demo.risk_critical_asset_monitor",
+      "lineagePath": "/lineage/datapact.governance_atlas_demo.risk_critical_asset_monitor"
+    },
+    {
+      "route": "discover",
+      "interaction": "deployed-discover-preview-tabs-and-actions",
+      "loaded": true,
+      "tabs": {
+        "Overview": "true",
+        "Columns": "true",
+        "Lineage": "true",
+        "Quality": "true",
+        "Access": "true"
+      },
+      "commentDisabled": true,
+      "requestAccessDisabled": true,
+      "reviewPath": "/governance?preview=datapact.governance_atlas_demo.risk_critical_asset_monitor&asset=datapact.governance_atlas_demo.risk_critical_asset_monitor"
+    },
+    {
+      "route": "discover",
+      "interaction": "deployed-discover-atlas-ai",
+      "loaded": false,
+      "error": "locator.innerText: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.gh-floating-ai-panel').first()\u001b[22m\n",
+      "screenshot": "docs/northstar_visual_qa/discover-live-v282-databricks/discover-live-failure-deployed-discover-atlas-ai.png"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/datapact.governance_atlas_demo.risk_critical_asset_monitor",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.risk_critical_asset_monitor?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.risk_critical_asset_monitor?sections=header&sections=operational&sections=schema",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "POST",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/availability",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/discovery/search?query=customer&queryMode=structured&sortBy=Best+match&limit=80",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/governance/summary",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/runtime/status",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/discovery/search?query=customer&queryMode=structured&sortBy=Best+match&limit=80",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "POST",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/atlas-ai/recommendations",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.risk_critical_asset_monitor?sections=header&sections=operational&sections=schema",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.finance_portfolio_exposure?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.marketing_lien_outreach_signal?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.marketing_market_analytics?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.marketing_segment_signal?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/governance/summary",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/bootstrap?surface=entity&asset=datapact.governance_atlas_demo.risk_critical_asset_monitor",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.risk_critical_asset_monitor?sections=header&sections=operational&sections=schema",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.finance_portfolio_exposure?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.marketing_lien_outreach_signal?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.marketing_market_analytics?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.marketing_segment_signal?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/runtime/status",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/governance/summary",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/bootstrap?asset=datapact.governance_atlas_demo.risk_critical_asset_monitor&surface=governance",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.risk_critical_asset_monitor?sections=header&sections=operational&sections=schema",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.marketing_segment_signal?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.operations_certification_backlog?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.operations_pipeline_readiness?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.operations_transfer_activity?sections=header",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/bootstrap?surface=lineage&asset=datapact.governance_atlas_demo.risk_critical_asset_monitor",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/runtime/status",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "POST",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/availability",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/discovery/search?queryMode=structured&sortBy=Best+match&limit=200",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/datapact.governance_atlas_demo.risk_critical_asset_monitor?sections=header&sections=operational&sections=schema",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/runtime/status",
+      "failure": "net::ERR_ABORTED"
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/bootstrap?preview=datapact.governance_atlas_demo.risk_critical_asset_monitor&asset=datapact.governance_atlas_demo.risk_critical_asset_monitor&surface=governance",
+      "failure": "net::ERR_ABORTED"
+    }
+  ],
+  "console": [],
+  "passed": false
+}

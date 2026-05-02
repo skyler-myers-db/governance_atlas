@@ -1,0 +1,302 @@
+{
+  "generatedAt": "2026-05-01T15:58:45.746Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "appUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f1457296eb19a3933a38bdfec0e3bc",
+  "buildId": "frontend-5f4d8d113643",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "captures": [
+    {
+      "viewport": {
+        "name": "1536x1024",
+        "width": 1536,
+        "height": 1024
+      },
+      "screenshotPath": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-1536x1024.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/taxonomy?tab=cdes",
+        "title": "Shared business meaning, anchored to data",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nGLOSSARY & CDE REGISTRY\nShared business meaning, anchored to data\n\nGlossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements.\n\n+ New term\nGlossary 0\nCDE Registry 17\nShowing 5 of 17 CDE registry rows\nCustomer Identity Quality\nSource column unavailable\ncustomer-steward@entrada.ai\nUnavailable\nUnavailable\nCustomer Profile Coverage\nSource column unavailable\ncustomer-steward@entrada.ai\nUnavailable\nUnavailable\nCustomer Stewardship Queue\nSource column unavailable\ncustomer-steward@entrada.ai\nUnavailable\nUnavailable\nFinance Exception Review\nSource column unavailable\nUnassigned\nUnavailable\nUnavailable\nFinance Lien Risk Summary\nSource column unavailable\nfinance-steward@entrada.ai\nUnavailable\nUnavailable\n\nStatus and recertification are prototype registry fixtures - not live Unity Catalog, quality test-run, or recertification workflow proof.",
+        "hasNorthstar": true,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 1024,
+        "viewportHeight": 1024,
+        "mainScrollHeight": 968,
+        "mainClientHeight": 968,
+        "mainScrolls": false,
+        "footer": null,
+        "page": {
+          "x": 208,
+          "y": 56,
+          "width": 1328,
+          "height": 968,
+          "top": 56,
+          "bottom": 1024,
+          "left": 208,
+          "right": 1536
+        },
+        "shell": {
+          "x": 312,
+          "y": 80,
+          "width": 1120,
+          "height": 603.84375,
+          "top": 80,
+          "bottom": 683.84375,
+          "left": 312,
+          "right": 1432
+        },
+        "registry": {
+          "x": 312,
+          "y": 265,
+          "width": 1120,
+          "height": 412,
+          "top": 265,
+          "bottom": 677,
+          "left": 312,
+          "right": 1432
+        },
+        "detail": null,
+        "kpiCount": 0,
+        "visibleFilters": 2,
+        "tableHeadingCount": 5,
+        "groupCount": 0,
+        "rowCount": 5,
+        "selectedRowCount": 0,
+        "detailTabCount": 2,
+        "detailCardCount": 0,
+        "cdeTabSelected": true,
+        "disabledActions": [],
+        "regionText": {
+          "title": true,
+          "supportCopy": true,
+          "tabs": true,
+          "registry": true,
+          "provenance": true,
+          "detail": true,
+          "truthfulUnavailable": true
+        },
+        "railSeparated": true
+      },
+      "navigationError": "",
+      "loaded": true,
+      "passed": true
+    },
+    {
+      "viewport": {
+        "name": "1440x900",
+        "width": 1440,
+        "height": 900
+      },
+      "screenshotPath": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-1440x900.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/taxonomy?tab=cdes",
+        "title": "Shared business meaning, anchored to data",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nGLOSSARY & CDE REGISTRY\nShared business meaning, anchored to data\n\nGlossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements.\n\n+ New term\nGlossary 0\nCDE Registry 17\nShowing 5 of 17 CDE registry rows\nCustomer Identity Quality\nSource column unavailable\ncustomer-steward@entrada.ai\nUnavailable\nUnavailable\nCustomer Profile Coverage\nSource column unavailable\ncustomer-steward@entrada.ai\nUnavailable\nUnavailable\nCustomer Stewardship Queue\nSource column unavailable\ncustomer-steward@entrada.ai\nUnavailable\nUnavailable\nFinance Exception Review\nSource column unavailable\nUnassigned\nUnavailable\nUnavailable\nFinance Lien Risk Summary\nSource column unavailable\nfinance-steward@entrada.ai\nUnavailable\nUnavailable\n\nStatus and recertification are prototype registry fixtures - not live Unity Catalog, quality test-run, or recertification workflow proof.",
+        "hasNorthstar": true,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 900,
+        "viewportHeight": 900,
+        "mainScrollHeight": 844,
+        "mainClientHeight": 844,
+        "mainScrolls": false,
+        "footer": null,
+        "page": {
+          "x": 208,
+          "y": 56,
+          "width": 1232,
+          "height": 844,
+          "top": 56,
+          "bottom": 900,
+          "left": 208,
+          "right": 1440
+        },
+        "shell": {
+          "x": 264,
+          "y": 80,
+          "width": 1120,
+          "height": 603.84375,
+          "top": 80,
+          "bottom": 683.84375,
+          "left": 264,
+          "right": 1384
+        },
+        "registry": {
+          "x": 264,
+          "y": 265,
+          "width": 1120,
+          "height": 412,
+          "top": 265,
+          "bottom": 677,
+          "left": 264,
+          "right": 1384
+        },
+        "detail": null,
+        "kpiCount": 0,
+        "visibleFilters": 2,
+        "tableHeadingCount": 5,
+        "groupCount": 0,
+        "rowCount": 5,
+        "selectedRowCount": 0,
+        "detailTabCount": 2,
+        "detailCardCount": 0,
+        "cdeTabSelected": true,
+        "disabledActions": [],
+        "regionText": {
+          "title": true,
+          "supportCopy": true,
+          "tabs": true,
+          "registry": true,
+          "provenance": true,
+          "detail": true,
+          "truthfulUnavailable": true
+        },
+        "railSeparated": true
+      },
+      "navigationError": "",
+      "loaded": true,
+      "passed": true
+    },
+    {
+      "viewport": {
+        "name": "1280x720",
+        "width": 1280,
+        "height": 720
+      },
+      "screenshotPath": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-1280x720.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/taxonomy?tab=cdes",
+        "title": "Shared business meaning, anchored to data",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nGLOSSARY & CDE REGISTRY\nShared business meaning, anchored to data\n\nGlossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements.\n\n+ New term\nGlossary 0\nCDE Registry 17\nShowing 5 of 17 CDE registry rows\nCustomer Identity Quality\nSource column unavailable\ncustomer-steward@entrada.ai\nUnavailable\nUnavailable\nCustomer Profile Coverage\nSource column unavailable\ncustomer-steward@entrada.ai\nUnavailable\nUnavailable\nCustomer Stewardship Queue\nSource column unavailable\ncustomer-steward@entrada.ai\nUnavailable\nUnavailable\nFinance Exception Review\nSource column unavailable\nUnassigned\nUnavailable\nUnavailable\nFinance Lien Risk Summary\nSource column unavailable\nfinance-steward@entrada.ai\nUnavailable\nUnavailable\n\nStatus and recertification are prototype registry fixtures - not live Unity Catalog, quality test-run, or recertification workflow proof.",
+        "hasNorthstar": true,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 720,
+        "viewportHeight": 720,
+        "mainScrollHeight": 664,
+        "mainClientHeight": 664,
+        "mainScrolls": false,
+        "footer": null,
+        "page": {
+          "x": 208,
+          "y": 56,
+          "width": 1072,
+          "height": 664,
+          "top": 56,
+          "bottom": 720,
+          "left": 208,
+          "right": 1280
+        },
+        "shell": {
+          "x": 236,
+          "y": 74,
+          "width": 1016,
+          "height": 603.84375,
+          "top": 74,
+          "bottom": 677.84375,
+          "left": 236,
+          "right": 1252
+        },
+        "registry": {
+          "x": 236,
+          "y": 259,
+          "width": 1016,
+          "height": 412,
+          "top": 259,
+          "bottom": 671,
+          "left": 236,
+          "right": 1252
+        },
+        "detail": null,
+        "kpiCount": 0,
+        "visibleFilters": 2,
+        "tableHeadingCount": 5,
+        "groupCount": 0,
+        "rowCount": 5,
+        "selectedRowCount": 0,
+        "detailTabCount": 2,
+        "detailCardCount": 0,
+        "cdeTabSelected": true,
+        "disabledActions": [],
+        "regionText": {
+          "title": true,
+          "supportCopy": true,
+          "tabs": true,
+          "registry": true,
+          "provenance": true,
+          "detail": true,
+          "truthfulUnavailable": true
+        },
+        "railSeparated": true
+      },
+      "navigationError": "",
+      "loaded": true,
+      "passed": true
+    }
+  ],
+  "interactions": [
+    {
+      "name": "Direct CDE route settled",
+      "loaded": true,
+      "passed": true,
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/taxonomy?tab=cdes",
+      "rows": 5,
+      "cdeTabSelected": "true"
+    },
+    {
+      "name": "Glossary/CDE tab round trip",
+      "loaded": true,
+      "passed": true,
+      "glossarySelected": "true",
+      "cdeSelected": "true"
+    },
+    {
+      "name": "Row selection and selected detail",
+      "loaded": true,
+      "passed": true,
+      "rowText": "Customer Identity QualitySource column unavailablecustomer-steward@entrada.aiUnavailableUnavailable",
+      "detailText": "SELECTED DETAIL\nCustomer Identity Quality\nx\nSource-of-record column\n\nSource column unavailable\n\nOwnership\nOwner\ncustomer-steward@entrada.ai\nRecertification\nUnavailable\nStatus\nUnavailable\nSOX\nNot marked SOX\n\nPrototype fixture - not live quality, recertification, or Unity Catalog proof.\n\nReviewer workflow\n\nReviewer and recertification mutations are unavailable on this route until a backed CDE workflow is configured.\n\nAssociation source\n\nNo source asset FQN can be derived from this registry row.\n\nOpen source asset\nOpen lineage\nRequest recertification unavailable\nShow owner workflow note\nShow recertification note",
+      "selectedRows": 1,
+      "detailScreenshot": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-selected-detail-1536x1024.png",
+      "validation": {
+        "checks": {
+          "selectedDetail": true,
+          "sourceOfRecord": true,
+          "ownership": true,
+          "reviewerWorkflow": true,
+          "associationSource": true,
+          "prototypeBoundary": true
+        }
+      }
+    },
+    {
+      "name": "Unavailable CDE workflow controls",
+      "loaded": true,
+      "passed": true,
+      "requestStatus": "New CDE request is unavailable until a backed CDE registry workflow is configured.",
+      "recertDisabled": true,
+      "openSourceEnabled": false,
+      "openLineageEnabled": false,
+      "ownerStatus": "Customer Identity Quality owner workflow is unavailable on this route; no CDE owner mutation was submitted.",
+      "recertStatus": "Customer Identity Quality recertification workflow is unavailable on this route; no CDE mutation was submitted.",
+      "validation": {
+        "checks": {
+          "requestUnavailable": true,
+          "recertDisabled": true,
+          "ownerStatusUnavailable": true,
+          "recertStatusUnavailable": true
+        }
+      }
+    }
+  ],
+  "sideBySide": {
+    "path": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-side-by-side-1536x1024.png",
+    "mockupPath": "/Users/entrada-mac/repos/governance_atlas/northstar/screenshots/prototype_stewardship2.png",
+    "currentPath": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-1536x1024.png"
+  },
+  "pageErrors": [],
+  "consoleWarnings": [],
+  "passed": true
+}

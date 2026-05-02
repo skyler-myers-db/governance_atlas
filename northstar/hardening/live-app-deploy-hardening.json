@@ -1,0 +1,49 @@
+{
+  "create_time": "2026-04-27T16:49:20Z",
+  "creator": "skyler@entrada.ai",
+  "deployment_artifacts": {
+    "source_code_path": "/Workspace/Users/6cc86299-e989-42b7-9268-4f4335124812/src/01f1425909d91aba8f4a6751c1bb4909"
+  },
+  "deployment_id": "01f1425909d91aba8f4a6751c1bb4909",
+  "mode": "SNAPSHOT",
+  "source_code_path": "/Workspace/Users/skyler@entrada.ai/.bundle/atlas/dev/files",
+  "status": {
+    "message": "App started successfully",
+    "state": "SUCCEEDED"
+  },
+  "update_time": "2026-04-27T16:51:18Z",
+  "app_status": {
+    "message": "App has status: App is running",
+    "state": "RUNNING"
+  },
+  "compute_status": {
+    "message": "App compute is running.",
+    "state": "ACTIVE"
+  },
+  "resources": [
+    {
+      "name": "sql-warehouse",
+      "sql_warehouse": {
+        "id": "da02d15a9490650b",
+        "permission": "CAN_USE"
+      }
+    },
+    {
+      "genie_space": {
+        "name": "Governance Atlas Metadata Room",
+        "permission": "CAN_RUN",
+        "space_id": "01f1406a11221afa985d3fe64c9fbea1"
+      },
+      "name": "atlas-genie-space"
+    },
+    {
+      "name": "atlas-lakebase",
+      "postgres": {
+        "branch": "projects/governance-atlas-state/branches/production",
+        "database": "projects/governance-atlas-state/branches/production/databases/db-y68x-6gpq0zhrl4",
+        "permission": "CAN_CONNECT_AND_CREATE"
+      }
+    }
+  ],
+  "url": "https://atlas-2543889327043640.aws.databricksapps.com"
+}

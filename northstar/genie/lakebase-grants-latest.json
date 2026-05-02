@@ -1,0 +1,22 @@
+{
+  "endpoint": "projects/governance-atlas-state/branches/production/endpoints/primary",
+  "grants": [
+    {
+      "statement": "GRANT USAGE, CREATE ON SCHEMA \"atlas_app\" TO PUBLIC",
+      "status": "ok"
+    },
+    {
+      "statement": "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA \"atlas_app\" TO PUBLIC",
+      "status": "ok"
+    },
+    {
+      "statement": "ALTER DEFAULT PRIVILEGES IN SCHEMA \"atlas_app\" GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO PUBLIC",
+      "status": "ok"
+    },
+    {
+      "currentUserCreate": true,
+      "schema": "atlas_app"
+    }
+  ],
+  "schema": "atlas_app"
+}

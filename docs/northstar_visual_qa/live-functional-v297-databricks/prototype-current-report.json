@@ -1,0 +1,241 @@
+{
+  "generatedAt": "2026-05-01T14:11:03.127Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f14566f47d140d8219adbd76744c2e",
+  "buildId": "frontend-06483b108bd4",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "passed": true,
+  "sources": [
+    {
+      "path": "docs/northstar_visual_qa/live-route-v296-databricks/route-validation.json",
+      "kind": "live-route-api-validation",
+      "generatedAt": "2026-05-01T14:16:36.938Z",
+      "passed": true
+    },
+    {
+      "path": "docs/northstar_visual_qa/lineage-live-v295-databricks/lineage-live-report.json",
+      "kind": "deployed-lineage-browser-validation",
+      "generatedAt": "2026-05-01T14:11:03.127Z",
+      "passed": true
+    }
+  ],
+  "captures": [
+    {
+      "route": "lineage",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/lineage-live-v295-databricks/lineage-live-1536x1024.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks"
+    },
+    {
+      "route": "lineage",
+      "viewport": "1440x900",
+      "screenshot": "docs/northstar_visual_qa/lineage-live-v295-databricks/lineage-live-1440x900.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks"
+    },
+    {
+      "route": "lineage",
+      "viewport": "1280x720",
+      "screenshot": "docs/northstar_visual_qa/lineage-live-v295-databricks/lineage-live-1280x720.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks"
+    }
+  ],
+  "interactions": [
+    {
+      "route": "deployed",
+      "interaction": "deployed-live-route-validation",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "runtimeOk": true,
+          "bootstrapOk": true,
+          "assetDetailOk": true,
+          "asset360Ok": true,
+          "lineageOk": true,
+          "governanceWorkbenchOk": true,
+          "governanceMetricCount": true,
+          "governanceRequestCount": true,
+          "governanceSelectedRequestId": true,
+          "governanceRequestDetailOk": true,
+          "governanceDiffRows": true,
+          "governanceApproverSteps": true,
+          "insightsDashboardOk": true,
+          "insightsKpiCount": true,
+          "insightsHeatmapCellCount": true,
+          "insightsTierCount": true,
+          "insightsRiskCellCount": true,
+          "taxonomyOverviewOk": true,
+          "taxonomyClassificationCount": true,
+          "taxonomyDomainCount": true,
+          "taxonomyDataProductCount": true,
+          "taxonomyColumnGroupCount": true,
+          "taxonomyGlossaryTermCount": true,
+          "taxonomyGlossaryEnriched": true,
+          "cdeDashboardOk": true,
+          "cdeItemCount": true,
+          "cdeGroupCount": true,
+          "cdeTotalCdes": true,
+          "cdeDomainsCovered": true,
+          "cdeControlCoverageUnavailable": true,
+          "cdeProtectedNotInferred": true,
+          "cdeSensitiveCandidateCount": true,
+          "cdeSourceNoQualityRunner": true,
+          "cdeDetailId": true,
+          "cdeDetailOk": true,
+          "cdeDetailControlsArray": true,
+          "cdeDetailLineageSnapshot": true,
+          "cdeDetailLinkedAssetsArray": true,
+          "cdeDetailActivityArray": true,
+          "auditEvidenceOk": true,
+          "auditEventCount": true,
+          "auditSelectedId": true,
+          "auditSourceTruth": true,
+          "auditNoChangeEventsClaim": true,
+          "auditAuthoritative": true,
+          "auditSummaryNumeric": true,
+          "auditDetailOk": true,
+          "auditEvidenceArrays": true,
+          "auditBeforeAfterKeys": true,
+          "auditLinkedRequestKey": true,
+          "adminControlCenterOk": true,
+          "adminMetaOk": true,
+          "adminCoverageOk": true,
+          "adminBrandingOk": true,
+          "adminBulkImportOk": true,
+          "adminIntegrationsOk": true,
+          "adminSystemOk": true,
+          "adminRecentActivityOk": true,
+          "genieChatOk": true,
+          "buildMatches": true,
+          "lakebaseWriteMirror": true,
+          "lakebaseMode": true,
+          "lakebaseAttempted": true,
+          "lakebaseSucceeded": true,
+          "lakebaseFailed": true,
+          "lakebaseActiveTables": true,
+          "lakebaseDeferredTables": true,
+          "lakebaseDeltaRetainedTables": true,
+          "asset360SameAsset": true,
+          "asset360Sections": true,
+          "asset360SchemaCount": true,
+          "asset360ActivityCount": true,
+          "lineageAuthoritative": true,
+          "lineageNodeCount": true,
+          "lineageUpstreamCount": true,
+          "lineageDownstreamCount": true,
+          "lineageColumnLineageCount": true,
+          "genieProvider": true,
+          "genieConfidence": true,
+          "genieEvidenceCount": true,
+          "genieAnswerLength": true,
+          "noGenieSentinelSqlFallback": true,
+          "noGenieSentinelRowFallback": true,
+          "noGenieSentinelWarning": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/live-route-v296-databricks/route-validation.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-browser-validation",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "allCapturesPassed": true,
+          "allInteractionsPassed": true,
+          "pageErrorsClear": true,
+          "requestFailuresClear": true,
+          "consoleErrorsClear": true,
+          "buildIdMatched": true,
+          "truthfulThinLineageCopy": true,
+          "inspectorVisibleAt1536": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v295-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-route-settled",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "pathIsLineage": true,
+          "northstarVisible": true,
+          "noLoadingCopy": true,
+          "liveEvidenceLabel": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v295-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-column-action",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "columnStatusVisible": true,
+          "noBackedColumnClaimWithoutRows": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v295-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-impact-action",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "impactPanelVisible": true,
+          "notifyOwnersDisabledWithoutBackedImpact": true,
+          "noFakeImpactJobClaim": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v295-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-canvas-zoom",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "zoomInChanged": true,
+          "zoomOutChanged": true,
+          "fitReset": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v295-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-focus-node-selection",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "focusNodeClicked": true,
+          "detailPanelPresent": true,
+          "selectedStatusVisible": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v295-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-refocus-graph",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "refocusFeedbackVisible": true,
+          "routeStillLineage": true,
+          "noSyntheticEdgesIntroduced": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v295-databricks/lineage-live-report.json"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "console": []
+}

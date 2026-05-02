@@ -1,0 +1,2764 @@
+{
+  "generatedAt": "2026-04-28T22:27:04.998Z",
+  "baseUrl": "http://127.0.0.1:3001",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "routeFilter": [
+    "command-center",
+    "stewardship",
+    "glossary",
+    "cde-registry",
+    "audit"
+  ],
+  "viewports": [
+    {
+      "name": "3037x1269",
+      "width": 3037,
+      "height": 1269
+    },
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    }
+  ],
+  "captures": [
+    {
+      "route": "command-center",
+      "path": "/command-center",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/command-center-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/command-center-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Home - Governance Atlas",
+        "url": "http://127.0.0.1:3001/home",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1269,
+          "width": 240,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1505,
+          "clientHeight": 1213,
+          "hasOverflow": true
+        },
+        "home": {
+          "top": 56,
+          "left": 240,
+          "right": 2549,
+          "bottom": 1269,
+          "width": 2309,
+          "height": 1213
+        },
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 87.4% coverage Atlas AI EXECUTIVE COMMAND CENTER Live · refreshed 1d ago Governance posture, at a glance Atlas reads Unity Catalog directly. Every number below is permission-aware, lineage-aware, and traceable to available governance metadata. Export brief Present mode 87% Governance posture +9pp vs W14 THE STATE OF 6 VISIBLE CATALOGS 1,247 governed assets are in scope. Coverage is 87%. 612 CERTIFIED ASSETS 7 OPEN EXPOSURES 184 STEWARDSHIP ITEMS WHAT CHANGED TODAY Coverage 87% +2.1 pts vs last week Certified assets 612 +37 this week Open exposures 7 +2 new this week Stewardship 184 -11 this week GOVERNANCE COVERAGE 87% +2.1 pts vs last week CERTIFIED ASSETS 612 +37 this week OPEN STEWARDSHIP ITEMS 184 -11 this week HIGH-RISK EXPOSURES 7 +2 new this week Coverage trend · last 12 weeks i 12w 26w 52w 100% 75% 50% 25% 0% W14 W15 W16 W17 W18 W19 W20 W21 W22 W23 W24 W25 +9pp vs W14 Posture by domain i Revenue & Sales 92% 138 assets Customer 84% 174 assets Marketing 88% 89 assets Finance 95% 121 assets Operations 79% 64 assets People 72% 26 assets Risk breakdown i 7 OPEN EXPOSURES High-risk exposures 7 Medium-risk findings - Informational - Open exposure counts are sourced from governance events. Top catalogs · health snapshot i CATALOG TABLES COVERAGE CLASSIFICATION RISK sales_prod 7 91% Internal Low customer_360 4 82% Confidential Medium finance_prod 3 94% Restricted Low product",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export brief",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Present mode",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Coverage trend · last 12 weeks: Historical posture snapshots are shown only when available."
+          },
+          {
+            "text": "12w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "26w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "52w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Posture by domain: Domain scores use backed command-center domain signals when available."
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Risk breakdown: Risk distribution renders unavailable unless explicit exposure severity signals are present."
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Top catalogs · health snapshot: Catalog rows are derived from visible asset inventory and backed metadata coverage fields."
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Critical data elements: CDE rows require backed CDE registry data or asset-level critical-element metadata."
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Activity stream: Recent activity uses audit/governance events returned by the command-center API."
+          },
+          {
+            "text": "Marisol Reyes certified finance_prod.curated.revenue_daily 1d ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "svc-policy-engine flagged missing owner on experimental.sandbox.pricing_experiment_2025q4 1d ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Priya Natarajan acknowledged quality alert on sales_prod.silver.orders 1d ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "stewardship",
+      "path": "/stewardship",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/stewardship-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/stewardship-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3001/governance",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1269,
+          "width": 240,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1213,
+          "clientHeight": 1213,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 87.4% coverage Atlas AI STEWARDSHIP WORKBENCH 184 open work items · 7 SLA breaches Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available. Filter Bulk assign New work item All 8 P1 critical 3 Overdue 2 Assigned to me 1 Work queue 8 items · sorted by SLA risk ID ITEM ASSET ASSIGNED SLA PRIORITY SI-2491 Owner missing Age 11d experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue P1 SI-2479 Tag policy violation Age 8d customer_360.silver.contact_events Customer Stewards 1d overdue P1 SI-2471 Quality regression Age 1d sales_prod.silver.orders Priya Natarajan 12h left P1 SI-2482 Re-certification due Age 89d finance_prod.curated.revenue_daily Marisol Reyes Today P2 SI-2487 Description missing Age 5d product_events.bronze.clickstream_events Customer Stewards 2d left P2 SI-2469 Access exception Age 16h hr_secure.confidential.compensation_band People Stewards 3d left P2 SI-2475 Lineage gap Age 2d marketing_mart.gold.attribution_daily Marketing Stewards 6d left P3 SI-2462 Glossary mapping Age 4d customer_360.gold.customer_profile Customer Stewards 8d left P3 1-8 of 8 1 > SI-2491 P1 · P1 critical 4d overdue Owner missing Revenue Stewards x AFFECTED ASSET experimental.sandbox.pricing_experiment_2025q4 Why this is open Auto-flag: no owner set; queries detected from",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Filter",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Bulk assign",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "New work item",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All 8",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "P1 critical 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Overdue 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assigned to me 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2491 Owner missing Age 11d experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2479 Tag policy violation Age 8d customer_360.silver.contact_events Customer Stewards 1d overdue P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2471 Quality regression Age 1d sales_prod.silver.orders Priya Natarajan 12h left P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2482 Re-certification due Age 89d finance_prod.curated.revenue_daily Marisol Reyes Today P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2487 Description missing Age 5d product_events.bronze.clickstream_events Customer Stewards 2d left P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2469 Access exception Age 16h hr_secure.confidential.compensation_band People Stewards 3d left P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2475 Lineage gap Age 2d marketing_mart.gold.attribution_daily Marketing Stewards 6d left P3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2462 Glossary mapping Age 4d customer_360.gold.customer_profile Customer Stewards 8d left P3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": ">",
+            "disabled": true,
+            "aria": "Next page"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close request detail"
+          },
+          {
+            "text": "experimental.sandbox.pricing_experiment_2025q4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assign owner from suggested teams Sales Engineering: 92% match (queries, tags)",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Archive sandbox cleanup No queries in 30+ days",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Comment",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Resolve",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open lineage context ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "glossary",
+      "path": "/glossary-cdes",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/glossary-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/glossary-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3001/taxonomy",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1269,
+          "width": 240,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1213,
+          "clientHeight": 1213,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 4 CDE Registry 5 Net Revenue Finance · Finance Stewards Approved Gross revenue minus discounts and refunds; recognized per ASC 606. Source-of-record column: `finance_prod.curated.revenue_daily.net_revenue_usd`. 4 assets View lineage -> Active Customer Customer · Customer Stewards Approved A customer with at least one billable order in the trailing 90 days. Computed in `customer_360.gold.customer_profile.lifecycle_stage`. 7 assets View lineage -> Churn Propensity Customer · Customer Stewards Approved Modeled probability that a customer will churn in the next 30 days. Served via `customer_360.ml.churn_propensity_v3`. 3 assets View lineage -> Booking Revenue & Sales · Revenue Stewards In Review A confirmed order, regardless of recognition status. 6 assets View lineage -> Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which domains have the lowest metadata coverage? ↗ Which critical assets are not certified? ↗ What changed in governance metadata recently? ↗ Which assets need stewardship attention? ↗ Atlas AI uses AI. Review for accuracy.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 5",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "7 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "3 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "6 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/cde-registry-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/cde-registry-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3001/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1269,
+          "width": 240,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1213,
+          "clientHeight": 1213,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 4 CDE Registry 5 CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Net Revenue (USD)SOX finance_prod.curated.revenue_daily.net_revenue_usd Finance Stewards 90d Healthy Customer ID customer_360.gold.customer_profile.customer_id Customer Stewards 180d Healthy Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recert due (8d) Compensation Band hr_secure.confidential.compensation_band.band_id People Stewards 180d Healthy Order Total (USD)SOX sales_prod.silver.orders.gross_total_usd Revenue Stewards 90d Healthy Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which domains have the lowest metadata coverage? ↗ Which critical assets are not certified? ↗ What changed in governance metadata recently? ↗ Which assets need stewardship attention? ↗ Atlas AI uses AI. Review for accuracy.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 5",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "audit",
+      "path": "/audit-evidence",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/audit-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/audit-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3001/audit",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1269,
+          "width": 240,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1905,
+          "clientHeight": 1213,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": {
+            "top": 56,
+            "left": 240,
+            "right": 2549,
+            "bottom": 1269,
+            "width": 2309,
+            "height": 1213
+          },
+          "shell": {
+            "top": 74,
+            "left": 867.5,
+            "right": 2411.5,
+            "bottom": 1960.984375,
+            "width": 1544,
+            "height": 1886.984375
+          },
+          "main": {
+            "top": 74,
+            "left": 867.5,
+            "right": 2411.5,
+            "bottom": 1960.984375,
+            "width": 1544,
+            "height": 1886.984375
+          },
+          "table": {
+            "top": 360.953125,
+            "left": 867.5,
+            "right": 2411.5,
+            "bottom": 1867.984375,
+            "width": 1544,
+            "height": 1507.03125
+          },
+          "mainStyle": {
+            "width": "1544px",
+            "justify-self": "auto",
+            "align-self": "auto",
+            "grid-column": "auto",
+            "display": "grid"
+          },
+          "shellStyle": {
+            "width": "1544px",
+            "grid-template-columns": "1544px",
+            "justify-items": "normal",
+            "display": "grid"
+          }
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 87.4% coverage Atlas AI AUDIT EVIDENCE Immutable governance event log Governance actions by humans or services are shown from the audit evidence returned by the runtime. Export and report actions stay unavailable unless a backed audit export is configured. Date range · 24h Generate report Export CSV ▦ Events · 24h 2,184 local-prototype-mock ! Policy violations · 7d 6 Policy summary unavailable unless reported by audit API ✓ Access reviews · open 3 Access review summary unavailable unless reported by audit API ▣ Retention 7 yr Retention reported by audit API All events8 By users4 By services4 Violations1 Time (UTC) Actor Event Target Evidence 2026-04-27 09:14:22 MR marisol.reyes@entrada.ai Certification Re-certified for Q2 2026. finance_prod.curated.revenue_daily owner, description, lineage coverage, freshness SLA ↗ 2026-04-27 08:52:09 SG svc-governance-sweeper Tag Applied Auto-tagged 6 columns as pii. customer_360.silver.contact_events Job run ID 9821044 · Classifier confidence >= 0.92 ↗ 2026-04-27 08:31:44 AC aaron.chen@entrada.ai Grant Granted SELECT to customer-success-leads group. customer_360.gold.customer_profile Approved via stewardship workflow SI-2440 ↗ 2026-04-27 07:58:01 SP svc-policy-engine Policy Violation Owner-required policy failed. experimental.sandbox.pricing_experiment_2025q4 No principal in owner grant set. Quarantined from search index. ↗ 2026-04-27 07:",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Date range · 24h",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Generate report",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export CSV",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All events8",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "By users4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "By services4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Violations1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 09:14:22 MR marisol.reyes@entrada.ai Certification Re-certified for Q2 2026. finance_prod.curated.revenue_dai",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 08:52:09 SG svc-governance-sweeper Tag Applied Auto-tagged 6 columns as pii. customer_360.silver.contact_even",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 08:31:44 AC aaron.chen@entrada.ai Grant Granted SELECT to customer-success-leads group. customer_360.gold.cus",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 07:58:01 SP svc-policy-engine Policy Violation Owner-required policy failed. experimental.sandbox.pricing_exp",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 07:14:55 PN priya.natarajan@entrada.ai Quality Alert Acknowledged quality regression on currency_code. sales_",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 06:42:31 SL svc-lineage-collector Lineage Updated Captured new column-level lineage for is_recognized. financ",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 05:18:12 DP devon.park@entrada.ai Description Edited table description. product_events.bronze.clickstream_eve",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-26 22:04:00 CB compliance-bot Access Review Quarterly access review completed. hr_secure.confidential.compensati",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "command-center",
+      "path": "/command-center",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/command-center-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/command-center-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Home - Governance Atlas",
+        "url": "http://127.0.0.1:3001/home",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1811,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": {
+          "top": 56,
+          "left": 240,
+          "right": 1128,
+          "bottom": 1024,
+          "width": 888,
+          "height": 968
+        },
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 87.4% coverage Atlas AI EXECUTIVE COMMAND CENTER Live · refreshed 1d ago Governance posture, at a glance Atlas reads Unity Catalog directly. Every number below is permission-aware, lineage-aware, and traceable to available governance metadata. Export brief Present mode 87% Governance posture +9pp vs W14 THE STATE OF 6 VISIBLE CATALOGS 1,247 governed assets are in scope. Coverage is 87%. 612 CERTIFIED ASSETS 7 OPEN EXPOSURES 184 STEWARDSHIP ITEMS WHAT CHANGED TODAY Coverage 87% +2.1 pts vs last week Certified assets 612 +37 this week Open exposures 7 +2 new this week Stewardship 184 -11 this week GOVERNANCE COVERAGE 87% +2.1 pts vs last week CERTIFIED ASSETS 612 +37 this week OPEN STEWARDSHIP ITEMS 184 -11 this week HIGH-RISK EXPOSURES 7 +2 new this week Coverage trend · last 12 weeks i 12w 26w 52w 100% 75% 50% 25% 0% W14 W15 W16 W17 W18 W19 W20 W21 W22 W23 W24 W25 +9pp vs W14 Posture by domain i Revenue & Sales 92% 138 assets Customer 84% 174 assets Marketing 88% 89 assets Finance 95% 121 assets Operations 79% 64 assets People 72% 26 assets Risk breakdown i 7 OPEN EXPOSURES High-risk exposures 7 Medium-risk findings - Informational - Open exposure counts are sourced from governance events. Top catalogs · health snapshot i CATALOG TABLES COVERAGE CLASSIFICATION RISK sales_prod 7 91% Internal Low customer_360 4 82% Confidential Medium finance_prod 3 94% Restricted Low product",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export brief",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Present mode",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Coverage trend · last 12 weeks: Historical posture snapshots are shown only when available."
+          },
+          {
+            "text": "12w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "26w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "52w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Posture by domain: Domain scores use backed command-center domain signals when available."
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Risk breakdown: Risk distribution renders unavailable unless explicit exposure severity signals are present."
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Top catalogs · health snapshot: Catalog rows are derived from visible asset inventory and backed metadata coverage fields."
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Critical data elements: CDE rows require backed CDE registry data or asset-level critical-element metadata."
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Activity stream: Recent activity uses audit/governance events returned by the command-center API."
+          },
+          {
+            "text": "Marisol Reyes certified finance_prod.curated.revenue_daily 1d ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "svc-policy-engine flagged missing owner on experimental.sandbox.pricing_experiment_2025q4 1d ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Priya Natarajan acknowledged quality alert on sales_prod.silver.orders 1d ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "stewardship",
+      "path": "/stewardship",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/stewardship-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/stewardship-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3001/governance",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 87.4% coverage Atlas AI STEWARDSHIP WORKBENCH 184 open work items · 7 SLA breaches Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available. Filter Bulk assign New work item All 8 P1 critical 3 Overdue 2 Assigned to me 1 Work queue 8 items · sorted by SLA risk ID ITEM ASSET ASSIGNED SLA PRIORITY SI-2491 Owner missing Age 11d experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue P1 SI-2479 Tag policy violation Age 8d customer_360.silver.contact_events Customer Stewards 1d overdue P1 SI-2471 Quality regression Age 1d sales_prod.silver.orders Priya Natarajan 12h left P1 SI-2482 Re-certification due Age 89d finance_prod.curated.revenue_daily Marisol Reyes Today P2 SI-2487 Description missing Age 5d product_events.bronze.clickstream_events Customer Stewards 2d left P2 SI-2469 Access exception Age 16h hr_secure.confidential.compensation_band People Stewards 3d left P2 SI-2475 Lineage gap Age 2d marketing_mart.gold.attribution_daily Marketing Stewards 6d left P3 SI-2462 Glossary mapping Age 4d customer_360.gold.customer_profile Customer Stewards 8d left P3 1-8 of 8 1 > SI-2491 P1 · P1 critical 4d overdue Owner missing Revenue Stewards x AFFECTED ASSET experimental.sandbox.pricing_experiment_2025q4 Why this is open Auto-flag: no owner set; queries detected from",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Filter",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Bulk assign",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "New work item",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All 8",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "P1 critical 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Overdue 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assigned to me 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2491 Owner missing Age 11d experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2479 Tag policy violation Age 8d customer_360.silver.contact_events Customer Stewards 1d overdue P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2471 Quality regression Age 1d sales_prod.silver.orders Priya Natarajan 12h left P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2482 Re-certification due Age 89d finance_prod.curated.revenue_daily Marisol Reyes Today P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2487 Description missing Age 5d product_events.bronze.clickstream_events Customer Stewards 2d left P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2469 Access exception Age 16h hr_secure.confidential.compensation_band People Stewards 3d left P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2475 Lineage gap Age 2d marketing_mart.gold.attribution_daily Marketing Stewards 6d left P3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2462 Glossary mapping Age 4d customer_360.gold.customer_profile Customer Stewards 8d left P3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": ">",
+            "disabled": true,
+            "aria": "Next page"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close request detail"
+          },
+          {
+            "text": "experimental.sandbox.pricing_experiment_2025q4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assign owner from suggested teams Sales Engineering: 92% match (queries, tags)",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Archive sandbox cleanup No queries in 30+ days",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Comment",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Resolve",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open lineage context ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "glossary",
+      "path": "/glossary-cdes",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/glossary-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/glossary-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3001/taxonomy",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 4 CDE Registry 5 Net Revenue Finance · Finance Stewards Approved Gross revenue minus discounts and refunds; recognized per ASC 606. Source-of-record column: `finance_prod.curated.revenue_daily.net_revenue_usd`. 4 assets View lineage -> Active Customer Customer · Customer Stewards Approved A customer with at least one billable order in the trailing 90 days. Computed in `customer_360.gold.customer_profile.lifecycle_stage`. 7 assets View lineage -> Churn Propensity Customer · Customer Stewards Approved Modeled probability that a customer will churn in the next 30 days. Served via `customer_360.ml.churn_propensity_v3`. 3 assets View lineage -> Booking Revenue & Sales · Revenue Stewards In Review A confirmed order, regardless of recognition status. 6 assets View lineage -> Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which domains have the lowest metadata coverage? ↗ Which critical assets are not certified? ↗ What changed in governance metadata recently? ↗ Which assets need stewardship attention? ↗ Atlas AI uses AI. Review for accuracy.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 5",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "7 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "3 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "6 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/cde-registry-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/cde-registry-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3001/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 4 CDE Registry 5 CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Net Revenue (USD)SOX finance_prod.curated.revenue_daily.net_revenue_usd Finance Stewards 90d Healthy Customer ID customer_360.gold.customer_profile.customer_id Customer Stewards 180d Healthy Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recert due (8d) Compensation Band hr_secure.confidential.compensation_band.band_id People Stewards 180d Healthy Order Total (USD)SOX sales_prod.silver.orders.gross_total_usd Revenue Stewards 90d Healthy Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which domains have the lowest metadata coverage? ↗ Which critical assets are not certified? ↗ What changed in governance metadata recently? ↗ Which assets need stewardship attention? ↗ Atlas AI uses AI. Review for accuracy.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 5",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "audit",
+      "path": "/audit-evidence",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/audit-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-blocker-local-first-pass/audit-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3001/audit",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1659,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": {
+            "top": 56,
+            "left": 240,
+            "right": 1128,
+            "bottom": 1024,
+            "width": 888,
+            "height": 968
+          },
+          "shell": {
+            "top": 74,
+            "left": 262,
+            "right": 1108,
+            "bottom": 1715.421875,
+            "width": 846,
+            "height": 1641.421875
+          },
+          "main": {
+            "top": 74,
+            "left": 262,
+            "right": 1108,
+            "bottom": 1715.421875,
+            "width": 846,
+            "height": 1641.421875
+          },
+          "table": {
+            "top": 366.671875,
+            "left": 262,
+            "right": 1108,
+            "bottom": 1609.421875,
+            "width": 846,
+            "height": 1242.75
+          },
+          "mainStyle": {
+            "width": "846px",
+            "justify-self": "auto",
+            "align-self": "auto",
+            "grid-column": "auto",
+            "display": "grid"
+          },
+          "shellStyle": {
+            "width": "846px",
+            "grid-template-columns": "846px",
+            "justify-items": "normal",
+            "display": "grid"
+          }
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 87.4% coverage Atlas AI AUDIT EVIDENCE Immutable governance event log Governance actions by humans or services are shown from the audit evidence returned by the runtime. Export and report actions stay unavailable unless a backed audit export is configured. Date range · 24h Generate report Export CSV ▦ Events · 24h 2,184 local-prototype-mock ! Policy violations · 7d 6 Policy summary unavailable unless reported by audit API ✓ Access reviews · open 3 Access review summary unavailable unless reported by audit API ▣ Retention 7 yr Retention reported by audit API All events8 By users4 By services4 Violations1 Time (UTC) Actor Event Target Evidence 2026-04-27 09:14:22 MR marisol.reyes@entrada.ai Certification Re-certified for Q2 2026. finance_prod.curated.revenue_daily owner, description, lineage coverage, freshness SLA ↗ 2026-04-27 08:52:09 SG svc-governance-sweeper Tag Applied Auto-tagged 6 columns as pii. customer_360.silver.contact_events Job run ID 9821044 · Classifier confidence >= 0.92 ↗ 2026-04-27 08:31:44 AC aaron.chen@entrada.ai Grant Granted SELECT to customer-success-leads group. customer_360.gold.customer_profile Approved via stewardship workflow SI-2440 ↗ 2026-04-27 07:58:01 SP svc-policy-engine Policy Violation Owner-required policy failed. experimental.sandbox.pricing_experiment_2025q4 No principal in owner grant set. Quarantined from search index. ↗ 2026-04-27 07:",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Date range · 24h",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Generate report",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export CSV",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All events8",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "By users4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "By services4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Violations1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 09:14:22 MR marisol.reyes@entrada.ai Certification Re-certified for Q2 2026. finance_prod.curated.revenue_dai",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 08:52:09 SG svc-governance-sweeper Tag Applied Auto-tagged 6 columns as pii. customer_360.silver.contact_even",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 08:31:44 AC aaron.chen@entrada.ai Grant Granted SELECT to customer-success-leads group. customer_360.gold.cus",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 07:58:01 SP svc-policy-engine Policy Violation Owner-required policy failed. experimental.sandbox.pricing_exp",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 07:14:55 PN priya.natarajan@entrada.ai Quality Alert Acknowledged quality regression on currency_code. sales_",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 06:42:31 SL svc-lineage-collector Lineage Updated Captured new column-level lineage for is_recognized. financ",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-27 05:18:12 DP devon.park@entrada.ai Description Edited table description. product_events.bronze.clickstream_eve",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2026-04-26 22:04:00 CB compliance-bot Access Review Quarterly access review completed. hr_secure.confidential.compensati",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    }
+  ],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3001/home"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3001/home"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3001/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3001/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3001/taxonomy"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3001/taxonomy"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3001/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3001/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3001/audit"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3001/audit"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3001/home"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3001/home"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3001/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3001/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3001/taxonomy"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3001/taxonomy"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3001/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3001/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3001/audit"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3001/audit"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

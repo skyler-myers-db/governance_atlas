@@ -1,0 +1,1636 @@
+{
+  "generatedAt": "2026-05-01T15:18:39.968Z",
+  "baseUrl": "http://127.0.0.1:5173",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "evidenceKind": "prototype_mock",
+  "mockEvidenceWarning": "Prototype mock data, not live Databricks evidence.",
+  "routeFilter": [
+    "stewardship"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "stewardship"
+  ],
+  "viewports": [
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    }
+  ],
+  "expectedCaptureCount": 1,
+  "captures": [
+    {
+      "route": "stewardship",
+      "path": "/stewardship",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/stewardship-functional-v301-local/stewardship-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/stewardship-functional-v301-local/stewardship-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/governance",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI STEWARDSHIP WORKBENCH 184 open work items · 7 SLA breaches Prototype stewardship rows preserve the target queue and detail workflow, but they are not live governance request, assignment, or SLA proof. Filter Bulk assign New work item All 8 P1 critical 3 Overdue 2 Assigned to me 1 Work queue 8 items · sorted by prototype SLA risk ID ITEM ASSET ASSIGNED SLA PRIORITY SI-2491 Owner missing Age 11d experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue P1 SI-2487 Description missing Age 5d product_events.bronze.clickstream_events Customer Stewards 2d left P2 SI-2482 Re-certification due Age 89d finance_prod.curated.revenue_daily Marisol Reyes Today P2 SI-2479 Tag policy violation Age 8d customer_360.silver.contact_events Customer Stewards 1d overdue P1 SI-2475 Lineage gap Age 2d marketing_mart.gold.attribution_daily Marketing Stewards 6d left P3 SI-2471 Quality regression Age 1d sales_prod.silver.orders Priya Natarajan 12h left P1 SI-2469 Access exception Age 16h hr_secure.confidential.compensation_band People Stewards 3d left P2 SI-2462 Glossary mapping Age 4d customer_360.gold.customer_profile Customer Stewards 8d left P3 SI-2491 Owner missing P1 · P1 critical 4d overdue Revenue Stewards AFFECTED ASSET experimental.sandbox.pricing_experiment_2025q4 Why this is open Auto-flag: no owner set; queries detected",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications unavailable",
+            "disabled": false,
+            "aria": "Notifications unavailable"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Filter",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Bulk assign",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "New work item",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All 8",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "P1 critical 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Overdue 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assigned to me 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2491 Owner missing Age 11d experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2487 Description missing Age 5d product_events.bronze.clickstream_events Customer Stewards 2d left P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2482 Re-certification due Age 89d finance_prod.curated.revenue_daily Marisol Reyes Today P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2479 Tag policy violation Age 8d customer_360.silver.contact_events Customer Stewards 1d overdue P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2475 Lineage gap Age 2d marketing_mart.gold.attribution_daily Marketing Stewards 6d left P3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2471 Quality regression Age 1d sales_prod.silver.orders Priya Natarajan 12h left P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2469 Access exception Age 16h hr_secure.confidential.compensation_band People Stewards 3d left P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2462 Glossary mapping Age 4d customer_360.gold.customer_profile Customer Stewards 8d left P3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "experimental.sandbox.pricing_experiment_2025q4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assign owner from suggested teams Sales Engineering: 92% match (queries, tags)",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Archive sandbox cleanup No queries in 30+ days",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Comment",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Resolve",
+            "disabled": true,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "stewardship",
+      "path": "/stewardship",
+      "viewport": "1536x1024",
+      "interaction": "workbench-controls",
+      "description": "Exercise Stewardship filters, queue pills, prototype-safe action messages, and degraded create/assign flows.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/stewardship-functional-v301-local/stewardship-workbench-controls-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/stewardship-functional-v301-local/stewardship-workbench-controls-1536x1024-full.png",
+      "runResult": {
+        "filterPanel": {
+          "filterPanel": true
+        },
+        "p1": {
+          "text": "P1 critical (3)",
+          "ariaLabel": "",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "true",
+          "ariaSelected": "",
+          "rect": {
+            "top": 192,
+            "left": 1156,
+            "width": 75,
+            "height": 33
+          }
+        },
+        "overdue": {
+          "text": "Overdue (2)",
+          "ariaLabel": "",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "true",
+          "ariaSelected": "",
+          "rect": {
+            "top": 192,
+            "left": 1237,
+            "width": 69,
+            "height": 33
+          }
+        },
+        "assigned": {
+          "text": "Assigned to me (1)",
+          "ariaLabel": "",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "true",
+          "ariaSelected": "",
+          "rect": {
+            "top": 192,
+            "left": 1312,
+            "width": 107,
+            "height": 33
+          }
+        },
+        "bulkPanel": {
+          "bulkUnavailable": true
+        },
+        "newItemPanel": {
+          "newUnavailable": true
+        },
+        "suggestedPanel": {
+          "suggestedUnavailable": true
+        },
+        "archivePanel": {
+          "archiveUnavailable": true
+        },
+        "nextPage": {
+          "hidden": true,
+          "disabled": true,
+          "title": "Single-page queue hides pagination to match the Stewardship reference."
+        },
+        "comment": {
+          "text": "Comment",
+          "ariaLabel": "",
+          "title": "Prototype work items are visual workflow evidence only; they cannot be mutated as live governance requests.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 589,
+            "left": 1027,
+            "width": 191,
+            "height": 40
+          }
+        },
+        "resolve": {
+          "text": "Resolve",
+          "ariaLabel": "",
+          "title": "Prototype work items are visual workflow evidence only; they cannot be mutated as live governance requests.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 589,
+            "left": 1226,
+            "width": 191,
+            "height": 40
+          }
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "checks": {
+          "workbench": true
+        },
+        "runResult": {
+          "filterPanel": {
+            "filterPanel": true
+          },
+          "p1": {
+            "text": "P1 critical (3)",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "true",
+            "ariaSelected": "",
+            "rect": {
+              "top": 192,
+              "left": 1156,
+              "width": 75,
+              "height": 33
+            }
+          },
+          "overdue": {
+            "text": "Overdue (2)",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "true",
+            "ariaSelected": "",
+            "rect": {
+              "top": 192,
+              "left": 1237,
+              "width": 69,
+              "height": 33
+            }
+          },
+          "assigned": {
+            "text": "Assigned to me (1)",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "true",
+            "ariaSelected": "",
+            "rect": {
+              "top": 192,
+              "left": 1312,
+              "width": 107,
+              "height": 33
+            }
+          },
+          "bulkPanel": {
+            "bulkUnavailable": true
+          },
+          "newItemPanel": {
+            "newUnavailable": true
+          },
+          "suggestedPanel": {
+            "suggestedUnavailable": true
+          },
+          "archivePanel": {
+            "archiveUnavailable": true
+          },
+          "nextPage": {
+            "hidden": true,
+            "disabled": true,
+            "title": "Single-page queue hides pagination to match the Stewardship reference."
+          },
+          "comment": {
+            "text": "Comment",
+            "ariaLabel": "",
+            "title": "Prototype work items are visual workflow evidence only; they cannot be mutated as live governance requests.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 589,
+              "left": 1027,
+              "width": 191,
+              "height": 40
+            }
+          },
+          "resolve": {
+            "text": "Resolve",
+            "ariaLabel": "",
+            "title": "Prototype work items are visual workflow evidence only; they cannot be mutated as live governance requests.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 589,
+              "left": 1226,
+              "width": 191,
+              "height": 40
+            }
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/governance",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI STEWARDSHIP WORKBENCH 184 open work items · 7 SLA breaches Prototype stewardship rows preserve the target queue and detail workflow, but they are not live governance request, assignment, or SLA proof. Filter Bulk assign New work item All 8 P1 critical 3 Overdue 2 Assigned to me 1 Work queue 8 items · sorted by prototype SLA risk ID ITEM ASSET ASSIGNED SLA PRIORITY SI-2491 Owner missing Age 11d experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue P1 SI-2487 Description missing Age 5d product_events.bronze.clickstream_events Customer Stewards 2d left P2 SI-2482 Re-certification due Age 89d finance_prod.curated.revenue_daily Marisol Reyes Today P2 SI-2479 Tag policy violation Age 8d customer_360.silver.contact_events Customer Stewards 1d overdue P1 SI-2475 Lineage gap Age 2d marketing_mart.gold.attribution_daily Marketing Stewards 6d left P3 SI-2471 Quality regression Age 1d sales_prod.silver.orders Priya Natarajan 12h left P1 SI-2469 Access exception Age 16h hr_secure.confidential.compensation_band People Stewards 3d left P2 SI-2462 Glossary mapping Age 4d customer_360.gold.customer_profile Customer Stewards 8d left P3 SI-2491 Owner missing P1 · P1 critical 4d overdue Revenue Stewards AFFECTED ASSET experimental.sandbox.pricing_experiment_2025q4 Why this is open Auto-flag: no owner set; queries detected",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications unavailable",
+            "disabled": false,
+            "aria": "Notifications unavailable"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Filter",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Bulk assign",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "New work item",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All 8",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "P1 critical 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Overdue 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assigned to me 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2491 Owner missing Age 11d experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2487 Description missing Age 5d product_events.bronze.clickstream_events Customer Stewards 2d left P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2482 Re-certification due Age 89d finance_prod.curated.revenue_daily Marisol Reyes Today P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2479 Tag policy violation Age 8d customer_360.silver.contact_events Customer Stewards 1d overdue P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2475 Lineage gap Age 2d marketing_mart.gold.attribution_daily Marketing Stewards 6d left P3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2471 Quality regression Age 1d sales_prod.silver.orders Priya Natarajan 12h left P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2469 Access exception Age 16h hr_secure.confidential.compensation_band People Stewards 3d left P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2462 Glossary mapping Age 4d customer_360.gold.customer_profile Customer Stewards 8d left P3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "experimental.sandbox.pricing_experiment_2025q4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assign owner from suggested teams Sales Engineering: 92% match (queries, tags)",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Archive sandbox cleanup No queries in 30+ days",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Comment",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Resolve",
+            "disabled": true,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "stewardship",
+      "path": "/stewardship",
+      "viewport": "1536x1024",
+      "interaction": "asset-routing",
+      "description": "Open the affected asset from a Stewardship work item.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/stewardship-functional-v301-local/stewardship-asset-routing-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/stewardship-functional-v301-local/stewardship-asset-routing-1536x1024-full.png",
+      "runResult": {
+        "before": {
+          "text": "experimental.sandbox.pricing_experiment_2025q4",
+          "ariaLabel": "",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 348,
+            "left": 1027,
+            "width": 390,
+            "height": 38
+          }
+        },
+        "pathAfterClick": "/entity/experimental.sandbox.pricing_experiment_2025q4",
+        "state": {
+          "url": "http://127.0.0.1:5173/entity/experimental.sandbox.pricing_experiment_2025q4",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI Asset 360 / Assets / pricing_experiment_2025q4 pricing_experiment_2025q4 Uncertified Revenue & Sales 360 experimental / sandbox Request Unavailable Open Lineage Certification Unavailable ⌄ ⋮ High Unclassified Domain Revenue & Sales Data Product Revenue Prototype mock - not live Databricks evidence. Mutating governance actions are disabled until this record is backed by live metadata. OWNER Unassigned STEWARD Unassigned FRESHNESS View history Unavailable Prototype only - no live freshness proof ROWS Prototype only No live row-count proof SIZE Prototype only No live storage-size proof Overview Columns Governance Quality Access Activity Business Description Sandbox table from a pricing experiment. No owner, no description until last week. Auto-flagged. Prototype-mock description only; not live Databricks catalog proof. Primary Uses Revenue & Sales Revenue Uncertified Usage Summary (Last 30 days) View all usage — Downstream Assets — Users — Queries Usage evidence is prototype-only; live query and downstream-user counts are unavailable. Schema No columns surfaced Search columns No schema metadata is available for this asset. No columns to show View all columns → Governance View all policies → Certification Uncertified Business Criticality High Owner Unassigned Steward Unassigned Owner required CDE description Recent Activity Vi",
+          "checks": {
+            "asset": true
+          }
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "before": {
+            "text": "experimental.sandbox.pricing_experiment_2025q4",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 348,
+              "left": 1027,
+              "width": 390,
+              "height": 38
+            }
+          },
+          "pathAfterClick": "/entity/experimental.sandbox.pricing_experiment_2025q4",
+          "state": {
+            "url": "http://127.0.0.1:5173/entity/experimental.sandbox.pricing_experiment_2025q4",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI Asset 360 / Assets / pricing_experiment_2025q4 pricing_experiment_2025q4 Uncertified Revenue & Sales 360 experimental / sandbox Request Unavailable Open Lineage Certification Unavailable ⌄ ⋮ High Unclassified Domain Revenue & Sales Data Product Revenue Prototype mock - not live Databricks evidence. Mutating governance actions are disabled until this record is backed by live metadata. OWNER Unassigned STEWARD Unassigned FRESHNESS View history Unavailable Prototype only - no live freshness proof ROWS Prototype only No live row-count proof SIZE Prototype only No live storage-size proof Overview Columns Governance Quality Access Activity Business Description Sandbox table from a pricing experiment. No owner, no description until last week. Auto-flagged. Prototype-mock description only; not live Databricks catalog proof. Primary Uses Revenue & Sales Revenue Uncertified Usage Summary (Last 30 days) View all usage — Downstream Assets — Users — Queries Usage evidence is prototype-only; live query and downstream-user counts are unavailable. Schema No columns surfaced Search columns No schema metadata is available for this asset. No columns to show View all columns → Governance View all policies → Certification Uncertified Business Criticality High Owner Unassigned Steward Unassigned Owner required CDE description Recent Activity Vi",
+            "checks": {
+              "asset": true
+            }
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/entity/experimental.sandbox.pricing_experiment_2025q4",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI Asset 360 / Assets / pricing_experiment_2025q4 pricing_experiment_2025q4 Uncertified Revenue & Sales 360 experimental / sandbox Request Unavailable Open Lineage Certification Unavailable ⌄ ⋮ High Unclassified Domain Revenue & Sales Data Product Revenue Prototype mock - not live Databricks evidence. Mutating governance actions are disabled until this record is backed by live metadata. OWNER Unassigned STEWARD Unassigned FRESHNESS View history Unavailable Prototype only - no live freshness proof ROWS Prototype only No live row-count proof SIZE Prototype only No live storage-size proof Overview Columns Governance Quality Access Activity Business Description Sandbox table from a pricing experiment. No owner, no description until last week. Auto-flagged. Prototype-mock description only; not live Databricks catalog proof. Primary Uses Revenue & Sales Revenue Uncertified Usage Summary (Last 30 days) View all usage — Downstream Assets — Users — Queries Usage evidence is prototype-only; live query and downstream-user counts are unavailable. Schema No columns surfaced Search columns No schema metadata is available for this asset. No columns to show View all columns → Governance View all policies → Certification Uncertified Business Criticality High Owner Unassigned Steward Unassigned Owner required CDE description Recent Activity Vi",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications unavailable",
+            "disabled": false,
+            "aria": "Notifications unavailable"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Asset 360",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Request Unavailable",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Open Lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certification Unavailable ⌄",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "More asset actions"
+          },
+          {
+            "text": "View history",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Overview",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Columns",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Quality",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Access",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Activity",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all usage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all columns →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all policies →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "arr_snapshot Same product",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders Upstream source",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "stewardship",
+      "path": "/stewardship",
+      "viewport": "1536x1024",
+      "interaction": "lineage-navigation",
+      "description": "Verify the non-reference Stewardship detail lineage link is not exposed.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/stewardship-functional-v301-local/stewardship-lineage-navigation-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/stewardship-functional-v301-local/stewardship-lineage-navigation-1536x1024-full.png",
+      "runResult": {
+        "openLineageContextCount": 0
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "openLineageContextCount": 0
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/governance",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI STEWARDSHIP WORKBENCH 184 open work items · 7 SLA breaches Prototype stewardship rows preserve the target queue and detail workflow, but they are not live governance request, assignment, or SLA proof. Filter Bulk assign New work item All 8 P1 critical 3 Overdue 2 Assigned to me 1 Work queue 8 items · sorted by prototype SLA risk ID ITEM ASSET ASSIGNED SLA PRIORITY SI-2491 Owner missing Age 11d experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue P1 SI-2487 Description missing Age 5d product_events.bronze.clickstream_events Customer Stewards 2d left P2 SI-2482 Re-certification due Age 89d finance_prod.curated.revenue_daily Marisol Reyes Today P2 SI-2479 Tag policy violation Age 8d customer_360.silver.contact_events Customer Stewards 1d overdue P1 SI-2475 Lineage gap Age 2d marketing_mart.gold.attribution_daily Marketing Stewards 6d left P3 SI-2471 Quality regression Age 1d sales_prod.silver.orders Priya Natarajan 12h left P1 SI-2469 Access exception Age 16h hr_secure.confidential.compensation_band People Stewards 3d left P2 SI-2462 Glossary mapping Age 4d customer_360.gold.customer_profile Customer Stewards 8d left P3 SI-2491 Owner missing P1 · P1 critical 4d overdue Revenue Stewards AFFECTED ASSET experimental.sandbox.pricing_experiment_2025q4 Why this is open Auto-flag: no owner set; queries detected",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications unavailable",
+            "disabled": false,
+            "aria": "Notifications unavailable"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Filter",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Bulk assign",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "New work item",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All 8",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "P1 critical 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Overdue 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assigned to me 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2491 Owner missing Age 11d experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2487 Description missing Age 5d product_events.bronze.clickstream_events Customer Stewards 2d left P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2482 Re-certification due Age 89d finance_prod.curated.revenue_daily Marisol Reyes Today P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2479 Tag policy violation Age 8d customer_360.silver.contact_events Customer Stewards 1d overdue P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2475 Lineage gap Age 2d marketing_mart.gold.attribution_daily Marketing Stewards 6d left P3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2471 Quality regression Age 1d sales_prod.silver.orders Priya Natarajan 12h left P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2469 Access exception Age 16h hr_secure.confidential.compensation_band People Stewards 3d left P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2462 Glossary mapping Age 4d customer_360.gold.customer_profile Customer Stewards 8d left P3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "experimental.sandbox.pricing_experiment_2025q4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assign owner from suggested teams Sales Engineering: 92% match (queries, tags)",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Archive sandbox cleanup No queries in 30+ days",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Comment",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Resolve",
+            "disabled": true,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "stewardship",
+      "path": "/stewardship",
+      "viewport": "1536x1024",
+      "interaction": "atlas-ai",
+      "description": "Submit a Stewardship-specific Atlas AI prompt and verify grounded evidence appears.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/stewardship-functional-v301-local/stewardship-atlas-ai-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/stewardship-functional-v301-local/stewardship-atlas-ai-1536x1024-full.png",
+      "runResult": {
+        "url": "http://127.0.0.1:5173/governance",
+        "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI STEWARDSHIP WORKBENCH 184 open work items · 7 SLA breaches Prototype stewardship rows preserve the target queue and detail workflow, but they are not live governance request, assignment, or SLA proof. Filter Bulk assign New work item All 8 P1 critical 3 Overdue 2 Assigned to me 1 Work queue 8 items · sorted by prototype SLA risk ID ITEM ASSET ASSIGNED SLA SI-2491 Owner missing experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue SI-2487 Description missing product_events.bronze.clickstream_events Customer Stewards 2d left SI-2482 Re-certification due finance_prod.curated.revenue_daily Marisol Reyes Today SI-2479 Tag policy violation customer_360.silver.contact_events Customer Stewards 1d overdue SI-2475 Lineage gap marketing_mart.gold.attribution_daily Marketing Stewards 6d left SI-2471 Quality regression sales_prod.silver.orders Priya Natarajan 12h left SI-2469 Access exception hr_secure.confidential.compensation_band People Stewards 3d left SI-2462 Glossary mapping customer_360.gold.customer_profile Customer Stewards 8d left SI-2491 Owner missing P1 · P1 critical 4d overdue Revenue Stewards AFFECTED ASSET experimental.sandbox.pricing_experiment_2025q4 Why this is open Auto-flag: no owner set; queries detected from 3 users. Suggested actions Assign owner from suggested teams Sales Engineering: 92% ma",
+        "checks": {
+          "answer": true,
+          "evidence": true
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "url": "http://127.0.0.1:5173/governance",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI STEWARDSHIP WORKBENCH 184 open work items · 7 SLA breaches Prototype stewardship rows preserve the target queue and detail workflow, but they are not live governance request, assignment, or SLA proof. Filter Bulk assign New work item All 8 P1 critical 3 Overdue 2 Assigned to me 1 Work queue 8 items · sorted by prototype SLA risk ID ITEM ASSET ASSIGNED SLA SI-2491 Owner missing experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue SI-2487 Description missing product_events.bronze.clickstream_events Customer Stewards 2d left SI-2482 Re-certification due finance_prod.curated.revenue_daily Marisol Reyes Today SI-2479 Tag policy violation customer_360.silver.contact_events Customer Stewards 1d overdue SI-2475 Lineage gap marketing_mart.gold.attribution_daily Marketing Stewards 6d left SI-2471 Quality regression sales_prod.silver.orders Priya Natarajan 12h left SI-2469 Access exception hr_secure.confidential.compensation_band People Stewards 3d left SI-2462 Glossary mapping customer_360.gold.customer_profile Customer Stewards 8d left SI-2491 Owner missing P1 · P1 critical 4d overdue Revenue Stewards AFFECTED ASSET experimental.sandbox.pricing_experiment_2025q4 Why this is open Auto-flag: no owner set; queries detected from 3 users. Suggested actions Assign owner from suggested teams Sales Engineering: 92% ma",
+          "checks": {
+            "answer": true,
+            "evidence": true
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/governance",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI STEWARDSHIP WORKBENCH 184 open work items · 7 SLA breaches Prototype stewardship rows preserve the target queue and detail workflow, but they are not live governance request, assignment, or SLA proof. Filter Bulk assign New work item All 8 P1 critical 3 Overdue 2 Assigned to me 1 Work queue 8 items · sorted by prototype SLA risk ID ITEM ASSET ASSIGNED SLA SI-2491 Owner missing experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue SI-2487 Description missing product_events.bronze.clickstream_events Customer Stewards 2d left SI-2482 Re-certification due finance_prod.curated.revenue_daily Marisol Reyes Today SI-2479 Tag policy violation customer_360.silver.contact_events Customer Stewards 1d overdue SI-2475 Lineage gap marketing_mart.gold.attribution_daily Marketing Stewards 6d left SI-2471 Quality regression sales_prod.silver.orders Priya Natarajan 12h left SI-2469 Access exception hr_secure.confidential.compensation_band People Stewards 3d left SI-2462 Glossary mapping customer_360.gold.customer_profile Customer Stewards 8d left SI-2491 Owner missing P1 · P1 critical 4d overdue Revenue Stewards AFFECTED ASSET experimental.sandbox.pricing_experiment_2025q4 Why this is open Auto-flag: no owner set; queries detected from 3 users. Suggested actions Assign owner from suggested teams Sales Engineering: 92% ma",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications unavailable",
+            "disabled": false,
+            "aria": "Notifications unavailable"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Filter",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Bulk assign",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "New work item",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All 8",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "P1 critical 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Overdue 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assigned to me 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2491 Owner missing experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2487 Description missing product_events.bronze.clickstream_events Customer Stewards 2d left",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2482 Re-certification due finance_prod.curated.revenue_daily Marisol Reyes Today",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2479 Tag policy violation customer_360.silver.contact_events Customer Stewards 1d overdue",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2475 Lineage gap marketing_mart.gold.attribution_daily Marketing Stewards 6d left",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2471 Quality regression sales_prod.silver.orders Priya Natarajan 12h left",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2469 Access exception hr_secure.confidential.compensation_band People Stewards 3d left",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2462 Glossary mapping customer_360.gold.customer_profile Customer Stewards 8d left",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "experimental.sandbox.pricing_experiment_2025q4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assign owner from suggested teams Sales Engineering: 92% match (queries, tags)",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Archive sandbox cleanup No queries in 30+ days",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Comment",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Resolve",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "SI-2482 Open prototype stewardship context",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.curated.revenue_daily Open prototype asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? Which stewardship items need attention first? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Atlas AI accuracy notice"
+          }
+        ]
+      }
+    }
+  ],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/governance"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

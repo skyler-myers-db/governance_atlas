@@ -1,0 +1,292 @@
+{
+  "generatedAt": "2026-04-28T16:43:05.099Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "outDir": "/Users/entrada-mac/repos/governance_atlas/docs/northstar_visual_qa/prototype-ai-open",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "fixture": "local-bootstrap-and-api",
+  "console": [],
+  "pageErrors": [],
+  "requestFailures": [],
+  "metrics": {
+    "url": "http://127.0.0.1:3000/home",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "rail": {
+      "html": {
+        "top": 0,
+        "left": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "body": {
+        "top": 0,
+        "left": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "root": {
+        "top": 0,
+        "left": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "app": {
+        "top": 0,
+        "left": 0,
+        "right": 1440,
+        "bottom": 900,
+        "width": 1440,
+        "height": 900
+      },
+      "sideNav": {
+        "top": 0,
+        "left": 0,
+        "right": 240,
+        "bottom": 900,
+        "width": 240,
+        "height": 900
+      },
+      "logo": {
+        "top": 10,
+        "left": 10,
+        "right": 229,
+        "bottom": 56,
+        "width": 219,
+        "height": 46
+      },
+      "logoImage": {
+        "top": 11.5,
+        "left": 18,
+        "right": 50,
+        "bottom": 43.5,
+        "width": 32,
+        "height": 32
+      },
+      "logoText": {
+        "top": 15.453125,
+        "left": 60,
+        "right": 160,
+        "bottom": 39.53125,
+        "width": 100,
+        "height": 24.078125
+      },
+      "firstNavItem": {
+        "top": 100,
+        "left": 10,
+        "right": 229,
+        "bottom": 136,
+        "width": 219,
+        "height": 36
+      },
+      "firstNavIcon": {
+        "top": 109,
+        "left": 21,
+        "right": 39,
+        "bottom": 127,
+        "width": 18,
+        "height": 18
+      },
+      "firstNavLabel": {
+        "top": 110.5,
+        "left": 51,
+        "right": 154.3125,
+        "bottom": 125.5,
+        "width": 103.3125,
+        "height": 15,
+        "text": "Command Center"
+      },
+      "styles": {
+        "app": {
+          "width": "1440px",
+          "minWidth": "0px",
+          "gridTemplateColumns": "240px 1200px",
+          "justifyContent": "normal",
+          "justifyItems": "normal",
+          "justifySelf": "auto",
+          "alignSelf": "auto",
+          "marginLeft": "0px",
+          "marginRight": "0px",
+          "paddingLeft": "0px",
+          "paddingRight": "0px",
+          "boxSizing": "border-box",
+          "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "overflow": "clip",
+          "overflowX": "clip",
+          "transform": "none",
+          "left": "auto",
+          "position": "static",
+          "gridColumn": "auto"
+        },
+        "html": {
+          "width": "1440px",
+          "minWidth": "0px",
+          "gridTemplateColumns": "none",
+          "justifyContent": "normal",
+          "justifyItems": "normal",
+          "justifySelf": "auto",
+          "alignSelf": "auto",
+          "marginLeft": "0px",
+          "marginRight": "0px",
+          "paddingLeft": "0px",
+          "paddingRight": "0px",
+          "boxSizing": "border-box",
+          "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "overflow": "visible",
+          "overflowX": "visible",
+          "transform": "none",
+          "left": "auto",
+          "position": "static",
+          "gridColumn": "auto"
+        },
+        "body": {
+          "width": "1440px",
+          "minWidth": "0px",
+          "gridTemplateColumns": "none",
+          "justifyContent": "normal",
+          "justifyItems": "normal",
+          "justifySelf": "auto",
+          "alignSelf": "auto",
+          "marginLeft": "0px",
+          "marginRight": "0px",
+          "paddingLeft": "0px",
+          "paddingRight": "0px",
+          "boxSizing": "border-box",
+          "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "overflow": "visible",
+          "overflowX": "visible",
+          "transform": "none",
+          "left": "0px",
+          "position": "relative",
+          "gridColumn": "auto"
+        },
+        "root": {
+          "width": "1440px",
+          "minWidth": "0px",
+          "gridTemplateColumns": "none",
+          "justifyContent": "normal",
+          "justifyItems": "normal",
+          "justifySelf": "auto",
+          "alignSelf": "auto",
+          "marginLeft": "0px",
+          "marginRight": "0px",
+          "paddingLeft": "0px",
+          "paddingRight": "0px",
+          "boxSizing": "border-box",
+          "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "overflow": "visible",
+          "overflowX": "visible",
+          "transform": "none",
+          "left": "0px",
+          "position": "relative",
+          "gridColumn": "auto"
+        },
+        "sideNav": {
+          "width": "240px",
+          "minWidth": "240px",
+          "gridTemplateColumns": "none",
+          "justifyContent": "normal",
+          "justifyItems": "normal",
+          "justifySelf": "start",
+          "alignSelf": "stretch",
+          "marginLeft": "0px",
+          "marginRight": "0px",
+          "paddingLeft": "10px",
+          "paddingRight": "10px",
+          "boxSizing": "border-box",
+          "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "overflow": "hidden",
+          "overflowX": "hidden",
+          "transform": "none",
+          "left": "0px",
+          "position": "relative",
+          "gridColumn": "rail"
+        },
+        "logo": {
+          "width": "219px",
+          "minWidth": "auto",
+          "gridTemplateColumns": "none",
+          "justifyContent": "normal",
+          "justifyItems": "normal",
+          "justifySelf": "auto",
+          "alignSelf": "auto",
+          "marginLeft": "0px",
+          "marginRight": "0px",
+          "paddingLeft": "8px",
+          "paddingRight": "8px",
+          "boxSizing": "border-box",
+          "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "overflow": "visible",
+          "overflowX": "visible",
+          "transform": "none",
+          "left": "auto",
+          "position": "static",
+          "gridColumn": "auto"
+        }
+      }
+    },
+    "aiDialog": {
+      "top": 378,
+      "left": 1058,
+      "right": 1418,
+      "bottom": 810,
+      "width": 360,
+      "height": 432
+    },
+    "aiFab": {
+      "top": 824,
+      "left": 1364,
+      "right": 1420,
+      "bottom": 880,
+      "width": 56,
+      "height": 56
+    },
+    "main": {
+      "top": 56,
+      "left": 240,
+      "right": 1440,
+      "bottom": 900,
+      "width": 1200,
+      "height": 844
+    },
+    "home": {
+      "top": 56,
+      "left": 240,
+      "right": 1032,
+      "bottom": 900,
+      "width": 792,
+      "height": 844
+    },
+    "scroll": {
+      "windowX": 0,
+      "documentWidth": 1440,
+      "viewportWidth": 1440,
+      "mainScrollLeft": 0,
+      "mainScrollWidth": 1200,
+      "mainClientWidth": 1200,
+      "appScrollLeft": 0,
+      "appScrollWidth": 1506,
+      "appClientWidth": 1440
+    },
+    "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance Steward Workspace › entrada-prod ⌘ K UC connected · 87.4% coverage Atlas AI EXECUTIVE COMMAND CENTER Live · refreshed 1d ago Governance posture, at a glance Atlas reads Unity Catalog directly. Every number below is permission-aware, lineage-aware, and traceable to available governance metadata. Export brief Present mode 87% Governance posture +15pp vs W14 THE STATE OF 6 VISIBLE CATALOGS 1,247 governed assets are in scope. Coverage is 87%. 612 CERTIFIED ASSETS 7 OPEN EXPOSURES 184 STEWARDSHIP ITEMS WHAT CHANGED TODAY Coverage 87% +2.1 pts vs last week Certified assets 612 +37 this week Open exposures 7 +2 new this week Stewardship 184 -11 this week GOVERNANCE COVERAGE 87% +2.1 pts vs last week CERTIFIED ASSETS 612 +37 this week OPEN STEWARDSHIP ITEMS 184 -11 this week HIGH-RISK EXPOSURES 7 +2 new this week Coverage trend · last 12 weeks i 12w 26w 52w 100% 75% 50% 25% 0% W14 W16 W18 W20 W22 W24 +15pp vs W14 Posture by domain i Revenue & Sales 92% 138 assets Customer 84% 174 assets Marketing 88% 89 assets Finance 95% 121 assets Operations 79% 64 assets People 72% 26 assets Risk breakdown i 7 OPEN EXPOSURES High-risk exposures 7 Medium-risk findings - Informational - Open exposure counts are sourced from governance events. Top catalogs · health snapshot i CATALOG TABLES COVERAGE CLASSIFICATION RISK finance_prod 1 94% Restricted Low sales_prod 1 91% Internal Low customer_360 1 82% Confidential Medium Critical ",
+    "hasOpenDialog": true,
+    "atlasButtonDisabled": false
+  },
+  "passed": true
+}

@@ -13,6 +13,8 @@ import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import {
   createGovernanceRequest,
+  fetchGovernanceRequestDetail,
+  fetchGovernanceWorkbench,
   normalizeGovernancePayload,
   updateGovernanceGlossaryTerm,
   updateGovernanceRequest,
@@ -47,6 +49,8 @@ const GLOSSARY_STATUS_OPTIONS = [
   { value: "rejected", label: "Rejected" },
   { value: "deprecated", label: "Deprecated" },
 ];
+
+const NORTHSTAR_DETAIL_CLOSED = "__governance_detail_closed__";
 
 function governanceIdentityPrefix(value) {
   return String(value || "")
@@ -429,10 +433,385 @@ function AttributeList({ items }) {
   );
 }
 
+function GovernanceGlyph({ icon = "inbox" }) {
+  const glyphs = {
+    inbox: (
+      <>
+        <path d="M4 5h16v14H4z" />
+        <path d="M4 12h4l2 3h4l2-3h4" />
+      </>
+    ),
+    alert: (
+      <>
+        <path d="M12 3l9 16H3z" />
+        <path d="M12 8v5" />
+        <path d="M12 17h.01" />
+      </>
+    ),
+    shield: (
+      <>
+        <path d="M12 3l7 3v5c0 4.5-2.7 7.9-7 10-4.3-2.1-7-5.5-7-10V6z" />
+        <path d="M9 12l2 2 4-5" />
+      </>
+    ),
+    chart: (
+      <>
+        <path d="M4 19h16" />
+        <path d="M7 16v-5" />
+        <path d="M12 16V7" />
+        <path d="M17 16v-8" />
+        <path d="M6 9l4-4 4 4 5-6" />
+      </>
+    ),
+    filter: (
+      <>
+        <path d="M4 5h16" />
+        <path d="M7 12h10" />
+        <path d="M10 19h4" />
+      </>
+    ),
+    users: (
+      <>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.9" />
+        <path d="M16 3.1a4 4 0 0 1 0 7.8" />
+      </>
+    ),
+    plus: (
+      <>
+        <path d="M12 5v14" />
+        <path d="M5 12h14" />
+      </>
+    ),
+    clock: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </>
+    ),
+    user: (
+      <>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21a8 8 0 0 1 16 0" />
+      </>
+    ),
+    "user-plus": (
+      <>
+        <circle cx="9" cy="8" r="4" />
+        <path d="M2 21a7 7 0 0 1 14 0" />
+        <path d="M19 8v6" />
+        <path d="M16 11h6" />
+      </>
+    ),
+    table: (
+      <>
+        <path d="M4 5h16v14H4z" />
+        <path d="M4 10h16" />
+        <path d="M10 5v14" />
+      </>
+    ),
+    chevron: (
+      <path d="M9 18l6-6-6-6" />
+    ),
+    message: (
+      <>
+        <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+      </>
+    ),
+    check: (
+      <path d="M5 12l4 4L19 6" />
+    ),
+    archive: (
+      <>
+        <path d="M21 8v13H3V8" />
+        <path d="M1 3h22v5H1z" />
+        <path d="M10 12h4" />
+      </>
+    ),
+    sparkles: (
+      <>
+        <path d="M12 3l1.6 4.2L18 9l-4.4 1.8L12 15l-1.6-4.2L6 9l4.4-1.8z" />
+        <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8z" />
+      </>
+    ),
+    badge: (
+      <>
+        <path d="M12 3l3 2 3.5-.5.5 3.5 2 3-2 3-.5 3.5-3.5-.5-3 2-3-2-3.5.5L5 14l-2-3 2-3 .5-3.5L9 5z" />
+        <path d="M8.5 12l2.2 2.2 4.8-5" />
+      </>
+    ),
+    settings: (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19 12a7 7 0 0 0-.1-1.1l2-1.5-2-3.4-2.4 1a7 7 0 0 0-1.9-1.1L14.3 3h-4.6l-.4 2.9A7 7 0 0 0 7.4 7L5 6 3 9.4l2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.1l-2 1.5 2 3.4 2.4-1a7 7 0 0 0 1.9 1.1l.4 2.9h4.6l.4-2.9a7 7 0 0 0 1.9-1.1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1.1z" />
+      </>
+    ),
+  };
+  return (
+    <svg aria-hidden="true" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" viewBox="0 0 24 24">
+      {glyphs[icon] || glyphs.inbox}
+    </svg>
+  );
+}
+
+function textValue(value, fallback = "") {
+  const text = String(value ?? "").trim();
+  return text || fallback;
+}
+
+function normalizeCurrentUser(value = {}) {
+  /** @type {{ email?: string, userEmail?: string, actorEmail?: string, name?: string, userName?: string, actorName?: string, displayName?: string }} */
+  const user = value && typeof value === "object" ? value : {};
+  const email = textValue(user.email || user.userEmail || user.actorEmail).toLowerCase();
+  const name = textValue(user.name || user.userName || user.actorName || user.displayName).toLowerCase();
+  const aliases = new Set();
+  if (email) {
+    aliases.add(email);
+    aliases.add(email.split("@")[0]);
+  }
+  if (name) {
+    aliases.add(name);
+    name.split(/\s+/).filter(Boolean).forEach((part) => aliases.add(part));
+  }
+  return { email, name, aliases: [...aliases].filter((item) => item.length >= 3) };
+}
+
+function assetNameFromFqn(value = "") {
+  const parts = String(value || "").split(".").filter(Boolean);
+  return parts[parts.length - 1] || "Unassigned asset";
+}
+
+function assetDomainFromRequest(request = {}) {
+  return textValue(request.domain, "Unassigned");
+}
+
+function requestTypeLabel(request = {}) {
+  return textValue(request.type || request.requestType || request.category, "");
+}
+
+function requestPriority(request = {}) {
+  return textValue(request.priority, "Unassigned");
+}
+
+function priorityTone(priority = "") {
+  const value = String(priority || "").toLowerCase();
+  if (value.includes("p1") || value.includes("crit") || value.includes("high")) return "high";
+  if (value.includes("p2") || value.includes("medium")) return "medium";
+  if (value.includes("p3") || value.includes("low")) return "low";
+  return "unassigned";
+}
+
+function priorityShortLabel(priority = "") {
+  const value = String(priority || "").toLowerCase();
+  if (value.includes("p1") || value.includes("crit") || value.includes("high")) return "P1";
+  if (value.includes("p2") || value.includes("medium")) return "P2";
+  if (value.includes("p3") || value.includes("low")) return "P3";
+  return textValue(priority, "—");
+}
+
+function priorityDisplayLabel(priority = "") {
+  const value = textValue(priority, "Unassigned");
+  return value === "Unassigned" ? "Priority unassigned" : `${value} Priority`;
+}
+
+function formatShortDate(value = "") {
+  const text = textValue(value);
+  if (!text) return "";
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return text;
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function dueLabel(request = {}) {
+  const due = formatShortDate(request.dueAt);
+  return due ? `Due ${due}` : "Due not set";
+}
+
+function slaTone(request = {}) {
+  const state = String(request.slaState || "").toLowerCase();
+  if (["crit", "critical", "overdue", "breach"].some((term) => state.includes(term))) return "crit";
+  if (["warn", "warning", "today"].some((term) => state.includes(term))) return "warn";
+  if (["good", "ok", "healthy"].some((term) => state.includes(term))) return "good";
+  const dueAt = request.dueAt ? new Date(request.dueAt).getTime() : Number.NaN;
+  if (Number.isFinite(dueAt)) {
+    const hours = (dueAt - Date.now()) / 36e5;
+    if (hours < 0) return "crit";
+    if (hours <= 24) return "warn";
+    return "good";
+  }
+  return "muted";
+}
+
+function slaLabel(request = {}) {
+  return textValue(request.sla || request.slaLabel || request.dueLabel, dueLabel(request));
+}
+
+function hasSlaEvidence(request = {}) {
+  return Boolean(
+    textValue(request.sla || request.slaLabel || request.dueLabel || request.slaState || request.dueAt),
+  );
+}
+
+function openingEvidenceFacts(request = {}) {
+  if (!request) return [];
+  const source = textValue(
+    request.source ||
+      request.evidenceSource ||
+      request.provenance?.source ||
+      request.meta?.source ||
+      (isValidationWorkItem(request) ? "Validation sample" : ""),
+    "Unavailable",
+  );
+  const observedAt = textValue(
+    request.observedAt ||
+      request.evidenceObservedAt ||
+      request.createdAt ||
+      request.updatedAt,
+    "Timestamp unavailable",
+  );
+  return [
+    ["Trigger", workItemKind(request)],
+    ["Source", source],
+    ["Observed", formatShortDate(observedAt) || observedAt],
+    ["Affected asset", textValue(request.assetFqn || request.assetName, "Asset unavailable")],
+  ];
+}
+
+function workItemKind(request = {}) {
+  return textValue(request.kind || request.issue || request.rawTitle || request.title, "Governance work item");
+}
+
+function workItemAssigned(request = {}) {
+  return textValue(request.assigned || request.assignee || request.assignedTo || request.team || request.ownerTeam || request.requester, "Unassigned");
+}
+
+function isValidationWorkItem(request = {}) {
+  if (!request || typeof request !== "object") return false;
+  const requestId = textValue(request.requestId || request.id).toLowerCase();
+  const source = textValue(request.source || request.provenance?.source || request.meta?.source).toLowerCase();
+  return request.validationSample === true || /^ga-home-seed-/.test(requestId) || source.includes("validation");
+}
+
+function workItemDisplayId(request = {}) {
+  const requestId = textValue(request.requestId || request.id, "—");
+  const seedMatch = requestId.match(/^ga-home-seed-request-(\d+)$/i);
+  if (seedMatch) return `VAL-${seedMatch[1]}`;
+  return requestId.length > 14 ? `${requestId.slice(0, 11)}…` : requestId;
+}
+
+function isP1WorkItem(request = {}) {
+  return priorityTone(request.priority) === "high";
+}
+
+function isOverdueWorkItem(request = {}) {
+  return slaTone(request) === "crit";
+}
+
+function isAssignedToCurrentUser(request = {}, currentUser = {}) {
+  const assigned = workItemAssigned(request).toLowerCase();
+  if (!assigned || assigned === "unassigned") return false;
+  if (request.assignedToMe === true) return true;
+  const identity = normalizeCurrentUser(currentUser);
+  if (!identity.aliases.length) return false;
+  return identity.aliases.some((alias) => assigned.includes(alias));
+}
+
+function queueFilterMatches(request = {}, filter = "all", currentUser = {}) {
+  if (filter === "p1") return isP1WorkItem(request);
+  if (filter === "overdue") return isOverdueWorkItem(request);
+  if (filter === "mine") return isAssignedToCurrentUser(request, currentUser);
+  return true;
+}
+
+function queueFilterCounts(requests = [], currentUser = {}) {
+  return {
+    all: requests.length,
+    p1: requests.filter(isP1WorkItem).length,
+    overdue: requests.filter(isOverdueWorkItem).length,
+    mine: requests.filter((request) => isAssignedToCurrentUser(request, currentUser)).length,
+  };
+}
+
+function fallbackSuggestedActions(request = {}) {
+  const kind = workItemKind(request).toLowerCase();
+  if (kind.includes("owner")) {
+    return [
+      { icon: "user-plus", label: "Assign owner from suggested teams", detail: "Use query, tag, and domain signals when available." },
+      { icon: "archive", label: "Archive sandbox cleanup", detail: "Only if usage and retention evidence support it." },
+    ];
+  }
+  if (kind.includes("description")) {
+    return [
+      { icon: "sparkles", label: "Draft description with Atlas AI", detail: "Grounded by upstream lineage and column metadata." },
+      { icon: "user", label: "Reassign to steward team", detail: workItemAssigned(request) },
+    ];
+  }
+  if (kind.includes("cert")) {
+    return [
+      { icon: "badge", label: "Approve re-certification", detail: "Requires backed owner, lineage, freshness, and quality evidence." },
+      { icon: "alert", label: "Flag for compliance review", detail: "Escalates without changing metadata." },
+    ];
+  }
+  return [
+    { icon: "check", label: "Mark resolved", detail: "Writes a governance request update when supported." },
+    { icon: "user", label: "Reassign", detail: "Route to the accountable domain steward." },
+  ];
+}
+
+function suggestedActionsFor(request = {}) {
+  const actions = Array.isArray(request.suggestedActions) ? request.suggestedActions : [];
+  return actions.length ? actions : fallbackSuggestedActions(request);
+}
+
+function finiteMetricValue(value, fallback = null) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function normalizeNorthstarRequest(request = {}, index = 0) {
+  const requestId = textValue(request.requestId || request.id, `request-${index + 1}`);
+  const assetFqn = textValue(request.assetFqn || request.asset);
+  const kind = workItemKind(request);
+  return {
+    ...request,
+    requestId,
+    id: requestId,
+    title: textValue(request.title || kind, "Governance request"),
+    rawTitle: textValue(request.rawTitle || request.title || kind, "Governance request"),
+    kind,
+    typeLabel: requestTypeLabel(request),
+    detail: textValue(request.detail || request.note || request.newComment),
+    priority: requestPriority(request),
+    status: textValue(request.status, "Pending"),
+    requester: textValue(request.requester || request.createdBy, "Unknown requester"),
+    createdAt: textValue(request.createdAt),
+    dueAt: textValue(request.dueAt),
+    assetFqn,
+    assetName: assetNameFromFqn(assetFqn),
+    domain: assetDomainFromRequest(request),
+    assigned: workItemAssigned(request),
+    sla: textValue(request.sla || request.slaLabel || request.dueLabel),
+    slaState: textValue(request.slaState),
+    age: textValue(request.age),
+    evidence: textValue(request.evidence || request.businessContext || request.detail || request.note),
+    suggestedActions: Array.isArray(request.suggestedActions) ? request.suggestedActions : [],
+    implementation: textValue(request.implementation),
+    validationSample: isValidationWorkItem(request),
+  };
+}
+
 export default function GovernanceWorkspace({
   initialAssetFqn,
   bootstrap,
   contextSeedAssets = [],
+  currentUser = null,
   governance,
   onNavigationStateChange,
   onSurfaceReady,
@@ -505,6 +884,16 @@ export default function GovernanceWorkspace({
     classificationRecommendations.data?.pendingCount ??
     classificationRecommendations.data?.count ??
     0;
+  const [northstarWorkbench, setNorthstarWorkbench] = useState(null);
+  const [northstarLoading, setNorthstarLoading] = useState(false);
+  const [northstarError, setNorthstarError] = useState("");
+  const [northstarSelectedRequestId, setNorthstarSelectedRequestId] = useState("");
+  const [northstarDetail, setNorthstarDetail] = useState(null);
+  const [northstarQueueFilter, setNorthstarQueueFilter] = useState("all");
+  const [northstarMenu, setNorthstarMenu] = useState("");
+  const [northstarPage, setNorthstarPage] = useState(1);
+  const [northstarActionMessage, setNorthstarActionMessage] = useState("");
+  const [northstarActionPanel, setNorthstarActionPanel] = useState(null);
   const workbenchMetrics = useMemo(() => ([
     { key: "requests", label: "Governance Requests", value: views.requests.length },
     { key: "glossary", label: "Glossary Terms", value: views.glossary.length },
@@ -575,6 +964,29 @@ export default function GovernanceWorkspace({
     setLiveGovernance(governance);
   }, [governance]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+    setNorthstarLoading(true);
+    setNorthstarError("");
+    fetchGovernanceWorkbench({ signal: controller.signal })
+      .then((payload) => {
+        if (cancelled) return;
+        setNorthstarWorkbench(payload);
+      })
+      .catch((error) => {
+        if (cancelled || error?.name === "AbortError") return;
+        setNorthstarError(error?.message || "Unable to load governance workbench.");
+      })
+      .finally(() => {
+        if (!cancelled) setNorthstarLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, []);
+
   const focusAsset = (assetFqn, options = {}) => {
     const {
       preserveWork = false,
@@ -596,6 +1008,17 @@ export default function GovernanceWorkspace({
   const focusedAssetUnavailable = Boolean(focusedAssetFqn && assetDetail.error && !focusedAsset);
   const focusedAssetLimited = Boolean(focusedAssetFqn && assetDetail.error);
   const queueSource = String(liveGovernance?.queue?.source || "").trim().toLowerCase();
+  const openGlossaryWorkbench = () => {
+    const firstGlossaryTermId = views.glossary[0]?.id || "";
+    setMode("glossary");
+    setSelectedWorkId("");
+    setNorthstarMenu("");
+    setNorthstarActionMessage("");
+    setSelectedGlossaryId((current) => {
+      if (current && views.glossary.some((item) => item.id === current)) return current;
+      return firstGlossaryTermId;
+    });
+  };
 
   const workItems = useMemo(() => {
     if (!focusedAssetFqn) return views.requests;
@@ -887,6 +1310,591 @@ export default function GovernanceWorkspace({
     key: collection.key,
     label: `${collection.label} (${collection.count})`,
   }));
+
+  const northstarUseBootstrapFallback = Boolean(
+    northstarError && !Array.isArray(northstarWorkbench?.requests),
+  );
+  const northstarSource = String(
+    northstarWorkbench?.meta?.source ||
+      northstarWorkbench?.source ||
+      northstarWorkbench?.provenance?.source ||
+      "",
+  ).trim().toLowerCase();
+  const northstarPrototypeEvidence =
+    String(northstarWorkbench?.meta?.state || northstarWorkbench?.state || "").trim().toLowerCase() === "prototype_mock" ||
+    /prototype|mock/.test(northstarSource);
+  const northstarQueueUniverse = useMemo(() => {
+    const rawRequests = Array.isArray(northstarWorkbench?.requests)
+      ? northstarWorkbench.requests
+      : northstarUseBootstrapFallback
+        ? views.requests
+        : [];
+    const normalized = rawRequests.map((item, index) => normalizeNorthstarRequest(item, index));
+    const trustworthyRows = northstarPrototypeEvidence
+      ? normalized
+      : normalized.filter((item) => !isValidationWorkItem(item));
+    return focusedAssetFqn
+      ? trustworthyRows.filter((item) => item.assetFqn === focusedAssetFqn)
+      : trustworthyRows;
+  }, [focusedAssetFqn, northstarPrototypeEvidence, northstarUseBootstrapFallback, northstarWorkbench?.requests, views.requests]);
+
+  const northstarQueueCounts = useMemo(
+    () => queueFilterCounts(northstarQueueUniverse, currentUser || {}),
+    [currentUser, northstarQueueUniverse],
+  );
+
+  const northstarRequests = useMemo(() => {
+    const filtered = northstarQueueUniverse.filter((item) => queueFilterMatches(item, northstarQueueFilter, currentUser || {}));
+    return [...filtered].sort((a, b) => {
+      const explicitA = Number(a.sortOrder);
+      const explicitB = Number(b.sortOrder);
+      if (Number.isFinite(explicitA) && Number.isFinite(explicitB) && explicitA !== explicitB) {
+        return explicitA - explicitB;
+      }
+      const order = { high: 0, medium: 1, low: 2 };
+      const priorityDelta = (order[priorityTone(a.priority)] ?? 3) - (order[priorityTone(b.priority)] ?? 3);
+      if (priorityDelta) return priorityDelta;
+      const aDue = new Date(a.dueAt || "9999-12-31").getTime();
+      const bDue = new Date(b.dueAt || "9999-12-31").getTime();
+      return aDue - bDue;
+    });
+  }, [currentUser, northstarQueueFilter, northstarQueueUniverse]);
+
+  const northstarPageSize = 8;
+  const northstarPageCount = Math.max(1, Math.ceil(northstarRequests.length / northstarPageSize));
+  const northstarVisibleRequests = northstarRequests.slice(
+    (northstarPage - 1) * northstarPageSize,
+    northstarPage * northstarPageSize,
+  );
+  const activeNorthstarRequest =
+    northstarSelectedRequestId === NORTHSTAR_DETAIL_CLOSED
+      ? null
+      : northstarRequests.find((item) => item.id === northstarSelectedRequestId) ||
+        northstarRequests[0] ||
+        null;
+
+  useEffect(() => {
+    if (northstarPage > northstarPageCount) setNorthstarPage(northstarPageCount);
+  }, [northstarPage, northstarPageCount]);
+
+  useEffect(() => {
+    setNorthstarPage(1);
+  }, [northstarQueueFilter]);
+
+  useEffect(() => {
+    if (!northstarRequests.length) {
+      setNorthstarSelectedRequestId("");
+      return;
+    }
+    if (northstarSelectedRequestId === NORTHSTAR_DETAIL_CLOSED) return;
+    if (northstarRequests.some((item) => item.id === northstarSelectedRequestId)) return;
+    setNorthstarSelectedRequestId(northstarRequests[0].id);
+  }, [northstarRequests, northstarSelectedRequestId]);
+
+  useEffect(() => {
+    if (!activeNorthstarRequest?.requestId) {
+      setNorthstarDetail(null);
+      return undefined;
+    }
+    let cancelled = false;
+    const controller = new AbortController();
+    fetchGovernanceRequestDetail(activeNorthstarRequest.requestId, { signal: controller.signal })
+      .then((payload) => {
+        if (!cancelled) setNorthstarDetail(payload);
+      })
+      .catch((error) => {
+        if (!cancelled && error?.name !== "AbortError") setNorthstarDetail(null);
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [activeNorthstarRequest?.requestId]);
+
+  const northstarSelectedDetail = activeNorthstarRequest
+    ? northstarDetail?.requestId === activeNorthstarRequest.requestId
+      ? { ...activeNorthstarRequest, ...northstarDetail }
+      : activeNorthstarRequest
+    : null;
+
+  const showNorthstarActionPanel = (panel) => {
+    setNorthstarMenu("");
+    setNorthstarActionMessage("");
+    setNorthstarActionPanel(panel);
+  };
+
+  const showBulkAssignPanel = () => {
+    showNorthstarActionPanel({
+      kind: "bulk",
+      title: "Bulk assignment requires a backed workflow",
+      eyebrow: "Bulk assign",
+      body: `${northstarRequests.length} visible work item${northstarRequests.length === 1 ? "" : "s"} can be reviewed here. Assignment writes are unavailable until the governance workbench exposes an assignee mutation.`,
+      facts: [
+        ["Visible items", northstarRequests.length.toLocaleString()],
+        ["Current filter", queueTabs.find((tab) => tab.key === northstarQueueFilter)?.label || "All"],
+        ["Write state", "Unavailable"],
+      ],
+      disabledAction: "Submit assignment unavailable",
+    });
+  };
+
+  const showNewWorkItemPanel = () => {
+    showNorthstarActionPanel({
+      kind: "new",
+      title: "New work item creation is unavailable",
+      eyebrow: "New work item",
+      body: "The page can preserve the creation workflow shape, but it cannot submit a new work item until a backed governance request creation flow is available for this North Star surface.",
+      facts: [
+        ["Focused asset", focusedAssetFqn || "No asset selected"],
+        ["Submit target", "Governance request API"],
+        ["Write state", "Unavailable"],
+      ],
+      disabledAction: "Create work item unavailable",
+    });
+  };
+
+  const showSuggestedActionPanel = (action) => {
+    showNorthstarActionPanel({
+      kind: "suggested",
+      title: action.label || "Suggested action",
+      eyebrow: "Suggested action review",
+      body: action.detail || "Review the work item evidence before making a metadata change.",
+      facts: [
+        ["Work item", northstarSelectedDetail?.requestId || "No selected item"],
+        ["Mutation", "Not performed"],
+        ["Evidence", northstarSelectedDetail?.evidence ? "Recorded" : "Unavailable"],
+      ],
+      disabledAction: "Run suggested action unavailable",
+    });
+  };
+
+  const updateNorthstarRequestStatus = async (status, reviewNote) => {
+    if (!northstarSelectedDetail?.requestId) return;
+    setNorthstarActionPanel(null);
+    await runGovernanceMutation(
+      "request-status",
+      () =>
+        updateGovernanceRequest(northstarSelectedDetail.requestId, {
+          status: status === "commented" ? northstarSelectedDetail.status : status,
+          reviewNote,
+        }),
+      status === "approved" ? "Request approved." : "Request updated.",
+    );
+    setNorthstarWorkbench((current) => {
+      if (!current?.requests) return current;
+      const statusLabel =
+        status === "approved" ? "Approved" :
+        status === "rejected" ? "Rejected" :
+        status === "resolved" ? "Resolved" :
+        northstarSelectedDetail.status;
+      return {
+        ...current,
+        requests: current.requests.map((item) =>
+          (item.requestId || item.id) === northstarSelectedDetail.requestId
+            ? { ...item, status: statusLabel, reviewNote }
+            : item,
+        ),
+      };
+    });
+    const prototypeAction = northstarPrototypeEvidence
+      ? status === "resolved" ? "Prototype work item marked resolved locally - not live workflow completion." :
+        status === "commented" ? "Prototype comment recorded locally - not live workflow completion." :
+        "Prototype request state updated locally - not live workflow completion."
+      : "";
+    setNorthstarActionMessage(
+      prototypeAction ||
+      (status === "approved" ? "Request approved." :
+        status === "rejected" ? "Request changes requested." :
+        status === "resolved" ? "Work item resolved." :
+        "Comment recorded."),
+    );
+  };
+
+  const commentOnNorthstarRequest = async () => {
+    await updateNorthstarRequestStatus(
+      "commented",
+      "Comment recorded from Stewardship Workbench.",
+    );
+  };
+
+  const resolveNorthstarRequest = async () => {
+    await updateNorthstarRequestStatus(
+      "resolved",
+      "Resolved from Stewardship Workbench.",
+    );
+  };
+
+  const openWorkItemCount = finiteMetricValue(
+    northstarPrototypeEvidence
+      ? northstarWorkbench?.summary?.openWorkItems ??
+        northstarWorkbench?.summary?.openItems ??
+        northstarWorkbench?.queue?.openWorkItems
+      : null,
+    northstarQueueUniverse.length,
+  );
+  const prototypeSlaSummaryValue =
+    northstarWorkbench?.summary?.slaBreaches ??
+    northstarWorkbench?.summary?.overdueItems ??
+    northstarWorkbench?.queue?.slaBreaches;
+  const northstarHasPrototypeSlaSummary =
+    northstarPrototypeEvidence && Number.isFinite(Number(prototypeSlaSummaryValue));
+  const slaBreachCount = finiteMetricValue(
+    northstarHasPrototypeSlaSummary ? prototypeSlaSummaryValue : null,
+    northstarQueueCounts.overdue,
+  );
+  const northstarSlaEvidenceAvailable =
+    northstarHasPrototypeSlaSummary || northstarQueueUniverse.some((request) => hasSlaEvidence(request));
+  const northstarSlaSummary = northstarSlaEvidenceAvailable
+    ? `${slaBreachCount.toLocaleString()} SLA breaches`
+    : "SLA evidence unavailable";
+  const northstarQueueSortLabel = northstarPrototypeEvidence && northstarQueueUniverse.length > 0
+    ? "prototype fixture order"
+    : northstarSlaEvidenceAvailable
+      ? "backed SLA risk"
+      : "available work-item evidence";
+  const queueTabs = [
+    { key: "all", label: "All", count: northstarQueueCounts.all },
+    { key: "p1", label: "P1 critical", count: northstarQueueCounts.p1 },
+    { key: "overdue", label: "Overdue", count: northstarQueueCounts.overdue },
+    { key: "mine", label: "Assigned to me", count: northstarQueueCounts.mine },
+  ];
+  const selectedSuggestedActions = northstarSelectedDetail
+    ? suggestedActionsFor(northstarSelectedDetail)
+    : [];
+  const selectedImplementation = northstarSelectedDetail?.implementation ||
+    "Items materialize from policy violations and steward-filed requests into the governance control plane. Resolution writes request state and audit evidence when the backend supports the mutation.";
+  const northstarMutationUnavailable = Boolean(northstarSelectedDetail) && (
+    northstarPrototypeEvidence ||
+    isValidationWorkItem(northstarSelectedDetail)
+  );
+  const northstarMutationUnavailableReason = northstarPrototypeEvidence
+    ? "Prototype work items are visual workflow evidence only; they cannot be mutated as live governance requests."
+    : isValidationWorkItem(northstarSelectedDetail)
+      ? "Validation sample rows are not live governance workflow state."
+      : "";
+  if (mode === "stewardship") {
+    return (
+      <section className="gh-governance-ns ga-page" data-testid="governance-northstar-workbench">
+        <header className="gh-governance-ns-hero">
+          <div>
+            <span className="gh-governance-ns-eyebrow">Stewardship Workbench</span>
+            <h1>
+              {`${openWorkItemCount.toLocaleString()} open work items · ${northstarSlaSummary}`}
+            </h1>
+            <p>
+              {northstarPrototypeEvidence && northstarQueueUniverse.length > 0
+                ? "Prototype stewardship rows preserve the target queue and detail workflow, but they are not live governance request, assignment, or SLA proof."
+                : northstarPrototypeEvidence
+                  ? "Prototype degraded stewardship evidence preserves the target queue and detail frame, but no live governance request, assignment, or SLA proof was returned."
+                : "Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available."}
+            </p>
+          </div>
+          <div className="gh-governance-ns-hero-actions">
+            <button
+              aria-expanded={northstarMenu === "settings"}
+              className={`gh-governance-ns-settings ${northstarMenu === "settings" ? "is-active" : ""}`}
+              onClick={() => setNorthstarMenu((current) => (current === "settings" ? "" : "settings"))}
+              type="button"
+            >
+              <span className="gh-governance-ns-settings-icon"><GovernanceGlyph icon="filter" /></span>
+              Filter
+            </button>
+            <button
+              className="gh-governance-ns-settings"
+              onClick={showBulkAssignPanel}
+              type="button"
+            >
+              <span className="gh-governance-ns-settings-icon"><GovernanceGlyph icon="users" /></span>
+              Bulk assign
+            </button>
+            <button
+              className="gh-governance-ns-settings is-primary"
+              onClick={showNewWorkItemPanel}
+              type="button"
+            >
+              <span className="gh-governance-ns-settings-icon"><GovernanceGlyph icon="plus" /></span>
+              New work item
+            </button>
+          </div>
+        </header>
+
+        {northstarError ? (
+          <InlineStatusBanner
+            className="gh-governance-status-banner"
+            message={northstarError}
+            title="Governance workbench degraded"
+          />
+        ) : null}
+
+        {northstarMenu === "settings" ? (
+          <div className="gh-governance-ns-settings-panel" role="region" aria-label="Work queue filter controls">
+            <div>
+              <strong>Filter work queue</strong>
+              <span>Counts come from visible governance workbench rows. SLA and due-date fields remain unavailable when the store has not recorded them.</span>
+            </div>
+            <div className="gh-governance-ns-filter-menu">
+              {queueTabs.map((tab) => (
+                <button
+                  aria-pressed={northstarQueueFilter === tab.key}
+                  className={northstarQueueFilter === tab.key ? "is-active" : ""}
+                  key={tab.key}
+                  onClick={() => {
+                    setNorthstarQueueFilter(tab.key);
+                    setNorthstarActionPanel(null);
+                  }}
+                  type="button"
+                >
+                  {tab.label} <span>({tab.count})</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {northstarActionPanel ? (
+          <section className="gh-governance-ns-action-panel" aria-label={`${northstarActionPanel.eyebrow} status`}>
+            <div>
+              <span className="gh-governance-ns-eyebrow">{northstarActionPanel.eyebrow}</span>
+              <h2>{northstarActionPanel.title}</h2>
+              <p>{northstarActionPanel.body}</p>
+            </div>
+            <dl>
+              {northstarActionPanel.facts.map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="gh-governance-ns-action-panel-controls">
+              <button disabled title="This workflow is visible but not backed by a write path yet." type="button">
+                {northstarActionPanel.disabledAction}
+              </button>
+              <button onClick={() => setNorthstarActionPanel(null)} type="button">
+                Dismiss
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        <div className="gh-governance-ns-filter-pills" aria-label="Work queue filters">
+          {queueTabs.map((tab) => (
+            <button
+              aria-pressed={northstarQueueFilter === tab.key}
+              className={northstarQueueFilter === tab.key ? "is-active" : ""}
+              key={tab.key}
+              onClick={() => setNorthstarQueueFilter(tab.key)}
+              type="button"
+            >
+              {tab.label} <span>{tab.count}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="gh-governance-ns-layout">
+          <section className="gh-governance-ns-requests" aria-label="Work queue">
+            <div className="gh-governance-ns-panel-head">
+              <div>
+                <h2>Work queue</h2>
+              <span>{northstarRequests.length} item{northstarRequests.length === 1 ? "" : "s"} · sorted by {northstarQueueSortLabel}</span>
+              </div>
+            </div>
+
+            <div className="gh-governance-ns-table" role="table" aria-label="Work queue table">
+              <div className="gh-governance-ns-table-row is-head" role="row">
+                <span>ID</span>
+                <span>Item</span>
+                <span>Asset</span>
+                <span>Assigned</span>
+                <span>SLA</span>
+                <span>Priority</span>
+              </div>
+              {northstarLoading && !northstarVisibleRequests.length ? (
+                <div className="gh-governance-ns-empty">Loading stewardship queue...</div>
+              ) : northstarVisibleRequests.length ? (
+                northstarVisibleRequests.map((item) => (
+                  <button
+                    className={`gh-governance-ns-table-row ${northstarSelectedDetail?.id === item.id ? "is-selected" : ""}`}
+                    key={item.id}
+                    onClick={() => {
+                      setNorthstarSelectedRequestId(item.id);
+                    }}
+                    role="row"
+                    type="button"
+                  >
+                    <span className="is-mono" title={item.requestId}>
+                      {workItemDisplayId(item)}
+                    </span>
+                    <span>
+                      <strong>{workItemKind(item)}</strong>
+                      <small>
+                        {item.age ? `Age ${item.age}` : item.createdAt ? `Created ${formatShortDate(item.createdAt)}` : "Age unavailable"}
+                        {isValidationWorkItem(item) ? " · Validation sample" : ""}
+                      </small>
+                    </span>
+                    <span className="is-mono">{item.assetFqn || item.assetName}</span>
+                    <span>{workItemAssigned(item)}</span>
+                    <span className={`gh-governance-ns-sla tone-${slaTone(item)}`}><GovernanceGlyph icon="clock" />{slaLabel(item)}</span>
+                    <span className={`gh-governance-ns-priority tone-${priorityTone(item.priority)}`}>{priorityShortLabel(item.priority)}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="gh-governance-ns-table-row is-unavailable" role="row">
+                  <span className="is-mono">--</span>
+                  <span>
+                    <strong>{focusedAssetFqn ? "No actor-visible work items" : "No work items in this filter"}</strong>
+                    <small>Queue shape retained; no synthetic `SI-*` request row is created.</small>
+                  </span>
+                  <span className="is-mono">{focusedAssetFqn || "Workspace scope"}</span>
+                  <span>Assignee unavailable</span>
+                  <span className="gh-governance-ns-sla tone-muted"><GovernanceGlyph icon="clock" />Evidence unavailable</span>
+                  <span className="gh-governance-ns-priority">--</span>
+                </div>
+              )}
+            </div>
+
+            {northstarPageCount > 1 ? (
+              <div className="gh-governance-ns-pagination">
+                <span>
+                  {northstarRequests.length
+                    ? `${(northstarPage - 1) * northstarPageSize + 1}-${Math.min(northstarPage * northstarPageSize, northstarRequests.length)} of ${northstarRequests.length}`
+                    : "0 of 0"}
+                </span>
+                <div>
+                  {Array.from({ length: Math.min(3, northstarPageCount) }, (_, index) => index + 1).map((page) => (
+                    <button
+                      className={page === northstarPage ? "is-active" : ""}
+                      key={page}
+                      onClick={() => setNorthstarPage(page)}
+                      type="button"
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    aria-label="Next page"
+                    disabled={northstarPage >= northstarPageCount}
+                    onClick={() => setNorthstarPage((page) => Math.min(northstarPageCount, page + 1))}
+                    title={
+                      northstarPage >= northstarPageCount
+                        ? "All visible work items are shown for the current filter."
+                        : "Show the next page of work items."
+                    }
+                    type="button"
+                  >
+                    &gt;
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </section>
+
+          <aside className="gh-governance-ns-detail" aria-label="Selected governance request">
+            {northstarSelectedDetail ? (
+              <>
+                <div className="gh-governance-ns-detail-head">
+                  <div>
+                    <h2 className="gh-governance-ns-detail-id">{northstarSelectedDetail.requestId}</h2>
+                    <p>{workItemKind(northstarSelectedDetail)}</p>
+                    <div className="gh-governance-ns-request-id">
+                      {isValidationWorkItem(northstarSelectedDetail) ? (
+                        <span className="gh-governance-ns-validation-badge">Validation sample</span>
+                      ) : null}
+                      <span className={`gh-governance-ns-priority tone-${priorityTone(northstarSelectedDetail.priority)}`}>
+                        {priorityShortLabel(northstarSelectedDetail.priority)} · {priorityDisplayLabel(northstarSelectedDetail.priority).replace(" Priority", "")}
+                      </span>
+                      <span className={`gh-governance-ns-sla tone-${slaTone(northstarSelectedDetail)}`}>
+                        <GovernanceGlyph icon="clock" />{slaLabel(northstarSelectedDetail)}
+                      </span>
+                      <span className="gh-governance-ns-team-chip">
+                        <GovernanceGlyph icon="users" />{workItemAssigned(northstarSelectedDetail)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="gh-governance-ns-affected">
+                  <div className="gh-governance-ns-eyebrow">Affected asset</div>
+                  <button onClick={() => openAssetSafely(northstarSelectedDetail.assetFqn)} type="button">
+                    <span>{northstarSelectedDetail.assetFqn || northstarSelectedDetail.assetName}</span>
+                  </button>
+                </div>
+
+                <section className="gh-governance-ns-subpanel is-wide">
+                  <h3>Why this is open</h3>
+                  <p>
+                    {textValue(northstarSelectedDetail.evidence || northstarSelectedDetail.businessContext || northstarSelectedDetail.detail, "No opening evidence was recorded for this work item.")}
+                  </p>
+                  <dl className="gh-governance-ns-evidence-grid" aria-label="Opening evidence facts">
+                    {openingEvidenceFacts(northstarSelectedDetail).map(([label, value]) => (
+                      <div key={label}>
+                        <dt>{label}</dt>
+                        <dd>{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
+
+                <section className="gh-governance-ns-suggestions">
+                  <h3>Suggested actions</h3>
+                  {selectedSuggestedActions.map((action, index) => (
+                    <button
+                      key={`${action.label || "action"}-${index}`}
+                      onClick={() => showSuggestedActionPanel(action)}
+                      type="button"
+                    >
+                      <GovernanceGlyph icon={action.icon || "check"} />
+                      <span>
+                        <strong>{action.label || "Review suggested action"}</strong>
+                        {action.detail ? <small>{action.detail}</small> : null}
+                      </span>
+                      <GovernanceGlyph icon="chevron" />
+                    </button>
+                  ))}
+                </section>
+
+                <div className="gh-governance-ns-actions">
+                  <button
+                    className="tone-comment"
+                    disabled={!northstarSelectedDetail.requestId || mutationState.loading || northstarMutationUnavailable}
+                    onClick={commentOnNorthstarRequest}
+                    title={northstarMutationUnavailableReason || "Comment on this governance request."}
+                    type="button"
+                  >
+                    <GovernanceGlyph icon="message" /> Comment
+                  </button>
+                  <button
+                    className="tone-approve"
+                    disabled={!northstarSelectedDetail.requestId || mutationState.loading || northstarMutationUnavailable}
+                    onClick={resolveNorthstarRequest}
+                    title={northstarMutationUnavailableReason || "Resolve this governance request."}
+                    type="button"
+                  >
+                    <GovernanceGlyph icon="check" /> Resolve
+                  </button>
+                </div>
+                {mutationState.error ? (
+                  <InlineStatusBanner message={mutationState.error} title="Request update failed" />
+                ) : null}
+                {mutationState.success || northstarActionMessage ? (
+                  <div className="gh-governance-ns-action-message" role="status">
+                    {northstarActionMessage || mutationState.success}
+                  </div>
+                ) : null}
+                <div className="gh-governance-ns-implementation">
+                  <div className="gh-governance-ns-eyebrow">Implementation</div>
+                  <p>{selectedImplementation}</p>
+                </div>
+              </>
+            ) : (
+              <div className="gh-governance-ns-empty is-detail">
+                Select a work item to review evidence, affected asset, suggested actions, and resolution controls.
+              </div>
+            )}
+          </aside>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="gh-governance-shell">

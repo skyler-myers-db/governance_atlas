@@ -343,6 +343,7 @@ def persist_recommendations(
     *,
     actor_email: str = "system",
     actor_role: str = "system",
+    request_id: str | None = None,
 ) -> List[str]:
     """Upsert a batch of recommendations. Emits one audit-log row per record.
 
@@ -362,6 +363,7 @@ def persist_recommendations(
                 actor_role=actor_role,
                 entity_fqn=str(record.get("asset_fqn") or ""),
                 column_name=str(record.get("column_name") or ""),
+                request_id=request_id,
                 after={
                     "recommendationId": rec_id,
                     "suggestedSensitivity": record.get("suggested_sensitivity"),
@@ -458,8 +460,10 @@ def review_recommendation(
     *,
     decision: str,
     reviewer: str,
+    reviewer_role: str = "steward",
     note: str | None = None,
     uc: Any = None,
+    request_id: str | None = None,
 ) -> Dict[str, Any]:
     """Transition a recommendation pending -> approved|rejected|deferred.
 
@@ -494,9 +498,10 @@ def review_recommendation(
             entity_type="column",
             action=audit_action_map[normalized],
             actor_email=reviewer,
-            actor_role="steward",
+            actor_role=reviewer_role or "steward",
             entity_fqn=str(existing.get("asset_fqn") or ""),
             column_name=str(existing.get("column_name") or ""),
+            request_id=request_id,
             before={"status": before_status},
             after={
                 "status": normalized,

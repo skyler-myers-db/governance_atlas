@@ -1788,7 +1788,7 @@ def sort_discovery_assets(
             normalize_str(asset.get("fqn")),
         )
 
-    if normalized_sort == "Coverage score":
+    if normalized_sort in {"Coverage score", "Trust score"}:
         return sorted(
             assets,
             key=lambda asset: (

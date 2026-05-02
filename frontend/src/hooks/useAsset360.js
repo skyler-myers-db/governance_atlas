@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAsset360 } from "../lib/api";
 
@@ -71,7 +72,10 @@ export function useAsset360(assetFqn, options = {}) {
     staleTime: resolvedOptions.staleTime ?? 60_000,
     gcTime: resolvedOptions.gcTime ?? 5 * 60_000,
   });
-  const data = query.data ? normalizeAsset360Payload(query.data, normalizedFqn) : null;
+  const data = useMemo(
+    () => (query.data ? normalizeAsset360Payload(query.data, normalizedFqn) : null),
+    [normalizedFqn, query.data],
+  );
   return {
     data,
     loading: enabled && query.isPending,

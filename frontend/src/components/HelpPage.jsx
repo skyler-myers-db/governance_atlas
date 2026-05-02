@@ -16,9 +16,9 @@ const SECTIONS = [
           "Use the global search bar at the top of the shell, the Discovery tab for faceted browsing across the catalog, or the Navigation tab for breadth-first catalog-tree browsing. Filters on the left rail narrow by catalog, schema, asset type, domain, owner, sensitivity, glossary term, and workflow state.",
       },
       {
-        heading: "What do the trust badges mean?",
+        heading: "What do the coverage badges mean?",
         body:
-          "The trust score on each asset card is a metadata-coverage signal: how complete the asset's governance record is (description, owner, domain, glossary term, quality rules). High Trust ≥ 75%. Mid Trust 50–74%. Low Trust < 50%. The chip is hidden when the governance backfill hasn't run for that asset.",
+          "The coverage score on each asset card reflects how complete the asset's governance record is (description, owner, domain, glossary term, quality rules). High Coverage is at least 75%. Mid Coverage is 50-74%. Low Coverage is below 50%. The chip is hidden when the governance backfill has not run for that asset.",
       },
     ],
   },
@@ -116,7 +116,8 @@ const SECTIONS = [
   },
 ];
 
-export function HelpPage({ onBack }) {
+export function HelpPage({ bootState = "live", onBack }) {
+  const prototypeEvidence = String(bootState || "").toLowerCase() === "prototype_mock";
   useEffect(() => {
     if (typeof document === "undefined") return;
     const previous = document.title;
@@ -133,8 +134,9 @@ export function HelpPage({ onBack }) {
           <div className="gh-eyebrow">Help &amp; docs</div>
           <h1 className="gh-help-page-title">How Governance Atlas works</h1>
           <p className="gh-help-page-lede">
-            A short, task-oriented guide to discovery, governance, and access.
-            For a deeper reference and the full change log, visit the GitHub README.
+            {prototypeEvidence
+              ? "Prototype QA captures describe intended live Databricks behavior, but this current page evidence is local prototype mock data only."
+              : "A short, task-oriented guide to discovery, governance, and access. For a deeper reference and the full change log, visit the GitHub README."}
           </p>
         </div>
         {onBack ? (

@@ -80,7 +80,13 @@ function parsePathRoute(pathname = "/") {
     .filter(Boolean);
   if (!segments.length) return null;
   const [root, ...rest] = segments;
-  if (root === "discovery") {
+  if (root === "command-center" || root === "exec") {
+    return {
+      surface: "home",
+      asset: "",
+    };
+  }
+  if (root === "discover" || root === "discovery") {
     return {
       surface: "discovery",
       asset: "",
@@ -92,31 +98,31 @@ function parsePathRoute(pathname = "/") {
       asset: safeDecode(rest.join("/")),
     };
   }
-  if (root === "lineage" && rest.length) {
+  if ((root === "lineage" || root === "lineage-atlas") && rest.length) {
     return {
       surface: "lineage",
       asset: safeDecode(rest.join("/")),
     };
   }
-  if (root === "lineage") {
+  if (root === "lineage" || root === "lineage-atlas") {
     return {
       surface: "lineage",
       asset: "",
     };
   }
-  if (root === "governance" || root === "glossary") {
+  if (root === "stewardship" || root === "sk" || root === "governance") {
     return {
       surface: "governance",
       asset: "",
     };
   }
-  if (root === "audit") {
+  if (root === "audit-evidence" || root === "audit") {
     return {
       surface: "audit",
       asset: "",
     };
   }
-  if (root === "taxonomy") {
+  if (root === "glossary" || root === "glossary-cdes" || root === "glossary-and-cdes" || root === "taxonomy") {
     return {
       surface: "taxonomy",
       asset: "",
@@ -140,7 +146,7 @@ function parsePathRoute(pathname = "/") {
       asset: "",
     };
   }
-  if (root === "admin") {
+  if (root === "control-center" || root === "admin") {
     return {
       surface: "admin",
       asset: "",
@@ -222,7 +228,7 @@ function canonicalPath(surface, routeAssetFqn) {
   if (surface === "governance") return "/governance";
   if (surface === "audit") return "/audit";
   if (surface === "taxonomy") return "/taxonomy";
-  if (surface === "cde") return "/cde";
+  if (surface === "cde") return "/taxonomy";
   if (surface === "help") return "/help";
   if (surface === "inbox") return "/inbox";
   if (surface === "admin") return "/admin";
@@ -261,6 +267,8 @@ function buildCanonicalUrl(
   if (discoveryPreview.trim()) params.set("preview", discoveryPreview.trim());
   else params.delete("preview");
 
+  if (surface === "cde") params.set("tab", "cdes");
+
   normalizeRouteList(discoveryViews).forEach((view) => {
     params.append("views", view);
   });
@@ -277,7 +285,7 @@ function buildCanonicalUrl(
 export function useAppRouteState() {
   const location = useLocation();
   const navigate = useNavigate();
-  const preserveGlossaryPath = location.pathname.startsWith("/glossary");
+  const preserveGlossaryPath = false;
   const route = useMemo(
     () => parseRouteState(location.pathname, location.search),
     [location.pathname, location.search],
@@ -298,7 +306,6 @@ export function useAppRouteState() {
   );
 
   useEffect(() => {
-    if (preserveGlossaryPath && surface === "governance") return;
     const nextUrl = buildCanonicalUrl(
       surface,
       routeAssetFqn,
@@ -368,15 +375,19 @@ export function useAppRouteState() {
   }, [discoveryRouteState.filterGroups, discoveryRouteState.previewAssetFqn, discoveryRouteState.query, discoveryRouteState.sortBy, discoveryRouteState.views, location.search, navigate]);
 
   const setDiscoveryRouteQuery = useCallback((query = "", options = {}) => {
+    const nextSort = options.sortBy ?? discoveryRouteState.sortBy;
+    const nextPreviewAssetFqn = options.previewAssetFqn ?? discoveryRouteState.previewAssetFqn;
+    const nextViews = options.views ?? discoveryRouteState.views;
+    const nextFilterGroups = options.filterGroups ?? discoveryRouteState.filterGroups;
     const nextUrl = buildCanonicalUrl(
       "discovery",
       "",
       query,
       location.search,
-      discoveryRouteState.sortBy,
-      discoveryRouteState.previewAssetFqn,
-      discoveryRouteState.views,
-      discoveryRouteState.filterGroups,
+      nextSort,
+      nextPreviewAssetFqn,
+      nextViews,
+      nextFilterGroups,
     );
     const currentUrl = `${location.pathname}${location.search}`;
     if (nextUrl === currentUrl && !options.fresh) return;

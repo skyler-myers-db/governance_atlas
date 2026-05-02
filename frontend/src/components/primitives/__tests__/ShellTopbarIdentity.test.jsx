@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PRODUCT } from "../../../config/product";
 import { GlobalHeader } from "../GlobalHeader";
@@ -10,7 +10,14 @@ function renderHeader(overrides = {}) {
         userEmail: "skyler@entrada.ai",
         userName: "Skyler Kohler",
         role: "Admin",
-        environment: { label: "Dev - DEFAULT" },
+        environment: {
+          label: "Dev - DEFAULT",
+          displayLabel: "Dev · datapact.atlas",
+          target: "Dev",
+          catalog: "datapact",
+          schema: "atlas",
+          warehouseId: "da02d15a9490650b",
+        },
       }}
       onOpenHome={() => {}}
       showInbox
@@ -18,44 +25,51 @@ function renderHeader(overrides = {}) {
       inboxUnreadCount={0}
       onToggleInbox={() => {}}
       onOpenAiCopilot={() => {}}
-      onSignOut={() => {}}
+      onOpenHelp={() => {}}
+      environmentTone="good"
+      ucCoverageScore={87.4}
+      ucStatusState="live"
       {...overrides}
     />,
   );
 }
 
 describe("GlobalHeader", () => {
-  it("renders Governance Atlas from shell product metadata when provided", () => {
+  it("renders the workspace breadcrumb from shell environment metadata", () => {
     renderHeader({
       shell: {
         product: { productName: "Governance Atlas" },
         role: "Admin",
         userName: "Skyler Kohler",
         userEmail: "skyler@entrada.ai",
-        environment: { label: "Dev - DEFAULT" },
+        environment: { label: "Dev - DEFAULT", displayLabel: "Dev · datapact.atlas" },
       },
     });
-    expect(screen.getByRole("button", { name: "Governance Atlas" })).not.toBeNull();
-    expect(screen.getByText("Governance Atlas")).not.toBeNull();
-  });
-
-  it("falls back to the configured Governance Atlas product name without shell product metadata", () => {
-    renderHeader();
-    expect(screen.getByRole("button", { name: PRODUCT.productName })).not.toBeNull();
-    expect(screen.getByText(PRODUCT.productName)).not.toBeNull();
-  });
-
-  it("renders Entrada company label and truth-backed environment chip", () => {
-    renderHeader();
-    expect(screen.getByText(PRODUCT.companyName)).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Open Governance Atlas Command Center" })).not.toBeNull();
+    expect(screen.getByText("Workspace")).not.toBeNull();
     expect(screen.getByText("Dev - DEFAULT")).not.toBeNull();
-    expect(screen.queryByRole("button", { name: "Dev - DEFAULT" })).toBeNull();
   });
 
-  it("opens the AI Copilot surface without routing through the command palette", () => {
+  it("falls back to the configured Governance Atlas command center label without shell product metadata", () => {
+    renderHeader();
+    expect(screen.getByRole("button", { name: `Open ${PRODUCT.productName} Command Center` })).not.toBeNull();
+  });
+
+  it("renders the truth-backed environment chip", () => {
+    renderHeader();
+    expect(screen.getByText("UC connected · 87.4% coverage")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "UC connected · 87.4% coverage" })).toBeNull();
+  });
+
+  it("labels prototype shell status without claiming live UC verification", () => {
+    renderHeader({ environmentTone: "warn", ucStatusState: "prototype_mock" });
+    expect(screen.getByText("Prototype mock · UC not verified")).not.toBeNull();
+  });
+
+  it("opens the Atlas AI surface without routing through the command palette", () => {
     const onOpenAiCopilot = vi.fn();
     renderHeader({ onOpenAiCopilot });
-    const ai = screen.getByRole("button", { name: "AI Copilot" });
+    const ai = screen.getByRole("button", { name: "Atlas AI" });
     expect(ai.disabled).toBe(false);
     expect(ai.getAttribute("aria-disabled")).toBe("false");
     fireEvent.click(ai);
@@ -67,18 +81,26 @@ describe("GlobalHeader", () => {
     expect(screen.getByRole("button", { name: "Notifications (4 unread)" })).not.toBeNull();
   });
 
-  it("user chip renders avatar before the name/role column and opens profile menu", () => {
-    const onSignOut = vi.fn();
-    const { container } = renderHeader({ onSignOut });
-    const trigger = container.querySelector(".gh-user-chip-trigger");
-    expect(trigger?.firstElementChild?.classList.contains("gh-user-chip-avatar")).toBe(true);
-    expect(trigger?.firstElementChild?.textContent).toBe("SK");
-    act(() => {
-      fireEvent.click(screen.getByRole("button", { name: /Open profile menu/i }));
+  it("marks notifications degraded without disabling inbox navigation", () => {
+    const onToggleInbox = vi.fn();
+    renderHeader({
+      inboxMessage: "Notification delivery health is unavailable.",
+      inboxState: "unavailable",
+      onToggleInbox,
     });
-    expect(screen.getByRole("menu")).not.toBeNull();
-    fireEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
-    expect(onSignOut).toHaveBeenCalledTimes(1);
+    const notifications = screen.getByRole("button", { name: "Notifications unavailable" });
+    expect(notifications.className).toContain("is-unavailable");
+    expect(notifications.getAttribute("title")).toContain("Notification delivery health is unavailable");
+    fireEvent.click(notifications);
+    expect(onToggleInbox).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps profile identity out of the topbar and exposes help in the action cluster", () => {
+    const onOpenHelp = vi.fn();
+    const { container } = renderHeader({ onOpenHelp });
+    expect(container.querySelector(".gh-user-chip-trigger")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Help" }));
+    expect(onOpenHelp).toHaveBeenCalledTimes(1);
   });
 
   it("does not render hidden duplicate module navigation in the topbar", () => {

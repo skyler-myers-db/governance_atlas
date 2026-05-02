@@ -211,6 +211,9 @@ function normalizeInboxRecord(inbox) {
     unreadCount: Number.isFinite(Number(inbox.unreadCount))
       ? Math.max(0, Math.trunc(Number(inbox.unreadCount)))
       : 0,
+    stewardshipCount: Number.isFinite(Number(inbox.stewardshipCount))
+      ? Math.max(0, Math.trunc(Number(inbox.stewardshipCount)))
+      : null,
     items: arrayValue(inbox.items).map((item, index) => normalizeInboxItem(item, index)),
   };
 }
@@ -388,17 +391,68 @@ function normalizeDiscoveryPayload(payload) {
   };
 }
 
+function textValue(value) {
+  return String(value || "").trim();
+}
+
+function payloadRequestId(payload) {
+  const body = objectValue(payload);
+  return textValue(
+    body.requestId ||
+      body.request_id ||
+      objectValue(body.meta).requestId ||
+      objectValue(body.meta).request_id,
+  );
+}
+
+export function formatApiError(error, fallback = "Request failed.") {
+  const baseMessage = textValue(error?.detailMessage || error?.message) || fallback;
+  const requestId = textValue(
+    error?.httpRequestId ||
+      error?.meta?.httpRequestId ||
+      payloadRequestId(error?.payload),
+  );
+  const clientRequestId = textValue(error?.clientRequestId || error?.meta?.clientRequestId);
+  const details = [];
+  if (requestId) details.push(`Request ID: ${requestId}`);
+  if (clientRequestId && clientRequestId !== requestId) {
+    details.push(`Client request ID: ${clientRequestId}`);
+  }
+  return details.length ? `${baseMessage} (${details.join("; ")})` : baseMessage;
+}
+
 class ApiError extends Error {
+  /**
+   * @param {string} message
+   * @param {number} status
+   * @param {unknown} payload
+   * @param {{ httpRequestId?: string, clientRequestId?: string, buildId?: string, clientDurationMs?: number }} meta
+   */
   constructor(message, status, payload, meta = {}) {
-    super(message);
+    const enrichedMeta = /** @type {{ httpRequestId?: string, clientRequestId?: string, buildId?: string, clientDurationMs?: number }} */ ({
+      ...meta,
+      httpRequestId: meta.httpRequestId || payloadRequestId(payload),
+    });
+    const displayMessage = formatApiError(
+      {
+        message,
+        payload,
+        meta: enrichedMeta,
+        httpRequestId: enrichedMeta.httpRequestId,
+        clientRequestId: enrichedMeta.clientRequestId,
+      },
+      message,
+    );
+    super(displayMessage);
     this.name = "ApiError";
     this.status = status;
     this.payload = payload;
-    this.meta = meta;
-    this.httpRequestId = meta.httpRequestId || "";
-    this.clientRequestId = meta.clientRequestId || "";
-    this.buildId = meta.buildId || "";
-    this.durationMs = meta.clientDurationMs || 0;
+    this.meta = enrichedMeta;
+    this.detailMessage = message;
+    this.httpRequestId = enrichedMeta.httpRequestId || "";
+    this.clientRequestId = enrichedMeta.clientRequestId || "";
+    this.buildId = enrichedMeta.buildId || "";
+    this.durationMs = enrichedMeta.clientDurationMs || 0;
   }
 }
 
@@ -609,7 +663,7 @@ async function request(path, options = {}) {
     path: buildUrl(path),
     status: response.status,
     clientRequestId,
-    httpRequestId: response.headers.get(REQUEST_ID_HEADER) || "",
+    httpRequestId: response.headers.get(REQUEST_ID_HEADER) || payloadRequestId(payload),
     buildId: response.headers.get(BUILD_ID_HEADER) || "",
     serverDurationMs: Number(response.headers.get(DURATION_HEADER) || 0) || 0,
     clientDurationMs: Math.round((nowMs() - startedAt) * 10) / 10,
@@ -756,6 +810,7 @@ export function fetchCdeDetail(cdeId, options = {}) {
 export function fetchAuditEvidence(options = {}) {
   const params = new URLSearchParams();
   if (options.auditId) params.set("audit_id", options.auditId);
+  if (options.dateRange) params.set("date_range", options.dateRange);
   if (options.limit) params.set("limit", String(options.limit));
   const query = params.toString();
   const path = contractPath("auditEvidence") || "/atlas/audit/evidence";
@@ -831,7 +886,10 @@ export function fetchAssetAvailability(assetFqns = [], options = {}) {
 }
 
 export function fetchLineage(assetFqn, options = {}) {
-  const path = `/lineage/${encodeURIComponent(assetFqn)}`;
+  const params = new URLSearchParams();
+  if (options.profile) params.set("profile", String(options.profile));
+  const query = params.toString();
+  const path = `/lineage/${encodeURIComponent(assetFqn)}${query ? `?${query}` : ""}`;
   const execute = () => request(path, { signal: options.signal });
   return execute().catch((error) => {
     if (options.signal?.aborted) {
@@ -1048,7 +1106,6 @@ export function getAssetMetadataApiContract(assetFqn) {
     "assetMetadataEditor",
     "assetMetadataEdit",
     "assetMetadata",
-    "assetMetadataUpdate",
   );
   const updateTemplate = contractPath(
     "assetMetadataUpdate",
@@ -1059,7 +1116,7 @@ export function getAssetMetadataApiContract(assetFqn) {
 
   return {
     available: Boolean(capabilityTemplate || updateTemplate),
-    capabilityPath: assetRoute(capabilityTemplate, assetFqn),
+    capabilityPath: capabilityTemplate ? assetRoute(capabilityTemplate, assetFqn) : "",
     updatePath: assetRoute(updateTemplate || capabilityTemplate, assetFqn),
   };
 }

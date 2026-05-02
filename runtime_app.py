@@ -9,13 +9,15 @@ import os
 import threading
 import time
 import uuid
+from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Tuple
 from urllib.parse import unquote
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field, field_validator
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -65,7 +67,10 @@ from atlas.config import AppConfig
 from atlas.runtime_contract import validate_frontend_bundle
 from atlas.services import assets as asset_service
 from atlas.services import capabilities as capability_service
+from atlas.services import genie as genie_service
 from atlas.services import governance as governance_service
+from atlas.services import lakebase as lakebase_service
+from atlas.services import lakebase_store as lakebase_store_service
 from atlas.services import lineage as lineage_service
 from atlas.services import runtime_setup as runtime_setup_service
 from atlas.store import GovernanceStore
@@ -93,21 +98,29 @@ KNOWN_SURFACES = {
 CLIENT_ROUTE_PREFIXES = {
     "admin",
     "audit",
+    "audit-evidence",
     "capabilities",
     "cde",
     "cdes",
+    "command-center",
+    "control-center",
+    "discover",
     "discovery",
     "entity",
     "governance",
     "glossary",
+    "glossary-cdes",
     "help",
     "home",
     "inbox",
     "insights",
     "lineage",
+    "lineage-atlas",
+    "stewardship",
     "taxonomy",
 }
 MUTATION_ROLES = {"writer", "steward", "admin"}
+APPROVAL_ROLES = {"steward", "admin"}
 APP_VERSION = "atlas-runtime-6"
 REQUEST_ID_HEADER = "X-Request-ID"
 CLIENT_REQUEST_ID_HEADER = "X-GOVAT-Client-Request-ID"
@@ -159,7 +172,7 @@ DISCOVERY_VIEWS = [
 ]
 DISCOVERY_SORTS = [
     "Best match",
-    "Coverage score",
+    "Trust score",
     "Name (A-Z)",
     "Open requests",
 ]
@@ -193,7 +206,17 @@ SHELL_API_CONTRACT = {
 }
 
 
-app = FastAPI(title="Governance Atlas Runtime")
+@asynccontextmanager
+async def _runtime_lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    _warmup_live_runtime()
+    _start_background_drainer()
+    try:
+        yield
+    finally:
+        _stop_background_drainer()
+
+
+app = FastAPI(title="Governance Atlas Runtime", lifespan=_runtime_lifespan)
 app.mount(
     "/assets",
     StaticFiles(directory=str(REACT_DIST_DIR / "assets"), check_dir=False),
@@ -355,6 +378,10 @@ class _NullGovernanceStore:
         return self.list_metadata_audit(**_)
 
     def get_role(self, email: str, admin_emails: Optional[List[str]] = None) -> str:
+        normalized = str(email or "").strip().lower()
+        configured_admins = {str(item or "").strip().lower() for item in (admin_emails or []) if str(item or "").strip()}
+        if normalized and normalized in configured_admins:
+            return "admin"
         return "reader"
 
 
@@ -474,6 +501,21 @@ def _store() -> GovernanceStore:
     cfg = _config()
     store = GovernanceStore(uc=_uc(), catalog=cfg.gov_catalog, schema=cfg.gov_schema)
     store.ensure_tables()
+    if getattr(cfg, "lakebase_enabled", False):
+        try:
+            lakebase_service.ensure_schema(cfg, include_upgrades=False)
+            mirror = lakebase_store_service.LakebaseOperationalMirror(
+                config=cfg,
+                delta_store=store,
+            )
+            return lakebase_store_service.DualWriteGovernanceStore(store, mirror)  # type: ignore[return-value]
+        except Exception as exc:
+            message = f"{exc.__class__.__name__}: {exc}"
+            lakebase_store_service.record_inactive_status(
+                f"Lakebase dual-write mirror is inactive: {message}",
+                state="degraded",
+            )
+            logging.getLogger(__name__).warning("Lakebase dual-write mirror inactive: %s", exc)
     return store
 
 
@@ -543,8 +585,11 @@ def _uc_runtime_status_fast(background: bool = True) -> Dict[str, Any]:
 def _store_status() -> Dict[str, str]:
     def _loader() -> Dict[str, str]:
         try:
-            _store()
-            return {"state": "live", "message": ""}
+            store = _store()
+            payload: Dict[str, Any] = {"state": "live", "message": ""}
+            if hasattr(store, "lakebase_dual_write_status"):
+                payload["lakebaseDualWrite"] = store.lakebase_dual_write_status()
+            return payload
         except Exception as exc:
             return {
                 "state": "degraded",
@@ -723,6 +768,18 @@ def _ensure_can_mutate(request: Request) -> str:
     return actor_email
 
 
+def _ensure_can_approve(request: Request) -> str:
+    _ensure_governance_store()
+    actor_email = _require_actor_email(request)
+    actor_role = _user_role_slug(request)
+    if actor_role not in APPROVAL_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="This action requires steward or admin permissions.",
+        )
+    return actor_email
+
+
 def _direct_uc_metadata_writes_enabled(request: Optional[Request]) -> bool:
     return _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
 
@@ -854,6 +911,46 @@ from atlas.services.inventory import (
 )
 
 
+def _direct_actor_identity_visible(
+    asset_fqn: str,
+    request: Optional[Request] = None,
+) -> bool:
+    """Allow deep-linked read routes when actor-scoped identity resolves exactly.
+
+    Bulk inventory can omit a table even when the forwarded actor can resolve
+    that exact table through Unity Catalog information_schema. Treat that direct
+    identity proof as openable only for real OBO requests, and reject it if the
+    OBO SQL client fell back to the app principal so app-principal visibility
+    cannot widen what the user can open.
+    """
+    if request is None:
+        return False
+    if _request_auth_mode(request) != capability_service.OBO_AVAILABLE_MODE:
+        return False
+    try:
+        catalog, _, _ = asset_service.split_uc_name(asset_fqn)
+    except Exception:
+        return False
+    hidden = {str(value).lower() for value in HIDDEN_CATALOGS}
+    if catalog.lower() in hidden:
+        return False
+    try:
+        uc_client = _uc_for_request(request)
+        exact_row = asset_service.exact_identity_row(uc_client, asset_fqn)
+    except Exception:
+        return False
+    if exact_row is None:
+        return False
+    runtime_context = getattr(uc_client, "runtime_context", None)
+    if callable(runtime_context):
+        try:
+            if bool((runtime_context() or {}).get("obo_scope_fallback")):
+                return False
+        except Exception:
+            return False
+    return True
+
+
 def _asset_visibility_record(
     asset_fqn: str,
     request: Optional[Request] = None,
@@ -863,6 +960,8 @@ def _asset_visibility_record(
             _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
         )
         visible = _asset_is_visible(asset_fqn, request)
+        direct_visible = False if visible else _direct_actor_identity_visible(asset_fqn, request)
+        visible = visible or direct_visible
         exists = visible or (actor_scoped and _asset_exists(asset_fqn, request))
         if visible:
             visibility_state = "visible"
@@ -875,6 +974,7 @@ def _asset_visibility_record(
             "visible": visible,
             "openable": visible,
             "visibilityState": visibility_state,
+            "visibilityMethod": "direct-identity" if direct_visible else "inventory",
         }
     except Exception as exc:
         return {
@@ -974,12 +1074,20 @@ def _lineage_payload(
     asset_fqn: str,
     request: Optional[Request] = None,
 ) -> Dict[str, Any]:
+    actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
+    request_uc = _uc_for_request(request)
+    profile = "full"
+    try:
+        profile = str(request.query_params.get("profile") or "full") if request else "full"
+    except Exception:
+        profile = "full"
     return lineage_service.lineage_payload(
-        _uc_for_request(request),
+        request_uc,
         _store_for_read(),
         asset_fqn,
         cache_scope=_request_cache_scope(request),
-        system_uc=_uc(),
+        system_uc=request_uc if actor_scoped else _uc(),
+        profile=profile,
     )
 
 
@@ -1044,8 +1152,44 @@ def _ensure_live_runtime() -> None:
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     if str(request.url.path).startswith("/api/"):
-        return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+        request_id = _http_request_id(request)
+        return JSONResponse(
+            {
+                "detail": exc.detail,
+                "requestId": request_id,
+                "httpRequestId": request_id,
+                "errorClass": "HTTPException",
+            },
+            status_code=exc.status_code,
+            headers={REQUEST_ID_HEADER: request_id} if request_id else None,
+        )
     return HTMLResponse(str(exc.detail), status_code=exc.status_code)
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
+    if str(request.url.path).startswith("/api/"):
+        request_id = _http_request_id(request)
+        errors = [
+            {
+                "loc": list(error.get("loc") or []),
+                "msg": str(error.get("msg") or ""),
+                "type": str(error.get("type") or ""),
+            }
+            for error in exc.errors()
+        ]
+        return JSONResponse(
+            {
+                "detail": "Request validation failed.",
+                "errors": errors,
+                "requestId": request_id,
+                "httpRequestId": request_id,
+                "errorClass": "RequestValidationError",
+            },
+            status_code=422,
+            headers={REQUEST_ID_HEADER: request_id} if request_id else None,
+        )
+    return HTMLResponse("Request validation failed.", status_code=422)
 
 
 @app.exception_handler(Exception)
@@ -1068,18 +1212,32 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     path_is_api = str(request.url.path).startswith("/api/")
     if "permission_denied" in lowered or "does not have" in lowered and ("modify" in lowered or "select" in lowered or "use" in lowered):
         if path_is_api:
+            request_id = _http_request_id(request)
             return JSONResponse(
                 {
                     "detail": "You don't have write access to this asset. Ask a steward with MODIFY on this table to make the change.",
                     "errorClass": "PermissionDenied",
                     "raw": message.splitlines()[0][:400],
+                    "requestId": request_id,
+                    "httpRequestId": request_id,
                 },
                 status_code=403,
+                headers={REQUEST_ID_HEADER: request_id} if request_id else None,
             )
         return HTMLResponse("Permission denied.", status_code=403)
     if path_is_api:
+        request_id = _http_request_id(request)
         detail = f"{exc.__class__.__name__}: {message.splitlines()[0][:300]}" if message else exc.__class__.__name__
-        return JSONResponse({"detail": detail}, status_code=500)
+        return JSONResponse(
+            {
+                "detail": detail,
+                "requestId": request_id,
+                "httpRequestId": request_id,
+                "errorClass": exc.__class__.__name__,
+            },
+            status_code=500,
+            headers={REQUEST_ID_HEADER: request_id} if request_id else None,
+        )
     return HTMLResponse("Internal server error.", status_code=500)
 
 
@@ -1440,7 +1598,7 @@ def _shell_feature_flags_payload(
         ),
         _flag(
             "table_lineage_surface",
-            enabled=table_lineage.get("available") is True,
+            enabled=table_lineage.get("state") == "available",
             state=str(table_lineage.get("state") or "unavailable"),
             reason=_normalize_str(table_lineage.get("reason"))
             or "Live table lineage is not available in this workspace right now.",
@@ -1469,6 +1627,30 @@ def _shell_payload(
         "state": "loading" if state == "loading" else state,
         "message": message,
     }
+    # Pre-hydrated discovery envelope: on live bootstrap we run a zero-
+    # filter discovery search inside the same request so the first table
+    # paints from the bootstrap payload instead of waiting on a second
+    # client round-trip. The resulting count also drives the shell
+    # capability state; otherwise the UI can truthfully render live rows
+    # while the preview rail still receives a stale "no visible assets"
+    # warning from the hardcoded shell defaults.
+    discovery_shell = _shell_discovery_payload()
+    preloaded_visible_asset_count = 0
+    if state == "live" and request is not None:
+        try:
+            pre = _discovery_search_payload(request, query="", limit=60, offset=0)
+            preloaded_visible_asset_count = int(pre.get("count") or 0)
+            discovery_shell = {
+                **discovery_shell,
+                "defaultResults": list(pre.get("assets") or []),
+                "defaultFacets": pre.get("facets") or {},
+                "defaultCount": preloaded_visible_asset_count,
+            }
+        except Exception:
+            # Cold warehouse, scope issues, or transient UC errors —
+            # leave bootstrap shell-only, frontend will re-query.
+            pass
+
     capabilities = capability_service.bootstrap_capabilities(
         actor_role=_lightweight_user_role_slug(request),
         authenticated=_user_email(request) != "unknown"
@@ -1479,31 +1661,60 @@ def _shell_payload(
         or message,
         store_state="skipped",
         store_message="Governance control-plane checks load after the shell becomes interactive.",
-        visible_asset_count=0,
+        visible_asset_count=preloaded_visible_asset_count,
         available_catalog_count=0,
         observed_catalog_count=0,
         boot_message=message,
         per_user_authorization=bool(_request_obo_token(request)),
     )
-    # Pre-hydrated discovery envelope: on live bootstrap we run a zero-
-    # filter discovery search inside the same request so the first card
-    # grid paints from the bootstrap payload instead of waiting on a
-    # second client round-trip. Failures fall back silently to the shell
-    # defaults; the frontend will then kick its normal search query.
-    discovery_shell = _shell_discovery_payload()
-    if state == "live" and request is not None:
-        try:
-            pre = _discovery_search_payload(request, query="", limit=60, offset=0)
-            discovery_shell = {
-                **discovery_shell,
-                "defaultResults": list(pre.get("assets") or []),
-                "defaultFacets": pre.get("facets") or {},
-                "defaultCount": int(pre.get("count") or 0),
+
+    cfg = _config()
+    target_label = _normalize_str(cfg.deploy_target) or (
+        _normalize_str(cfg.environment_label).split("-", 1)[0].strip()
+        if _normalize_str(cfg.environment_label)
+        else ""
+    )
+    namespace = ".".join(part for part in [cfg.gov_catalog, cfg.gov_schema] if _normalize_str(part))
+    environment_display = (
+        f"{target_label} · {namespace}"
+        if target_label and namespace
+        else namespace
+        or _normalize_str(cfg.environment_label)
+        or "Workspace"
+    )
+    try:
+        atlas_ai_status = genie_service.provider_status(cfg)
+    except Exception as exc:
+        atlas_ai_status = {
+            "state": "unavailable",
+            "provider": "genie",
+            "message": f"{exc.__class__.__name__}: {exc}",
+        }
+    try:
+        lakebase_status = lakebase_service.status(cfg)
+        if _store.cache_info().currsize:
+            lakebase_status = {
+                **lakebase_status,
+                "writeMirror": lakebase_store_service.dual_write_status(_store()),
             }
-        except Exception:
-            # Cold warehouse, scope issues, or transient UC errors —
-            # leave bootstrap shell-only, frontend will re-query.
-            pass
+        elif lakebase_status.get("enabled"):
+            lakebase_status = {
+                **lakebase_status,
+                "writeMirror": {
+                    "enabled": False,
+                    "mode": "delta-primary",
+                    "state": "pending",
+                    "message": "Governance store has not initialized the Lakebase dual-write mirror yet.",
+                    "activeTables": list(lakebase_store_service.ACTIVE_LAKEBASE_MIRROR_TABLES),
+                    "deferredTables": list(lakebase_store_service.DEFERRED_LAKEBASE_OPERATIONAL_TABLES),
+                },
+            }
+    except Exception as exc:
+        lakebase_status = {
+            "state": "unavailable",
+            "message": f"{exc.__class__.__name__}: {exc}",
+            "enabled": False,
+        }
 
     payload = {
         "version": APP_VERSION,
@@ -1521,11 +1732,21 @@ def _shell_payload(
             "userName": _user_display_name(request),
             "userEmail": _user_email(request),
             "buildId": _build_id(),
-            "diagnosticsEnabled": _config().diagnostics_enabled,
+            "diagnosticsEnabled": cfg.diagnostics_enabled,
             "environment": {
-                "label": _config().environment_label or "Live workspace",
+                "label": cfg.environment_label or environment_display,
+                "displayLabel": environment_display,
+                "target": target_label,
+                "catalog": cfg.gov_catalog,
+                "schema": cfg.gov_schema,
+                "warehouseId": cfg.warehouse_id,
+                "workspaceHost": cfg.workspace_host,
             },
-            "workspaceHost": _config().workspace_host,
+            "ai": atlas_ai_status,
+            "storage": {
+                "lakebase": lakebase_status,
+            },
+            "workspaceHost": cfg.workspace_host,
             "product": {
                 "companyName": "Entrada",
                 "productName": "Governance Atlas",
@@ -1627,7 +1848,6 @@ from atlas.api.runtime import (  # noqa: E402
 app.include_router(build_runtime_router())
 
 
-@app.on_event("startup")
 def _warmup_live_runtime() -> None:
     """Kick off Databricks warehouse + governance-store probes in the background
     the moment the app container starts, so the first user request doesn't have
@@ -1676,7 +1896,6 @@ def _background_drainer_snapshot() -> Dict[str, Any]:
     }
 
 
-@app.on_event("startup")
 def _start_background_drainer() -> None:
     """Phase 12 — continuous background work runner.
 
@@ -1689,6 +1908,10 @@ def _start_background_drainer() -> None:
     Gracefully stops when `_BACKGROUND_DRAINER_STOPPED` is set during
     teardown.
     """
+    global _BACKGROUND_DRAINER_STOPPED
+
+    _BACKGROUND_DRAINER_STOPPED = False
+
     import time
     from atlas.services.background_runner import drain_queued_batch
     from atlas.api.export import _handle_export_work
@@ -1724,7 +1947,6 @@ def _start_background_drainer() -> None:
     thread.start()
 
 
-@app.on_event("shutdown")
 def _stop_background_drainer() -> None:
     global _BACKGROUND_DRAINER_STOPPED
     _BACKGROUND_DRAINER_STOPPED = True
@@ -1780,7 +2002,7 @@ def client_route_shell(client_path: str, request: Request) -> HTMLResponse:
     normalized = _normalize_str(client_path)
     if not normalized:
         return _spa_shell_response(request)
-    root = normalized.split("/", 1)[0].lower()
+    root = normalized.split("?", 1)[0].split("#", 1)[0].split("/", 1)[0].lower()
     if root in CLIENT_ROUTE_PREFIXES:
         return _spa_shell_response(request)
     raise HTTPException(status_code=404, detail="Not found.")

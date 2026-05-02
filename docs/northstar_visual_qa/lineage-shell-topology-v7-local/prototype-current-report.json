@@ -1,0 +1,1643 @@
+{
+  "generatedAt": "2026-04-30T07:54:34.500Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "evidenceKind": "prototype_mock",
+  "mockEvidenceWarning": "Prototype mock data, not live Databricks evidence.",
+  "routeFilter": [
+    "lineage"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "lineage"
+  ],
+  "viewports": [
+    {
+      "name": "3037x1269",
+      "width": 3037,
+      "height": 1269
+    },
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "1280x720",
+      "width": 1280,
+      "height": 720
+    }
+  ],
+  "expectedCaptureCount": 4,
+  "captures": [
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/lineage-shell-topology-v7-local/lineage-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-shell-topology-v7-local/lineage-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 300,
+          "right": 3037,
+          "bottom": 72,
+          "width": 2737,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 300,
+          "bottom": 1269,
+          "width": 300,
+          "height": 1269
+        },
+        "main": {
+          "top": 72,
+          "left": 300,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2737,
+          "height": 1197
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1818,
+          "clientHeight": 1197,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 72,
+          "left": 300,
+          "right": 3037,
+          "bottom": 1889.703125,
+          "width": 2737,
+          "height": 1817.703125
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 72,
+            "left": 300,
+            "right": 3037,
+            "bottom": 1889.703125,
+            "width": 2737,
+            "height": 1817.703125
+          },
+          "hero": {
+            "top": 86,
+            "left": 689.5,
+            "right": 2649.5,
+            "bottom": 225.703125,
+            "width": 1960,
+            "height": 139.703125
+          },
+          "workbench": {
+            "top": 235.703125,
+            "left": 689.5,
+            "right": 2649.5,
+            "bottom": 1819.703125,
+            "width": 1960,
+            "height": 1584
+          },
+          "graph": {
+            "top": 235.703125,
+            "left": 689.5,
+            "right": 2649.5,
+            "bottom": 1229.703125,
+            "width": 1960,
+            "height": 994
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › entrada-prod ⌘K UC connected · 87.4% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware end-to-end lineage from operational sources through to consumer dashboards. Hidden segments mean a node exists, but you don't have UC permission to view it. Certified 14 min ago - within 15 min SLA 5 CDEs Owner: Marisol Reyes 5 upstream - 23 downstream $142k/day revenue impact Column lineage Run impact analysis + - [] 14 nodes · 13 edges Table lineage Column lineage Search Export 4 HOPS UPSTREAM orders SOURCE - Sales Source A order_id # customer_id # booking_amount charges SOURCE - Payments Source A charge_id # order_id # amount 3 HOPS UPSTREAM charges_raw finance_prod · bronze Delta Table A charge_id STRING A customer_id STRING # amount INT A currency STRING +2 more columns 12.4M rows 8m invoices_raw finance_prod · bronze Delta Table A invoice_id STRING A customer_id STRING # adjustment DECIMAL A billing_period STRING +1 more columns 1.1M rows 41m orders_raw finance_prod · bronze Delta Table A order_id STRING A customer_id STRING # subtotal DECIMAL 4.8M rows 14m 2 HOPS UPSTREAM orders sales_prod · silver Delta Table A order_id STRING A customer_id STRING # order_value_usd DECIMAL # discount_amount DECIMAL 4.8M rows 14m payments finance_prod · silver Delta Table A payment_id STRING A customer_id STRING # gross_amount DECIMAL # refund_amount DECIMAL +2 more columns 13.5M row",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "[]",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders SOURCE - Sales Source A order_id # customer_id # booking_amount",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges SOURCE - Payments Source A charge_id # order_id # amount",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges_raw finance_prod · bronze Delta Table A charge_id STRING A customer_id STRING # amount INT A currency STRING +2 ",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw finance_prod · bronze Delta Table A invoice_id STRING A customer_id STRING # adjustment DECIMAL A billing_p",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw finance_prod · bronze Delta Table A order_id STRING A customer_id STRING # subtotal DECIMAL 4.8M rows 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders sales_prod · silver Delta Table A order_id STRING A customer_id STRING # order_value_usd DECIMAL # discount_amoun",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "payments finance_prod · silver Delta Table A payment_id STRING A customer_id STRING # gross_amount DECIMAL # refund_amou",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_daily finance_prod · curated Delta Table A net_revenue_usd DECIMAL(18,2) # gross_revenue_usd DECIMAL(18,2) # dis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance Dashboard",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance Dashboard",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance Model",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets PERMISSION-LIMITED Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "salesforce.orders SOURCE - Sales",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "stripe.charges SOURCE - Payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "netsuite.invoices SOURCE - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance - prototype consumer shape; no live usage, view, or workflow proof No backed",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance - prototype consumer shape; no live usage, view, or workflow proof No backed se",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance - prototype consumer shape; no live usage, view, or workflow proof No b",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.gold.arr_snapshot Finance Stewards - downstream of net_revenue_usd No backed severity",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets Prototype permission boundary - not verified against Unity Catalog permissions Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd gross_revenue_usd · finance_prod.silver.orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd refund_usd · finance_prod.silver.payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · dashboards.finance.cfo_quarterly",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · finance_prod.ml.revenue_forecast",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/lineage-shell-topology-v7-local/lineage-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-shell-topology-v7-local/lineage-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 300,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1236,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 300,
+          "bottom": 1024,
+          "width": 300,
+          "height": 1024
+        },
+        "main": {
+          "top": 72,
+          "left": 300,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1236,
+          "height": 952
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1800,
+          "clientHeight": 952,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 72,
+          "left": 300,
+          "right": 1536,
+          "bottom": 1872.296875,
+          "width": 1236,
+          "height": 1800.296875
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 72,
+            "left": 300,
+            "right": 1536,
+            "bottom": 1872.296875,
+            "width": 1236,
+            "height": 1800.296875
+          },
+          "hero": {
+            "top": 86,
+            "left": 322,
+            "right": 1516,
+            "bottom": 214.296875,
+            "width": 1194,
+            "height": 128.296875
+          },
+          "workbench": {
+            "top": 224.296875,
+            "left": 322,
+            "right": 1442,
+            "bottom": 1802.296875,
+            "width": 1120,
+            "height": 1578
+          },
+          "graph": {
+            "top": 224.296875,
+            "left": 322,
+            "right": 1442,
+            "bottom": 1218.296875,
+            "width": 1120,
+            "height": 994
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › entrada-prod ⌘K UC connected · 87.4% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware end-to-end lineage from operational sources through to consumer dashboards. Hidden segments mean a node exists, but you don't have UC permission to view it. Certified 14 min ago - within 15 min SLA 5 CDEs Owner: Marisol Reyes 5 upstream - 23 downstream $142k/day revenue impact Column lineage Run impact analysis + - [] 14 nodes · 13 edges Table lineage Column lineage Search Export 4 HOPS UPSTREAM orders SOURCE - Sales Source A order_id # customer_id # booking_amount charges SOURCE - Payments Source A charge_id # order_id # amount 3 HOPS UPSTREAM charges_raw finance_prod · bronze Delta Table A charge_id STRING A customer_id STRING # amount INT A currency STRING +2 more columns 12.4M rows 8m invoices_raw finance_prod · bronze Delta Table A invoice_id STRING A customer_id STRING # adjustment DECIMAL A billing_period STRING +1 more columns 1.1M rows 41m orders_raw finance_prod · bronze Delta Table A order_id STRING A customer_id STRING # subtotal DECIMAL 4.8M rows 14m 2 HOPS UPSTREAM orders sales_prod · silver Delta Table A order_id STRING A customer_id STRING # order_value_usd DECIMAL # discount_amount DECIMAL 4.8M rows 14m payments finance_prod · silver Delta Table A payment_id STRING A customer_id STRING # gross_amount DECIMAL # refund_amount DECIMAL +2 more columns 13.5M row",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "[]",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders SOURCE - Sales Source A order_id # customer_id # booking_amount",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges SOURCE - Payments Source A charge_id # order_id # amount",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges_raw finance_prod · bronze Delta Table A charge_id STRING A customer_id STRING # amount INT A currency STRING +2 ",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw finance_prod · bronze Delta Table A invoice_id STRING A customer_id STRING # adjustment DECIMAL A billing_p",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw finance_prod · bronze Delta Table A order_id STRING A customer_id STRING # subtotal DECIMAL 4.8M rows 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders sales_prod · silver Delta Table A order_id STRING A customer_id STRING # order_value_usd DECIMAL # discount_amoun",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "payments finance_prod · silver Delta Table A payment_id STRING A customer_id STRING # gross_amount DECIMAL # refund_amou",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_daily finance_prod · curated Delta Table A net_revenue_usd DECIMAL(18,2) # gross_revenue_usd DECIMAL(18,2) # dis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance Dashboard",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance Dashboard",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance Model",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets PERMISSION-LIMITED Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "salesforce.orders SOURCE - Sales",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "stripe.charges SOURCE - Payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "netsuite.invoices SOURCE - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance - prototype consumer shape; no live usage, view, or workflow proof No backed",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance - prototype consumer shape; no live usage, view, or workflow proof No backed se",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance - prototype consumer shape; no live usage, view, or workflow proof No b",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.gold.arr_snapshot Finance Stewards - downstream of net_revenue_usd No backed severity",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets Prototype permission boundary - not verified against Unity Catalog permissions Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd gross_revenue_usd · finance_prod.silver.orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd refund_usd · finance_prod.silver.payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · dashboards.finance.cfo_quarterly",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · finance_prod.ml.revenue_forecast",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/lineage-shell-topology-v7-local/lineage-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-shell-topology-v7-local/lineage-1440x900-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 900,
+          "documentWidth": 1440,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1440,
+          "bottom": 72,
+          "width": 1200,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 900,
+          "width": 240,
+          "height": 900
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1200,
+          "height": 828
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1791,
+          "clientHeight": 828,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 72,
+          "left": 240,
+          "right": 1440,
+          "bottom": 1862.71875,
+          "width": 1200,
+          "height": 1790.71875
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 72,
+            "left": 240,
+            "right": 1440,
+            "bottom": 1862.71875,
+            "width": 1200,
+            "height": 1790.71875
+          },
+          "hero": {
+            "top": 86,
+            "left": 262,
+            "right": 1420,
+            "bottom": 210.71875,
+            "width": 1158,
+            "height": 124.71875
+          },
+          "workbench": {
+            "top": 220.71875,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1792.71875,
+            "width": 1120,
+            "height": 1572
+          },
+          "graph": {
+            "top": 220.71875,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1214.71875,
+            "width": 1120,
+            "height": 994
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › entrada-prod ⌘K UC connected · 87.4% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware end-to-end lineage from operational sources through to consumer dashboards. Hidden segments mean a node exists, but you don't have UC permission to view it. Certified 14 min ago - within 15 min SLA 5 CDEs Owner: Marisol Reyes 5 upstream - 23 downstream $142k/day revenue impact Column lineage Run impact analysis + - [] 14 nodes · 13 edges Table lineage Column lineage Search Export 4 HOPS UPSTREAM orders SOURCE - Sales Source A order_id # customer_id # booking_amount charges SOURCE - Payments Source A charge_id # order_id # amount 3 HOPS UPSTREAM charges_raw finance_prod · bronze Delta Table A charge_id STRING A customer_id STRING # amount INT A currency STRING +2 more columns 12.4M rows 8m invoices_raw finance_prod · bronze Delta Table A invoice_id STRING A customer_id STRING # adjustment DECIMAL A billing_period STRING +1 more columns 1.1M rows 41m orders_raw finance_prod · bronze Delta Table A order_id STRING A customer_id STRING # subtotal DECIMAL 4.8M rows 14m 2 HOPS UPSTREAM orders sales_prod · silver Delta Table A order_id STRING A customer_id STRING # order_value_usd DECIMAL # discount_amount DECIMAL 4.8M rows 14m payments finance_prod · silver Delta Table A payment_id STRING A customer_id STRING # gross_amount DECIMAL # refund_amount DECIMAL +2 more columns 13.5M row",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "[]",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders SOURCE - Sales Source A order_id # customer_id # booking_amount",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges SOURCE - Payments Source A charge_id # order_id # amount",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges_raw finance_prod · bronze Delta Table A charge_id STRING A customer_id STRING # amount INT A currency STRING +2 ",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw finance_prod · bronze Delta Table A invoice_id STRING A customer_id STRING # adjustment DECIMAL A billing_p",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw finance_prod · bronze Delta Table A order_id STRING A customer_id STRING # subtotal DECIMAL 4.8M rows 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders sales_prod · silver Delta Table A order_id STRING A customer_id STRING # order_value_usd DECIMAL # discount_amoun",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "payments finance_prod · silver Delta Table A payment_id STRING A customer_id STRING # gross_amount DECIMAL # refund_amou",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_daily finance_prod · curated Delta Table A net_revenue_usd DECIMAL(18,2) # gross_revenue_usd DECIMAL(18,2) # dis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance Dashboard",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance Dashboard",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance Model",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets PERMISSION-LIMITED Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "salesforce.orders SOURCE - Sales",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "stripe.charges SOURCE - Payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "netsuite.invoices SOURCE - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance - prototype consumer shape; no live usage, view, or workflow proof No backed",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance - prototype consumer shape; no live usage, view, or workflow proof No backed se",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance - prototype consumer shape; no live usage, view, or workflow proof No b",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.gold.arr_snapshot Finance Stewards - downstream of net_revenue_usd No backed severity",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets Prototype permission boundary - not verified against Unity Catalog permissions Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd gross_revenue_usd · finance_prod.silver.orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd refund_usd · finance_prod.silver.payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · dashboards.finance.cfo_quarterly",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · finance_prod.ml.revenue_forecast",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/lineage-shell-topology-v7-local/lineage-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-shell-topology-v7-local/lineage-1280x720-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1280,
+          "height": 720,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 720,
+          "documentWidth": 1280,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1280,
+          "bottom": 56,
+          "width": 1040,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 720,
+          "width": 240,
+          "height": 720
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1040,
+          "height": 664
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1885,
+          "clientHeight": 664,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 240,
+          "right": 1280,
+          "bottom": 1940.65625,
+          "width": 1040,
+          "height": 1884.65625
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 240,
+            "right": 1280,
+            "bottom": 1940.65625,
+            "width": 1040,
+            "height": 1884.65625
+          },
+          "hero": {
+            "top": 68,
+            "left": 256,
+            "right": 1266,
+            "bottom": 184.28125,
+            "width": 1010,
+            "height": 116.28125
+          },
+          "workbench": {
+            "top": 192.28125,
+            "left": 256,
+            "right": 1266,
+            "bottom": 1880.65625,
+            "width": 1010,
+            "height": 1688.375
+          },
+          "graph": {
+            "top": 192.28125,
+            "left": 256,
+            "right": 1266,
+            "bottom": 1028.65625,
+            "width": 1010,
+            "height": 836.375
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › entrada-prod ⌘K UC connected · 87.4% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware end-to-end lineage from operational sources through to consumer dashboards. Hidden segments mean a node exists, but you don't have UC permission to view it. Certified 14 min ago - within 15 min SLA 5 CDEs Owner: Marisol Reyes 5 upstream - 23 downstream $142k/day revenue impact Column lineage Run impact analysis + - [] 14 nodes · 13 edges Table lineage Column lineage Search Export 4 HOPS UPSTREAM orders SOURCE - Sales Source charges SOURCE - Payments Source 3 HOPS UPSTREAM charges_raw finance_prod · bronze Delta Table 12.4M rows 8m invoices_raw finance_prod · bronze Delta Table 1.1M rows 41m orders_raw finance_prod · bronze Delta Table 4.8M rows 14m 2 HOPS UPSTREAM orders sales_prod · silver Delta Table 4.8M rows 14m payments finance_prod · silver Delta Table 13.5M rows 11m FOCUS revenue_daily finance_prod · curated Delta Table 1.2M rows 14m 1 HOP DOWNSTREAM CFO Quarterly Dashboard DASHBOARD - Finance Dashboard Board Pack - Revenue DASHBOARD - Finance Dashboard finance_prod.ml.revenue_forecast MODEL - Finance Model 4 downstream assets PERMISSION-LIMITED Restricted LINEAGE DETAILS payments finance_prod · silver LAST REFRESH 14 min ago - within 15 min SLA ROWS 13.5M OWNER Marisol Reyes SOURCES salesforce.orders SOURCE - Sales stripe.charges SOURCE - Payments netsuite.invoices ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "[]",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders SOURCE - Sales Source",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges SOURCE - Payments Source",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges_raw finance_prod · bronze Delta Table 12.4M rows 8m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw finance_prod · bronze Delta Table 1.1M rows 41m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw finance_prod · bronze Delta Table 4.8M rows 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders sales_prod · silver Delta Table 4.8M rows 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "payments finance_prod · silver Delta Table 13.5M rows 11m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_daily finance_prod · curated Delta Table 1.2M rows 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance Dashboard",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance Dashboard",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance Model",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets PERMISSION-LIMITED Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "salesforce.orders SOURCE - Sales",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "stripe.charges SOURCE - Payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "netsuite.invoices SOURCE - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance - prototype consumer shape; no live usage, view, or workflow proof No backed",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance - prototype consumer shape; no live usage, view, or workflow proof No backed se",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance - prototype consumer shape; no live usage, view, or workflow proof No b",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.gold.arr_snapshot Finance Stewards - downstream of net_revenue_usd No backed severity",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets Prototype permission boundary - not verified against Unity Catalog permissions Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd gross_revenue_usd · finance_prod.silver.orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd refund_usd · finance_prod.silver.payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · dashboards.finance.cfo_quarterly",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · finance_prod.ml.revenue_forecast",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

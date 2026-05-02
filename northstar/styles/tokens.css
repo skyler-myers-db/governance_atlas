@@ -1,0 +1,250 @@
+/* ==========================================================================
+   Entrada Design System — Core tokens
+   Colors + typography + spacing + radii + shadows
+   ========================================================================== */
+
+/* Fonts — Manrope (substitute for Entrada's display type, see README) */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ---------- BRAND COLOR — raw palette ---------- */
+  --entrada-navy:        #025080;  /* Primary */
+  --entrada-bright-blue: #66C5FF;  /* Secondary */
+  --entrada-light-blue:  #CFEFFF;  /* Secondary */
+  --entrada-white:       #FFFFFF;  /* Secondary */
+  --entrada-grey:        #B2BDC2;  /* Secondary */
+  --entrada-teal:        #5CE1E6;  /* Bright accent */
+
+  /* Navy tonal scale — tints & shades of #025080 */
+  --navy-50:  #E6F0F7;
+  --navy-100: #CCE1EE;
+  --navy-200: #99C3DD;
+  --navy-300: #66A5CC;
+  --navy-400: #3387BB;
+  --navy-500: #025080;   /* brand primary */
+  --navy-600: #02436B;
+  --navy-700: #033656;
+  --navy-800: #022A42;
+  --navy-900: #011B2D;
+  --navy-950: #010F1A;
+
+  /* Blue tonal scale — tints & shades of #66C5FF */
+  --blue-50:  #F2FAFF;
+  --blue-100: #E0F4FF;
+  --blue-200: #CFEFFF;   /* matches light-blue secondary */
+  --blue-300: #A8DDFF;
+  --blue-400: #66C5FF;   /* brand bright blue */
+  --blue-500: #3BAFF5;
+  --blue-600: #1E94DC;
+  --blue-700: #1577B3;
+
+  /* Neutral / grey scale — warm-cool balanced greys */
+  --grey-0:   #FFFFFF;
+  --grey-50:  #F7F9FA;
+  --grey-100: #EEF1F3;
+  --grey-200: #DEE3E6;
+  --grey-300: #CED5D9;
+  --grey-400: #B2BDC2;   /* brand grey */
+  --grey-500: #8D989E;
+  --grey-600: #6B757A;
+  --grey-700: #4C5458;
+  --grey-800: #2F3538;
+  --grey-900: #171A1C;
+
+  /* Accent — teal */
+  --teal-300: #9EEEF1;
+  --teal-400: #5CE1E6;   /* brand teal */
+  --teal-500: #2DC9D0;
+  --teal-600: #1DA7AE;
+
+  /* Semantic — status */
+  --success: #1F9D55;
+  --warning: #E8A317;
+  --danger:  #D93A2F;
+  --info:    var(--blue-500);
+
+  /* ---------- SEMANTIC COLOR TOKENS ---------- */
+  /* Backgrounds */
+  --bg:            var(--grey-0);
+  --bg-subtle:     var(--grey-50);
+  --bg-muted:      var(--grey-100);
+  --bg-inverse:    var(--navy-900);
+  --bg-brand:      var(--navy-500);
+  --bg-brand-soft: var(--blue-200);
+
+  /* Foregrounds */
+  --fg:         var(--navy-900);     /* Primary text */
+  --fg-muted:   var(--grey-700);     /* Body secondary */
+  --fg-subtle:  var(--grey-500);     /* Captions, meta */
+  --fg-inverse: var(--grey-0);       /* On dark surfaces */
+  --fg-brand:   var(--navy-500);
+  --fg-accent:  var(--teal-600);
+
+  /* Borders / dividers */
+  --border:         var(--grey-200);
+  --border-strong:  var(--grey-300);
+  --border-brand:   var(--navy-500);
+  --border-focus:   var(--blue-500);
+
+  /* Interactive */
+  --link:         var(--navy-500);
+  --link-hover:   var(--navy-700);
+  --link-visited: var(--navy-700);
+
+  /* ---------- TYPOGRAPHY ---------- */
+  --font-display: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-body:    'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Base type scale — optimized for 1rem = 16px */
+  --text-xs:   0.75rem;     /* 12px — captions, legal */
+  --text-sm:   0.875rem;    /* 14px — meta, labels */
+  --text-base: 1rem;        /* 16px — body */
+  --text-md:   1.125rem;    /* 18px — large body, lead */
+  --text-lg:   1.25rem;     /* 20px */
+  --text-xl:   1.5rem;      /* 24px — h4 */
+  --text-2xl:  2rem;        /* 32px — h3 */
+  --text-3xl:  2.5rem;      /* 40px — h2 */
+  --text-4xl:  3.25rem;     /* 52px — h1 */
+  --text-5xl:  4.5rem;      /* 72px — hero */
+  --text-6xl:  6rem;        /* 96px — display */
+
+  /* Font weights */
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+  --fw-extra:    800;
+
+  /* Line heights */
+  --lh-tight:    1.05;
+  --lh-heading:  1.15;
+  --lh-snug:     1.35;
+  --lh-body:     1.55;
+  --lh-loose:    1.75;
+
+  /* Letter-spacing */
+  --tracking-tight:  -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide:   0.04em;
+  --tracking-eyebrow: 0.16em;   /* small-caps eyebrow labels */
+
+  /* ---------- SPACING SCALE (4px base) ---------- */
+  --space-0:  0;
+  --space-1:  0.25rem;   /* 4 */
+  --space-2:  0.5rem;    /* 8 */
+  --space-3:  0.75rem;   /* 12 */
+  --space-4:  1rem;      /* 16 */
+  --space-5:  1.5rem;    /* 24 */
+  --space-6:  2rem;      /* 32 */
+  --space-7:  3rem;      /* 48 */
+  --space-8:  4rem;      /* 64 */
+  --space-9:  6rem;      /* 96 */
+  --space-10: 8rem;      /* 128 */
+
+  /* ---------- RADII ---------- */
+  --radius-none: 0;
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   20px;
+  --radius-2xl:  28px;
+  --radius-pill: 999px;
+
+  /* ---------- SHADOWS / ELEVATION ---------- */
+  --shadow-xs:  0 1px 2px rgba(2, 26, 45, 0.06);
+  --shadow-sm:  0 2px 6px rgba(2, 26, 45, 0.08);
+  --shadow-md:  0 8px 24px rgba(2, 26, 45, 0.10);
+  --shadow-lg:  0 16px 40px rgba(2, 26, 45, 0.12);
+  --shadow-xl:  0 32px 64px rgba(2, 26, 45, 0.16);
+  --shadow-brand: 0 12px 32px rgba(2, 80, 128, 0.28);
+  --shadow-focus: 0 0 0 4px rgba(102, 197, 255, 0.35);
+
+  /* ---------- MOTION ---------- */
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast:    120ms;
+  --dur-base:    200ms;
+  --dur-slow:    360ms;
+
+  /* ---------- LAYOUT ---------- */
+  --container-sm: 640px;
+  --container-md: 960px;
+  --container-lg: 1200px;
+  --container-xl: 1440px;
+}
+
+/* ==========================================================================
+   Semantic tag defaults
+   ========================================================================== */
+
+html { font-family: var(--font-body); color: var(--fg); background: var(--bg); }
+body { font-size: var(--text-base); line-height: var(--lh-body); margin: 0; -webkit-font-smoothing: antialiased; }
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--fg);
+  line-height: var(--lh-heading);
+  letter-spacing: var(--tracking-tight);
+  font-weight: var(--fw-bold);
+  margin: 0 0 var(--space-4) 0;
+  text-wrap: balance;
+}
+h1 { font-size: var(--text-4xl); font-weight: var(--fw-extra); line-height: var(--lh-tight); }
+h2 { font-size: var(--text-3xl); }
+h3 { font-size: var(--text-2xl); }
+h4 { font-size: var(--text-xl); }
+h5 { font-size: var(--text-lg); font-weight: var(--fw-semibold); }
+h6 { font-size: var(--text-base); font-weight: var(--fw-semibold); letter-spacing: var(--tracking-normal); }
+
+p { margin: 0 0 var(--space-4) 0; color: var(--fg-muted); text-wrap: pretty; }
+
+a {
+  color: var(--link);
+  text-decoration: none;
+  transition: color var(--dur-base) var(--ease-out);
+}
+a:hover { color: var(--link-hover); }
+
+code, pre, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+code {
+  background: var(--bg-muted);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm);
+  color: var(--navy-700);
+}
+
+/* Eyebrow label — ubiquitous on Entrada (e.g. "GUIDING DATA MODERNIZATION") */
+.eyebrow,
+[data-kind="eyebrow"] {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--fg-brand);
+  margin-bottom: var(--space-3);
+  display: inline-block;
+}
+
+/* Lead — large intro paragraph */
+.lead {
+  font-size: var(--text-md);
+  line-height: var(--lh-snug);
+  color: var(--fg-muted);
+}
+
+/* Display — hero-size headings */
+.display {
+  font-family: var(--font-display);
+  font-size: var(--text-5xl);
+  font-weight: var(--fw-extra);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+}
+
+/* Helpers */
+.tnum { font-variant-numeric: tabular-nums; }

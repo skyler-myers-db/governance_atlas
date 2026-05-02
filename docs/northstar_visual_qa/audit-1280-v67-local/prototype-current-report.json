@@ -1,0 +1,357 @@
+{
+  "generatedAt": "2026-04-30T19:35:32.025Z",
+  "baseUrl": "http://127.0.0.1:5173",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "evidenceKind": "prototype_mock",
+  "mockEvidenceWarning": "Prototype mock data, not live Databricks evidence.",
+  "routeFilter": [
+    "audit"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "audit"
+  ],
+  "viewports": [
+    {
+      "name": "1280x720",
+      "width": 1280,
+      "height": 720
+    }
+  ],
+  "expectedCaptureCount": 1,
+  "captures": [
+    {
+      "route": "audit",
+      "path": "/audit-evidence",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/audit-1280-v67-local/audit-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/audit-1280-v67-local/audit-1280x720-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/audit",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1280,
+          "height": 720,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 720,
+          "documentWidth": 1280,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1280,
+          "bottom": 56,
+          "width": 1040,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 720,
+          "width": 240,
+          "height": 720
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1040,
+          "height": 664
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 698,
+          "clientHeight": 664,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": {
+            "top": 56,
+            "left": 240,
+            "right": 1280,
+            "bottom": 720,
+            "width": 1040,
+            "height": 664
+          },
+          "shell": {
+            "top": 68,
+            "left": 256,
+            "right": 1268,
+            "bottom": 754.328125,
+            "width": 1012,
+            "height": 686.328125
+          },
+          "main": {
+            "top": 68,
+            "left": 256,
+            "right": 1268,
+            "bottom": 754.328125,
+            "width": 1012,
+            "height": 686.328125
+          },
+          "table": {
+            "top": 308.328125,
+            "left": 256,
+            "right": 1268,
+            "bottom": 680.328125,
+            "width": 1012,
+            "height": 372
+          },
+          "mainStyle": {
+            "width": "1012px",
+            "justify-self": "auto",
+            "align-self": "auto",
+            "grid-column": "auto",
+            "display": "grid"
+          },
+          "shellStyle": {
+            "width": "1012px",
+            "grid-template-columns": "1012px",
+            "justify-items": "normal",
+            "display": "grid"
+          }
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI AUDIT EVIDENCE Immutable governance event log Prototype audit rows preserve the exportable SOC2/SOX evidence structure, but they are not live Databricks audit evidence. Date range Generate report Export CSV EVENTS · 24H 2,184 +312 vs prev POLICY VIOLATIONS · 7D 6 -2 vs prev ACCESS REVIEWS · OPEN 3 0 vs prev RETENTION 7 yr Delta · time-travel enabled All events By users By services Violations Time (UTC) Actor Event Target Evidence 2026-04-27 09:14:22 marisol.reyes@entrada.ai Certification Re-certified for Q2 2026. finance_prod.curated.revenue_daily Request SI-2482 · owner, description, lineage coverage, freshness SLA Prototype fixture ↗ 2026-04-27 08:52:09 svc-governance-sweeper Tag Applied Auto-tagged 6 columns as pii. customer_360.silver.contact_events Request SI-2479 · Job run ID 9821044 · Classifier confidence >= 0.92 Prototype fixture ↗ 2026-04-27 08:31:44 aaron.chen@entrada.ai Grant Granted SELECT to customer-success-leads group. customer_360.gold.customer_profile Request SI-2440 · Approved via stewardship workflow SI-2440 Prototype fixture ↗ 2026-04-27 07:58:01 svc-policy-engine Policy Violation Owner-required policy failed. experimental.sandbox.pricing_experiment_2025q4 Request SI-2491 · No principal in owner grant set. Quarantined from search index. Prototype fixture ↗ 2026-04-27 07:14:55 priya.natarajan@entrada.ai",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Date range",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Generate report",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export CSV",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All events",
+            "disabled": false,
+            "aria": "All events, 8 events"
+          },
+          {
+            "text": "By users",
+            "disabled": false,
+            "aria": "By users, 4 events"
+          },
+          {
+            "text": "By services",
+            "disabled": false,
+            "aria": "By services, 4 events"
+          },
+          {
+            "text": "Violations",
+            "disabled": false,
+            "aria": "Violations, 1 events"
+          },
+          {
+            "text": "2026-04-27 09:14:22 marisol.reyes@entrada.ai Certification Re-certified for Q2 2026. finance_prod.curated.revenue_daily ",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": "Open evidence target for finance_prod.curated.revenue_daily"
+          },
+          {
+            "text": "2026-04-27 08:52:09 svc-governance-sweeper Tag Applied Auto-tagged 6 columns as pii. customer_360.silver.contact_events ",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": "Open evidence target for customer_360.silver.contact_events"
+          },
+          {
+            "text": "2026-04-27 08:31:44 aaron.chen@entrada.ai Grant Granted SELECT to customer-success-leads group. customer_360.gold.custom",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": "Open evidence target for customer_360.gold.customer_profile"
+          },
+          {
+            "text": "2026-04-27 07:58:01 svc-policy-engine Policy Violation Owner-required policy failed. experimental.sandbox.pricing_experi",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": "Open evidence target for experimental.sandbox.pricing_experiment_2025q4"
+          },
+          {
+            "text": "2026-04-27 07:14:55 priya.natarajan@entrada.ai Quality Alert Acknowledged quality regression on currency_code. sales_pro",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": "Open evidence target for sales_prod.silver.orders"
+          },
+          {
+            "text": "2026-04-27 06:42:31 svc-lineage-collector Lineage Updated Captured new column-level lineage for is_recognized. finance_p",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": "Open evidence target for finance_prod.gold.revenue_recognition"
+          },
+          {
+            "text": "2026-04-27 05:18:12 devon.park@entrada.ai Description Edited table description. product_events.bronze.clickstream_events",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": "Open evidence target for product_events.bronze.clickstream_events"
+          },
+          {
+            "text": "2026-04-26 22:04:00 compliance-bot Access Review Quarterly access review completed. hr_secure.confidential.compensation_",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "↗",
+            "disabled": false,
+            "aria": "Open evidence target for hr_secure.confidential.compensation_band"
+          }
+        ]
+      },
+      "shellFallbackUsed": false,
+      "mainScrollCapture": {
+        "scrollTop": 34,
+        "scrollHeight": 698,
+        "clientHeight": 664,
+        "maxScrollTop": 34
+      },
+      "mainBottomScreenshot": "docs/northstar_visual_qa/audit-1280-v67-local/audit-1280x720-main-bottom.png"
+    }
+  ],
+  "interactions": [],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/audit"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/audit"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

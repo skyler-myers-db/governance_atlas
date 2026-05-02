@@ -12,6 +12,8 @@ export function MetricCard({
   deltaTone = "good",
   sparkline = [],
   progress = undefined,
+  reserveSparkline = false,
+  reserveProgress = false,
   meta = "",
   className = "",
   tooltip = "",
@@ -38,11 +40,19 @@ export function MetricCard({
       </div>
       <div className="ga-metric-main">
         <strong>{value}</strong>
-        {sparkline.length ? <Sparkline values={sparkline} label={`${label} trend`} /> : null}
+        {sparkline.length ? (
+          <Sparkline values={sparkline} label={`${label} trend`} />
+        ) : reserveSparkline ? (
+          <span aria-hidden="true" className="ga-sparkline ga-sparkline-empty" />
+        ) : null}
       </div>
       {hasProgress ? (
         <div className="ga-progress" aria-label={`${label} progress`}>
           <span style={{ width: `${clampProgress(progress)}%` }} />
+        </div>
+      ) : reserveProgress ? (
+        <div className="ga-progress ga-progress-empty" aria-hidden="true">
+          <span />
         </div>
       ) : null}
       {delta ? <div className={`ga-metric-delta tone-${deltaTone}`}>{delta}</div> : null}

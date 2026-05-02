@@ -1,0 +1,1166 @@
+{
+  "generatedAt": "2026-04-28T21:35:32Z",
+  "warehouseId": "da02d15a9490650b",
+  "catalogs": [
+    "finance_prod",
+    "sales_prod",
+    "customer_360",
+    "product_events",
+    "marketing_mart",
+    "hr_secure"
+  ],
+  "statementCount": 37,
+  "durationSeconds": 65.403,
+  "results": [
+    {
+      "label": "catalog:finance_prod",
+      "status": "ok"
+    },
+    {
+      "label": "catalog:sales_prod",
+      "status": "ok"
+    },
+    {
+      "label": "catalog:customer_360",
+      "status": "ok"
+    },
+    {
+      "label": "catalog:product_events",
+      "status": "ok"
+    },
+    {
+      "label": "catalog:marketing_mart",
+      "status": "ok"
+    },
+    {
+      "label": "catalog:hr_secure",
+      "status": "ok"
+    },
+    {
+      "label": "schema:finance_prod.raw",
+      "status": "ok"
+    },
+    {
+      "label": "schema:finance_prod.bronze",
+      "status": "ok"
+    },
+    {
+      "label": "schema:finance_prod.silver",
+      "status": "ok"
+    },
+    {
+      "label": "schema:finance_prod.gold",
+      "status": "ok"
+    },
+    {
+      "label": "schema:finance_prod.curated",
+      "status": "ok"
+    },
+    {
+      "label": "schema:sales_prod.silver",
+      "status": "ok"
+    },
+    {
+      "label": "schema:customer_360.gold",
+      "status": "ok"
+    },
+    {
+      "label": "schema:customer_360.ml",
+      "status": "ok"
+    },
+    {
+      "label": "schema:product_events.bronze",
+      "status": "ok"
+    },
+    {
+      "label": "schema:marketing_mart.gold",
+      "status": "ok"
+    },
+    {
+      "label": "schema:hr_secure.confidential",
+      "status": "ok"
+    },
+    {
+      "label": "table:finance_prod.raw.salesforce_orders",
+      "status": "ok"
+    },
+    {
+      "label": "table:finance_prod.raw.stripe_charges",
+      "status": "ok"
+    },
+    {
+      "label": "table:finance_prod.raw.netsuite_invoices",
+      "status": "ok"
+    },
+    {
+      "label": "table:finance_prod.bronze.orders_raw",
+      "status": "ok"
+    },
+    {
+      "label": "table:finance_prod.bronze.charges_raw",
+      "status": "ok"
+    },
+    {
+      "label": "table:finance_prod.bronze.invoices_raw",
+      "status": "ok"
+    },
+    {
+      "label": "table:finance_prod.silver.payments",
+      "status": "ok"
+    },
+    {
+      "label": "table:finance_prod.gold.revenue_recognition",
+      "status": "ok"
+    },
+    {
+      "label": "table:finance_prod.curated.revenue_daily",
+      "status": "ok"
+    },
+    {
+      "label": "table:sales_prod.silver.orders",
+      "status": "ok"
+    },
+    {
+      "label": "table:customer_360.gold.customer_profile",
+      "status": "ok"
+    },
+    {
+      "label": "table:customer_360.ml.churn_propensity_v3",
+      "status": "ok"
+    },
+    {
+      "label": "table:product_events.bronze.clickstream_events",
+      "status": "ok"
+    },
+    {
+      "label": "table:marketing_mart.gold.attribution_daily",
+      "status": "ok"
+    },
+    {
+      "label": "table:hr_secure.confidential.compensation_band",
+      "status": "ok"
+    },
+    {
+      "label": "comment:1",
+      "status": "ok"
+    },
+    {
+      "label": "comment:2",
+      "status": "ok"
+    },
+    {
+      "label": "comment:3",
+      "status": "ok"
+    },
+    {
+      "label": "comment:4",
+      "status": "ok"
+    },
+    {
+      "label": "comment:5",
+      "status": "ok"
+    }
+  ],
+  "tableCount": 165,
+  "tables": [
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "gold",
+      "table_name": "customer_profile",
+      "comment": "Synthetic North Star customer profile for glossary and CDE validation."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "catalog_privileges",
+      "comment": "Lists principals that have privileges on the catalogs."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "catalog_properties",
+      "comment": "Describes catalog properties."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "catalog_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "catalogs",
+      "comment": "Describes catalogs."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "check_constraints",
+      "comment": "Reserved for future use."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "column_masks",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "column_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "columns",
+      "comment": "Describes columns of tables and views in the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "constraint_column_usage",
+      "comment": "Describes the constraints referencing columns in the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "constraint_table_usage",
+      "comment": "Describes the constraints referencing tables in the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "information_schema_catalog_name",
+      "comment": "Returns the name of this information schema's catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "key_column_usage",
+      "comment": "Lists the columns of the primary or foreign key constraints within the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "parameters",
+      "comment": "Describes parameters of routines (functions) in the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "referential_constraints",
+      "comment": "Describes referential (foreign key) constraints defined in the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "routine_columns",
+      "comment": "Describes result columns of table valued functions."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "routine_privileges",
+      "comment": "Lists principals that have privileges on the routines in the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "routine_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "routines",
+      "comment": "Describes routines (functions) in the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "row_filters",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "schema_privileges",
+      "comment": "Lists principals that have privileges on the schemas in the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "schema_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "schemata",
+      "comment": "Describes schemas within the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "table_constraints",
+      "comment": "Describes metadata for all primary and foreign key constraints within the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "table_privileges",
+      "comment": "Lists principals that have privileges on the tables and views in the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "table_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "tables",
+      "comment": "Describes tables and views defined within the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "views",
+      "comment": "Describes view specific information about the views in the catalog."
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "volume_privileges",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "volume_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "information_schema",
+      "table_name": "volumes",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "customer_360",
+      "table_schema": "ml",
+      "table_name": "churn_propensity_v3",
+      "comment": "Synthetic North Star model output table for governance discovery validation."
+    },
+    {
+      "table_catalog": "finance_prod",
+      "table_schema": "bronze",
+      "table_name": "charges_raw",
+      "comment": "Bronze synthetic charges derived from finance_prod.raw.stripe_charges."
+    },
+    {
+      "table_catalog": "finance_prod",
+      "table_schema": "bronze",
+      "table_name": "invoices_raw",
+      "comment": "Bronze synthetic invoices derived from finance_prod.raw.netsuite_invoices."
+    },
+    {
+      "table_catalog": "finance_prod",
+      "table_schema": "bronze",
+      "table_name": "orders_raw",
+      "comment": "Bronze synthetic orders derived from finance_prod.raw.salesforce_orders."
+    },
+    {
+      "table_catalog": "finance_prod",
+      "table_schema": "curated",
+      "table_name": "revenue_daily",
+      "comment": "North Star synthetic certified revenue daily table used to validate Governance Atlas lineage and discovery workflows."
+    },
+    {
+      "table_catalog": "finance_prod",
+      "table_schema": "gold",
+      "table_name": "revenue_recognition",
+      "comment": "Gold synthetic recognized revenue joining order, invoice, and payment sources."
+    },
+    {
+      "table_catalog": "finance_prod",
+      "table_schema": "raw",
+      "table_name": "netsuite_invoices",
+      "comment": "Synthetic North Star invoice source for Governance Atlas validation."
+    },
+    {
+      "table_catalog": "finance_prod",
+      "table_schema": "raw",
+      "table_name": "salesforce_orders",
+      "comment": "Synthetic North Star source orders for Governance Atlas validation."
+    },
+    {
+      "table_catalog": "finance_prod",
+      "table_schema": "raw",
+      "table_name": "stripe_charges",
+      "comment": "Synthetic North Star payment source for Governance Atlas validation."
+    },
+    {
+      "table_catalog": "finance_prod",
+      "table_schema": "silver",
+      "table_name": "payments",
+      "comment": "Silver synthetic payment facts for Governance Atlas lineage validation."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "confidential",
+      "table_name": "compensation_band",
+      "comment": "Synthetic restricted North Star HR table for classification and access-state validation."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "catalog_privileges",
+      "comment": "Lists principals that have privileges on the catalogs."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "catalog_properties",
+      "comment": "Describes catalog properties."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "catalog_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "catalogs",
+      "comment": "Describes catalogs."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "check_constraints",
+      "comment": "Reserved for future use."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "column_masks",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "column_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "columns",
+      "comment": "Describes columns of tables and views in the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "constraint_column_usage",
+      "comment": "Describes the constraints referencing columns in the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "constraint_table_usage",
+      "comment": "Describes the constraints referencing tables in the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "information_schema_catalog_name",
+      "comment": "Returns the name of this information schema's catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "key_column_usage",
+      "comment": "Lists the columns of the primary or foreign key constraints within the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "parameters",
+      "comment": "Describes parameters of routines (functions) in the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "referential_constraints",
+      "comment": "Describes referential (foreign key) constraints defined in the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "routine_columns",
+      "comment": "Describes result columns of table valued functions."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "routine_privileges",
+      "comment": "Lists principals that have privileges on the routines in the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "routine_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "routines",
+      "comment": "Describes routines (functions) in the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "row_filters",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "schema_privileges",
+      "comment": "Lists principals that have privileges on the schemas in the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "schema_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "schemata",
+      "comment": "Describes schemas within the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "table_constraints",
+      "comment": "Describes metadata for all primary and foreign key constraints within the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "table_privileges",
+      "comment": "Lists principals that have privileges on the tables and views in the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "table_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "tables",
+      "comment": "Describes tables and views defined within the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "views",
+      "comment": "Describes view specific information about the views in the catalog."
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "volume_privileges",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "volume_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "hr_secure",
+      "table_schema": "information_schema",
+      "table_name": "volumes",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "gold",
+      "table_name": "attribution_daily",
+      "comment": "Synthetic North Star attribution mart for lineage impact validation."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "catalog_privileges",
+      "comment": "Lists principals that have privileges on the catalogs."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "catalog_properties",
+      "comment": "Describes catalog properties."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "catalog_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "catalogs",
+      "comment": "Describes catalogs."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "check_constraints",
+      "comment": "Reserved for future use."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "column_masks",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "column_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "columns",
+      "comment": "Describes columns of tables and views in the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "constraint_column_usage",
+      "comment": "Describes the constraints referencing columns in the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "constraint_table_usage",
+      "comment": "Describes the constraints referencing tables in the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "information_schema_catalog_name",
+      "comment": "Returns the name of this information schema's catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "key_column_usage",
+      "comment": "Lists the columns of the primary or foreign key constraints within the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "parameters",
+      "comment": "Describes parameters of routines (functions) in the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "referential_constraints",
+      "comment": "Describes referential (foreign key) constraints defined in the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "routine_columns",
+      "comment": "Describes result columns of table valued functions."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "routine_privileges",
+      "comment": "Lists principals that have privileges on the routines in the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "routine_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "routines",
+      "comment": "Describes routines (functions) in the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "row_filters",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "schema_privileges",
+      "comment": "Lists principals that have privileges on the schemas in the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "schema_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "schemata",
+      "comment": "Describes schemas within the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "table_constraints",
+      "comment": "Describes metadata for all primary and foreign key constraints within the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "table_privileges",
+      "comment": "Lists principals that have privileges on the tables and views in the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "table_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "tables",
+      "comment": "Describes tables and views defined within the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "views",
+      "comment": "Describes view specific information about the views in the catalog."
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "volume_privileges",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "volume_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "marketing_mart",
+      "table_schema": "information_schema",
+      "table_name": "volumes",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "bronze",
+      "table_name": "clickstream_events",
+      "comment": "Synthetic North Star clickstream table for discovery and stewardship validation."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "catalog_privileges",
+      "comment": "Lists principals that have privileges on the catalogs."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "catalog_properties",
+      "comment": "Describes catalog properties."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "catalog_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "catalogs",
+      "comment": "Describes catalogs."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "check_constraints",
+      "comment": "Reserved for future use."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "column_masks",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "column_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "columns",
+      "comment": "Describes columns of tables and views in the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "constraint_column_usage",
+      "comment": "Describes the constraints referencing columns in the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "constraint_table_usage",
+      "comment": "Describes the constraints referencing tables in the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "information_schema_catalog_name",
+      "comment": "Returns the name of this information schema's catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "key_column_usage",
+      "comment": "Lists the columns of the primary or foreign key constraints within the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "parameters",
+      "comment": "Describes parameters of routines (functions) in the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "referential_constraints",
+      "comment": "Describes referential (foreign key) constraints defined in the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "routine_columns",
+      "comment": "Describes result columns of table valued functions."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "routine_privileges",
+      "comment": "Lists principals that have privileges on the routines in the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "routine_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "routines",
+      "comment": "Describes routines (functions) in the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "row_filters",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "schema_privileges",
+      "comment": "Lists principals that have privileges on the schemas in the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "schema_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "schemata",
+      "comment": "Describes schemas within the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "table_constraints",
+      "comment": "Describes metadata for all primary and foreign key constraints within the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "table_privileges",
+      "comment": "Lists principals that have privileges on the tables and views in the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "table_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "tables",
+      "comment": "Describes tables and views defined within the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "views",
+      "comment": "Describes view specific information about the views in the catalog."
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "volume_privileges",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "volume_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "product_events",
+      "table_schema": "information_schema",
+      "table_name": "volumes",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "catalog_privileges",
+      "comment": "Lists principals that have privileges on the catalogs."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "catalog_properties",
+      "comment": "Describes catalog properties."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "catalog_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "catalogs",
+      "comment": "Describes catalogs."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "check_constraints",
+      "comment": "Reserved for future use."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "column_masks",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "column_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "columns",
+      "comment": "Describes columns of tables and views in the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "constraint_column_usage",
+      "comment": "Describes the constraints referencing columns in the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "constraint_table_usage",
+      "comment": "Describes the constraints referencing tables in the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "information_schema_catalog_name",
+      "comment": "Returns the name of this information schema's catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "key_column_usage",
+      "comment": "Lists the columns of the primary or foreign key constraints within the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "parameters",
+      "comment": "Describes parameters of routines (functions) in the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "referential_constraints",
+      "comment": "Describes referential (foreign key) constraints defined in the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "routine_columns",
+      "comment": "Describes result columns of table valued functions."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "routine_privileges",
+      "comment": "Lists principals that have privileges on the routines in the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "routine_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "routines",
+      "comment": "Describes routines (functions) in the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "row_filters",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "schema_privileges",
+      "comment": "Lists principals that have privileges on the schemas in the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "schema_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "schemata",
+      "comment": "Describes schemas within the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "table_constraints",
+      "comment": "Describes metadata for all primary and foreign key constraints within the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "table_privileges",
+      "comment": "Lists principals that have privileges on the tables and views in the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "table_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "tables",
+      "comment": "Describes tables and views defined within the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "views",
+      "comment": "Describes view specific information about the views in the catalog."
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "volume_privileges",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "volume_tags",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "information_schema",
+      "table_name": "volumes",
+      "comment": NaN
+    },
+    {
+      "table_catalog": "sales_prod",
+      "table_schema": "silver",
+      "table_name": "orders",
+      "comment": "Synthetic North Star sales orders for cross-domain discovery validation."
+    }
+  ],
+  "lineageAsset": [
+    {
+      "table_catalog": "finance_prod",
+      "table_schema": "curated",
+      "table_name": "revenue_daily",
+      "table_type": "MANAGED",
+      "comment": "North Star synthetic certified revenue daily table used to validate Governance Atlas lineage and discovery workflows."
+    }
+  ]
+}

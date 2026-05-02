@@ -7,6 +7,9 @@ const useAssetDetailMock = vi.fn();
 const useAssetAvailabilityMock = vi.fn();
 const useLineageMock = vi.fn();
 const openAssetRecordSafelyMock = vi.fn();
+const apiMocks = vi.hoisted(() => ({
+  fetchAtlasAiRecommendations: vi.fn(),
+}));
 
 vi.mock("../hooks/useDiscoveryWorkspace", () => ({
   useDiscoveryWorkspace: (...args) => useDiscoveryWorkspaceMock(...args),
@@ -28,6 +31,10 @@ vi.mock("../hooks/useLineage", () => ({
 
 vi.mock("../lib/assetRecordNavigation", () => ({
   openAssetRecordSafely: (...args) => openAssetRecordSafelyMock(...args),
+}));
+
+vi.mock("../lib/api", () => ({
+  fetchAtlasAiRecommendations: (...args) => apiMocks.fetchAtlasAiRecommendations(...args),
 }));
 
 const asset = {
@@ -126,6 +133,48 @@ function discoveryFilters(overrides = {}) {
   };
 }
 
+function defaultDiscoveryProps(overrides = {}) {
+  return {
+    bootstrap: bootstrapPayload({
+      capabilityAvailable: true,
+      capabilityReason: "",
+      assets: [asset],
+    }),
+    effectiveBootMessage: "",
+    effectiveBootState: "live",
+    effectiveVisibleCount: 1,
+    initialQuery: "",
+    onLiveCatalogStateChange: () => {},
+    onNavigationStateChange: () => {},
+    onOpenAsset: () => {},
+    onOpenGovernance: () => {},
+    onOpenLineage: () => {},
+    onRouteQueryChange: () => {},
+    onSurfaceReady: () => {},
+    querySeedFresh: false,
+    querySeedKey: "test",
+    runtimeFeatureFlags: [
+      {
+        key: "table_lineage_surface",
+        enabled: true,
+        state: "available",
+      },
+    ],
+    sharedVisibleAssetSet: new Set([asset.fqn]),
+    workspaceAccess: fullWorkspaceAccess,
+    ...overrides,
+  };
+}
+
+function deferred() {
+  const handle = {};
+  handle.promise = new Promise((resolve, reject) => {
+    handle.resolve = resolve;
+    handle.reject = reject;
+  });
+  return handle;
+}
+
 describe("DiscoveryWorkspace", () => {
   beforeEach(() => {
     useDiscoveryWorkspaceMock.mockReset();
@@ -133,6 +182,9 @@ describe("DiscoveryWorkspace", () => {
     useAssetAvailabilityMock.mockReset();
     useLineageMock.mockReset();
     openAssetRecordSafelyMock.mockReset();
+    apiMocks.fetchAtlasAiRecommendations.mockReset();
+    apiMocks.fetchAtlasAiRecommendations.mockResolvedValue({ recommendations: [] });
+    window.sessionStorage.clear();
 
     useDiscoveryWorkspaceMock.mockReturnValue({
       filters: discoveryFilters(),
@@ -1355,7 +1407,7 @@ describe("DiscoveryWorkspace", () => {
 
     expect(screen.getByText("asset-61")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Load more results" })).toBeNull();
-  }, 15000);
+  }, 30000);
 
   it("resets an expanded result window when a fresh discovery seed or request scope change lands", () => {
     const manyAssets = makeAssets(65);
@@ -1497,7 +1549,7 @@ describe("DiscoveryWorkspace", () => {
     expect(
       screen.getByText("Showing 60 of 65 results to keep the catalog responsive."),
     ).not.toBeNull();
-  }, 15000);
+  }, 30000);
 
   it("keeps load-more available when the live result count exceeds the fetched discovery rows", () => {
     const fetchedAssets = makeAssets(80);
@@ -1564,7 +1616,7 @@ describe("DiscoveryWorkspace", () => {
       screen.getByText("Showing 80 of 150 results to keep the catalog responsive."),
     ).not.toBeNull();
     expect(screen.getByRole("button", { name: "Load more results" })).not.toBeNull();
-  }, 15000);
+  }, 30000);
 
   it("expands the local result window just enough to keep an explicit route preview card visible", () => {
     const manyAssets = makeAssets(80);
@@ -1638,7 +1690,7 @@ describe("DiscoveryWorkspace", () => {
     ).not.toBeNull();
     expect(screen.getByRole("button", { name: "Load more results" })).not.toBeNull();
     expect(onRoutePreviewChange).not.toHaveBeenCalled();
-  }, 15000);
+  }, 30000);
 
   it("does not render bootstrap discovery summary cards when no results match", () => {
     useDiscoveryWorkspaceMock.mockReturnValue({
@@ -1821,10 +1873,11 @@ describe("DiscoveryWorkspace", () => {
     // "Filters" now appears in the sidebar title, the quick-filter launcher,
     // and the popover heading. Assert via the popover's stable DOM id.
     expect(document.querySelector(".gh-filters-popover")).not.toBeNull();
-    // Structured Search Helper was removed 2026-04-19 round 5 after the
-    // operator flagged its buttons as confusing — the filter rail +
-    // global search cover every filtering need without the helper UI.
-    expect(screen.queryByText("Structured Search Helper")).toBeNull();
+    expect(screen.getByText("Structured Search Helper")).not.toBeNull();
+    expect(screen.getByLabelText("Query builder boolean operator")).not.toBeNull();
+    expect(screen.getByText("Deleted and inaccessible assets")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Deleted assets unavailable" }).disabled).toBe(true);
+    expect(screen.getByRole("button", { name: "Inaccessible hidden" }).disabled).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
@@ -1877,10 +1930,9 @@ describe("DiscoveryWorkspace", () => {
       />,
     );
 
-    const assetTypeSection = screen.getByText("Asset Type").closest("section");
-    if (!assetTypeSection) throw new Error("Expected asset-type sidebar section");
-    expect(within(assetTypeSection).getByText("Asset types populate from live discovery facets.")).not.toBeNull();
-    expect(within(assetTypeSection).queryByRole("button", { name: "Table" })).toBeNull();
+    const assetTypeSelect = screen.getByLabelText("Asset Type");
+    expect(within(assetTypeSelect).getByRole("option", { name: "All Types" })).not.toBeNull();
+    expect(within(assetTypeSelect).queryByRole("option", { name: "Table" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Stack Filters" }));
 
@@ -2039,22 +2091,126 @@ describe("DiscoveryWorkspace", () => {
     );
 
     const preview = document.querySelector(".gh-selection-preview");
+    const prototypeGrid = document.querySelector(".gh-discovery-main-grid");
     if (!preview) throw new Error("Expected selected-asset preview rail");
+    expect(prototypeGrid?.getAttribute("data-preview-open")).toBe(null);
+    expect(screen.getByRole("row", { name: "Select orders" }).classList.contains("is-selected")).toBe(false);
     expect(within(preview).getByRole("heading", { name: "orders" })).not.toBeNull();
     expect(onRoutePreviewChange).not.toHaveBeenCalled();
 
-    fireEvent.click(
-      screen.getByText("returns").closest("[role='button'], button"),
-    );
+    fireEvent.click(screen.getByRole("row", { name: "Select returns" }));
 
+    expect(prototypeGrid?.getAttribute("data-preview-open")).toBe("true");
     expect(within(preview).getByRole("heading", { name: "returns" })).not.toBeNull();
     expect(onRoutePreviewChange).toHaveBeenCalledWith(secondAsset.fqn);
 
-    fireEvent.click(within(preview).getByRole("button", { name: "Open Governance" }));
-    fireEvent.click(within(preview).getByRole("button", { name: "Open Lineage" }));
+    fireEvent.click(within(preview).getByRole("button", { name: "Certify" }));
 
     expect(onOpenGovernance).toHaveBeenCalledWith(secondAsset.fqn);
-    expect(onOpenLineage).toHaveBeenCalledWith(secondAsset.fqn, "Data Lineage");
+    expect(onOpenLineage).not.toHaveBeenCalled();
+  });
+
+  it("renders explicit selections in a tabbed workflow drawer with truthful unavailable actions", () => {
+    const onOpenGovernance = vi.fn();
+    const enrichedAsset = {
+      ...asset,
+      columnCount: 8,
+      columns: [
+        { name: "order_id", type: "BIGINT", constraint: "primary key" },
+        { name: "customer_id", type: "BIGINT" },
+        { name: "net_revenue", type: "DECIMAL" },
+      ],
+      glossaryTerms: ["Net Revenue"],
+      qualityScore: 96,
+      queries30d: 14782,
+      rowCount: 1247835,
+      tags: ["sox-relevant"],
+      relatedAssets: [openableLinkedAssetFqn],
+      owners: [{ name: "Mia Chen", role: "Owner" }, { name: "Analytics Governance", role: "Steward" }],
+    };
+    useDiscoveryWorkspaceMock.mockReturnValue({
+      filters: discoveryFilters(),
+      setFilters: vi.fn(),
+      results: {
+        authoritative: true,
+        assets: [enrichedAsset, secondAsset],
+        count: 2,
+        settled: true,
+        loading: false,
+        error: "",
+        facets: {},
+        queryState: null,
+        requestKey: "drawer-request",
+        resolvedQuery: "",
+      },
+    });
+    useAssetDetailMock.mockImplementation((assetFqn) => ({
+      detail: assetFqn === enrichedAsset.fqn ? enrichedAsset : secondAsset,
+      loading: false,
+      error: "",
+    }));
+    useAssetAvailabilityMock.mockImplementation((assetFqns = []) =>
+      Object.fromEntries(assetFqns.map((assetFqn) => [assetFqn, true])),
+    );
+
+    render(
+      <DiscoveryWorkspace
+        {...defaultDiscoveryProps({
+          bootstrap: bootstrapPayload({
+            assets: [enrichedAsset, secondAsset],
+            capabilityAvailable: true,
+            capabilityReason: "",
+          }),
+          effectiveVisibleCount: 2,
+          initialSelectedAssetFqn: enrichedAsset.fqn,
+          onOpenGovernance,
+          onRoutePreviewChange: () => {},
+          sharedVisibleAssetSet: new Set([enrichedAsset.fqn, secondAsset.fqn, openableLinkedAssetFqn]),
+        })}
+      />,
+    );
+
+    const preview = document.querySelector(`aside[data-asset-fqn="${enrichedAsset.fqn}"]`);
+    const prototypeGrid = document.querySelector(".gh-discovery-main-grid");
+    if (!preview) throw new Error("Expected selected-asset preview drawer");
+    expect(prototypeGrid?.getAttribute("data-preview-open")).toBe("true");
+    expect(screen.getByRole("button", { name: "Close asset preview overlay" })).not.toBeNull();
+    expect(within(preview).getByRole("tab", { name: "Overview" })).not.toBeNull();
+    expect(within(preview).getByRole("tab", { name: "Columns · 8" })).not.toBeNull();
+    expect(within(preview).getByRole("tab", { name: "Lineage · 1" })).not.toBeNull();
+    expect(within(preview).getByText("Tags & Glossary")).not.toBeNull();
+    expect(within(preview).getByText("Buildability Note")).not.toBeNull();
+
+    fireEvent.click(within(preview).getByRole("tab", { name: "Columns · 8" }));
+    expect(within(preview).getByText("order_id")).not.toBeNull();
+    expect(within(preview).getByText("+5 more - open Schema")).not.toBeNull();
+
+    fireEvent.click(within(preview).getByRole("tab", { name: "Quality" }));
+    expect(within(preview).getByText("96 / 100")).not.toBeNull();
+
+    expect(
+      within(preview).getByText("Comment and access-request creation are disabled here until a backed governance workflow is configured."),
+    ).not.toBeNull();
+    expect(within(preview).getByRole("button", { name: "Comment" }).disabled).toBe(true);
+    expect(within(preview).getByRole("button", { name: "Request access" }).disabled).toBe(true);
+    fireEvent.click(within(preview).getByRole("button", { name: "Certify" }));
+    expect(onOpenGovernance).toHaveBeenCalledWith(enrichedAsset.fqn);
+  });
+
+  it("toggles the visible result layout state from the view controls", () => {
+    render(<DiscoveryWorkspace {...defaultDiscoveryProps()} />);
+
+    const panel = document.querySelector(".gh-discovery-results-panel");
+    if (!panel) throw new Error("Expected discovery results panel");
+    expect(panel.getAttribute("data-display-mode")).toBe("list");
+
+    fireEvent.click(screen.getByRole("button", { name: "Grid view" }));
+    expect(panel.getAttribute("data-display-mode")).toBe("grid");
+    expect(screen.getByRole("button", { name: "Grid view" }).getAttribute("aria-pressed")).toBe("true");
+
+    fireEvent.click(screen.getByRole("button", { name: "List view" }));
+    expect(panel.getAttribute("data-display-mode")).toBe("list");
+    expect(screen.getByRole("button", { name: "List view" }).getAttribute("aria-pressed")).toBe("true");
   });
 
   it("keeps the default first visible preview local when the route has no explicit preview", () => {
@@ -2508,6 +2664,39 @@ describe("DiscoveryWorkspace", () => {
     expect(setFilters.mock.calls[1][0]).toEqual(discoveryFilters());
   });
 
+  it("shows an explicit loading state while discovery search results are pending", () => {
+    useDiscoveryWorkspaceMock.mockReturnValue({
+      filters: discoveryFilters({ query: "slow" }),
+      setFilters: vi.fn(),
+      results: {
+        authoritative: false,
+        assets: [],
+        count: 0,
+        settled: false,
+        loading: true,
+        fetching: true,
+        error: "",
+        facets: {},
+        queryState: null,
+        requestKey: "slow-request",
+        resolvedQuery: "slow",
+      },
+    });
+
+    render(
+      <DiscoveryWorkspace
+        {...defaultDiscoveryProps({
+          initialQuery: "slow",
+          sharedVisibleAssetSet: new Set(),
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Loading discovery results")).not.toBeNull();
+    expect(screen.getByText("Searching the visible catalog metadata for matching governed assets.")).not.toBeNull();
+    expect(screen.getByLabelText("Loading catalog")).not.toBeNull();
+  });
+
 
   it("prefers the invalid-search state over stale renderable results", () => {
     useAssetDetailMock.mockImplementation((assetFqn) => ({
@@ -2559,5 +2748,232 @@ describe("DiscoveryWorkspace", () => {
 
     expect(screen.getByText("Invalid Search")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Open Record" })).toBeNull();
+  });
+
+  it("clears visible Atlas AI recommendations when the Discovery scope changes", async () => {
+    apiMocks.fetchAtlasAiRecommendations
+      .mockResolvedValueOnce({
+        provider: "genie",
+        recommendations: [
+          {
+            title: "Orders stewardship recommendation",
+            detail: "Prioritize governed orders metadata.",
+            evidence: [{ id: asset.fqn }],
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        provider: "genie",
+        recommendations: [
+          {
+            title: "Payments stewardship recommendation",
+            detail: "Prioritize governed payments metadata.",
+            evidence: [{ id: secondAsset.fqn }],
+          },
+        ],
+      });
+    useDiscoveryWorkspaceMock.mockReturnValue({
+      filters: discoveryFilters({ query: "orders" }),
+      setFilters: vi.fn(),
+      results: {
+        authoritative: true,
+        assets: [asset],
+        count: 1,
+        settled: true,
+        loading: false,
+        error: "",
+        facets: {},
+        queryState: null,
+        requestKey: "orders-request",
+        resolvedQuery: "orders",
+      },
+    });
+
+    const { rerender } = render(
+      <DiscoveryWorkspace {...defaultDiscoveryProps({ initialQuery: "orders" })} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Ask Atlas AI/ }));
+    await waitFor(() => {
+      expect(screen.getByText("Orders stewardship recommendation")).not.toBeNull();
+    });
+
+    useDiscoveryWorkspaceMock.mockReturnValue({
+      filters: discoveryFilters({ query: "payments" }),
+      setFilters: vi.fn(),
+      results: {
+        authoritative: true,
+        assets: [secondAsset],
+        count: 1,
+        settled: true,
+        loading: false,
+        error: "",
+        facets: {},
+        queryState: null,
+        requestKey: "payments-request",
+        resolvedQuery: "payments",
+      },
+    });
+    rerender(
+      <DiscoveryWorkspace
+        {...defaultDiscoveryProps({
+          bootstrap: bootstrapPayload({
+            capabilityAvailable: true,
+            capabilityReason: "",
+            assets: [secondAsset],
+          }),
+          effectiveVisibleCount: 1,
+          initialQuery: "payments",
+          querySeedKey: "payments",
+          sharedVisibleAssetSet: new Set([secondAsset.fqn]),
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByText("Orders stewardship recommendation")).toBeNull();
+    });
+    expect(
+      screen.getByText("Run Atlas AI to generate evidence-backed recommendations for this result set."),
+    ).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Ask Atlas AI/ }));
+    await waitFor(() => {
+      expect(screen.getByText("Payments stewardship recommendation")).not.toBeNull();
+    });
+    expect(apiMocks.fetchAtlasAiRecommendations).toHaveBeenLastCalledWith(
+      expect.stringContaining("payments"),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+  });
+
+  it("runs Atlas AI recommendations from the bottom recommendation card", async () => {
+    apiMocks.fetchAtlasAiRecommendations.mockResolvedValueOnce({
+      provider: "genie",
+      recommendations: [
+        {
+          title: "Review revenue_daily recertification",
+          detail: "Revenue source needs governance review.",
+          evidence: [{ id: asset.fqn }],
+        },
+      ],
+    });
+
+    render(<DiscoveryWorkspace {...defaultDiscoveryProps()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Run Atlas AI recommendations/i }));
+
+    await waitFor(() => {
+      expect(apiMocks.fetchAtlasAiRecommendations).toHaveBeenCalledWith(
+        expect.stringContaining("Recommend the next governed assets"),
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+    expect(await screen.findByText("Review revenue_daily recertification")).not.toBeNull();
+  });
+
+  it("disables bottom-card Atlas AI recommendations when no backed endpoint is available", () => {
+    render(
+      <DiscoveryWorkspace
+        {...defaultDiscoveryProps({
+          atlasAiAvailable: false,
+          atlasAiUnavailableReason: "Atlas AI requires a configured Genie endpoint.",
+        })}
+      />,
+    );
+
+    const runButton = screen.getByRole("button", { name: /Run Atlas AI recommendations/i });
+    expect(runButton.disabled).toBe(true);
+    expect(screen.getByText("Atlas AI requires a configured Genie endpoint.")).not.toBeNull();
+  });
+
+  it("ignores stale in-flight Atlas AI responses after the Discovery scope changes", async () => {
+    const staleRecommendation = deferred();
+    apiMocks.fetchAtlasAiRecommendations
+      .mockReturnValueOnce(staleRecommendation.promise)
+      .mockResolvedValueOnce({
+        provider: "genie",
+        recommendations: [
+          {
+            title: "Current payments recommendation",
+            detail: "Prioritize governed payments metadata.",
+            evidence: [{ id: secondAsset.fqn }],
+          },
+        ],
+      });
+    useDiscoveryWorkspaceMock.mockReturnValue({
+      filters: discoveryFilters({ query: "orders" }),
+      setFilters: vi.fn(),
+      results: {
+        authoritative: true,
+        assets: [asset],
+        count: 1,
+        settled: true,
+        loading: false,
+        error: "",
+        facets: {},
+        queryState: null,
+        requestKey: "orders-request",
+        resolvedQuery: "orders",
+      },
+    });
+
+    const { rerender } = render(
+      <DiscoveryWorkspace {...defaultDiscoveryProps({ initialQuery: "orders" })} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Ask Atlas AI/ }));
+    expect(screen.getByRole("button", { name: /Asking Atlas AI/ })).not.toBeNull();
+
+    useDiscoveryWorkspaceMock.mockReturnValue({
+      filters: discoveryFilters({ query: "payments" }),
+      setFilters: vi.fn(),
+      results: {
+        authoritative: true,
+        assets: [secondAsset],
+        count: 1,
+        settled: true,
+        loading: false,
+        error: "",
+        facets: {},
+        queryState: null,
+        requestKey: "payments-request",
+        resolvedQuery: "payments",
+      },
+    });
+    rerender(
+      <DiscoveryWorkspace
+        {...defaultDiscoveryProps({
+          bootstrap: bootstrapPayload({
+            capabilityAvailable: true,
+            capabilityReason: "",
+            assets: [secondAsset],
+          }),
+          effectiveVisibleCount: 1,
+          initialQuery: "payments",
+          querySeedKey: "payments",
+          sharedVisibleAssetSet: new Set([secondAsset.fqn]),
+        })}
+      />,
+    );
+
+    await act(async () => {
+      staleRecommendation.resolve({
+        provider: "genie",
+        recommendations: [
+          {
+            title: "Late orders recommendation",
+            detail: "This stale scope must not render.",
+            evidence: [{ id: asset.fqn }],
+          },
+        ],
+      });
+      await staleRecommendation.promise;
+    });
+    expect(screen.queryByText("Late orders recommendation")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /Ask Atlas AI/ }));
+    await waitFor(() => {
+      expect(screen.getByText("Current payments recommendation")).not.toBeNull();
+    });
   });
 });

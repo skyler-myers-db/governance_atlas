@@ -14,7 +14,7 @@ function tokenValue(name) {
 describe("Governance Atlas design tokens", () => {
   it("uses Entrada dark shell tokens", () => {
     expect(tokenValue("--ga-bright-blue")).toBe("#66c5ff");
-    expect(tokenValue("--ga-bg")).toBe("var(--ga-navy-980)");
+    expect(tokenValue("--ga-bg")).toBe("#0b3451");
     expect(tokenValue("--gh-accent")).toBe("var(--ga-bright-blue)");
   });
 

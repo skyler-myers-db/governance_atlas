@@ -19,6 +19,7 @@ from atlas.api.identity import _request_auth_mode, _user_email
 from atlas.services import capabilities as capability_service
 from atlas.services import export as export_service
 from atlas.services.assets import normalize_str as _normalize_str
+from atlas.services.metadata_audit import record_audit_log
 
 
 class ExportAssetsRequest(BaseModel):
@@ -38,6 +39,15 @@ def _actor_role_slug(request: Request) -> str:
         return _user_role_slug(request)
     except Exception:
         return "reader"
+
+
+def _request_id(request: Request) -> str | None:
+    try:
+        from runtime_app import _http_request_id
+
+        return _http_request_id(request)
+    except Exception:
+        return request.headers.get("x-databricks-request-id") or request.headers.get("x-request-id")
 
 
 def _build_rows(asset_fqns: List[str], request: Request) -> list[dict]:
@@ -98,6 +108,8 @@ def _persist_export_job(
     row_count: int = 0,
     byte_count: int = 0,
     error_detail: Optional[str] = None,
+    mode: str = "sync",
+    fail_closed: bool = False,
 ) -> None:
     from runtime_app import _ensure_governance_store, _store
     from atlas.util import sql_literal
@@ -125,7 +137,7 @@ def _persist_export_job(
     array({", ".join(sql_literal(fqn) for fqn in asset_fqns) or "CAST(NULL AS STRING)"}),
     {sql_literal(filter_snapshot)},
     {sql_literal("csv")},
-    {sql_literal("sync")},
+    {sql_literal(mode)},
     {sql_literal(status)},
     timestamp({sql_literal(ts)}),
     {"NULL" if token_ts is None else f"timestamp({sql_literal(token_ts)})"},
@@ -142,9 +154,33 @@ def _persist_export_job(
     {sql_literal(actor_email)}
 )"""
         )
-    except Exception:
-        # Export job logging is best-effort. A logging failure must not
-        # block a legitimate export from succeeding.
+        record_audit_log(
+            entity_type="export_job",
+            action=f"export-{status}",
+            actor_email=actor_email,
+            actor_role=actor_role,
+            entity_id=job_id,
+            request_id=_request_id(request),
+            after={
+                "jobId": job_id,
+                "assetFqns": asset_fqns,
+                "assetCount": len(asset_fqns),
+                "rowCount": row_count,
+                "byteCount": byte_count,
+                "status": status,
+                "mode": mode,
+                "format": "csv",
+                "errorDetail": error_detail,
+            },
+            source="api",
+            status="success" if status in {"ready", "queued"} else "failed",
+            detail=error_detail,
+            fail_closed=fail_closed,
+        )
+    except Exception as exc:
+        if fail_closed:
+            raise RuntimeError(f"Export job audit persistence failed: {exc}") from exc
+        # Non-sensitive background cleanup paths may still use best-effort logging.
         return
 
 
@@ -212,6 +248,8 @@ def api_export_assets(
         row_count=len(rows),
         byte_count=byte_count,
         error_detail=None if rows else "No visible assets matched the export request.",
+        mode="sync",
+        fail_closed=True,
     )
 
     if not rows:
@@ -418,24 +456,23 @@ def _enqueue_background_work(
     actor_email: str,
     actor_role: str,
     token_captured_at: Optional[datetime],
-) -> None:
+) -> str:
     from atlas.util import sql_literal
     import uuid
 
-    try:
-        work_id = uuid.uuid4().hex
-        ts_now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        token_ts = (
-            token_captured_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-            if token_captured_at
-            else None
-        )
-        payload = json.dumps(
-            {"jobId": job_id, "assetFqns": list(asset_fqns), "format": "csv"},
-            sort_keys=True,
-        )
-        store.uc.execute(
-            f"""INSERT INTO {store._fq('background_work_items')} (
+    work_id = uuid.uuid4().hex
+    ts_now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    token_ts = (
+        token_captured_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        if token_captured_at
+        else None
+    )
+    payload = json.dumps(
+        {"jobId": job_id, "assetFqns": list(asset_fqns), "format": "csv"},
+        sort_keys=True,
+    )
+    store.uc.execute(
+        f"""INSERT INTO {store._fq('background_work_items')} (
     work_id, work_kind, priority, status, payload_json, dependency_work_id,
     actor_email, actor_role, token_captured_at, scheduled_for, claimed_at,
     claimed_by, started_at, finished_at, attempt_count, max_attempts,
@@ -459,11 +496,8 @@ def _enqueue_background_work(
     timestamp({sql_literal(ts_now)}),
     {sql_literal(actor_email)}
 )"""
-        )
-    except Exception:
-        # Enqueuing is best-effort — the sync materialization path also
-        # runs this job inline and that remains the primary artifact.
-        return
+    )
+    return work_id
 
 
 def api_export_enqueue(payload: EnqueueExportRequest, request: Request) -> JSONResponse:
@@ -522,10 +556,12 @@ def api_export_enqueue(payload: EnqueueExportRequest, request: Request) -> JSONR
         row_count=0,
         byte_count=0,
         error_detail=None,
+        mode="async",
+        fail_closed=True,
     )
     try:
         _ensure_governance_store()
-        _enqueue_background_work(
+        work_id = _enqueue_background_work(
             store=_store(),
             job_id=job_id,
             asset_fqns=asset_fqns,
@@ -533,8 +569,25 @@ def api_export_enqueue(payload: EnqueueExportRequest, request: Request) -> JSONR
             actor_role=actor_role,
             token_captured_at=token_captured_at,
         )
-    except Exception:
-        pass
+        record_audit_log(
+            entity_type="background_work_item",
+            action="work-queued",
+            actor_email=actor_email,
+            actor_role=actor_role,
+            entity_id=work_id,
+            request_id=_request_id(request),
+            after={
+                "workId": work_id,
+                "workKind": "export",
+                "jobId": job_id,
+                "assetCount": len(asset_fqns),
+                "status": "queued",
+            },
+            source="api",
+            fail_closed=True,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to enqueue export work: {exc}") from exc
     return JSONResponse(
         status_code=202,
         content={
@@ -647,6 +700,17 @@ SET status = {sql_literal('ready')},
     row_count = {int(len(asset_fqns))},
     updated_at = timestamp({sql_literal(ts_ready)})
 WHERE job_id = {sql_literal(job_id)}"""
+        )
+        store.append_metadata_audit(
+            entity_type="export_job",
+            action="export-background-ready",
+            actor_email=actor_email,
+            actor_role=handler_input.get("actor_role") or "system",
+            entity_id=job_id,
+            request_id=str(work_id) if work_id else None,
+            before={"status": job_row.get("status"), "rowCount": job_row.get("row_count")},
+            after={"status": "ready", "rowCount": len(asset_fqns), "workId": work_id},
+            source="background_runner",
         )
     except Exception as exc:
         return WorkItemResult(work_id=str(work_id), status="failed", detail=f"job update failed: {exc}")

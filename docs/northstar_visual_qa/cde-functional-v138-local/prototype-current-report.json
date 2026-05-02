@@ -1,0 +1,1240 @@
+{
+  "generatedAt": "2026-05-01T03:28:38.652Z",
+  "baseUrl": "http://127.0.0.1:5173",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "evidenceKind": "prototype_mock",
+  "mockEvidenceWarning": "Prototype mock data, not live Databricks evidence.",
+  "routeFilter": [
+    "cde-registry"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "cde-registry"
+  ],
+  "viewports": [
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    }
+  ],
+  "expectedCaptureCount": 1,
+  "captures": [
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/cde-functional-v138-local/cde-registry-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/cde-functional-v138-local/cde-registry-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1296,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 952
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 952,
+          "clientHeight": 952,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K UC preview · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Prototype glossary and CDE rows preserve the target workflow shape. They are not live Unity Catalog glossary or CDE registry proof. + New term Glossary 4 CDE Registry 5 Showing 5 of 5 CDE registry rows SEARCH STATUS All statuses Healthy Recert due (8d) SORT Registry order Name Owner Status Recertification CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Net Revenue (USD) SOX finance_prod.curated.revenue_daily.net_revenue_usd Finance Stewards 90d Healthy Customer ID customer_360.gold.customer_profile.customer_id Customer Stewards 180d Healthy Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recert Due (8d) Compensation Band hr_secure.confidential.compensation_band.band_id People Stewards 180d Healthy Order Total (USD) SOX sales_prod.silver.orders.gross_total_usd Revenue Stewards 90d Healthy",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 5",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "interaction": "cde-controls",
+      "description": "Exercise CDE Registry detail, owner/recertification unavailable workflows, and lineage navigation.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/cde-functional-v138-local/cde-registry-cde-controls-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/cde-functional-v138-local/cde-registry-cde-controls-1536x1024-full.png",
+      "runResult": {
+        "detail": {
+          "sourceColumn": true,
+          "ownerWorkflow": true
+        },
+        "recert": {
+          "text": "Request recertification unavailable",
+          "ariaLabel": "",
+          "title": "Recertification workflow is not backed on this route yet.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1064,
+            "left": 579,
+            "width": 207,
+            "height": 32
+          }
+        },
+        "ownerNotice": {
+          "ownerUnavailable": true
+        },
+        "pathAfterClick": "/lineage/finance_prod.curated.revenue_daily?tab=cdes"
+      },
+      "validation": {
+        "loaded": true,
+        "checks": {
+          "lineage": true
+        },
+        "runResult": {
+          "detail": {
+            "sourceColumn": true,
+            "ownerWorkflow": true
+          },
+          "recert": {
+            "text": "Request recertification unavailable",
+            "ariaLabel": "",
+            "title": "Recertification workflow is not backed on this route yet.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1064,
+              "left": 579,
+              "width": 207,
+              "height": 32
+            }
+          },
+          "ownerNotice": {
+            "ownerUnavailable": true
+          },
+          "pathAfterClick": "/lineage/finance_prod.curated.revenue_daily?tab=cdes"
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1296,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 952
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1614,
+          "clientHeight": 952,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 72,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1685.703125,
+          "width": 1296,
+          "height": 1613.703125
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 72,
+            "left": 240,
+            "right": 1536,
+            "bottom": 1685.703125,
+            "width": 1296,
+            "height": 1613.703125
+          },
+          "hero": {
+            "top": 94,
+            "left": 262,
+            "right": 1516,
+            "bottom": 240.703125,
+            "width": 1254,
+            "height": 146.703125
+          },
+          "workbench": {
+            "top": 276.703125,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1615.703125,
+            "width": 1120,
+            "height": 1339
+          },
+          "graph": {
+            "top": 276.703125,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1116.703125,
+            "width": 1120,
+            "height": 840
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K UC preview · 87.4% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware end-to-end lineage from operational sources through to consumer dashboards. Hidden segments mean a node exists, but you don't have UC permission to view it. Certified 14 min ago - within 15 min SLA 5 CDEs Owner: Marisol Reyes 5 upstream - 23 downstream $142k/day revenue impact Column lineage Run impact analysis + - Prototype graph · 19 nodes · 19 edges 4 HOPS UPSTREAM finance_prod · dlt_payments_ingest SOURCE - Payments finance_prod · auto_loader_invoices SOURCE - Finance 3 HOPS UPSTREAM charges_raw finance_prod · bronze PK charge_id STRING FK customer_id STRING # amount INT A currency STRING # refund_amount INT A status STRING +2 more columns 12.4M prototype rows prototype 8m invoices_raw finance_prod · bronze PK invoice_id STRING FK customer_id STRING # adjustment DECIMAL A billing_period STRING A created_at TIMESTAMP 1.1M prototype rows prototype 41m orders_raw finance_prod · bronze PK order_id STRING FK customer_id STRING # subtotal DECIMAL 4.8M prototype rows prototype 14m 2 HOPS UPSTREAM ipynb finance_prod · notebook 1 HOP DOWNSTREAM payments finance_prod · silver PK payment_id STRING FK customer_id STRING # gross_amount DECIMAL # refund_amount DECIMAL # adjustment DECIMAL FK segment_id STRING +2 more columns 13.5M prototype rows prototype 11m orders sales_",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": false,
+            "aria": "Graph history"
+          },
+          {
+            "text": "finance_prod · dlt_payments_ingest SOURCE - Payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod · auto_loader_invoices SOURCE - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges_raw finance_prod · bronze PK charge_id STRING FK customer_id STRING # amount INT A currency STRING # refund_amou",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw finance_prod · bronze PK invoice_id STRING FK customer_id STRING # adjustment DECIMAL A billing_period STRI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw finance_prod · bronze PK order_id STRING FK customer_id STRING # subtotal DECIMAL 4.8M prototype rows prototy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "ipynb finance_prod · notebook",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "payments finance_prod · silver PK payment_id STRING FK customer_id STRING # gross_amount DECIMAL # refund_amount DECIMAL",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders sales_prod · silver PK order_id STRING FK customer_id STRING # order_value_usd DECIMAL # discount_amount DECIMAL ",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets PROTOTYPE PERMISSION BOUNDARY",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "ipynb prototype 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod · revenue_recognition... prototype-consumer-revenue-recognition",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance - prototype consumer shape; no live usage, view, or workflow proof No backed",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance - prototype consumer shape; no live usage, view, or workflow proof No backed se",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance - prototype consumer shape; no live usage, view, or workflow proof No b",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.gold.arr_snapshot Finance Stewards - prototype downstream shape - no live usage, workflow, or backed lineag",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets Prototype permission boundary - not verified against Unity Catalog permissions Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd gross_revenue_usd · finance_prod.silver.orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd refund_usd · finance_prod.silver.payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · dashboards.finance.cfo_quarterly",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · finance_prod.ml.revenue_forecast",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "interaction": "cde-filter-sort",
+      "description": "Exercise CDE Registry search, status filter, sort, and CDE-tab new request semantics.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/cde-functional-v138-local/cde-registry-cde-filter-sort-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/cde-functional-v138-local/cde-registry-cde-filter-sort-1536x1024-full.png",
+      "runResult": {
+        "newRequest": {
+          "cdeRequest": true
+        },
+        "searchState": {
+          "url": "http://127.0.0.1:5173/taxonomy?tab=cdes",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K UC preview · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Prototype glossary and CDE rows preserve the target workflow shape. They are not live Unity Catalog glossary or CDE registry proof. + New term New CDE request is unavailable until a backed CDE registry workflow is configured. Glossary 4 CDE Registry 5 Showing 1 of 1 CDE registry rows SEARCH STATUS All statuses Healthy Recert due (8d) SORT Registry order Name Owner Status Recertification CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recert Due (8d)",
+          "checks": {
+            "lifetime": true,
+            "netRevenueHidden": false
+          }
+        },
+        "filterState": {
+          "url": "http://127.0.0.1:5173/taxonomy?tab=cdes",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K UC preview · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Prototype glossary and CDE rows preserve the target workflow shape. They are not live Unity Catalog glossary or CDE registry proof. + New term New CDE request is unavailable until a backed CDE registry workflow is configured. Glossary 4 CDE Registry 5 Showing 1 of 1 CDE registry rows SEARCH STATUS All statuses Healthy Recert due (8d) SORT Registry order Name Owner Status Recertification CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recert Due (8d)",
+          "checks": {
+            "lifetime": true,
+            "customerHidden": false
+          }
+        },
+        "firstBeforeSort": "Net Revenue (USD)\nSOX\nfinance_prod.curated.revenue_daily.net_revenue_usd\nFinance Stewards\n90d\nHealthy",
+        "firstAfterSort": "Customer ID\ncustomer_360.gold.customer_profile.customer_id\nCustomer Stewards\n180d\nHealthy"
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "newRequest": {
+            "cdeRequest": true
+          },
+          "searchState": {
+            "url": "http://127.0.0.1:5173/taxonomy?tab=cdes",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K UC preview · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Prototype glossary and CDE rows preserve the target workflow shape. They are not live Unity Catalog glossary or CDE registry proof. + New term New CDE request is unavailable until a backed CDE registry workflow is configured. Glossary 4 CDE Registry 5 Showing 1 of 1 CDE registry rows SEARCH STATUS All statuses Healthy Recert due (8d) SORT Registry order Name Owner Status Recertification CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recert Due (8d)",
+            "checks": {
+              "lifetime": true,
+              "netRevenueHidden": false
+            }
+          },
+          "filterState": {
+            "url": "http://127.0.0.1:5173/taxonomy?tab=cdes",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K UC preview · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Prototype glossary and CDE rows preserve the target workflow shape. They are not live Unity Catalog glossary or CDE registry proof. + New term New CDE request is unavailable until a backed CDE registry workflow is configured. Glossary 4 CDE Registry 5 Showing 1 of 1 CDE registry rows SEARCH STATUS All statuses Healthy Recert due (8d) SORT Registry order Name Owner Status Recertification CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recert Due (8d)",
+            "checks": {
+              "lifetime": true,
+              "customerHidden": false
+            }
+          },
+          "firstBeforeSort": "Net Revenue (USD)\nSOX\nfinance_prod.curated.revenue_daily.net_revenue_usd\nFinance Stewards\n90d\nHealthy",
+          "firstAfterSort": "Customer ID\ncustomer_360.gold.customer_profile.customer_id\nCustomer Stewards\n180d\nHealthy"
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1296,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 952
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 952,
+          "clientHeight": 952,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K UC preview · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Prototype glossary and CDE rows preserve the target workflow shape. They are not live Unity Catalog glossary or CDE registry proof. + New term New CDE request is unavailable until a backed CDE registry workflow is configured. Glossary 4 CDE Registry 5 Showing 5 of 5 CDE registry rows SEARCH STATUS All statuses Healthy Recert due (8d) SORT Registry order Name Owner Status Recertification CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Customer ID customer_360.gold.customer_profile.customer_id Customer Stewards 180d Healthy Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recert Due (8d) Net Revenue (USD) SOX finance_prod.curated.revenue_daily.net_revenue_usd Finance Stewards 90d Healthy Compensation Band hr_secure.confidential.compensation_band.band_id People Stewards 180d Healthy Order Total (USD) SOX sales_prod.silver.orders.gross_total_usd Revenue Stewards 90d Healthy",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 5",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "interaction": "atlas-ai",
+      "description": "Submit a CDE Registry-specific Atlas AI prompt and verify grounded evidence appears.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/cde-functional-v138-local/cde-registry-atlas-ai-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/cde-functional-v138-local/cde-registry-atlas-ai-1536x1024-full.png",
+      "runResult": {
+        "url": "http://127.0.0.1:5173/taxonomy?tab=cdes",
+        "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K UC preview · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Prototype glossary and CDE rows preserve the target workflow shape. They are not live Unity Catalog glossary or CDE registry proof. + New term Glossary 4 CDE Registry 5 Showing 5 of 5 CDE registry rows SEARCH STATUS All statuses Healthy Recert due (8d) SORT Registry order Name Owner Status Recertification Net Revenue (USD) SOX finance_prod.curated.revenue_daily.net_revenue_usd Finance Stewards 90d Healthy Customer ID customer_360.gold.customer_profile.customer_id Customer Stewards 180d Healthy Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recert Due (8d) Compensation Band hr_secure.confidential.compensation_band.band_id People Stewards 180d Healthy Order Total (USD) SOX sales_prod.silver.orders.gross_total_usd Revenue Stewards 90d Healthy Atlas AI Prototype mock evidence - not live Databricks x Hi, Marisol. YOU Which CDEs need recertification? ATLAS AI Prototype mock CDE registry evidence shows Lifetime Value (USD) as recertification due in 8 days. Net Revenue (USD) is approved; no live Databricks CDE mutation is implied. Lifetime Value (USD) Prototype Recert Due (8d) 2 evidence records returned. TRY ASKING Which CDEs are due for review? ↗ Atlas AI uses AI. Review for accuracy. i",
+        "checks": {
+          "answer": true,
+          "evidence": true,
+          "disclaimer": true
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "url": "http://127.0.0.1:5173/taxonomy?tab=cdes",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K UC preview · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Prototype glossary and CDE rows preserve the target workflow shape. They are not live Unity Catalog glossary or CDE registry proof. + New term Glossary 4 CDE Registry 5 Showing 5 of 5 CDE registry rows SEARCH STATUS All statuses Healthy Recert due (8d) SORT Registry order Name Owner Status Recertification Net Revenue (USD) SOX finance_prod.curated.revenue_daily.net_revenue_usd Finance Stewards 90d Healthy Customer ID customer_360.gold.customer_profile.customer_id Customer Stewards 180d Healthy Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recert Due (8d) Compensation Band hr_secure.confidential.compensation_band.band_id People Stewards 180d Healthy Order Total (USD) SOX sales_prod.silver.orders.gross_total_usd Revenue Stewards 90d Healthy Atlas AI Prototype mock evidence - not live Databricks x Hi, Marisol. YOU Which CDEs need recertification? ATLAS AI Prototype mock CDE registry evidence shows Lifetime Value (USD) as recertification due in 8 days. Net Revenue (USD) is approved; no live Databricks CDE mutation is implied. Lifetime Value (USD) Prototype Recert Due (8d) 2 evidence records returned. TRY ASKING Which CDEs are due for review? ↗ Atlas AI uses AI. Review for accuracy. i",
+          "checks": {
+            "answer": true,
+            "evidence": true,
+            "disclaimer": true
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1296,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 952
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 952,
+          "clientHeight": 952,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K UC preview · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Prototype glossary and CDE rows preserve the target workflow shape. They are not live Unity Catalog glossary or CDE registry proof. + New term Glossary 4 CDE Registry 5 Showing 5 of 5 CDE registry rows SEARCH STATUS All statuses Healthy Recert due (8d) SORT Registry order Name Owner Status Recertification Net Revenue (USD) SOX finance_prod.curated.revenue_daily.net_revenue_usd Finance Stewards 90d Healthy Customer ID customer_360.gold.customer_profile.customer_id Customer Stewards 180d Healthy Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recert Due (8d) Compensation Band hr_secure.confidential.compensation_band.band_id People Stewards 180d Healthy Order Total (USD) SOX sales_prod.silver.orders.gross_total_usd Revenue Stewards 90d Healthy Atlas AI Prototype mock evidence - not live Databricks x Hi, Marisol. YOU Which CDEs need recertification? ATLAS AI Prototype mock CDE registry evidence shows Lifetime Value (USD) as recertification due in 8 days. Net Revenue (USD) is approved; no live Databricks CDE mutation is implied. Lifetime Value (USD) Prototype Recert Due (8d) 2 evidence records returned. TRY ASKING Which CDEs are due for review? ↗ Atlas AI uses AI. Review for accuracy. i",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 5",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which CDEs are due for review? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Atlas AI accuracy notice"
+          }
+        ]
+      }
+    },
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "interaction": "responsive-table-controls",
+      "description": "Validate CDE table controls and row cells remain visible or scrollable at the active viewport.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/cde-functional-v138-local/cde-registry-responsive-table-controls-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/cde-functional-v138-local/cde-registry-responsive-table-controls-1536x1024-full.png",
+      "runResult": {
+        "layout": {
+          "viewport": {
+            "width": 1536,
+            "height": 1024
+          },
+          "controlCount": 3,
+          "rowCount": 5,
+          "tableScrollable": true,
+          "controlFailures": [],
+          "rowCellFailures": []
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "layout": {
+            "viewport": {
+              "width": 1536,
+              "height": 1024
+            },
+            "controlCount": 3,
+            "rowCount": 5,
+            "tableScrollable": true,
+            "controlFailures": [],
+            "rowCellFailures": []
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 72,
+          "width": 1296,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 952
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 952,
+          "clientHeight": 952,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K UC preview · 87.4% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Prototype glossary and CDE rows preserve the target workflow shape. They are not live Unity Catalog glossary or CDE registry proof. + New term Glossary 4 CDE Registry 5 Showing 5 of 5 CDE registry rows SEARCH STATUS All statuses Healthy Recert due (8d) SORT Registry order Name Owner Status Recertification CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Net Revenue (USD) SOX finance_prod.curated.revenue_daily.net_revenue_usd Finance Stewards 90d Healthy Customer ID customer_360.gold.customer_profile.customer_id Customer Stewards 180d Healthy Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recert Due (8d) Compensation Band hr_secure.confidential.compensation_band.band_id People Stewards 180d Healthy Order Total (USD) SOX sales_prod.silver.orders.gross_total_usd Revenue Stewards 90d Healthy",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 5",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    }
+  ],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/taxonomy?tab=cdes"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

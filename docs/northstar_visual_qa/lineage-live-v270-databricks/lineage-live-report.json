@@ -1,0 +1,297 @@
+{
+  "generatedAt": "2026-05-01T12:01:13.448Z",
+  "appUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "",
+  "buildId": "frontend-6243ef07d262",
+  "assetFqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+  "captures": [
+    {
+      "viewport": {
+        "name": "1536x1024",
+        "width": 1536,
+        "height": 1024
+      },
+      "screenshot": "docs/northstar_visual_qa/lineage-live-v270-databricks/lineage-live-1536x1024.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/datapact.governance_atlas_demo.customer_stewardship_queue",
+        "title": "datapact.governance_atlas_demo.customer_stewardship_queue",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\ndatapact.governance_atlas_demo.customer_stewardship_queue\n\nPermission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges.\n\nCertification unavailable\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream - 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n1 nodes · 0 edges\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nNo upstream tables observed\nNo permitted upstream table hop is visible.\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\nFOCUS\ncustomer_stewardship_queue\ndatapact / governance_atlas_demo\nA\nasset_key\nSTRING\nA\ngovernance_domain\nSTRING\nA\ndata_product\nSTRING\nA\nsource_record_count\nLONG\nA\nrefreshed_at\nTIMESTAMP\n1 HOP DOWNSTREAM\nNo downstream consumers observed\nThe live graph has no downstream edges for this asset.\nLINEAGE DETAILS\ncustomer_stewardship_queue\ndatapact / governance_atlas_demo\nLAST REFRESH\nTopology refreshed 2026-05-01 12:02:52 UTC\nROWS\nUnavailable\nOWNER\nUnavailable\nSOURCES\n0\n\nNo source-system details returned.\n\nCONSUMERS\n0\n\nNo downstream consumer details returned.\n\nRECENT ACTIVITY\n\nNo recent lineage activity returned.\n\nNODE TYPES\nTable\nPipeline\nJob\nNotebook\nSaved query\nDashboard\nModel\nUDF\nVolume\nRestricted\nvia system.access.table_lineage\nLINEAGE AS OF:\n2026-04-27\nToday\nlive\nNow\nImpact analysis\nDownstream lineage consumers affected by upstream changes\nNotify owners\n\nNo downstream impact is observed for this asset.\n\nColumn lineage unavailable\nNo column-lineage rows returned for this asset\n\nColumn lineage is unavailable until Databricks reports column-level lineage rows for this asset.\n\n0 column paths visible\nlineage API\nAuthoritative table lineage - ready\nRefocus graph",
+        "hasNorthstar": true,
+        "unavailable": false,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 1024,
+        "viewportHeight": 1024,
+        "footer": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "left": 0,
+          "right": 0
+        },
+        "explorer": {
+          "x": 240,
+          "y": 56,
+          "width": 1296,
+          "height": 1819.796875,
+          "top": 56,
+          "bottom": 1875.796875,
+          "left": 240,
+          "right": 1536
+        },
+        "controlRail": null,
+        "graphToolbar": null,
+        "workbench": {
+          "x": 262,
+          "y": 293.875,
+          "width": 1120,
+          "height": 1511.921875,
+          "top": 293.875,
+          "bottom": 1805.796875,
+          "left": 262,
+          "right": 1382
+        },
+        "selectedRail": null,
+        "graphCard": {
+          "x": 262,
+          "y": 293.875,
+          "width": 1120,
+          "height": 1219.21875,
+          "top": 293.875,
+          "bottom": 1513.09375,
+          "left": 262,
+          "right": 1382
+        },
+        "bottom": {
+          "x": 262,
+          "y": 1615.09375,
+          "width": 1120,
+          "height": 190.703125,
+          "top": 1615.09375,
+          "bottom": 1805.796875,
+          "left": 262,
+          "right": 1382
+        },
+        "regionText": {
+          "title": true,
+          "upstream": true,
+          "transformations": true,
+          "governed": true,
+          "downstream": true,
+          "selected": true,
+          "impact": true,
+          "columnLineage": true
+        }
+      },
+      "navigationError": "",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "name": "1440x900",
+        "width": 1440,
+        "height": 900
+      },
+      "screenshot": "docs/northstar_visual_qa/lineage-live-v270-databricks/lineage-live-1440x900.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/datapact.governance_atlas_demo.customer_stewardship_queue",
+        "title": "datapact.governance_atlas_demo.customer_stewardship_queue",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\ndatapact.governance_atlas_demo.customer_stewardship_queue\n\nPermission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges.\n\nTrusted\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream - 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n1 nodes · 0 edges\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nNo upstream tables observed\nNo permitted upstream table hop is visible.\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\nFOCUS\ncustomer_stewardship_queue\ndatapact / governance_atlas_demo\nA\nasset_key\nSTRING\nA\ngovernance_domain\nSTRING\nA\ndata_product\nSTRING\nA\nsource_record_count\nLONG\nA\nrefreshed_at\nTIMESTAMP\n1 HOP DOWNSTREAM\nNo downstream consumers observed\nThe live graph has no downstream edges for this asset.\nLINEAGE DETAILS\ncustomer_stewardship_queue\ndatapact / governance_atlas_demo\nLAST REFRESH\nTopology refreshed 2026-05-01 12:02:52 UTC\nROWS\nUnavailable\nOWNER\nUnavailable\nSOURCES\n0\n\nNo source-system details returned.\n\nCONSUMERS\n0\n\nNo downstream consumer details returned.\n\nRECENT ACTIVITY\n\nNo recent lineage activity returned.\n\nNODE TYPES\nTable\nPipeline\nJob\nNotebook\nSaved query\nDashboard\nModel\nUDF\nVolume\nRestricted\nvia system.access.table_lineage\nLINEAGE AS OF:\n2026-04-27\nToday\nlive\nNow\nImpact analysis\nDownstream lineage consumers affected by upstream changes\nNotify owners\n\nNo downstream impact is observed for this asset.\n\nColumn lineage unavailable\nNo column-lineage rows returned for this asset\n\nColumn lineage is unavailable until Databricks reports column-level lineage rows for this asset.\n\n0 column paths visible\nlineage API\nAuthoritative table lineage - ready\nRefocus graph",
+        "hasNorthstar": true,
+        "unavailable": false,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 900,
+        "viewportHeight": 900,
+        "footer": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "left": 0,
+          "right": 0
+        },
+        "explorer": {
+          "x": 240,
+          "y": 56,
+          "width": 1200,
+          "height": 1812.8125,
+          "top": 56,
+          "bottom": 1868.8125,
+          "left": 240,
+          "right": 1440
+        },
+        "controlRail": null,
+        "graphToolbar": null,
+        "workbench": {
+          "x": 262,
+          "y": 288.125,
+          "width": 1120,
+          "height": 1510.6875,
+          "top": 288.125,
+          "bottom": 1798.8125,
+          "left": 262,
+          "right": 1382
+        },
+        "selectedRail": null,
+        "graphCard": {
+          "x": 262,
+          "y": 288.125,
+          "width": 1120,
+          "height": 1218.609375,
+          "top": 288.125,
+          "bottom": 1506.734375,
+          "left": 262,
+          "right": 1382
+        },
+        "bottom": {
+          "x": 262,
+          "y": 1608.734375,
+          "width": 1120,
+          "height": 190.078125,
+          "top": 1608.734375,
+          "bottom": 1798.8125,
+          "left": 262,
+          "right": 1382
+        },
+        "regionText": {
+          "title": true,
+          "upstream": true,
+          "transformations": true,
+          "governed": true,
+          "downstream": true,
+          "selected": true,
+          "impact": true,
+          "columnLineage": true
+        }
+      },
+      "navigationError": "",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "name": "1280x720",
+        "width": 1280,
+        "height": 720
+      },
+      "screenshot": "docs/northstar_visual_qa/lineage-live-v270-databricks/lineage-live-1280x720.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/datapact.governance_atlas_demo.customer_stewardship_queue",
+        "title": "datapact.governance_atlas_demo.customer_stewardship_queue",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\ndatapact.governance_atlas_demo.customer_stewardship_queue\n\nPermission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges.\n\nTrusted\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream - 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n1 nodes · 0 edges\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nNo upstream tables observed\nNo permitted upstream table hop is visible.\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\nFOCUS\ncustomer_stewardship_queue\ndatapact / governance_atlas_demo\nA\nasset_key\nA\ngovernance_domain\nA\ndata_product\nA\nsource_record_count\n1 HOP DOWNSTREAM\nNo downstream consumers observed\nThe live graph has no downstream edges for this asset.\nLINEAGE DETAILS\ncustomer_stewardship_queue\ndatapact / governance_atlas_demo\nLAST REFRESH\nTopology refreshed 2026-05-01 12:02:52 UTC\nROWS\nUnavailable\nOWNER\nUnavailable\nSOURCES\n0\n\nNo source-system details returned.\n\nCONSUMERS\n0\n\nNo downstream consumer details returned.\n\nRECENT ACTIVITY\n\nNo recent lineage activity returned.\n\nNODE TYPES\nTable\nPipeline\nJob\nNotebook\nSaved query\nDashboard\nModel\nUDF\nVolume\nRestricted\nvia system.access.table_lineage\nLINEAGE AS OF:\n2026-04-27\nToday\nlive\nNow\nImpact analysis\nDownstream lineage consumers affected by upstream changes\nNotify owners\n\nNo downstream impact is observed for this asset.\n\nColumn lineage unavailable\nNo column-lineage rows returned for this asset\n\nColumn lineage is unavailable until Databricks reports column-level lineage rows for this asset.\n\n0 column paths visible\nlineage API\nAuthoritative table lineage - ready\nRefocus graph",
+        "hasNorthstar": true,
+        "unavailable": false,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 720,
+        "viewportHeight": 720,
+        "footer": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "left": 0,
+          "right": 0
+        },
+        "explorer": {
+          "x": 240,
+          "y": 56,
+          "width": 1040,
+          "height": 1650.140625,
+          "top": 56,
+          "bottom": 1706.140625,
+          "left": 240,
+          "right": 1280
+        },
+        "controlRail": null,
+        "graphToolbar": null,
+        "workbench": {
+          "x": 256,
+          "y": 283.09375,
+          "width": 1010,
+          "height": 1363.046875,
+          "top": 283.09375,
+          "bottom": 1646.140625,
+          "left": 256,
+          "right": 1266
+        },
+        "selectedRail": null,
+        "graphCard": {
+          "x": 256,
+          "y": 283.09375,
+          "width": 1010,
+          "height": 977.765625,
+          "top": 283.09375,
+          "bottom": 1260.859375,
+          "left": 256,
+          "right": 1266
+        },
+        "bottom": {
+          "x": 256,
+          "y": 1362.859375,
+          "width": 1010,
+          "height": 283.28125,
+          "top": 1362.859375,
+          "bottom": 1646.140625,
+          "left": 256,
+          "right": 1266
+        },
+        "regionText": {
+          "title": true,
+          "upstream": true,
+          "transformations": true,
+          "governed": true,
+          "downstream": true,
+          "selected": true,
+          "impact": true,
+          "columnLineage": true
+        }
+      },
+      "navigationError": "",
+      "passed": true
+    }
+  ],
+  "interactions": [
+    {
+      "name": "Direct Lineage route settled",
+      "passed": true,
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/datapact.governance_atlas_demo.customer_stewardship_queue"
+    },
+    {
+      "name": "Header Column Lineage action",
+      "passed": true
+    },
+    {
+      "name": "Header impact action",
+      "passed": true
+    },
+    {
+      "name": "Canvas zoom controls",
+      "passed": true
+    },
+    {
+      "name": "Live focus node selection",
+      "passed": true
+    },
+    {
+      "name": "Refocus graph action",
+      "passed": true
+    },
+    {
+      "name": "Discovery to Lineage action",
+      "passed": false,
+      "error": "locator.click: Timeout 45000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button:has-text(\\'View Lineage\\')').first()\u001b[22m\n",
+      "screenshot": "docs/northstar_visual_qa/lineage-live-v270-databricks/lineage-live-failure-discovery-to-lineage-action.png"
+    }
+  ],
+  "pageErrors": [],
+  "consoleWarnings": [],
+  "passed": false
+}

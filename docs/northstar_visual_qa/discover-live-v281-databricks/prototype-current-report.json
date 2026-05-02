@@ -1,0 +1,22 @@
+{
+  "generatedAt": "2026-05-01T13:12:26.576Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f1455d0c6b10809cde14296fa99d23",
+  "buildId": "frontend-0821ce3424c6",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "route": "discover",
+  "captures": [],
+  "interactions": [
+    {
+      "route": "discover",
+      "interaction": "script-error",
+      "loaded": false,
+      "error": "page.waitForSelector: Timeout 90000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.gh-discovery-table-row.gh-discovery-asset-card') to be visible\u001b[22m\n"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "console": [],
+  "passed": false
+}

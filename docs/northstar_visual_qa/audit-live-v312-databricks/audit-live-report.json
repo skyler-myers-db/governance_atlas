@@ -1,0 +1,312 @@
+{
+  "generatedAt": "2026-05-01T15:58:45.744Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "appUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f1457296eb19a3933a38bdfec0e3bc",
+  "buildId": "frontend-5f4d8d113643",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "captures": [
+    {
+      "viewport": {
+        "name": "1536x1024",
+        "width": 1536,
+        "height": 1024
+      },
+      "screenshotPath": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-1536x1024.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/audit",
+        "title": "Immutable governance event log",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nAUDIT EVIDENCE\nImmutable governance event log\n\nEvery governance action — by humans or services — is appended to a Delta audit log. Events are searchable, cryptographically ordered, and exportable for SOC 2 / SOX evidence.\n\nDate range\nGenerate report\nExport CSV\n\nEVENTS · LOADED\n\n66\nmetadata-audit rows\n\nPOLICY VIOLATIONS\n\n0\nmetadata-audit rows\n\nACCESS REVIEWS · OPEN\n\n0\nmetadata-audit rows\n\nRETENTION\n\nUnavailable\nRetention policy not reported\nAll events\nBy users\nBy services\nViolations\nTime (UTC)\nActor\nEvent\nTarget\nEvidence\n2026-05-01 15:51:47\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:45\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:41\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:39\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:35\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:46:28\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:46:21\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:41:27\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\nAppend-only Delta audit log governance-store+metadata-audit-log · time-travel evidence references only, no raw row values.",
+        "hasNorthstar": true,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 1024,
+        "viewportHeight": 1024,
+        "mainScrollHeight": 968,
+        "mainClientHeight": 968,
+        "mainScrolls": false,
+        "footer": null,
+        "shell": {
+          "x": 230,
+          "y": 86,
+          "width": 1120,
+          "height": 906.296875,
+          "top": 86,
+          "bottom": 992.296875,
+          "left": 230,
+          "right": 1350
+        },
+        "table": {
+          "x": 230,
+          "y": 347.296875,
+          "width": 1120,
+          "height": 552,
+          "top": 347.296875,
+          "bottom": 899.296875,
+          "left": 230,
+          "right": 1350
+        },
+        "detail": null,
+        "kpiCount": 4,
+        "filterCount": 4,
+        "tableHeadingCount": 5,
+        "rowCount": 8,
+        "selectedRowCount": 0,
+        "selectedDetailPresent": false,
+        "disabledActions": [
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available"
+        ],
+        "regionText": {
+          "title": true,
+          "noLegacyTitle": true,
+          "hero": true,
+          "kpis": true,
+          "filters": true,
+          "table": true,
+          "actions": true,
+          "truthfulUnavailable": true
+        },
+        "railSeparated": true
+      },
+      "navigationError": "",
+      "loaded": true,
+      "passed": true
+    },
+    {
+      "viewport": {
+        "name": "1440x900",
+        "width": 1440,
+        "height": 900
+      },
+      "screenshotPath": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-1440x900.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/audit",
+        "title": "Immutable governance event log",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nAUDIT EVIDENCE\nImmutable governance event log\n\nEvery governance action — by humans or services — is appended to a Delta audit log. Events are searchable, cryptographically ordered, and exportable for SOC 2 / SOX evidence.\n\nDate range\nGenerate report\nExport CSV\n\nEVENTS · LOADED\n\n66\nmetadata-audit rows\n\nPOLICY VIOLATIONS\n\n0\nmetadata-audit rows\n\nACCESS REVIEWS · OPEN\n\n0\nmetadata-audit rows\n\nRETENTION\n\nUnavailable\nRetention policy not reported\nAll events\nBy users\nBy services\nViolations\nTime (UTC)\nActor\nEvent\nTarget\nEvidence\n2026-05-01 15:51:47\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:45\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:41\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:39\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:35\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:46:28\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:46:21\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:41:27\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\nAppend-only Delta audit log governance-store+metadata-audit-log · time-travel evidence references only, no raw row values.",
+        "hasNorthstar": true,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 900,
+        "viewportHeight": 900,
+        "mainScrollHeight": 889,
+        "mainClientHeight": 844,
+        "mainScrolls": true,
+        "footer": null,
+        "shell": {
+          "x": 224,
+          "y": 70,
+          "width": 1120,
+          "height": 874.5625,
+          "top": 70,
+          "bottom": 944.5625,
+          "left": 224,
+          "right": 1344
+        },
+        "table": {
+          "x": 224,
+          "y": 303.5625,
+          "width": 1120,
+          "height": 552,
+          "top": 303.5625,
+          "bottom": 855.5625,
+          "left": 224,
+          "right": 1344
+        },
+        "detail": null,
+        "kpiCount": 4,
+        "filterCount": 4,
+        "tableHeadingCount": 5,
+        "rowCount": 8,
+        "selectedRowCount": 0,
+        "selectedDetailPresent": false,
+        "disabledActions": [
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available"
+        ],
+        "regionText": {
+          "title": true,
+          "noLegacyTitle": true,
+          "hero": true,
+          "kpis": true,
+          "filters": true,
+          "table": true,
+          "actions": true,
+          "truthfulUnavailable": true
+        },
+        "railSeparated": true
+      },
+      "navigationError": "",
+      "loaded": true,
+      "passed": true
+    },
+    {
+      "viewport": {
+        "name": "1280x720",
+        "width": 1280,
+        "height": 720
+      },
+      "screenshotPath": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-1280x720.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/audit",
+        "title": "Immutable governance event log",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nAUDIT EVIDENCE\nImmutable governance event log\n\nEvery governance action — by humans or services — is appended to a Delta audit log. Events are searchable, cryptographically ordered, and exportable for SOC 2 / SOX evidence.\n\nDate range\nGenerate report\nExport CSV\n\nEVENTS · LOADED\n\n67\nmetadata-audit rows\n\nPOLICY VIOLATIONS\n\n0\nmetadata-audit rows\n\nACCESS REVIEWS · OPEN\n\n0\nmetadata-audit rows\n\nRETENTION\n\nUnavailable\nRetention policy not reported\nAll events\nBy users\nBy services\nViolations\nTime (UTC)\nActor\nEvent\nTarget\nEvidence\n2026-05-01 16:00:57\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:47\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:45\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:41\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:39\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:51:35\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:46:28\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:46:21\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\nAppend-only Delta audit log governance-store+metadata-audit-log · time-travel evidence references only, no raw row values.",
+        "hasNorthstar": true,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 720,
+        "viewportHeight": 720,
+        "mainScrollHeight": 678,
+        "mainClientHeight": 664,
+        "mainScrolls": true,
+        "footer": null,
+        "shell": {
+          "x": 224,
+          "y": 68,
+          "width": 1044,
+          "height": 666.078125,
+          "top": 68,
+          "bottom": 734.078125,
+          "left": 224,
+          "right": 1268
+        },
+        "table": {
+          "x": 224,
+          "y": 324.078125,
+          "width": 1044,
+          "height": 336,
+          "top": 324.078125,
+          "bottom": 660.078125,
+          "left": 224,
+          "right": 1268
+        },
+        "detail": null,
+        "kpiCount": 4,
+        "filterCount": 4,
+        "tableHeadingCount": 5,
+        "rowCount": 8,
+        "selectedRowCount": 0,
+        "selectedDetailPresent": false,
+        "disabledActions": [
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available",
+          "No evidence target asset route is available"
+        ],
+        "regionText": {
+          "title": true,
+          "noLegacyTitle": true,
+          "hero": true,
+          "kpis": true,
+          "filters": true,
+          "table": true,
+          "actions": true,
+          "truthfulUnavailable": true
+        },
+        "railSeparated": true
+      },
+      "navigationError": "",
+      "loaded": true,
+      "passed": true
+    }
+  ],
+  "interactions": [
+    {
+      "name": "Direct Audit route settled",
+      "loaded": true,
+      "passed": true,
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/audit",
+      "rows": 8,
+      "selectedRows": 0
+    },
+    {
+      "name": "Date range menu and audit category filters",
+      "loaded": true,
+      "passed": true,
+      "tabStates": {
+        "All events": "true",
+        "By users": "true",
+        "By services": "true",
+        "Violations": "true"
+      }
+    },
+    {
+      "name": "Row selection and detail actions",
+      "loaded": true,
+      "passed": true,
+      "rowText": "2026-05-01 16:01:09skyler@entrada.aiIdentity directory upsertedNo detail recordedskyler@entrada.aistore",
+      "detailText": "SELECTED EVIDENCE\nIdentity Directory Upserted\nSUCCESS\nActor\nskyler@entrada.ai\nTarget\nskyler@entrada.ai\nEvidence\nstore\nRequest ID\nUnavailable\n\ndisplayName\nUnavailable\nskyler@entrada.ai\n\nemail\nUnavailable\nskyler@entrada.ai\n\nentryId\nUnavailable\nd1c39b5b714241eeb76993c05ab12e08\n\nexternalKey\nUnavailable\nskyler@entrada.ai\n\nisActive\nUnavailable\ntrue\n\nprincipalType\nUnavailable\nuser\n\nsource\nUnavailable\ngovernance_recipient\n\nsyncedAt\nUnavailable\n2026-05-01 16:01:06\n\nOpen asset\nCopy request ID",
+      "selectedAfterClick": 1,
+      "copyVisible": true,
+      "copyEnabled": false,
+      "openAssetVisible": true,
+      "openAssetEnabled": false,
+      "selectedDetailScreenshot": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-selected-detail-1536x1024.png"
+    },
+    {
+      "name": "Report artifact download",
+      "loaded": true,
+      "passed": true,
+      "artifact": {
+        "path": "docs/northstar_visual_qa/audit-live-v312-databricks/downloads/audit-report-governance-audit-report-24h.json",
+        "suggestedFilename": "governance-audit-report-24h.json",
+        "bytes": 46911
+      },
+      "artifactEvidenceKind": "runtime_evidence",
+      "authoritative": true,
+      "eventCount": 25,
+      "validation": {
+        "checks": {
+          "hasEvents": true,
+          "hasSummary": true,
+          "hasEvidenceKind": true,
+          "notPrototypeMock": true
+        }
+      }
+    },
+    {
+      "name": "CSV artifact download",
+      "loaded": true,
+      "passed": true,
+      "artifact": {
+        "path": "docs/northstar_visual_qa/audit-live-v312-databricks/downloads/audit-events-governance-audit-24h.csv",
+        "suggestedFilename": "governance-audit-24h.csv",
+        "bytes": 10325
+      },
+      "header": "\"time_utc\",\"actor\",\"action\",\"status\",\"target\",\"evidence\",\"request_id\",\"evidence_kind\",\"authoritative\"",
+      "validation": {
+        "checks": {
+          "hasRows": true,
+          "hasEvidenceKindColumn": true,
+          "hasAuthoritativeColumn": true,
+          "notPrototypeMockCsv": true
+        }
+      }
+    }
+  ],
+  "sideBySide": {
+    "path": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-side-by-side-1536x1024.png",
+    "mockupPath": "/Users/entrada-mac/repos/governance_atlas/northstar/screenshots/prototype_audit1.png",
+    "currentPath": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-1536x1024.png"
+  },
+  "pageErrors": [],
+  "consoleWarnings": [],
+  "passed": true
+}

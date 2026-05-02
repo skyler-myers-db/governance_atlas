@@ -97,6 +97,44 @@ describe("useCommandCenter", () => {
     expect(result.current.degraded).toBe(true);
   });
 
+  it("reports hydration when seed data is visible before live command-center data returns", async () => {
+    let resolveFetch;
+    fetchCommandCenterMock.mockReturnValue(new Promise((resolve) => {
+      resolveFetch = resolve;
+    }));
+    const seedData = {
+      estate: {
+        visibleAssetCount: 7,
+        catalogCount: 1,
+        openRequests: 0,
+        coverageScore: 70,
+      },
+      meta: { state: "seed", warnings: [] },
+    };
+
+    const { result } = renderHook(
+      () => useCommandCenter({ enabled: true, seedData }),
+      { wrapper: createWrapper() },
+    );
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.hydrating).toBe(true);
+    expect(result.current.data.estate.visibleAssetCount).toBe(7);
+
+    await act(async () => {
+      resolveFetch({
+        estate: { visibleAssetCount: 11 },
+        meta: { state: "available", warnings: [] },
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.hydrating).toBe(false);
+    });
+    expect(result.current.hasLiveData).toBe(true);
+    expect(result.current.data.estate.visibleAssetCount).toBe(11);
+  });
+
   it("refreshActorScope sends refresh flag on next fetch", async () => {
     fetchCommandCenterMock.mockResolvedValue({
       estate: { visibleAssetCount: 1 },

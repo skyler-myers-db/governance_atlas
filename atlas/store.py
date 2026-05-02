@@ -84,7 +84,7 @@ def _request_status_from_task(task_status: Any, resolution_code: Any = None) -> 
 
 def _task_status_from_request_status(request_status: str) -> tuple[str, str | None]:
     normalized = str(request_status or "").strip().lower()
-    if normalized == "approved":
+    if normalized in {"approved", "resolved", "closed"}:
         return "resolved", "approved"
     if normalized == "rejected":
         return "rejected", "rejected"
@@ -2607,6 +2607,7 @@ WHEN NOT MATCHED THEN INSERT (
         owner_type: str,
         updated_by: str,
         actor_role: str = "reader",
+        request_id: str | None = None,
     ) -> None:
         before_df = self.uc.query_df(
             f"SELECT owner_email, owner_type, updated_at, updated_by "
@@ -2633,6 +2634,7 @@ WHEN NOT MATCHED THEN INSERT * """)
             action="owner-upserted",
             actor_email=updated_by,
             actor_role=actor_role,
+            request_id=request_id,
             before=[]
             if before_df is None or before_df.empty
             else before_df.to_dict(orient="records"),
@@ -2648,6 +2650,7 @@ WHEN NOT MATCHED THEN INSERT * """)
         *,
         actor_email: str = "",
         actor_role: str = "reader",
+        request_id: str | None = None,
     ) -> None:
         before_df = self.uc.query_df(
             f"SELECT owner_email, owner_type, updated_at, updated_by "
@@ -2668,6 +2671,7 @@ WHEN NOT MATCHED THEN INSERT * """)
             action="owner-removed",
             actor_email=actor_email or owner_email.strip().lower(),
             actor_role=actor_role,
+            request_id=request_id,
             before=[]
             if before_df is None or before_df.empty
             else before_df.to_dict(orient="records"),

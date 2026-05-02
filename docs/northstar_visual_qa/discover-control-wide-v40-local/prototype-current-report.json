@@ -1,0 +1,843 @@
+{
+  "generatedAt": "2026-04-30T15:33:26.152Z",
+  "baseUrl": "http://127.0.0.1:5173",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "evidenceKind": "prototype_mock",
+  "mockEvidenceWarning": "Prototype mock data, not live Databricks evidence.",
+  "routeFilter": [
+    "discover",
+    "control-center"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "discover",
+    "control-center"
+  ],
+  "viewports": [
+    {
+      "name": "3037x1269",
+      "width": 3037,
+      "height": 1269
+    }
+  ],
+  "expectedCaptureCount": 2,
+  "captures": [
+    {
+      "route": "discover",
+      "path": "/discover",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/discover-control-wide-v40-local/discover-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/discover-control-wide-v40-local/discover-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/discovery",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 3037,
+          "bottom": 72,
+          "width": 2797,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1269,
+          "width": 240,
+          "height": 1269
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797,
+          "height": 1197
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1617,
+          "clientHeight": 1197,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": {
+          "top": 72,
+          "left": 866.5,
+          "right": 2410.5,
+          "bottom": 1688.703125,
+          "width": 1544,
+          "height": 1616.703125
+        },
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CERTIFICATION 8 results Certified 6 In Review 1 Uncertified 1 DOMAIN Revenue & Sales 2 Customer 3 Marketing 1 Finance 1 Operations 0 People 1 CLASSIFICATION Restricted 2 Confidential 3 Internal 2 Unclassified 1 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Prototype results are permission-aware in shape and ranked by non-live trust fixtures. ▱ Saved searches ◇ Advanced Showing 8 of 8 assets Prototype mock · not live Databricks evidence Asset values shown here are not live Databricks proof unless the source is explicitly live and authoritative. Sort: Trust score compensation_band hr_secure.confidential.compensation_band Certified 99 Prototype trust fixture, not live score proof Restricted CDE PII Compensation band metadata by job family and level. Restricted access. Permission-gated. Yuki Tanaka Prototype metadata not live proof ⋮ Open Record Open lineage Certified revenue_daily finance_prod.curated.revenue_daily Certified 96 Prototype trust fixture, not live score proof Confidential CDE Prototype day-grain revenue grain by product line, channel, and region. Prototype reference for the CFO dashboard and quarterly board reporting. Marisol Reyes Prototype metadata not live proof ⋮ Open Record Open lineage ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified 6",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "In Review 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Uncertified 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Revenue & Sales 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Marketing 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Finance 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Operations 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "People 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Restricted 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Confidential 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Internal 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Unclassified 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Critical Data Element",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contains PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "No PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Saved searches",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "◇ Advanced",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trust score",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Grid view",
+            "disabled": false,
+            "aria": "Grid view"
+          },
+          {
+            "text": "List view",
+            "disabled": false,
+            "aria": "List view"
+          },
+          {
+            "text": "compensation_band",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "revenue_daily",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "churn_propensity_v3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "customer_profile",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "attribution_daily",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "clickstream_events",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "pricing_experiment_2025q4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Needs Owner 1 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Needs Certification 0 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified Data 8 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "High Coverage Assets 6 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "compensation_band People 99%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_daily Finance 96%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders Revenue & Sales 94%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": "Run Atlas AI recommendations"
+          },
+          {
+            "text": "Review revenue_daily recertification Local evidence recommendation - not live Genie proof: Certified asset with board-fa",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Inspect customer_profile PII coverage Local evidence recommendation - not live Genie proof: Restricted CDE asset with PI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/discover-control-wide-v40-local/control-center-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/discover-control-wide-v40-local/control-center-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 3037,
+          "bottom": 72,
+          "width": 2797,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1269,
+          "width": 240,
+          "height": 1269
+        },
+        "main": {
+          "top": 72,
+          "left": 240,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797,
+          "height": 1197
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1197,
+          "clientHeight": 1197,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": {
+            "top": 72,
+            "left": 240,
+            "right": 2557,
+            "bottom": 1269,
+            "width": 2317,
+            "height": 1197
+          },
+          "shell": {
+            "top": 98,
+            "left": 867.5,
+            "right": 2411.5,
+            "bottom": 1045.375,
+            "width": 1544,
+            "height": 947.375
+          },
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Prototype diagnostic rows preserve the Control Center structure but are not live Databricks runtime, connection, or policy proof. Scheduled jobs Reported runtime job inventory JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Prototype Lineage collector Every 1 hr 21 min ago Prototype Quality + freshness check Every 1 hr 32 min ago Prototype Policy engine evaluator Hourly + on-write 7 min ago Prototype PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype Trust score recompute Daily 03:00 UTC 7 hr ago Prototype Integrations ▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype ▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype ▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype ▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype ▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype ▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype Policy coverage Policy checks are shown when diagnostics report coverage Owner required on production (prototype) Prototype 96% CDEs must have description (prototype) Prototype 100% PII columns require tag (prototype) Prototype ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "UC metadata sweeper Every 15 min 4 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage collector Every 1 hr 21 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Quality + freshness check Every 1 hr 32 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policy engine evaluator Hourly + on-write 7 min ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "PII classifier (model serving) Daily 02:00 UTC 8 hr ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trust score recompute Daily 03:00 UTC 7 hr ago Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Unity Catalog Prototype diagnostic fixture - Prototype mock - UC not verified Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Databricks SQL Warehouse Prototype diagnostic fixture - gov atlas wh M Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Lakeflow Jobs Prototype diagnostic fixture - 6 jobs scheduled Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Model Serving · classifier-v2 Prototype diagnostic fixture - Endpoint healthy Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Slack · #governance-alerts Prototype diagnostic fixture - Connected Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ PagerDuty · P1 stewardship Prototype diagnostic fixture - Connected Prototype",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Owner required on production (prototype) Prototype 96%",
+            "disabled": false,
+            "aria": "Owner required on production (prototype) Prototype 96%"
+          },
+          {
+            "text": "CDEs must have description (prototype) Prototype 100%",
+            "disabled": false,
+            "aria": "CDEs must have description (prototype) Prototype 100%"
+          },
+          {
+            "text": "PII columns require tag (prototype) Prototype 92%",
+            "disabled": false,
+            "aria": "PII columns require tag (prototype) Prototype 92%"
+          },
+          {
+            "text": "90-day re-certification (prototype) Prototype 87%",
+            "disabled": false,
+            "aria": "90-day re-certification (prototype) Prototype 87%"
+          },
+          {
+            "text": "Restricted catalogs require justified grant (prototype) Prototype 100%",
+            "disabled": false,
+            "aria": "Restricted catalogs require justified grant (prototype) Prototype 100%"
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "What's powering the CFO Quarterly Dashboard, and is anything at risk this week? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which uncertified tables are queried by executives? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Summarize PII coverage in customer_360. ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Who owns net_revenue_usd and when was it last certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Atlas AI accuracy notice"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/discovery"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/discovery"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/admin"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

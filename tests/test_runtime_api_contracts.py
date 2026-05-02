@@ -39,6 +39,19 @@ def _response_json(response) -> dict[str, object]:
 
 
 class RuntimeApiContractsTests(unittest.TestCase):
+    def test_in_memory_role_lookup_honors_configured_admin_emails(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        store = runtime_app._NullGovernanceStore()
+
+        self.assertEqual(
+            store.get_role("skyler@entrada.ai", admin_emails=["skyler@entrada.ai"]),
+            "admin",
+        )
+        self.assertEqual(
+            store.get_role("reader@entrada.ai", admin_emails=["skyler@entrada.ai"]),
+            "reader",
+        )
+
     def test_shell_payload_pins_minimal_shell_contract(self) -> None:
         runtime_app = snapshot_script.runtime_app
         request = SimpleNamespace(headers={})
@@ -52,9 +65,14 @@ class RuntimeApiContractsTests(unittest.TestCase):
             },
             _build_id=lambda: "build-123",
             _config=lambda: SimpleNamespace(
+                build_id="build-123",
                 diagnostics_enabled=True,
                 admin_emails=[],
+                warehouse_id="warehouse-123",
+                gov_catalog="datapact",
+                gov_schema="atlas",
                 environment_label="Dev - DEFAULT",
+                deploy_target="Dev",
                 workspace_host="https://example.cloud.databricks.com",
             ),
         ):
@@ -83,12 +101,18 @@ class RuntimeApiContractsTests(unittest.TestCase):
         )
         self.assertEqual(payload["apiContract"]["insightsDashboard"], "/api/atlas/insights")
         self.assertEqual(payload["apiContract"]["cdeDashboard"], "/api/atlas/cde")
+        self.assertEqual(payload["apiContract"]["cdeDetail"], "/api/atlas/cde/{cde_id}")
         self.assertEqual(
             payload["apiContract"]["atlasAiRecommendations"],
             "/api/atlas-ai/recommendations",
         )
         self.assertEqual(payload["shell"]["buildId"], "build-123")
         self.assertEqual(payload["shell"]["environment"]["label"], "Dev - DEFAULT")
+        self.assertEqual(payload["shell"]["environment"]["displayLabel"], "Dev · datapact.atlas")
+        self.assertEqual(payload["shell"]["environment"]["target"], "Dev")
+        self.assertEqual(payload["shell"]["environment"]["catalog"], "datapact")
+        self.assertEqual(payload["shell"]["environment"]["schema"], "atlas")
+        self.assertEqual(payload["shell"]["environment"]["warehouseId"], "warehouse-123")
         self.assertEqual(payload["shell"]["workspaceHost"], "https://example.cloud.databricks.com")
         self.assertEqual(
             payload["shell"]["product"],
@@ -103,6 +127,50 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertIn("workspace_setup_diagnostics", flag_keys)
         self.assertIn("table_lineage_surface", flag_keys)
         self.assertIn("query_history_surface", flag_keys)
+
+    def test_shell_payload_uses_preloaded_discovery_count_for_live_capabilities(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(headers={})
+
+        with patch.multiple(
+            runtime_app,
+            _route_context=lambda _request: {
+                "surface": "discovery",
+                "asset": "",
+                "query": "",
+            },
+            _build_id=lambda: "build-123",
+            _discovery_search_payload=lambda _request, **_kwargs: {
+                "assets": [{"fqn": "datapact.atlas.customer_dim"}],
+                "facets": {"catalogs": []},
+                "count": 12,
+            },
+            _config=lambda: SimpleNamespace(
+                build_id="build-123",
+                diagnostics_enabled=True,
+                admin_emails=[],
+                warehouse_id="warehouse-123",
+                gov_catalog="datapact",
+                gov_schema="atlas",
+                environment_label="Dev - DEFAULT",
+                deploy_target="Dev",
+                workspace_host="https://example.cloud.databricks.com",
+            ),
+        ):
+            payload = runtime_app._shell_payload(
+                request,
+                mode="route-bootstrap",
+                state="live",
+                message="",
+                runtime_status={"state": "live", "message": ""},
+            )
+
+        self.assertEqual(payload["discovery"]["defaultCount"], 12)
+        self.assertEqual(payload["capabilities"]["systemInventoryRead"]["state"], "available")
+        self.assertTrue(payload["capabilities"]["systemInventoryRead"]["available"])
+        self.assertEqual(payload["capabilities"]["tableLineage"]["state"], "available")
+        feature_flags = {item["key"]: item for item in payload["featureFlags"]}
+        self.assertTrue(feature_flags["table_lineage_surface"]["enabled"])
 
     def test_api_bootstrap_response_returns_route_bootstrap_shell_only(self) -> None:
         runtime_app = snapshot_script.runtime_app
@@ -124,7 +192,11 @@ class RuntimeApiContractsTests(unittest.TestCase):
             _config=lambda: SimpleNamespace(
                 diagnostics_enabled=True,
                 admin_emails=[],
+                warehouse_id="warehouse-123",
+                gov_catalog="datapact",
+                gov_schema="atlas",
                 environment_label="Dev - DEFAULT",
+                deploy_target="Dev",
                 workspace_host="https://example.cloud.databricks.com",
             ),
         ):
@@ -148,7 +220,11 @@ class RuntimeApiContractsTests(unittest.TestCase):
             _config=lambda: SimpleNamespace(
                 diagnostics_enabled=False,
                 admin_emails=[],
+                warehouse_id="",
+                gov_catalog="",
+                gov_schema="",
                 environment_label="",
+                deploy_target="",
                 workspace_host="",
             ),
         ):
@@ -262,6 +338,73 @@ class RuntimeApiContractsTests(unittest.TestCase):
         runtime_status_patch.assert_called_once_with(request)
         self.assertEqual(_response_json(response), {"ok": "runtime_status"})
 
+    def test_runtime_status_opens_lineage_surface_when_visible_assets_exist_without_edges(self) -> None:
+        from atlas.api import runtime as _runtime_api
+
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(
+            headers={
+                "x-forwarded-email": "skyler@entrada.ai",
+                "x-forwarded-user": "skyler@entrada.ai",
+                "x-forwarded-display-name": "Skyler Myers",
+                "x-forwarded-access-token": "obo-token-live",
+            }
+        )
+
+        with patch.multiple(
+            runtime_app,
+            _uc_runtime_status_fast=lambda: {
+                "state": "live",
+                "message": "",
+                "client": {
+                    "authMode": "oauth-m2m-env",
+                    "authType": "oauth-m2m",
+                    "hostPresent": True,
+                },
+            },
+            _store_status=lambda: {"state": "live", "message": ""},
+            _bootstrap_inventory_summary=lambda _scope: {
+                "visibleAssets": 7,
+                "availableCatalogCount": 3,
+                "observedCatalogCount": 0,
+            },
+            _request_cache_scope=lambda _request: "skyler@entrada.ai|obo-available",
+            _user_role_slug=lambda _request: "admin",
+            _config=lambda: SimpleNamespace(
+                build_id="build-123",
+                diagnostics_enabled=True,
+                admin_emails=[],
+                warehouse_id="warehouse-123",
+                gov_catalog="datapact",
+                gov_schema="atlas",
+                environment_label="Dev - DEFAULT",
+                deploy_target="Dev",
+                workspace_host="https://example.cloud.databricks.com",
+                slow_request_ms=2500,
+            ),
+            _user_role=lambda _request: "Admin",
+        ):
+            response = _runtime_api._api_runtime_status_response(request)
+
+        payload = _response_json(response)
+        lineage_capability = payload["capabilities"]["tableLineage"]
+        diagnostics = payload["diagnostics"]
+        flags = {
+            item["key"]: item
+            for item in diagnostics["featureFlags"]
+        }
+
+        self.assertEqual(lineage_capability["state"], "available")
+        self.assertTrue(lineage_capability["available"])
+        self.assertIn("empty graph", lineage_capability["reason"])
+        self.assertTrue(diagnostics["workspaceAccess"]["canUseLineage"])
+        self.assertTrue(flags["table_lineage_surface"]["enabled"])
+        self.assertEqual(flags["table_lineage_surface"]["state"], "available")
+        self.assertNotIn(
+            "Lineage graph and drawer",
+            diagnostics["workspaceAccess"]["blockedSurfaces"],
+        )
+
     def test_runtime_api_openapi_snapshot_matches_committed_contract(self) -> None:
         expected = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
         observed = snapshot_script.build_runtime_api_snapshot()
@@ -354,6 +497,125 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertEqual(record["visibilityState"], "missing")
         self.assertEqual(payload["meta"]["state"], "degraded")
 
+    def test_direct_actor_identity_makes_deep_link_openable_when_inventory_omits_asset(
+        self,
+    ) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(
+            headers={
+                "x-forwarded-email": "analyst@example.com",
+                "x-forwarded-access-token": "actor-token",
+            }
+        )
+
+        class FakeUC:
+            def runtime_context(self):
+                return {"authMode": "obo"}
+
+        with patch.multiple(
+            runtime_app,
+            _request_auth_mode=lambda _request: "obo-available",
+            _asset_is_visible=lambda *_args, **_kwargs: False,
+            _asset_exists=lambda *_args, **_kwargs: False,
+            _uc_for_request=lambda _request: FakeUC(),
+        ), patch.object(
+            runtime_app.asset_service,
+            "exact_identity_row",
+            lambda *_args, **_kwargs: object(),
+        ):
+            record = runtime_app._asset_visibility_record(
+                "main.sales.deep_link_only", request
+            )
+
+        self.assertTrue(record["exists"])
+        self.assertTrue(record["visible"])
+        self.assertTrue(record["openable"])
+        self.assertEqual(record["visibilityState"], "visible")
+        self.assertEqual(record["visibilityMethod"], "direct-identity")
+
+    def test_direct_actor_identity_does_not_widen_when_obo_falls_back_to_app_principal(
+        self,
+    ) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(
+            headers={
+                "x-forwarded-email": "analyst@example.com",
+                "x-forwarded-access-token": "actor-token",
+            }
+        )
+
+        class FallbackUC:
+            def runtime_context(self):
+                return {"obo_scope_fallback": True}
+
+        with patch.multiple(
+            runtime_app,
+            _request_auth_mode=lambda _request: "obo-available",
+            _asset_is_visible=lambda *_args, **_kwargs: False,
+            _asset_exists=lambda *_args, **_kwargs: True,
+            _uc_for_request=lambda _request: FallbackUC(),
+        ), patch.object(
+            runtime_app.asset_service,
+            "exact_identity_row",
+            lambda *_args, **_kwargs: object(),
+        ):
+            record = runtime_app._asset_visibility_record(
+                "main.sales.deep_link_only", request
+            )
+
+        self.assertTrue(record["exists"])
+        self.assertFalse(record["visible"])
+        self.assertFalse(record["openable"])
+        self.assertEqual(record["visibilityState"], "hidden")
+        self.assertEqual(record["visibilityMethod"], "inventory")
+
+    def test_lineage_payload_uses_actor_uc_for_actor_scoped_system_lineage(
+        self,
+    ) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(
+            headers={
+                "x-forwarded-email": "analyst@example.com",
+                "x-forwarded-access-token": "actor-token",
+            }
+        )
+        actor_uc = object()
+        app_uc = object()
+        captured = {}
+
+        def fake_lineage_payload(uc, store, asset_fqn, *, cache_scope="", system_uc=None, profile="full"):
+            captured.update(
+                {
+                    "uc": uc,
+                    "store": store,
+                    "asset_fqn": asset_fqn,
+                    "cache_scope": cache_scope,
+                    "system_uc": system_uc,
+                    "profile": profile,
+                }
+            )
+            return {"fqn": asset_fqn}
+
+        with patch.multiple(
+            runtime_app,
+            _request_auth_mode=lambda _request: "obo-available",
+            _uc_for_request=lambda _request: actor_uc,
+            _uc=lambda: app_uc,
+            _store_for_read=lambda: "store",
+            _request_cache_scope=lambda _request: "actor-scope",
+        ), patch.object(
+            runtime_app.lineage_service,
+            "lineage_payload",
+            fake_lineage_payload,
+        ):
+            payload = runtime_app._lineage_payload("main.sales.orders", request)
+
+        self.assertEqual(payload["fqn"], "main.sales.orders")
+        self.assertIs(captured["uc"], actor_uc)
+        self.assertIs(captured["system_uc"], actor_uc)
+        self.assertEqual(captured["cache_scope"], "actor-scope")
+        self.assertEqual(captured["profile"], "full")
+
     def test_invalid_discovery_query_preserves_invalid_query_payload_and_meta(
         self,
     ) -> None:
@@ -407,7 +669,7 @@ class RuntimeApiContractsTests(unittest.TestCase):
             patch.multiple(
                 runtime_app,
                 _ensure_live_runtime=lambda: None,
-                _ensure_can_mutate=lambda _request: "writer@example.com",
+                _ensure_can_approve=lambda _request: "steward@example.com",
                 _user_role_slug=lambda _request: "admin",
                 _store=lambda: Store(),
                 _governance_summary=lambda _request: {"backlog": []},
@@ -434,6 +696,80 @@ class RuntimeApiContractsTests(unittest.TestCase):
 
         self.assertEqual(exc.exception.status_code, 404)
         self.assertFalse(mutated["called"])
+
+    def test_governance_request_patch_accepts_resolved_status(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(headers={})
+        captured = {}
+
+        class Store:
+            def get_change_request(self, request_id):
+                return SimpleNamespace(uc_full_name="main.sales.orders")
+
+            def set_request_status(self, **kwargs):
+                captured.update(kwargs)
+                return None
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _ensure_can_approve=lambda _request: "steward@example.com",
+            _user_role_slug=lambda _request: "steward",
+            _store=lambda: Store(),
+            _governance_summary=lambda _request: {"backlog": []},
+            _invalidate_asset_caches=lambda _asset_fqn: None,
+            _asset_visibility_record=lambda *_args, **_kwargs: {
+                "openable": True,
+                "visible": True,
+                "exists": True,
+                "visibilityState": "visible",
+            },
+            _asset_detail_payload=lambda *_args, **_kwargs: {"fqn": "main.sales.orders"},
+        ):
+            response = runtime_app.api_governance_patch_request(
+                "req-1",
+                runtime_app.GovernanceRequestStatusPatch(
+                    status="resolved",
+                    reviewNote="Resolved from Stewardship Workbench.",
+                ),
+                request,
+            )
+
+        payload = _response_json(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(captured["status"], "resolved")
+        self.assertEqual(captured["reviewed_by"], "steward@example.com")
+        self.assertEqual(captured["review_note"], "Resolved from Stewardship Workbench.")
+
+    def test_approval_guard_rejects_writer_role(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(headers={})
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_governance_store=lambda: None,
+            _user_email=lambda _request: "writer@example.com",
+            _user_role_slug=lambda _request: "writer",
+        ):
+            with self.assertRaises(runtime_app.HTTPException) as exc:
+                runtime_app._ensure_can_approve(request)
+
+        self.assertEqual(exc.exception.status_code, 403)
+        self.assertIn("steward or admin", str(exc.exception.detail))
+
+    def test_approval_guard_allows_steward_and_admin(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(headers={})
+
+        for role in ("steward", "admin"):
+            with patch.multiple(
+                runtime_app,
+                _ensure_governance_store=lambda: None,
+                _user_email=lambda _request: f"{role}@example.com",
+                _user_role_slug=lambda _request, _role=role: _role,
+            ):
+                self.assertEqual(runtime_app._ensure_can_approve(request), f"{role}@example.com")
 
     def test_uc_for_request_returns_app_principal_client_without_token(self) -> None:
         runtime_app = snapshot_script.runtime_app

@@ -39,9 +39,22 @@ OPERATIONAL_CONTEXT_LIMIT = 200
 SECOND_HOP_SEED_LIMIT = 6
 SECOND_HOP_NEIGHBOR_LIMIT = 25
 SECOND_HOP_SAMPLE_LIMIT = 8
-LINEAGE_GRAPH_DEPTH_LIMIT = 4
+# Keep the primary page load bounded. Deeper lineage expansion is useful, but
+# walking system.access.table_lineage recursively can multiply cold SQL latency
+# across every first-hop neighbor. The first viewport should render the
+# actor-visible first-hop graph quickly and disclose that limit in payload stats.
+LINEAGE_GRAPH_DEPTH_LIMIT = 1
 LINEAGE_GRAPH_NODE_LIMIT = 72
 LINEAGE_GRAPH_PER_HOP_LIMIT = 24
+LINEAGE_PROFILE_FULL = "full"
+LINEAGE_PROFILE_INITIAL = "initial"
+
+
+def _lineage_profile(value: str = "") -> str:
+    normalized = asset_service.normalize_str(value).lower()
+    if normalized in {"initial", "fast", "first-pass", "first_pass"}:
+        return LINEAGE_PROFILE_INITIAL
+    return LINEAGE_PROFILE_FULL
 
 
 def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
@@ -138,15 +151,34 @@ def graph_node_for_asset(
     depth: int = 1,
     visible_inventory: Optional[pd.DataFrame] = None,
     include_columns: bool = False,
+    direct_openable_assets: Optional[Set[str]] = None,
 ) -> Dict[str, Any]:
-    row = asset_service.inventory_row(uc, store, asset_fqn)
-    identity_resolved = bool(asset_service.normalize_str(row.get("table_type")))
+    normalized_fqn = asset_service.normalize_str(asset_fqn)
+    direct_openable = normalized_fqn in (direct_openable_assets or set())
     visible_inventory_df = (
         visible_inventory
         if isinstance(visible_inventory, pd.DataFrame)
         else asset_service.visible_assets(uc, store)
     )
-    is_openable = asset_service.asset_is_visible(visible_inventory_df, asset_fqn)
+    visible_match = (
+        isinstance(visible_inventory_df, pd.DataFrame)
+        and asset_service.asset_is_visible(visible_inventory_df, asset_fqn)
+    )
+    if visible_match:
+        row = asset_service.inventory_row(visible_inventory_df, asset_fqn)
+    elif direct_openable and isinstance(visible_inventory_df, pd.DataFrame):
+        exact_row = asset_service.exact_identity_row(
+            uc,
+            asset_fqn,
+            inventory_columns=list(visible_inventory_df.columns),
+        )
+        row = exact_row if exact_row is not None else asset_service.inventory_row(visible_inventory_df, asset_fqn)
+    elif isinstance(visible_inventory_df, pd.DataFrame):
+        row = asset_service.inventory_row(visible_inventory_df, asset_fqn)
+    else:
+        row = asset_service.inventory_row(uc, store, asset_fqn)
+    identity_resolved = bool(asset_service.normalize_str(row.get("table_type")))
+    is_openable = visible_match or direct_openable
     label = asset_service.normalize_str(row.get("table_name")) or asset_fqn.split(".")[-1]
     subtitle = " / ".join(
         part
@@ -202,6 +234,7 @@ def graph_node_for_asset(
             "certification": asset_service.normalize_str(row.get("certification")) or "Unassigned",
             "sensitivity": asset_service.normalize_str(row.get("sensitivity")) or "Unassigned",
             "isOpenable": is_openable,
+            "openabilityState": "verified" if is_openable else "unverified",
             "resolutionState": "resolved" if is_openable else "lineage-only",
         },
     }
@@ -245,24 +278,34 @@ def _column_lineage_payload(
     # app-principal client when one is supplied.
     system_client = system_uc or uc
     catalog, schema, table = asset_service.split_uc_name(asset_fqn)
-    try:
-        upstream_df = system_client.get_column_lineage_upstream(
-            catalog,
-            schema,
-            table,
-            limit=COLUMN_LINEAGE_LIMIT,
-        )
-    except Exception:
-        upstream_df = pd.DataFrame()
-    try:
-        downstream_df = system_client.get_column_lineage_downstream(
-            catalog,
-            schema,
-            table,
-            limit=COLUMN_LINEAGE_LIMIT,
-        )
-    except Exception:
-        downstream_df = pd.DataFrame()
+
+    def load_upstream() -> pd.DataFrame:
+        try:
+            return system_client.get_column_lineage_upstream(
+                catalog,
+                schema,
+                table,
+                limit=COLUMN_LINEAGE_LIMIT,
+            )
+        except Exception:
+            return pd.DataFrame()
+
+    def load_downstream() -> pd.DataFrame:
+        try:
+            return system_client.get_column_lineage_downstream(
+                catalog,
+                schema,
+                table,
+                limit=COLUMN_LINEAGE_LIMIT,
+            )
+        except Exception:
+            return pd.DataFrame()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        upstream_future = executor.submit(load_upstream)
+        downstream_future = executor.submit(load_downstream)
+        upstream_df = upstream_future.result()
+        downstream_df = downstream_future.result()
 
     upstream: Dict[str, List[Dict[str, str]]] = {}
     if upstream_df is not None and not upstream_df.empty:
@@ -527,6 +570,7 @@ def _recursive_branch_graph(
                     0,
                     0,
                     kicker=branch_kicker,
+                    kind="Table",
                     depth=current_depth + 1,
                     visible_inventory=visible_inventory,
                 )
@@ -706,6 +750,13 @@ def build_data_graph(
 ) -> Dict[str, Any]:
     row = asset_service.inventory_row(uc, store, asset_fqn)
     visible_inventory = asset_service.visible_assets(uc, store)
+    direct_openable_assets: Set[str] = set()
+    if not asset_service.asset_is_visible(visible_inventory, asset_fqn):
+        try:
+            if asset_service.exact_identity_row(uc, asset_fqn) is not None:
+                direct_openable_assets.add(asset_service.normalize_str(asset_fqn))
+        except Exception:
+            pass
     catalog, schema, table = asset_service.split_uc_name(
         asset_service.normalize_str(row.get("fqn"))
     )
@@ -725,30 +776,36 @@ def build_data_graph(
         depth=0,
         visible_inventory=visible_inventory,
         include_columns=True,
+        direct_openable_assets=direct_openable_assets,
     )
     per_branch_limit = max(8, LINEAGE_GRAPH_NODE_LIMIT // 2)
-    upstream_branch = _recursive_branch_graph(
-        uc,
-        store,
-        asset_fqn,
-        direction="upstream",
-        depth_limit=LINEAGE_GRAPH_DEPTH_LIMIT,
-        node_limit=per_branch_limit,
-        per_hop_limit=LINEAGE_GRAPH_PER_HOP_LIMIT,
-        visible_inventory=visible_inventory,
-        system_uc=system_uc,
-    )
-    downstream_branch = _recursive_branch_graph(
-        uc,
-        store,
-        asset_fqn,
-        direction="downstream",
-        depth_limit=LINEAGE_GRAPH_DEPTH_LIMIT,
-        node_limit=per_branch_limit,
-        per_hop_limit=LINEAGE_GRAPH_PER_HOP_LIMIT,
-        visible_inventory=visible_inventory,
-        system_uc=system_uc,
-    )
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        upstream_future = executor.submit(
+            _recursive_branch_graph,
+            uc,
+            store,
+            asset_fqn,
+            direction="upstream",
+            depth_limit=LINEAGE_GRAPH_DEPTH_LIMIT,
+            node_limit=per_branch_limit,
+            per_hop_limit=LINEAGE_GRAPH_PER_HOP_LIMIT,
+            visible_inventory=visible_inventory,
+            system_uc=system_uc,
+        )
+        downstream_future = executor.submit(
+            _recursive_branch_graph,
+            uc,
+            store,
+            asset_fqn,
+            direction="downstream",
+            depth_limit=LINEAGE_GRAPH_DEPTH_LIMIT,
+            node_limit=per_branch_limit,
+            per_hop_limit=LINEAGE_GRAPH_PER_HOP_LIMIT,
+            visible_inventory=visible_inventory,
+            system_uc=system_uc,
+        )
+        upstream_branch = upstream_future.result()
+        downstream_branch = downstream_future.result()
 
     nodes = [focus, *upstream_branch["nodes"], *downstream_branch["nodes"]]
     edges = [*upstream_branch["edges"], *downstream_branch["edges"]]
@@ -769,6 +826,93 @@ def build_data_graph(
     }
 
 
+def build_initial_data_graph(
+    uc: UCSQLClient,
+    store: Any,
+    asset_fqn: str,
+) -> Dict[str, Any]:
+    """Return a bounded first-paint graph shell without system lineage scans.
+
+    The initial profile exists to unblock the page while cold
+    system.access.table_lineage queries hydrate in the full profile. It must
+    not call upstream/downstream lineage APIs, visible inventory scans, column
+    previews, or operational context. A per-asset identity probe is enough to
+    render the focus card truthfully; full topology replaces it as soon as the
+    background profile returns.
+    """
+
+    normalized_fqn = asset_service.normalize_str(asset_fqn)
+    row = None
+    try:
+        row = asset_service.exact_identity_row(uc, normalized_fqn)
+    except Exception:
+        row = None
+
+    if row is None:
+        try:
+            catalog, schema, table = asset_service.split_uc_name(normalized_fqn)
+        except ValueError:
+            catalog, schema, table = "", "", normalized_fqn.split(".")[-1] or normalized_fqn
+        row = pd.Series(
+            {
+                "fqn": normalized_fqn,
+                "table_catalog": catalog,
+                "table_schema": schema,
+                "table_name": table,
+                "table_type": "",
+                "data_source_format": "",
+                "comment": "",
+                "certification": "",
+                "domain": "",
+                "tier": "",
+                "sensitivity": "",
+                "governance_status": "Needs Work",
+            }
+        )
+        visible_inventory = pd.DataFrame()
+        direct_openable_assets: Set[str] = set()
+    else:
+        visible_inventory = pd.DataFrame([row.to_dict()])
+        direct_openable_assets = {normalized_fqn}
+
+    focus = graph_node_for_asset(
+        uc,
+        store,
+        normalized_fqn,
+        "focus",
+        50,
+        50,
+        kicker="Focus",
+        kind=asset_service.friendly_table_type(
+            row.get("table_type"),
+            row.get("data_source_format"),
+        ),
+        foot=[asset_service.normalize_str(row.get("certification")) or "Unassigned"],
+        depth=0,
+        visible_inventory=visible_inventory,
+        include_columns=False,
+        direct_openable_assets=direct_openable_assets,
+    )
+    return {
+        "nodes": [focus],
+        "edges": [],
+        "meta": {
+            "profile": LINEAGE_PROFILE_INITIAL,
+            "tableLineageDeferred": True,
+            "deferred": True,
+            "reason": "Table-lineage topology loads in the full lineage profile.",
+            "upstreamLimit": TABLE_LINEAGE_LIMIT,
+            "downstreamLimit": TABLE_LINEAGE_LIMIT,
+            "graphDepthLimit": LINEAGE_GRAPH_DEPTH_LIMIT,
+            "graphNodeLimit": LINEAGE_GRAPH_NODE_LIMIT,
+            "graphBranchNodeLimit": max(8, LINEAGE_GRAPH_NODE_LIMIT // 2),
+            "graphPerHopLimit": LINEAGE_GRAPH_PER_HOP_LIMIT,
+            "upstreamTruncated": False,
+            "downstreamTruncated": False,
+        },
+    }
+
+
 def build_operational_graph(
     uc: UCSQLClient,
     store: Any,
@@ -779,6 +923,13 @@ def build_operational_graph(
     system_client = system_uc or uc
     row = asset_service.inventory_row(uc, store, asset_fqn)
     visible_inventory = asset_service.visible_assets(uc, store)
+    direct_openable_assets: Set[str] = set()
+    if not asset_service.asset_is_visible(visible_inventory, asset_fqn):
+        try:
+            if asset_service.exact_identity_row(uc, asset_fqn) is not None:
+                direct_openable_assets.add(asset_service.normalize_str(asset_fqn))
+        except Exception:
+            pass
     catalog, schema, table = asset_service.split_uc_name(
         asset_service.normalize_str(row.get("fqn"))
     )
@@ -798,31 +949,41 @@ def build_operational_graph(
         depth=0,
         visible_inventory=visible_inventory,
         include_columns=True,
+        direct_openable_assets=direct_openable_assets,
     )
-    try:
-        upstream_df = metadata_service.enrich_operational_context_names(
-            uc,
-            system_client.get_operational_context_upstream(
-                catalog,
-                schema,
-                table,
-                limit=OPERATIONAL_CONTEXT_LIMIT,
-            ),
-        )
-    except Exception:
-        upstream_df = pd.DataFrame()
-    try:
-        downstream_df = metadata_service.enrich_operational_context_names(
-            uc,
-            system_client.get_operational_context_downstream(
-                catalog,
-                schema,
-                table,
-                limit=OPERATIONAL_CONTEXT_LIMIT,
-            ),
-        )
-    except Exception:
-        downstream_df = pd.DataFrame()
+    def load_upstream() -> pd.DataFrame:
+        try:
+            return metadata_service.enrich_operational_context_names(
+                uc,
+                system_client.get_operational_context_upstream(
+                    catalog,
+                    schema,
+                    table,
+                    limit=OPERATIONAL_CONTEXT_LIMIT,
+                ),
+            )
+        except Exception:
+            return pd.DataFrame()
+
+    def load_downstream() -> pd.DataFrame:
+        try:
+            return metadata_service.enrich_operational_context_names(
+                uc,
+                system_client.get_operational_context_downstream(
+                    catalog,
+                    schema,
+                    table,
+                    limit=OPERATIONAL_CONTEXT_LIMIT,
+                ),
+            )
+        except Exception:
+            return pd.DataFrame()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        upstream_future = executor.submit(load_upstream)
+        downstream_future = executor.submit(load_downstream)
+        upstream_df = upstream_future.result()
+        downstream_df = downstream_future.result()
     upstream_entities = asset_service.operational_entity_records(uc, upstream_df)
     downstream_entities = asset_service.operational_entity_records(uc, downstream_df)
 
@@ -902,14 +1063,17 @@ def lineage_payload(
     *,
     cache_scope: str = "",
     system_uc: Optional[UCSQLClient] = None,
+    profile: str = LINEAGE_PROFILE_FULL,
 ) -> Dict[str, Any]:
+    profile_name = _lineage_profile(profile)
+    profile_key = "" if profile_name == LINEAGE_PROFILE_FULL else f":{profile_name}"
     return _ttl_value(
         (
-            f"lineage:{_warehouse_key(uc)}:{_cache_scope_key(cache_scope)}:"
+            f"lineage{profile_key}:{_warehouse_key(uc)}:{_cache_scope_key(cache_scope)}:"
             f"{asset_service.normalize_str(asset_fqn)}"
         ),
         300,
-        lambda: _build_lineage_payload(uc, store, asset_fqn, system_uc=system_uc),
+        lambda: _build_lineage_payload(uc, store, asset_fqn, system_uc=system_uc, profile=profile_name),
     )
 
 
@@ -919,23 +1083,48 @@ def _build_lineage_payload(
     asset_fqn: str,
     *,
     system_uc: Optional[UCSQLClient] = None,
+    profile: str = LINEAGE_PROFILE_FULL,
 ) -> Dict[str, Any]:
+    profile_name = _lineage_profile(profile)
     # Data graph, operational graph, and column lineage are independent
     # network-bound SQL paths. Running them concurrently cuts cold-load
     # wall time roughly 3x vs. the old sequential build.
-    with ThreadPoolExecutor(max_workers=3) as executor:
-        data_future = executor.submit(
-            build_data_graph, uc, store, asset_fqn, system_uc=system_uc
-        )
-        operational_future = executor.submit(
-            build_operational_graph, uc, store, asset_fqn, system_uc=system_uc
-        )
-        column_future = executor.submit(
-            _column_lineage_payload, uc, asset_fqn, system_uc=system_uc
-        )
-        data_graph = data_future.result()
-        operational_graph = operational_future.result()
-        column_lineage = column_future.result()
+    if profile_name == LINEAGE_PROFILE_INITIAL:
+        data_graph = build_initial_data_graph(uc, store, asset_fqn)
+        operational_graph = {
+            "nodes": [],
+            "edges": [],
+            "meta": {
+                "deferred": True,
+                "profile": LINEAGE_PROFILE_INITIAL,
+                "reason": "Operational context loads in the full lineage profile.",
+            },
+        }
+        column_lineage = {
+            "upstream": [],
+            "downstream": [],
+            "meta": {
+                "limit": COLUMN_LINEAGE_LIMIT,
+                "truncated": False,
+                "deferred": True,
+                "profile": LINEAGE_PROFILE_INITIAL,
+                "reason": "Column lineage loads in the full lineage profile.",
+            },
+        }
+    else:
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            data_future = executor.submit(
+                build_data_graph, uc, store, asset_fqn, system_uc=system_uc
+            )
+            operational_future = executor.submit(
+                build_operational_graph, uc, store, asset_fqn, system_uc=system_uc
+            )
+            column_future = executor.submit(
+                _column_lineage_payload, uc, asset_fqn, system_uc=system_uc
+            )
+            data_graph = data_future.result()
+            operational_graph = operational_future.result()
+            column_lineage = column_future.result()
     lineage_depth = _lineage_depth_payload(uc, asset_fqn, data_graph, system_uc=system_uc)
     data_edge_details = _data_edge_details(data_graph, column_lineage)
     operational_edge_details = _operational_edge_details(operational_graph)
@@ -946,6 +1135,7 @@ def _build_lineage_payload(
 
     return {
         "fqn": asset_fqn,
+        "profile": profile_name,
         "generatedAt": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
         "graphs": {
             "data": data_graph,
@@ -987,6 +1177,13 @@ def _build_lineage_payload(
                 "columnLineage": bool(column_lineage.get("meta", {}).get("truncated")),
                 "operationalProducers": bool(operational_graph.get("meta", {}).get("producerTruncated")),
                 "operationalConsumers": bool(operational_graph.get("meta", {}).get("consumerTruncated")),
+            },
+            "progressive": {
+                "profile": profile_name,
+                "fullProfileAvailable": profile_name == LINEAGE_PROFILE_INITIAL,
+                "tableLineageDeferred": bool(data_graph.get("meta", {}).get("tableLineageDeferred")),
+                "operationalDeferred": bool(operational_graph.get("meta", {}).get("deferred")),
+                "columnLineageDeferred": bool(column_lineage.get("meta", {}).get("deferred")),
             },
             "depth": {
                 "oneHopUpstreamAssets": len(lineage_depth.get("oneHop", {}).get("upstream", [])),

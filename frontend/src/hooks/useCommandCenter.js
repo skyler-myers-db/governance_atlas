@@ -104,6 +104,8 @@ export function useCommandCenter(options = {}) {
   return {
     data,
     loading: enabled && query.isPending && !query.data && !seedData,
+    hydrating: enabled && query.isPending && !query.data && Boolean(seedData),
+    hasLiveData: Boolean(query.data),
     refreshing: query.isFetching,
     error: usableData ? "" : query.isError ? message : "",
     refreshError,

@@ -1,0 +1,13 @@
+{
+  "assetFqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+  "lakebaseRows": [
+    [
+      "datapact.governance_atlas_demo.customer_stewardship_queue",
+      "atlas-lakebase-proof-20260425043503@entrada.ai",
+      "steward",
+      "skyler@entrada.ai"
+    ]
+  ],
+  "ownerEmail": "atlas-lakebase-proof-20260425043503@entrada.ai",
+  "rowCount": 1
+}

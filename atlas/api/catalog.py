@@ -20,11 +20,12 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from atlas.api.identity import _request_auth_mode, _user_email
 from atlas.services import capabilities as capability_service
 from atlas.services import custom_properties as cp_service
+from atlas.services import input_safety
 from atlas.services import quality as quality_service
 from atlas.services.assets import normalize_str as _normalize_str
 from atlas.services.metadata_audit import record_audit_log
@@ -90,12 +91,31 @@ class CustomPropertyDefinitionPayload(BaseModel):
     scope: Optional[Dict[str, Any]] = None
     changeSummary: str | None = None
 
+    @field_validator("changeSummary", mode="before")
+    @classmethod
+    def _sanitize_change_summary(cls, value):
+        if value is None:
+            return None
+        return input_safety.sanitize_markdown(value, field="changeSummary", max_length=2000)
+
 
 class CustomPropertyAssignmentPayload(BaseModel):
     definitionId: str
     value: Any = None
     entityFqn: str | None = None
     columnName: str | None = None
+
+    @field_validator("definitionId", mode="before")
+    @classmethod
+    def _sanitize_definition_id(cls, value):
+        return input_safety.sanitize_plain_text(value, field="definitionId", max_length=128, allow_empty=False)
+
+    @field_validator("entityFqn", "columnName", mode="before")
+    @classmethod
+    def _sanitize_optional_identifier(cls, value, info):
+        if value is None:
+            return None
+        return input_safety.sanitize_plain_text(value, field=info.field_name, max_length=512)
 
 
 def _admin_required(request: Request) -> str:
@@ -120,6 +140,44 @@ def _store_read():
     _ensure_live_runtime()
     _ensure_governance_store()
     return _store()
+
+
+def _request_id(request: Request) -> str | None:
+    try:
+        from runtime_app import _http_request_id
+
+        return _http_request_id(request)
+    except Exception:
+        return request.headers.get("x-databricks-request-id") or request.headers.get("x-request-id")
+
+
+def _require_open_asset(entity_fqn: str, request: Request) -> None:
+    from runtime_app import _asset_is_openable
+
+    if not _asset_is_openable(entity_fqn, request):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
+
+
+def _custom_property_assignment_snapshot(
+    store,
+    *,
+    definition_id: str,
+    entity_fqn: str | None,
+    column_name: str | None,
+) -> list[dict[str, Any]]:
+    try:
+        frame = store.list_custom_property_assignments(
+            entity_fqn=entity_fqn,
+            column_name=column_name,
+        )
+    except Exception:
+        return []
+    rows = _df_records(frame)
+    return [
+        row
+        for row in rows
+        if str(row.get("definition_id") or "") == str(definition_id)
+    ]
 
 
 def api_list_custom_property_definitions(
@@ -180,7 +238,10 @@ def api_create_custom_property_definition(
         actor_email=actor,
         actor_role="admin",
         entity_id=definition_id,
+        request_id=_request_id(request),
         after=normalized,
+        detail=payload.changeSummary,
+        fail_closed=True,
     )
     return JSONResponse(
         status_code=201,
@@ -215,6 +276,13 @@ def api_upsert_custom_property_assignment(
             enum_values = json.loads(raw_enum)
         except Exception:
             enum_values = None
+    entity_fqn = _normalize_str(payload.entityFqn)
+    column_name = _normalize_str(payload.columnName)
+    entity_kind = str(match.get("entity_kind") or "").lower()
+    if entity_kind in {"asset", "column"}:
+        if not entity_fqn:
+            raise HTTPException(status_code=400, detail="entityFqn is required for asset and column properties.")
+        _require_open_asset(entity_fqn, request)
     validation = cp_service.validate_value(
         str(match.get("data_type") or ""),
         payload.value,
@@ -224,35 +292,55 @@ def api_upsert_custom_property_assignment(
     )
     if not validation.ok:
         raise HTTPException(status_code=400, detail=validation.reason)
-    if (match.get("entity_kind") or "").lower() == "column" and not payload.columnName:
+    if entity_kind == "column" and not column_name:
         raise HTTPException(status_code=400, detail="columnName is required for column-scoped properties.")
     assignment_id = cp_service.new_id()
+    before = _custom_property_assignment_snapshot(
+        store,
+        definition_id=payload.definitionId,
+        entity_fqn=entity_fqn,
+        column_name=column_name,
+    )
+    expected_assignment = {
+        "assignment_id": assignment_id,
+        "definition_id": payload.definitionId,
+        "definition_version": 1,
+        "entity_kind": str(match.get("entity_kind")),
+        "entity_fqn": entity_fqn,
+        "column_name": column_name,
+        "value": validation.value,
+        "updated_by": actor,
+    }
+    record_audit_log(
+        entity_type="custom_property_assignment",
+        action="upserted",
+        actor_email=actor,
+        actor_role=role,
+        entity_fqn=entity_fqn,
+        column_name=column_name,
+        request_id=_request_id(request),
+        before=before,
+        after={
+            "definitionId": payload.definitionId,
+            "propertyKey": match.get("property_key"),
+            "value": validation.value,
+            "assignment": expected_assignment,
+        },
+        fail_closed=True,
+    )
     try:
         store.upsert_custom_property_assignment(
             assignment_id=assignment_id,
             definition_id=payload.definitionId,
             definition_version=1,
             entity_kind=str(match.get("entity_kind")),
-            entity_fqn=_normalize_str(payload.entityFqn),
-            column_name=_normalize_str(payload.columnName),
+            entity_fqn=entity_fqn,
+            column_name=column_name,
             value=validation.value,
             actor_email=actor,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to persist assignment: {exc}")
-    record_audit_log(
-        entity_type="custom_property_assignment",
-        action="upserted",
-        actor_email=actor,
-        actor_role=role,
-        entity_fqn=payload.entityFqn,
-        column_name=payload.columnName,
-        after={
-            "definitionId": payload.definitionId,
-            "propertyKey": match.get("property_key"),
-            "value": validation.value,
-        },
-    )
     return JSONResponse(
         status_code=200,
         content=_envelope({
@@ -267,6 +355,10 @@ def api_asset_custom_properties(
     asset_fqn: str,
     request: Request,
 ) -> JSONResponse:
+    asset_fqn = _normalize_str(asset_fqn)
+    if not asset_fqn:
+        raise HTTPException(status_code=400, detail="asset_fqn is required.")
+    _require_open_asset(asset_fqn, request)
     store = _store_read()
     try:
         frame = store.list_custom_property_assignments(entity_fqn=asset_fqn)
@@ -302,27 +394,57 @@ def api_run_asset_profile(asset_fqn: str, request: Request) -> JSONResponse:
     from runtime_app import _ensure_governance_store, _ensure_live_runtime, _asset_detail_payload, _store, _uc_for_request
     from atlas.services import profile_runner
 
-    _steward_or_admin(request)
+    role = _steward_or_admin(request)
     _ensure_live_runtime()
     try:
         _ensure_governance_store()
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Governance store not ready: {exc}")
     actor = _user_email(request) or "unknown"
+    asset_fqn = _normalize_str(asset_fqn)
+    if not asset_fqn:
+        raise HTTPException(status_code=400, detail="asset_fqn is required.")
+    _require_open_asset(asset_fqn, request)
     try:
         detail = _asset_detail_payload(asset_fqn, request=request, sections=["schema"])
     except Exception as exc:
         raise HTTPException(status_code=404, detail=f"Asset not available: {exc}")
     columns = detail.get("columns") or []
     uc_client = _uc_for_request(request)
+    store = _store()
+    try:
+        before = store.latest_profile_run_for_entity(asset_fqn)
+    except Exception:
+        before = None
     result = profile_runner.run_profile(
-        store=_store(),
+        store=store,
         uc_client=uc_client,
         asset_fqn=asset_fqn,
         columns=columns,
         actor_email=actor,
         trigger="manual",
         include_top_values=False,
+    )
+    record_audit_log(
+        entity_type="profile_run",
+        action="profile-run-executed",
+        actor_email=actor,
+        actor_role=role,
+        entity_fqn=asset_fqn,
+        entity_id=result.profile_run_id,
+        request_id=_request_id(request),
+        before={"latestProfileRun": before} if before else None,
+        after={
+            "profileRunId": result.profile_run_id,
+            "status": result.status,
+            "rowCount": result.row_count,
+            "columnMetricsWritten": result.column_metrics_written,
+            "error": result.error or None,
+        },
+        source="api",
+        status="success" if result.status == "succeeded" else "failed",
+        detail=result.error or None,
+        fail_closed=True,
     )
     return JSONResponse(
         status_code=200,
@@ -337,6 +459,10 @@ def api_run_asset_profile(asset_fqn: str, request: Request) -> JSONResponse:
 
 
 def api_asset_profile(asset_fqn: str, request: Request) -> JSONResponse:
+    asset_fqn = _normalize_str(asset_fqn)
+    if not asset_fqn:
+        raise HTTPException(status_code=400, detail="asset_fqn is required.")
+    _require_open_asset(asset_fqn, request)
     store = _store_read()
     import json
     try:
@@ -414,6 +540,9 @@ def api_list_quality_runs(
     suiteId: str | None = None,
     limit: int = 50,
 ) -> JSONResponse:
+    entityFqn = _normalize_str(entityFqn) or None
+    if entityFqn:
+        _require_open_asset(entityFqn, request)
     store = _store_read()
     try:
         frame = store.list_quality_runs(
@@ -440,6 +569,10 @@ def api_list_quality_runs(
 
 
 def api_asset_quality(asset_fqn: str, request: Request) -> JSONResponse:
+    asset_fqn = _normalize_str(asset_fqn)
+    if not asset_fqn:
+        raise HTTPException(status_code=400, detail="asset_fqn is required.")
+    _require_open_asset(asset_fqn, request)
     store = _store_read()
     try:
         results_frame = store.list_quality_run_results(entity_fqn=asset_fqn, limit=200)
@@ -475,12 +608,27 @@ class QualityRunInlineRequest(BaseModel):
     cases: List[Dict[str, Any]] = Field(default_factory=list)
     severity: str = "warn"
 
+    @field_validator("assetFqn", mode="before")
+    @classmethod
+    def _sanitize_asset_fqn(cls, value):
+        return input_safety.sanitize_plain_text(value, field="assetFqn", max_length=512, allow_empty=False)
+
+    @field_validator("severity", mode="before")
+    @classmethod
+    def _sanitize_severity(cls, value):
+        return input_safety.sanitize_allowed(
+            value or "warn",
+            field="severity",
+            allowed=("info", "warn", "critical"),
+            default="warn",
+        )
+
 
 def api_run_asset_quality(payload: QualityRunInlineRequest, request: Request) -> JSONResponse:
     """Phase 10 — execute a set of quality test cases inline and
     persist the results. Steward/admin gated because custom_sql
     cases touch arbitrary data."""
-    from runtime_app import _ensure_governance_store, _ensure_live_runtime, _store, _uc_for_request
+    from runtime_app import _asset_is_openable, _ensure_governance_store, _ensure_live_runtime, _store, _uc_for_request
     from atlas.services import quality_runner
 
     role = _steward_or_admin(request)
@@ -490,30 +638,76 @@ def api_run_asset_quality(payload: QualityRunInlineRequest, request: Request) ->
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Governance store not ready: {exc}")
     actor = _user_email(request) or "unknown"
+    asset_fqn = _normalize_str(payload.assetFqn)
+    if not _asset_is_openable(asset_fqn, request):
+        raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     cases: List[quality_runner.TestCaseSpec] = []
     for raw in payload.cases or []:
         if not isinstance(raw, dict):
             continue
+        parameters = input_safety.sanitize_json_value(
+            dict(raw.get("parameters") or {}),
+            field="parameters",
+            max_depth=4,
+            max_string_length=4000,
+        )
         cases.append(
             quality_runner.TestCaseSpec(
-                case_id=str(raw.get("caseId") or uuid.uuid4().hex),
-                test_key=str(raw.get("testKey") or "").strip(),
-                entity_fqn=_normalize_str(payload.assetFqn),
-                parameters=dict(raw.get("parameters") or {}),
-                severity=str(raw.get("severity") or payload.severity),
+                case_id=input_safety.sanitize_plain_text(
+                    raw.get("caseId") or uuid.uuid4().hex,
+                    field="caseId",
+                    max_length=128,
+                    allow_empty=False,
+                ),
+                test_key=input_safety.sanitize_plain_text(
+                    raw.get("testKey") or "",
+                    field="testKey",
+                    max_length=128,
+                    allow_empty=False,
+                ),
+                entity_fqn=asset_fqn,
+                parameters=parameters,
+                severity=input_safety.sanitize_allowed(
+                    raw.get("severity") or payload.severity,
+                    field="caseSeverity",
+                    allowed=("info", "warn", "critical"),
+                    default=payload.severity,
+                ),
                 column_name=_normalize_str(raw.get("columnName")) or None,
             )
         )
     if not cases:
         raise HTTPException(status_code=400, detail="At least one test case is required.")
     uc_client = _uc_for_request(request)
+    store = _store()
     result = quality_runner.run_quality_suite(
-        store=_store(),
+        store=store,
         uc_client=uc_client,
         cases=cases,
         suite_id=None,
         trigger="manual",
         actor_email=actor,
+    )
+    record_audit_log(
+        entity_type="quality_run",
+        action="quality-run-executed",
+        actor_email=actor,
+        actor_role=role,
+        entity_fqn=asset_fqn,
+        entity_id=result.run_id,
+        request_id=_request_id(request),
+        after={
+            "runId": result.run_id,
+            "status": result.status,
+            "caseCount": len(cases),
+            "passed": result.passed,
+            "failed": result.failed,
+            "errored": result.errored,
+            "skipped": result.skipped,
+        },
+        source="api",
+        status="success" if result.status == "succeeded" else "failed",
+        fail_closed=True,
     )
     return JSONResponse(
         status_code=200,
@@ -536,12 +730,23 @@ class QualityCustomSqlRequest(BaseModel):
     byteBudget: int | None = None
     timeBudgetMs: int | None = None
 
+    @field_validator("targetEntityFqn", mode="before")
+    @classmethod
+    def _sanitize_target_entity(cls, value):
+        return input_safety.sanitize_plain_text(value, field="targetEntityFqn", max_length=512, allow_empty=False)
+
+    @field_validator("sql", mode="before")
+    @classmethod
+    def _sanitize_sql(cls, value):
+        return input_safety.normalize_text(value)
+
 
 def api_quality_validate_custom_sql(
     payload: QualityCustomSqlRequest,
     request: Request,
 ) -> JSONResponse:
     _steward_or_admin(request)
+    _require_open_asset(payload.targetEntityFqn, request)
     validation = quality_service.validate_custom_sql(
         payload.sql,
         target_entity_fqn=payload.targetEntityFqn,

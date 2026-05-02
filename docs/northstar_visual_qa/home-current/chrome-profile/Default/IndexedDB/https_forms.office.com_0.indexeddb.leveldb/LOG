@@ -1,6 +1,0 @@
-2026/01/12-11:36:26.642 33eff1 Creating DB /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_forms.office.com_0.indexeddb.leveldb since it was missing.
-2026/01/12-11:36:26.647 33eff1 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_forms.office.com_0.indexeddb.leveldb/MANIFEST-000001
-2026/01/12-11:37:01.031 33effe Level-0 table #5: started
-2026/01/12-11:37:01.033 33effe Level-0 table #5: 16629 bytes OK
-2026/01/12-11:37:01.034 33effe Delete type=0 #3
-2026/01/12-11:37:01.034 33effe Manual compaction at level-0 from (begin) .. (end); will stop at (end)

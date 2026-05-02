@@ -78,15 +78,20 @@ def record_audit_log(
     before: Any = None,
     after: Any = None,
     source: str = "api",
+    status: str = "success",
     detail: str | None = None,
+    fail_closed: bool = False,
 ) -> None:
     from runtime_app import _store
 
     try:
         store = _store()
-    except Exception:
+    except Exception as exc:
+        if fail_closed:
+            raise RuntimeError(f"metadata audit store unavailable: {exc}") from exc
         return
 
+    audit_error: Exception | None = None
     try:
         if hasattr(store, "append_metadata_audit_log"):
             store.append_metadata_audit_log(
@@ -101,6 +106,7 @@ def record_audit_log(
                 before_json=before,
                 after_json=after,
                 source=source,
+                status=status,
                 detail=detail,
             )
         else:
@@ -116,9 +122,11 @@ def record_audit_log(
                 before=before,
                 after=after,
                 source=source,
+                status=status,
                 detail=detail,
             )
-    except Exception:
+    except Exception as exc:
+        audit_error = exc
         # Keep calling into change_events even if the audit row failed —
         # audit_log is the primary record but change_events powers the
         # Phase 13 audit browser and projection builders, so emitting
@@ -161,3 +169,6 @@ def record_audit_log(
             )
         except Exception:
             return
+
+    if fail_closed and audit_error is not None:
+        raise RuntimeError(f"metadata audit write failed: {audit_error}") from audit_error

@@ -57,6 +57,2515 @@
   color: var(--gh-ink-soft);
   font-size: 0.9rem;
 }
+
+/* North Star full-page lineage explorer. Embedded Asset 360 lineage keeps
+   the legacy React Flow surface above; these selectors are scoped to the
+   full route only. */
+.ga-lineage-explorer {
+  --ga-lineage-panel: rgba(8, 38, 61, 0.94);
+  --ga-lineage-panel-soft: rgba(13, 52, 78, 0.92);
+  --ga-lineage-line: rgba(74, 156, 206, 0.28);
+  --ga-lineage-text: #eef8ff;
+  --ga-lineage-muted: #9cb5c9;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 100%;
+  height: auto;
+  padding: 22px 20px 24px 22px;
+  overflow: visible;
+  color: var(--ga-lineage-text);
+  background:
+    radial-gradient(circle at 55% 5%, rgba(25, 121, 183, 0.22), transparent 32%),
+    linear-gradient(180deg, rgba(5, 21, 35, 0.78), rgba(4, 17, 29, 0.96));
+}
+
+.ga-lineage-explorer.is-expanded {
+  position: fixed;
+  z-index: 80;
+  inset: var(--gh-shell-header-height, 72px) 0 var(--ga-shell-footer-height, 56px) var(--ga-sidebar-width, 210px);
+  height: auto;
+  background: #061523;
+}
+
+.ga-lineage-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 0;
+  max-width: 1960px;
+  margin-bottom: 26px;
+}
+
+.ga-lineage-hero > div:first-child {
+  min-width: 0;
+}
+
+.ga-lineage-eyebrow {
+  display: block;
+  margin-bottom: 8px;
+  color: #45b9ee;
+  font-size: 0.68rem;
+  font-weight: 760;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.ga-lineage-hero h1 {
+  margin: 0;
+  color: #f4f9ff;
+  font-size: clamp(1.45rem, 2vw, 2.02rem);
+  line-height: 1.08;
+  font-weight: 750;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.ga-lineage-explorer.is-thin-live-lineage .ga-lineage-hero h1 {
+  max-width: min(100%, 980px);
+  font-size: clamp(1.18rem, 1.52vw, 1.52rem);
+  line-height: 1.14;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.ga-lineage-hero p {
+  margin: 10px 0 0;
+  color: #b8c9d8;
+  font-size: 0.93rem;
+  max-width: 780px;
+  line-height: 1.48;
+}
+
+.ga-lineage-proof-note {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin-top: 9px;
+  padding: 0 8px;
+  min-height: 22px;
+  border: 1px solid rgba(247, 189, 79, 0.34);
+  border-radius: 999px;
+  background: rgba(76, 54, 16, 0.34);
+  color: #ffd58b;
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.ga-lineage-chip-row,
+.ga-lineage-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.ga-lineage-chip-row {
+  margin-top: 18px;
+}
+
+.ga-lineage-chip-row span,
+.ga-lineage-legend span {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid rgba(88, 169, 218, 0.28);
+  border-radius: 999px;
+  background: rgba(15, 55, 84, 0.72);
+  color: #b7d3e6;
+  font-size: 0.68rem;
+}
+
+.ga-lineage-chip-row .tone-good,
+.ga-lineage-legend .tone-good {
+  border-color: rgba(42, 225, 151, 0.34);
+  color: #43e8a0;
+  background: rgba(18, 96, 76, 0.42);
+}
+
+.ga-lineage-legend .tone-source {
+  color: #5cc7ff;
+}
+
+.ga-lineage-legend .tone-job {
+  color: #a78bfa;
+}
+
+.ga-lineage-legend .tone-restricted {
+  color: #f7bd4f;
+}
+
+.ga-lineage-hero-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: max-content;
+  padding-top: 0;
+}
+
+.ga-lineage-action-proof {
+  flex-basis: 100%;
+  color: #a7bdd0;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.ga-lineage-hero-actions button,
+.ga-lineage-card-foot button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 32px;
+  border: 1px solid var(--ga-lineage-line);
+  border-radius: 6px;
+  background: rgba(15, 50, 76, 0.9);
+  color: #dcefff;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0 11px;
+  cursor: pointer;
+}
+
+.ga-lineage-hero-actions svg {
+  flex: 0 0 auto;
+  color: #b8def4;
+}
+
+.ga-lineage-hero-actions button.is-primary svg {
+  color: #b8def4;
+}
+
+.ga-lineage-hero-actions button.is-primary {
+  border-color: rgba(75, 153, 205, 0.5);
+  color: #dcefff;
+  background: rgba(15, 50, 76, 0.9);
+  box-shadow: inset 0 1px 0 rgba(180, 222, 244, 0.06);
+}
+
+.ga-lineage-action-panel {
+  display: grid;
+  gap: 10px;
+  max-width: 1120px;
+  padding: 12px 14px;
+  border: 1px solid rgba(74, 156, 206, 0.24);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(8, 31, 50, 0.96), rgba(5, 19, 33, 0.98));
+  box-shadow: 0 18px 42px rgba(0, 7, 20, 0.22);
+}
+
+.ga-lineage-action-panel header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ga-lineage-action-panel header div {
+  display: grid;
+  gap: 3px;
+}
+
+.ga-lineage-action-panel strong {
+  color: #f1f9ff;
+  font-size: 0.9rem;
+}
+
+.ga-lineage-action-panel span,
+.ga-lineage-action-panel p,
+.ga-lineage-version-list em {
+  margin: 0;
+  color: #9fb7c9;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.ga-lineage-action-panel button {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid rgba(74, 156, 206, 0.3);
+  border-radius: 6px;
+  background: rgba(15, 50, 76, 0.9);
+  color: #dcefff;
+  font: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.ga-lineage-version-list {
+  display: grid;
+  gap: 6px;
+}
+
+.ga-lineage-version-list div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 0.5fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(74, 156, 206, 0.18);
+  border-radius: 7px;
+  background: rgba(207, 239, 255, 0.04);
+}
+
+.ga-lineage-control-rail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 7px 10px;
+  border: 1px solid var(--ga-lineage-line);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(9, 37, 60, 0.96), rgba(8, 32, 52, 0.96));
+  box-shadow: inset 0 1px 0 rgba(130, 209, 255, 0.08);
+}
+
+.ga-lineage-notice-stack {
+  display: grid;
+  gap: 8px;
+  min-height: 0;
+}
+
+.ga-lineage-primary-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ga-lineage-primary-controls select,
+.ga-lineage-pill-button,
+.ga-lineage-graph-toolbar button,
+.ga-lineage-bottom-card button,
+.ga-lineage-rail-actions button,
+.ga-lineage-rail-tabs button {
+  min-height: 32px;
+  border: 1px solid var(--ga-lineage-line);
+  border-radius: 6px;
+  background: rgba(15, 50, 76, 0.9);
+  color: #dcefff;
+  font: inherit;
+  font-size: 0.84rem;
+}
+
+.ga-lineage-primary-controls select {
+  padding: 0 28px 0 10px;
+}
+
+.ga-lineage-pill-button {
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.ga-lineage-pill-button.is-active {
+  border-color: rgba(40, 209, 238, 0.78);
+  color: #ffffff;
+  background: linear-gradient(135deg, rgba(27, 120, 176, 0.96), rgba(15, 74, 125, 0.92));
+  box-shadow: 0 0 0 1px rgba(40, 209, 238, 0.16), 0 8px 22px rgba(22, 148, 217, 0.16);
+}
+
+.ga-lineage-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-height: 0;
+  width: min(100%, 1120px);
+}
+
+.ga-lineage-main-column {
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ga-lineage-summary-rail,
+.ga-lineage-graph-card,
+.ga-lineage-selected-rail,
+.ga-lineage-bottom-card,
+.ga-lineage-asof-panel,
+.ga-lineage-workflow-panel {
+  border: 1px solid var(--ga-lineage-line);
+  border-radius: 8px;
+  background: linear-gradient(180deg, var(--ga-lineage-panel), rgba(6, 31, 51, 0.96));
+  box-shadow: inset 0 1px 0 rgba(130, 209, 255, 0.08);
+}
+
+.ga-lineage-summary-rail {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 10px;
+  overflow: hidden;
+}
+
+.ga-lineage-summary-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 24px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(75, 153, 205, 0.2);
+}
+
+.ga-lineage-summary-heading strong {
+  color: #f0f8ff;
+  font-size: 0.86rem;
+}
+
+.ga-lineage-summary-heading span {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 1px solid rgba(128, 190, 226, 0.38);
+  border-radius: 999px;
+  color: #9ebbd0;
+  font-size: 0.66rem;
+}
+
+.ga-lineage-metric {
+  display: grid;
+  gap: 5px;
+  min-height: 72px;
+  padding: 10px;
+  border-radius: 7px;
+  background: rgba(14, 59, 88, 0.72);
+  border: 1px solid rgba(92, 166, 211, 0.22);
+}
+
+.ga-lineage-metric span {
+  color: var(--ga-lineage-muted);
+  font-size: 0.76rem;
+}
+
+.ga-lineage-metric strong {
+  align-self: end;
+  color: #f6fbff;
+  font-size: clamp(0.9rem, 1.05vw, 1.24rem);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.ga-lineage-metric.tone-blue strong { color: #4cb7ff; }
+.ga-lineage-metric.tone-cyan strong { color: #2fe3ed; }
+.ga-lineage-metric.tone-green strong { color: #41e59a; }
+.ga-lineage-metric.tone-warn strong { color: #ffb24b; }
+.ga-lineage-metric.tone-violet strong { color: #a78bfa; }
+
+.ga-lineage-graph-card {
+  display: grid;
+  grid-template-rows: auto minmax(300px, 1fr) auto auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.ga-lineage-graph-card:has(.ga-lineage-graph-body.is-prototype-topology) {
+  grid-template-rows: minmax(300px, 1fr) auto;
+}
+
+.ga-lineage-graph-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 24.5%, rgba(58, 152, 205, 0.18) 24.8%, transparent 25.2%),
+    linear-gradient(90deg, transparent 49.6%, rgba(58, 152, 205, 0.2) 49.9%, transparent 50.3%),
+    linear-gradient(90deg, transparent 74.5%, rgba(58, 152, 205, 0.18) 74.8%, transparent 75.2%);
+}
+
+.ga-lineage-graph-card:has(.ga-lineage-graph-body.is-prototype-topology)::before {
+  opacity: 0.42;
+  background:
+    linear-gradient(90deg, transparent 24.6%, rgba(58, 152, 205, 0.12) 24.9%, transparent 25.2%),
+    linear-gradient(90deg, transparent 49.6%, rgba(58, 152, 205, 0.14) 49.9%, transparent 50.2%),
+    linear-gradient(90deg, transparent 74.6%, rgba(58, 152, 205, 0.12) 74.9%, transparent 75.2%);
+}
+
+.ga-lineage-graph-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+
+.ga-lineage-canvas-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(88, 169, 218, 0.28);
+  border-radius: 8px;
+  background: rgba(3, 18, 31, 0.68);
+  color: #8daabe;
+}
+
+.ga-lineage-canvas-tools button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #dcefff;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.ga-lineage-canvas-tools button:hover {
+  background: rgba(51, 133, 184, 0.22);
+}
+
+.ga-lineage-canvas-tools button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.ga-lineage-canvas-tools span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 4px;
+  color: #8daabe;
+  font-size: 0.68rem;
+}
+
+.ga-lineage-canvas-tools span svg {
+  color: #9baec0;
+}
+
+.ga-lineage-graph-card-toolbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(75, 153, 205, 0.2);
+  background: rgba(7, 29, 48, 0.5);
+}
+
+.ga-lineage-graph-card:has(.ga-lineage-graph-body.is-prototype-topology) .ga-lineage-graph-card-toolbar {
+  position: absolute;
+  inset: 18px 16px auto 16px;
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.ga-lineage-graph-toolbar button,
+.ga-lineage-bottom-card button,
+.ga-lineage-rail-actions button {
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.ga-lineage-graph-toolbar button:hover,
+.ga-lineage-bottom-card button:hover,
+.ga-lineage-rail-actions button:hover,
+.ga-lineage-rail-tabs button:hover {
+  border-color: rgba(58, 199, 240, 0.58);
+  background: rgba(23, 93, 135, 0.92);
+}
+
+.ga-lineage-graph-search {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(75, 153, 205, 0.2);
+  background: rgba(5, 20, 35, 0.94);
+}
+
+.ga-lineage-graph-search label {
+  display: grid;
+  gap: 5px;
+}
+
+.ga-lineage-graph-search label span {
+  color: #7e9aad;
+  font-size: 0.6rem;
+  font-weight: 760;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ga-lineage-graph-search input {
+  min-height: 34px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid rgba(74, 156, 206, 0.34);
+  border-radius: 7px;
+  background: rgba(8, 31, 50, 0.96);
+  color: #f2fbff;
+  font: inherit;
+}
+
+.ga-lineage-graph-search > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: end;
+}
+
+.ga-lineage-graph-search > div button {
+  display: grid;
+  gap: 2px;
+  min-width: 150px;
+  max-width: 240px;
+  padding: 7px 9px;
+  border: 1px solid rgba(74, 156, 206, 0.24);
+  border-radius: 7px;
+  background: rgba(13, 52, 78, 0.56);
+  color: #eaf7ff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ga-lineage-graph-search strong,
+.ga-lineage-graph-search span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-lineage-graph-search strong {
+  font-size: 0.76rem;
+}
+
+.ga-lineage-graph-search p,
+.ga-lineage-graph-search button span {
+  margin: 0;
+  color: #94aec2;
+  font-size: 0.68rem;
+}
+
+.ga-lineage-graph-body {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ga-lineage-graph-bands {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(128px, 1fr));
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.ga-lineage-graph-body.is-prototype-topology {
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 24vw, 400px);
+  min-height: 800px;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands {
+  display: block;
+  min-height: 800px;
+  overflow: hidden;
+  transform: scale(var(--ga-lineage-zoom, 1));
+  transform-origin: center center;
+  transition: transform 160ms ease;
+  background:
+    radial-gradient(circle at center, rgba(86, 148, 178, 0.07) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(180deg, #050e18 0%, #06111d 52%, #061320 100%);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section {
+  position: absolute;
+  z-index: 4;
+  display: grid;
+  align-content: start;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) {
+  left: -4%;
+  top: 38.5%;
+  width: 21%;
+  gap: 10px;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(2) {
+  left: 23.5%;
+  top: 4.6%;
+  width: 18.8%;
+  gap: 130px;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(3) {
+  left: 49.5%;
+  top: 66.2%;
+  width: 18.8%;
+  gap: 36px;
+}
+
+.ga-lineage-graph-body.is-prototype-topology.is-prototype-mock .ga-lineage-graph-bands section:nth-of-type(3)::before {
+  content: "sales_prod · dlt_orders_ingest";
+  position: absolute;
+  left: -10%;
+  top: -74px;
+  z-index: 3;
+  width: 132%;
+  color: rgba(174, 197, 214, 0.48);
+  font-family: "SFMono-Regular", "Roboto Mono", ui-monospace, monospace;
+  font-size: 0.78rem;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-shadow: 0 0 16px rgba(74, 156, 206, 0.14);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(4) {
+  display: none;
+}
+
+.ga-lineage-graph-body.is-prototype-topology.is-thin-live-lineage .ga-lineage-graph-bands section:nth-of-type(1) {
+  left: 2%;
+  top: 36%;
+  width: 18.5%;
+}
+
+.ga-lineage-graph-body.is-prototype-topology.is-thin-live-lineage .ga-lineage-graph-bands section:nth-of-type(2) {
+  left: 24%;
+  top: 7%;
+  width: 19%;
+}
+
+.ga-lineage-graph-body.is-prototype-topology.is-thin-live-lineage .ga-lineage-graph-bands section:nth-of-type(3) {
+  left: 49%;
+  top: 62%;
+  width: 19%;
+}
+
+.ga-lineage-graph-body.is-prototype-topology.is-thin-live-lineage .ga-lineage-graph-bands section:nth-of-type(4) {
+  display: grid;
+  left: 76%;
+  top: 6%;
+  width: 19%;
+}
+
+.ga-lineage-graph-body.is-prototype-topology.is-thin-live-lineage .ga-lineage-graph-bands section:nth-of-type(5) {
+  left: 76%;
+  top: 45%;
+  width: 19%;
+}
+
+.ga-lineage-graph-body.is-prototype-topology.is-thin-live-lineage .ga-lineage-node.is-focus {
+  min-height: 118px;
+}
+
+.ga-lineage-graph-body.is-prototype-topology.is-thin-live-lineage .ga-lineage-empty-slot {
+  min-height: 112px;
+  background: rgba(2, 20, 35, 0.34);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(5) {
+  left: 76%;
+  top: 3%;
+  width: 19%;
+  gap: 50px;
+}
+
+.ga-lineage-graph-body.is-prototype-topology.is-thin-live-lineage .ga-lineage-graph-bands section:nth-of-type(5) {
+  top: 45%;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) .ga-lineage-node:nth-of-type(n + 3),
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(2) .ga-lineage-node:nth-of-type(n + 4),
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(3) .ga-lineage-node:nth-of-type(n + 3),
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(5) .ga-lineage-node:nth-of-type(n + 4) {
+  display: none;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.ga-lineage-edge-overlay {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.ga-lineage-edge-overlay path {
+  fill: none;
+  stroke: rgba(92, 199, 255, 0.84);
+  stroke-width: 2.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  marker-end: url("#ga-lineage-arrow");
+  filter: drop-shadow(0 0 10px rgba(92, 199, 255, 0.42));
+}
+
+.ga-lineage-edge-overlay path.is-muted {
+  stroke: rgba(92, 199, 255, 0.50);
+}
+
+.ga-lineage-edge-overlay path.is-boundary {
+  stroke: rgba(92, 199, 255, 0.68);
+}
+
+.ga-lineage-edge-overlay marker path {
+  fill: rgba(92, 199, 255, 0.82);
+  stroke: none;
+  filter: none;
+}
+
+.ga-lineage-graph-bands section {
+  display: grid;
+  position: relative;
+  z-index: 3;
+  align-content: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 300px;
+  padding: 18px 12px;
+  border-right: 1px solid rgba(58, 152, 205, 0.12);
+  background: rgba(18, 59, 90, 0.14);
+}
+
+.ga-lineage-graph-bands section:nth-of-type(even) {
+  background: rgba(15, 50, 78, 0.22);
+}
+
+.ga-lineage-graph-bands h2 {
+  margin: 0;
+  color: #a6c4dc;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.ga-lineage-node {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 10px 8px;
+  border: 1px solid rgba(78, 163, 214, 0.32);
+  border-radius: 7px;
+  background: linear-gradient(135deg, rgba(11, 53, 82, 0.98), rgba(9, 39, 65, 0.96));
+  color: #eef8ff;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(0, 7, 16, 0.18);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node {
+  min-height: 300px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 15px 16px 12px;
+  border-color: rgba(74, 167, 224, 0.56);
+  background: linear-gradient(180deg, rgba(7, 39, 63, 0.98), rgba(4, 25, 43, 0.98));
+  box-shadow: 0 18px 48px rgba(0, 7, 18, 0.32), inset 0 1px 0 rgba(145, 218, 255, 0.1);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node.is-focus {
+  min-height: 118px;
+  border-color: rgba(79, 206, 250, 0.84);
+  background: linear-gradient(180deg, rgba(9, 58, 88, 0.98), rgba(5, 32, 55, 0.98));
+  box-shadow:
+    0 0 0 1px rgba(83, 219, 255, 0.22),
+    0 0 32px rgba(65, 190, 244, 0.24),
+    0 18px 48px rgba(0, 7, 18, 0.34),
+    inset 0 1px 0 rgba(145, 218, 255, 0.16);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node.is-selected {
+  border-color: rgba(83, 219, 255, 0.92);
+  box-shadow:
+    0 0 0 1px rgba(83, 219, 255, 0.22),
+    0 0 34px rgba(65, 190, 244, 0.22),
+    0 18px 48px rgba(0, 7, 18, 0.34),
+    inset 0 1px 0 rgba(145, 218, 255, 0.16);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-copy strong {
+  font-size: 0.95rem;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-copy span,
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-type {
+  font-size: 0.7rem;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-columns {
+  margin-top: 8px;
+  gap: 5px;
+  align-self: start;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-columns span {
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  font-size: 0.62rem;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-type {
+  display: none;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) .ga-lineage-node,
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(3) .ga-lineage-node,
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(5) .ga-lineage-node:nth-of-type(3) {
+  min-height: 76px;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) .ga-lineage-node {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  justify-items: center;
+  gap: 8px;
+  padding: 13px 14px 12px;
+  text-align: center;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) .ga-lineage-node-icon {
+  margin: 0 auto;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) .ga-lineage-node-copy span {
+  display: none;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) .ga-lineage-node-copy {
+  justify-items: center;
+  width: 100%;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) .ga-lineage-node-copy strong {
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(2) .ga-lineage-node:nth-of-type(3) {
+  position: absolute;
+  left: 140%;
+  top: 150px;
+  width: 100%;
+  min-height: 330px;
+  opacity: 0.42;
+  transform: none;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(5) .ga-lineage-node:nth-of-type(2) {
+  opacity: 0.56;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(2) .ga-lineage-node:nth-of-type(1) {
+  min-height: 330px;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(2) .ga-lineage-node:nth-of-type(2) {
+  min-height: 270px;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) .ga-lineage-node-columns,
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(3) .ga-lineage-node-columns,
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(5) .ga-lineage-node:nth-of-type(3) .ga-lineage-node-columns {
+  display: none;
+}
+
+.ga-lineage-node.is-focus {
+  min-height: 104px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  background: linear-gradient(180deg, rgba(9, 58, 88, 0.98), rgba(5, 32, 55, 0.98));
+  border-color: rgba(65, 225, 246, 0.86);
+  box-shadow: 0 0 0 1px rgba(44, 230, 255, 0.22), 0 18px 36px rgba(14, 159, 219, 0.24);
+}
+
+.ga-lineage-node.is-transform .ga-lineage-node-icon {
+  background: #a78bfa;
+}
+
+.ga-lineage-node.is-downstream .ga-lineage-node-icon {
+  background: #36d399;
+}
+
+.ga-lineage-node.is-upstream .ga-lineage-node-icon {
+  background: #40bfff;
+}
+
+.ga-lineage-node-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: #36d4ee;
+  box-shadow: 0 0 18px rgba(54, 212, 238, 0.35);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-icon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(76, 191, 242, 0.72);
+  background: rgba(4, 24, 42, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(76, 191, 242, 0.08), 0 0 18px rgba(66, 196, 245, 0.18);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-icon::before {
+  content: "";
+  width: 13px;
+  height: 13px;
+  border: 1px solid #55c9ff;
+  border-radius: 2px;
+  background:
+    linear-gradient(90deg, transparent 46%, rgba(85, 201, 255, 0.85) 46% 54%, transparent 54%),
+    linear-gradient(180deg, transparent 46%, rgba(85, 201, 255, 0.85) 46% 54%, transparent 54%);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node.is-transform .ga-lineage-node-icon,
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node.is-peer .ga-lineage-node-icon {
+  border-color: rgba(246, 180, 43, 0.68);
+  background: rgba(24, 25, 32, 0.92);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node.is-transform .ga-lineage-node-icon::before,
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node.is-peer .ga-lineage-node-icon::before {
+  width: 9px;
+  height: 14px;
+  border-color: #f1ba3a;
+  background: linear-gradient(90deg, transparent 40%, rgba(241, 186, 58, 0.9) 40% 60%, transparent 60%);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) .ga-lineage-node-icon {
+  border-color: rgba(69, 210, 218, 0.72);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) .ga-lineage-node-icon::before {
+  width: 15px;
+  height: 15px;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 50% 18%, #4dd6df 0 2px, transparent 2.7px),
+    radial-gradient(circle at 22% 78%, #4dd6df 0 2px, transparent 2.7px),
+    radial-gradient(circle at 78% 78%, #4dd6df 0 2px, transparent 2.7px),
+    linear-gradient(145deg, transparent 0 45%, rgba(77, 214, 223, 0.95) 46% 54%, transparent 55%),
+    linear-gradient(35deg, transparent 0 45%, rgba(77, 214, 223, 0.95) 46% 54%, transparent 55%);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node.is-downstream .ga-lineage-node-icon {
+  border-color: rgba(76, 191, 242, 0.72);
+  background: rgba(4, 24, 42, 0.92);
+}
+
+.ga-lineage-node-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ga-lineage-node-copy strong,
+.ga-lineage-node-copy span,
+.ga-lineage-node-type,
+.ga-lineage-node-columns span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-lineage-node-copy strong {
+  color: #ffffff;
+  font-size: 0.9rem;
+  line-height: 1.15;
+}
+
+.ga-lineage-node-copy span,
+.ga-lineage-node-type {
+  color: #a9c4d8;
+  font-size: 0.72rem;
+}
+
+.ga-lineage-node-type {
+  justify-self: end;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(121, 202, 245, 0.25);
+  background: rgba(2, 20, 35, 0.34);
+}
+
+.ga-lineage-node-columns {
+  grid-column: 2 / -1;
+  display: grid;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.ga-lineage-node-columns span {
+  max-width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  gap: 5px;
+  align-items: center;
+  padding: 1px 0;
+  border-radius: 5px;
+  color: #d6efff;
+  background: transparent;
+  font-size: 0.64rem;
+}
+
+.ga-lineage-node-columns b {
+  display: inline-grid;
+  min-width: 17px;
+  min-height: 13px;
+  place-items: center;
+  border-radius: 3px;
+  color: #54e4f3;
+  font-size: 0.5rem;
+  font-weight: 760;
+  line-height: 1;
+}
+
+.ga-lineage-node-columns b.is-pk {
+  background: rgba(244, 189, 62, 0.24);
+  color: #ffd166;
+}
+
+.ga-lineage-node-columns b.is-fk {
+  background: rgba(139, 113, 246, 0.34);
+  color: #c2b5ff;
+}
+
+.ga-lineage-node-columns b.is-metric {
+  color: #67ecff;
+}
+
+.ga-lineage-node-columns em {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  color: #f2fbff;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-lineage-node-columns i {
+  flex: 0 0 auto;
+  display: inline-grid;
+  min-width: 17px;
+  min-height: 13px;
+  place-items: center;
+  border-radius: 3px;
+  font-size: 0.5rem;
+  font-style: normal;
+  font-weight: 760;
+  line-height: 1;
+}
+
+.ga-lineage-node-columns i.is-pk {
+  background: rgba(244, 189, 62, 0.24);
+  color: #ffd166;
+}
+
+.ga-lineage-node-columns i.is-fk {
+  background: rgba(139, 113, 246, 0.34);
+  color: #c2b5ff;
+}
+
+.ga-lineage-node-columns small {
+  color: #87a8bc;
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ga-lineage-node-columns .ga-lineage-node-columns-more {
+  grid-template-columns: 1fr;
+  color: #8aa8bf;
+  font-style: italic;
+}
+
+.ga-lineage-node-meta {
+  grid-column: 2 / -1;
+  display: flex;
+  gap: 8px;
+  color: #87a8bf;
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-meta {
+  align-self: end;
+  width: 100%;
+  padding-top: 7px;
+  border-top: 1px solid rgba(74, 156, 206, 0.16);
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-meta span::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(135, 168, 188, 0.62);
+  border-radius: 2px;
+  opacity: 0.76;
+}
+
+.ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-meta span + span::before {
+  border-radius: 999px;
+  background: radial-gradient(circle at center, rgba(135, 168, 188, 0.7) 0 1px, transparent 1.5px);
+}
+
+.ga-lineage-details-panel {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-width: 0;
+  padding: 22px 18px;
+  border-left: 1px solid rgba(74, 156, 206, 0.24);
+  background:
+    linear-gradient(180deg, rgba(5, 18, 31, 0.96), rgba(3, 12, 22, 0.98));
+  box-shadow: inset 14px 0 34px rgba(0, 5, 15, 0.26);
+}
+
+.ga-lineage-details-heading {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.ga-lineage-details-icon {
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(92, 199, 255, 0.35);
+  border-radius: 8px;
+  background: rgba(12, 65, 96, 0.7);
+}
+
+.ga-lineage-details-icon::before {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: 9px;
+  border: 1px solid #5fd6ff;
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, transparent 43%, #5fd6ff 43% 57%, transparent 57%),
+    linear-gradient(180deg, transparent 43%, #5fd6ff 43% 57%, transparent 57%);
+  opacity: 0.9;
+}
+
+.ga-lineage-details-heading span {
+  color: #8aa8bf;
+  font-size: 0.62rem;
+  font-weight: 760;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.ga-lineage-details-heading strong {
+  display: block;
+  margin-top: 6px;
+  color: #ffffff;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.ga-lineage-details-heading small {
+  display: block;
+  margin-top: 3px;
+  color: #8aa8bf;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.ga-lineage-details-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(74, 156, 206, 0.18);
+  border-radius: 8px;
+  background: rgba(207, 239, 255, 0.04);
+}
+
+.ga-lineage-details-stats div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.ga-lineage-details-stats dt {
+  color: #7f9aae;
+  font-size: 0.58rem;
+  font-weight: 760;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.ga-lineage-details-stats dd {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 760;
+  overflow-wrap: anywhere;
+}
+
+.ga-lineage-details-stats dd small {
+  color: #7f9aae;
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ga-lineage-details-proof {
+  margin: -4px 0 0;
+  color: #f0c86a;
+  font-size: 0.61rem;
+  line-height: 1.35;
+}
+
+.ga-lineage-details-panel section {
+  display: grid;
+  gap: 7px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(74, 156, 206, 0.14);
+}
+
+.ga-lineage-details-panel h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+  color: #8aa8bf;
+  font-size: 0.62rem;
+  font-weight: 760;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.ga-lineage-details-panel h3 span {
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+
+.ga-lineage-details-panel h3 b {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(42, 142, 194, 0.38);
+  color: #7dd9ff;
+  font-size: 0.58rem;
+  letter-spacing: 0;
+}
+
+.ga-lineage-details-panel button,
+.ga-lineage-details-panel section > div {
+  width: 100%;
+  display: grid;
+  gap: 3px;
+  padding: 7px 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(74, 156, 206, 0.12);
+  background: transparent;
+  color: #dcefff;
+  font: inherit;
+  text-align: left;
+}
+
+.ga-lineage-details-panel button {
+  cursor: pointer;
+}
+
+.ga-lineage-details-panel button:hover {
+  color: #ffffff;
+}
+
+.ga-lineage-details-panel section span {
+  color: #e8f7ff;
+  font-size: 0.76rem;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-lineage-details-panel section button small,
+.ga-lineage-details-panel p {
+  margin: 0;
+  color: #8aa8bf;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ga-lineage-node-types {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 13px;
+  row-gap: 7px;
+  min-height: 60px;
+  padding: 10px 14px;
+  border-top: 1px solid rgba(75, 153, 205, 0.2);
+  background: rgba(4, 18, 31, 0.72);
+}
+
+.ga-lineage-node-types strong,
+.ga-lineage-node-types em {
+  color: #7e9aad;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 760;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ga-lineage-node-types span {
+  --ga-node-type-color: #42c8f5;
+  --ga-node-type-border: rgba(66, 200, 245, 0.78);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #a9c4d8;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.ga-lineage-node-types span::before {
+  content: "";
+  display: inline-grid;
+  width: 10px;
+  height: 10px;
+  margin-right: 0;
+  place-items: center;
+  border: 1px solid var(--ga-node-type-border);
+  border-radius: 2px;
+  background:
+    linear-gradient(90deg, transparent 43%, var(--ga-node-type-color) 43% 57%, transparent 57%),
+    linear-gradient(180deg, transparent 43%, var(--ga-node-type-color) 43% 57%, transparent 57%);
+  box-shadow: 0 0 10px rgba(66, 200, 245, 0.16);
+}
+
+.ga-lineage-node-types span[data-node-type="pipeline"]::before,
+.ga-lineage-node-types span[data-node-type="job"]::before {
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 22%, var(--ga-node-type-color) 0 1px, transparent 2px),
+    radial-gradient(circle at 25% 78%, var(--ga-node-type-color) 0 1px, transparent 2px),
+    radial-gradient(circle at 75% 78%, var(--ga-node-type-color) 0 1px, transparent 2px),
+    linear-gradient(145deg, transparent 0 46%, var(--ga-node-type-color) 47% 54%, transparent 55%),
+    linear-gradient(35deg, transparent 0 46%, var(--ga-node-type-color) 47% 54%, transparent 55%);
+}
+
+.ga-lineage-node-types span[data-node-type="notebook"] {
+  --ga-node-type-color: #f1ba3a;
+  --ga-node-type-border: rgba(241, 186, 58, 0.8);
+}
+
+.ga-lineage-node-types span[data-node-type="notebook"]::before {
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, transparent 34%, var(--ga-node-type-color) 34% 45%, transparent 45%),
+    linear-gradient(180deg, transparent 15%, rgba(241, 186, 58, 0.24) 15% 85%, transparent 85%);
+}
+
+.ga-lineage-node-types span[data-node-type="saved-query"]::before,
+.ga-lineage-node-types span[data-node-type="volume"]::before {
+  border-radius: 999px / 45%;
+  background:
+    linear-gradient(180deg, var(--ga-node-type-color) 0 1px, transparent 1px 7px, var(--ga-node-type-color) 7px 8px, transparent 8px);
+}
+
+.ga-lineage-node-types span[data-node-type="dashboard"]::before,
+.ga-lineage-node-types span[data-node-type="model"]::before,
+.ga-lineage-node-types span[data-node-type="udf"]::before {
+  background:
+    radial-gradient(circle at 28% 28%, var(--ga-node-type-color) 0 1px, transparent 2px),
+    radial-gradient(circle at 72% 28%, var(--ga-node-type-color) 0 1px, transparent 2px),
+    radial-gradient(circle at 28% 72%, var(--ga-node-type-color) 0 1px, transparent 2px),
+    radial-gradient(circle at 72% 72%, var(--ga-node-type-color) 0 1px, transparent 2px);
+}
+
+.ga-lineage-node-types span[data-node-type="model"],
+.ga-lineage-node-types span[data-node-type="udf"] {
+  --ga-node-type-color: #a78bfa;
+  --ga-node-type-border: rgba(167, 139, 250, 0.74);
+}
+
+.ga-lineage-node-types span[data-node-type="restricted"] {
+  --ga-node-type-color: #f3bf45;
+  --ga-node-type-border: rgba(243, 191, 69, 0.8);
+}
+
+.ga-lineage-node-types span[data-node-type="restricted"]::before {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px 2px 3px 3px;
+  background: linear-gradient(180deg, transparent 0 28%, var(--ga-node-type-color) 28% 100%);
+  box-shadow: 0 -4px 0 -2px transparent, 0 0 10px rgba(243, 191, 69, 0.16);
+}
+
+.ga-lineage-node-types em {
+  margin-left: auto;
+  color: #5f7e92;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.ga-lineage-asof-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 14px;
+  color: #dcefff;
+}
+
+.ga-lineage-asof-panel div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ga-lineage-asof-panel div > svg {
+  flex: 0 0 auto;
+  align-self: center;
+  color: #4cb7ff;
+}
+
+.ga-lineage-asof-panel span {
+  color: #7e9aad;
+  font-size: 0.64rem;
+  font-weight: 760;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ga-lineage-asof-panel strong {
+  color: #f5fbff;
+  font-size: 0.9rem;
+}
+
+.ga-lineage-asof-panel em {
+  color: #4cb7ff;
+  font-size: 0.74rem;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.ga-lineage-asof-panel .ga-lineage-asof-actions {
+  justify-content: flex-end;
+  margin-left: auto;
+  gap: 8px;
+}
+
+.ga-lineage-asof-panel small {
+  color: #7e9aad;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+}
+
+.ga-lineage-asof-panel button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid rgba(88, 169, 218, 0.34);
+  border-radius: 8px;
+  background: rgba(15, 50, 76, 0.9);
+  color: #dcefff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ga-lineage-asof-panel button span {
+  color: #dcefff;
+  font-size: 0.74rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ga-lineage-workflow-panel {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.34fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 14px;
+  color: #dcefff;
+}
+
+.ga-lineage-workflow-panel header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ga-lineage-workflow-panel header div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ga-lineage-workflow-panel header span,
+.ga-lineage-workflow-panel dt {
+  color: #7e9aad;
+  font-size: 0.6rem;
+  font-weight: 760;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.ga-lineage-workflow-panel header strong {
+  color: #f2fbff;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.ga-lineage-workflow-panel header em {
+  flex: 0 0 auto;
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(104, 68, 19, 0.42);
+  color: #f7bd4f;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 760;
+}
+
+.ga-lineage-workflow-panel dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.ga-lineage-workflow-panel dl div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(74, 156, 206, 0.16);
+  border-radius: 7px;
+  background: rgba(2, 16, 30, 0.24);
+}
+
+.ga-lineage-workflow-panel dd {
+  margin: 0;
+  color: #cfe7f6;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.ga-lineage-workflow-panel p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #9fb7c9;
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.ga-lineage-focus-evidence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ga-lineage-focus-evidence span {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(32, 101, 145, 0.72);
+  color: #bfe9ff;
+  font-size: 0.7rem;
+}
+
+.ga-lineage-empty-slot,
+.ga-lineage-overlay-slot {
+  display: grid;
+  gap: 6px;
+  min-height: 96px;
+  padding: 12px;
+  border: 1px dashed rgba(96, 166, 210, 0.34);
+  border-radius: 7px;
+  background: rgba(2, 20, 35, 0.24);
+  color: #b5cadb;
+}
+
+.ga-lineage-empty-slot strong {
+  color: #d9efff;
+  font-size: 0.84rem;
+}
+
+.ga-lineage-empty-slot span {
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.ga-lineage-selected-rail {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ga-lineage-selected-header {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border-bottom: 1px solid rgba(75, 153, 205, 0.2);
+}
+
+.ga-lineage-selected-header span,
+.ga-lineage-bottom-card span,
+.ga-lineage-status {
+  color: var(--ga-lineage-muted);
+  font-size: 0.76rem;
+}
+
+.ga-lineage-selected-header strong {
+  color: #ffffff;
+  font-size: 1.02rem;
+  overflow-wrap: anywhere;
+}
+
+.ga-lineage-selected-header small {
+  color: #8aa8bf;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+}
+
+.ga-lineage-rail-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px 10px;
+}
+
+.ga-lineage-rail-tabs button {
+  min-height: 28px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.ga-lineage-rail-tabs button.is-active {
+  border-color: rgba(40, 209, 238, 0.72);
+  color: #ffffff;
+  background: rgba(24, 104, 153, 0.92);
+}
+
+.ga-lineage-rail-panel {
+  min-height: 0;
+  overflow: auto;
+  padding: 0 12px 10px;
+}
+
+.ga-lineage-rail-panel dl {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 10px;
+}
+
+.ga-lineage-rail-panel dl div {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.ga-lineage-rail-panel dt {
+  color: #8aa8bf;
+  font-size: 0.72rem;
+}
+
+.ga-lineage-rail-panel dd {
+  margin: 0;
+  color: #eaf8ff;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.ga-lineage-rail-panel p {
+  margin: 0;
+  color: #b5cadb;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.ga-lineage-impact-list,
+.ga-lineage-policy-list,
+.ga-lineage-history-list {
+  display: grid;
+  gap: 7px;
+}
+
+.ga-lineage-impact-list button,
+.ga-lineage-history-list div {
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(74, 156, 206, 0.22);
+  background: rgba(13, 52, 78, 0.54);
+  color: #eef8ff;
+  text-align: left;
+}
+
+.ga-lineage-impact-list small,
+.ga-lineage-history-list span {
+  color: #99b6ca;
+  font-size: 0.72rem;
+}
+
+.ga-lineage-policy-list span {
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(252, 181, 69, 0.34);
+  color: #ffd18b;
+  background: rgba(109, 67, 12, 0.28);
+  font-size: 0.74rem;
+}
+
+.ga-lineage-rail-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid rgba(75, 153, 205, 0.2);
+}
+
+.ga-lineage-rail-actions button {
+  min-height: 34px;
+  padding: 0 6px;
+  font-size: 0.72rem;
+}
+
+.ga-lineage-bottom-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.06fr) minmax(0, 0.74fr);
+  gap: 10px;
+  min-height: 0;
+}
+
+.ga-lineage-bottom-card {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-width: 0;
+  padding: 10px;
+  background: linear-gradient(180deg, rgba(7, 36, 58, 0.88), rgba(5, 27, 45, 0.9));
+}
+
+.ga-lineage-bottom-card.is-focused {
+  border-color: rgba(92, 198, 242, 0.52);
+  box-shadow: 0 0 0 1px rgba(92, 198, 242, 0.18), 0 18px 32px rgba(46, 153, 211, 0.14);
+}
+
+.ga-lineage-bottom-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(75, 153, 205, 0.18);
+}
+
+.ga-lineage-bottom-card header div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ga-lineage-bottom-card strong {
+  color: #eff9ff;
+  font-size: 0.84rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-lineage-bottom-card header em {
+  width: fit-content;
+  color: #ffd166;
+  font-size: 0.68rem;
+  font-style: normal;
+  font-weight: 720;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.ga-lineage-bottom-card button {
+  flex: 0 0 auto;
+  min-height: 30px;
+}
+
+.ga-lineage-impact-list,
+.ga-lineage-column-list {
+  display: grid;
+  gap: 5px;
+}
+
+.ga-lineage-column-list {
+  gap: 0;
+  padding: 5px 0;
+  border: 1px solid rgba(74, 156, 206, 0.18);
+  border-radius: 7px;
+  background:
+    linear-gradient(90deg, rgba(91, 202, 255, 0.1) 1px, transparent 1px) 19px 0 / 1px 100% no-repeat,
+    rgba(2, 16, 30, 0.34);
+}
+
+.ga-lineage-impact-list button,
+.ga-lineage-column-list button {
+  width: 100%;
+  display: grid;
+  gap: 2px 8px;
+  align-items: center;
+  padding: 7px 9px;
+  border: 1px solid rgba(74, 156, 206, 0.22);
+  border-radius: 7px;
+  background: rgba(8, 42, 67, 0.68);
+  color: #eef8ff;
+  text-align: left;
+}
+
+.ga-lineage-impact-list button {
+  position: relative;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  min-height: 54px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(8, 42, 67, 0.74);
+}
+
+.ga-lineage-impact-icon {
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(75, 207, 255, 0.42);
+  border-radius: 6px;
+  background: rgba(16, 83, 118, 0.66);
+  color: #65d9ff;
+  box-shadow: 0 0 16px rgba(85, 214, 255, 0.14);
+}
+
+.ga-lineage-impact-list button.is-model .ga-lineage-impact-icon {
+  border-color: rgba(166, 139, 250, 0.42);
+  color: #b69bff;
+  background: rgba(69, 46, 121, 0.5);
+}
+
+.ga-lineage-impact-list button.is-restricted .ga-lineage-impact-icon {
+  border-color: rgba(247, 189, 79, 0.48);
+  color: #ffd166;
+  background: rgba(104, 68, 19, 0.48);
+}
+
+.ga-lineage-impact-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ga-lineage-column-list button {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 42px;
+  padding: 6px 10px 6px 36px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(74, 156, 206, 0.14);
+  background: transparent;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.ga-lineage-column-list button:last-child {
+  border-bottom: 0;
+}
+
+.ga-lineage-column-list button::before,
+.ga-lineage-column-list button::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+}
+
+.ga-lineage-column-list button::before {
+  left: 17px;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid rgba(91, 202, 255, 0.22);
+}
+
+.ga-lineage-column-list button::after {
+  left: 17px;
+  top: 20px;
+  width: 12px;
+  border-top: 1px solid rgba(91, 202, 255, 0.36);
+}
+
+.ga-lineage-impact-copy strong,
+.ga-lineage-column-list span {
+  color: #f3fbff;
+  font-size: 0.78rem;
+  font-weight: 680;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-lineage-impact-list small,
+.ga-lineage-column-list small {
+  color: #99b6ca;
+  font-size: 0.68rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-lineage-impact-list small {
+  grid-column: auto;
+}
+
+.ga-lineage-column-list span {
+  font-size: 0.74rem;
+}
+
+.ga-lineage-column-list small {
+  color: #7897aa;
+  font-size: 0.63rem;
+}
+
+.ga-lineage-impact-provenance,
+.ga-lineage-column-provenance {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding-top: 0;
+  color: #8aa8bf;
+  font-size: 0.62rem;
+  line-height: 1.25;
+}
+
+.ga-lineage-impact-provenance span:first-child,
+.ga-lineage-column-provenance span:first-child {
+  color: #b9d5e8;
+  font-weight: 700;
+}
+
+.ga-lineage-impact-provenance span:last-child,
+.ga-lineage-column-provenance span:last-child {
+  color: #67cfff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.ga-lineage-impact-list em {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  justify-self: end;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(104, 68, 19, 0.42);
+  color: #f7bd4f;
+  font-style: normal;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.ga-lineage-impact-list em.tone-high-impact {
+  background: rgba(123, 46, 28, 0.58);
+  color: #ffd58b;
+}
+
+.ga-lineage-impact-list em.tone-medium {
+  background: rgba(104, 68, 19, 0.42);
+  color: #f7bd4f;
+}
+
+.ga-lineage-impact-list em.tone-restricted {
+  background: rgba(104, 68, 19, 0.5);
+  color: #ffd166;
+}
+
+.ga-lineage-card-foot {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-top: 1px solid rgba(75, 153, 205, 0.2);
+  background: rgba(7, 29, 48, 0.52);
+}
+
+.ga-lineage-graph-card:has(.ga-lineage-graph-body.is-prototype-topology) .ga-lineage-card-foot {
+  display: none;
+}
+
+.ga-lineage-card-foot span {
+  color: #dff4ff;
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ga-lineage-status {
+  min-height: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.ga-lineage-status button {
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid rgba(74, 156, 206, 0.28);
+  border-radius: 6px;
+  background: rgba(15, 50, 76, 0.9);
+  color: #dcefff;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+@media (min-width: 2200px) {
+  .ga-lineage-explorer > .ga-lineage-hero,
+  .ga-lineage-explorer > .ga-lineage-notice-stack,
+  .ga-lineage-explorer > .ga-lineage-workbench,
+  .ga-lineage-explorer > .ga-lineage-status {
+    width: min(1930px, calc(100% - 40px));
+    max-width: 1930px;
+    margin-left: max(42px, calc((100% - 2028px) / 2 - 6px));
+    margin-right: 0;
+    transform: none;
+  }
+
+  .ga-lineage-hero,
+  .ga-lineage-workbench {
+    max-width: 1930px;
+  }
+
+  .ga-lineage-graph-card {
+    grid-template-rows: auto minmax(470px, 1fr) auto;
+  }
+
+  .ga-lineage-graph-bands section {
+    align-content: space-evenly;
+    min-height: 470px;
+    gap: 14px;
+    padding-block: 20px;
+  }
+}
+
+@media (min-width: 1361px) and (max-width: 1560px) {
+  .ga-lineage-workbench {
+    width: min(100%, 1286px);
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+}
+
+@media (max-width: 1360px) {
+  .ga-lineage-graph-body.is-prototype-topology {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-details-panel {
+    border-top: 1px solid rgba(74, 156, 206, 0.22);
+  }
+}
+
+@media (max-width: 1320px), (max-height: 760px) {
+  .ga-lineage-explorer {
+    gap: 8px;
+    padding: 12px 14px 18px 16px;
+  }
+
+  .ga-lineage-hero {
+    min-height: 0;
+    align-items: flex-start;
+    margin-bottom: 14px;
+  }
+
+  .ga-lineage-hero h1 {
+    font-size: 1.55rem;
+  }
+
+  .ga-lineage-hero p {
+    margin-top: 5px;
+    font-size: 0.84rem;
+  }
+
+  .ga-lineage-primary-controls select,
+  .ga-lineage-pill-button {
+    min-height: 28px;
+    font-size: 0.76rem;
+  }
+
+  .ga-lineage-workbench {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .ga-lineage-graph-toolbar button,
+  .ga-lineage-bottom-card button,
+  .ga-lineage-rail-actions button {
+    min-height: 26px;
+    font-size: 0.7rem;
+  }
+
+  .ga-lineage-graph-bands {
+    grid-template-columns: repeat(5, minmax(118px, 1fr));
+  }
+
+  .ga-lineage-graph-body {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 270px);
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology {
+    grid-template-columns: minmax(0, 1fr) minmax(214px, 228px);
+    min-height: 458px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands {
+    min-height: 458px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-details-panel {
+    border-top: 1px solid rgba(74, 156, 206, 0.22);
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) {
+    left: 1.2%;
+    top: 35%;
+    width: 17.8%;
+    gap: 12px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(2) {
+    left: 21.5%;
+    top: 4.2%;
+    width: 21%;
+    gap: 28px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(3) {
+    left: 48.5%;
+    top: 56%;
+    width: 19.5%;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(5) {
+    left: 74%;
+    top: 4.2%;
+    width: 21.5%;
+    gap: 18px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-node {
+    min-height: 142px;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 6px;
+    padding: 8px 9px 7px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-icon::before {
+    width: 12px;
+    height: 12px;
+    margin: 6px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-copy strong {
+    font-size: 0.76rem;
+    line-height: 1.1;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-copy span,
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-type {
+    font-size: 0.55rem;
+    line-height: 1.2;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) .ga-lineage-node {
+    min-height: 72px;
+    padding: 10px 10px 9px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(2) .ga-lineage-node:nth-of-type(1) {
+    min-height: 214px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(2) .ga-lineage-node:nth-of-type(2) {
+    min-height: 186px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(2) .ga-lineage-node:nth-of-type(3) {
+    top: 92px;
+    min-height: 218px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-node.is-focus {
+    min-height: 110px;
+  }
+
+  .ga-lineage-graph-bands section {
+    min-height: 290px;
+    padding: 22px 10px;
+  }
+
+  .ga-lineage-node {
+    padding: 7px;
+    gap: 6px;
+  }
+
+  .ga-lineage-node.is-focus {
+    min-height: 92px;
+  }
+
+  .ga-lineage-node-copy strong {
+    font-size: 0.72rem;
+  }
+
+  .ga-lineage-node-columns {
+    display: none;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-columns {
+    display: grid;
+    gap: 2px;
+    margin-top: 3px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-columns span {
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+    gap: 3px;
+    font-size: 0.48rem;
+    min-height: 14px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-columns small {
+    display: none;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-node-columns span:nth-of-type(n + 7) {
+    display: none;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(1) .ga-lineage-node-columns,
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(3) .ga-lineage-node-columns,
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(5) .ga-lineage-node:nth-of-type(3) .ga-lineage-node-columns {
+    display: none;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology.is-prototype-mock .ga-lineage-graph-bands section:nth-of-type(3)::before {
+    display: none;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-details-panel {
+    gap: 7px;
+    padding: 12px 10px;
+    border-left: 1px solid rgba(74, 156, 206, 0.22);
+    border-top: 0;
+  }
+
+  .ga-lineage-details-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .ga-lineage-details-panel section {
+    gap: 5px;
+    padding-top: 8px;
+  }
+
+  .ga-lineage-details-panel section:nth-of-type(3) {
+    display: none;
+  }
+
+  .ga-lineage-node-types {
+    min-height: 44px;
+    padding: 8px 10px;
+    column-gap: 9px;
+  }
+
+  .ga-lineage-asof-panel {
+    min-height: 54px;
+    padding: 10px 12px;
+  }
+
+  .ga-lineage-workflow-panel {
+    padding: 10px 12px;
+  }
+
+  .ga-lineage-selected-header {
+    padding: 9px;
+  }
+
+  .ga-lineage-rail-tabs {
+    padding: 6px 8px;
+  }
+
+  .ga-lineage-rail-panel {
+    padding: 0 9px 8px;
+  }
+
+  .ga-lineage-rail-actions {
+    padding: 8px;
+  }
+
+  .ga-lineage-bottom-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .ga-lineage-bottom-card {
+    padding: 7px 8px;
+  }
+
+  .ga-lineage-bottom-card strong {
+    font-size: 0.76rem;
+  }
+}
+
+@media (max-width: 1320px), (max-height: 760px) {
+  .ga-lineage-graph-body.is-prototype-topology {
+    min-height: 418px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands {
+    min-height: 418px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(5) {
+    top: 3.2%;
+    gap: 10px;
+  }
+
+  .ga-lineage-graph-body.is-prototype-topology .ga-lineage-graph-bands section:nth-of-type(5) .ga-lineage-node:nth-of-type(3) {
+    min-height: 64px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .ga-lineage-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ga-lineage-graph-body {
+    grid-template-columns: 1fr;
+  }
+
+  .ga-lineage-details-panel {
+    border-left: 0;
+    border-top: 1px solid rgba(74, 156, 206, 0.24);
+  }
+
+  .ga-lineage-rail-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .ga-lineage-hero,
+  .ga-lineage-graph-card-toolbar,
+  .ga-lineage-bottom-card header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ga-lineage-hero-actions {
+    justify-content: flex-start;
+    padding-top: 0;
+  }
+}
+
 .gh-lineage-stage-shell {
   display: grid;
   gap: 0;

@@ -234,6 +234,19 @@ def _inbox_records(notifications_df: pd.DataFrame) -> List[Dict[str, Any]]:
     return records
 
 
+def _json_string_list(value: Any) -> List[str]:
+    raw = asset_service.normalize_str(value)
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        return []
+    if not isinstance(parsed, list):
+        return []
+    return [asset_service.normalize_str(item) for item in parsed if asset_service.normalize_str(item)]
+
+
 def _sorted_recent_requests(requests: List[Dict[str, Any]], limit: int = 3) -> List[Dict[str, Any]]:
     if not requests:
         return []
@@ -574,7 +587,7 @@ def _glossary_rows_from_frames(
                 glossary_asset_preview_map = {
                     str(term_key): [
                         _asset_preview_record(row)
-                        for _, row in inventory[inventory["fqn"].isin(group)].head(6).iterrows()
+                        for _, row in inventory[inventory["fqn"].isin(group)].head(8).iterrows()
                     ]
                     for term_key, group in glossary_asset_map.items()
                     if inventory is not None and not inventory.empty
@@ -602,7 +615,7 @@ def _glossary_rows_from_frames(
                     _asset_preview_record(row)
                     for _, row in glossary_inventory[
                         glossary_inventory["_glossary_term_key"] == term_key
-                    ].head(6).iterrows()
+                    ].head(8).iterrows()
                 ]
 
     glossary_rows: List[Dict[str, Any]] = []
@@ -663,6 +676,8 @@ def _glossary_rows_from_frames(
                 "parentTermId": asset_service.normalize_str(row.get("parent_term_id")) or None,
                 "term": term_name,
                 "definition": asset_service.normalize_str(row.get("definition")) or "No definition",
+                "synonyms": _json_string_list(row.get("synonyms_json")),
+                "synonyms_json": asset_service.normalize_str(row.get("synonyms_json")),
                 "domain": asset_service.normalize_str(row.get("domain")) or "Unassigned",
                 "ownerEmail": asset_service.normalize_str(row.get("owner_email")) or "Unassigned",
                 "status": asset_service.normalize_str(row.get("status")).title() or "Draft",
@@ -1100,6 +1115,7 @@ def patch_asset_owners(
     updated_by: str,
     replace: bool = True,
     actor_role: str = "reader",
+    request_id: str | None = None,
 ) -> List[Dict[str, str]]:
     normalized = _normalize_owner_assignments(owner_assignments)
     if replace:
@@ -1114,6 +1130,7 @@ def patch_asset_owners(
                         owner_email,
                         actor_email=updated_by,
                         actor_role=actor_role,
+                        request_id=request_id,
                     )
     for entry in normalized:
         store.upsert_owner(
@@ -1122,6 +1139,7 @@ def patch_asset_owners(
             entry["ownerType"],
             updated_by,
             actor_role=actor_role,
+            request_id=request_id,
         )
     _invalidate_asset_dependent_caches(asset_fqn)
     return normalized
@@ -1135,6 +1153,7 @@ def add_owner(
     owner_type: str,
     updated_by: str,
     actor_role: str = "reader",
+    request_id: str | None = None,
 ) -> List[Dict[str, str]]:
     return patch_asset_owners(
         store,
@@ -1148,6 +1167,7 @@ def add_owner(
         updated_by=updated_by,
         replace=False,
         actor_role=actor_role,
+        request_id=request_id,
     )
 
 

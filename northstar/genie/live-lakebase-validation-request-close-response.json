@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "method": "sql-store-update-after-live-api-timeout",
+  "requestId": "6824b7c0aafb47a2aa79488fa4e5bc50",
+  "status": "resolved",
+  "resolutionCode": "approved",
+  "reviewNote": "Closed stale Lakebase mirror validation request after route evidence passed.",
+  "verifiedRows": [
+    [
+      "6824b7c0aafb47a2aa79488fa4e5bc50",
+      "resolved",
+      "approved"
+    ]
+  ]
+}

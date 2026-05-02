@@ -1,0 +1,808 @@
+{
+  "generatedAt": "2026-04-28T12:52:10.856Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "assetFqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+  "mockApi": true,
+  "routeFilter": [
+    "lineage"
+  ],
+  "captures": [
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/datapact.governance_atlas_demo.customer_stewardship_queue",
+      "viewport": "1536x1024",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/prototype-lineage-before/lineage-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-lineage-before/lineage-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": false
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/lineage/datapact.governance_atlas_demo.customer_stewardship_queue",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 0% coverage Atlas AI End-to-End Lineage Explorer Understand the full data journey, dependencies, and downstream impact for any asset. Table Lineage Column Lineage Last 30 Days Last 7 Days Last 90 Days Impact Analysis Dependency View Policy View All Environments Production Development Focus Reset Export Share Full Screen LINEAGE REFRESH DEGRADED Table lineage rollout is not available in this workspace right now. Asset Summary i Upstream 0 Downstream 0 Broken Links 0 Confidence Score Unavailable Data Quality Unavailable Lineage Unavailable Table lineage rollout is not available in this workspace right now. datapact / governance_atlas_demo Open metadata record Open governance Path Tracer No observed multi-hop path beyond the selected asset. Trace Path Change History No lineage changes surfaced yet View History Selected Asset customer_stewardship_queue datapact.governance_atlas_demo.customer_stewardship_queue Details Impact Policies History Source datapact / governance_atlas_demo Type View Mode Table lineage Evidence Degraded Aggregated owner-transfer stewardship signal derived from Cotality transfer records. Open Asset 360 Open Governance Refocus Graph Request Stewardship Last 30 Days - Impact Analysis - All Environments - skyler@entrada.ai Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which do",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Table Lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column Lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Focus",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Reset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Share",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Full Screen",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open metadata record",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open governance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trace Path",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View History",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Details",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policies",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "History",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Asset 360",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Governance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus Graph",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Request Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/datapact.governance_atlas_demo.customer_stewardship_queue",
+      "viewport": "1440x900",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/prototype-lineage-before/lineage-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-lineage-before/lineage-1440x900-full.png",
+      "wait": {
+        "settleSelectorMatched": false
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/lineage/datapact.governance_atlas_demo.customer_stewardship_queue",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 900,
+          "documentWidth": 1440,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1440,
+          "bottom": 56,
+          "width": 1200,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 900,
+          "width": 240,
+          "height": 900
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1200,
+          "height": 844
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 844,
+          "clientHeight": 844,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 0% coverage Atlas AI End-to-End Lineage Explorer Understand the full data journey, dependencies, and downstream impact for any asset. Table Lineage Column Lineage Last 30 Days Last 7 Days Last 90 Days Impact Analysis Dependency View Policy View All Environments Production Development Focus Reset Export Share Full Screen LINEAGE REFRESH DEGRADED Table lineage rollout is not available in this workspace right now. Asset Summary i Upstream 0 Downstream 0 Broken Links 0 Confidence Score Unavailable Data Quality Unavailable Lineage Unavailable Table lineage rollout is not available in this workspace right now. datapact / governance_atlas_demo Open metadata record Open governance Path Tracer No observed multi-hop path beyond the selected asset. Trace Path Change History No lineage changes surfaced yet View History Selected Asset customer_stewardship_queue datapact.governance_atlas_demo.customer_stewardship_queue Details Impact Policies History Source datapact / governance_atlas_demo Type View Mode Table lineage Evidence Degraded Aggregated owner-transfer stewardship signal derived from Cotality transfer records. Open Asset 360 Open Governance Refocus Graph Request Stewardship Last 30 Days - Impact Analysis - All Environments - skyler@entrada.ai Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which do",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Table Lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column Lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Focus",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Reset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Share",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Full Screen",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open metadata record",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open governance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trace Path",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View History",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Details",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policies",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "History",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Asset 360",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Governance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus Graph",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Request Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/datapact.governance_atlas_demo.customer_stewardship_queue",
+      "viewport": "1280x720",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/prototype-lineage-before/lineage-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-lineage-before/lineage-1280x720-full.png",
+      "wait": {
+        "settleSelectorMatched": false
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/lineage/datapact.governance_atlas_demo.customer_stewardship_queue",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1280,
+          "height": 720,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 720,
+          "documentWidth": 1280,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1280,
+          "bottom": 56,
+          "width": 1040,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 720,
+          "width": 240,
+          "height": 720
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1040,
+          "height": 664
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 664,
+          "clientHeight": 664,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 0% coverage Atlas AI End-to-End Lineage Explorer Understand the full data journey, dependencies, and downstream impact for any asset. Table Lineage Column Lineage Last 30 Days Last 7 Days Last 90 Days Impact Analysis Dependency View Policy View All Environments Production Development Focus Reset Export Share Full Screen LINEAGE REFRESH DEGRADED Table lineage rollout is not available in this workspace right now. Asset Summary i Upstream 0 Downstream 0 Broken Links 0 Confidence Score Unavailable Data Quality Unavailable Lineage Unavailable Table lineage rollout is not available in this workspace right now. datapact / governance_atlas_demo Open metadata record Open governance Path Tracer No observed multi-hop path beyond the selected asset. Trace Path Change History No lineage changes surfaced yet View History Selected Asset customer_stewardship_queue datapact.governance_atlas_demo.customer_stewardship_queue Details Impact Policies History Source datapact / governance_atlas_demo Type View Mode Table lineage Evidence Degraded Aggregated owner-transfer stewardship signal derived from Cotality transfer records. Open Asset 360 Open Governance Refocus Graph Request Stewardship Last 30 Days - Impact Analysis - All Environments - skyler@entrada.ai Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which do",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Table Lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column Lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Focus",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Reset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Share",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Full Screen",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open metadata record",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open governance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trace Path",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View History",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Details",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policies",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "History",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Asset 360",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Governance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus Graph",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Request Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    }
+  ],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/lineage/datapact.governance_atlas_demo.customer_stewardship_queue"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/lineage/datapact.governance_atlas_demo.customer_stewardship_queue"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/lineage/datapact.governance_atlas_demo.customer_stewardship_queue"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/lineage/datapact.governance_atlas_demo.customer_stewardship_queue"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/lineage/datapact.governance_atlas_demo.customer_stewardship_queue"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/lineage/datapact.governance_atlas_demo.customer_stewardship_queue"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": false
+}

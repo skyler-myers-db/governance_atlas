@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  canOpenAssetRecord,
   canOpenLinkedAssetRecord,
   isUsableAssetDetail,
   useAssetAvailability,
@@ -8,6 +7,7 @@ import {
 } from "../hooks/useAssetDetail";
 import { useLineage } from "../hooks/useLineage";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
+import { fetchAtlasAiRecommendations } from "../lib/api";
 import { displayObjectType } from "../lib/assetPresentation";
 import { AssetTypeIcon } from "./primitives";
 import { OwnerAvatar, OwnerAvatarStack } from "./primitives/OwnerAvatar";
@@ -22,8 +22,7 @@ import {
   workspaceAccessReason,
 } from "../lib/capabilities";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
-import { applyTargetMockupFixtureToAll, isFixtureMode } from "../lib/discoveryFixture";
-import { SurfaceRail, SurfaceRailSection } from "./ShellLayoutPrimitives";
+import { SurfaceRailSection } from "./ShellLayoutPrimitives";
 import { EmptyStateBlock, InlineStatusBanner, WorkspaceStateCard } from "./ShellStatePrimitives";
 
 const DISCOVERY_RESULT_PAGE_SIZE = 60;
@@ -52,6 +51,41 @@ const DISCOVERY_QUERY_MATCH_OPTIONS = [
 ];
 const DISCOVERY_RECORD_UNAVAILABLE_REASON =
   "Visible in discovery, but the record cannot be opened with current permissions.";
+const DISCOVERY_AI_CACHE_PREFIX = "governance-atlas.discovery-ai.";
+const DISCOVERY_AI_CACHE_TTL_MS = 10 * 60 * 1000;
+const DISCOVERY_AI_REQUEST_TIMEOUT_MS = 60_000;
+
+function discoveryAiCacheKey(requestKey = "default", query = "") {
+  const raw = `${requestKey || "default"}::${String(query || "").trim()}`;
+  return `${DISCOVERY_AI_CACHE_PREFIX}${raw.replace(/[^a-z0-9._:-]+/gi, "_").slice(0, 180)}`;
+}
+
+function readDiscoveryAiCache(cacheKey = "") {
+  if (!cacheKey || typeof window === "undefined" || !window.sessionStorage) return null;
+  try {
+    const payload = JSON.parse(window.sessionStorage.getItem(cacheKey) || "null");
+    if (!payload?.response || !payload?.cachedAt) return null;
+    if (Date.now() - Number(payload.cachedAt) > DISCOVERY_AI_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(cacheKey);
+      return null;
+    }
+    return payload.response;
+  } catch {
+    return null;
+  }
+}
+
+function writeDiscoveryAiCache(cacheKey = "", response = null) {
+  if (!cacheKey || !response || typeof window === "undefined" || !window.sessionStorage) return;
+  try {
+    window.sessionStorage.setItem(
+      cacheKey,
+      JSON.stringify({ cachedAt: Date.now(), response }),
+    );
+  } catch {
+    // Browser storage failures should not block the live recommendation flow.
+  }
+}
 
 /**
  * Collapse long SDK error envelopes into a user-facing summary. Specifically,
@@ -384,6 +418,23 @@ function ownerLabel(owner) {
   return owner.name || owner.email || owner.title || "";
 }
 
+function ownerRoleLabel(owner) {
+  if (!owner || typeof owner !== "object") return "";
+  return String(
+    owner.ownerType ||
+      owner.owner_type ||
+      owner.role ||
+      owner.type ||
+      owner.title ||
+      "",
+  ).trim();
+}
+
+function ownerHasRole(owner, roleMatcher) {
+  const role = ownerRoleLabel(owner);
+  return Boolean(role && roleMatcher.test(role));
+}
+
 // Render an owner label (email or name) as "First Last" by titlecasing the
 // local-part of an email and splitting on separators.
 function prettyOwnerName(label = "") {
@@ -699,12 +750,17 @@ function FiltersPopover({
   bootstrap,
   facets,
   filters,
+  resultsCount = null,
   queryState = null,
   onDiscoveryStateChange,
   onClose,
   querySyntaxHint = "",
   supportedQueryFields = [],
 }) {
+  const numericResultsCount = Number(resultsCount);
+  const visibleCountLabel = Number.isFinite(numericResultsCount) && numericResultsCount >= 0
+    ? numericResultsCount.toLocaleString()
+    : "Unavailable";
   return (
     <div className="gh-filters-popover">
       <div className="gh-filters-popover-head">
@@ -714,14 +770,32 @@ function FiltersPopover({
         </button>
       </div>
       <div className="gh-filters-popover-grid">
-        {/* Structured Search Helper deliberately not rendered here —
-            operator 2026-04-19 round 5 flagged that the "Clear clause"
-            and "Insert into search" buttons "still don't seem to do
-            anything". Root cause: Insert into search was disabled
-            until the user typed a value, and the disabled state wasn't
-            visually obvious. The filter rail on the left + the global
-            search bar already cover every filtering need; removing the
-            query-builder panel removes the confusion entirely. */}
+        <DiscoveryQueryBuilder
+          activeQuery={filters.query || ""}
+          onDiscoveryStateChange={onDiscoveryStateChange}
+          queryState={queryState}
+          supportedFields={supportedQueryFields}
+          syntaxHint={querySyntaxHint}
+        />
+        <section className="gh-query-builder" aria-label="Deleted and inaccessible handling">
+          <div className="gh-filter-section-head">
+            <div className="gh-filter-title">Deleted and inaccessible assets</div>
+            <div className="gh-query-builder-context">
+              {visibleCountLabel} actor-visible result{visibleCountLabel === "1" ? "" : "s"}
+            </div>
+          </div>
+          <div className="gh-query-builder-note">
+            Discovery counts include only assets returned by the current actor-visible discovery payload. Deleted or inaccessible assets are not inferred into the result count.
+          </div>
+          <div className="gh-query-builder-actions">
+            <button className="gh-secondary-button" disabled title="Deleted asset search requires an authoritative deletion-state source." type="button">
+              Deleted assets unavailable
+            </button>
+            <button className="gh-secondary-button" disabled title="Inaccessible assets remain hidden until Databricks returns actor-visible metadata for them." type="button">
+              Inaccessible hidden
+            </button>
+          </div>
+        </section>
         <ToggleChipSection
           allLabel="All types"
           emptyMessage="Asset types populate from live discovery facets."
@@ -901,9 +975,9 @@ function DiscoveryResultCard({
       : workflowLabel === "IN REVIEW"
         ? "in-review"
         : "unknown";
-  // Coverage / trust score — honor the backend value honestly. No more 92%
+  // Metadata coverage score — honor the backend value honestly. No more 92%
   // fallback; if the governance backfill hasn't landed, the chip simply
-  // doesn't render so the card doesn't claim a trust level that isn't real.
+  // doesn't render so the card doesn't claim a coverage level that isn't real.
   const rawCoverage = Number.isFinite(Number(asset.coverageScore)) ? Math.round(Number(asset.coverageScore)) : null;
   const coverageScore = rawCoverage !== null && rawCoverage > 0 ? rawCoverage : null;
   const coverageTone = coverageScore === null
@@ -916,10 +990,10 @@ function DiscoveryResultCard({
   const coverageTier = coverageScore === null
     ? ""
     : coverageScore >= 75
-      ? "High Trust"
+      ? "High Coverage"
       : coverageScore >= 50
-        ? "Mid Trust"
-        : "Low Trust";
+        ? "Mid Coverage"
+        : "Low Coverage";
   const coverageLabel = coverageScore === null ? "" : `${coverageTier} ${coverageScore}%`;
   // Usage metrics from the asset service — queryCount = SQL + notebook runs,
   // producerCount = upstream jobs/pipelines, consumerCount = downstream
@@ -973,11 +1047,11 @@ function DiscoveryResultCard({
             type="checkbox"
           />
           <button
-            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            aria-label={isFavorite ? "Remove local favorite" : "Add local favorite"}
             aria-pressed={isFavorite}
             className={`gh-discovery-asset-card-star gh-row-action ${isFavorite ? "is-favorite" : ""}`}
             onClick={stop(() => onToggleFavorite?.(asset.fqn))}
-            title={isFavorite ? "Unfavorite" : "Favorite"}
+            title={isFavorite ? "Remove local browser favorite" : "Save local browser favorite"}
             type="button"
           >
             {isFavorite ? "★" : "☆"}
@@ -1291,7 +1365,7 @@ function SortDropdown({ options = [], value = "", onChange }) {
   return (
     <div className="gh-discovery-sort-inline">
       <span className="gh-field-label gh-field-label-inline" id="gh-discovery-sort-label">
-        Sort by
+        Sort:
       </span>
       <div className="gh-discovery-sort-anchor" ref={anchorRef}>
         <button
@@ -1612,6 +1686,1463 @@ function DiscoveryBulkBar({ count, onClear, onAssignOwner, onAddTag, onAddGlossa
   );
 }
 
+function assetSourceLabel(asset) {
+  const fullPath = String(asset?.fullPath || asset?.fqn || "").trim();
+  if (fullPath && fullPath !== String(asset?.name || "").trim()) return fullPath;
+  const catalog = String(asset?.catalog || "").trim();
+  const schema = String(asset?.schema || "").trim();
+  const objectType = displayObjectType(asset) || "Asset";
+  return [catalog || objectType, schema].filter(Boolean).join(" · ");
+}
+
+function certificationLabel(asset) {
+  const value = String(asset?.certification || "").trim();
+  if (!value || value === "Unassigned") return "";
+  return value;
+}
+
+function sensitivityLabel(asset) {
+  const value = String(asset?.sensitivity || "").trim();
+  if (!value || value === "Unassigned") return "";
+  return value;
+}
+
+function criticalityLabel(asset) {
+  const value = String(asset?.criticality || asset?.businessCriticality || "").trim();
+  if (!value || value === "Unassigned") return "";
+  return value;
+}
+
+function coveragePercent(asset) {
+  const value = Number(asset?.coverageScore);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function glossaryLabels(asset) {
+  return Array.isArray(asset?.glossaryTerms)
+    ? asset.glossaryTerms.map((term) => term?.label || term?.name || term).filter(Boolean)
+    : [];
+}
+
+function sensitivityToneClass(value = "") {
+  const normalized = String(value || "").toLowerCase();
+  if (/restricted|pii|personal|critical/.test(normalized)) return "restricted";
+  if (/confidential/.test(normalized)) return "confidential";
+  if (/internal/.test(normalized)) return "internal";
+  return "";
+}
+
+function assetHasCdeSignal(asset) {
+  const values = [
+    asset?.cde,
+    asset?.isCde,
+    asset?.criticalDataElement,
+    ...(Array.isArray(asset?.tagLabels) ? asset.tagLabels : []),
+    ...(Array.isArray(asset?.tags) ? asset.tags : []),
+  ];
+  return values.some((value) => value === true || /^cde$/i.test(String(value || "").trim()));
+}
+
+function assetHasPiiSignal(asset) {
+  const values = [
+    asset?.pii,
+    asset?.containsPii,
+    asset?.sensitivity,
+    ...(Array.isArray(asset?.tagLabels) ? asset.tagLabels : []),
+    ...(Array.isArray(asset?.tags) ? asset.tags : []),
+  ];
+  return values.some((value) => value === true || /\bpii\b|personal/i.test(String(value || "")));
+}
+
+function numberOrNull(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function compactCount(value, suffix = "") {
+  const number = numberOrNull(value);
+  if (number === null || number < 0) return "";
+  if (number >= 1_000_000_000) return `${(number / 1_000_000_000).toFixed(number >= 10_000_000_000 ? 0 : 1)}B${suffix}`;
+  if (number >= 1_000_000) return `${(number / 1_000_000).toFixed(number >= 10_000_000 ? 0 : 1)}M${suffix}`;
+  if (number >= 1_000) return `${Math.round(number).toLocaleString()}${suffix}`;
+  return `${Math.round(number).toLocaleString()}${suffix}`;
+}
+
+function prototypeSafeDiscoveryText(value = "") {
+  return String(value || "")
+    .replace(/\bAuthoritative\b/gi, "Prototype")
+    .replace(/\bSource-of-record\b/gi, "Prototype reference")
+    .replace(/\bsource-of-record\b/gi, "prototype reference");
+}
+
+function discoveryResultMetadata(asset, primaryOwner = "", sourceAuthoritative = true) {
+  const owner = prettyOwnerName(primaryOwner);
+  if (!sourceAuthoritative) {
+    const freshness = String(asset?.freshness || asset?.freshnessLabel || asset?.updatedAgo || "").trim();
+    const queries = compactCount(asset?.queries30d || asset?.queryCount30d || asset?.usage?.queries30d, " queries / 30d");
+    const upstream = numberOrNull(asset?.upstream || asset?.upstreamCount);
+    const downstream = numberOrNull(asset?.downstream || asset?.downstreamCount);
+    const lineage =
+      upstream !== null || downstream !== null
+        ? `${upstream ?? 0} up / ${downstream ?? 0} down`
+        : "";
+    const rows = typeof asset?.rows === "string" && asset.rows !== "-"
+      ? asset.rows
+      : compactCount(asset?.rows || asset?.rowCount, " rows");
+    return [
+      owner ? { key: "owner", label: owner } : null,
+      freshness ? { key: "freshness", label: `Fresh ${freshness}` } : null,
+      queries ? { key: "usage", label: queries } : null,
+      lineage ? { key: "lineage", label: lineage } : null,
+      rows ? { key: "rows", label: rows } : null,
+      { key: "prototype-proof", label: "Prototype fixture - not live proof", hidden: true },
+    ].filter(Boolean);
+  }
+  const freshness = String(asset?.freshness || asset?.freshnessLabel || asset?.updatedAgo || "").trim();
+  const queries = compactCount(asset?.queries30d || asset?.queryCount30d || asset?.usage?.queries30d, " queries / 30d");
+  const upstream = numberOrNull(asset?.upstream || asset?.upstreamCount);
+  const downstream = numberOrNull(asset?.downstream || asset?.downstreamCount);
+  const lineage =
+    upstream !== null || downstream !== null
+      ? `${upstream ?? 0} up / ${downstream ?? 0} down`
+      : "";
+  const rows = typeof asset?.rows === "string" && asset.rows !== "—"
+    ? asset.rows
+    : compactCount(asset?.rows || asset?.rowCount, " rows");
+  return [owner, freshness ? `Fresh ${freshness}` : "", queries, lineage, rows].filter(Boolean);
+}
+
+function ownerLabelsForAsset(asset) {
+  return Array.isArray(asset?.owners) ? asset.owners.map((owner) => ownerLabel(owner)).filter(Boolean) : [];
+}
+
+function ownerLabelForRole(asset, roleMatcher) {
+  if (!Array.isArray(asset?.owners)) return "";
+  const owner = asset.owners.find((candidate) => ownerHasRole(candidate, roleMatcher));
+  return ownerLabel(owner);
+}
+
+function columnPreviewForAsset(asset, limit = 4) {
+  return Array.isArray(asset?.columns)
+    ? asset.columns
+        .map((column) => ({
+          name: String(column?.name || "").trim(),
+          type: String(column?.type || column?.dataType || "").trim(),
+          keyEvidence: Boolean(
+            column?.isPrimaryKey ||
+            column?.primaryKey ||
+            column?.isPartitionKey ||
+            /primary|foreign|key|identifier|pii|cde/i.test(String(column?.constraint || column?.tags || column?.name || "")),
+          ),
+        }))
+        .filter((column) => column.name)
+        .slice(0, limit)
+    : [];
+}
+
+function tagLabels(asset) {
+  const entries = Array.isArray(asset?.tagEntries)
+    ? asset.tagEntries.map((tag) => tag?.label || tag?.name || tag?.value)
+    : [];
+  const tags = Array.isArray(asset?.tags)
+    ? asset.tags.map((tag) => (typeof tag === "string" ? tag : tag?.label || tag?.name || tag?.value))
+    : [];
+  return [...new Set([...entries, ...tags].map((tag) => String(tag || "").trim()).filter(Boolean))];
+}
+
+function previewMetricItems({ asset, primaryOwner, stewardOwner, coverage, qualityScore, totalColumnCount, sourceAuthoritative = true }) {
+  const freshness =
+    String(asset?.freshness || asset?.freshnessLabel || asset?.updatedAgo || "").trim() ||
+    relativeTime(asset?.updatedAt || asset?.lastModified);
+  const rawRows = asset?.rows ?? asset?.rowCount;
+  const rowCount = Number.isFinite(Number(rawRows))
+    ? Number(rawRows).toLocaleString()
+    : typeof rawRows === "string" && rawRows !== "—"
+      ? rawRows
+      : "";
+  const usage =
+    compactCount(asset?.queries30d || asset?.queryCount30d || asset?.usage?.queries30d || asset?.queryCount, " queries");
+  return [
+    {
+      label: "Owner",
+      value: primaryOwner ? prettyOwnerName(primaryOwner) : "Unassigned",
+      unavailable: !primaryOwner,
+    },
+    {
+      label: "Steward team",
+      value: stewardOwner ? prettyOwnerName(stewardOwner) : "Unavailable",
+      unavailable: !stewardOwner,
+    },
+    {
+      label: "Freshness",
+      value: freshness && freshness !== "—" ? freshness : "Unavailable",
+      unavailable: !freshness || freshness === "—",
+    },
+    {
+      label: "Quality score",
+      value: qualityScore !== null ? `${Math.round(qualityScore)} / 100` : "Unavailable",
+      unavailable: qualityScore === null,
+    },
+    {
+      label: "Rows",
+      value: rowCount || "Unavailable",
+      unavailable: !rowCount,
+    },
+    {
+      label: "Usage · 30d",
+      value: usage || "Unavailable",
+      unavailable: !usage,
+    },
+  ];
+}
+
+function resultTabDefinitions({ resultsCount = 0, assets = [], facets = {} }) {
+  const typeCount = (matchers) => {
+    const assetTypeFacets = /** @type {{ assetTypes?: unknown }} */ (facets).assetTypes;
+    const facetEntries = Array.isArray(assetTypeFacets) ? assetTypeFacets : [];
+    const facetTotal = facetEntries.reduce((sum, entry) => {
+      const value = String(entry?.value || "");
+      return matchers.some((matcher) => matcher.test(value)) ? sum + Number(entry?.count || 0) : sum;
+    }, 0);
+    if (facetTotal) return facetTotal;
+    return assets.filter((asset) => {
+      const value = `${displayObjectType(asset)} ${asset?.assetType || ""} ${asset?.objectType || ""}`;
+      return matchers.some((matcher) => matcher.test(value));
+    }).length;
+  };
+  return [
+    { key: "all", label: "Results", count: resultsCount || assets.length, types: [] },
+    {
+      key: "datasets",
+      label: "Datasets",
+      count: typeCount([/table/i, /view/i, /dataset/i]),
+      types: ["Delta Table", "Managed Table", "Materialized View", "View", "Streaming Table", "External Table"],
+    },
+    { key: "reports", label: "Reports", count: typeCount([/report/i]), types: ["Report"] },
+    { key: "dashboards", label: "Dashboards", count: typeCount([/dashboard/i]), types: ["Dashboard"] },
+    { key: "policies", label: "Policies", count: typeCount([/policy/i]), types: ["Policy"] },
+    { key: "glossary", label: "Glossary Terms", count: typeCount([/glossary/i, /term/i]), types: ["Glossary Term"] },
+  ];
+}
+
+function DiscoveryFilterSelect({
+  label,
+  value = "",
+  allLabel = "All",
+  options = [],
+  onChange,
+  disabled = false,
+  title = "",
+}) {
+  const normalizedOptions = [...new Set((options || []).filter(Boolean))];
+  return (
+    <label className="gh-discovery-filter-select">
+      <span>{label}</span>
+      <select
+        aria-label={label}
+        disabled={disabled}
+        onChange={(event) => onChange?.(event.target.value)}
+        title={title}
+        value={value || ""}
+      >
+        <option value="">{allLabel}</option>
+        {normalizedOptions.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function DiscoverySearchHero({
+  filters,
+  facets,
+  bootstrap,
+  onDiscoveryStateChange,
+  onOpenSavedSearches,
+  onOpenFilters,
+  onClearAll,
+  onAskAtlas,
+  atlasAiAvailable = true,
+  atlasAiLoading = false,
+  atlasAiUnavailableReason = "",
+  savedSearchesOpen = false,
+  advancedOpen = false,
+  ownerOptions = [],
+  ownerFilterValue = "",
+  onOwnerFilterChange,
+  sourceAuthoritative = true,
+}) {
+  const selectedOne = (values = []) => (Array.isArray(values) && values.length === 1 ? values[0] : "");
+  const setSingle = (key) => (value) =>
+    onDiscoveryStateChange((current) => ({
+      ...current,
+      [key]: value ? [value] : [],
+    }));
+  return (
+    <section className="gh-discovery-hero" aria-label="Discovery search">
+      <div className="gh-discovery-hero-copy">
+        <div className="ga-eyebrow">Discover</div>
+        <h1>Find trusted, governed data</h1>
+        <p>
+          {sourceAuthoritative
+            ? "Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed trust signals."
+            : "Search across catalogs, schemas, tables, columns, models, and glossary terms. Prototype results are permission-aware in shape and ranked by non-live trust fixtures."}
+        </p>
+      </div>
+      <div className="gh-discovery-search-row">
+        <label className="gh-discovery-search-box">
+          <span aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m16.5 16.5 4 4" />
+            </svg>
+          </span>
+          <input
+            aria-label="Search discovery assets"
+            onChange={(event) =>
+              onDiscoveryStateChange((current) => ({
+                ...current,
+                query: event.target.value,
+              }))
+            }
+            placeholder="Try: revenue, customer_id, churn, marisol, sox-relevant..."
+            value={filters.query || ""}
+          />
+        </label>
+        <button
+          aria-expanded={savedSearchesOpen}
+          className="gh-discovery-secondary-action"
+          onClick={onOpenSavedSearches}
+          type="button"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 4h12a1 1 0 0 1 1 1v15l-7-4-7 4V5a1 1 0 0 1 1-1Z" />
+          </svg>
+          <span>Saved searches</span>
+        </button>
+        <button
+          aria-expanded={advancedOpen}
+          className="gh-discovery-secondary-action"
+          onClick={onOpenFilters}
+          type="button"
+        >
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 5h16" />
+            <path d="M7 12h10" />
+            <path d="M10 19h4" />
+          </svg>
+          <span>Advanced</span>
+        </button>
+        <button
+          className="gh-discovery-ai-button"
+          disabled={atlasAiLoading || !atlasAiAvailable}
+          onClick={onAskAtlas}
+          title={!atlasAiAvailable ? atlasAiUnavailableReason : undefined}
+          type="button"
+        >
+          <span aria-hidden="true">✦</span>
+          <span>{atlasAiLoading ? "Asking Atlas AI" : "Ask Atlas AI"}</span>
+          <small>BETA</small>
+        </button>
+        <button
+          aria-label="Stack Filters"
+          className="gh-discovery-icon-button"
+          onClick={onOpenFilters}
+          title="Open detailed filters"
+          type="button"
+        >
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 7h16" />
+            <path d="M7 12h10" />
+            <path d="M10 17h4" />
+          </svg>
+        </button>
+      </div>
+      <div className="gh-discovery-filter-row">
+        <DiscoveryFilterSelect
+          allLabel="All Types"
+          label="Asset Type"
+          onChange={setSingle("types")}
+          options={facetValues(facets, "assetTypes", [], filters.types)}
+          value={selectedOne(filters.types)}
+        />
+        <DiscoveryFilterSelect
+          allLabel="All Catalogs"
+          label="Catalog"
+          onChange={setSingle("catalogs")}
+          options={facetValues(facets, "catalogs", [], filters.catalogs)}
+          value={selectedOne(filters.catalogs)}
+        />
+        <DiscoveryFilterSelect
+          allLabel="All Domains"
+          label="Domain"
+          onChange={setSingle("domains")}
+          options={facetValues(facets, "domains", [], filters.domains)}
+          value={selectedOne(filters.domains)}
+        />
+        <DiscoveryFilterSelect
+          allLabel="All Owners"
+          label="Owner"
+          onChange={onOwnerFilterChange}
+          options={ownerOptions}
+          value={ownerFilterValue}
+        />
+        <DiscoveryFilterSelect
+          allLabel="All"
+          label="Certification"
+          onChange={setSingle("certifications")}
+          options={facetValues(facets, "certifications", [], filters.certifications)}
+          value={selectedOne(filters.certifications)}
+        />
+        <DiscoveryFilterSelect
+          allLabel="All"
+          label="Sensitivity"
+          onChange={setSingle("sensitivities")}
+          options={facetValues(facets, "sensitivities", [], filters.sensitivities)}
+          value={selectedOne(filters.sensitivities)}
+        />
+        <DiscoveryFilterSelect
+          allLabel="Unavailable"
+          disabled
+          label="Quality"
+          onChange={() => {}}
+          options={[]}
+          title="Quality filters require persisted quality-run evidence."
+          value=""
+        />
+        <DiscoveryFilterSelect
+          allLabel="All"
+          label="Criticality"
+          onChange={setSingle("tiers")}
+          options={facetValues(facets, "tiers", [], filters.tiers)}
+          value={selectedOne(filters.tiers)}
+        />
+        <button className="gh-discovery-more-filters" onClick={onOpenFilters} type="button">
+          More Filters
+          <svg aria-hidden="true" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 7h16M7 12h10M10 17h4" />
+          </svg>
+        </button>
+        <button className="gh-discovery-clear-filters" onClick={onClearAll} type="button">
+          Clear All
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function PrototypeDiscoveryFilterRail({
+  filters,
+  facets,
+  assets = [],
+  resultsCount = 0,
+  onDiscoveryStateChange,
+}) {
+  const domainOptions = facetValues(facets, "domains", [], filters.domains || [])
+    .filter((option) => !/^all\s+domains$/i.test(String(option || "")))
+    .slice(0, 6);
+  const classificationOptions = facetValues(facets, "sensitivities", [], filters.sensitivities || [])
+    .filter((option) => !/^all\s+(sensitivit|classificat)/i.test(String(option || "")))
+    .slice(0, 4);
+  const certificationOptions = facetValues(facets, "certifications", ["Certified", "In Review", "Uncertified"], filters.certifications || [])
+    .filter((option) => !/^all\s+(certificat|workflow)/i.test(String(option || "")))
+    .slice(0, 4);
+  const activeCertifications = filters.certifications || [];
+  const activeDomains = filters.domains || [];
+  const activeClassifications = filters.sensitivities || [];
+  const totalCount = Number(resultsCount || assets.length || 0);
+  const appendAttributeQuery = (clause) => {
+    onDiscoveryStateChange((current) => ({
+      ...current,
+      query: appendDiscoveryQueryClause(current.query || "", clause, "AND"),
+    }));
+  };
+
+  return (
+    <aside className="gh-discovery-prototype-filter-rail" aria-label="Discovery filters">
+      <FilterRailGroup eyebrow="Certification" count={totalCount}>
+        {certificationOptions.map((option) => {
+          const active = activeCertifications.includes(option);
+          return (
+            <button
+              aria-pressed={active}
+              key={option}
+              onClick={() => toggleMulti(filters, "certifications", option, null, onDiscoveryStateChange)}
+              type="button"
+            >
+              <span className={`gh-discovery-filter-dot tone-${/cert/i.test(option) ? "good" : /review|draft/i.test(option) ? "warn" : "bad"}`} />
+              <span>{option}</span>
+              <small>{Number(facetCount(facets, "certifications", option) || 0).toLocaleString()}</small>
+            </button>
+          );
+        })}
+      </FilterRailGroup>
+      <FilterRailGroup eyebrow="Domain">
+        {domainOptions.map((option) => {
+          const active = activeDomains.includes(option);
+          return (
+            <button
+              aria-pressed={active}
+              key={option}
+              onClick={() => toggleMulti(filters, "domains", option, null, onDiscoveryStateChange)}
+              type="button"
+            >
+              <span className="gh-discovery-filter-square" />
+              <span>{option}</span>
+              <small>{Number(facetCount(facets, "domains", option) || 0).toLocaleString()}</small>
+            </button>
+          );
+        })}
+      </FilterRailGroup>
+      <FilterRailGroup eyebrow="Classification">
+        {classificationOptions.map((option) => {
+          const active = activeClassifications.includes(option);
+          return (
+            <button
+              aria-pressed={active}
+              key={option}
+              onClick={() => toggleMulti(filters, "sensitivities", option, null, onDiscoveryStateChange)}
+              type="button"
+            >
+              <span className={`gh-discovery-filter-chip tone-${/restrict/i.test(option) ? "bad" : /conf/i.test(option) ? "warn" : "info"}`}>
+                {option}
+              </span>
+              <small>{Number(facetCount(facets, "sensitivities", option) || 0).toLocaleString()}</small>
+            </button>
+          );
+        })}
+      </FilterRailGroup>
+      <FilterRailGroup eyebrow="Attributes">
+        <button type="button" onClick={() => appendAttributeQuery("tag:CDE")}>
+          <span className="gh-discovery-filter-square tone-teal" />
+          <span>Critical Data Element</span>
+        </button>
+        <button type="button" onClick={() => appendAttributeQuery("tag:pii")}>
+          <span className="gh-discovery-filter-dot tone-bad" />
+          <span>Contains PII</span>
+        </button>
+        <button type="button" onClick={() => appendAttributeQuery("tag:no_pii")}>
+          <span className="gh-discovery-filter-dot tone-muted" />
+          <span>No PII</span>
+        </button>
+      </FilterRailGroup>
+    </aside>
+  );
+}
+
+function FilterRailGroup({ eyebrow, count = null, children }) {
+  return (
+    <section className="gh-discovery-filter-group">
+      <header>
+        <span>{eyebrow}</span>
+        {count !== null ? <small>{Number(count || 0).toLocaleString()} results</small> : null}
+      </header>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+function DiscoverySavedSearchesPopover({ savedViewCounts = {}, onDiscoveryStateChange, onClose }) {
+  const savedViews = [
+    { label: "Revenue CDEs", view: "Certified", query: "tag:CDE domain:Finance" },
+    { label: "PII assets", view: "Needs attention", query: "tag:pii" },
+    { label: "High coverage certified", view: "High coverage", query: "certification:Certified" },
+  ];
+  return (
+    <div className="gh-discovery-saved-searches-popover" role="dialog" aria-label="Saved searches">
+      {savedViews.map((view) => (
+        <button
+          key={view.label}
+          onClick={() => {
+            onDiscoveryStateChange((current) => ({
+              ...current,
+              query: view.query,
+              views: view.view ? [view.view] : current.views || [],
+            }));
+            onClose?.();
+          }}
+          type="button"
+        >
+          <strong>{view.label}</strong>
+          <span>{view.query}</span>
+          <small>{Number(savedViewCounts[view.view] || 0).toLocaleString()} visible</small>
+        </button>
+      ))}
+      <div className="gh-discovery-saved-searches-actions" aria-label="Saved search management">
+        <button
+          aria-disabled="true"
+          disabled
+          title="Creating saved searches requires a backed user-preference store; this prototype-mock evidence does not mutate Databricks."
+          type="button"
+        >
+          <strong>Create saved search unavailable</strong>
+          <span>Requires backed preferences</span>
+          <small>Disabled</small>
+        </button>
+        <button
+          aria-disabled="true"
+          disabled
+          title="Managing saved searches requires a backed user-preference store; this prototype-mock evidence does not mutate Databricks."
+          type="button"
+        >
+          <strong>Manage saved searches unavailable</strong>
+          <span>Requires backed preferences</span>
+          <small>Disabled</small>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DiscoveryGlobeVisual() {
+  const nodes = [
+    [156, 238, 3.8], [178, 216, 2.4], [212, 185, 2.4], [238, 156, 2.4],
+    [260, 226, 3.8], [302, 142, 2.4], [344, 214, 2.4], [356, 104, 2.4],
+    [407, 168, 3.8], [448, 88, 2.4], [470, 236, 2.4], [520, 112, 2.4],
+    [560, 220, 3.8], [574, 132, 2.4], [644, 158, 2.4], [690, 176, 2.4],
+  ];
+  const microNodes = [
+    [228, 130], [246, 198], [276, 118], [318, 204], [332, 126], [374, 150],
+    [430, 118], [462, 210], [512, 146], [540, 176], [594, 150], [628, 214],
+    [672, 202], [704, 146],
+  ];
+  const cityNodes = [
+    [244, 166], [268, 174], [292, 160], [316, 178], [340, 162], [366, 186],
+    [394, 142], [416, 154], [438, 146], [462, 166], [486, 154], [510, 172],
+    [536, 138], [560, 150], [584, 166], [608, 152], [632, 178], [656, 164],
+  ];
+  const pulseNodes = [
+    [302, 142, 14], [407, 168, 18], [520, 112, 16], [560, 220, 20], [644, 158, 18],
+  ];
+  return (
+    <div className="gh-discovery-globe" aria-hidden="true">
+      <svg viewBox="0 0 760 280" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <radialGradient id="gh-discovery-globe-core" cx="48%" cy="60%" r="58%">
+            <stop offset="0%" stopColor="#1198de" stopOpacity="0.74" />
+            <stop offset="58%" stopColor="#0870ad" stopOpacity="0.48" />
+            <stop offset="100%" stopColor="#03111f" stopOpacity="0" />
+          </radialGradient>
+          <linearGradient id="gh-discovery-globe-line" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#6cd0ff" stopOpacity="0.82" />
+            <stop offset="100%" stopColor="#5ce1e6" stopOpacity="0.26" />
+          </linearGradient>
+          <radialGradient id="gh-discovery-globe-node" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.96" />
+            <stop offset="100%" stopColor="#66c5ff" stopOpacity="0.32" />
+          </radialGradient>
+          <pattern id="gh-discovery-globe-city" width="24" height="18" patternUnits="userSpaceOnUse">
+            <circle cx="3" cy="4" r=".8" fill="#cfefff" opacity=".38" />
+            <circle cx="13" cy="8" r=".7" fill="#66c5ff" opacity=".32" />
+            <circle cx="21" cy="15" r=".55" fill="#5ce1e6" opacity=".26" />
+          </pattern>
+          <filter id="gh-discovery-globe-glow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="2.2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        <path className="gh-discovery-globe-core" d="M90 260c70-142 205-214 362-194 118 15 214 75 280 168" fill="url(#gh-discovery-globe-core)" />
+        <path d="M104 254c72-128 195-192 348-184 121 6 221 58 300 157-86-25-178-40-276-44-128-5-252 19-372 71Z" fill="url(#gh-discovery-globe-city)" opacity=".44" />
+        <g className="gh-discovery-globe-land" fill="#0a74b2" opacity=".34">
+          <path d="M254 154c31-22 71-30 117-24 23 3 42 1 58-7 18-8 40-7 65 4-13 14-33 24-60 31-32 8-55 19-70 33-22-13-45-19-70-18-20 1-34-5-40-19Z" />
+          <path d="M470 182c25-18 58-22 98-13 33 8 60 7 81-3 17 11 30 25 41 42-35 3-66 0-94-10-28-9-55-7-82 8-19 10-34 2-44-24Z" />
+          <path d="M322 96c38-10 75-9 112 2 29 8 58 9 88 2 10 8 16 17 18 28-46 1-86 7-119 19-24-17-58-25-100-23-12-11-12-20 1-28Z" />
+        </g>
+        <path d="M96 250c72-126 190-190 340-182 126 7 226 59 306 156" fill="none" stroke="#2bb8ff" strokeOpacity=".6" strokeWidth="2" />
+        <path className="gh-discovery-globe-shine" d="M132 238c118-82 250-118 396-104 82 8 152 29 212 64" fill="none" stroke="#d6f7ff" strokeOpacity=".42" strokeWidth="1.4" />
+        <g fill="none" stroke="#7bd7ff" strokeLinecap="round" strokeLinejoin="round" opacity=".24">
+          <path d="M260 176c18-14 38-20 58-15 14 4 24 2 34-8 12-12 30-14 52-6" />
+          <path d="M420 134c18-16 44-20 76-12 16 4 31 2 44-6 18-10 41-8 70 7" />
+          <path d="M250 206c34-10 62-9 86 3 19 9 45 9 78-1" />
+          <path d="M500 186c29-13 58-14 88-2 22 9 48 10 79 3" />
+        </g>
+        <path d="M155 236c86-76 184-112 294-108 96 4 176 34 244 90" fill="none" stroke="#66c5ff" strokeOpacity=".35" />
+        <path d="M126 242c112-38 230-55 354-50 92 4 177 18 256 43" fill="none" stroke="#66c5ff" strokeOpacity=".18" />
+        <path d="M146 206c112-58 226-83 344-72 90 8 170 35 240 80" fill="none" stroke="#66c5ff" strokeOpacity=".2" />
+        <path d="M222 220c58-114 122-166 194-156 75 11 128 86 160 178" fill="none" stroke="#66c5ff" strokeOpacity=".22" />
+        <path d="M300 234c-6-82 18-144 72-185" fill="none" stroke="#66c5ff" strokeOpacity=".18" />
+        <path d="M494 232c16-82-4-144-60-184" fill="none" stroke="#66c5ff" strokeOpacity=".18" />
+        <path d="M380 60c-18 72-18 134 0 188" fill="none" stroke="#66c5ff" strokeOpacity=".22" />
+        <g className="gh-discovery-globe-network" fill="none" stroke="url(#gh-discovery-globe-line)" strokeWidth="1.2">
+          <path d="M212 185 302 142 407 168 520 112 644 158" />
+          <path d="M260 226 407 168 560 220" />
+          <path d="M302 142 448 88 520 112" />
+          <path d="M344 214 407 168 448 88" />
+          <path d="M178 216 260 226 344 214 470 236 560 220 690 238" />
+          <path d="M238 156 302 142 356 104 448 88 574 132 690 176" />
+          <path d="M156 238 212 185 238 156 356 104" />
+          <path d="M520 112 574 132 644 158 690 176" />
+        </g>
+        <g className="gh-discovery-globe-pulses" fill="none" stroke="#8be7ff" strokeWidth="1" filter="url(#gh-discovery-globe-glow)">
+          {pulseNodes.map(([cx, cy, r]) => (
+            <circle key={`${cx}-${cy}-pulse`} cx={cx} cy={cy} r={r} />
+          ))}
+        </g>
+        {nodes.map(([cx, cy, r]) => (
+          <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} fill="url(#gh-discovery-globe-node)" opacity={r > 3 ? 1 : 0.74} />
+        ))}
+        <g className="gh-discovery-globe-micro" fill="#cfefff" opacity=".28">
+          {microNodes.map(([cx, cy]) => <circle key={`${cx}-${cy}-micro`} cx={cx} cy={cy} r="0.9" />)}
+        </g>
+        <g className="gh-discovery-globe-city-lights" fill="#cfefff" opacity=".24">
+          {cityNodes.map(([cx, cy]) => <circle key={`${cx}-${cy}-city`} cx={cx} cy={cy} r="1.1" />)}
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+function DiscoveryActiveFilterRow({
+  chips = [],
+  filters,
+  onDiscoveryStateChange,
+  onResetBrowse,
+}) {
+  const visibleChips = chips.filter((chip) => {
+    const label = String(chip?.label || "");
+    return chip?.key !== "query" && !/^search\s*:/i.test(label);
+  });
+  if (!visibleChips.length) return null;
+  return (
+    <div className="gh-discovery-active-filter-row" role="status" aria-live="polite">
+      <span className="gh-filter-chip-label">Filtered by</span>
+      {visibleChips.map((chip, index) => {
+        const key = chip.id || `${chip.key}-${chip.label}-${index}`;
+        return (
+          <button
+            className="gh-filter-chip"
+            key={key}
+            onClick={() => clearFilter(filters, chip, onDiscoveryStateChange)}
+            title={`Clear ${chip.label}`}
+            type="button"
+          >
+            <span>{chip.label}</span>
+            <span className="gh-filter-chip-x" aria-hidden="true">×</span>
+          </button>
+        );
+      })}
+      <button className="gh-filter-chip-clear-all" onClick={onResetBrowse} type="button">
+        Reset browse
+      </button>
+    </div>
+  );
+}
+
+function DiscoveryResultsTable({
+  assets = [],
+  resultsCount = 0,
+  facets = {},
+  filters,
+  bootstrap,
+  sortOptions = [],
+  onDiscoveryStateChange,
+  onSelect,
+  selectedAssetFqn = "",
+  favorites,
+  onToggleFavorite,
+  onOpenAsset,
+  onOpenGovernance,
+  onOpenLineage,
+  lineageAvailable = true,
+  lineageUnavailableReason = "",
+  renderedRecordAvailability = {},
+  recordUnavailableOverrides = {},
+  recordUnavailableReason = "",
+  sourceAuthoritative = false,
+  sourceLabel = "",
+  sourceIsPrototype = false,
+}) {
+  const [displayMode, setDisplayMode] = useState("list");
+  const tabs = resultTabDefinitions({ resultsCount, assets, facets });
+  const activeTypeSet = new Set(filters.types || []);
+  const activeTab =
+    tabs.find((tab) => tab.types.length && tab.types.every((type) => activeTypeSet.has(type))) ||
+    (!activeTypeSet.size ? tabs[0] : null);
+  const applyTab = (tab) => {
+    onDiscoveryStateChange((current) => ({
+      ...current,
+      types: tab.types || [],
+    }));
+  };
+  const sortValues = (() => {
+    const opts = Array.isArray(sortOptions) ? sortOptions : [];
+    const filtered = opts
+      .filter((option) => !/best\s*match/i.test(String(option)))
+      .map((option) => (/coverage\s*score/i.test(String(option)) ? "Trust score" : option));
+    return filtered.some((option) => /relevance/i.test(String(option))) ? filtered : ["Relevance", ...filtered];
+  })();
+  const normalizedSortValue = /coverage\s*score/i.test(String(filters.sortBy || ""))
+    ? "Trust score"
+    : filters.sortBy || "Relevance";
+  return (
+    <section
+      aria-label="Discovery results"
+      className="gh-discovery-results-panel"
+      data-display-mode={displayMode}
+    >
+      <div className="gh-visually-hidden">
+        Showing {Math.min(assets.length, resultsCount || assets.length).toLocaleString()} of {(resultsCount || assets.length).toLocaleString()} assets
+      </div>
+      {!sourceAuthoritative && !sourceIsPrototype ? (
+        <div className="gh-discovery-source-strip" role="status">
+          <strong>{sourceLabel || "Degraded discovery payload"}</strong>
+          <span>Asset values shown here are not live Databricks proof unless the source is explicitly live and authoritative.</span>
+        </div>
+      ) : null}
+      <div className="gh-discovery-results-tabs">
+        {tabs.map((tab) => (
+          <button
+            aria-pressed={(activeTab?.key || "") === tab.key}
+            className={(activeTab?.key || "") === tab.key ? "is-active" : ""}
+            key={tab.key}
+            onClick={() => applyTab(tab)}
+            type="button"
+          >
+            <span>{tab.label}</span>
+            <small>{Number(tab.count || 0).toLocaleString()}</small>
+          </button>
+        ))}
+        <div className="gh-discovery-results-tabs-spacer" />
+        <SortDropdown
+          options={sortValues}
+          value={normalizedSortValue}
+          onChange={(nextValue) =>
+            onDiscoveryStateChange((current) => ({
+              ...current,
+              sortBy: /trust\s*score/i.test(String(nextValue)) ? "Coverage score" : nextValue,
+            }))
+          }
+        />
+        <div className="gh-discovery-view-mode" aria-label="Result layout">
+          <button
+            aria-label="Grid view"
+            aria-pressed={displayMode === "grid"}
+            className={`gh-discovery-view-mode-button ${displayMode === "grid" ? "is-active" : ""}`.trim()}
+            onClick={() => setDisplayMode("grid")}
+            title="Grid view"
+            type="button"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="4" y="4" width="6" height="6" rx="1" />
+              <rect x="14" y="4" width="6" height="6" rx="1" />
+              <rect x="4" y="14" width="6" height="6" rx="1" />
+              <rect x="14" y="14" width="6" height="6" rx="1" />
+            </svg>
+          </button>
+          <button
+            aria-label="List view"
+            aria-pressed={displayMode === "list"}
+            className={`gh-discovery-view-mode-button ${displayMode === "list" ? "is-active" : ""}`.trim()}
+            onClick={() => setDisplayMode("list")}
+            title="List view"
+            type="button"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M8 6h12" />
+              <path d="M8 12h12" />
+              <path d="M8 18h12" />
+              <path d="M4 6h.01" />
+              <path d="M4 12h.01" />
+              <path d="M4 18h.01" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div className="gh-discovery-table-grid" role="table" aria-rowcount={assets.length + 1}>
+        <div className="gh-discovery-table-head" role="row">
+          <div role="columnheader">Asset Name</div>
+          <div role="columnheader">Type</div>
+          <div role="columnheader">Owner</div>
+          <div role="columnheader">Certification</div>
+          <div role="columnheader">Domain</div>
+          <div role="columnheader">{sourceAuthoritative ? "Trust Signal" : "Prototype Trust"}</div>
+          <div role="columnheader">Sensitivity</div>
+          <div role="columnheader">Glossary Linkage</div>
+          <div role="columnheader">Description</div>
+        </div>
+        {assets.map((asset) => (
+          <DiscoveryResultTableRow
+            asset={asset}
+            isFavorite={favorites.has(asset.fqn)}
+            key={asset.fqn}
+            lineageAvailable={lineageAvailable}
+            lineageUnavailableReason={lineageUnavailableReason}
+            onOpenAsset={onOpenAsset}
+            onOpenGovernance={onOpenGovernance}
+            onOpenLineage={onOpenLineage}
+            onSelect={onSelect}
+            onToggleFavorite={onToggleFavorite}
+            recordOpenable={
+              recordUnavailableOverrides[asset.fqn] === true
+                ? false
+                : renderedRecordAvailability[asset.fqn] ?? null
+            }
+            recordUnavailableReason={recordUnavailableReason}
+            selected={asset.fqn === selectedAssetFqn}
+            sourceAuthoritative={sourceAuthoritative}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PrototypeDiscoveryAssetGlyph({ asset }) {
+  const type = displayObjectType(asset);
+  const isModel = /model/i.test(type);
+  const isView = /view/i.test(type);
+  return (
+    <span
+      aria-label={type || "Asset"}
+      className={`gh-discovery-prototype-asset-glyph ${isModel ? "is-model" : isView ? "is-view" : "is-table"}`}
+      role="img"
+      title={type || "Asset"}
+    >
+      <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        {isModel ? (
+          <>
+            <path d="M8 4a4 4 0 0 0-4 4v1a3 3 0 0 0 0 6v1a4 4 0 0 0 4 4" />
+            <path d="M16 4a4 4 0 0 1 4 4v1a3 3 0 0 1 0 6v1a4 4 0 0 1-4 4" />
+            <path d="M12 4v16" />
+          </>
+        ) : isView ? (
+          <>
+            <path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z" />
+            <circle cx="12" cy="12" r="2.5" />
+          </>
+        ) : (
+          <>
+            <rect x="5" y="5" width="14" height="14" rx="2" />
+            <path d="M5 10h14" />
+            <path d="M10 5v14" />
+            <path d="M14 5v14" />
+          </>
+        )}
+      </svg>
+    </span>
+  );
+}
+
+function DiscoveryMetaIcon({ kind = "" }) {
+  const commonProps = {
+    "aria-hidden": "true",
+    className: "gh-discovery-prototype-meta-icon",
+    fill: "none",
+    height: "12",
+    stroke: "currentColor",
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    strokeWidth: "1.8",
+    viewBox: "0 0 24 24",
+    width: "12",
+  };
+  if (kind === "freshness") {
+    return (
+      <svg {...commonProps}>
+        <circle cx="12" cy="12" r="8" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+    );
+  }
+  if (kind === "usage") {
+    return (
+      <svg {...commonProps}>
+        <path d="M3 17h3l3-10 4 10 3-6 2 6h3" />
+      </svg>
+    );
+  }
+  if (kind === "lineage") {
+    return (
+      <svg {...commonProps}>
+        <circle cx="6" cy="7" r="2" />
+        <circle cx="18" cy="7" r="2" />
+        <circle cx="12" cy="17" r="2" />
+        <path d="M7.8 8.2 11 15" />
+        <path d="M16.2 8.2 13 15" />
+      </svg>
+    );
+  }
+  if (kind === "rows") {
+    return (
+      <svg {...commonProps}>
+        <rect x="5" y="5" width="14" height="14" rx="2" />
+        <path d="M5 10h14" />
+        <path d="M5 15h14" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...commonProps}>
+      <circle cx="12" cy="8" r="3" />
+      <path d="M5 20a7 7 0 0 1 14 0" />
+    </svg>
+  );
+}
+
+function DiscoveryResultTableRow({
+  asset,
+  selected,
+  onSelect,
+  onOpenAsset,
+  onOpenGovernance,
+  onOpenLineage,
+  isFavorite = false,
+  onToggleFavorite,
+  lineageAvailable = true,
+  lineageUnavailableReason = "",
+  recordOpenable = null,
+  recordUnavailableReason = "",
+  sourceAuthoritative = true,
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const owners = ownerLabelsForAsset(asset);
+  const primaryOwner = owners[0] || "";
+  const cert = certificationLabel(asset);
+  const sensitivity = sensitivityLabel(asset);
+  const coverage = coveragePercent(asset);
+  const terms = glossaryLabels(asset);
+  const metadataItems = discoveryResultMetadata(asset, primaryOwner, sourceAuthoritative);
+  const recordUnavailable = recordOpenable === false;
+  const description = prototypeSafeDiscoveryText(asset.description || "");
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (!menuRef.current?.contains(event.target)) setMenuOpen(false);
+    };
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
+  const stop = (fn) => (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    fn?.();
+  };
+
+  return (
+    <article
+      aria-label={`Select ${asset.name}`}
+      className={`gh-discovery-table-row gh-discovery-asset-card ${selected ? "is-selected" : ""}`.trim()}
+      data-asset-fqn={asset.fqn}
+      onClick={() => onSelect(asset.fqn)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(asset.fqn);
+        }
+      }}
+      role="row"
+      tabIndex={0}
+    >
+      <div className="gh-discovery-cell gh-discovery-name-cell" role="cell">
+        {sourceAuthoritative ? (
+          <AssetTypeIcon asset={asset} size="lg" />
+        ) : (
+          <PrototypeDiscoveryAssetGlyph asset={asset} />
+        )}
+        <div className="gh-discovery-name-stack">
+          <button
+            className="gh-discovery-row-title"
+            onClick={stop(() => onSelect(asset.fqn))}
+            title={asset.fqn}
+            type="button"
+          >
+            {asset.name}
+          </button>
+          <span>{assetSourceLabel(asset)}</span>
+        </div>
+          <button
+            aria-label={isFavorite ? "Remove local favorite" : "Add local favorite"}
+            aria-pressed={isFavorite}
+            className={`gh-discovery-row-star gh-row-action ${isFavorite ? "is-favorite" : ""}`.trim()}
+            onClick={stop(() => onToggleFavorite?.(asset.fqn))}
+            title={isFavorite ? "Remove local browser favorite" : "Save local browser favorite"}
+            type="button"
+          >
+            {isFavorite ? "★" : "☆"}
+        </button>
+      </div>
+      <div className="gh-discovery-cell gh-discovery-type-cell" role="cell">
+        <span className="gh-discovery-type-chip">{displayObjectType(asset) || "Asset"}</span>
+      </div>
+      <div className="gh-discovery-cell gh-discovery-owner-cell" role="cell">
+        {primaryOwner ? (
+          <>
+            <OwnerAvatar owner={primaryOwner} size={24} />
+            <span className="gh-truncate" title={owners.join(", ")}>{prettyOwnerName(primaryOwner)}</span>
+          </>
+        ) : (
+          <span className="gh-discovery-muted">Unassigned</span>
+        )}
+      </div>
+      <div className="gh-discovery-cell gh-discovery-cert-cell" role="cell">
+        {cert ? <span className="gh-discovery-status-pill certified">{cert}</span> : <span className="gh-discovery-muted">—</span>}
+      </div>
+      <div className="gh-discovery-cell gh-discovery-domain-cell" role="cell">{asset.domain && asset.domain !== "Unassigned" ? asset.domain : "Unassigned"}</div>
+      <div className="gh-discovery-cell gh-discovery-coverage-cell" role="cell">
+        {coverage !== null ? (
+          sourceAuthoritative ? (
+            <>
+              <span>{coverage}%</span>
+              <span className="gh-discovery-coverage-bar" aria-hidden="true">
+                <i style={{ width: `${coverage}%` }} />
+              </span>
+              <span className="gh-discovery-asset-trust gh-visually-hidden">{coverage}%</span>
+            </>
+          ) : (
+            <>
+              <span className="gh-discovery-trust-score">{coverage}</span>
+              <span className="gh-discovery-trust-label">Trust</span>
+              <span className="gh-visually-hidden">Prototype trust fixture, not live score proof</span>
+            </>
+          )
+        ) : (
+          <span className="gh-discovery-muted">—</span>
+        )}
+      </div>
+      <div className="gh-discovery-cell gh-discovery-sensitivity-cell" role="cell">
+        {sensitivity ? <span className={`gh-discovery-sensitivity-pill ${sensitivityToneClass(sensitivity)}`.trim()}>{sensitivity}</span> : <span className="gh-discovery-muted">—</span>}
+      </div>
+      <div className="gh-discovery-cell gh-discovery-linkage-cell" role="cell">
+        {assetHasCdeSignal(asset) || assetHasPiiSignal(asset) ? (
+          <>
+            {assetHasCdeSignal(asset) ? <span className="gh-discovery-linkage gh-discovery-cde-pill">CDE</span> : null}
+            {assetHasPiiSignal(asset) ? <span className="gh-discovery-linkage gh-discovery-pii-pill">PII</span> : null}
+          </>
+        ) : terms.length ? (
+          <span className="gh-discovery-linkage">{terms.length} term{terms.length === 1 ? "" : "s"}</span>
+        ) : (
+          <span className="gh-discovery-muted">—</span>
+        )}
+      </div>
+      <div className="gh-discovery-cell gh-discovery-description-cell" role="cell">
+        <span className="gh-truncate" title={description || ""}>
+          {description || "No description has been captured for this asset yet."}
+        </span>
+        {metadataItems.length ? (
+          <div className="gh-discovery-prototype-meta-line" aria-label="Asset metadata">
+            {metadataItems.map((item) => {
+              const entry = typeof item === "string" ? { key: item, label: item } : item;
+              return (
+                <span
+                  className={entry.hidden ? "gh-visually-hidden" : ""}
+                  data-meta-kind={entry.key}
+                  key={entry.key || entry.label}
+                >
+                  {entry.hidden ? null : <DiscoveryMetaIcon kind={entry.key} />}
+                  {entry.label}
+                </span>
+              );
+            })}
+          </div>
+        ) : null}
+        <div className="gh-discovery-row-menu-wrap" ref={menuRef}>
+          <button
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            aria-label="Open asset actions"
+            className="gh-discovery-row-menu-button gh-row-action"
+            onClick={stop(() => setMenuOpen((current) => !current))}
+            type="button"
+          >
+            ⋮
+          </button>
+          {menuOpen ? (
+            <div className="gh-discovery-asset-card-menu" role="menu">
+              <button
+                className="gh-discovery-asset-card-menu-item"
+                disabled={recordUnavailable}
+                onClick={stop(() => { setMenuOpen(false); onOpenAsset(asset.fqn); })}
+                role="menuitem"
+                type="button"
+              >
+                View details
+              </button>
+              <button
+                className="gh-discovery-asset-card-menu-item"
+                disabled={recordUnavailable}
+                onClick={stop(() => { setMenuOpen(false); onOpenGovernance(asset.fqn); })}
+                role="menuitem"
+                type="button"
+              >
+                Open governance
+              </button>
+              <button
+                className="gh-discovery-asset-card-menu-item"
+                disabled={!lineageAvailable}
+                onClick={stop(() => { setMenuOpen(false); onOpenLineage(asset.fqn, "Data Lineage"); })}
+                role="menuitem"
+                title={!lineageAvailable ? lineageUnavailableReason : undefined}
+                type="button"
+              >
+                Open lineage
+              </button>
+              <button
+                className="gh-discovery-asset-card-menu-item"
+                onClick={stop(() => { setMenuOpen(false); onToggleFavorite?.(asset.fqn); })}
+                role="menuitem"
+                type="button"
+              >
+                {isFavorite ? "Remove from favorites" : "Add to favorites"}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+      <button
+        aria-label={recordUnavailable ? "Metadata record unavailable" : "Open Record"}
+        className="gh-visually-hidden gh-row-action"
+        disabled={recordUnavailable}
+        onClick={stop(() => onOpenAsset(asset.fqn))}
+        type="button"
+      >
+        {recordUnavailable ? "Metadata record unavailable" : "Open Record"}
+      </button>
+      <button
+        aria-label={lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
+        className="gh-visually-hidden gh-row-action"
+        disabled={!lineageAvailable}
+        onClick={stop(() => onOpenLineage(asset.fqn, "Data Lineage"))}
+        title={!lineageAvailable ? lineageUnavailableReason : undefined}
+        type="button"
+      >
+        {lineageAvailable ? "Open lineage" : "Lineage unavailable"}
+      </button>
+      {recordUnavailable && recordUnavailableReason ? (
+        <span className="gh-visually-hidden">{recordUnavailableReason}</span>
+      ) : null}
+      {cert ? <span className="gh-discovery-asset-status gh-visually-hidden">{cert}</span> : null}
+    </article>
+  );
+}
+
+function DiscoveryDegradedResultsState({
+  filters,
+  message = "",
+  onClearSearch,
+  onResetBrowse,
+  title = "Discovery search degraded",
+}) {
+  const hasQuery = Boolean(String(filters?.query || "").trim());
+  const summarizedMessage =
+    summarizeDiscoveryError(message) ||
+    "The search surface is reachable, but live discovery could not return results.";
+  return (
+    <section className="gh-discovery-degraded-prototype" aria-label="Discovery degraded state">
+      <article className="gh-discovery-table-row gh-discovery-asset-card gh-discovery-degraded-row" role="status">
+        <div className="gh-discovery-cell gh-discovery-name-cell">
+          <PrototypeDiscoveryAssetGlyph asset={{ objectType: "Table" }} />
+          <div className="gh-discovery-name-stack">
+            <strong className="gh-discovery-row-title">Discovery unavailable</strong>
+            <span>Live catalog result row unavailable</span>
+          </div>
+        </div>
+        <div className="gh-discovery-cell gh-discovery-coverage-cell">
+          <span className="gh-discovery-trust-score">--</span>
+          <span className="gh-visually-hidden">Trust unavailable because live discovery did not return results.</span>
+        </div>
+        <div className="gh-discovery-cell gh-discovery-description-cell">
+          <span className="gh-truncate">{summarizedMessage}</span>
+          <div className="gh-discovery-prototype-meta-line" aria-label="Unavailable asset metadata">
+            {[
+              ["owner", "Owner unavailable"],
+              ["freshness", "Freshness unavailable"],
+              ["usage", "Usage unavailable"],
+              ["lineage", "Lineage unavailable"],
+              ["rows", "Rows unavailable"],
+            ].map(([kind, label]) => (
+              <span data-meta-kind={kind} key={kind}>
+                <DiscoveryMetaIcon kind={kind} />
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </article>
+      <WorkspaceStateCard
+        actions={(
+          <>
+            {hasQuery ? (
+              <button
+                className="gh-secondary-button"
+                onClick={onClearSearch}
+                type="button"
+              >
+                Clear search
+              </button>
+            ) : null}
+            <button className="gh-secondary-button" onClick={onResetBrowse} type="button">
+              Reset browse
+            </button>
+          </>
+        )}
+        className="gh-discovery-empty-state"
+        eyebrow="Discovery Unavailable"
+        message={
+          "The prototype row shape is preserved with unavailable trust, usage, lineage, and row metrics instead of synthetic values."
+        }
+        title={title}
+        tone="bad"
+      />
+    </section>
+  );
+}
+
+function DiscoveryBottomPanels({
+  assets = [],
+  savedViewCounts = {},
+  onDiscoveryStateChange,
+  onSelect,
+  aiState,
+  onAskAtlas,
+  atlasAiAvailable = true,
+  atlasAiUnavailableReason = "",
+}) {
+  const savedViews = [
+    { label: "Needs Owner", view: "Needs owner", count: savedViewCounts["Needs owner"] },
+    { label: "Needs Certification", view: "Needs certification", count: savedViewCounts["Needs certification"] },
+    { label: "Certified Data", view: "Certified", count: savedViewCounts["Certified"] },
+    { label: "High Coverage Assets", view: "High coverage", count: savedViewCounts["High coverage"] },
+  ];
+  const recommendedAssets = [...assets]
+    .filter((asset) => coveragePercent(asset) !== null)
+    .sort((a, b) => (coveragePercent(b) || 0) - (coveragePercent(a) || 0))
+    .slice(0, 3);
+  const aiRecommendations = Array.isArray(aiState?.response?.recommendations)
+    ? aiState.response.recommendations
+    : [];
+  return (
+    <section className="gh-discovery-bottom-grid" aria-label="Discovery accelerators">
+      <div className="gh-discovery-bottom-card">
+        <header>
+          <h2>Saved Views</h2>
+          <button
+            onClick={() => onDiscoveryStateChange((current) => ({ ...current, views: [] }))}
+            type="button"
+          >
+            View all
+          </button>
+        </header>
+        <div className="gh-discovery-saved-list">
+          {savedViews.map((view) => (
+            <button
+              key={view.label}
+              onClick={() =>
+                onDiscoveryStateChange((current) => ({
+                  ...current,
+                  views: view.view ? [view.view] : [],
+                }))
+              }
+              type="button"
+            >
+              <AssetTypeIcon type="Delta Table" size="sm" />
+              <span>{view.label}</span>
+              <small>{Number(view.count || 0).toLocaleString()} visible</small>
+              <span aria-hidden="true">›</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="gh-discovery-bottom-card">
+        <header>
+          <h2>Recommended Assets</h2>
+          <button onClick={() => recommendedAssets[0] && onSelect(recommendedAssets[0].fqn)} type="button">
+            View all
+          </button>
+        </header>
+        <div className="gh-discovery-recommended-list">
+          {recommendedAssets.length ? recommendedAssets.map((asset) => {
+            const coverage = coveragePercent(asset);
+            return (
+              <button key={asset.fqn} onClick={() => onSelect(asset.fqn)} type="button">
+                <AssetTypeIcon asset={asset} size="md" />
+                <span>
+                  <strong>{asset.name}</strong>
+                  <small>{asset.domain && asset.domain !== "Unassigned" ? asset.domain : assetSourceLabel(asset)}</small>
+                </span>
+                <b>{coverage}%</b>
+              </button>
+            );
+          }) : (
+            <div className="gh-discovery-bottom-empty">Recommendations appear after live coverage evidence is available.</div>
+          )}
+        </div>
+      </div>
+      <div className="gh-discovery-bottom-card gh-discovery-ai-card">
+        <header>
+          <h2><span aria-hidden="true">✦</span> Atlas AI Recommendations <small>BETA</small></h2>
+          <button
+            aria-label="Run Atlas AI recommendations"
+            disabled={aiState.loading || !atlasAiAvailable}
+            onClick={(event) => {
+              event.preventDefault();
+              onAskAtlas?.();
+            }}
+            title={!atlasAiAvailable ? atlasAiUnavailableReason : undefined}
+            type="button"
+          >
+            {aiState.loading ? "Running" : "View all"}
+          </button>
+        </header>
+        {aiState.error ? <div className="gh-discovery-bottom-empty">{aiState.error}</div> : null}
+        {aiRecommendations.length ? (
+          <div className="gh-discovery-ai-list">
+            {aiRecommendations.slice(0, 3).map((recommendation, index) => {
+              const evidence = Array.isArray(recommendation.evidence) ? recommendation.evidence[0] : null;
+              const evidenceId = evidence?.id || "";
+              const asset = evidenceId ? assets.find((candidate) => candidate.fqn === evidenceId) : null;
+              const provider = recommendation.provider || aiState.response?.recommendationsProvider || aiState.response?.provider || "AI";
+              const localEvidenceProvider = /local-evidence|prototype/i.test(String(provider));
+              const authorityLabel =
+                aiState.response?.authoritative === false || localEvidenceProvider
+                  ? "Local evidence recommendation - not live Genie proof"
+                  : "Evidence-backed recommendation from Atlas AI";
+              return (
+                <button
+                  key={`${recommendation.title || "recommendation"}-${index}`}
+                  onClick={() => asset ? onSelect(asset.fqn) : onAskAtlas()}
+                  type="button"
+                >
+                  <AssetTypeIcon asset={asset || assets[index]} size="sm" />
+                  <span>
+                    <strong>{recommendation.title || "Governance recommendation"}</strong>
+                    <small>{recommendation.detail ? `${authorityLabel}: ${recommendation.detail}` : authorityLabel}</small>
+                  </span>
+                  <em>{provider}</em>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="gh-discovery-bottom-empty">
+            {!atlasAiAvailable
+              ? atlasAiUnavailableReason || "Atlas AI recommendations require a configured evidence-backed endpoint."
+              : aiState.loading
+              ? "Atlas AI is gathering governed metadata evidence."
+              : "Run Atlas AI to generate evidence-backed recommendations for this result set."}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function PreviewProfileList({ items }) {
   return (
     <div className="gh-preview-profile-list">
@@ -1675,45 +3206,39 @@ function SelectionPreview({
   asset,
   detailLoading,
   detailError,
-  linkedRecordUnavailableOverrides = {},
   onOpenAsset,
   onOpenGovernance,
   onOpenLinkedAsset,
   onOpenLineage,
-  onToggleFavorite,
   onClearSelection,
-  isFavorite = false,
-  visibleAssetSet,
+  linkedRecordUnavailableOverrides = {},
   previewAvailable = true,
   previewUnavailableReason = "",
   lineageAvailable = true,
   lineageUnavailableReason = "",
   recordOpenable = null,
   recordUnavailableReason = "",
+  interactionResetKey = "",
+  visibleAssetSet = new Set(),
+  sourceAuthoritative = false,
+  sourceLabel = "",
 }) {
   const [lineageWarm, setLineageWarm] = useState(false);
-  // Navigating to the full record is an async boundary (new route + a
-  // second bootstrap). Without a signal, "View Details" read as broken
-  // clicks. We flip a loading flag the moment the user clicks, so the
-  // button shows a spinner until the route change lands.
   const [navigating, setNavigating] = useState(false);
-  // Local "opening" state for individual Connected assets rows so the
-  // row shows an instant spinner on click. Operator 2026-04-19 round 2
-  // flagged the click as dead because the global loading state isn't
-  // visible from the preview rail.
-  const [openingLinkedAsset, setOpeningLinkedAsset] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [actionNotice, setActionNotice] = useState("");
+
   useEffect(() => {
-    // Reset when the selected asset changes so switching cards clears
-    // any stale spinner.
     setNavigating(false);
-    setOpeningLinkedAsset(null);
-  }, [asset?.fqn]);
+    setActiveTab("overview");
+    setActionNotice("");
+  }, [asset?.fqn, interactionResetKey]);
+
   const lineage = useLineage(
     asset?.fqn || "",
     Boolean(asset?.fqn) && lineageWarm && lineageAvailable && previewAvailable,
   );
   const lineageAuthoritative = lineage.authoritative;
-  const lineageProvisional = lineage.provisional;
   const previewRelatedAssets = useMemo(() => {
     if (!asset || !lineageAvailable) return [];
     return [
@@ -1723,10 +3248,14 @@ function SelectionPreview({
       ]),
     ].slice(0, 4);
   }, [asset, lineage.graph, lineageAuthoritative, lineageAvailable]);
-  const relatedAssetAvailability = useAssetAvailability(previewRelatedAssets, visibleAssetSet, {
-    strict: true,
-    requireRenderableDetail: false,
-  });
+  const relatedAssetAvailability = useAssetAvailability(
+    previewRelatedAssets,
+    visibleAssetSet,
+    {
+      strict: true,
+      requireRenderableDetail: true,
+    },
+  );
 
   useEffect(() => {
     if (!asset?.fqn || !lineageAvailable || !previewAvailable) {
@@ -1758,163 +3287,219 @@ function SelectionPreview({
 
   if (!asset) {
     return (
-      <SurfaceRail className="gh-selection-preview" title="Preview">
+      <aside className="gh-selection-preview gh-discovery-preview-card" aria-label="Asset preview">
         <EmptyStateBlock
           message="Select a result to review metadata, schema, and stewardship posture."
           title="Nothing selected"
         />
-      </SurfaceRail>
+      </aside>
     );
   }
 
-  const columns = (asset.columns || []).slice(0, 4);
-  const signalItems = previewSignalItems(
-    asset,
-    asset.columns?.length || 0,
-    previewRelatedAssets.length,
-    detailLoading,
-    lineage.loading,
-    lineageProvisional,
-    lineageAvailable,
-  );
   const recordUnavailable = recordOpenable === false;
-  const previewActions = (
-    <>
-      <button
-        className="gh-secondary-button"
-        disabled={recordUnavailable}
-        onClick={() => onOpenAsset(asset.fqn)}
-        title={recordUnavailable ? recordUnavailableReason : undefined}
-        type="button"
-      >
-        {recordUnavailable ? "Metadata record unavailable" : "Open Record"}
-      </button>
-      <button
-        className="gh-secondary-button"
-        disabled={!lineageAvailable}
-        onClick={() => onOpenLineage(asset.fqn, "Data Lineage")}
-        title={!lineageAvailable ? lineageUnavailableReason : undefined}
-        type="button"
-      >
-        {lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
-      </button>
-      <button
-        className="gh-secondary-button"
-        disabled={recordUnavailable}
-        onClick={() => onOpenGovernance(asset.fqn)}
-        title={recordUnavailable ? recordUnavailableReason : undefined}
-        type="button"
-      >
-        Open Governance
-      </button>
-    </>
-  );
-
-  // When `previewAvailable` is false (workspace didn't grant preview/row
-  // scopes) we USED to blow the right rail away and show a giant
-  // "Preview unavailable" card. That threw away the metadata we already
-  // had from the discovery list. Now we render the normal mockup-shaped
-  // preview using only list data and surface the unavailability as a
-  // compact banner, so stewards still get the Asset-name / Domain /
-  // Glossary / Schema / Lineage / Usage / Tasks structure.
-
   const shortDescription = String(asset.description || "").trim();
-  const glossaryLabels = Array.isArray(asset.glossaryTerms)
-    ? asset.glossaryTerms.map((t) => t?.label || t?.name || t).filter(Boolean)
-    : [];
-  const schemaChipColumns = (asset.columns || []).slice(0, 6);
-  const totalColumnCount = asset.columns?.length || 0;
-  const notebookUsage = Number(
-    asset.usage?.notebooks
-      ?? asset.usage?.notebookUsage
-      ?? asset.notebookUsage
-      ?? 0,
-  );
-  const upstreamLabel = previewRelatedAssets[0]
-    ? String(previewRelatedAssets[0]).split(".").pop()
-    : "upstream";
-  const currentLabel = asset.name;
-  const workflowActivity = [
-    ...(Array.isArray(asset.activity) ? asset.activity : []),
-    ...(Array.isArray(asset.metadataAudit) ? asset.metadataAudit : []),
-  ].filter((item) => item && (item.title || item.action || item.detail || item.status || item.createdAt));
-
-  const domainLabel =
-    asset.domain && asset.domain !== "Unassigned" ? String(asset.domain).toUpperCase() : "UNCATEGORIZED";
-  // Honest glossary-term slot: null-pill when none is assigned, rather
-  // than defaulting to "Critical" (which read as real curation).
-  const glossaryChipLabel = glossaryLabels[0] || null;
-  const catalogLabel = asset.catalog || "";
-  const schemaLabel = asset.schema || "";
+  const targetDescriptionLine = "No description has been captured for this asset yet.";
+  const owners = ownerLabelsForAsset(asset);
+  const primaryOwner = owners[0] || "";
+  const stewardOwner =
+    String(asset.stewardTeam || asset.steward_team || "").trim() ||
+    ownerLabelForRole(asset, /(^|\b)steward(ship)?(\b|$)/i);
+  const ownerCount = owners.length;
+  const cert = certificationLabel(asset);
+  const sensitivity = sensitivityLabel(asset);
+  const criticality = criticalityLabel(asset);
+  const coverage = coveragePercent(asset);
+  const terms = glossaryLabels(asset);
+  const tags = tagLabels(asset);
+  const cdeSignal = assetHasCdeSignal(asset);
+  const piiSignal = assetHasPiiSignal(asset);
+  const governanceTags = [
+    ...new Set([
+      ...tags,
+      ...(cdeSignal ? ["CDE"] : []),
+      ...(piiSignal ? ["PII"] : []),
+    ]),
+  ];
+  const previewColumns = columnPreviewForAsset(asset, 6);
+  const hasKeyEvidence = previewColumns.some((column) => column.keyEvidence);
   const totalColumnCountReal =
     Number.isFinite(Number(asset.columnCount))
       ? Number(asset.columnCount)
       : Array.isArray(asset.columns)
         ? asset.columns.length
         : null;
-  // Real first-N columns for the Schema overview preview. Each chip shows
-  // column name + data type so the steward can eyeball the shape without
-  // opening the full record. Limit to 5 so the rail stays dense.
-  const previewColumns = Array.isArray(asset.columns)
-    ? asset.columns.slice(0, 5).map((col) => ({
-        name: String(col?.name || "").trim(),
-        type: String(col?.type || col?.dataType || "").trim(),
-      })).filter((c) => c.name)
-    : [];
-  const extraColumnCount = totalColumnCountReal && previewColumns.length
-    ? Math.max(0, totalColumnCountReal - previewColumns.length)
-    : 0;
-  // Real usage counts from the backend's `operational` section.
-  const producerCount = Number.isFinite(Number(asset.usage?.producerCount))
-    ? Number(asset.usage.producerCount)
-    : 0;
-  const consumerCount = Number.isFinite(Number(asset.usage?.consumerCount))
-    ? Number(asset.usage.consumerCount)
-    : 0;
-  const queryCount = Number.isFinite(Number(asset.usage?.queryCount))
-    ? Number(asset.usage.queryCount)
-    : 0;
-  const targetDescriptionLine =
-    "No description has been captured for this asset yet.";
-  // Classification label for the preview rail metadata row — prefer the
-  // explicit `asset.sensitivity` field, fall back to a PII/PHI tag match.
-  const previewClassificationLabel = (() => {
-    const sens = String(asset.sensitivity || "").trim();
-    if (sens) return sens;
-    const tagMatch = Array.isArray(asset.tags)
-      ? asset.tags.find((t) => /pii|phi|confidential|restricted|internal|public/i.test(String(t || "")))
+  const extraColumnCount =
+    totalColumnCountReal && previewColumns.length
+      ? Math.max(0, totalColumnCountReal - previewColumns.length)
+      : 0;
+  const rawQualityScore = asset.qualityScore ?? asset.quality?.score;
+  const qualityScore =
+    rawQualityScore !== "" && rawQualityScore !== null && rawQualityScore !== undefined && Number.isFinite(Number(rawQualityScore))
+      ? Number(rawQualityScore)
       : null;
-    return tagMatch ? String(tagMatch) : "";
-  })();
-  const ownerLabels = Array.isArray(asset.owners)
-    ? asset.owners.map((o) => (typeof o === "string" ? o : o?.email || o?.name || "")).filter(Boolean)
-    : [];
-  const primaryOwner = ownerLabels[0] || "";
-  const ownerCount = ownerLabels.length;
+  const lineageNodes = previewRelatedAssets.map((fqn) => ({
+    fqn,
+    label: String(fqn).split(".").pop(),
+  }));
+  const displayLineageCount =
+    numberOrNull(asset.lineageCount ?? asset.lineage_count ?? asset.relatedAssetCount) ??
+    previewRelatedAssets.length;
+  const metrics = previewMetricItems({
+    asset,
+    primaryOwner,
+    stewardOwner,
+    coverage,
+    qualityScore,
+    totalColumnCount: totalColumnCountReal,
+    sourceAuthoritative,
+  });
+  const tabDefinitions = [
+    { key: "overview", label: "Overview" },
+    {
+      key: "columns",
+      label: totalColumnCountReal !== null
+        ? `Columns · ${totalColumnCountReal.toLocaleString()}`
+        : "Columns",
+    },
+    {
+      key: "lineage",
+      label: displayLineageCount
+        ? `Lineage · ${displayLineageCount.toLocaleString()}`
+        : "Lineage",
+    },
+    { key: "quality", label: "Quality" },
+    { key: "access", label: "Access" },
+  ];
+  const metadataSummary = (
+    <dl className="gh-asset-preview-metadata">
+      <div className="gh-asset-preview-metadata-row">
+        <dt>Domain</dt>
+        <dd>{asset.domain && asset.domain !== "Unassigned" ? asset.domain : <span className="gh-asset-preview-metadata-empty">Unassigned</span>}</dd>
+      </div>
+      <div className="gh-asset-preview-metadata-row">
+        <dt>Owner</dt>
+        <dd className="gh-truncate" title={owners.join(", ") || "No owner assigned in Unity Catalog"}>
+          {primaryOwner ? (
+            ownerCount === 1
+              ? prettyOwnerName(primaryOwner)
+              : `${ownerCount} owners`
+          ) : (
+            <span className="gh-asset-preview-metadata-empty">Unassigned</span>
+          )}
+        </dd>
+      </div>
+      <div className="gh-asset-preview-metadata-row">
+        <dt>Steward</dt>
+        <dd>{stewardOwner ? prettyOwnerName(stewardOwner) : <span className="gh-asset-preview-metadata-empty">Unassigned</span>}</dd>
+      </div>
+      <div className="gh-asset-preview-metadata-row">
+        <dt>Certified</dt>
+        <dd>{cert || <span className="gh-asset-preview-metadata-empty">Unavailable</span>}</dd>
+      </div>
+      <div className="gh-asset-preview-metadata-row">
+        <dt>Criticality</dt>
+        <dd>{criticality || <span className="gh-asset-preview-metadata-empty">Unavailable</span>}</dd>
+      </div>
+      <div className="gh-asset-preview-metadata-row">
+        <dt>Sensitivity</dt>
+        <dd>{sensitivity || <span className="gh-asset-preview-metadata-empty">Unavailable</span>}</dd>
+      </div>
+    </dl>
+  );
+  const linkedLineagePreview = lineageAvailable && lineage.loading ? (
+    <div className="gh-support-copy">
+      {sourceAuthoritative ? "Refreshing live lineage context..." : "Refreshing prototype lineage context..."}
+    </div>
+  ) : lineageAvailable && lineageNodes.length ? (
+    <div className="gh-lineage-mini-preview">
+      {lineageNodes.slice(0, 3).map((node) => {
+        const availability =
+          linkedRecordUnavailableOverrides[node.fqn] === true
+            ? false
+            : relatedAssetAvailability[node.fqn];
+        const status =
+          availability === false
+            ? "Metadata record unavailable"
+            : availability === true
+              ? "Open Record"
+              : "Checking access...";
+        const body = (
+          <>
+            <span className="gh-lineage-node-label gh-truncate" title={node.fqn}>{node.label}</span>
+            <span className="gh-lineage-node-fqn gh-truncate" title={node.fqn}>{node.fqn}</span>
+            <span className="gh-lineage-node-status">{status}</span>
+          </>
+        );
+        return availability === false ? (
+          <div
+            className="gh-lineage-mini-node gh-lineage-linked-row is-readonly"
+            key={node.fqn}
+          >
+            {body}
+          </div>
+        ) : (
+          <button
+            aria-label={`${node.fqn} ${status}`}
+            className="gh-lineage-mini-node gh-lineage-linked-row is-asset-link"
+            key={node.fqn}
+            onClick={() => onOpenLinkedAsset?.(node.fqn)}
+            type="button"
+          >
+            {body}
+          </button>
+        );
+      })}
+      <span aria-hidden="true" className="gh-lineage-mini-arrow">→</span>
+      <div className="gh-lineage-mini-node is-current">
+        <span className="gh-lineage-node-label gh-truncate" title={asset.fqn}>{asset.name}</span>
+        <span className="gh-lineage-node-fqn gh-truncate" title={asset.fqn}>{asset.fqn}</span>
+      </div>
+    </div>
+  ) : (
+    <div className="gh-support-copy">
+      {lineageAvailable
+        ? sourceAuthoritative
+          ? "No live upstream lineage edges are surfaced for this asset yet."
+          : "Live upstream lineage is not verified in this prototype capture."
+        : lineageUnavailableReason || "Lineage preview not available for this asset."}
+    </div>
+  );
+  const buildabilityNote = recordUnavailable
+    ? "Asset 360 is unavailable with current permissions, so workflow mutations remain disabled."
+    : previewColumns.length || shortDescription || terms.length || governanceTags.length
+      ? sourceAuthoritative
+        ? "This preview is assembled from live Discover and Asset 360 fields. Unsupported workflow mutations remain unavailable here."
+        : "Prototype buildability mirrors system.information_schema.tables, information_schema.table_tags, UC grants, Lakeflow freshness, and governance_state.asset_trust. This is not live Databricks proof; unsupported workflow mutations remain unavailable here."
+      : "The record is openable, but descriptive, schema, and governance metadata are sparse.";
 
   return (
-    <SurfaceRail
-      className="gh-selection-preview gh-selection-preview-collapsed-head"
+    <aside
+      aria-label="Asset preview"
+      className="gh-selection-preview gh-discovery-preview-card"
       data-asset-fqn={asset.fqn}
-      eyebrow="Asset preview"
-      identity=""
-      title=""
-      actions={previewActions}
     >
-      {/* Operator 2026-04-20 round 8: the "Asset preview" eyebrow
-          MUST be the first visible element in the sidecar so it sits
-          flush with the top border at the same Y as "Filters" in the
-          left rail. Banners + error notices moved to render AFTER
-          the eyebrow row inside gh-asset-preview below. */}
       <div className="gh-asset-preview">
-        {/* 0 — Eyebrow + close: matches the mockup's "Asset preview" label
-            that sits above the asset title. Close button anchors right. */}
-        <div className="gh-asset-preview-eyebrow-row">
-          <span className="gh-asset-preview-eyebrow">Asset preview</span>
+        <header className="gh-discovery-preview-header">
+          <div className="gh-discovery-preview-title-row">
+            <AssetTypeIcon asset={asset} size="xl" />
+            <div>
+              <div className="gh-discovery-preview-title-line">
+                <h2 className="gh-truncate" title={asset.name}>{asset.name}</h2>
+                <div className="gh-discovery-preview-title-badges">
+                  {cert ? <span className="gh-discovery-status-pill certified">{cert}</span> : null}
+                  {sensitivity ? (
+                    <span className={`gh-discovery-sensitivity-pill ${sensitivityToneClass(sensitivity)}`.trim()}>{sensitivity}</span>
+                  ) : null}
+                  {cdeSignal ? <span className="gh-discovery-linkage gh-discovery-cde-pill">CDE</span> : null}
+                </div>
+              </div>
+              <p>{displayObjectType(asset) || "Asset"} · {assetSourceLabel(asset)}</p>
+            </div>
+          </div>
           {onClearSelection ? (
             <button
               aria-label="Close preview"
-              className="gh-asset-preview-header-close"
+              className="gh-discovery-preview-close"
               onClick={() => onClearSelection()}
               title="Close"
               type="button"
@@ -1922,12 +3507,53 @@ function SelectionPreview({
               ×
             </button>
           ) : null}
-        </div>
+        </header>
 
-        {/* Banners + error notices moved here (round 8) so the eyebrow
-            stays pinned at the top edge of the sidecar, matching
-            "Filters" on the left. */}
+        {sourceAuthoritative ? (
+          <div className="gh-discovery-preview-actions gh-discovery-preview-utility-actions">
+            <button
+              aria-label={recordUnavailable ? "Metadata record unavailable" : "Open Record"}
+              className={`gh-primary-button ${navigating ? "is-loading" : ""}`.trim()}
+              disabled={recordUnavailable || navigating}
+              onClick={() => {
+                setNavigating(true);
+                onOpenAsset(asset.fqn, "Overview");
+              }}
+              title={recordUnavailable ? recordUnavailableReason : "Open Asset 360"}
+              type="button"
+            >
+              {navigating ? "Opening..." : "Open Asset 360"}
+            </button>
+            <button
+              aria-label={lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
+              className="gh-secondary-button"
+              disabled={!lineageAvailable || !asset?.fqn}
+              onClick={() => onOpenLineage?.(asset.fqn, "Data Lineage")}
+              title={!lineageAvailable ? lineageUnavailableReason : "View live lineage"}
+              type="button"
+            >
+              {lineageAvailable ? "Open Lineage" : "Lineage unavailable"}
+            </button>
+            <button
+              aria-label="Open Governance"
+              className="gh-secondary-button"
+              disabled={recordUnavailable}
+              onClick={() => onOpenGovernance(asset.fqn)}
+              title={recordUnavailable ? recordUnavailableReason : "Open governance workspace"}
+              type="button"
+            >
+              Governance
+            </button>
+          </div>
+        ) : null}
+
         {detailError ? <InlineStatusBanner message={detailError} title="Preview degraded" /> : null}
+        {detailLoading ? (
+          <div className="gh-selection-preview-inline-notice" role="status">
+            <span className="gh-selection-preview-inline-notice-label">Refreshing preview</span>
+            <span className="gh-selection-preview-inline-notice-body">Loading available metadata from the asset record.</span>
+          </div>
+        ) : null}
         {!previewAvailable && previewUnavailableReason ? (
           <div className="gh-selection-preview-inline-notice" role="status">
             <span className="gh-selection-preview-inline-notice-label">Live rows unavailable</span>
@@ -1940,399 +3566,265 @@ function SelectionPreview({
           </div>
         ) : null}
 
-        {/* 1 — Header row: asset icon square + asset name */}
-        <div className="gh-asset-preview-header">
-          <div className="gh-asset-preview-header-icon">
-            <AssetTypeIcon asset={asset} size="md" />
-          </div>
-          <h3 className="gh-asset-preview-header-name gh-truncate" title={asset.name}>
-            {asset.name}
-          </h3>
-        </div>
-
-        {/* 2 — Description block */}
-        <div className="gh-asset-preview-description">
-          {shortDescription || targetDescriptionLine}
-        </div>
-
-        {/* 3 — 2×2 action grid (always 4 buttons, dimmed when unavailable) */}
-        <div className="gh-asset-preview-action-grid">
-          <button
-            className={`gh-primary-button ${navigating ? "is-loading" : ""}`.trim()}
-            disabled={recordUnavailable || navigating}
-            onClick={() => {
-              setNavigating(true);
-              onOpenAsset(asset.fqn, "Overview");
-            }}
-            title={recordUnavailable ? recordUnavailableReason : "Open the asset metadata record"}
-            type="button"
-          >
-            {navigating ? (
-              <>
-                <span aria-hidden="true" className="gh-button-spinner" />
-                <span>Opening…</span>
-              </>
-            ) : (
-              "View Details"
-            )}
-          </button>
-          <button
-            className="gh-secondary-button"
-            disabled={recordUnavailable}
-            onClick={() => onOpenGovernance(asset.fqn)}
-            title={recordUnavailable ? recordUnavailableReason : "Request access to this asset"}
-            type="button"
-          >
-            Request Access
-          </button>
-          <button
-            className="gh-secondary-button"
-            disabled={!lineageAvailable || !asset?.fqn}
-            onClick={(event) => {
-              // Round 19 defect #10: prior wiring sometimes needed two
-              // clicks — if the preview hover was mid-refresh, the onClick
-              // closure sometimes fired with a stale `asset` reference
-              // while the visible preview was already a new asset.
-              // Read the FQN at click-time from the DOM so we never
-              // navigate to a stale target, and preventDefault the
-              // browser native label-click bubbling that React was
-              // occasionally swallowing on the first press.
-              event?.preventDefault?.();
-              const fqn = String(asset?.fqn || "").trim();
-              if (!fqn) return;
-              onOpenLineage?.(fqn, "Data Lineage");
-            }}
-            title={!lineageAvailable ? lineageUnavailableReason : "Open the Lineage workspace focused on this asset"}
-            type="button"
-          >
-            {/* Lineage glyph — two small nodes connected by an arrow.
-                Button label renamed from "Add to Lineage" → "Go to
-                Lineage" in round 17 because the action doesn't add the
-                asset to anything — it navigates to the Lineage
-                workspace with this asset focused. The old name implied
-                a manual-edit affordance the surface doesn't have. */}
-            <svg
-              aria-hidden="true"
-              className="gh-asset-preview-action-glyph"
-              viewBox="0 0 24 24"
-              width="14"
-              height="14"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="6" cy="6" r="2.2" />
-              <circle cx="18" cy="18" r="2.2" />
-              <path d="M7.5 7.5 16.5 16.5" />
-            </svg>
-            Go to Lineage
-          </button>
-          <button
-            aria-pressed={isFavorite}
-            className={`gh-secondary-button ${isFavorite ? "is-favorite" : ""}`}
-            onClick={() => onToggleFavorite?.(asset.fqn)}
-            title={isFavorite ? "Remove from favorites" : "Mark this asset as a favorite"}
-            type="button"
-          >
-            <span aria-hidden="true" className="gh-asset-preview-action-glyph">★</span>
-            {isFavorite ? "Favorited" : "Favorite"}
-          </button>
-        </div>
-
-        {/* 4 — Metadata label/value rows. The "Asset name" and
-            "Description" rows were redundant (both shown in the hero
-            above). Operator 2026-04-19 round 3 asked to swap them for
-            Data owner and Classification, which are the governance
-            signals that actually matter at a glance. */}
-        <section className="gh-asset-preview-section">
-          <div className="gh-panel-title">Metadata</div>
-          <dl className="gh-asset-preview-metadata">
-            <div className="gh-asset-preview-metadata-row">
-              <dt>Data owner</dt>
-              <dd className="gh-truncate" title={ownerLabels.join(", ") || "No owner assigned in Unity Catalog"}>
-                {primaryOwner ? (
-                  ownerCount === 1
-                    ? prettyOwnerName(primaryOwner)
-                    : `${ownerCount} owners`
-                ) : (
-                  <span className="gh-asset-preview-metadata-empty">Unassigned</span>
-                )}
-              </dd>
-            </div>
-            <div className="gh-asset-preview-metadata-row">
-              <dt>Domain type</dt>
-              <dd>
-                <span
-                  className="gh-labeled-pill gh-labeled-pill-domain"
-                  data-domain-fallback={domainLabel === "UNCATEGORIZED" ? "true" : "false"}
-                >
-                  {domainLabel}
-                </span>
-              </dd>
-            </div>
-            <div className="gh-asset-preview-metadata-row">
-              <dt>Glossary term</dt>
-              <dd>
-                {glossaryChipLabel ? (
-                  <span className="gh-labeled-pill gh-labeled-pill-glossary">{glossaryChipLabel}</span>
-                ) : (
-                  <span className="gh-asset-preview-metadata-empty">—</span>
-                )}
-              </dd>
-            </div>
-            <div className="gh-asset-preview-metadata-row">
-              <dt>Classification</dt>
-              <dd>
-                {previewClassificationLabel ? (
-                  <span
-                    className="gh-labeled-pill gh-labeled-pill-classification"
-                    title={`Sensitivity classification: ${previewClassificationLabel}`}
-                  >
-                    {previewClassificationLabel}
-                  </span>
-                ) : (
-                  <span className="gh-asset-preview-metadata-empty">Unclassified</span>
-                )}
-              </dd>
-            </div>
-          </dl>
-        </section>
-
-        {/* 5 — Schema overview: real column preview pulled from the asset
-            detail (first 5 columns with data type), plus a total-column
-            count and a link into the Schema tab of the record. If the
-            workspace doesn't return columns yet (OBO not granted), we
-            still show the catalog.schema scope so stewards can see where
-            the asset lives. */}
-        <section className="gh-asset-preview-section">
-          <div className="gh-panel-title-row">
-            <span className="gh-panel-title">Schema overview</span>
-            {totalColumnCountReal !== null ? (
-              <span className="gh-asset-preview-section-count">
-                {`${totalColumnCountReal.toLocaleString()} column${totalColumnCountReal === 1 ? "" : "s"}`}
+        {sourceAuthoritative ? (
+          <div className="gh-discovery-preview-badges">
+            {cert ? <span className="gh-discovery-status-pill certified">{cert}</span> : null}
+            {coverage !== null ? (
+              <span className="gh-discovery-coverage-chip">
+                {`${coverage}% Metadata Coverage`}
+                <i aria-hidden="true"><b style={{ width: `${coverage}%` }} /></i>
               </span>
+            ) : (
+              <span className="gh-discovery-muted-pill">Metadata coverage unavailable</span>
+            )}
+            {sensitivity ? (
+              <span className={`gh-discovery-sensitivity-pill ${sensitivityToneClass(sensitivity)}`.trim()}>{sensitivity}</span>
             ) : null}
           </div>
-          {previewColumns.length ? (
-            <ul className="gh-asset-preview-columns">
-              {previewColumns.map((col) => (
-                <li className="gh-asset-preview-column" key={col.name}>
-                  <span className="gh-asset-preview-column-name gh-truncate" title={col.name}>
-                    {col.name}
-                  </span>
-                  {col.type ? (
-                    <span className="gh-asset-preview-column-type" title={col.type}>
-                      {col.type}
-                    </span>
-                  ) : null}
-                </li>
-              ))}
-              {extraColumnCount > 0 ? (
-                <li className="gh-asset-preview-column is-more">
-                  <button
-                    className="gh-tertiary-button"
-                    disabled={recordUnavailable || navigating}
-                    onClick={() => {
-                      setNavigating(true);
-                      onOpenAsset(asset.fqn, "Schema");
-                    }}
-                    type="button"
-                  >
-                    {`+${extraColumnCount.toLocaleString()} more — open Schema`}
-                  </button>
-                </li>
-              ) : null}
-            </ul>
-          ) : (
-            <div className="gh-asset-preview-schema-chips">
-              {catalogLabel ? (
-                <span className="gh-chip gh-chip-soft" title={`Catalog ${catalogLabel}`}>
-                  {catalogLabel}
-                </span>
-              ) : null}
-              {schemaLabel ? (
-                <span className="gh-chip gh-chip-soft" title={`Schema ${schemaLabel}`}>
-                  {schemaLabel}
-                </span>
-              ) : null}
-              <span className="gh-asset-preview-schema-empty">
-                Columns will load once workspace-scoped access is granted.
-              </span>
-            </div>
-          )}
-        </section>
-
-        {/* 6 — Simplified lineage preview: icon → icon visual */}
-        <section className="gh-asset-preview-section">
-          <div className="gh-panel-title">Simplified lineage preview</div>
-          {lineageAvailable ? (
-            <div className="gh-lineage-mini-preview">
-              <div className="gh-lineage-mini-node">
-                <AssetTypeIcon asset={asset} size="md" />
-                <span
-                  className="gh-lineage-mini-node-label gh-truncate"
-                  title={previewRelatedAssets[0] || upstreamLabel}
-                >
-                  {upstreamLabel}
-                </span>
-              </div>
-              <span aria-hidden="true" className="gh-lineage-mini-arrow">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M5 12h14" />
-                  <path d="m13 6 6 6-6 6" />
-                </svg>
-              </span>
-              <div className="gh-lineage-mini-node is-current">
-                <AssetTypeIcon asset={asset} size="md" />
-                <span className="gh-lineage-mini-node-label gh-truncate" title={asset.fqn}>
-                  {currentLabel}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="gh-support-copy">Lineage preview not available for this asset.</div>
-          )}
-        </section>
-
-        {/* 7 — Usage metrics: real lineage-derived counts (producers,
-            consumers, queries) from the backend's operational section.
-            "Producers" = upstream entities that write to this asset.
-            "Consumers" = downstream entities that read from it. The
-            query count aggregates notebook / job / SQL-warehouse calls
-            that transit the asset. Fallback caption appears when lineage
-            hasn't resolved yet — never fake numbers. */}
-        <section className="gh-asset-preview-section">
-          <div className="gh-panel-title-row">
-            <span className="gh-panel-title">Usage metrics</span>
-            <span className="gh-asset-preview-section-caption">Last 30 days · lineage</span>
-          </div>
-          <div className="gh-asset-preview-usage-grid">
-            <div className="gh-asset-preview-usage-cell">
-              <div className="gh-asset-preview-usage-stat">
-                {producerCount.toLocaleString()}
-              </div>
-              <div className="gh-asset-preview-usage-label">Producers</div>
-              <div className="gh-asset-preview-usage-caption">Upstream writers</div>
-            </div>
-            <div className="gh-asset-preview-usage-cell">
-              <div className="gh-asset-preview-usage-stat">
-                {consumerCount.toLocaleString()}
-              </div>
-              <div className="gh-asset-preview-usage-label">Consumers</div>
-              <div className="gh-asset-preview-usage-caption">Downstream readers</div>
-            </div>
-            <div className="gh-asset-preview-usage-cell">
-              <div className="gh-asset-preview-usage-stat">
-                {queryCount.toLocaleString()}
-              </div>
-              <div className="gh-asset-preview-usage-label">Queries</div>
-              <div className="gh-asset-preview-usage-caption">Notebook & SQL runs</div>
-            </div>
-          </div>
-        </section>
-
-        {/* Connected assets — stewardship navigation. Clicking a row
-            now shows an immediate local "Opening…" spinner so the
-            user has instant visual feedback even if the metadata
-            record takes a second to hydrate. Operator 2026-04-19
-            round 2 flagged that clicks felt dead. */}
-        {previewRelatedAssets.length ? (
-          <section className="gh-asset-preview-section">
-            <div className="gh-panel-title">Connected assets</div>
-            <div className="gh-lineage-linked-list">
-              {previewRelatedAssets.map((item) => {
-                const linkedRecordAvailability =
-                  linkedRecordUnavailableOverrides[item] === true ? false : relatedAssetAvailability[item];
-                const isOpening = openingLinkedAsset === item;
-                return linkedRecordAvailability === false ? (
-                  <div className="gh-lineage-linked-row is-readonly" key={item}>
-                    <span>{item}</span>
-                    <span>Metadata record unavailable</span>
-                  </div>
-                ) : (
-                  <button
-                    className={`gh-lineage-linked-row is-asset-link ${isOpening ? "is-opening" : ""}`.trim()}
-                    disabled={isOpening}
-                    key={item}
-                    onClick={() => {
-                      setOpeningLinkedAsset(item);
-                      onOpenLinkedAsset(item);
-                    }}
-                    type="button"
-                  >
-                    <span>{item}</span>
-                    {isOpening ? (
-                      <span className="gh-lineage-linked-row-opening">
-                        <span aria-hidden="true" className="gh-button-spinner" />
-                        <span>Opening…</span>
-                      </span>
-                    ) : (
-                      <span>{linkedRecordAvailability === true ? "Open Record" : "Checking access..."}</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
         ) : null}
 
-        {/* 8 — Workflow activity: render only backend-provided governance
-            activity. Do not synthesize checklist/task rows just to fill the
-            preview rail. */}
-        <section className="gh-asset-preview-section">
-          <div className="gh-panel-title gh-asset-preview-tasks-title">
-            <span>Workflow activity</span>
-            <span
-              aria-label="Workflow activity is sourced from this asset's governance records"
-              className="gh-info-glyph"
-              role="img"
-              title="Workflow activity is sourced from this asset's governance records."
+        <div className="gh-discovery-preview-tabs" role="tablist" aria-label="Asset preview sections">
+          {tabDefinitions.map((tab) => (
+            <button
+              aria-controls={`gh-discovery-preview-panel-${tab.key}`}
+              aria-selected={activeTab === tab.key}
+              className={activeTab === tab.key ? "is-active" : ""}
+              id={`gh-discovery-preview-tab-${tab.key}`}
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              role="tab"
+              type="button"
             >
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 11v5" />
-                <path d="M12 8v.01" />
-              </svg>
-            </span>
-          </div>
-          {workflowActivity.length ? (
-            <div className="gh-task-list gh-task-list-rows">
-              {workflowActivity.slice(0, 3).map((item, index) => (
-                <div className="gh-task-row" key={item.id || `${item.title || item.action}-${item.createdAt || index}`}>
-                  <div className="gh-task-row-main">
-                    <div className="gh-task-row-head">
-                      <span className="gh-task-title">{item.title || item.action || "Governance activity"}</span>
-                      {item.status ? <span className="gh-status-chip tone-neutral">{item.status}</span> : null}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="gh-discovery-preview-body">
+          {actionNotice ? (
+            <div className="gh-selection-preview-inline-notice gh-selection-preview-action-notice" role="status">
+              <span className="gh-selection-preview-inline-notice-label">Action unavailable</span>
+              <span className="gh-selection-preview-inline-notice-body">{actionNotice}</span>
+            </div>
+          ) : null}
+
+          {activeTab === "overview" ? (
+            <div
+              aria-labelledby="gh-discovery-preview-tab-overview"
+              id="gh-discovery-preview-panel-overview"
+              role="tabpanel"
+            >
+              <div className="gh-asset-preview-description">
+                {shortDescription || targetDescriptionLine}
+              </div>
+
+              <section className="gh-asset-preview-section">
+                <div className="gh-panel-title">Metadata</div>
+                <div className="gh-discovery-preview-metric-grid">
+                  {metrics.map((metric) => (
+                    <div
+                      className={`gh-discovery-preview-metric ${metric.unavailable ? "is-unavailable" : ""}`.trim()}
+                      key={metric.label}
+                    >
+                      <span>{metric.label}</span>
+                      <strong>{metric.value}</strong>
                     </div>
-                    {item.detail ? <div className="gh-support-copy">{item.detail}</div> : null}
-                    {item.createdAt || item.createdBy || item.actorEmail ? (
-                      <div className="gh-support-copy">
-                        {[item.createdBy || item.actorEmail, item.createdAt].filter(Boolean).join(" · ")}
-                      </div>
+                  ))}
+                </div>
+              </section>
+
+              <section className="gh-asset-preview-section">
+                <div className="gh-panel-title">{sourceAuthoritative ? "Connected Assets" : "Prototype connected assets"}</div>
+                {linkedLineagePreview}
+              </section>
+
+              <section className="gh-asset-preview-section">
+                <div className="gh-panel-title-row">
+                  <span className="gh-panel-title">Tags & Glossary</span>
+                  {terms.length ? <span className="gh-asset-preview-section-count">{terms.length} terms</span> : null}
+                </div>
+                {governanceTags.length || terms.length ? (
+                  <div className="gh-discovery-glossary-list">
+                    {governanceTags.slice(0, 5).map((tag) => (
+                      <span className="gh-labeled-pill gh-labeled-pill-tag" key={`tag-${tag}`}>{tag}</span>
+                    ))}
+                    {terms.slice(0, 5).map((term) => (
+                      <span className="gh-labeled-pill gh-labeled-pill-glossary" key={`term-${term}`}>{term}</span>
+                    ))}
+                    {governanceTags.length + terms.length > 10 ? (
+                      <span className="gh-chip gh-chip-soft">+{governanceTags.length + terms.length - 10} more</span>
                     ) : null}
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="gh-empty-state">
-              No workflow tasks or governance activity are recorded for this asset.
-            </div>
-          )}
-        </section>
+                ) : (
+                  <div className="gh-support-copy">No tags or glossary terms are linked to this asset yet.</div>
+                )}
+              </section>
 
-        {/* Always-visible strip for unavailable lineage so stewards don't
-            have to go hunting for the gating reason. */}
-        {!lineageAvailable && lineageUnavailableReason ? (
-          <div className="gh-selection-preview-alert">
-            <span className="gh-selection-preview-alert-label">Lineage</span>
-            <span className="gh-selection-preview-alert-body">{lineageUnavailableReason}</span>
-          </div>
-        ) : null}
+              <section className="gh-asset-preview-section gh-discovery-preview-buildability">
+                <div className="gh-panel-title">Buildability Note</div>
+                {sourceAuthoritative || recordUnavailable ? (
+                  <p>{buildabilityNote}</p>
+                ) : (
+                  <>
+                    <p className="gh-discovery-buildability-subtitle">How this view is composed</p>
+                    <div className="gh-discovery-buildability-box">
+                      Metadata sourced from <code>system.information_schema.tables</code>: description and tags from <code>information_schema.table_tags</code>; ownership from UC grants; freshness from a Lakeflow Job that records last-write timestamp; trust score is computed nightly into <code>governance_state.asset_trust</code>. This is not live Databricks proof.
+                    </div>
+                  </>
+                )}
+              </section>
+            </div>
+          ) : null}
+
+          {activeTab === "columns" ? (
+            <section
+              aria-labelledby="gh-discovery-preview-tab-columns"
+              className="gh-asset-preview-section"
+              id="gh-discovery-preview-panel-columns"
+              role="tabpanel"
+            >
+              <div className="gh-panel-title-row">
+                <span className="gh-panel-title">{hasKeyEvidence ? "Key Columns" : "Columns"}</span>
+                {totalColumnCountReal !== null ? (
+                  <span className="gh-asset-preview-section-count">
+                    {`${totalColumnCountReal.toLocaleString()} column${totalColumnCountReal === 1 ? "" : "s"}`}
+                  </span>
+                ) : null}
+              </div>
+              {previewColumns.length ? (
+                <ul className="gh-asset-preview-columns">
+                  {previewColumns.map((col) => (
+                    <li className="gh-asset-preview-column" key={col.name}>
+                      <span className="gh-asset-preview-column-name gh-truncate" title={col.name}>
+                        {col.name}
+                      </span>
+                      {col.type ? (
+                        <span className="gh-asset-preview-column-type" title={col.type}>
+                          {col.type}
+                        </span>
+                      ) : null}
+                    </li>
+                  ))}
+                  {extraColumnCount > 0 ? (
+                    <li className="gh-asset-preview-column is-more">
+                      <button
+                        className="gh-tertiary-button"
+                        disabled={recordUnavailable || navigating}
+                        onClick={() => {
+                          setNavigating(true);
+                          onOpenAsset(asset.fqn, "Schema");
+                        }}
+                        type="button"
+                      >
+                        {`+${extraColumnCount.toLocaleString()} more - open Schema`}
+                      </button>
+                    </li>
+                  ) : null}
+                </ul>
+              ) : (
+                <div className="gh-asset-preview-schema-empty">
+                  Columns are unavailable from the current live metadata response.
+                </div>
+              )}
+            </section>
+          ) : null}
+
+          {activeTab === "lineage" ? (
+            <section
+              aria-labelledby="gh-discovery-preview-tab-lineage"
+              className="gh-asset-preview-section"
+              id="gh-discovery-preview-panel-lineage"
+              role="tabpanel"
+            >
+              <div className="gh-panel-title">Lineage Preview</div>
+              {linkedLineagePreview}
+            </section>
+          ) : null}
+
+          {activeTab === "quality" ? (
+            <section
+              aria-labelledby="gh-discovery-preview-tab-quality"
+              className="gh-asset-preview-section"
+              id="gh-discovery-preview-panel-quality"
+              role="tabpanel"
+            >
+              <div className="gh-panel-title">Quality</div>
+              {qualityScore !== null ? (
+                <div className="gh-discovery-quality-preview">
+                  <strong>{Math.round(qualityScore)} / 100</strong>
+                  <span>Quality score from the asset metadata response.</span>
+                </div>
+              ) : (
+                <div className="gh-support-copy">Quality score is unavailable for this asset in the current live metadata response.</div>
+              )}
+              {Array.isArray(asset.failedTests) && asset.failedTests.length ? (
+                <ul className="gh-discovery-quality-list">
+                  {asset.failedTests.slice(0, 4).map((test) => (
+                    <li key={String(test?.id || test?.name || test)}>
+                      {String(test?.name || test?.label || test)}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+          ) : null}
+
+          {activeTab === "access" ? (
+            <section
+              aria-labelledby="gh-discovery-preview-tab-access"
+              className="gh-asset-preview-section"
+              id="gh-discovery-preview-panel-access"
+              role="tabpanel"
+            >
+              <div className="gh-panel-title">Access & Stewardship</div>
+              {metadataSummary}
+              <div className="gh-discovery-preview-access-note">
+                {recordUnavailable
+                  ? recordUnavailableReason
+                  : "Governed access and certification decisions open in the backed governance workspace."}
+              </div>
+            </section>
+          ) : null}
+        </div>
+
+        <div className="gh-support-copy gh-discovery-preview-workflow-note">
+          Comment and access-request creation are disabled here until a backed governance workflow is configured.
+        </div>
+        <footer className="gh-discovery-preview-footer" aria-label="Preview workflow actions">
+          <button
+            className="gh-secondary-button"
+            disabled
+            title="Comment threads require a backed workflow before they can be created from Discover."
+            type="button"
+          >
+            Comment
+          </button>
+          <button
+            className="gh-secondary-button"
+            disabled
+            title="Access requests require a backed workflow before they can be created from Discover."
+            type="button"
+          >
+            Request access
+          </button>
+          <button
+            className="gh-primary-button"
+            disabled={recordUnavailable}
+            onClick={() => onOpenGovernance(asset.fqn)}
+            title={
+              recordUnavailable
+                ? recordUnavailableReason
+                : sourceAuthoritative
+                  ? "Open governance workspace"
+                  : "Open governance certification review context; this does not certify metadata in prototype mode."
+            }
+            type="button"
+          >
+            {sourceAuthoritative ? "Certify" : "Review cert"}
+          </button>
+        </footer>
       </div>
-    </SurfaceRail>
+    </aside>
   );
 }
 
@@ -2491,14 +3983,6 @@ function SelectionPreviewTabs({
         />
       ) : null}
 
-      {/* Always-visible strip for unavailable lineage so stewards don't
-          have to dig into the Lineage tab to see the gating reason. */}
-      {!lineageAvailable && lineageUnavailableReason ? (
-        <div className="gh-selection-preview-alert">
-          <span className="gh-selection-preview-alert-label">Lineage</span>
-          <span className="gh-selection-preview-alert-body">{lineageUnavailableReason}</span>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -2695,13 +4179,26 @@ export default function DiscoveryWorkspace({
   sharedVisibleAssetSet,
   runtimeFeatureFlags = [],
   workspaceAccess = null,
+  atlasAiAvailable = true,
+  atlasAiUnavailableReason = "Atlas AI is unavailable until the shell reports a configured Genie endpoint.",
 }) {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [atlasAiState, setAtlasAiState] = useState({
+    loading: false,
+    response: null,
+    error: "",
+    cacheKey: "",
+  });
+  const atlasAiAutoRunKeyRef = useRef("");
+  const atlasAiAbortRef = useRef(null);
+  const atlasAiCacheKeyRef = useRef("");
+  const atlasAiRequestSeqRef = useRef(0);
   const hoverPreviewTimerRef = useRef(null);
   const handleHoverPreview = (fqn) => {
     if (!fqn) return;
     if (hoverPreviewTimerRef.current) clearTimeout(hoverPreviewTimerRef.current);
     hoverPreviewTimerRef.current = setTimeout(() => {
+      setPreviewDismissed(false);
       setSelectedAssetFqn((current) => (current === fqn ? current : fqn));
     }, 300);
   };
@@ -2713,6 +4210,9 @@ export default function DiscoveryWorkspace({
   };
   useEffect(() => () => {
     if (hoverPreviewTimerRef.current) clearTimeout(hoverPreviewTimerRef.current);
+  }, []);
+  useEffect(() => () => {
+    atlasAiAbortRef.current?.abort?.();
   }, []);
   const [density, setDensityState] = useState(() => {
     if (typeof window === "undefined") return "normal";
@@ -2728,6 +4228,8 @@ export default function DiscoveryWorkspace({
     }
   };
   const [selectedAssetFqn, setSelectedAssetFqn] = useState("");
+  const [previewDismissed, setPreviewDismissed] = useState(false);
+  const [previewExplicitOpen, setPreviewExplicitOpen] = useState(false);
   const [visibleResultCount, setVisibleResultCount] = useState(DISCOVERY_RESULT_PAGE_SIZE);
   const [navigationNotice, setNavigationNotice] = useState("");
   const [favorites, setFavorites] = useState(() => readFavoriteSet());
@@ -2748,30 +4250,12 @@ export default function DiscoveryWorkspace({
   const [selectedSchemas, setSelectedSchemas] = useState(() => new Set());
   const [ownerFilterText, setOwnerFilterText] = useState("");
   const [glossaryFilterText, setGlossaryFilterText] = useState("");
-  // Discovery/Navigation sub-tab — matches the mockup's two-tab strip above
-  // the filter rail. "discovery" = default card grid; "navigation" = catalog
-  // tree focus mode (hides the card grid and expands the catalog tree for
-  // breadth-first browsing). Persisted in URL via ?view= so deep links work.
-  const [discoverySubTab, setDiscoverySubTab] = useState(() => {
-    if (typeof window === "undefined") return "discovery";
-    const params = new URLSearchParams(window.location.search || "");
-    const raw = String(params.get("view") || "").trim().toLowerCase();
-    return raw === "navigation" ? "navigation" : "discovery";
-  });
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const url = new URL(window.location.href);
-      if (discoverySubTab === "navigation") {
-        url.searchParams.set("view", "navigation");
-      } else {
-        url.searchParams.delete("view");
-      }
-      window.history.replaceState(null, "", url.pathname + (url.search ? url.search : "") + url.hash);
-    } catch {
-      /* ignore — ?view= is purely an affordance, not load-bearing */
-    }
-  }, [discoverySubTab]);
+  const [showSavedSearches, setShowSavedSearches] = useState(false);
+  // The North Star Discovery surface has no Discovery/Navigation sub-tab. Keep
+  // a default data marker for compatibility with older tests/CSS without
+  // mutating the route with the retired ?view= contract.
+  const [discoverySubTab, setDiscoverySubTab] = useState("discovery");
+  const legacyNavigationEnabled = Boolean(bootstrap?.features?.legacyDiscoveryNavigation);
   const [openCardMenuFqn, setOpenCardMenuFqn] = useState("");
   const toggleCatalogExpanded = (catalog) => {
     setExpandedCatalogs((current) => {
@@ -2804,8 +4288,18 @@ export default function DiscoveryWorkspace({
   const toggleFavorite = (fqn) => {
     setFavorites((current) => {
       const next = new Set(current);
-      if (next.has(fqn)) next.delete(fqn); else next.add(fqn);
+      const removing = next.has(fqn);
+      if (removing) next.delete(fqn); else next.add(fqn);
       writeFavoriteSet(next);
+      const assetName =
+        allDiscoveryAssets.find((asset) => asset.fqn === fqn)?.name ||
+        String(fqn || "asset").split(".").pop() ||
+        "asset";
+      setNavigationNotice(
+        removing
+          ? `Removed ${assetName} from local browser favorites.`
+          : `Saved ${assetName} as a local browser favorite.`,
+      );
       return next;
     });
   };
@@ -2827,8 +4321,6 @@ export default function DiscoveryWorkspace({
       return key;
     });
   };
-  const [previewSchemaWarm, setPreviewSchemaWarm] = useState(false);
-  const [recordUnavailableOverrides, setRecordUnavailableOverrides] = useState({});
   const [linkedRecordUnavailableOverrides, setLinkedRecordUnavailableOverrides] = useState({});
   const [recordAvailabilityTargets, setRecordAvailabilityTargets] = useState([]);
   const filterCommandRef = useRef(null);
@@ -2854,20 +4346,39 @@ export default function DiscoveryWorkspace({
     querySeedKey,
     querySeedFresh,
   });
+  const recordUnavailableScopeKey = `${discoveryResults.requestKey || "default"}:${querySeedFresh ? "fresh" : "stable"}`;
+  const [recordUnavailableOverrideState, setRecordUnavailableOverrideState] = useState({
+    overrides: {},
+    scopeKey: recordUnavailableScopeKey,
+  });
+  const recordUnavailableOverrides =
+    recordUnavailableOverrideState.scopeKey === recordUnavailableScopeKey
+      ? recordUnavailableOverrideState.overrides
+      : {};
+  const setRecordUnavailableOverrides = useCallback(
+    (nextValue) => {
+      setRecordUnavailableOverrideState((current) => {
+        const currentOverrides =
+          current.scopeKey === recordUnavailableScopeKey ? current.overrides : {};
+        const nextOverrides =
+          typeof nextValue === "function" ? nextValue(currentOverrides) : nextValue;
+        return {
+          overrides: nextOverrides || {},
+          scopeKey: recordUnavailableScopeKey,
+        };
+      });
+    },
+    [recordUnavailableScopeKey],
+  );
 
   const suppressCatalogRows =
     effectiveBootState !== "live" &&
     !discoveryResults.authoritative &&
     !(discoveryResults.assets || []).length;
-  const rawDiscoveryAssets = suppressCatalogRows ? [] : discoveryResults.assets;
-  // L3 fixture hook: when the URL carries `?fixture=target-mockup`, overlay
-  // synthetic golden metadata on every asset so the UI renders deterministic
-  // state regardless of the live catalog's metadata quality. Opt-in only.
-  const allDiscoveryAssets = useMemo(() => {
-    if (typeof window === "undefined") return rawDiscoveryAssets;
-    if (!isFixtureMode(window.location?.search || "")) return rawDiscoveryAssets;
-    return applyTargetMockupFixtureToAll(rawDiscoveryAssets || []);
-  }, [rawDiscoveryAssets]);
+  const allDiscoveryAssets = useMemo(
+    () => (suppressCatalogRows || !Array.isArray(discoveryResults.assets) ? [] : discoveryResults.assets),
+    [discoveryResults.assets, suppressCatalogRows],
+  );
   // Asset type counts: prefer backend facet counts (which aggregate over the
   // FULL match set, matching Domain/Sensitivity/Workflow) over client-side
   // counts of the visible page. Falls back to per-page counts only when
@@ -3078,20 +4589,30 @@ export default function DiscoveryWorkspace({
   const invalidQuery =
     discoveryResults.queryState?.state === "invalid" ? discoveryResults.queryState : null;
   const selectedSeedAsset =
-    invalidQuery
+    invalidQuery || previewDismissed
       ? null
       : renderableDiscoveryAssets.find((asset) => asset.fqn === selectedAssetFqn) ||
         renderableDiscoveryAssets[0] ||
         null;
   const previewAvailable = systemInventoryAvailable(bootstrap);
   const previewUnavailableReason = systemInventoryReason(bootstrap);
+  const workspaceAccessResolved = Boolean(
+    workspaceAccess &&
+      (
+        workspaceAccess.mode ||
+        workspaceAccess.observedAt ||
+        Array.isArray(workspaceAccess.gates) ||
+        typeof workspaceAccess.canUseAssetPreview === "boolean" ||
+        typeof workspaceAccess.canUseLineage === "boolean"
+      ),
+  );
   const workspacePreviewAvailable = workspaceAccessAvailable(
     workspaceAccess,
     "canUseAssetPreview",
-    false,
+    true,
   );
-  const previewSurfaceAvailable = previewAvailable && workspacePreviewAvailable;
-  const previewSurfaceUnavailableReason = !workspacePreviewAvailable
+  const previewSurfaceAvailable = previewAvailable && (!workspaceAccessResolved || workspacePreviewAvailable);
+  const previewSurfaceUnavailableReason = workspaceAccessResolved && !workspacePreviewAvailable
     ? workspaceAccessReason(workspaceAccess, "asset_preview", previewUnavailableReason)
     : previewUnavailableReason || "Live preview rows and schema are not available in this workspace right now.";
   const previewDetail = useAssetDetail(selectedSeedAsset?.fqn || "", {
@@ -3103,7 +4624,7 @@ export default function DiscoveryWorkspace({
     // REAL usage counts (producer / consumer / query counts from lineage)
     // and a REAL column schema preview, instead of placeholder zeros.
     sections: ["header", "schema", "operational"],
-    enabled: Boolean(selectedSeedAsset?.fqn) && previewSchemaWarm && previewSurfaceAvailable,
+    enabled: Boolean(selectedSeedAsset?.fqn) && previewSurfaceAvailable,
   });
   const previewAsset = isUsableAssetDetail(previewSchemaDetail.detail)
     ? previewSchemaDetail.detail
@@ -3129,15 +4650,18 @@ export default function DiscoveryWorkspace({
   );
   const lineageAvailable = tableLineageAvailable(bootstrap);
   const lineageUnavailableReason = tableLineageReason(bootstrap);
-  const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", false);
+  const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", true);
   const lineageRolloutAvailable = runtimeFeatureFlagAvailable(
     runtimeFeatureFlags,
     "table_lineage_surface",
   );
-  const lineageSurfaceAvailable = lineageAvailable && lineageRolloutAvailable && workspaceLineageAvailable;
+  const lineageSurfaceAvailable =
+    lineageAvailable &&
+    lineageRolloutAvailable &&
+    (!workspaceAccessResolved || workspaceLineageAvailable);
   const lineageRolloutUnavailableReason =
     "Table lineage rollout is not available in this workspace right now.";
-  const lineageSurfaceUnavailableReason = !workspaceLineageAvailable
+  const lineageSurfaceUnavailableReason = workspaceAccessResolved && !workspaceLineageAvailable
     ? workspaceAccessReason(workspaceAccess, "table_lineage", lineageUnavailableReason)
     : lineageAvailable
     ? lineageRolloutAvailable
@@ -3150,9 +4674,20 @@ export default function DiscoveryWorkspace({
     : lineageUnavailableReason;
   const resultsCount = discoveryResults.count;
   const resultsLoading = discoveryResults.loading;
+  const resultsFetching = Boolean(discoveryResults.fetching);
   const resultsError = discoveryResults.error;
   const resultsSettled = discoveryResults.settled;
   const resultsFacets = discoveryResults.facets;
+  const discoverySourceAuthoritative = discoveryResults.authoritative === true;
+  const discoverySourceIsPrototype =
+    effectiveBootState === "prototype_mock" ||
+    /prototype/i.test(String(discoveryResults.meta?.state || "")) ||
+    /prototype/i.test(String(discoveryResults.meta?.source || ""));
+  const discoverySourceLabel = discoverySourceAuthoritative
+    ? "Live Unity Catalog"
+    : discoverySourceIsPrototype
+      ? "Prototype mock · not live Databricks evidence"
+      : "Degraded discovery payload";
   useEffect(() => {
     if (!showAdvancedFilters) return undefined;
     const onPointerDown = (event) => {
@@ -3174,8 +4709,19 @@ export default function DiscoveryWorkspace({
   }, [showAdvancedFilters]);
 
   useEffect(() => {
+    if (routePreviewAssetFqn) {
+      setPreviewDismissed(false);
+      setPreviewExplicitOpen(true);
+    } else {
+      setPreviewExplicitOpen(false);
+    }
     setSelectedAssetFqn(routePreviewAssetFqn);
   }, [querySeedKey, routePreviewAssetFqn]);
+
+  useEffect(() => {
+    setPreviewDismissed(false);
+    if (!routePreviewAssetFqn) setPreviewExplicitOpen(false);
+  }, [discoveryResults.requestKey, routePreviewAssetFqn]);
 
   useEffect(() => {
     if (!renderableDiscoveryAssets.length) {
@@ -3184,6 +4730,9 @@ export default function DiscoveryWorkspace({
     }
 
     setSelectedAssetFqn((current) => {
+      if (previewDismissed && !routePreviewAssetFqn) {
+        return "";
+      }
       // Blank discovery routes keep the first visible preview local. Only an
       // explicit route preview or an explicit user selection should write
       // preview identity back into the router.
@@ -3198,35 +4747,7 @@ export default function DiscoveryWorkspace({
       }
       return renderableDiscoveryAssets[0].fqn;
     });
-  }, [renderableDiscoveryAssets, routePreviewAssetFqn]);
-
-  useEffect(() => {
-    if (!selectedSeedAsset?.fqn) {
-      setPreviewSchemaWarm(false);
-      return undefined;
-    }
-    let timeoutId = 0;
-    let idleId = 0;
-    setPreviewSchemaWarm(false);
-    const warmSchema = () => {
-      setPreviewSchemaWarm(true);
-    };
-    if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
-      idleId = window.requestIdleCallback(warmSchema, { timeout: 1600 });
-    } else if (typeof window !== "undefined") {
-      timeoutId = window.setTimeout(warmSchema, 480);
-    } else {
-      warmSchema();
-    }
-    return () => {
-      if (typeof window !== "undefined" && idleId && typeof window.cancelIdleCallback === "function") {
-        window.cancelIdleCallback(idleId);
-      }
-      if (typeof window !== "undefined" && timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-    };
-  }, [selectedSeedAsset?.fqn]);
+  }, [previewDismissed, renderableDiscoveryAssets, routePreviewAssetFqn]);
 
   useEffect(() => {
     setLinkedRecordUnavailableOverrides({});
@@ -3234,7 +4755,7 @@ export default function DiscoveryWorkspace({
 
   useEffect(() => {
     setRecordUnavailableOverrides({});
-  }, [discoveryResults.requestKey, querySeedFresh]);
+  }, [discoveryResults.requestKey, querySeedFresh, setRecordUnavailableOverrides]);
 
   useEffect(() => {
     setNavigationNotice("");
@@ -3302,24 +4823,227 @@ export default function DiscoveryWorkspace({
     [],
     filters.catalogs,
   ).filter((value) => value && value !== "All catalogs");
+  const ownerFilterOptions = useMemo(() => {
+    const facetEntries = Array.isArray(resultsFacets?.owners) ? resultsFacets.owners : [];
+    const fromFacets = facetEntries
+      .map((entry) => String(entry?.value || "").trim())
+      .filter((value) => value && value !== "All owners" && value !== "Unassigned");
+    const fromAssets = allDiscoveryAssets.flatMap((entry) => ownerLabelsForAsset(entry));
+    return [...new Set([...fromFacets, ...fromAssets])].slice(0, 20);
+  }, [allDiscoveryAssets, resultsFacets]);
+  const atlasAiCacheKey = useMemo(
+    () => discoveryAiCacheKey(discoveryResults.requestKey || "default", filters.query),
+    [discoveryResults.requestKey, filters.query],
+  );
+  const visibleAtlasAiState = useMemo(() => {
+    if (atlasAiState.cacheKey === atlasAiCacheKey) return atlasAiState;
+    return {
+      loading: false,
+      response: null,
+      error: "",
+      cacheKey: atlasAiCacheKey,
+    };
+  }, [atlasAiCacheKey, atlasAiState]);
+  useEffect(() => {
+    atlasAiCacheKeyRef.current = atlasAiCacheKey;
+    atlasAiAbortRef.current?.abort?.();
+    const cached = readDiscoveryAiCache(atlasAiCacheKey);
+    setAtlasAiState((current) => {
+      if (cached) {
+        return {
+          loading: false,
+          response: cached,
+          error: "",
+          cacheKey: atlasAiCacheKey,
+        };
+      }
+      if (current.cacheKey === atlasAiCacheKey) return current;
+      return {
+        loading: false,
+        response: null,
+        error: "",
+        cacheKey: atlasAiCacheKey,
+      };
+    });
+  }, [atlasAiCacheKey]);
   const onDiscoveryStateChange = (nextState) => setFilters(nextState);
-  const resetBrowse = () => {
-    // Resetting browse returns the workspace to a clean discovery scope rather
-    // than preserving an earlier explicit preview selection.
-    setSelectedAssetFqn("");
-    if (routePreviewAssetFqn) {
-      onRoutePreviewChange?.("");
-    }
-    onDiscoveryStateChange({
-      query: "",
-      sortBy: bootstrap.discovery.sortOptions[0],
-      views: [],
+  const clearDiscoveryFilters = () => {
+    setSelectedSchemas(new Set());
+    setOwnerFilterText("");
+    setGlossaryFilterText("");
+    const emptyFilterGroups = {
       types: [],
       catalogs: [],
       domains: [],
       tiers: [],
       certifications: [],
       sensitivities: [],
+    };
+    onRouteQueryChange?.("", {
+      views: [],
+      filterGroups: emptyFilterGroups,
+    });
+    onDiscoveryStateChange((current) => ({
+      ...current,
+      types: [],
+      catalogs: [],
+      domains: [],
+      tiers: [],
+      certifications: [],
+      sensitivities: [],
+      views: [],
+      query: "",
+    }));
+  };
+  const askAtlasForDiscovery = useCallback(() => {
+    if (!atlasAiAvailable) {
+      setAtlasAiState({
+        loading: false,
+        response: null,
+        error: atlasAiUnavailableReason,
+        cacheKey: atlasAiCacheKey,
+      });
+      return;
+    }
+    const requestCacheKey = atlasAiCacheKey;
+    if (atlasAiState.cacheKey === requestCacheKey && atlasAiState.loading) return;
+    const cached = readDiscoveryAiCache(requestCacheKey);
+    if (cached) {
+      setAtlasAiState({
+        loading: false,
+        response: cached,
+        error: "",
+        cacheKey: requestCacheKey,
+      });
+      return;
+    }
+    atlasAiAbortRef.current?.abort?.();
+    const controller = new AbortController();
+    atlasAiAbortRef.current = controller;
+    const requestId = atlasAiRequestSeqRef.current + 1;
+    atlasAiRequestSeqRef.current = requestId;
+    const timeoutId = window.setTimeout(() => {
+      controller.abort();
+    }, DISCOVERY_AI_REQUEST_TIMEOUT_MS);
+    setAtlasAiState((current) => ({
+      loading: true,
+      response: current.cacheKey === requestCacheKey ? current.response : null,
+      error: "",
+      cacheKey: requestCacheKey,
+    }));
+    fetchAtlasAiRecommendations(
+      filters.query
+        ? `Recommend governed assets and priorities for this Discovery search: ${filters.query}`
+        : "Recommend the next governed assets and governance priorities for Discovery.",
+      { signal: controller.signal },
+    )
+      .then((response) => {
+        window.clearTimeout(timeoutId);
+        if (atlasAiRequestSeqRef.current !== requestId) {
+          return;
+        }
+        if (atlasAiAbortRef.current === controller) atlasAiAbortRef.current = null;
+        writeDiscoveryAiCache(requestCacheKey, response);
+        setAtlasAiState({
+          loading: false,
+          response,
+          error: "",
+          cacheKey: requestCacheKey,
+        });
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        if (
+          atlasAiRequestSeqRef.current !== requestId ||
+          atlasAiCacheKeyRef.current !== requestCacheKey
+        ) {
+          return;
+        }
+        if (atlasAiAbortRef.current === controller) atlasAiAbortRef.current = null;
+        setAtlasAiState({
+          loading: false,
+          response: null,
+          cacheKey: requestCacheKey,
+          error:
+            error?.name === "AbortError"
+              ? "Atlas AI recommendations are taking longer than expected. Try again."
+              : error?.message || "Atlas AI recommendations are unavailable.",
+        });
+      });
+  }, [atlasAiAvailable, atlasAiCacheKey, atlasAiState.cacheKey, atlasAiState.loading, atlasAiUnavailableReason, filters.query]);
+  useEffect(() => {
+    if (
+      !atlasAiAvailable ||
+      !resultsSettled ||
+      resultsLoading ||
+      invalidQuery ||
+      !renderableDiscoveryAssets.length ||
+      visibleAtlasAiState.loading ||
+      visibleAtlasAiState.response ||
+      visibleAtlasAiState.error
+    ) {
+      return undefined;
+    }
+    const autoRunKey = atlasAiCacheKey;
+    if (atlasAiAutoRunKeyRef.current === autoRunKey) return undefined;
+    const cached = readDiscoveryAiCache(atlasAiCacheKey);
+    if (cached) {
+      atlasAiAutoRunKeyRef.current = autoRunKey;
+      setAtlasAiState({
+        loading: false,
+        response: cached,
+        error: "",
+        cacheKey: atlasAiCacheKey,
+      });
+      return undefined;
+    }
+    atlasAiAutoRunKeyRef.current = autoRunKey;
+    const timeoutId = window.setTimeout(() => {
+      askAtlasForDiscovery();
+    }, 900);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    atlasAiCacheKey,
+    atlasAiAvailable,
+    askAtlasForDiscovery,
+    invalidQuery,
+    renderableDiscoveryAssets.length,
+    resultsLoading,
+    resultsSettled,
+    visibleAtlasAiState.error,
+    visibleAtlasAiState.loading,
+    visibleAtlasAiState.response,
+  ]);
+  const resetBrowse = () => {
+    // Resetting browse returns the workspace to a clean discovery scope rather
+    // than preserving an earlier explicit preview selection.
+    setSelectedAssetFqn("");
+    setPreviewDismissed(false);
+    setPreviewExplicitOpen(false);
+    if (routePreviewAssetFqn) {
+      onRoutePreviewChange?.("");
+    }
+    const nextSort = bootstrap.discovery.sortOptions[0];
+    const emptyFilterGroups = {
+      types: [],
+      catalogs: [],
+      domains: [],
+      tiers: [],
+      certifications: [],
+      sensitivities: [],
+    };
+    onRouteQueryChange?.("", {
+      sortBy: nextSort,
+      previewAssetFqn: "",
+      views: [],
+      filterGroups: emptyFilterGroups,
+      fresh: true,
+    });
+    onDiscoveryStateChange({
+      query: "",
+      sortBy: nextSort,
+      views: [],
+      ...emptyFilterGroups,
     });
   };
 
@@ -3415,10 +5139,19 @@ export default function DiscoveryWorkspace({
   const hasRenderableResults = renderableDiscoveryAssets.length > 0;
   const handleSelectAsset = (assetFqn) => {
     const nextAssetFqn = assetFqn || "";
+    setPreviewDismissed(false);
+    setPreviewExplicitOpen(Boolean(nextAssetFqn));
     setSelectedAssetFqn(nextAssetFqn);
     if (nextAssetFqn !== routePreviewAssetFqn) {
       onRoutePreviewChange?.(nextAssetFqn);
     }
+  };
+  const previewOverlayOpen = Boolean(routePreviewAssetFqn || previewExplicitOpen);
+  const closePreviewOverlay = () => {
+    setPreviewDismissed(true);
+    setPreviewExplicitOpen(false);
+    setSelectedAssetFqn("");
+    onRoutePreviewChange?.("");
   };
 
   useEffect(() => {
@@ -3479,6 +5212,16 @@ export default function DiscoveryWorkspace({
   const selectedPreviewRecordAvailability = selectedSeedAsset?.fqn
     ? renderedRecordAvailability[selectedSeedAsset.fqn] ?? null
     : null;
+  const selectedPreviewHasFetchedDetail =
+    selectedPreviewRecordDetail?.fqn && selectedPreviewRecordDetail !== selectedSeedAsset;
+  const selectedPreviewDetailBlocksOpen =
+    selectedPreviewHasFetchedDetail &&
+    (
+      selectedPreviewRecordDetail?.openable === false ||
+      selectedPreviewRecordDetail?.recordOpenable === false ||
+      selectedPreviewRecordDetail?.availability?.openable === false ||
+      /unknown\s*object/i.test(String(selectedPreviewRecordDetail?.objectType || ""))
+    );
   const selectedPreviewRecordOpenable =
     !selectedSeedAsset?.fqn
       ? null
@@ -3486,8 +5229,8 @@ export default function DiscoveryWorkspace({
         ? false
       : selectedPreviewRecordAvailability === false
         ? false
-        : selectedPreviewRecordDetail?.fqn
-        ? canOpenAssetRecord(selectedPreviewRecordDetail)
+        : selectedPreviewDetailBlocksOpen
+        ? false
         : selectedPreviewRecordAvailability;
 
   useEffect(() => {
@@ -3541,6 +5284,7 @@ export default function DiscoveryWorkspace({
           The palette is opened via a window-level custom event so we
           don't need to plumb a setter through App.jsx → AppFrame →
           children; AppFrame installs the listener. */}
+      {legacyNavigationEnabled ? (
       <div className="gh-discovery-subtabs" role="tablist" aria-label="Discovery view">
         <button
           aria-selected={discoverySubTab === "discovery"}
@@ -3579,10 +5323,14 @@ export default function DiscoveryWorkspace({
           <span>Quick action</span>
         </button>
       </div>
+      ) : null}
       <section
         className="gh-discovery-main gh-discovery-main-grid"
+        data-preview-open={previewOverlayOpen ? "true" : undefined}
         data-sub-tab={discoverySubTab}
+        data-prototype-filters={!legacyNavigationEnabled ? "true" : undefined}
       >
+        {legacyNavigationEnabled ? (
         <aside className="gh-discovery-sidebar gh-surface-rail gh-filters-rail" aria-label="Filters">
           <header className="gh-filters-rail-head">
             <h2 className="gh-filters-rail-title">Filters</h2>
@@ -4076,6 +5824,16 @@ export default function DiscoveryWorkspace({
             );
           })()}
         </aside>
+        ) : null}
+        {!legacyNavigationEnabled ? (
+          <PrototypeDiscoveryFilterRail
+            assets={allDiscoveryAssets}
+            facets={resultsFacets}
+            filters={filters}
+            onDiscoveryStateChange={onDiscoveryStateChange}
+            resultsCount={resultsCount}
+          />
+        ) : null}
 
         <section className="gh-results-column">
           {/* Round 19 defect #2: permanent OBO scope-fallback banner.
@@ -4090,150 +5848,78 @@ export default function DiscoveryWorkspace({
               retrying={discoveryResults.refreshing}
             />
           ) : null}
-          {/* The standalone DiscoveryBreadcrumb was removed 2026-04-19
-              round 4 — the catalog / schema scope now renders as an
-              inline chip inside PrimaryFacetChips so the facet row is
-              the single source of truth for "what's filtering the
-              results". Operator round 4: "[breadcrumb] pops up when
-              you filter by catalog/schema instead of them showing up
-              with the rest of the filters on the Filters line." */}
-          <PrimaryFacetChips
-            activeFilterChips={filtersApplied}
+        <DiscoverySearchHero
+          atlasAiAvailable={atlasAiAvailable}
+          atlasAiLoading={visibleAtlasAiState.loading}
+          atlasAiUnavailableReason={atlasAiUnavailableReason}
+          advancedOpen={showAdvancedFilters}
+          bootstrap={bootstrap}
+            facets={resultsFacets}
             filters={filters}
-            schemaFilter={selectedSchema}
-            onClearSchemaFilter={() => setSelectedSchemas(new Set())}
-            onClearAll={() => {
-              setSelectedSchemas(new Set());
-              setOwnerFilterText("");
-              setGlossaryFilterText("");
-              onDiscoveryStateChange((current) => ({
-                ...current,
-                types: [],
-                catalogs: [],
-                domains: [],
-                tiers: [],
-                certifications: [],
-                sensitivities: [],
-                views: [],
-                query: "",
-              }));
-            }}
+            onAskAtlas={askAtlasForDiscovery}
+            onClearAll={clearDiscoveryFilters}
             onDiscoveryStateChange={onDiscoveryStateChange}
             onOpenFilters={() => setShowAdvancedFilters((current) => !current)}
-            showFiltersBadge={filtersApplied.length + (selectedSchema ? 1 : 0)}
+            onOpenSavedSearches={() => setShowSavedSearches((current) => !current)}
+            onOwnerFilterChange={(value) => setOwnerFilterText(value || "")}
+            ownerFilterValue={ownerFilterText === "__unassigned__" ? "" : ownerFilterText}
+            ownerOptions={ownerFilterOptions}
+            savedSearchesOpen={showSavedSearches}
+            sourceAuthoritative={discoverySourceAuthoritative}
           />
-          <DiscoveryNorthstarStrip
-            authoritative={discoveryResults.authoritative === true}
-            filtersAppliedCount={filtersApplied.length + (ownerFilterText ? 1 : 0) + (glossaryFilterText ? 1 : 0)}
-            loading={resultsLoading}
-            queryState={discoveryResults.queryState}
-            selectedSchemaCount={selectedSchemas.size}
-            totalCount={Number(resultsCount || 0)}
-            visibleCount={renderedDiscoveryAssets.length}
+          {showSavedSearches ? (
+            <DiscoverySavedSearchesPopover
+              onClose={() => setShowSavedSearches(false)}
+              onDiscoveryStateChange={onDiscoveryStateChange}
+              savedViewCounts={savedViewCounts}
+            />
+          ) : null}
+          <DiscoveryActiveFilterRow
+            chips={filtersApplied}
+            filters={filters}
+            onDiscoveryStateChange={onDiscoveryStateChange}
+            onResetBrowse={resetBrowse}
           />
-          <div className="gh-panel gh-discovery-command-panel" ref={filterCommandRef}>
-            {/* Discovery / Navigation sub-tab row deliberately removed —
-                the mockup has no such toggle; instead the Discovery page
-                shows just the page title + result count + sort. The
-                "Navigation" grid view is still reachable via ?view=navigation
-                for deep links, but it doesn't pollute the main header. */}
-            <div className="gh-discovery-command-head-v2">
-              <div className="gh-discovery-command-heading">
-                <h2 className="gh-discovery-command-title">Discovery</h2>
-                <div className="gh-discovery-command-subline">
-                  {showLiveFacetCounts ? (
-                    <>
-                      Showing <strong>{Math.min(renderedDiscoveryAssets.length, resultsCount).toLocaleString()}</strong>
-                      {" "}of <strong>{resultsCount.toLocaleString()}</strong> assets
-                    </>
-                  ) : (
-                    <span className="gh-results-inline-loading">Loading catalog…</span>
-                  )}
-                  {resultsLoading && showLiveFacetCounts ? (
-                    <span className="gh-inline-updating"> · Updating…</span>
-                  ) : null}
-                </div>
-              </div>
-              <div className="gh-discovery-command-controls">
-                <SortDropdown
-                  options={(() => {
-                    const opts = Array.isArray(bootstrap.discovery.sortOptions)
-                      ? bootstrap.discovery.sortOptions
-                      : [];
-                    // "Best match" is a synonym for Relevance; collapse the
-                    // two so the dropdown doesn't ship both.
-                    const filtered = opts.filter((o) => !/best\s*match/i.test(String(o)));
-                    const hasRelevance = filtered.some((o) => /relevance/i.test(String(o)));
-                    return hasRelevance ? filtered : ["Relevance", ...filtered];
-                  })()}
-                  value={filters.sortBy || "Relevance"}
-                  onChange={(nextValue) =>
-                    onDiscoveryStateChange((current) => ({ ...current, sortBy: nextValue }))
-                  }
-                />
-              </div>
+          {showAdvancedFilters ? (
+            <div className="gh-discovery-filter-shell gh-discovery-hero-filter-popover" id="gh-discovery-filter-popover" ref={filterCommandRef}>
+              <FiltersPopover
+                bootstrap={bootstrap}
+                facets={resultsFacets}
+                filters={filters}
+                onClose={() => setShowAdvancedFilters(false)}
+                onDiscoveryStateChange={onDiscoveryStateChange}
+                queryState={discoveryResults.queryState}
+                querySyntaxHint={queryBuilderSyntaxHint}
+                resultsCount={resultsCount}
+                supportedQueryFields={queryBuilderFields.map((field) => field.value)}
+              />
             </div>
-
-            <div className="gh-discovery-toolbar-shell">
-              {/* Stack Filters trigger + density + copy-link controls deliberately
-                  removed to match the target mockup's single-row command bar.
-                  Filter popover is reachable via the PrimaryFacetChips "Filters"
-                  launcher above, which drives the same state. */}
-              {showAdvancedFilters ? (
-                <div className="gh-discovery-filter-shell" id="gh-discovery-filter-popover">
-                  <FiltersPopover
-                    bootstrap={bootstrap}
-                    facets={resultsFacets}
-                    filters={filters}
-                    onClose={() => setShowAdvancedFilters(false)}
-                    onDiscoveryStateChange={onDiscoveryStateChange}
-                    queryState={discoveryResults.queryState}
-                    querySyntaxHint={queryBuilderSyntaxHint}
-                    supportedQueryFields={queryBuilderFields.map((field) => field.value)}
-                  />
-                </div>
-              ) : null}
-            </div>
-
-            {/* Active filter chips moved to PrimaryFacetChips (same row
-                as Tables/Views/Filters). Operator 2026-04-19 round 3
-                flagged the separate strip as redundant with the
-                primary facet row. The Reset-browse / Clear-search
-                controls are kept but compressed to a single inline
-                link row only when something is applied. */}
-            {filtersApplied.length || filters.query ? (
-              <div className="gh-discovery-reset-inline">
-                {filters.query ? (
-                  <button
-                    className="gh-tertiary-button gh-inline-link-button"
-                    onClick={() =>
-                      onDiscoveryStateChange((current) => ({
-                        ...current,
-                        query: "",
-                      }))
-                    }
-                    type="button"
-                  >
-                    Clear search
-                  </button>
-                ) : null}
-                {filtersApplied.length ? (
-                  <button className="gh-tertiary-button gh-inline-link-button" onClick={resetBrowse} type="button">
-                    Reset browse
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-
+          ) : null}
           {navigationNotice ? (
-            <InlineStatusBanner message={navigationNotice} title="Navigation limited" />
+            <InlineStatusBanner
+              message={navigationNotice}
+              title={/favorite/i.test(navigationNotice) ? "Local state updated" : "Navigation limited"}
+            />
           ) : null}
 
-          {resultsError && !hasRenderableResults ? (
+          {resultsError ? (
             <InlineStatusBanner
               message={summarizeDiscoveryError(resultsError)}
               title="Discovery search degraded"
+            />
+          ) : null}
+
+          {resultsLoading ? (
+            <InlineStatusBanner
+              message="Searching the visible catalog metadata for matching governed assets."
+              title="Loading discovery results"
+            />
+          ) : null}
+
+          {resultsFetching && !resultsLoading && !resultsError ? (
+            <InlineStatusBanner
+              message="Updating the visible result set from catalog metadata."
+              title="Refreshing discovery results"
             />
           ) : null}
 
@@ -4264,55 +5950,53 @@ export default function DiscoveryWorkspace({
               title={invalidQuery.message || "Invalid discovery query."}
               tone="bad"
             />
+          ) : resultsError ? (
+            <>
+              <DiscoveryDiagnosticsStrip {...discoveryDiagnostics} />
+              <DiscoveryDegradedResultsState
+                filters={filters}
+                message={resultsError || bootstrap.bootMessage}
+                onClearSearch={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
+                onResetBrowse={resetBrowse}
+                title={summarizeDiscoveryError(resultsError) || "Discovery search degraded"}
+              />
+            </>
           ) : hasRenderableResults ? (
-            <div className={`gh-result-list gh-discovery-card-list density-${density} gh-discovery-table`}>
-              <DiscoveryActivityHome
-                assetsByFqn={assetsByFqnMap}
+            <div className="gh-discovery-table-stack">
+              <DiscoveryResultsTable
+                assets={renderedDiscoveryAssets}
+                bootstrap={bootstrap}
+                facets={resultsFacets}
                 favorites={favorites}
-                onOpen={(fqn) => {
-                  handleSelectAsset(fqn);
-                  openAssetRecord(fqn);
-                }}
-                recentlyViewed={recentlyViewed}
+                filters={filters}
+                lineageAvailable={lineageSurfaceAvailable}
+                lineageUnavailableReason={lineageSurfaceUnavailableReason}
+                onDiscoveryStateChange={onDiscoveryStateChange}
+                onOpenAsset={openAssetRecord}
+                onOpenGovernance={openGovernanceWorkbench}
+                onOpenLineage={openLineageWorkspace}
+                onSelect={handleSelectAsset}
+                onToggleFavorite={toggleFavorite}
+                recordUnavailableOverrides={recordUnavailableOverrides}
+                recordUnavailableReason={DISCOVERY_RECORD_UNAVAILABLE_REASON}
+                renderedRecordAvailability={renderedRecordAvailability}
+                resultsCount={resultsCount}
+                selectedAssetFqn={previewOverlayOpen ? selectedAssetFqn : ""}
+                sortOptions={bootstrap.discovery.sortOptions}
+                sourceAuthoritative={discoverySourceAuthoritative}
+                sourceIsPrototype={discoverySourceIsPrototype}
+                sourceLabel={discoverySourceLabel}
               />
-              <DiscoveryBulkBar
-                count={bulkSelection.size}
-                onAddGlossary={() => alert("Bulk glossary assignment: queue this operation from the backend bulk endpoint.")}
-                onAddTag={() => alert("Bulk tag assignment: queue this operation from the backend bulk endpoint.")}
-                onAssignOwner={() => alert("Bulk owner assignment: queue this operation from the backend bulk endpoint.")}
-                onClear={clearBulkSelection}
+              <DiscoveryBottomPanels
+                aiState={visibleAtlasAiState}
+                atlasAiAvailable={atlasAiAvailable}
+                atlasAiUnavailableReason={atlasAiUnavailableReason}
+                assets={renderedDiscoveryAssets}
+                onAskAtlas={askAtlasForDiscovery}
+                onDiscoveryStateChange={onDiscoveryStateChange}
+                onSelect={handleSelectAsset}
+                savedViewCounts={savedViewCounts}
               />
-              {/* DiscoveryResultHeader (column labels) intentionally removed:
-                  we render the catalog as a card grid, not a table, so the
-                  ASSET/TYPE/DOMAIN/TIER/OWNER column headers no longer apply.
-                  Sort is handled by the toolbar dropdown and by bulk-select
-                  actions in the DiscoveryBulkBar. */}
-              {renderedDiscoveryAssets.map((asset) => (
-                <DiscoveryResultCard
-                  asset={asset}
-                  bulkSelectionActive={bulkSelection.size > 0}
-                  isBulkSelected={bulkSelection.has(asset.fqn)}
-                  isFavorite={favorites.has(asset.fqn)}
-                  key={asset.fqn}
-                  lineageAvailable={lineageSurfaceAvailable}
-                  lineageUnavailableReason={lineageSurfaceUnavailableReason}
-                  onHoverEnd={handleHoverEnd}
-                  onHoverPreview={handleHoverPreview}
-                  onOpenAsset={openAssetRecord}
-                  onOpenGovernance={openGovernanceWorkbench}
-                  onOpenLineage={openLineageWorkspace}
-                  onSelect={handleSelectAsset}
-                  onToggleBulkSelect={toggleBulkSelect}
-                  onToggleFavorite={toggleFavorite}
-                  recordOpenable={
-                    recordUnavailableOverrides[asset.fqn] === true
-                      ? false
-                      : renderedRecordAvailability[asset.fqn] ?? null
-                  }
-                  recordUnavailableReason={DISCOVERY_RECORD_UNAVAILABLE_REASON}
-                  selected={asset.fqn === selectedAssetFqn}
-                />
-              ))}
               {canLoadMoreResults ? (
                 <div className="gh-panel gh-discovery-results-more">
                   <div className="gh-support-copy">
@@ -4354,36 +6038,6 @@ export default function DiscoveryWorkspace({
                 </div>
               ))}
             </div>
-          ) : resultsError ? (
-            <>
-              <DiscoveryDiagnosticsStrip {...discoveryDiagnostics} />
-              <WorkspaceStateCard
-                actions={(
-                  <>
-                    {filters.query ? (
-                      <button
-                        className="gh-secondary-button"
-                        onClick={() => onDiscoveryStateChange((current) => ({ ...current, query: "" }))}
-                        type="button"
-                      >
-                        Clear search
-                      </button>
-                    ) : null}
-                    <button className="gh-secondary-button" onClick={resetBrowse} type="button">
-                      Reset browse
-                    </button>
-                  </>
-                )}
-                className="gh-discovery-empty-state"
-                eyebrow="Discovery Unavailable"
-                message={
-                  bootstrap.bootMessage ||
-                  "The search surface is reachable, but live discovery could not return results."
-                }
-                title={summarizeDiscoveryError(resultsError)}
-                tone="bad"
-              />
-            </>
           ) : (
             <>
               <DiscoveryDiagnosticsStrip {...discoveryDiagnostics} />
@@ -4413,6 +6067,14 @@ export default function DiscoveryWorkspace({
           )}
         </section>
 
+        {previewOverlayOpen ? (
+          <button
+            aria-label="Close asset preview overlay"
+            className="gh-discovery-preview-scrim"
+            onClick={closePreviewOverlay}
+            type="button"
+          />
+        ) : null}
         <SelectionPreview
           asset={previewAsset}
           detailError={
@@ -4423,20 +6085,23 @@ export default function DiscoveryWorkspace({
               ? previewDetail.loading || (previewSchemaDetail.loading && !previewSchemaDetail.detail?.columns?.length)
               : false
           }
-          isFavorite={previewAsset ? favorites.has(previewAsset.fqn) : false}
+          interactionResetKey={recordUnavailableScopeKey}
           linkedRecordUnavailableOverrides={linkedRecordUnavailableOverrides}
           previewAvailable={previewSurfaceAvailable}
           previewUnavailableReason={previewSurfaceUnavailableReason}
           lineageAvailable={lineageSurfaceAvailable}
           lineageUnavailableReason={lineageSurfaceUnavailableReason}
-          onClearSelection={() => setSelectedAssetFqn("")}
+          onClearSelection={() => {
+            closePreviewOverlay();
+          }}
           onOpenAsset={openAssetRecord}
           onOpenGovernance={openGovernanceWorkbench}
           onOpenLinkedAsset={openLinkedAsset}
           onOpenLineage={openLineageWorkspace}
-          onToggleFavorite={toggleFavorite}
           recordOpenable={selectedPreviewRecordOpenable}
           recordUnavailableReason={DISCOVERY_RECORD_UNAVAILABLE_REASON}
+          sourceAuthoritative={discoverySourceAuthoritative}
+          sourceLabel={discoverySourceLabel}
           visibleAssetSet={visibleAssetSet}
         />
       </section>

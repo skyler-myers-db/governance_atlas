@@ -19,6 +19,17 @@ function scopeKey(filters = {}) {
   });
 }
 
+function payloadAuthoritative(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  const meta = payload.meta && typeof payload.meta === "object" ? payload.meta : {};
+  const state = String(meta.state || meta.discoveryState || payload.state || "").trim().toLowerCase();
+  const source = String(meta.source || payload.source || "").trim().toLowerCase();
+  if (state === "prototype_mock" || source === "local-prototype-mock") return false;
+  if (typeof payload.authoritative === "boolean") return payload.authoritative;
+  if (typeof meta.authoritative === "boolean") return meta.authoritative;
+  return ["authoritative", "live"].includes(state);
+}
+
 export function useDiscoveryResults(filters, options = {}) {
   const normalizedFilters = useMemo(
     () => ({
@@ -63,7 +74,10 @@ export function useDiscoveryResults(filters, options = {}) {
   // IMMEDIATELY instead of sitting on an empty grid for the ~1-3s it takes
   // the structured search to round-trip. Only applies to the default
   // unfiltered scope because the seed reflects that scope.
-  const seededAssets = Array.isArray(options?.seedAssets) ? options.seedAssets : [];
+  const seededAssets = useMemo(
+    () => (Array.isArray(options?.seedAssets) ? options.seedAssets : []),
+    [options?.seedAssets],
+  );
   const seededCount = Number.isFinite(Number(options?.seedCount))
     ? Number(options.seedCount)
     : seededAssets.length;
@@ -135,14 +149,16 @@ export function useDiscoveryResults(filters, options = {}) {
       ? discoveryError.payload.invalidQuery
       : null;
 
+  const currentPayloadAuthoritative = payloadAuthoritative(query.data);
+
   useEffect(() => {
-    if (query.isSuccess && !usingPlaceholder) {
+    if (query.isSuccess && !usingPlaceholder && currentPayloadAuthoritative) {
       lastAuthoritativeResultRef.current = {
         scopeKey: currentScopeKey,
         data: query.data || seededFallback,
       };
     }
-  }, [currentScopeKey, query.data, query.isSuccess, seededFallback, usingPlaceholder]);
+  }, [currentPayloadAuthoritative, currentScopeKey, query.data, query.isSuccess, seededFallback, usingPlaceholder]);
 
   return {
     loading: query.isPending || (query.isFetching && usingPlaceholder),
@@ -169,6 +185,6 @@ export function useDiscoveryResults(filters, options = {}) {
     fetching: query.isFetching,
     fetchLimit: safeLimit,
     settled: query.isError || (query.isSuccess && !usingPlaceholder),
-    authoritative: query.isSuccess && !usingPlaceholder,
+    authoritative: query.isSuccess && !usingPlaceholder && currentPayloadAuthoritative,
   };
 }

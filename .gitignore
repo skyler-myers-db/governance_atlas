@@ -211,6 +211,11 @@ AGENT*
 .DS_Store
 frontend/dist/
 frontend/node_modules/
+frontend/test-results/
+frontend/playwright-report/
+# Playwright/Chrome user-data directories are generated during visual QA.
+# Keep screenshots, JSON reports, and side-by-side PNGs; never keep browser profiles.
+docs/northstar_visual_qa/**/chrome-profile*/
 # Root-level node_modules (from repo-root vitest/vite caches) — we already
 # ignore frontend/node_modules; this line catches any node_modules tree that
 # lands at the repo root so tool caches like .vite/vitest/*/results.json never

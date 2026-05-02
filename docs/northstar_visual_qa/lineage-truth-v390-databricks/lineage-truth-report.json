@@ -1,0 +1,807 @@
+{
+  "generatedAt": "2026-05-02T00:28:13.320Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "appUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f145b7211c1802a5c6116de31d6b00",
+  "buildId": "frontend-22deff27b4c2",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "captureCount": 0,
+  "interactionCount": 4,
+  "requestFailureCount": 0,
+  "consoleErrorCount": 0,
+  "pageErrorCount": 0,
+  "probes": [
+    {
+      "key": "richDatapact",
+      "assetFqn": "main.datapact.run_history",
+      "status": 200,
+      "ok": true,
+      "buildId": "frontend-22deff27b4c2",
+      "metrics": {
+        "authoritative": true,
+        "state": "available",
+        "source": "unity-catalog-lineage",
+        "visibilityState": "visible",
+        "upstreamCount": 24,
+        "downstreamCount": 4,
+        "nodeCount": 29,
+        "edgeCount": 28,
+        "columnUpstreamCount": 1,
+        "columnDownstreamCount": 22,
+        "columnPathCount": 23,
+        "columnTruncated": true,
+        "restrictedNodeCount": 0,
+        "restrictedNodes": [],
+        "sampleNodes": [
+          {
+            "assetFqn": "main.datapact.run_history",
+            "role": "focus",
+            "label": "run_history",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_ad_spend",
+            "role": "source",
+            "label": "demo_src_ad_spend",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_campaigns",
+            "role": "source",
+            "label": "demo_src_campaigns",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_carbon_ledger",
+            "role": "source",
+            "label": "demo_src_carbon_ledger",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_clickstream_sessions",
+            "role": "source",
+            "label": "demo_src_clickstream_sessions",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_cloud_costs",
+            "role": "source",
+            "label": "demo_src_cloud_costs",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_customer_features",
+            "role": "source",
+            "label": "demo_src_customer_features",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_employees",
+            "role": "source",
+            "label": "demo_src_employees",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_empty_audits",
+            "role": "source",
+            "label": "demo_src_empty_audits",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_gl_postings",
+            "role": "source",
+            "label": "demo_src_gl_postings",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          }
+        ]
+      },
+      "checks": {
+        "statusOk": true,
+        "buildMatches": true,
+        "available": true,
+        "authoritative": true,
+        "sourceIsUcLineage": true,
+        "upstreamMeetsMinimum": true,
+        "downstreamMeetsMinimum": true,
+        "edgesPresent": true,
+        "columnLineageMeetsMinimum": true
+      },
+      "passed": true
+    },
+    {
+      "key": "richMortgage",
+      "assetFqn": "mip.gold.borrower_360",
+      "status": 200,
+      "ok": true,
+      "buildId": "frontend-22deff27b4c2",
+      "metrics": {
+        "authoritative": true,
+        "state": "available",
+        "source": "unity-catalog-lineage",
+        "visibilityState": "visible",
+        "upstreamCount": 7,
+        "downstreamCount": 12,
+        "nodeCount": 20,
+        "edgeCount": 19,
+        "columnUpstreamCount": 38,
+        "columnDownstreamCount": 43,
+        "columnPathCount": 81,
+        "columnTruncated": false,
+        "restrictedNodeCount": 0,
+        "restrictedNodes": [],
+        "sampleNodes": [
+          {
+            "assetFqn": "mip.gold.borrower_360",
+            "role": "focus",
+            "label": "borrower_360",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.gold.evidence_events",
+            "role": "source",
+            "label": "evidence_events",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.gold.property_owner_bridge",
+            "role": "source",
+            "label": "property_owner_bridge",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.ref.lender_dictionary",
+            "role": "source",
+            "label": "lender_dictionary",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.ref.refresh_run_state",
+            "role": "source",
+            "label": "refresh_run_state",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.silver.lien_current",
+            "role": "source",
+            "label": "lien_current",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.silver.market_rates_weekly",
+            "role": "source",
+            "label": "market_rates_weekly",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.silver.property_master",
+            "role": "source",
+            "label": "property_master",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.gold.borrower_dossier",
+            "role": "target",
+            "label": "borrower_dossier",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.gold.borrower_lifecycle_state",
+            "role": "target",
+            "label": "borrower_lifecycle_state",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          }
+        ]
+      },
+      "checks": {
+        "statusOk": true,
+        "buildMatches": true,
+        "available": true,
+        "authoritative": true,
+        "sourceIsUcLineage": true,
+        "upstreamMeetsMinimum": true,
+        "downstreamMeetsMinimum": true,
+        "edgesPresent": true,
+        "columnLineageMeetsMinimum": true
+      },
+      "passed": true
+    },
+    {
+      "key": "restrictedBoundary",
+      "assetFqn": "alex.observability.user_dbu_cost_daily",
+      "status": 200,
+      "ok": true,
+      "buildId": "frontend-22deff27b4c2",
+      "metrics": {
+        "authoritative": true,
+        "state": "available",
+        "source": "unity-catalog-lineage",
+        "visibilityState": "visible",
+        "upstreamCount": 3,
+        "downstreamCount": 2,
+        "nodeCount": 6,
+        "edgeCount": 5,
+        "columnUpstreamCount": 18,
+        "columnDownstreamCount": 8,
+        "columnPathCount": 26,
+        "columnTruncated": false,
+        "restrictedNodeCount": 3,
+        "restrictedNodes": [
+          {
+            "assetFqn": "system.billing.usage",
+            "role": "source",
+            "label": "usage",
+            "openabilityState": "unverified",
+            "resolutionState": "lineage-only",
+            "isOpenable": false,
+            "foot": [
+              "Table",
+              "Metadata record unavailable"
+            ]
+          },
+          {
+            "assetFqn": "system.compute.warehouses",
+            "role": "source",
+            "label": "warehouses",
+            "openabilityState": "unverified",
+            "resolutionState": "lineage-only",
+            "isOpenable": false,
+            "foot": [
+              "Table",
+              "Metadata record unavailable"
+            ]
+          },
+          {
+            "assetFqn": "system.query.history",
+            "role": "source",
+            "label": "history",
+            "openabilityState": "unverified",
+            "resolutionState": "lineage-only",
+            "isOpenable": false,
+            "foot": [
+              "Table",
+              "Metadata record unavailable"
+            ]
+          }
+        ],
+        "sampleNodes": [
+          {
+            "assetFqn": "alex.observability.user_dbu_cost_daily",
+            "role": "focus",
+            "label": "user_dbu_cost_daily",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "system.billing.usage",
+            "role": "source",
+            "label": "usage",
+            "openabilityState": "unverified",
+            "resolutionState": "lineage-only",
+            "isOpenable": false
+          },
+          {
+            "assetFqn": "system.compute.warehouses",
+            "role": "source",
+            "label": "warehouses",
+            "openabilityState": "unverified",
+            "resolutionState": "lineage-only",
+            "isOpenable": false
+          },
+          {
+            "assetFqn": "system.query.history",
+            "role": "source",
+            "label": "history",
+            "openabilityState": "unverified",
+            "resolutionState": "lineage-only",
+            "isOpenable": false
+          },
+          {
+            "assetFqn": "alex.observability.user_dbu_cost_daily_unified",
+            "role": "target",
+            "label": "user_dbu_cost_daily_unified",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "alex.observability.user_dbu_cost_summary",
+            "role": "target",
+            "label": "user_dbu_cost_summary",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          }
+        ]
+      },
+      "checks": {
+        "statusOk": true,
+        "buildMatches": true,
+        "available": true,
+        "authoritative": true,
+        "sourceIsUcLineage": true,
+        "upstreamMeetsMinimum": true,
+        "downstreamMeetsMinimum": true,
+        "edgesPresent": true,
+        "columnLineageMeetsMinimum": true,
+        "restrictedNodePresent": true
+      },
+      "passed": true
+    },
+    {
+      "key": "hiddenFocus",
+      "assetFqn": "system.__internal_logging.payload_logs",
+      "status": 404,
+      "ok": false,
+      "buildId": "frontend-22deff27b4c2",
+      "metrics": {
+        "authoritative": false,
+        "state": "unavailable",
+        "source": "unity-catalog-lineage",
+        "visibilityState": "hidden",
+        "upstreamCount": 0,
+        "downstreamCount": 0,
+        "nodeCount": 0,
+        "edgeCount": 0,
+        "columnUpstreamCount": 0,
+        "columnDownstreamCount": 0,
+        "columnPathCount": 0,
+        "columnTruncated": false,
+        "restrictedNodeCount": 0,
+        "restrictedNodes": [],
+        "sampleNodes": []
+      },
+      "checks": {
+        "statusUnavailable": true,
+        "buildMatches": true,
+        "unavailableStateMatches": true
+      },
+      "passed": true
+    }
+  ],
+  "interactions": [
+    {
+      "route": "lineage",
+      "interaction": "lineage-truth-richDatapact",
+      "name": "lineage-truth-richDatapact",
+      "assetFqn": "main.datapact.run_history",
+      "passed": true,
+      "validation": {
+        "checks": {
+          "statusOk": true,
+          "buildMatches": true,
+          "available": true,
+          "authoritative": true,
+          "sourceIsUcLineage": true,
+          "upstreamMeetsMinimum": true,
+          "downstreamMeetsMinimum": true,
+          "edgesPresent": true,
+          "columnLineageMeetsMinimum": true
+        }
+      },
+      "metrics": {
+        "authoritative": true,
+        "state": "available",
+        "source": "unity-catalog-lineage",
+        "visibilityState": "visible",
+        "upstreamCount": 24,
+        "downstreamCount": 4,
+        "nodeCount": 29,
+        "edgeCount": 28,
+        "columnUpstreamCount": 1,
+        "columnDownstreamCount": 22,
+        "columnPathCount": 23,
+        "columnTruncated": true,
+        "restrictedNodeCount": 0,
+        "restrictedNodes": [],
+        "sampleNodes": [
+          {
+            "assetFqn": "main.datapact.run_history",
+            "role": "focus",
+            "label": "run_history",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_ad_spend",
+            "role": "source",
+            "label": "demo_src_ad_spend",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_campaigns",
+            "role": "source",
+            "label": "demo_src_campaigns",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_carbon_ledger",
+            "role": "source",
+            "label": "demo_src_carbon_ledger",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_clickstream_sessions",
+            "role": "source",
+            "label": "demo_src_clickstream_sessions",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_cloud_costs",
+            "role": "source",
+            "label": "demo_src_cloud_costs",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_customer_features",
+            "role": "source",
+            "label": "demo_src_customer_features",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_employees",
+            "role": "source",
+            "label": "demo_src_employees",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_empty_audits",
+            "role": "source",
+            "label": "demo_src_empty_audits",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "main.datapact.demo_src_gl_postings",
+            "role": "source",
+            "label": "demo_src_gl_postings",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          }
+        ]
+      }
+    },
+    {
+      "route": "lineage",
+      "interaction": "lineage-truth-richMortgage",
+      "name": "lineage-truth-richMortgage",
+      "assetFqn": "mip.gold.borrower_360",
+      "passed": true,
+      "validation": {
+        "checks": {
+          "statusOk": true,
+          "buildMatches": true,
+          "available": true,
+          "authoritative": true,
+          "sourceIsUcLineage": true,
+          "upstreamMeetsMinimum": true,
+          "downstreamMeetsMinimum": true,
+          "edgesPresent": true,
+          "columnLineageMeetsMinimum": true
+        }
+      },
+      "metrics": {
+        "authoritative": true,
+        "state": "available",
+        "source": "unity-catalog-lineage",
+        "visibilityState": "visible",
+        "upstreamCount": 7,
+        "downstreamCount": 12,
+        "nodeCount": 20,
+        "edgeCount": 19,
+        "columnUpstreamCount": 38,
+        "columnDownstreamCount": 43,
+        "columnPathCount": 81,
+        "columnTruncated": false,
+        "restrictedNodeCount": 0,
+        "restrictedNodes": [],
+        "sampleNodes": [
+          {
+            "assetFqn": "mip.gold.borrower_360",
+            "role": "focus",
+            "label": "borrower_360",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.gold.evidence_events",
+            "role": "source",
+            "label": "evidence_events",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.gold.property_owner_bridge",
+            "role": "source",
+            "label": "property_owner_bridge",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.ref.lender_dictionary",
+            "role": "source",
+            "label": "lender_dictionary",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.ref.refresh_run_state",
+            "role": "source",
+            "label": "refresh_run_state",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.silver.lien_current",
+            "role": "source",
+            "label": "lien_current",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.silver.market_rates_weekly",
+            "role": "source",
+            "label": "market_rates_weekly",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.silver.property_master",
+            "role": "source",
+            "label": "property_master",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.gold.borrower_dossier",
+            "role": "target",
+            "label": "borrower_dossier",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "mip.gold.borrower_lifecycle_state",
+            "role": "target",
+            "label": "borrower_lifecycle_state",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          }
+        ]
+      }
+    },
+    {
+      "route": "lineage",
+      "interaction": "lineage-truth-restrictedBoundary",
+      "name": "lineage-truth-restrictedBoundary",
+      "assetFqn": "alex.observability.user_dbu_cost_daily",
+      "passed": true,
+      "validation": {
+        "checks": {
+          "statusOk": true,
+          "buildMatches": true,
+          "available": true,
+          "authoritative": true,
+          "sourceIsUcLineage": true,
+          "upstreamMeetsMinimum": true,
+          "downstreamMeetsMinimum": true,
+          "edgesPresent": true,
+          "columnLineageMeetsMinimum": true,
+          "restrictedNodePresent": true
+        }
+      },
+      "metrics": {
+        "authoritative": true,
+        "state": "available",
+        "source": "unity-catalog-lineage",
+        "visibilityState": "visible",
+        "upstreamCount": 3,
+        "downstreamCount": 2,
+        "nodeCount": 6,
+        "edgeCount": 5,
+        "columnUpstreamCount": 18,
+        "columnDownstreamCount": 8,
+        "columnPathCount": 26,
+        "columnTruncated": false,
+        "restrictedNodeCount": 3,
+        "restrictedNodes": [
+          {
+            "assetFqn": "system.billing.usage",
+            "role": "source",
+            "label": "usage",
+            "openabilityState": "unverified",
+            "resolutionState": "lineage-only",
+            "isOpenable": false,
+            "foot": [
+              "Table",
+              "Metadata record unavailable"
+            ]
+          },
+          {
+            "assetFqn": "system.compute.warehouses",
+            "role": "source",
+            "label": "warehouses",
+            "openabilityState": "unverified",
+            "resolutionState": "lineage-only",
+            "isOpenable": false,
+            "foot": [
+              "Table",
+              "Metadata record unavailable"
+            ]
+          },
+          {
+            "assetFqn": "system.query.history",
+            "role": "source",
+            "label": "history",
+            "openabilityState": "unverified",
+            "resolutionState": "lineage-only",
+            "isOpenable": false,
+            "foot": [
+              "Table",
+              "Metadata record unavailable"
+            ]
+          }
+        ],
+        "sampleNodes": [
+          {
+            "assetFqn": "alex.observability.user_dbu_cost_daily",
+            "role": "focus",
+            "label": "user_dbu_cost_daily",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "system.billing.usage",
+            "role": "source",
+            "label": "usage",
+            "openabilityState": "unverified",
+            "resolutionState": "lineage-only",
+            "isOpenable": false
+          },
+          {
+            "assetFqn": "system.compute.warehouses",
+            "role": "source",
+            "label": "warehouses",
+            "openabilityState": "unverified",
+            "resolutionState": "lineage-only",
+            "isOpenable": false
+          },
+          {
+            "assetFqn": "system.query.history",
+            "role": "source",
+            "label": "history",
+            "openabilityState": "unverified",
+            "resolutionState": "lineage-only",
+            "isOpenable": false
+          },
+          {
+            "assetFqn": "alex.observability.user_dbu_cost_daily_unified",
+            "role": "target",
+            "label": "user_dbu_cost_daily_unified",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          },
+          {
+            "assetFqn": "alex.observability.user_dbu_cost_summary",
+            "role": "target",
+            "label": "user_dbu_cost_summary",
+            "openabilityState": "verified",
+            "resolutionState": "resolved",
+            "isOpenable": true
+          }
+        ]
+      }
+    },
+    {
+      "route": "lineage",
+      "interaction": "lineage-truth-hiddenFocus",
+      "name": "lineage-truth-hiddenFocus",
+      "assetFqn": "system.__internal_logging.payload_logs",
+      "passed": true,
+      "validation": {
+        "checks": {
+          "statusUnavailable": true,
+          "buildMatches": true,
+          "unavailableStateMatches": true
+        }
+      },
+      "metrics": {
+        "authoritative": false,
+        "state": "unavailable",
+        "source": "unity-catalog-lineage",
+        "visibilityState": "hidden",
+        "upstreamCount": 0,
+        "downstreamCount": 0,
+        "nodeCount": 0,
+        "edgeCount": 0,
+        "columnUpstreamCount": 0,
+        "columnDownstreamCount": 0,
+        "columnPathCount": 0,
+        "columnTruncated": false,
+        "restrictedNodeCount": 0,
+        "restrictedNodes": [],
+        "sampleNodes": []
+      }
+    }
+  ],
+  "requestFailures": [],
+  "console": [],
+  "pageErrors": [],
+  "checks": {
+    "buildMatches": true,
+    "richDatapactLineageBacked": true,
+    "richMortgageLineageBacked": true,
+    "restrictedBoundaryBacked": true,
+    "hiddenFocusFailsClosed": true
+  },
+  "passed": true
+}

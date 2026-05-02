@@ -1,0 +1,1083 @@
+{
+  "generatedAt": "2026-05-02T00:30:01.937Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "appUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f145b7211c1802a5c6116de31d6b00",
+  "buildId": "frontend-22deff27b4c2",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "assetFqn": "alex.observability.user_dbu_cost_daily",
+  "captures": [
+    {
+      "viewport": {
+        "name": "1536x1024",
+        "width": 1536,
+        "height": 1024
+      },
+      "screenshot": "docs/northstar_visual_qa/lineage-restricted-live-v392-databricks/lineage-live-1536x1024.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily",
+        "title": "alex.observability.user_dbu_cost_daily",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges.\n\nUnassigned\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream · 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n1 nodes · 0 edges\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nNo upstream tables observed\nNo permitted upstream table hop is visible.\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\nFOCUS\nuser_dbu_cost_daily\nalex / observability\n1 HOP DOWNSTREAM\nNo downstream consumers observed\nThe live graph has no downstream edges for this asset.\nLINEAGE DETAILS\nuser_dbu_cost_daily\nalex / observability\nLAST REFRESH\nTopology refreshed 2026-05-02 00:28:35 UTC\nROWS\nUnavailable\nOWNER\nUnavailable\nSOURCES\n0\n\nNo source-system details returned.\n\nCONSUMERS\n0\n\nNo downstream consumer details returned.\n\nRECENT ACTIVITY\n\nNo recent lineage activity returned.\n\nNODE TYPES\nTable\nPipeline\nJob\nNotebook\nSaved query\nDashboard\nModel\nUDF\nVolume\nRestricted\nvia system.access.table_lineage\nLINEAGE AS OF:\n2026-05-02\nNo visible edges\nqueried\nRefresh graph\nImpact analysis\nDownstream lineage consumers affected by upstream changes\nNotify owners\n\nNo downstream impact is observed for this asset.\n\n0 consumer paths visible\nno backed impact rows returned\nColumn lineage unavailable\nNo column-lineage rows returned for this asset\n\nColumn lineage is unavailable until Databricks reports column-level lineage rows for this asset.\n\n0 column paths visible\nlineage API\nLive table lineage query returned no actor-visible edges.\nRefocus graph",
+        "hasNorthstar": true,
+        "unavailable": false,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 1024,
+        "viewportHeight": 1024,
+        "footer": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "left": 0,
+          "right": 0
+        },
+        "explorer": {
+          "x": 208,
+          "y": 56,
+          "width": 1328,
+          "height": 1383.84375,
+          "top": 56,
+          "bottom": 1439.84375,
+          "left": 208,
+          "right": 1536
+        },
+        "controlRail": null,
+        "graphToolbar": null,
+        "workbench": {
+          "x": 230,
+          "y": 254.140625,
+          "width": 1286,
+          "height": 1115.703125,
+          "top": 254.140625,
+          "bottom": 1369.84375,
+          "left": 230,
+          "right": 1516
+        },
+        "selectedRail": null,
+        "graphCard": {
+          "x": 230,
+          "y": 254.140625,
+          "width": 1286,
+          "height": 862,
+          "top": 254.140625,
+          "bottom": 1116.140625,
+          "left": 230,
+          "right": 1516
+        },
+        "bottom": {
+          "x": 230,
+          "y": 1198.140625,
+          "width": 1286,
+          "height": 171.703125,
+          "top": 1198.140625,
+          "bottom": 1369.84375,
+          "left": 230,
+          "right": 1516
+        },
+        "regionText": {
+          "title": true,
+          "upstream": true,
+          "transformations": true,
+          "governed": true,
+          "downstream": true,
+          "selected": true,
+          "impact": true,
+          "columnLineage": true
+        }
+      },
+      "navigationError": "",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "name": "1440x900",
+        "width": 1440,
+        "height": 900
+      },
+      "screenshot": "docs/northstar_visual_qa/lineage-restricted-live-v392-databricks/lineage-live-1440x900.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily",
+        "title": "alex.observability.user_dbu_cost_daily",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges.\n\nUnassigned\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream · 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n1 nodes · 0 edges\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nNo upstream tables observed\nNo permitted upstream table hop is visible.\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\nFOCUS\nuser_dbu_cost_daily\nalex / observability\n1 HOP DOWNSTREAM\nNo downstream consumers observed\nThe live graph has no downstream edges for this asset.\nLINEAGE DETAILS\nuser_dbu_cost_daily\nalex / observability\nLAST REFRESH\nTopology refreshed 2026-05-02 00:28:35 UTC\nROWS\nUnavailable\nOWNER\nUnavailable\nSOURCES\n0\n\nNo source-system details returned.\n\nCONSUMERS\n0\n\nNo downstream consumer details returned.\n\nRECENT ACTIVITY\n\nNo recent lineage activity returned.\n\nNODE TYPES\nTable\nPipeline\nJob\nNotebook\nSaved query\nDashboard\nModel\nUDF\nVolume\nRestricted\nvia system.access.table_lineage\nLINEAGE AS OF:\n2026-05-02\nNo visible edges\nqueried\nRefresh graph\nImpact analysis\nDownstream lineage consumers affected by upstream changes\nNotify owners\n\nNo downstream impact is observed for this asset.\n\n0 consumer paths visible\nno backed impact rows returned\nColumn lineage unavailable\nNo column-lineage rows returned for this asset\n\nColumn lineage is unavailable until Databricks reports column-level lineage rows for this asset.\n\n0 column paths visible\nlineage API\nLive table lineage query returned no actor-visible edges.\nRefocus graph",
+        "hasNorthstar": true,
+        "unavailable": false,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 900,
+        "viewportHeight": 900,
+        "footer": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "left": 0,
+          "right": 0
+        },
+        "explorer": {
+          "x": 208,
+          "y": 56,
+          "width": 1232,
+          "height": 1379.96875,
+          "top": 56,
+          "bottom": 1435.96875,
+          "left": 208,
+          "right": 1440
+        },
+        "controlRail": null,
+        "graphToolbar": null,
+        "workbench": {
+          "x": 230,
+          "y": 250.890625,
+          "width": 1190,
+          "height": 1115.078125,
+          "top": 250.890625,
+          "bottom": 1365.96875,
+          "left": 230,
+          "right": 1420
+        },
+        "selectedRail": null,
+        "graphCard": {
+          "x": 230,
+          "y": 250.890625,
+          "width": 1190,
+          "height": 862,
+          "top": 250.890625,
+          "bottom": 1112.890625,
+          "left": 230,
+          "right": 1420
+        },
+        "bottom": {
+          "x": 230,
+          "y": 1194.890625,
+          "width": 1190,
+          "height": 171.078125,
+          "top": 1194.890625,
+          "bottom": 1365.96875,
+          "left": 230,
+          "right": 1420
+        },
+        "regionText": {
+          "title": true,
+          "upstream": true,
+          "transformations": true,
+          "governed": true,
+          "downstream": true,
+          "selected": true,
+          "impact": true,
+          "columnLineage": true
+        }
+      },
+      "navigationError": "",
+      "passed": true
+    },
+    {
+      "viewport": {
+        "name": "1280x720",
+        "width": 1280,
+        "height": 720
+      },
+      "screenshot": "docs/northstar_visual_qa/lineage-restricted-live-v392-databricks/lineage-live-1280x720.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily",
+        "title": "alex.observability.user_dbu_cost_daily",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges.\n\nUnassigned\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream · 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n1 nodes · 0 edges\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nNo upstream tables observed\nNo permitted upstream table hop is visible.\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\nFOCUS\nuser_dbu_cost_daily\nalex / observability\n1 HOP DOWNSTREAM\nNo downstream consumers observed\nThe live graph has no downstream edges for this asset.\nLINEAGE DETAILS\nuser_dbu_cost_daily\nalex / observability\nLAST REFRESH\nTopology refreshed 2026-05-02 00:28:35 UTC\nROWS\nUnavailable\nOWNER\nUnavailable\nSOURCES\n0\n\nNo source-system details returned.\n\nCONSUMERS\n0\n\nNo downstream consumer details returned.\n\nNODE TYPES\nTable\nPipeline\nJob\nNotebook\nSaved query\nDashboard\nModel\nUDF\nVolume\nRestricted\nvia system.access.table_lineage\nLINEAGE AS OF:\n2026-05-02\nNo visible edges\nqueried\nRefresh graph\nImpact analysis\nDownstream lineage consumers affected by upstream changes\nNotify owners\n\nNo downstream impact is observed for this asset.\n\n0 consumer paths visible\nno backed impact rows returned\nColumn lineage unavailable\nNo column-lineage rows returned for this asset\n\nColumn lineage is unavailable until Databricks reports column-level lineage rows for this asset.\n\n0 column paths visible\nlineage API\nLive table lineage query returned no actor-visible edges.\nRefocus graph",
+        "hasNorthstar": true,
+        "unavailable": false,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 720,
+        "viewportHeight": 720,
+        "footer": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "left": 0,
+          "right": 0
+        },
+        "explorer": {
+          "x": 208,
+          "y": 56,
+          "width": 1072,
+          "height": 1113.140625,
+          "top": 56,
+          "bottom": 1169.140625,
+          "left": 208,
+          "right": 1280
+        },
+        "controlRail": null,
+        "graphToolbar": null,
+        "workbench": {
+          "x": 224,
+          "y": 241.015625,
+          "width": 1042,
+          "height": 868.125,
+          "top": 241.015625,
+          "bottom": 1109.140625,
+          "left": 224,
+          "right": 1266
+        },
+        "selectedRail": null,
+        "graphCard": {
+          "x": 224,
+          "y": 241.015625,
+          "width": 1042,
+          "height": 504,
+          "top": 241.015625,
+          "bottom": 745.015625,
+          "left": 224,
+          "right": 1266
+        },
+        "bottom": {
+          "x": 224,
+          "y": 823.015625,
+          "width": 1042,
+          "height": 286.125,
+          "top": 823.015625,
+          "bottom": 1109.140625,
+          "left": 224,
+          "right": 1266
+        },
+        "regionText": {
+          "title": true,
+          "upstream": true,
+          "transformations": true,
+          "governed": true,
+          "downstream": true,
+          "selected": true,
+          "impact": true,
+          "columnLineage": true
+        }
+      },
+      "navigationError": "",
+      "passed": true
+    }
+  ],
+  "interactions": [
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-route-settled",
+      "name": "deployed-lineage-route-settled",
+      "loaded": true,
+      "passed": true,
+      "runResult": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges.\n\nUnassigned\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream · 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n1 nodes · 0 edges\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nNo upstream tables observed\nNo permitted upstream table hop is visible.\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\nFOCUS\nuser_dbu_cost_daily\nalex / observability\n1 HOP DOWNSTREAM\nNo downstream consumers observed\nThe live graph has no downstream edges for this asset.\nLINEAGE DETAILS\nuser_dbu_cost_daily\nalex / observability\nLAST REFRESH\nTopology refreshed 2026-05-02 00:28:35 UTC\nROWS\nUnavailable\nOWNER\nUnavai",
+        "lineageInitialBudgetMs": 12000,
+        "lineageFirstInitialMs": 191,
+        "lineageFastestInitialMs": 0,
+        "lineageInitialResponses": [
+          {
+            "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+            "profile": "initial",
+            "status": 200,
+            "elapsedMs": 191,
+            "requestDurationMs": 1.9,
+            "expectedUnavailableProbe": false
+          },
+          {
+            "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+            "profile": "initial",
+            "status": 200,
+            "elapsedMs": 1,
+            "requestDurationMs": 1.9,
+            "expectedUnavailableProbe": false
+          },
+          {
+            "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+            "profile": "initial",
+            "status": 200,
+            "elapsedMs": 1,
+            "requestDurationMs": 1.9,
+            "expectedUnavailableProbe": false
+          },
+          {
+            "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+            "profile": "initial",
+            "status": 200,
+            "elapsedMs": 0,
+            "requestDurationMs": 1.9,
+            "expectedUnavailableProbe": false
+          }
+        ],
+        "lineageFullResponses": [],
+        "validation": {
+          "checks": {
+            "pathIsLineage": true,
+            "northstarVisible": true,
+            "noLoadingCopy": true,
+            "liveEvidenceLabel": true,
+            "initialProfileReturned": true,
+            "initialProfileWithinBudget": true
+          }
+        }
+      },
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily",
+      "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges.\n\nUnassigned\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream · 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n1 nodes · 0 edges\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nNo upstream tables observed\nNo permitted upstream table hop is visible.\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\nFOCUS\nuser_dbu_cost_daily\nalex / observability\n1 HOP DOWNSTREAM\nNo downstream consumers observed\nThe live graph has no downstream edges for this asset.\nLINEAGE DETAILS\nuser_dbu_cost_daily\nalex / observability\nLAST REFRESH\nTopology refreshed 2026-05-02 00:28:35 UTC\nROWS\nUnavailable\nOWNER\nUnavai",
+      "lineageInitialBudgetMs": 12000,
+      "lineageFirstInitialMs": 191,
+      "lineageFastestInitialMs": 0,
+      "lineageInitialResponses": [
+        {
+          "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+          "profile": "initial",
+          "status": 200,
+          "elapsedMs": 191,
+          "requestDurationMs": 1.9,
+          "expectedUnavailableProbe": false
+        },
+        {
+          "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+          "profile": "initial",
+          "status": 200,
+          "elapsedMs": 1,
+          "requestDurationMs": 1.9,
+          "expectedUnavailableProbe": false
+        },
+        {
+          "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+          "profile": "initial",
+          "status": 200,
+          "elapsedMs": 1,
+          "requestDurationMs": 1.9,
+          "expectedUnavailableProbe": false
+        },
+        {
+          "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+          "profile": "initial",
+          "status": 200,
+          "elapsedMs": 0,
+          "requestDurationMs": 1.9,
+          "expectedUnavailableProbe": false
+        }
+      ],
+      "lineageFullResponses": [],
+      "validation": {
+        "checks": {
+          "pathIsLineage": true,
+          "northstarVisible": true,
+          "noLoadingCopy": true,
+          "liveEvidenceLabel": true,
+          "initialProfileReturned": true,
+          "initialProfileWithinBudget": true
+        }
+      }
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-column-action",
+      "name": "deployed-lineage-column-action",
+      "loaded": true,
+      "passed": true,
+      "runResult": {
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges.\n\nUnassigned\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream · 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n1 nodes · 0 edges\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nNo upstream tables observed\nNo permitted upstream table hop is visible.\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\nFOCUS\nuser_dbu_cost_daily\nalex / observability\n1 HOP DOWNSTREAM\nNo downstream consumers observed\nThe live graph has no downstream edges for this asset.\nLINEAGE DETAILS\nuser_dbu_cost_daily\nalex / observability\nLAST REFRESH\nTopology refreshed 2026-05-02 00:28:35 UTC\nROWS\nUnavailable\nOWNER\nUnavai",
+        "validation": {
+          "checks": {
+            "columnStatusVisible": true,
+            "noBackedColumnClaimWithoutRows": true
+          }
+        }
+      },
+      "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges.\n\nUnassigned\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream · 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n1 nodes · 0 edges\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nNo upstream tables observed\nNo permitted upstream table hop is visible.\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\nFOCUS\nuser_dbu_cost_daily\nalex / observability\n1 HOP DOWNSTREAM\nNo downstream consumers observed\nThe live graph has no downstream edges for this asset.\nLINEAGE DETAILS\nuser_dbu_cost_daily\nalex / observability\nLAST REFRESH\nTopology refreshed 2026-05-02 00:28:35 UTC\nROWS\nUnavailable\nOWNER\nUnavai",
+      "validation": {
+        "checks": {
+          "columnStatusVisible": true,
+          "noBackedColumnClaimWithoutRows": true
+        }
+      }
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-impact-action",
+      "name": "deployed-lineage-impact-action",
+      "loaded": true,
+      "passed": true,
+      "runResult": {
+        "notifyDisabled": true,
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges.\n\nUnassigned\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream · 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n1 nodes · 0 edges\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nNo upstream tables observed\nNo permitted upstream table hop is visible.\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\nFOCUS\nuser_dbu_cost_daily\nalex / observability\n1 HOP DOWNSTREAM\nNo downstream consumers observed\nThe live graph has no downstream edges for this asset.\nLINEAGE DETAILS\nuser_dbu_cost_daily\nalex / observability\nLAST REFRESH\nTopology refreshed 2026-05-02 00:28:35 UTC\nROWS\nUnavailable\nOWNER\nUnavai",
+        "validation": {
+          "checks": {
+            "impactPanelVisible": true,
+            "notifyOwnersDisabledWithoutBackedImpact": true,
+            "noFakeImpactJobClaim": true
+          }
+        }
+      },
+      "notifyDisabled": true,
+      "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges.\n\nUnassigned\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream · 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n1 nodes · 0 edges\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nNo upstream tables observed\nNo permitted upstream table hop is visible.\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\nFOCUS\nuser_dbu_cost_daily\nalex / observability\n1 HOP DOWNSTREAM\nNo downstream consumers observed\nThe live graph has no downstream edges for this asset.\nLINEAGE DETAILS\nuser_dbu_cost_daily\nalex / observability\nLAST REFRESH\nTopology refreshed 2026-05-02 00:28:35 UTC\nROWS\nUnavailable\nOWNER\nUnavai",
+      "validation": {
+        "checks": {
+          "impactPanelVisible": true,
+          "notifyOwnersDisabledWithoutBackedImpact": true,
+          "noFakeImpactJobClaim": true
+        }
+      }
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-canvas-zoom",
+      "name": "deployed-lineage-canvas-zoom",
+      "loaded": true,
+      "passed": true,
+      "runResult": {
+        "before": 1,
+        "afterIn": 1.08,
+        "afterOut": 1,
+        "afterFit": 1,
+        "validation": {
+          "checks": {
+            "zoomInChanged": true,
+            "zoomOutChanged": true,
+            "fitReset": true
+          }
+        }
+      },
+      "before": 1,
+      "afterIn": 1.08,
+      "afterOut": 1,
+      "afterFit": 1,
+      "validation": {
+        "checks": {
+          "zoomInChanged": true,
+          "zoomOutChanged": true,
+          "fitReset": true
+        }
+      }
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-toolbar-search-export",
+      "name": "deployed-lineage-toolbar-search-export",
+      "loaded": true,
+      "passed": true,
+      "runResult": {
+        "query": "usage",
+        "resultLabel": "usagesystem / billing",
+        "downloadSuggestedFilename": "lineage-evidence-user_dbu_cost_daily.json",
+        "exportEvidenceKind": "live_databricks_lineage",
+        "validation": {
+          "checks": {
+            "tableModeVisible": true,
+            "columnModeVisible": true,
+            "searchInputVisible": true,
+            "searchResultSelected": true,
+            "exportDownloaded": true,
+            "exportHasEvidenceKind": true,
+            "exportMatchesLiveAsset": true
+          }
+        }
+      },
+      "query": "usage",
+      "resultLabel": "usagesystem / billing",
+      "downloadSuggestedFilename": "lineage-evidence-user_dbu_cost_daily.json",
+      "exportEvidenceKind": "live_databricks_lineage",
+      "validation": {
+        "checks": {
+          "tableModeVisible": true,
+          "columnModeVisible": true,
+          "searchInputVisible": true,
+          "searchResultSelected": true,
+          "exportDownloaded": true,
+          "exportHasEvidenceKind": true,
+          "exportMatchesLiveAsset": true
+        }
+      }
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-focus-node-selection",
+      "name": "deployed-lineage-focus-node-selection",
+      "loaded": true,
+      "passed": true,
+      "runResult": {
+        "nodeLabel": "usagesystem / billingTable",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nusage\nsystem / billing\nwarehouses\nsystem / compute\nhistory\nsystem / query\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\n1 HOP DOWNSTREAM\nuser_dbu_cost_daily_unified\nalex / observability\nuser_dbu_cost_summary\nalex / observability\nLINEAGE DETAILS\nusage\nsystem / billing\nLAST REFRESH\nTopology refreshed 2026-05-02 00:30:46 UT",
+        "validation": {
+          "checks": {
+            "focusNodeClicked": true,
+            "detailPanelPresent": true,
+            "selectedStatusVisible": true
+          }
+        }
+      },
+      "nodeLabel": "usagesystem / billingTable",
+      "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nusage\nsystem / billing\nwarehouses\nsystem / compute\nhistory\nsystem / query\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\n1 HOP DOWNSTREAM\nuser_dbu_cost_daily_unified\nalex / observability\nuser_dbu_cost_summary\nalex / observability\nLINEAGE DETAILS\nusage\nsystem / billing\nLAST REFRESH\nTopology refreshed 2026-05-02 00:30:46 UT",
+      "validation": {
+        "checks": {
+          "focusNodeClicked": true,
+          "detailPanelPresent": true,
+          "selectedStatusVisible": true
+        }
+      }
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-all-node-detail-classes",
+      "name": "deployed-lineage-all-node-detail-classes",
+      "loaded": true,
+      "passed": true,
+      "runResult": {
+        "visibleNodeCount": 5,
+        "visibleNodeClasses": [
+          "upstream",
+          "downstream"
+        ],
+        "nodeClicks": [
+          {
+            "description": "graph node class upstream",
+            "label": "usagesystem / billingTable",
+            "path": "/lineage/alex.observability.user_dbu_cost_daily",
+            "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+          },
+          {
+            "description": "graph node class downstream",
+            "label": "user_dbu_cost_daily_unifiedalex / observabilityTable",
+            "path": "/lineage/alex.observability.user_dbu_cost_daily",
+            "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+          }
+        ],
+        "detailClicks": [
+          {
+            "description": "lineage details row",
+            "label": "user_dbu_cost_daily_unifiedalex / observability",
+            "path": "/lineage/alex.observability.user_dbu_cost_daily",
+            "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+          },
+          {
+            "description": "lineage details row",
+            "label": "user_dbu_cost_summaryalex / observability",
+            "path": "/lineage/alex.observability.user_dbu_cost_daily",
+            "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+          }
+        ],
+        "impactClicks": [
+          {
+            "description": "impact row",
+            "label": "user_dbu_cost_daily_unifiedOwner unavailable · alex / observabilitySeverity unavailable",
+            "path": "/lineage/alex.observability.user_dbu_cost_daily",
+            "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+          },
+          {
+            "description": "impact row",
+            "label": "user_dbu_cost_summaryOwner unavailable · alex / observabilitySeverity unavailable",
+            "path": "/lineage/alex.observability.user_dbu_cost_daily",
+            "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+          }
+        ],
+        "columnClicks": [
+          {
+            "description": "column lineage row",
+            "label": "avg_exec_time_sharesource column · this table",
+            "path": "/lineage/alex.observability.user_dbu_cost_daily",
+            "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+          },
+          {
+            "description": "column lineage row",
+            "label": "compute_resources_usedsource column · this table",
+            "path": "/lineage/alex.observability.user_dbu_cost_daily",
+            "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+          },
+          {
+            "description": "column lineage row",
+            "label": "compute_typesource column · this table",
+            "path": "/lineage/alex.observability.user_dbu_cost_daily",
+            "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+          },
+          {
+            "description": "column lineage row",
+            "label": "rolling_30d_cost_usdsource column · this table",
+            "path": "/lineage/alex.observability.user_dbu_cost_daily",
+            "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+          },
+          {
+            "description": "column lineage row",
+            "label": "rolling_30d_dbussource column · this table",
+            "path": "/lineage/alex.observability.user_dbu_cost_daily",
+            "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+          }
+        ],
+        "validation": {
+          "checks": {
+            "graphNodesVisible": true,
+            "everyVisibleNodeClassClicked": true,
+            "detailsPanelStillVisible": true,
+            "consumerRowsCoveredOrUnavailable": true,
+            "impactRowsCoveredOrUnavailable": true,
+            "restrictedCoveredOrAbsent": true,
+            "columnRowsCoveredOrUnavailable": true
+          }
+        }
+      },
+      "visibleNodeCount": 5,
+      "visibleNodeClasses": [
+        "upstream",
+        "downstream"
+      ],
+      "nodeClicks": [
+        {
+          "description": "graph node class upstream",
+          "label": "usagesystem / billingTable",
+          "path": "/lineage/alex.observability.user_dbu_cost_daily",
+          "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+        },
+        {
+          "description": "graph node class downstream",
+          "label": "user_dbu_cost_daily_unifiedalex / observabilityTable",
+          "path": "/lineage/alex.observability.user_dbu_cost_daily",
+          "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+        }
+      ],
+      "detailClicks": [
+        {
+          "description": "lineage details row",
+          "label": "user_dbu_cost_daily_unifiedalex / observability",
+          "path": "/lineage/alex.observability.user_dbu_cost_daily",
+          "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+        },
+        {
+          "description": "lineage details row",
+          "label": "user_dbu_cost_summaryalex / observability",
+          "path": "/lineage/alex.observability.user_dbu_cost_daily",
+          "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+        }
+      ],
+      "impactClicks": [
+        {
+          "description": "impact row",
+          "label": "user_dbu_cost_daily_unifiedOwner unavailable · alex / observabilitySeverity unavailable",
+          "path": "/lineage/alex.observability.user_dbu_cost_daily",
+          "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+        },
+        {
+          "description": "impact row",
+          "label": "user_dbu_cost_summaryOwner unavailable · alex / observabilitySeverity unavailable",
+          "path": "/lineage/alex.observability.user_dbu_cost_daily",
+          "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+        }
+      ],
+      "columnClicks": [
+        {
+          "description": "column lineage row",
+          "label": "avg_exec_time_sharesource column · this table",
+          "path": "/lineage/alex.observability.user_dbu_cost_daily",
+          "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+        },
+        {
+          "description": "column lineage row",
+          "label": "compute_resources_usedsource column · this table",
+          "path": "/lineage/alex.observability.user_dbu_cost_daily",
+          "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+        },
+        {
+          "description": "column lineage row",
+          "label": "compute_typesource column · this table",
+          "path": "/lineage/alex.observability.user_dbu_cost_daily",
+          "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+        },
+        {
+          "description": "column lineage row",
+          "label": "rolling_30d_cost_usdsource column · this table",
+          "path": "/lineage/alex.observability.user_dbu_cost_daily",
+          "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+        },
+        {
+          "description": "column lineage row",
+          "label": "rolling_30d_dbussource column · this table",
+          "path": "/lineage/alex.observability.user_dbu_cost_daily",
+          "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOP"
+        }
+      ],
+      "validation": {
+        "checks": {
+          "graphNodesVisible": true,
+          "everyVisibleNodeClassClicked": true,
+          "detailsPanelStillVisible": true,
+          "consumerRowsCoveredOrUnavailable": true,
+          "impactRowsCoveredOrUnavailable": true,
+          "restrictedCoveredOrAbsent": true,
+          "columnRowsCoveredOrUnavailable": true
+        }
+      }
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-refocus-graph",
+      "name": "deployed-lineage-refocus-graph",
+      "loaded": true,
+      "passed": true,
+      "runResult": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nusage\nsystem / billing\nwarehouses\nsystem / compute\nhistory\nsystem / query\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\n1 HOP DOWNSTREAM\nuser_dbu_cost_daily_unified\nalex / observability\nuser_dbu_cost_summary\nalex / observability\nLINEAGE DETAILS\nuser_dbu_cost_daily_unified\nalex / observability\nLAST REFRESH\nTopology refres",
+        "validation": {
+          "checks": {
+            "refocusFeedbackVisible": true,
+            "routeStillLineage": true,
+            "lineageOutcomeTruthful": true,
+            "noSyntheticEdgesIntroduced": true
+          }
+        }
+      },
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily",
+      "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nusage\nsystem / billing\nwarehouses\nsystem / compute\nhistory\nsystem / query\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\n1 HOP DOWNSTREAM\nuser_dbu_cost_daily_unified\nalex / observability\nuser_dbu_cost_summary\nalex / observability\nLINEAGE DETAILS\nuser_dbu_cost_daily_unified\nalex / observability\nLAST REFRESH\nTopology refres",
+      "validation": {
+        "checks": {
+          "refocusFeedbackVisible": true,
+          "routeStillLineage": true,
+          "lineageOutcomeTruthful": true,
+          "noSyntheticEdgesIntroduced": true
+        }
+      }
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-unavailable-controls",
+      "name": "deployed-lineage-unavailable-controls",
+      "loaded": true,
+      "passed": true,
+      "runResult": {
+        "unavailableAsset": "alex.observability.user_dbu_cost_daily.__missing_lineage_validation_target__",
+        "openAssetDisabled": true,
+        "openAssetOutcome": "This lineage node is present in the graph, but its metadata record is not openable with the current permissions.",
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nUnknown asset\n\nLineage is unavailable for this asset in the current workspace scope. Search for an openable asset to continue.\n\nCertification unavailable\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream · 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n0 nodes · 0 edges\nData Lineage\nSearch for an asset and open the graph directly from there.\nStart typing to load a graph.\nNODE TYPES\nTable\nPipeline\nJob\nNotebook\nSaved query\nDashboard\nModel\nUDF\nVolume\nRestricted\nNo live topology returned; system.access.table_lineage not verified for this route\nUnknown asset selected\nOpen asset\nLINEAGE AS OF:\nUnavailable\nNo live graph\nunavailable\nRetry\nImpact analysis\nDownstream lineage consumers affected by upstream changes\nNotify owners\n\nNo downstream impact is observed for this asset.\n\n0 consumer paths visible\nlive impact workflow unavailable\nColumn lineage unavailable\nNo column-lineage rows returned for this asse",
+        "validation": {
+          "checks": {
+            "retryTruthful": true,
+            "openAssetHandled": true,
+            "clearFocusShowsSearchState": true,
+            "noSyntheticUnavailableGraph": true
+          }
+        }
+      },
+      "unavailableAsset": "alex.observability.user_dbu_cost_daily.__missing_lineage_validation_target__",
+      "openAssetDisabled": true,
+      "openAssetOutcome": "This lineage node is present in the graph, but its metadata record is not openable with the current permissions.",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage",
+      "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nUnknown asset\n\nLineage is unavailable for this asset in the current workspace scope. Search for an openable asset to continue.\n\nCertification unavailable\nFreshness unavailable\nCDEs unavailable\nOwner: Unavailable\n0 upstream · 0 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n0 nodes · 0 edges\nData Lineage\nSearch for an asset and open the graph directly from there.\nStart typing to load a graph.\nNODE TYPES\nTable\nPipeline\nJob\nNotebook\nSaved query\nDashboard\nModel\nUDF\nVolume\nRestricted\nNo live topology returned; system.access.table_lineage not verified for this route\nUnknown asset selected\nOpen asset\nLINEAGE AS OF:\nUnavailable\nNo live graph\nunavailable\nRetry\nImpact analysis\nDownstream lineage consumers affected by upstream changes\nNotify owners\n\nNo downstream impact is observed for this asset.\n\n0 consumer paths visible\nlive impact workflow unavailable\nColumn lineage unavailable\nNo column-lineage rows returned for this asse",
+      "validation": {
+        "checks": {
+          "retryTruthful": true,
+          "openAssetHandled": true,
+          "clearFocusShowsSearchState": true,
+          "noSyntheticUnavailableGraph": true
+        }
+      }
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-shared-shell-controls",
+      "name": "deployed-lineage-shared-shell-controls",
+      "loaded": true,
+      "passed": true,
+      "runResult": {
+        "outcomes": {
+          "searchPath": "/discovery",
+          "notifications": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC status loading\nAtlas AI\nPreparing workspace shell\nPreparing the workspace surface.\nConfirming route handoff, identity headers, and shell capabilities before live surface hydration.",
+          "helpPath": "/help",
+          "profile": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nSkyler Myers\nskyler@entrada.ai\nRole verification pending.\nSettings & diagnostics\nUpload local avatar\nCapability dashboard\nSign out\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nusage\nsystem / billing\nwarehouses\nsystem / compute\nhistory\nsystem / query\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\n1 HOP DOWNSTREAM\nuser_dbu_cost_daily_unified\nalex / observability\nuser_",
+          "atlasAi": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nusage\nsystem / billing\nwarehouses\nsystem / compute\nhistory\nsystem / query\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\n1 HOP DOWNSTREAM\nuser_dbu_cost_daily_unified\nalex / observability\nuser_dbu_cost_summary\nalex / observability\nLINEAGE DETAILS\nuser_dbu_cost_daily_unified\nalex / observability\nLAST REFRESH\nTopology refreshed 2026-05-02 00:30:46 UTC\nROWS\nUnavailable\nOWNER\nUnavailable\nSOURCES\n0\n\nNo source-system details returned.\n\nCONSUMERS\n2\nuser_dbu_cost_daily_unified\nalex / observability\nuser_dbu_cost_summary\nalex / observability\nRECENT ACTIVITY\n\nNo recent lineage activity returned.\n\nNODE TYPES\nTable\nPipeline\nJob\nNotebook\nSaved query\nDashboard\nModel\nUDF\nVolume\nRestricted\nvia system.access.table_lineage\nLINEAGE AS"
+        },
+        "validation": {
+          "checks": {
+            "topbarSearchVisible": true,
+            "topbarSearchEnabled": true,
+            "topbarSearchRoutes": true,
+            "commandPaletteVisible": true,
+            "commandPaletteLineageResult": true,
+            "notificationsHandled": true,
+            "helpRoutes": true,
+            "profileMenuHandled": true,
+            "atlasAiControlVisible": true,
+            "atlasAiHandled": true,
+            "atlasAiClosed": true
+          }
+        }
+      },
+      "outcomes": {
+        "searchPath": "/discovery",
+        "notifications": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC status loading\nAtlas AI\nPreparing workspace shell\nPreparing the workspace surface.\nConfirming route handoff, identity headers, and shell capabilities before live surface hydration.",
+        "helpPath": "/help",
+        "profile": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nSkyler Myers\nskyler@entrada.ai\nRole verification pending.\nSettings & diagnostics\nUpload local avatar\nCapability dashboard\nSign out\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nusage\nsystem / billing\nwarehouses\nsystem / compute\nhistory\nsystem / query\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\n1 HOP DOWNSTREAM\nuser_dbu_cost_daily_unified\nalex / observability\nuser_",
+        "atlasAi": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nLINEAGE ATLAS\nalex.observability.user_dbu_cost_daily\n\nPermission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.\n\nUnassigned\nFreshness unavailable\n26 CDEs\nOwner: Unavailable\n3 upstream · 2 downstream\nRevenue impact unavailable\nColumn lineage\nRun impact analysis\n+\n-\n6 nodes · 5 edges\nCertified\nSource\nJob / Pipeline\nRestricted\nTopology refreshed 2026-05-02 00:30:46 UTC\nTable lineage\nColumn lineage\nSearch\nExport\n4 HOPS UPSTREAM\nNo source systems observed\nUnity Catalog has not reported a source-system edge for this asset.\n3 HOPS UPSTREAM\nusage\nsystem / billing\nwarehouses\nsystem / compute\nhistory\nsystem / query\n2 HOPS UPSTREAM\nNo job or pipeline observed\nNo intermediate job, notebook, or view hop is present in live graph.\n1 HOP DOWNSTREAM\nuser_dbu_cost_daily_unified\nalex / observability\nuser_dbu_cost_summary\nalex / observability\nLINEAGE DETAILS\nuser_dbu_cost_daily_unified\nalex / observability\nLAST REFRESH\nTopology refreshed 2026-05-02 00:30:46 UTC\nROWS\nUnavailable\nOWNER\nUnavailable\nSOURCES\n0\n\nNo source-system details returned.\n\nCONSUMERS\n2\nuser_dbu_cost_daily_unified\nalex / observability\nuser_dbu_cost_summary\nalex / observability\nRECENT ACTIVITY\n\nNo recent lineage activity returned.\n\nNODE TYPES\nTable\nPipeline\nJob\nNotebook\nSaved query\nDashboard\nModel\nUDF\nVolume\nRestricted\nvia system.access.table_lineage\nLINEAGE AS"
+      },
+      "validation": {
+        "checks": {
+          "topbarSearchVisible": true,
+          "topbarSearchEnabled": true,
+          "topbarSearchRoutes": true,
+          "commandPaletteVisible": true,
+          "commandPaletteLineageResult": true,
+          "notificationsHandled": true,
+          "helpRoutes": true,
+          "profileMenuHandled": true,
+          "atlasAiControlVisible": true,
+          "atlasAiHandled": true,
+          "atlasAiClosed": true
+        }
+      }
+    }
+  ],
+  "sideBySide": [
+    {
+      "route": "lineage",
+      "viewport": "1536x1024",
+      "kind": "side-by-side",
+      "mockupPath": "northstar/screenshots/prototype_lineage.png",
+      "currentPath": "docs/northstar_visual_qa/lineage-restricted-live-v392-databricks/lineage-live-1536x1024.png",
+      "path": "docs/northstar_visual_qa/lineage-restricted-live-v392-databricks/lineage-live-side-by-side-1536x1024.png"
+    }
+  ],
+  "requestFailures": [],
+  "console": [],
+  "pageErrors": [],
+  "consoleWarnings": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 503 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily.__missing_lineage_validation_target__",
+      "expectedUnavailableProbe": true
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 503 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily.__missing_lineage_validation_target__",
+      "expectedUnavailableProbe": true
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 503 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily.__missing_lineage_validation_target__",
+      "expectedUnavailableProbe": true
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 503 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily.__missing_lineage_validation_target__",
+      "expectedUnavailableProbe": true
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 503 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily.__missing_lineage_validation_target__",
+      "expectedUnavailableProbe": true
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 503 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/alex.observability.user_dbu_cost_daily.__missing_lineage_validation_target__",
+      "expectedUnavailableProbe": true
+    }
+  ],
+  "lineageApiResponses": [
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 191,
+      "requestDurationMs": 1.9,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 1,
+      "requestDurationMs": 1.9,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 1,
+      "requestDurationMs": 1.9,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 0,
+      "requestDurationMs": 1.9,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 4,
+      "requestDurationMs": 1.9,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=full",
+      "profile": "full",
+      "status": 200,
+      "elapsedMs": 2720,
+      "requestDurationMs": 2509.5,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 4,
+      "requestDurationMs": 1.9,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=full",
+      "profile": "full",
+      "status": 200,
+      "elapsedMs": 2,
+      "requestDurationMs": 2509.5,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 3,
+      "requestDurationMs": 1.9,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=full",
+      "profile": "full",
+      "status": 200,
+      "elapsedMs": 2,
+      "requestDurationMs": 2509.5,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 2,
+      "requestDurationMs": 1.9,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=full",
+      "profile": "full",
+      "status": 200,
+      "elapsedMs": 0,
+      "requestDurationMs": 2509.5,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily.__missing_lineage_validation_target__?profile=initial",
+      "profile": "initial",
+      "status": 503,
+      "elapsedMs": 236,
+      "requestDurationMs": 2,
+      "expectedUnavailableProbe": true
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily.__missing_lineage_validation_target__?profile=initial",
+      "profile": "initial",
+      "status": 503,
+      "elapsedMs": 162,
+      "requestDurationMs": 3.3,
+      "expectedUnavailableProbe": true
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily.__missing_lineage_validation_target__?profile=initial",
+      "profile": "initial",
+      "status": 503,
+      "elapsedMs": 205,
+      "requestDurationMs": 2.4,
+      "expectedUnavailableProbe": true
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily.__missing_lineage_validation_target__?profile=initial",
+      "profile": "initial",
+      "status": 503,
+      "elapsedMs": 185,
+      "requestDurationMs": 2.5,
+      "expectedUnavailableProbe": true
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 4,
+      "requestDurationMs": 1.9,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=full",
+      "profile": "full",
+      "status": 200,
+      "elapsedMs": 2,
+      "requestDurationMs": 2509.5,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 99,
+      "requestDurationMs": 1.2,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 2,
+      "requestDurationMs": 1.2,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=full",
+      "profile": "full",
+      "status": 200,
+      "elapsedMs": 2,
+      "requestDurationMs": 2509.5,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 3,
+      "requestDurationMs": 1.2,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=full",
+      "profile": "full",
+      "status": 200,
+      "elapsedMs": 1,
+      "requestDurationMs": 2509.5,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=initial",
+      "profile": "initial",
+      "status": 200,
+      "elapsedMs": 0,
+      "requestDurationMs": 1.2,
+      "expectedUnavailableProbe": false
+    },
+    {
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/lineage/alex.observability.user_dbu_cost_daily?profile=full",
+      "profile": "full",
+      "status": 200,
+      "elapsedMs": 0,
+      "requestDurationMs": 2509.5,
+      "expectedUnavailableProbe": false
+    }
+  ],
+  "loginRedirectDetected": false,
+  "passed": true
+}

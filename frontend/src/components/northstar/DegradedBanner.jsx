@@ -1,5 +1,11 @@
 export function DegradedBanner({ meta, title = "Data availability is limited" }) {
   const warnings = Array.isArray(meta?.warnings) ? meta.warnings.filter(Boolean) : [];
+  const prototypeMockOnly =
+    warnings.length > 0 &&
+    warnings.every((warning) =>
+      /prototype mock data|not live databricks evidence|local-prototype-mock/i.test(String(warning || "")),
+    );
+  if (prototypeMockOnly) return null;
   if (!meta?.degraded && warnings.length === 0 && meta?.state !== "degraded") return null;
 
   return (

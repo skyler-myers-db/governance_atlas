@@ -1,6 +1,0 @@
-2026/03/26-20:42:59.673 3162 Creating DB /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_accounts.cloud.databricks.com_0.indexeddb.leveldb since it was missing.
-2026/03/26-20:42:59.675 3162 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_accounts.cloud.databricks.com_0.indexeddb.leveldb/MANIFEST-000001
-2026/03/26-20:43:10.824 3180 Level-0 table #5: started
-2026/03/26-20:43:10.825 3180 Level-0 table #5: 1208 bytes OK
-2026/03/26-20:43:10.827 3180 Delete type=0 #3
-2026/03/26-20:43:10.828 3162 Manual compaction at level-0 from (begin) .. (end); will stop at (end)

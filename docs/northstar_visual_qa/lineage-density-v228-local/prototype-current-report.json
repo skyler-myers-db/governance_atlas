@@ -1,0 +1,1456 @@
+{
+  "generatedAt": "2026-05-01T08:58:26.749Z",
+  "baseUrl": "http://127.0.0.1:5173",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "evidenceKind": "prototype_mock",
+  "mockEvidenceWarning": "Prototype mock data, not live Databricks evidence.",
+  "routeFilter": [
+    "lineage"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "lineage"
+  ],
+  "viewports": [
+    {
+      "name": "3037x1269",
+      "width": 3037,
+      "height": 1269
+    },
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "1280x720",
+      "width": 1280,
+      "height": 720
+    }
+  ],
+  "expectedCaptureCount": 4,
+  "captures": [
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/lineage-density-v228-local/lineage-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-density-v228-local/lineage-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1269,
+          "width": 240,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1647,
+          "clientHeight": 1213,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 240,
+          "right": 3037,
+          "bottom": 1702.796875,
+          "width": 2797,
+          "height": 1646.796875
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 240,
+            "right": 3037,
+            "bottom": 1702.796875,
+            "width": 2797,
+            "height": 1646.796875
+          },
+          "hero": {
+            "top": 78,
+            "left": 647.5,
+            "right": 2577.5,
+            "bottom": 236.796875,
+            "width": 1930,
+            "height": 158.796875
+          },
+          "workbench": {
+            "top": 272.796875,
+            "left": 647.5,
+            "right": 2577.5,
+            "bottom": 1632.796875,
+            "width": 1930,
+            "height": 1360
+          },
+          "graph": {
+            "top": 272.796875,
+            "left": 647.5,
+            "right": 2577.5,
+            "bottom": 1134.796875,
+            "width": 1930,
+            "height": 862
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware end-to-end lineage from operational sources through to consumer dashboards. Hidden segments mean a node exists, but you don't have UC permission to view it. Certified 14 min ago - within 15 min SLA 5 CDEs Owner: Marisol Reyes 5 upstream - 23 downstream $142k/day revenue impact Column lineage Run impact analysis + - 19 nodes · 19 edges 4 HOPS UPSTREAM finance_prod · dlt_payments_ingest SOURCE - Payments finance_prod · auto_loader_invoices SOURCE - Finance 3 HOPS UPSTREAM charges_raw finance_prod · bronze PK charge_id STRING FK customer_id STRING # amount INT A currency STRING # refund_amount INT A status STRING +2 more columns 12.4M rows 8m invoices_raw finance_prod · bronze PK invoice_id STRING FK customer_id STRING # adjustment DECIMAL A billing_period STRING A created_at TIMESTAMP 1.1M rows 41m orders_raw finance_prod · bronze PK order_id STRING FK customer_id STRING # subtotal DECIMAL 4.8M rows 14m 2 HOPS UPSTREAM ipynb finance_prod · notebook 1 HOP DOWNSTREAM payments finance_prod · silver PK payment_id STRING FK customer_id STRING # gross_amount DECIMAL # refund_amount DECIMAL # adjustment DECIMAL FK segment_id STRING +2 more columns 13.5M rows 11m orders sales_prod · silver PK order_id STRING FK customer_id STRING # order_value_usd DECIMAL # discount_a",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications unavailable",
+            "disabled": false,
+            "aria": "Notifications unavailable"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": false,
+            "aria": "Graph history"
+          },
+          {
+            "text": "finance_prod · dlt_payments_ingest SOURCE - Payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod · auto_loader_invoices SOURCE - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges_raw finance_prod · bronze PK charge_id STRING FK customer_id STRING # amount INT A currency STRING # refund_amou",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw finance_prod · bronze PK invoice_id STRING FK customer_id STRING # adjustment DECIMAL A billing_period STRI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw finance_prod · bronze PK order_id STRING FK customer_id STRING # subtotal DECIMAL 4.8M rows 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "ipynb finance_prod · notebook",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "payments finance_prod · silver PK payment_id STRING FK customer_id STRING # gross_amount DECIMAL # refund_amount DECIMAL",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders sales_prod · silver PK order_id STRING FK customer_id STRING # order_value_usd DECIMAL # discount_amount DECIMAL ",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets PROTOTYPE PERMISSION BOUNDARY",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "ipynb 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod · revenue_recognition... finance_prod / revenue_recognition",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance High impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance High impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance Medium",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.gold.arr_snapshot Finance Stewards - prototype downstream shape - no live usage, workflow, or backed lineag",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets Hidden by Unity Catalog permissions Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd gross_revenue_usd · finance_prod.silver.orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd refund_usd · finance_prod.silver.payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · dashboards.finance.cfo_quarterly",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · finance_prod.ml.revenue_forecast",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false,
+      "mainScrollCapture": {
+        "scrollTop": 434,
+        "scrollHeight": 1647,
+        "clientHeight": 1213,
+        "maxScrollTop": 434
+      },
+      "mainBottomScreenshot": "docs/northstar_visual_qa/lineage-density-v228-local/lineage-3037x1269-main-bottom.png"
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/lineage-density-v228-local/lineage-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-density-v228-local/lineage-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1621,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1676.703125,
+          "width": 1296,
+          "height": 1620.703125
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 240,
+            "right": 1536,
+            "bottom": 1676.703125,
+            "width": 1296,
+            "height": 1620.703125
+          },
+          "hero": {
+            "top": 78,
+            "left": 262,
+            "right": 1516,
+            "bottom": 224.703125,
+            "width": 1254,
+            "height": 146.703125
+          },
+          "workbench": {
+            "top": 260.703125,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1606.703125,
+            "width": 1120,
+            "height": 1346
+          },
+          "graph": {
+            "top": 260.703125,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1122.703125,
+            "width": 1120,
+            "height": 862
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware end-to-end lineage from operational sources through to consumer dashboards. Hidden segments mean a node exists, but you don't have UC permission to view it. Certified 14 min ago - within 15 min SLA 5 CDEs Owner: Marisol Reyes 5 upstream - 23 downstream $142k/day revenue impact Column lineage Run impact analysis + - 19 nodes · 19 edges 4 HOPS UPSTREAM finance_prod · dlt_payments_ingest SOURCE - Payments finance_prod · auto_loader_invoices SOURCE - Finance 3 HOPS UPSTREAM charges_raw finance_prod · bronze PK charge_id STRING FK customer_id STRING # amount INT A currency STRING # refund_amount INT A status STRING +2 more columns 12.4M rows 8m invoices_raw finance_prod · bronze PK invoice_id STRING FK customer_id STRING # adjustment DECIMAL A billing_period STRING A created_at TIMESTAMP 1.1M rows 41m orders_raw finance_prod · bronze PK order_id STRING FK customer_id STRING # subtotal DECIMAL 4.8M rows 14m 2 HOPS UPSTREAM ipynb finance_prod · notebook 1 HOP DOWNSTREAM payments finance_prod · silver PK payment_id STRING FK customer_id STRING # gross_amount DECIMAL # refund_amount DECIMAL # adjustment DECIMAL FK segment_id STRING +2 more columns 13.5M rows 11m orders sales_prod · silver PK order_id STRING FK customer_id STRING # order_value_usd DECIMAL # discount_a",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications unavailable",
+            "disabled": false,
+            "aria": "Notifications unavailable"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": false,
+            "aria": "Graph history"
+          },
+          {
+            "text": "finance_prod · dlt_payments_ingest SOURCE - Payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod · auto_loader_invoices SOURCE - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges_raw finance_prod · bronze PK charge_id STRING FK customer_id STRING # amount INT A currency STRING # refund_amou",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw finance_prod · bronze PK invoice_id STRING FK customer_id STRING # adjustment DECIMAL A billing_period STRI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw finance_prod · bronze PK order_id STRING FK customer_id STRING # subtotal DECIMAL 4.8M rows 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "ipynb finance_prod · notebook",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "payments finance_prod · silver PK payment_id STRING FK customer_id STRING # gross_amount DECIMAL # refund_amount DECIMAL",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders sales_prod · silver PK order_id STRING FK customer_id STRING # order_value_usd DECIMAL # discount_amount DECIMAL ",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets PROTOTYPE PERMISSION BOUNDARY",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "ipynb 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod · revenue_recognition... finance_prod / revenue_recognition",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance High impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance High impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance Medium",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.gold.arr_snapshot Finance Stewards - prototype downstream shape - no live usage, workflow, or backed lineag",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets Hidden by Unity Catalog permissions Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd gross_revenue_usd · finance_prod.silver.orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd refund_usd · finance_prod.silver.payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · dashboards.finance.cfo_quarterly",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · finance_prod.ml.revenue_forecast",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false,
+      "mainScrollCapture": {
+        "scrollTop": 653,
+        "scrollHeight": 1621,
+        "clientHeight": 968,
+        "maxScrollTop": 653
+      },
+      "mainBottomScreenshot": "docs/northstar_visual_qa/lineage-density-v228-local/lineage-1536x1024-main-bottom.png"
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/lineage-density-v228-local/lineage-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-density-v228-local/lineage-1440x900-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 900,
+          "documentWidth": 1440,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1440,
+          "bottom": 56,
+          "width": 1200,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 900,
+          "width": 240,
+          "height": 900
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1200,
+          "height": 844
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1612,
+          "clientHeight": 844,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 240,
+          "right": 1440,
+          "bottom": 1668.03125,
+          "width": 1200,
+          "height": 1612.03125
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 240,
+            "right": 1440,
+            "bottom": 1668.03125,
+            "width": 1200,
+            "height": 1612.03125
+          },
+          "hero": {
+            "top": 78,
+            "left": 262,
+            "right": 1420,
+            "bottom": 221.03125,
+            "width": 1158,
+            "height": 143.03125
+          },
+          "workbench": {
+            "top": 257.03125,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1598.03125,
+            "width": 1120,
+            "height": 1341
+          },
+          "graph": {
+            "top": 257.03125,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1119.03125,
+            "width": 1120,
+            "height": 862
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware end-to-end lineage from operational sources through to consumer dashboards. Hidden segments mean a node exists, but you don't have UC permission to view it. Certified 14 min ago - within 15 min SLA 5 CDEs Owner: Marisol Reyes 5 upstream - 23 downstream $142k/day revenue impact Column lineage Run impact analysis + - 19 nodes · 19 edges 4 HOPS UPSTREAM finance_prod · dlt_payments_ingest SOURCE - Payments finance_prod · auto_loader_invoices SOURCE - Finance 3 HOPS UPSTREAM charges_raw finance_prod · bronze PK charge_id STRING FK customer_id STRING # amount INT A currency STRING # refund_amount INT A status STRING +2 more columns 12.4M rows 8m invoices_raw finance_prod · bronze PK invoice_id STRING FK customer_id STRING # adjustment DECIMAL A billing_period STRING A created_at TIMESTAMP 1.1M rows 41m orders_raw finance_prod · bronze PK order_id STRING FK customer_id STRING # subtotal DECIMAL 4.8M rows 14m 2 HOPS UPSTREAM ipynb finance_prod · notebook 1 HOP DOWNSTREAM payments finance_prod · silver PK payment_id STRING FK customer_id STRING # gross_amount DECIMAL # refund_amount DECIMAL # adjustment DECIMAL FK segment_id STRING +2 more columns 13.5M rows 11m orders sales_prod · silver PK order_id STRING FK customer_id STRING # order_value_usd DECIMAL # discount_a",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications unavailable",
+            "disabled": false,
+            "aria": "Notifications unavailable"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": false,
+            "aria": "Graph history"
+          },
+          {
+            "text": "finance_prod · dlt_payments_ingest SOURCE - Payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod · auto_loader_invoices SOURCE - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges_raw finance_prod · bronze PK charge_id STRING FK customer_id STRING # amount INT A currency STRING # refund_amou",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw finance_prod · bronze PK invoice_id STRING FK customer_id STRING # adjustment DECIMAL A billing_period STRI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw finance_prod · bronze PK order_id STRING FK customer_id STRING # subtotal DECIMAL 4.8M rows 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "ipynb finance_prod · notebook",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "payments finance_prod · silver PK payment_id STRING FK customer_id STRING # gross_amount DECIMAL # refund_amount DECIMAL",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders sales_prod · silver PK order_id STRING FK customer_id STRING # order_value_usd DECIMAL # discount_amount DECIMAL ",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets PROTOTYPE PERMISSION BOUNDARY",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "ipynb 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod · revenue_recognition... finance_prod / revenue_recognition",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance High impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance High impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance Medium",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.gold.arr_snapshot Finance Stewards - prototype downstream shape - no live usage, workflow, or backed lineag",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets Hidden by Unity Catalog permissions Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd gross_revenue_usd · finance_prod.silver.orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd refund_usd · finance_prod.silver.payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · dashboards.finance.cfo_quarterly",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · finance_prod.ml.revenue_forecast",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false,
+      "mainScrollCapture": {
+        "scrollTop": 768,
+        "scrollHeight": 1612,
+        "clientHeight": 844,
+        "maxScrollTop": 768
+      },
+      "mainBottomScreenshot": "docs/northstar_visual_qa/lineage-density-v228-local/lineage-1440x900-main-bottom.png"
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/lineage-density-v228-local/lineage-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-density-v228-local/lineage-1280x720-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1280,
+          "height": 720,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 720,
+          "documentWidth": 1280,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1280,
+          "bottom": 56,
+          "width": 1040,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 720,
+          "width": 240,
+          "height": 720
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1040,
+          "height": 664
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1647,
+          "clientHeight": 664,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 240,
+          "right": 1280,
+          "bottom": 1702.8125,
+          "width": 1040,
+          "height": 1646.8125
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 240,
+            "right": 1280,
+            "bottom": 1702.8125,
+            "width": 1040,
+            "height": 1646.8125
+          },
+          "hero": {
+            "top": 68,
+            "left": 256,
+            "right": 1266,
+            "bottom": 222.96875,
+            "width": 1010,
+            "height": 154.96875
+          },
+          "workbench": {
+            "top": 256.96875,
+            "left": 256,
+            "right": 1266,
+            "bottom": 1642.8125,
+            "width": 1010,
+            "height": 1385.84375
+          },
+          "graph": {
+            "top": 256.96875,
+            "left": 256,
+            "right": 1266,
+            "bottom": 878.96875,
+            "width": 1010,
+            "height": 622
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware end-to-end lineage from operational sources through to consumer dashboards. Hidden segments mean a node exists, but you don't have UC permission to view it. Certified 14 min ago - within 15 min SLA 5 CDEs Owner: Marisol Reyes 5 upstream - 23 downstream $142k/day revenue impact Column lineage Run impact analysis + - 19 nodes · 19 edges 4 HOPS UPSTREAM finance_prod · dlt_payments_ingest SOURCE - Payments finance_prod · auto_loader_invoices SOURCE - Finance 3 HOPS UPSTREAM charges_raw finance_prod · bronze 12.4M rows 8m invoices_raw finance_prod · bronze 1.1M rows 41m orders_raw finance_prod · bronze 4.8M rows 14m 2 HOPS UPSTREAM ipynb finance_prod · notebook 1 HOP DOWNSTREAM payments finance_prod · silver 13.5M rows 11m orders sales_prod · silver 4.8M rows 14m 4 downstream assets PROTOTYPE PERMISSION BOUNDARY LINEAGE DETAILS payments finance_prod · silver LAST REFRESH 11 min ago ROWS 13.5M rows OWNER MR SOURCES 1 ipynb 14m CONSUMERS 1 finance_prod · revenue_recognition... finance_prod / revenue_recognition RECENT ACTIVITY Notebook payments_clean succeeded · 13.5M rows svc-job-runner · 11m ago Schema evolution: +adjustment priya.natarajan · 6d ago NODE TYPES Table Pipeline Job Notebook Saved query Dashboard Model UDF Volume Restricted via system.access.table_li",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications unavailable",
+            "disabled": false,
+            "aria": "Notifications unavailable"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": false,
+            "aria": "Graph history"
+          },
+          {
+            "text": "finance_prod · dlt_payments_ingest SOURCE - Payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod · auto_loader_invoices SOURCE - Finance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "charges_raw finance_prod · bronze 12.4M rows 8m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw finance_prod · bronze 1.1M rows 41m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw finance_prod · bronze 4.8M rows 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "ipynb finance_prod · notebook",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "payments finance_prod · silver 13.5M rows 11m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders sales_prod · silver 4.8M rows 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets PROTOTYPE PERMISSION BOUNDARY",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "ipynb 14m",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod · revenue_recognition... finance_prod / revenue_recognition",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance High impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance High impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance Medium",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.gold.arr_snapshot Finance Stewards - prototype downstream shape - no live usage, workflow, or backed lineag",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets Hidden by Unity Catalog permissions Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd gross_revenue_usd · finance_prod.silver.orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd refund_usd · finance_prod.silver.payments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · dashboards.finance.cfo_quarterly",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd net_revenue_usd · finance_prod.ml.revenue_forecast",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false,
+      "mainScrollCapture": {
+        "scrollTop": 983,
+        "scrollHeight": 1647,
+        "clientHeight": 664,
+        "maxScrollTop": 983
+      },
+      "mainBottomScreenshot": "docs/northstar_visual_qa/lineage-density-v228-local/lineage-1280x720-main-bottom.png"
+    }
+  ],
+  "interactions": [],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/lineage/finance_prod.curated.revenue_daily"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

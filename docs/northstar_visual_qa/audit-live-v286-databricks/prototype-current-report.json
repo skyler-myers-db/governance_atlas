@@ -1,0 +1,96 @@
+{
+  "generatedAt": "2026-05-01T13:28:14.431Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f1455d0c6b10809cde14296fa99d23",
+  "buildId": "frontend-0821ce3424c6",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "route": "audit",
+  "captures": [
+    {
+      "route": "audit",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/audit-live-v286-databricks/audit-live-1536x1024.png",
+      "loaded": true
+    }
+  ],
+  "interactions": [
+    {
+      "route": "audit",
+      "interaction": "deployed-audit-date-filter-and-detail",
+      "loaded": true,
+      "tabStates": {
+        "All events": "true",
+        "By users": "true",
+        "By services": "true",
+        "Violations": "true"
+      },
+      "rowText": "2026-05-01 13:26:48\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore",
+      "detailText": "SELECTED EVIDENCE\nIdentity Directory Upserted\nSUCCESS\nActor\nskyler@entrada.ai\nTarget\nskyler@entrada.ai\nEvidence\nstore\nRequest ID\nUnavailable\n\ndisplayName\nUnavailable\nskyler@entrada.ai\n\nemail\nUnavailable\nskyler@entrada.ai\n\nentryId\nUnavailable\nd1c39b5b714241eeb76993c05ab12e08\n\nexternalKey\nUnavailable\nskyler@entrada.ai\n\nisActive\nUnavailable\ntrue\n\nprincipalType\nUnavailable\nuser\n\nsource\nUnavailable\ngovernance_recipient\n\nsyncedAt\nUnavailable\n2026-05-01 13:26:45\n\nOpen asset\nCopy request ID",
+      "detailScreenshot": "docs/northstar_visual_qa/audit-live-v286-databricks/audit-live-selected-detail-1536x1024.png",
+      "copyRequestVisible": true,
+      "copyRequestEnabled": false,
+      "statusText": "Identity Directory Upserted evidence selected."
+    },
+    {
+      "route": "audit",
+      "interaction": "deployed-audit-report-artifact",
+      "loaded": true,
+      "artifact": {
+        "type": "audit-report",
+        "path": "docs/northstar_visual_qa/audit-live-v286-databricks/downloads/audit-report-governance-audit-report-24h.json",
+        "suggestedFilename": "governance-audit-report-24h.json",
+        "bytes": 46911
+      },
+      "artifactEvidenceKind": "runtime_evidence",
+      "authoritative": true,
+      "eventCount": 25,
+      "validation": {
+        "checks": {
+          "hasEvents": true,
+          "hasSummary": true,
+          "hasEvidenceKind": true,
+          "notPrototypeMock": true
+        }
+      }
+    },
+    {
+      "route": "audit",
+      "interaction": "deployed-audit-csv-artifact",
+      "loaded": true,
+      "artifact": {
+        "type": "audit-events",
+        "path": "docs/northstar_visual_qa/audit-live-v286-databricks/downloads/audit-events-governance-audit-24h.csv",
+        "suggestedFilename": "governance-audit-24h.csv",
+        "bytes": 5429
+      },
+      "header": "\"time_utc\",\"actor\",\"action\",\"status\",\"target\",\"evidence\",\"request_id\",\"evidence_kind\",\"authoritative\"",
+      "validation": {
+        "checks": {
+          "hasRows": true,
+          "hasEvidenceKindColumn": true,
+          "hasAuthoritativeColumn": true,
+          "notPrototypeMockCsv": true
+        }
+      }
+    }
+  ],
+  "downloads": [
+    {
+      "type": "audit-report",
+      "path": "docs/northstar_visual_qa/audit-live-v286-databricks/downloads/audit-report-governance-audit-report-24h.json",
+      "suggestedFilename": "governance-audit-report-24h.json",
+      "bytes": 46911
+    },
+    {
+      "type": "audit-events",
+      "path": "docs/northstar_visual_qa/audit-live-v286-databricks/downloads/audit-events-governance-audit-24h.csv",
+      "suggestedFilename": "governance-audit-24h.csv",
+      "bytes": 5429
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "console": [],
+  "passed": true
+}

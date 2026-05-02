@@ -1,0 +1,390 @@
+{
+  "generatedAt": "2026-04-30T23:30:30.136Z",
+  "baseUrl": "http://127.0.0.1:5173",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "evidenceKind": "prototype_mock",
+  "mockEvidenceWarning": "Prototype mock data, not live Databricks evidence.",
+  "routeFilter": [
+    "command-center"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "command-center"
+  ],
+  "viewports": [
+    {
+      "name": "3037x1269",
+      "width": 3037,
+      "height": 1269
+    }
+  ],
+  "expectedCaptureCount": 1,
+  "captures": [
+    {
+      "route": "command-center",
+      "path": "/command-center",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/command-center-hero-v106-local/command-center-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/command-center-hero-v106-local/command-center-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Home - Governance Atlas",
+        "url": "http://127.0.0.1:5173/home",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 310,
+          "right": 3037,
+          "bottom": 72,
+          "width": 2727,
+          "height": 72
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 310,
+          "bottom": 1269,
+          "width": 310,
+          "height": 1269
+        },
+        "main": {
+          "top": 72,
+          "left": 310,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2727,
+          "height": 1197
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1566,
+          "clientHeight": 1197,
+          "hasOverflow": true
+        },
+        "home": {
+          "top": 72,
+          "left": 310,
+          "right": 2557,
+          "bottom": 1269,
+          "width": 2247,
+          "height": 1197
+        },
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI EXECUTIVE COMMAND CENTER Prototype mock · not live Databricks evidence Governance posture, at a glance Prototype mock evidence mirrors the command-center structure. Values are not live Databricks proof, and unavailable signals remain marked unavailable. Export brief Present mode POSTURE 87.4% 9.0 pts QoQ THE STATE OF FINANCE_PROD 1,247 of 1,427 productionized assets meet baseline policy. Coverage is up 9 points this quarter - on track to hit the 90% Q2 target by week 30. CERTIFIED ASSETS 1,247 +82 this quarter OPEN EXPOSURES 7 3 require Compliance review CDES TRACKED 42 100% lineage-verified WHAT CHANGED TODAY Prototype Coverage 86.8% 87.4% +12 newly certified Prototype Quality SLA 94.1% 94.3% 3 expectations passing Prototype High-risk exposures 9 7 2 mitigated by Steward team Prototype Lineage coverage 98.6% 98.6% No regressions GOVERNANCE COVERAGE 87% +2.1 pts vs last week CERTIFIED ASSETS 612 +37 this week OPEN STEWARDSHIP ITEMS 184 -11 this week HIGH-RISK EXPOSURES 7 +2 new this week Coverage trend · last 12 weeks i 12w 26w 52w 100% 75% 50% 25% 0% SLA 90% W14 W16 W18 W20 W22 W24 W25 +9pp vs W14 Posture by domain i Revenue & Sales 92% 138 assets Customer 84% 174 assets Marketing 88% 89 assets Finance 95% 121 assets Operations 79% 64 assets People 72% 26 assets Risk breakdown i 92% RISK-CLEAN High-risk exposures 7 Medium",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export brief",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Present mode",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Coverage trend · last 12 weeks: Historical posture snapshots are shown only when available."
+          },
+          {
+            "text": "12w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "26w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "52w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Posture by domain: Prototype domain scores are visual fixtures, not live certified-count proof."
+          },
+          {
+            "text": "Revenue & Sales 92% 138 assets",
+            "disabled": false,
+            "aria": "Open discovery for Revenue & Sales domain posture"
+          },
+          {
+            "text": "Customer 84% 174 assets",
+            "disabled": false,
+            "aria": "Open discovery for Customer domain posture"
+          },
+          {
+            "text": "Marketing 88% 89 assets",
+            "disabled": false,
+            "aria": "Open discovery for Marketing domain posture"
+          },
+          {
+            "text": "Finance 95% 121 assets",
+            "disabled": false,
+            "aria": "Open discovery for Finance domain posture"
+          },
+          {
+            "text": "Operations 79% 64 assets",
+            "disabled": false,
+            "aria": "Open discovery for Operations domain posture"
+          },
+          {
+            "text": "People 72% 26 assets",
+            "disabled": false,
+            "aria": "Open discovery for People domain posture"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Risk breakdown: Risk distribution renders unavailable unless explicit exposure severity signals are present."
+          },
+          {
+            "text": "High-risk exposures 7",
+            "disabled": false,
+            "aria": "Open stewardship for high-risk exposures"
+          },
+          {
+            "text": "Medium-risk findings 28",
+            "disabled": false,
+            "aria": "Open audit evidence for medium-risk findings"
+          },
+          {
+            "text": "Informational 64",
+            "disabled": false,
+            "aria": "Open audit evidence for informational risk findings"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Top catalogs · health snapshot: Prototype catalog health rows are visual fixtures, not live catalog diagnostics."
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Critical data elements: Prototype CDE rows are visual fixtures until backed by a live CDE registry signal."
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Net Revenue (USD) SOX finance_prod.curated.revenue_daily.net_revenue_usd Finance Stewards Prototype Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer ID customer_360.gold.customer_profile.customer_id Customer Stewards Prototype Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards Prototype Recert due (8d)",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Compensation Band hr_secure.confidential.compensation.band_id People Stewards Prototype Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Activity stream: Prototype activity rows are visual fixtures, not live audit events."
+          },
+          {
+            "text": "Marisol Reyes certified finance_prod.curated.revenue_daily 3d ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "svc-policy-engine flagged missing owner on experimental.sandbox.pricing_experiment_2025q4 3d ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Priya Natarajan acknowledged quality alert on sales_prod.silver.orders 3d ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "What's powering the CFO Quarterly Dashboard, and is anything at risk this week? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which uncertified tables are queried by executives? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Summarize PII coverage in customer_360. ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Who owns net_revenue_usd and when was it last certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Atlas AI accuracy notice"
+          }
+        ]
+      },
+      "shellFallbackUsed": false,
+      "mainScrollCapture": {
+        "scrollTop": 369,
+        "scrollHeight": 1566,
+        "clientHeight": 1197,
+        "maxScrollTop": 369
+      },
+      "mainBottomScreenshot": "docs/northstar_visual_qa/command-center-hero-v106-local/command-center-3037x1269-main-bottom.png"
+    }
+  ],
+  "interactions": [],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/home"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/home"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

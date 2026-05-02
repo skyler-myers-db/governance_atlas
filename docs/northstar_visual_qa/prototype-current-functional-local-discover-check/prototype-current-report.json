@@ -1,0 +1,2502 @@
+{
+  "generatedAt": "2026-04-29T14:29:27.344Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "evidenceKind": "prototype_mock",
+  "mockEvidenceWarning": "Prototype mock data, not live Databricks evidence.",
+  "routeFilter": [
+    "discover"
+  ],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "discover"
+  ],
+  "viewports": [
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    }
+  ],
+  "expectedCaptureCount": 1,
+  "captures": [
+    {
+      "route": "discover",
+      "path": "/discover",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-current-functional-local-discover-check/discover-1536x1024.png",
+      "fullPageScreenshot": "",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/discovery",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1547,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1602.890625,
+          "width": 1296,
+          "height": 1546.890625
+        },
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘K UC status degraded Atlas AI CERTIFICATION 8 results Certified 6 In Review 1 Uncertified 1 DOMAIN Revenue & Sales 2 Customer 3 Marketing 1 Finance 1 Operations 0 People 1 CLASSIFICATION Restricted 2 Confidential 3 Internal 2 Unclassified 1 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed metadata coverage. ▱ Saved searches ◇ Advanced Showing 8 of 8 assets Sort: Coverage score revenue_daily finance_prod.curated.revenue_daily Certified 96% 96% Confidential CDE Authoritative day-grain revenue grain by product line, channel, and region. Source-of-record for the CFO dashboard and quarterly board reporting. Marisol Reyes Fresh 14 min ago 14,782 queries / 30d 5 up / 23 down 1.2M rows ⋮ Open Record Open lineage Certified customer_profile customer_360.gold.customer_profile Certified 91% 91% Restricted CDE PII 360-degree unified customer profile: demographics, lifecycle stage, segments, contact channels. Driving personalization and CS routing. Aaron Chen Fresh 1 hr ago 9,210 queries / 30d 11 up / 41 down 38M rows ⋮ Open Record Open lineage Certified orders sales_prod.silver.orders Certified 94% 94% Confidential CDE Cleansed order events with currency normalization. Feeds revenue, attribution, and finance pipelines. Priya Nataraj",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified 6",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "In Review 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Uncertified 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Revenue & Sales 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Marketing 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Finance 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Operations 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "People 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Restricted 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Confidential 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Internal 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Unclassified 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Critical Data Element",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contains PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "No PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Saved searches",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "◇ Advanced",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Coverage score",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Grid view",
+            "disabled": false,
+            "aria": "Grid view"
+          },
+          {
+            "text": "List view",
+            "disabled": false,
+            "aria": "List view"
+          },
+          {
+            "text": "revenue_daily",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "customer_profile",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "clickstream_events",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "compensation_band",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "attribution_daily",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "churn_propensity_v3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "pricing_experiment_2025q4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Needs Owner 1 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Needs Certification 0 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified Data 8 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "High Coverage Assets 6 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "compensation_band People 99%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_daily Finance 96%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders Revenue & Sales 94%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "discover",
+      "path": "/discover",
+      "viewport": "1536x1024",
+      "interaction": "selected",
+      "description": "Select the first Discover result and show the asset preview pane.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-current-functional-local-discover-check/discover-selected-1536x1024.png",
+      "fullPageScreenshot": "",
+      "validation": {
+        "loaded": true,
+        "previewOpen": true,
+        "previewVisible": true,
+        "selectedAssetFqn": "finance_prod.curated.revenue_daily",
+        "previewText": "revenue_dailyDelta Table · finance_prod.curated.revenue_daily×Open Asset 360Open LineageGovernanceCertified96% Metadata CoverageConfidentialOverviewColumns 0LineageQualityAccessAuthoritative day-grain revenue grain by product line, channel, and region. Source-of-record for the CFO dashboard and quarterly board reporting.MetadataOwnerMarisol ReyesSteward teamMarisol ReyesFreshness14 min agoQuality scoreUnavailableRows1.2MUsage · 30d14,782 queriesColumns0Metadata coverage96%Connected AssetsNo live upstream lineage edges are surfaced for this asset yet.Tags & Glossary1 termsCertifiedConfidentialCDENet RevenueBuildability NoteThis preview is assembled from live Discover and Asset 360 fields. Unsupported workflow mutations remain unavailable here.CommentRequest accessCertify",
+        "controls": [
+          {
+            "text": "×",
+            "disabled": false
+          },
+          {
+            "text": "Open Asset 360",
+            "disabled": false
+          },
+          {
+            "text": "Open Lineage",
+            "disabled": false
+          },
+          {
+            "text": "Governance",
+            "disabled": false
+          },
+          {
+            "text": "Overview",
+            "disabled": false
+          },
+          {
+            "text": "Columns 0",
+            "disabled": false
+          },
+          {
+            "text": "Lineage",
+            "disabled": false
+          },
+          {
+            "text": "Quality",
+            "disabled": false
+          },
+          {
+            "text": "Access",
+            "disabled": false
+          },
+          {
+            "text": "Comment",
+            "disabled": false
+          },
+          {
+            "text": "Request access",
+            "disabled": false
+          },
+          {
+            "text": "Certify",
+            "disabled": false
+          }
+        ]
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/discovery?preview=finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1546,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1601.890625,
+          "width": 1296,
+          "height": 1545.890625
+        },
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘K UC status degraded Atlas AI CERTIFICATION 8 results Certified 6 In Review 1 Uncertified 1 DOMAIN Revenue & Sales 2 Customer 3 Marketing 1 Finance 1 Operations 0 People 1 CLASSIFICATION Restricted 2 Confidential 3 Internal 2 Unclassified 1 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed metadata coverage. ▱ Saved searches ◇ Advanced Showing 8 of 8 assets Sort: Coverage score revenue_daily finance_prod.curated.revenue_daily Certified 96% 96% Confidential CDE Authoritative day-grain revenue grain by product line, channel, and region. Source-of-record for the CFO dashboard and quarterly board reporting. Marisol Reyes Fresh 14 min ago 14,782 queries / 30d 5 up / 23 down 1.2M rows ⋮ Open Record Open lineage Certified customer_profile customer_360.gold.customer_profile Certified 91% 91% Restricted CDE PII 360-degree unified customer profile: demographics, lifecycle stage, segments, contact channels. Driving personalization and CS routing. Aaron Chen Fresh 1 hr ago 9,210 queries / 30d 11 up / 41 down 38M rows ⋮ Open Record Open lineage Certified orders sales_prod.silver.orders Certified 94% 94% Confidential CDE Cleansed order events with currency normalization. Feeds revenue, attribution, and finance pipelines. Priya Nataraj",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified 6",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "In Review 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Uncertified 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Revenue & Sales 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Marketing 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Finance 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Operations 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "People 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Restricted 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Confidential 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Internal 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Unclassified 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Critical Data Element",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contains PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "No PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Saved searches",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "◇ Advanced",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Coverage score",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Grid view",
+            "disabled": false,
+            "aria": "Grid view"
+          },
+          {
+            "text": "List view",
+            "disabled": false,
+            "aria": "List view"
+          },
+          {
+            "text": "revenue_daily",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "customer_profile",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "clickstream_events",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "compensation_band",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "attribution_daily",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "churn_propensity_v3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "pricing_experiment_2025q4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Needs Owner 1 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Needs Certification 0 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified Data 8 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "High Coverage Assets 6 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "compensation_band People 99%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_daily Finance 96%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders Revenue & Sales 94%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Close asset preview overlay",
+            "disabled": false,
+            "aria": "Close asset preview overlay"
+          },
+          {
+            "text": "×",
+            "disabled": false,
+            "aria": "Close preview"
+          },
+          {
+            "text": "Open Asset 360",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open Lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "Governance",
+            "disabled": false,
+            "aria": "Open Governance"
+          }
+        ]
+      }
+    },
+    {
+      "route": "discover",
+      "path": "/discover",
+      "viewport": "1536x1024",
+      "interaction": "filters-layout",
+      "description": "Exercise Discover search, saved searches, advanced filters, and grid/list controls.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-current-functional-local-discover-check/discover-filters-layout-1536x1024.png",
+      "fullPageScreenshot": "",
+      "runResult": {
+        "advancedVisible": false,
+        "listView": {
+          "text": "List view",
+          "ariaLabel": "List view",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "true",
+          "ariaSelected": "",
+          "rect": {
+            "top": 281,
+            "left": 1489,
+            "width": 28,
+            "height": 48
+          }
+        },
+        "gridView": {
+          "text": "Grid view",
+          "ariaLabel": "Grid view",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "true",
+          "ariaSelected": "",
+          "rect": {
+            "top": 281,
+            "left": 1457,
+            "width": 28,
+            "height": 48
+          }
+        },
+        "state": {
+          "url": "http://127.0.0.1:3000/discovery?q=customer&views=Certified",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘K UC status degraded Atlas AI CERTIFICATION 8 results Certified 6 In Review 1 Uncertified 1 DOMAIN Revenue & Sales 2 Customer 3 Marketing 1 Finance 1 Operations 0 People 1 CLASSIFICATION Restricted 2 Confidential 3 Internal 2 Unclassified 1 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed metadata coverage. ▱ Saved searches ◇ Advanced FILTERED BY Certified × Reset browse Showing 8 of 8 assets Sort: Coverage score revenue_daily finance_prod.curated.revenue_daily Certified 96% 96% Confidential CDE Authoritative day-grain revenue grain by product line, channel, and region. Source-of-record for the CFO dashboard and quarterly board reporting. Marisol Reyes Fresh 14 min ago 14,782 queries / 30d 5 up / 23 down 1.2M rows ⋮ Open Record Open lineage Certified customer_profile customer_360.gold.customer_profile Certified 91% 91% Restricted CDE PII 360-degree unified customer profile: demographics, lifecycle stage, segments, contact channels. Driving personalization and CS routing. Aaron Chen Fresh 1 hr ago 9,210 queries / 30d 11 up / 41 down 38M rows ⋮ Open Record Open lineage Certified orders sales_prod.silver.orders Certified 94% 94% Confidential CDE Cleansed order events with currency normalization. Feeds revenue, attribution,",
+          "checks": {
+            "results": true,
+            "savedQuery": true
+          }
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "checks": {
+          "discoverTitle": true
+        },
+        "runResult": {
+          "advancedVisible": false,
+          "listView": {
+            "text": "List view",
+            "ariaLabel": "List view",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "true",
+            "ariaSelected": "",
+            "rect": {
+              "top": 281,
+              "left": 1489,
+              "width": 28,
+              "height": 48
+            }
+          },
+          "gridView": {
+            "text": "Grid view",
+            "ariaLabel": "Grid view",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "true",
+            "ariaSelected": "",
+            "rect": {
+              "top": 281,
+              "left": 1457,
+              "width": 28,
+              "height": 48
+            }
+          },
+          "state": {
+            "url": "http://127.0.0.1:3000/discovery?q=customer&views=Certified",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘K UC status degraded Atlas AI CERTIFICATION 8 results Certified 6 In Review 1 Uncertified 1 DOMAIN Revenue & Sales 2 Customer 3 Marketing 1 Finance 1 Operations 0 People 1 CLASSIFICATION Restricted 2 Confidential 3 Internal 2 Unclassified 1 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed metadata coverage. ▱ Saved searches ◇ Advanced FILTERED BY Certified × Reset browse Showing 8 of 8 assets Sort: Coverage score revenue_daily finance_prod.curated.revenue_daily Certified 96% 96% Confidential CDE Authoritative day-grain revenue grain by product line, channel, and region. Source-of-record for the CFO dashboard and quarterly board reporting. Marisol Reyes Fresh 14 min ago 14,782 queries / 30d 5 up / 23 down 1.2M rows ⋮ Open Record Open lineage Certified customer_profile customer_360.gold.customer_profile Certified 91% 91% Restricted CDE PII 360-degree unified customer profile: demographics, lifecycle stage, segments, contact channels. Driving personalization and CS routing. Aaron Chen Fresh 1 hr ago 9,210 queries / 30d 11 up / 41 down 38M rows ⋮ Open Record Open lineage Certified orders sales_prod.silver.orders Certified 94% 94% Confidential CDE Cleansed order events with currency normalization. Feeds revenue, attribution,",
+            "checks": {
+              "results": true,
+              "savedQuery": true
+            }
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/discovery?q=customer&views=Certified",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1302,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1357.953125,
+          "width": 1296,
+          "height": 1301.953125
+        },
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘K UC status degraded Atlas AI CERTIFICATION 8 results Certified 6 In Review 1 Uncertified 1 DOMAIN Revenue & Sales 2 Customer 3 Marketing 1 Finance 1 Operations 0 People 1 CLASSIFICATION Restricted 2 Confidential 3 Internal 2 Unclassified 1 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed metadata coverage. ▱ Saved searches ◇ Advanced FILTERED BY Certified × Reset browse Showing 8 of 8 assets Sort: Coverage score revenue_daily finance_prod.curated.revenue_daily Certified 96% 96% Confidential CDE Authoritative day-grain revenue grain by product line, channel, and region. Source-of-record for the CFO dashboard and quarterly board reporting. Marisol Reyes Fresh 14 min ago 14,782 queries / 30d 5 up / 23 down 1.2M rows ⋮ Open Record Open lineage Certified customer_profile customer_360.gold.customer_profile Certified 91% 91% Restricted CDE PII 360-degree unified customer profile: demographics, lifecycle stage, segments, contact channels. Driving personalization and CS routing. Aaron Chen Fresh 1 hr ago 9,210 queries / 30d 11 up / 41 down 38M rows ⋮ Open Record Open lineage Certified orders sales_prod.silver.orders Certified 94% 94% Confidential CDE Cleansed order events with currency normalization. Feeds revenue, attribution,",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified 6",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "In Review 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Uncertified 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Revenue & Sales 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Marketing 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Finance 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Operations 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "People 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Restricted 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Confidential 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Internal 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Unclassified 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Critical Data Element",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contains PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "No PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Saved searches",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "◇ Advanced",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified ×",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Reset browse",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Coverage score",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Grid view",
+            "disabled": false,
+            "aria": "Grid view"
+          },
+          {
+            "text": "List view",
+            "disabled": false,
+            "aria": "List view"
+          },
+          {
+            "text": "revenue_daily",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "customer_profile",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "clickstream_events",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "compensation_band",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "attribution_daily",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "churn_propensity_v3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "pricing_experiment_2025q4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Needs Owner 1 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Needs Certification 0 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified Data 8 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "High Coverage Assets 6 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "compensation_band People 99%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_daily Finance 96%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders Revenue & Sales 94%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "discover",
+      "path": "/discover",
+      "viewport": "1536x1024",
+      "interaction": "preview-actions",
+      "description": "Exercise Discover asset preview tabs and truthful unavailable workflow actions.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-current-functional-local-discover-check/discover-preview-actions-1536x1024.png",
+      "fullPageScreenshot": "",
+      "runResult": {
+        "commentNotice": {
+          "commentNotice": true
+        },
+        "requestNotice": {
+          "requestNotice": true
+        },
+        "previewClosed": true
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "commentNotice": {
+            "commentNotice": true
+          },
+          "requestNotice": {
+            "requestNotice": true
+          },
+          "previewClosed": true
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/discovery",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1547,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1602.890625,
+          "width": 1296,
+          "height": 1546.890625
+        },
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘K UC status degraded Atlas AI CERTIFICATION 8 results Certified 6 In Review 1 Uncertified 1 DOMAIN Revenue & Sales 2 Customer 3 Marketing 1 Finance 1 Operations 0 People 1 CLASSIFICATION Restricted 2 Confidential 3 Internal 2 Unclassified 1 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed metadata coverage. ▱ Saved searches ◇ Advanced Showing 8 of 8 assets Sort: Coverage score revenue_daily finance_prod.curated.revenue_daily Certified 96% 96% Confidential CDE Authoritative day-grain revenue grain by product line, channel, and region. Source-of-record for the CFO dashboard and quarterly board reporting. Marisol Reyes Fresh 14 min ago 14,782 queries / 30d 5 up / 23 down 1.2M rows ⋮ Open Record Open lineage Certified customer_profile customer_360.gold.customer_profile Certified 91% 91% Restricted CDE PII 360-degree unified customer profile: demographics, lifecycle stage, segments, contact channels. Driving personalization and CS routing. Aaron Chen Fresh 1 hr ago 9,210 queries / 30d 11 up / 41 down 38M rows ⋮ Open Record Open lineage Certified orders sales_prod.silver.orders Certified 94% 94% Confidential CDE Cleansed order events with currency normalization. Feeds revenue, attribution, and finance pipelines. Priya Nataraj",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified 6",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "In Review 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Uncertified 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Revenue & Sales 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Marketing 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Finance 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Operations 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "People 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Restricted 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Confidential 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Internal 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Unclassified 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Critical Data Element",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contains PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "No PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Saved searches",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "◇ Advanced",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Coverage score",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Grid view",
+            "disabled": false,
+            "aria": "Grid view"
+          },
+          {
+            "text": "List view",
+            "disabled": false,
+            "aria": "List view"
+          },
+          {
+            "text": "revenue_daily",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "customer_profile",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "orders",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "clickstream_events",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "compensation_band",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "attribution_daily",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "churn_propensity_v3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "pricing_experiment_2025q4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Needs Owner 1 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Needs Certification 0 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified Data 8 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "High Coverage Assets 6 visible ›",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "compensation_band People 99%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_daily Finance 96%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders Revenue & Sales 94%",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "discover",
+      "path": "/discover",
+      "viewport": "1536x1024",
+      "interaction": "preview-lineage-navigation",
+      "description": "Open Lineage from the Discover selected asset preview.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-current-functional-local-discover-check/discover-preview-lineage-navigation-1536x1024.png",
+      "fullPageScreenshot": "",
+      "runResult": {
+        "pathAfterClick": "/lineage/finance_prod.curated.revenue_daily?preview=finance_prod.curated.revenue_daily",
+        "state": {
+          "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily?preview=finance_prod.curated.revenue_daily",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘K UC status degraded Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Hidden segments indicate limited Unity Catalog visibility. Certified 14 min ago - within 15 min SLA 5 CDEs Owner: Marisol Reyes 8 upstream - 4 downstream Compare versions Run impact analysis Certified Source Job / Pipeline Restricted Topology refreshed 2026-04-27T09:14:22Z Partial lineage Limited to 38 table edges. Column lineage may be partial or unavailable in this workspace. Refresh pending Table lineage Column lineage Search Export 4 HOPS UPSTREAM salesforce.orders SOURCE - Sales Source order_id customer_id booking_amount stripe.charges SOURCE - Payments Source charge_id order_id amount netsuite.invoices SOURCE - Finance Source invoice_id order_id net_amount 3 HOPS UPSTREAM finance_prod.bronze.orders_raw TABLE - Sales Delta Table order_id customer_id booking_amount finance_prod.bronze.charges_raw TABLE - Finance Delta Table charge_id order_id amount finance_prod.bronze.invoices_raw TABLE - Finance Delta Table invoice_id order_id net_amount 2 HOPS UPSTREAM finance_prod.silver.orders TABLE - Sales Delta Table order_id customer_id gross_revenue_usd finance_prod.silver.payments TABLE - Finance Delta Table order_id charge_amount_usd refund_usd gold.revenue_recognition JOB - Finance Pipeline FOCUS finance_prod.",
+          "checks": {
+            "lineage": true
+          }
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "pathAfterClick": "/lineage/finance_prod.curated.revenue_daily?preview=finance_prod.curated.revenue_daily",
+          "state": {
+            "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily?preview=finance_prod.curated.revenue_daily",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘K UC status degraded Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Hidden segments indicate limited Unity Catalog visibility. Certified 14 min ago - within 15 min SLA 5 CDEs Owner: Marisol Reyes 8 upstream - 4 downstream Compare versions Run impact analysis Certified Source Job / Pipeline Restricted Topology refreshed 2026-04-27T09:14:22Z Partial lineage Limited to 38 table edges. Column lineage may be partial or unavailable in this workspace. Refresh pending Table lineage Column lineage Search Export 4 HOPS UPSTREAM salesforce.orders SOURCE - Sales Source order_id customer_id booking_amount stripe.charges SOURCE - Payments Source charge_id order_id amount netsuite.invoices SOURCE - Finance Source invoice_id order_id net_amount 3 HOPS UPSTREAM finance_prod.bronze.orders_raw TABLE - Sales Delta Table order_id customer_id booking_amount finance_prod.bronze.charges_raw TABLE - Finance Delta Table charge_id order_id amount finance_prod.bronze.invoices_raw TABLE - Finance Delta Table invoice_id order_id net_amount 2 HOPS UPSTREAM finance_prod.silver.orders TABLE - Sales Delta Table order_id customer_id gross_revenue_usd finance_prod.silver.payments TABLE - Finance Delta Table order_id charge_amount_usd refund_usd gold.revenue_recognition JOB - Finance Pipeline FOCUS finance_prod.",
+            "checks": {
+              "lineage": true
+            }
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/lineage/finance_prod.curated.revenue_daily?preview=finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1202,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1257.5,
+          "width": 1296,
+          "height": 1201.5
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 240,
+            "right": 1536,
+            "bottom": 1257.5,
+            "width": 1296,
+            "height": 1201.5
+          },
+          "hero": {
+            "top": 70,
+            "left": 262,
+            "right": 1382,
+            "bottom": 198.296875,
+            "width": 1120,
+            "height": 128.296875
+          },
+          "workbench": {
+            "top": 208.296875,
+            "left": 262,
+            "right": 1382,
+            "bottom": 1187.5,
+            "width": 1120,
+            "height": 979.203125
+          },
+          "graph": {
+            "top": 208.296875,
+            "left": 262,
+            "right": 1382,
+            "bottom": 708.5,
+            "width": 1120,
+            "height": 500.203125
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘K UC status degraded Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Hidden segments indicate limited Unity Catalog visibility. Certified 14 min ago - within 15 min SLA 5 CDEs Owner: Marisol Reyes 8 upstream - 4 downstream Compare versions Run impact analysis Certified Source Job / Pipeline Restricted Topology refreshed 2026-04-27T09:14:22Z Partial lineage Limited to 38 table edges. Column lineage may be partial or unavailable in this workspace. Refresh pending Table lineage Column lineage Search Export 4 HOPS UPSTREAM salesforce.orders SOURCE - Sales Source order_id customer_id booking_amount stripe.charges SOURCE - Payments Source charge_id order_id amount netsuite.invoices SOURCE - Finance Source invoice_id order_id net_amount 3 HOPS UPSTREAM finance_prod.bronze.orders_raw TABLE - Sales Delta Table order_id customer_id booking_amount finance_prod.bronze.charges_raw TABLE - Finance Delta Table charge_id order_id amount finance_prod.bronze.invoices_raw TABLE - Finance Delta Table invoice_id order_id net_amount 2 HOPS UPSTREAM finance_prod.silver.orders TABLE - Sales Delta Table order_id customer_id gross_revenue_usd finance_prod.silver.payments TABLE - Finance Delta Table order_id charge_amount_usd refund_usd gold.revenue_recognition JOB - Finance Pipeline FOCUS finance_prod.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Compare versions",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "salesforce.orders SOURCE - Sales Source order_id customer_id booking_amount",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "stripe.charges SOURCE - Payments Source charge_id order_id amount",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "netsuite.invoices SOURCE - Finance Source invoice_id order_id net_amount",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.bronze.orders_raw TABLE - Sales Delta Table order_id customer_id booking_amount",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.bronze.charges_raw TABLE - Finance Delta Table charge_id order_id amount",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.bronze.invoices_raw TABLE - Finance Delta Table invoice_id order_id net_amount",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.silver.orders TABLE - Sales Delta Table order_id customer_id gross_revenue_usd",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.silver.payments TABLE - Finance Delta Table order_id charge_amount_usd refund_usd",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gold.revenue_recognition JOB - Finance Pipeline",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.curated.revenue_daily TABLE - Finance Delta Table net_revenue_usd gross_revenue_usd discount_usd",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard DASHBOARD - Finance Dashboard",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue DASHBOARD - Finance Dashboard",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast MODEL - Finance Model",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets PERMISSION-LIMITED Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CFO Quarterly Dashboard Finance Stewards - used in last 24h - 142 views High impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Board Pack - Revenue Marisol Reyes - quarterly distribution to board High impact",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.ml.revenue_forecast Finance Data Platform - trains nightly Medium",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "finance_prod.gold.arr_snapshot Finance Stewards - downstream of net_revenue_usd Medium",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 downstream assets Hidden by Unity Catalog permissions Restricted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      }
+    }
+  ],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/discovery"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/discovery"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/discovery"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/discovery"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/discovery"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/discovery"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/discovery"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/discovery"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/discovery"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/discovery"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

@@ -1,0 +1,161 @@
+{
+  "generatedAt": "2026-05-01T15:37:06.675Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f1457296eb19a3933a38bdfec0e3bc",
+  "buildId": "frontend-5f4d8d113643",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "route": "discover",
+  "captures": [
+    {
+      "route": "discover",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/discover-live-v307-databricks/discover-live-1536x1024.png",
+      "loaded": true
+    }
+  ],
+  "interactions": [
+    {
+      "route": "discover",
+      "interaction": "deployed-discover-search-and-layout-controls",
+      "loaded": true,
+      "runResult": {
+        "afterSearch": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nCERTIFICATION\n98 results\nCertified\n1\nIn Review\n0\nUncertified\n0\nTrusted\n1\nDOMAIN\nCustomer\n3\nCLASSIFICATION\nConfidential\n1\nRestricted\n1\nconfidential_customer\n3\nconfidential_pii\n2\nATTRIBUTES\nCritical Data Element\nContains PII\nNo PII\nDISCOVER\nFind trusted, governed data\n\nSearch across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed trust signals.\n\nSaved searches\nAdvanced\nRevenue CDEs\ntag:CDE domain:Finance\n2 visible\nPII assets\ntag:pii\n78 visible\nHigh coverage certified\ncertification:Certified\n3 visible\nCreate saved search unavailable\nRequires backed preferences\nDisabled\nManage saved searches unavailable\nRequires backed preferences\nDisabled\nFILTERED BY\ncustomer\n×\nReset browse\nShowing 60 of 98 assets\nS",
+        "listPressed": "true",
+        "gridPressed": "true",
+        "savedDialog": "Revenue CDEs\ntag:CDE domain:Finance\n13 visible\nPII assets\ntag:pii\n67 visible\nHigh coverage certified\ncertification:Certified\n14 visible\nCreate saved search unavailable\nRequires backed preferences\nDisabled\nManage saved searches unavailable\nRequires backed preferences\nDisabled",
+        "validation": {
+          "checks": {
+            "listPressed": true,
+            "gridPressed": true,
+            "savedSearchesVisible": true,
+            "searchApplied": true,
+            "resultsVisible": true
+          }
+        }
+      },
+      "afterSearch": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nCERTIFICATION\n98 results\nCertified\n1\nIn Review\n0\nUncertified\n0\nTrusted\n1\nDOMAIN\nCustomer\n3\nCLASSIFICATION\nConfidential\n1\nRestricted\n1\nconfidential_customer\n3\nconfidential_pii\n2\nATTRIBUTES\nCritical Data Element\nContains PII\nNo PII\nDISCOVER\nFind trusted, governed data\n\nSearch across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed trust signals.\n\nSaved searches\nAdvanced\nRevenue CDEs\ntag:CDE domain:Finance\n2 visible\nPII assets\ntag:pii\n78 visible\nHigh coverage certified\ncertification:Certified\n3 visible\nCreate saved search unavailable\nRequires backed preferences\nDisabled\nManage saved searches unavailable\nRequires backed preferences\nDisabled\nFILTERED BY\ncustomer\n×\nReset browse\nShowing 60 of 98 assets\nS",
+      "listPressed": "true",
+      "gridPressed": "true",
+      "savedDialog": "Revenue CDEs\ntag:CDE domain:Finance\n13 visible\nPII assets\ntag:pii\n67 visible\nHigh coverage certified\ncertification:Certified\n14 visible\nCreate saved search unavailable\nRequires backed preferences\nDisabled\nManage saved searches unavailable\nRequires backed preferences\nDisabled",
+      "validation": {
+        "checks": {
+          "listPressed": true,
+          "gridPressed": true,
+          "savedSearchesVisible": true,
+          "searchApplied": true,
+          "resultsVisible": true
+        }
+      }
+    },
+    {
+      "route": "discover",
+      "interaction": "deployed-discover-row-menu-routing",
+      "loaded": true,
+      "runResult": {
+        "originalFqn": "datapact.governance_atlas_demo.risk_critical_asset_monitor",
+        "detailPath": "/entity/datapact.governance_atlas_demo.risk_critical_asset_monitor",
+        "governancePath": "/governance?asset=datapact.governance_atlas_demo.risk_critical_asset_monitor",
+        "lineagePath": "/lineage/datapact.governance_atlas_demo.risk_critical_asset_monitor",
+        "validation": {
+          "checks": {
+            "originalFqn": true,
+            "detailPath": true,
+            "governancePath": true,
+            "lineagePath": true
+          }
+        }
+      },
+      "originalFqn": "datapact.governance_atlas_demo.risk_critical_asset_monitor",
+      "detailPath": "/entity/datapact.governance_atlas_demo.risk_critical_asset_monitor",
+      "governancePath": "/governance?asset=datapact.governance_atlas_demo.risk_critical_asset_monitor",
+      "lineagePath": "/lineage/datapact.governance_atlas_demo.risk_critical_asset_monitor",
+      "validation": {
+        "checks": {
+          "originalFqn": true,
+          "detailPath": true,
+          "governancePath": true,
+          "lineagePath": true
+        }
+      }
+    },
+    {
+      "route": "discover",
+      "interaction": "deployed-discover-preview-tabs-and-actions",
+      "loaded": true,
+      "runResult": {
+        "tabs": {
+          "Overview": "true",
+          "Columns": "true",
+          "Lineage": "true",
+          "Quality": "true",
+          "Access": "true"
+        },
+        "commentDisabled": true,
+        "requestAccessDisabled": true,
+        "reviewPath": "/governance?preview=datapact.governance_atlas_demo.risk_critical_asset_monitor&asset=datapact.governance_atlas_demo.risk_critical_asset_monitor",
+        "validation": {
+          "checks": {
+            "overviewTab": true,
+            "columnsTab": true,
+            "lineageTab": true,
+            "qualityTab": true,
+            "accessTab": true,
+            "commentUnavailable": true,
+            "requestAccessUnavailable": true,
+            "reviewRoutesGovernance": true
+          }
+        }
+      },
+      "tabs": {
+        "Overview": "true",
+        "Columns": "true",
+        "Lineage": "true",
+        "Quality": "true",
+        "Access": "true"
+      },
+      "commentDisabled": true,
+      "requestAccessDisabled": true,
+      "reviewPath": "/governance?preview=datapact.governance_atlas_demo.risk_critical_asset_monitor&asset=datapact.governance_atlas_demo.risk_critical_asset_monitor",
+      "validation": {
+        "checks": {
+          "overviewTab": true,
+          "columnsTab": true,
+          "lineageTab": true,
+          "qualityTab": true,
+          "accessTab": true,
+          "commentUnavailable": true,
+          "requestAccessUnavailable": true,
+          "reviewRoutesGovernance": true
+        }
+      }
+    },
+    {
+      "route": "discover",
+      "interaction": "deployed-discover-atlas-ai",
+      "loaded": true,
+      "runResult": {
+        "panelText": "Atlas AI\nGrounded in Databricks Genie evidence - no raw rows read\nx\nYOU\n\nWhich governed assets are visible in Discover?\n\nATLAS AI\n\nWould you like to see only assets explicitly marked as visible in Discover if such a filter becomes available?\n\nThere are 18 governed assets currently visible in Discover, spanning domains such as Customer, Finance, Marketing, Operations, Product, and Risk. Examples include:\n\ndatapact.governance_atlas_demo.customer_identity_quality (Customer domain, Customer 360 product, Critical)\ndatapact.governance_atlas_demo.finance_lien_risk_summary (Finance domain, Lien Intelligence product, Certified)\ndatapact.governance_atlas_demo.marketing_market_analytics (Marketing domain, Market Analytics product, Certified)\ndatapact.governance_atlas_demo.operations_transfer_activity (Operations domain, Transfer Operations product, Certified)\ndatapact.governance_atlas_demo.risk_policy_exception_register (Risk domain, Risk Controls product, Certified)\n\nMost assets are marked as Critical, and several are Certified or Trusted, indicating a strong focus on high-value, governed data.\n\n01f14573b04913abae12913773d8c4a4\n1 evidence record returned.\nTRY ASKING\n?\nWhich visible assets ha",
+        "validation": {
+          "checks": {
+            "promptVisible": true,
+            "assistantAnswered": true,
+            "groundedCopy": true
+          }
+        }
+      },
+      "panelText": "Atlas AI\nGrounded in Databricks Genie evidence - no raw rows read\nx\nYOU\n\nWhich governed assets are visible in Discover?\n\nATLAS AI\n\nWould you like to see only assets explicitly marked as visible in Discover if such a filter becomes available?\n\nThere are 18 governed assets currently visible in Discover, spanning domains such as Customer, Finance, Marketing, Operations, Product, and Risk. Examples include:\n\ndatapact.governance_atlas_demo.customer_identity_quality (Customer domain, Customer 360 product, Critical)\ndatapact.governance_atlas_demo.finance_lien_risk_summary (Finance domain, Lien Intelligence product, Certified)\ndatapact.governance_atlas_demo.marketing_market_analytics (Marketing domain, Market Analytics product, Certified)\ndatapact.governance_atlas_demo.operations_transfer_activity (Operations domain, Transfer Operations product, Certified)\ndatapact.governance_atlas_demo.risk_policy_exception_register (Risk domain, Risk Controls product, Certified)\n\nMost assets are marked as Critical, and several are Certified or Trusted, indicating a strong focus on high-value, governed data.\n\n01f14573b04913abae12913773d8c4a4\n1 evidence record returned.\nTRY ASKING\n?\nWhich visible assets ha",
+      "validation": {
+        "checks": {
+          "promptVisible": true,
+          "assistantAnswered": true,
+          "groundedCopy": true
+        }
+      }
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "console": [],
+  "passed": true
+}

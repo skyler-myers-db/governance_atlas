@@ -1,0 +1,523 @@
+{
+  "generatedAt": "2026-04-28T17:57:31.693Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "routeFilter": [
+    "discover"
+  ],
+  "viewports": [
+    {
+      "name": "3037x1269",
+      "width": 3037,
+      "height": 1269
+    }
+  ],
+  "captures": [
+    {
+      "route": "discover",
+      "path": "/discover",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-discover-wide-rail/discover-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-discover-wide-rail/discover-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/discovery",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1269,
+          "width": 240,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 8673,
+          "clientHeight": 1213,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": {
+          "top": 56,
+          "left": 866.5,
+          "right": 2410.5,
+          "bottom": 8728.953125,
+          "width": 1544,
+          "height": 8672.953125
+        },
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 87.4% coverage Atlas AI CERTIFICATION 747 results Certified 12 In Review 0 Uncertified 0 Draft 3 DOMAIN Customer 3 Finance 3 Marketing 3 Operations 3 Product 3 Risk 3 CLASSIFICATION Confidential 13 Internal 1 Restricted 4 confidential_customer 3 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by trust signal. ▱ Saved searches ◇ Advanced Showing 60 of 747 assets Results 747 Datasets 747 Reports 0 Dashboards 0 Policies 0 Glossary Terms 0 Sort by Relevance risk_policy_exception_register datapact · governance_atlas_demo ☆ View RS Risk Steward Certified Risk 85% 85% Restricted — Aggregated policy-exception register derived from Cotality lien records. ⋮ Open Record Open lineage Certified risk_data_quality_review datapact · governance_atlas_demo ☆ View RS Risk Steward Draft Risk 85% 85% Restricted — Aggregated data-quality review signal derived from Cotality market records. ⋮ Open Record Open lineage Draft operations_certification_backlog datapact · governance_atlas_demo ☆ View OS Operations Steward Draft Operations 85% 85% Confidential — Aggregated certification backlog signal derived from Cotality transfer records. ⋮ Open Record Open lineage Draft finance_exception_review datapact · governance_atlas_demo ☆ View FS Finance",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified 12",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "In Review 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Uncertified 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Draft 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Finance 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Marketing 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Operations 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Product 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Risk 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Confidential 13",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Internal 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Restricted 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "confidential_customer 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Critical Data Element",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contains PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "No PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Saved searches",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "◇ Advanced",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Results 747",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Datasets 747",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Reports 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Dashboards 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policies 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary Terms 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Relevance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "risk_policy_exception_register",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "☆",
+            "disabled": false,
+            "aria": "Add to favorites"
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "risk_data_quality_review",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "☆",
+            "disabled": false,
+            "aria": "Add to favorites"
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "operations_certification_backlog",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "☆",
+            "disabled": false,
+            "aria": "Add to favorites"
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "finance_exception_review",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "☆",
+            "disabled": false,
+            "aria": "Add to favorites"
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "customer_stewardship_queue",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "☆",
+            "disabled": false,
+            "aria": "Add to favorites"
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "risk_critical_asset_monitor",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "☆",
+            "disabled": false,
+            "aria": "Add to favorites"
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "product_property_feature_health",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "☆",
+            "disabled": false,
+            "aria": "Add to favorites"
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "product_mortgage_signal",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "☆",
+            "disabled": false,
+            "aria": "Add to favorites"
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "product_market_fit_signal",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "☆",
+            "disabled": false,
+            "aria": "Add to favorites"
+          }
+        ]
+      }
+    }
+  ],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/discovery"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/discovery"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

@@ -151,6 +151,47 @@ describe("useAppRouteState", () => {
     });
   });
 
+  it("canonicalizes prototype route aliases to the production surfaces", async () => {
+    render(
+      <MemoryRouter
+        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+        initialEntries={["/lineage-atlas/main.sales.orders"]}
+      >
+        <RouteHarness />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("surface").textContent).toBe("lineage");
+      expect(screen.getByTestId("asset").textContent).toBe("main.sales.orders");
+      expect(screen.getByTestId("path").textContent).toBe("/lineage/main.sales.orders");
+    });
+  });
+
+  it.each([
+    ["/command-center", "home", "/home"],
+    ["/discover", "discovery", "/discovery"],
+    ["/stewardship", "governance", "/governance"],
+    ["/glossary", "taxonomy", "/taxonomy"],
+    ["/glossary-cdes", "taxonomy", "/taxonomy"],
+    ["/audit-evidence", "audit", "/audit"],
+    ["/control-center", "admin", "/admin"],
+  ])("canonicalizes %s to %s", async (entry, surface, path) => {
+    render(
+      <MemoryRouter
+        future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
+        initialEntries={[entry]}
+      >
+        <RouteHarness />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("surface").textContent).toBe(surface);
+      expect(screen.getByTestId("path").textContent).toBe(path);
+    });
+  });
+
   it("canonicalizes admin routes from path and module navigation", async () => {
     render(
       <MemoryRouter
@@ -352,7 +393,7 @@ describe("useAppRouteState", () => {
     });
   });
 
-  it("preserves explicit glossary routes instead of canonicalizing them back to /governance", async () => {
+  it("routes glossary paths to the Glossary & CDEs workspace", async () => {
     render(
       <MemoryRouter
         future={{ v7_relativeSplatPath: true, v7_startTransition: true }}
@@ -363,8 +404,8 @@ describe("useAppRouteState", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("surface").textContent).toBe("governance");
-      expect(screen.getByTestId("path").textContent).toBe("/glossary/core/terms/customer");
+      expect(screen.getByTestId("surface").textContent).toBe("taxonomy");
+      expect(screen.getByTestId("path").textContent).toBe("/taxonomy");
     });
   });
 

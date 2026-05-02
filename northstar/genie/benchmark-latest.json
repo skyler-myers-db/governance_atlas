@@ -1,0 +1,578 @@
+{
+  "acceptance": "All benchmark questions must return a non-empty answer, Genie query evidence, expected governance-domain terms, no internal control-plane asset leakage, and no certified assets in not-certified answers.",
+  "aiSchema": "atlas_ai",
+  "caseCount": 7,
+  "catalog": "datapact",
+  "generatedAt": "2026-04-25T09:14:38.274293Z",
+  "passCount": 7,
+  "passed": true,
+  "results": [
+    {
+      "answerPreview": "The domains with the **highest risk of policy exceptions** are **Risk** and **Customer**, each with 2 open policy work items. Other domains such as Finance and Operations have 1 open policy work item each, while Product and Marketing have none. Risk, Finance, and Operations also have 1 uncertified critical asset each, which may further indicate elevated risk in those areas.",
+      "evaluation": {
+        "answerLength": 376,
+        "confidence": "genie-grounded",
+        "conversationId": "01f14086f8091f0283652cef45aff56a",
+        "evidenceCount": 1,
+        "failures": [],
+        "messageId": "01f14086f8141a2b9b16715214acaa83",
+        "passed": true,
+        "totalRowCount": 6
+      },
+      "evidence": [
+        {
+          "id": "01f14086fb791061b2914b46900d3fba",
+          "isTruncated": null,
+          "metric": "generatedSql",
+          "resultColumns": [
+            "domain",
+            "governed_assets",
+            "open_policy_work",
+            "uncertified_critical_assets"
+          ],
+          "resultRows": [
+            {
+              "domain": "Risk",
+              "governed_assets": "3",
+              "open_policy_work": "2",
+              "uncertified_critical_assets": "1"
+            },
+            {
+              "domain": "Customer",
+              "governed_assets": "3",
+              "open_policy_work": "2",
+              "uncertified_critical_assets": "0"
+            },
+            {
+              "domain": "Finance",
+              "governed_assets": "3",
+              "open_policy_work": "1",
+              "uncertified_critical_assets": "1"
+            },
+            {
+              "domain": "Operations",
+              "governed_assets": "3",
+              "open_policy_work": "1",
+              "uncertified_critical_assets": "1"
+            },
+            {
+              "domain": "Product",
+              "governed_assets": "3",
+              "open_policy_work": "0",
+              "uncertified_critical_assets": "0"
+            },
+            {
+              "domain": "Marketing",
+              "governed_assets": "3",
+              "open_policy_work": "0",
+              "uncertified_critical_assets": "0"
+            }
+          ],
+          "rowCount": 6,
+          "sql": "SELECT\n  COALESCE(assets.domain, 'Unassigned') AS domain,\n  COUNT(DISTINCT assets.asset_fqn) AS governed_assets,\n  SUM(CASE WHEN lower(COALESCE(work.status, '')) IN ('pending', 'open') THEN 1 ELSE 0 END) AS open_policy_work,\n  SUM(CASE WHEN assets.is_critical AND NOT assets.is_certified THEN 1 ELSE 0 END) AS uncertified_critical_assets\nFROM `datapact`.`atlas_ai`.`atlas_ai_assets_current` assets\nLEFT JOIN `datapact`.`atlas_ai`.`atlas_ai_governance_work_current` work\n  ON work.asset_fqn = assets.asset_fqn\nGROUP BY COALESCE(assets.domain, 'Unassigned')\nORDER BY open_policy_work DESC, uncertified_critical_assets DESC, governed_assets DESC\nLIMIT 10",
+          "statementId": "01f14086-fb82-10be-8891-662208d804c0",
+          "title": "",
+          "totalRowCount": 6,
+          "type": "genie_query"
+        }
+      ],
+      "id": "f8cbb70d29c3ab8ff74ec6cc936cdf7f",
+      "passed": true,
+      "question": "Which domains have the highest risk of policy exceptions?",
+      "warnings": []
+    },
+    {
+      "answerPreview": "There are **3 critical assets** that are not certified, each currently marked with a certification status of **Draft**. These assets span the Finance, Operations, and Risk domains. The asset identifiers are:\n- **datapact.governance_atlas_demo.finance_exception_review** (Finance)\n- **datapact.governance_atlas_demo.operations_certification_backlog** (Operations)\n- **datapact.governance_atlas_demo.risk_data_quality_review** (Risk)\n\nAll critical assets listed are associated with multiple business owners and are awaiting certification.",
+      "evaluation": {
+        "answerLength": 536,
+        "confidence": "genie-grounded",
+        "conversationId": "01f1408700431c759be87f30a3a00c62",
+        "evidenceCount": 1,
+        "failures": [],
+        "messageId": "01f14087004e1877bfee80e549d71249",
+        "passed": true,
+        "totalRowCount": 3
+      },
+      "evidence": [
+        {
+          "id": "01f14087022415acb842420b9564e212",
+          "isTruncated": null,
+          "metric": "generatedSql",
+          "resultColumns": [
+            "asset_fqn",
+            "domain",
+            "data_product",
+            "criticality",
+            "certification",
+            "business_owners"
+          ],
+          "resultRows": [
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.finance_exception_review",
+              "business_owners": "atlas-demo-technical@entrada.ai, finance-steward@entrada.ai",
+              "certification": "Draft",
+              "criticality": "High",
+              "data_product": "Lien Intelligence",
+              "domain": "Finance"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.operations_certification_backlog",
+              "business_owners": "atlas-demo-technical@entrada.ai, operations-steward@entrada.ai",
+              "certification": "Draft",
+              "criticality": "High",
+              "data_product": "Transfer Operations",
+              "domain": "Operations"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.risk_data_quality_review",
+              "business_owners": "atlas-demo-technical@entrada.ai, risk-steward@entrada.ai",
+              "certification": "Draft",
+              "criticality": "High",
+              "data_product": "Risk Controls",
+              "domain": "Risk"
+            }
+          ],
+          "rowCount": 3,
+          "sql": "SELECT asset_fqn, domain, data_product, criticality, certification, business_owners\nFROM `datapact`.`atlas_ai`.`atlas_ai_assets_current`\nWHERE is_critical = TRUE\n  AND is_certified = FALSE\nORDER BY owner_count ASC, open_work_count DESC, asset_fqn\nLIMIT 25",
+          "statementId": "01f14087-022c-1fe1-90f0-76da95d40708",
+          "title": "",
+          "totalRowCount": 3,
+          "type": "genie_query"
+        }
+      ],
+      "id": "317ba49c33b0bf882de9f9974c495093",
+      "passed": true,
+      "question": "Which critical assets are not certified?",
+      "warnings": []
+    },
+    {
+      "answerPreview": "Recent governance metadata changes include new tasks created, owner assignments updated, policy exceptions detected, and certification reviews opened. All actions were performed by **skyler@entrada.ai** and affected assets such as customer stewardship queues, risk policy registers, and certification backlogs. Notable events include:\n- **Task created** for datapact.governance_atlas_demo.customer_stewardship_queue (audit_id: 62f2667...)\n- **Owner upserted** for datapact.governance_atlas_demo.customer_stewardship_queue (audit_id: 7086a3d...)\n- **Policy exception detected** for datapact.governance_atlas_demo.risk_policy_exception_register (audit_id: ga-home-seed-audit-01)\n- **Critical metadata r",
+      "evaluation": {
+        "answerLength": 1052,
+        "confidence": "genie-grounded",
+        "conversationId": "01f14087052f10d3b9a28ad46a89d6b6",
+        "evidenceCount": 1,
+        "failures": [],
+        "messageId": "01f1408705391aa7b8a67927026db680",
+        "passed": true,
+        "totalRowCount": 11
+      },
+      "evidence": [
+        {
+          "id": "01f14087070a16808702e39db6776cc7",
+          "isTruncated": null,
+          "metric": "generatedSql",
+          "resultColumns": [
+            "audit_id",
+            "asset_fqn",
+            "action",
+            "status",
+            "actor_email",
+            "detail",
+            "created_at"
+          ],
+          "resultRows": [
+            {
+              "action": "task-created",
+              "actor_email": "skyler@entrada.ai",
+              "asset_fqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+              "audit_id": "62f26675c18f41aa908d103fe09cb286",
+              "created_at": "2026-04-25T09:11:55.000Z",
+              "detail": null,
+              "status": "success"
+            },
+            {
+              "action": "entity-registry-upserted",
+              "actor_email": "skyler@entrada.ai",
+              "asset_fqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+              "audit_id": "725f92c5373e4faa8fdd10c8a0675328",
+              "created_at": "2026-04-25T09:11:05.000Z",
+              "detail": null,
+              "status": "success"
+            },
+            {
+              "action": "owner-upserted",
+              "actor_email": "skyler@entrada.ai",
+              "asset_fqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+              "audit_id": "7086a3dc37004912abf1871127b0191b",
+              "created_at": "2026-04-25T09:10:52.000Z",
+              "detail": null,
+              "status": "success"
+            },
+            {
+              "action": "owner-upserted",
+              "actor_email": "skyler@entrada.ai",
+              "asset_fqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+              "audit_id": "9fd64fa91c914ac88cd4267bfa737c2a",
+              "created_at": "2026-04-25T09:00:35.000Z",
+              "detail": null,
+              "status": "success"
+            },
+            {
+              "action": "owner-upserted",
+              "actor_email": "skyler@entrada.ai",
+              "asset_fqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+              "audit_id": "f28eab5b43f549d99117cfcbe5f1a7a4",
+              "created_at": "2026-04-25T08:35:15.000Z",
+              "detail": null,
+              "status": "success"
+            },
+            {
+              "action": "policy-exception-detected",
+              "actor_email": "skyler@entrada.ai",
+              "asset_fqn": "datapact.governance_atlas_demo.risk_policy_exception_register",
+              "audit_id": "ga-home-seed-audit-01",
+              "created_at": "2026-04-25T03:05:48.579Z",
+              "detail": "Risk policy exception from governed seed evidence.",
+              "status": "failed"
+            },
+            {
+              "action": "critical-metadata-review-opened",
+              "actor_email": "skyler@entrada.ai",
+              "asset_fqn": "datapact.governance_atlas_demo.risk_data_quality_review",
+              "audit_id": "ga-home-seed-audit-02",
+              "created_at": "2026-04-25T02:35:48.579Z",
+              "detail": "Risk metadata review needs steward action.",
+              "status": "flagged"
+            },
+            {
+              "action": "certification-review-opened",
+              "actor_email": "skyler@entrada.ai",
+              "asset_fqn": "datapact.governance_atlas_demo.operations_certification_backlog",
+              "audit_id": "ga-home-seed-audit-03",
+              "created_at": "2026-04-25T01:50:48.579Z",
+              "detail": "Operations certification review opened.",
+              "status": "success"
+            },
+            {
+              "action": "owner-stewardship-updated",
+              "actor_email": "skyler@entrada.ai",
+              "asset_fqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+              "audit_id": "ga-home-seed-audit-04",
+              "created_at": "2026-04-25T01:20:48.579Z",
+              "detail": "Customer stewardship owners assigned.",
+              "status": "success"
+            },
+            {
+              "action": "policy-exception-review-opened",
+              "actor_email": "skyler@entrada.ai",
+              "asset_fqn": "datapact.governance_atlas_demo.finance_exception_review",
+              "audit_id": "ga-home-seed-audit-05",
+              "created_at": "2026-04-25T00:20:48.579Z",
+              "detail": "Finance policy exception review opened.",
+              "status": "success"
+            }
+          ],
+          "rowCount": 11,
+          "sql": "SELECT audit_id, asset_fqn, action, status, actor_email, detail, created_at\nFROM `datapact`.`atlas_ai`.`atlas_ai_audit_events`\nORDER BY created_at DESC, audit_id DESC\nLIMIT 25",
+          "statementId": "01f14087-0713-140a-80cb-340bc46f349f",
+          "title": "",
+          "totalRowCount": 11,
+          "type": "genie_query"
+        }
+      ],
+      "id": "fd73c03d5c86ebd020135d1e5fb338e9",
+      "passed": true,
+      "question": "What changed in governance metadata recently?",
+      "warnings": []
+    },
+    {
+      "answerPreview": "There are 5 assets that are missing stewardship attention, as indicated by having open stewardship work. All assets have at least one open work item, and owner counts range from 2 to 5. The most critical assets include:\n- **datapact.governance_atlas_demo.risk_policy_exception_register** (Critical, Certified)\n- **datapact.governance_atlas_demo.customer_stewardship_queue** (Critical, Trusted)\n- **datapact.governance_atlas_demo.risk_data_quality_review** (High, Draft)\n- **datapact.governance_atlas_demo.finance_exception_review** (High, Draft)\n- **datapact.governance_atlas_demo.operations_certification_backlog** (High, Draft)\n\nAll listed assets have open stewardship work, with none missing owner",
+      "evaluation": {
+        "answerLength": 711,
+        "confidence": "genie-grounded",
+        "conversationId": "01f140870adb1bcc934bc12e2f71f508",
+        "evidenceCount": 1,
+        "failures": [],
+        "messageId": "01f140870ae61d8a8027086448f342d1",
+        "passed": true,
+        "totalRowCount": 5
+      },
+      "evidence": [
+        {
+          "id": "01f140870cc21f4aa3352ba5efeed7f3",
+          "isTruncated": null,
+          "metric": "generatedSql",
+          "resultColumns": [
+            "asset_fqn",
+            "domain",
+            "data_product",
+            "owner_count",
+            "open_work_count",
+            "certification",
+            "criticality"
+          ],
+          "resultRows": [
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.finance_exception_review",
+              "certification": "Draft",
+              "criticality": "High",
+              "data_product": "Lien Intelligence",
+              "domain": "Finance",
+              "open_work_count": "1",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.operations_certification_backlog",
+              "certification": "Draft",
+              "criticality": "High",
+              "data_product": "Transfer Operations",
+              "domain": "Operations",
+              "open_work_count": "1",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.risk_data_quality_review",
+              "certification": "Draft",
+              "criticality": "High",
+              "data_product": "Risk Controls",
+              "domain": "Risk",
+              "open_work_count": "1",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.risk_policy_exception_register",
+              "certification": "Certified",
+              "criticality": "Critical",
+              "data_product": "Risk Controls",
+              "domain": "Risk",
+              "open_work_count": "1",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+              "certification": "Trusted",
+              "criticality": "Critical",
+              "data_product": "Customer 360",
+              "domain": "Customer",
+              "open_work_count": "1",
+              "owner_count": "5"
+            }
+          ],
+          "rowCount": 5,
+          "sql": "SELECT asset_fqn, domain, data_product, owner_count, open_work_count, certification, criticality\nFROM `datapact`.`atlas_ai`.`atlas_ai_assets_current`\nWHERE owner_count = 0 OR open_work_count > 0\nORDER BY open_work_count DESC, owner_count ASC, is_critical DESC, asset_fqn\nLIMIT 25",
+          "statementId": "01f14087-0ccb-1c45-a17f-97a34480a923",
+          "title": "",
+          "totalRowCount": 5,
+          "type": "genie_query"
+        }
+      ],
+      "id": "3b9338b72c6bd4879b476286b76edfea",
+      "passed": true,
+      "question": "Which assets are missing stewardship attention?",
+      "warnings": []
+    },
+    {
+      "answerPreview": "The assets with the lowest metadata coverage, as indicated by the **lowest owner count (2)**, include:\n- **datapact.governance_atlas_demo.finance_exception_review** (Finance, Lien Intelligence)\n- **datapact.governance_atlas_demo.operations_certification_backlog** (Operations, Transfer Operations)\n- **datapact.governance_atlas_demo.risk_data_quality_review** (Risk, Risk Controls)\n- **datapact.governance_atlas_demo.risk_policy_exception_register** (Risk, Risk Controls)\n- **datapact.governance_atlas_demo.customer_identity_quality** (Customer, Customer 360)\n\nAll assets with the lowest coverage have an owner count of 2, and this pattern is consistent across multiple domains and data products.\n\nWo",
+      "evaluation": {
+        "answerLength": 827,
+        "confidence": "genie-grounded",
+        "conversationId": "01f14087106615f790997411efbdb7c3",
+        "evidenceCount": 1,
+        "failures": [],
+        "messageId": "01f1408710711877b2bc019fb515f322",
+        "passed": true,
+        "totalRowCount": 18
+      },
+      "evidence": [
+        {
+          "id": "01f1408712a11961bc8329821405fc17",
+          "isTruncated": null,
+          "metric": "generatedSql",
+          "resultColumns": [
+            "asset_fqn",
+            "domain",
+            "data_product",
+            "owner_count",
+            "certification",
+            "criticality",
+            "open_work_count"
+          ],
+          "resultRows": [
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.finance_exception_review",
+              "certification": "Draft",
+              "criticality": "High",
+              "data_product": "Lien Intelligence",
+              "domain": "Finance",
+              "open_work_count": "1",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.operations_certification_backlog",
+              "certification": "Draft",
+              "criticality": "High",
+              "data_product": "Transfer Operations",
+              "domain": "Operations",
+              "open_work_count": "1",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.risk_data_quality_review",
+              "certification": "Draft",
+              "criticality": "High",
+              "data_product": "Risk Controls",
+              "domain": "Risk",
+              "open_work_count": "1",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.risk_policy_exception_register",
+              "certification": "Certified",
+              "criticality": "Critical",
+              "data_product": "Risk Controls",
+              "domain": "Risk",
+              "open_work_count": "1",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.customer_identity_quality",
+              "certification": "Certified",
+              "criticality": "Critical",
+              "data_product": "Customer 360",
+              "domain": "Customer",
+              "open_work_count": "0",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.customer_profile_coverage",
+              "certification": "Certified",
+              "criticality": "Critical",
+              "data_product": "Customer 360",
+              "domain": "Customer",
+              "open_work_count": "0",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.finance_lien_risk_summary",
+              "certification": "Certified",
+              "criticality": "Critical",
+              "data_product": "Lien Intelligence",
+              "domain": "Finance",
+              "open_work_count": "0",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.finance_portfolio_exposure",
+              "certification": "Certified",
+              "criticality": "Critical",
+              "data_product": "Mortgage Portfolio",
+              "domain": "Finance",
+              "open_work_count": "0",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.marketing_lien_outreach_signal",
+              "certification": "Trusted",
+              "criticality": "Critical",
+              "data_product": "Market Analytics",
+              "domain": "Marketing",
+              "open_work_count": "0",
+              "owner_count": "2"
+            },
+            {
+              "asset_fqn": "datapact.governance_atlas_demo.marketing_market_analytics",
+              "certification": "Certified",
+              "criticality": "Critical",
+              "data_product": "Market Analytics",
+              "domain": "Marketing",
+              "open_work_count": "0",
+              "owner_count": "2"
+            }
+          ],
+          "rowCount": 18,
+          "sql": "SELECT asset_fqn, domain, data_product, owner_count, certification, criticality, open_work_count\nFROM `datapact`.`atlas_ai`.`atlas_ai_assets_current`\nORDER BY owner_count ASC, is_certified ASC, open_work_count DESC, asset_fqn\nLIMIT 25",
+          "statementId": "01f14087-12ad-1aec-8963-7c0b7cebe58a",
+          "title": "",
+          "totalRowCount": 18,
+          "type": "genie_query"
+        }
+      ],
+      "id": "46749755cd20d4c256cc622894a83748",
+      "passed": true,
+      "question": "Which assets have the lowest metadata coverage?",
+      "warnings": []
+    },
+    {
+      "answerPreview": "Would you like to see glossary terms linked to assets related to customers by other criteria, such as owner or certification, instead?\n\nThere are currently **no glossary terms linked to customer assets** based on the available data. No glossary entries mention or are associated with 'customer' in their name, domain, or linked assets.",
+      "evaluation": {
+        "answerLength": 335,
+        "confidence": "genie-grounded",
+        "conversationId": "01f1408719391446b3796676bf3f7c8e",
+        "evidenceCount": 1,
+        "failures": [],
+        "messageId": "01f14087194413d184f6e6e4a8c9a8cc",
+        "passed": true,
+        "totalRowCount": 0
+      },
+      "evidence": [
+        {
+          "id": "01f140871f371919bb1d3001199b6f09",
+          "isTruncated": null,
+          "metric": "generatedSql",
+          "resultColumns": [
+            "term_id",
+            "name",
+            "definition",
+            "review_status",
+            "linked_asset_count",
+            "linked_assets_sample"
+          ],
+          "rowCount": 0,
+          "sql": "SELECT term_id, name, definition, review_status, linked_asset_count, linked_assets_sample FROM `datapact`.`atlas_ai`.`atlas_ai_glossary_current` WHERE lower(COALESCE(linked_assets_sample, '')) LIKE '%customer%' OR lower(COALESCE(domain, '')) LIKE '%customer%' OR lower(COALESCE(name, '')) LIKE '%customer%' ORDER BY linked_asset_count DESC, name LIMIT 25",
+          "statementId": "01f14087-1f44-1402-9cb6-560cba20bfa7",
+          "title": "",
+          "totalRowCount": 0,
+          "type": "genie_query"
+        }
+      ],
+      "id": "9e08d412924d291b9fa9f2e50a14db88",
+      "passed": true,
+      "question": "Which glossary terms are linked to customer assets?",
+      "warnings": []
+    },
+    {
+      "answerPreview": "There are currently **no data quality issues** impacting critical assets based on the available data. All critical assets have either passed their quality checks or have no recorded failures.",
+      "evaluation": {
+        "answerLength": 191,
+        "confidence": "genie-grounded",
+        "conversationId": "01f1408723e318cd8b4600959e70bf68",
+        "evidenceCount": 1,
+        "failures": [],
+        "messageId": "01f1408723ee1f21a37d3d9b23b8f282",
+        "passed": true,
+        "totalRowCount": 0
+      },
+      "evidence": [
+        {
+          "id": "01f140872b64126fa13b8c423dfeaa49",
+          "isTruncated": null,
+          "metric": "generatedSql",
+          "resultColumns": [
+            "asset_fqn",
+            "column_name",
+            "outcome",
+            "severity",
+            "metric_value",
+            "threshold_value",
+            "detail",
+            "executed_at"
+          ],
+          "rowCount": 0,
+          "sql": "SELECT quality.asset_fqn, quality.column_name, quality.outcome, quality.severity, quality.metric_value, quality.threshold_value, quality.detail, quality.executed_at FROM `datapact`.`atlas_ai`.`atlas_ai_quality_latest` quality INNER JOIN `datapact`.`atlas_ai`.`atlas_ai_assets_current` assets ON assets.asset_fqn = quality.asset_fqn WHERE assets.is_critical = TRUE AND lower(COALESCE(quality.outcome, '')) NOT IN ('pass', 'passed', 'success', 'succeeded') AND quality.outcome IS NOT NULL ORDER BY quality.executed_at DESC, quality.severity DESC, quality.asset_fqn LIMIT 25",
+          "statementId": "01f14087-2b6d-117a-ab23-3aadba74db53",
+          "title": "",
+          "totalRowCount": 0,
+          "type": "genie_query"
+        }
+      ],
+      "id": "13a8448cedb3aaa6dafe6114c3584306",
+      "passed": true,
+      "question": "Show me data quality issues impacting critical assets.",
+      "warnings": []
+    }
+  ],
+  "spaceId": "01f1406a11221afa985d3fe64c9fbea1",
+  "storeSchema": "atlas",
+  "title": "Governance Atlas Metadata Room"
+}

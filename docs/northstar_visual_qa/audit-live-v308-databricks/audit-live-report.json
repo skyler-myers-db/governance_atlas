@@ -1,0 +1,85 @@
+{
+  "generatedAt": "2026-05-01T15:37:06.679Z",
+  "appUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f1457296eb19a3933a38bdfec0e3bc",
+  "buildId": "frontend-5f4d8d113643",
+  "captures": [
+    {
+      "viewport": {
+        "name": "1536x1024",
+        "width": 1536,
+        "height": 1024
+      },
+      "screenshotPath": "docs/northstar_visual_qa/audit-live-v308-databricks/audit-live-1536x1024-failure.png",
+      "metrics": {
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/audit",
+        "title": "Immutable governance event log",
+        "bodyStart": "Governance Atlas\nBY ENTRADA\nGOVERN\nCommand Center\nDiscover\nStewardship\nKNOWLEDGE\nGlossary & CDEs\nLineage Atlas\nTRUST\nAudit Evidence\nControl Center\nSM\nSkyler Myers\nAdmin\nWorkspace\n›\nDev\n⌘K\nUC connected · 50.6% coverage\nAtlas AI\nAUDIT EVIDENCE\nImmutable governance event log\n\nEvery governance action — by humans or services — is appended to a Delta audit log. Events are searchable, cryptographically ordered, and exportable for SOC 2 / SOX evidence.\n\nDate range\nGenerate report\nExport CSV\n\nEVENTS · LOADED\n\n57\nmetadata-audit rows\n\nPOLICY VIOLATIONS\n\n0\nmetadata-audit rows\n\nACCESS REVIEWS · OPEN\n\n0\nmetadata-audit rows\n\nRETENTION\n\nUnavailable\nRetention policy not reported\nAll events\nBy users\nBy services\nViolations\nTime (UTC)\nActor\nEvent\nTarget\nEvidence\n2026-05-01 15:34:40\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:34:35\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:34:32\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 15:34:28\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 14:11:42\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 14:11:38\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 14:11:35\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\n2026-05-01 14:11:31\nskyler@entrada.ai\nIdentity directory upserted\nNo detail recorded\nskyler@entrada.ai\nstore\nAppend-only Delta audit log governance-store+metadata-audit-log · time-travel evidence references only, no raw row values.",
+        "hasNorthstar": true,
+        "loading": false,
+        "horizontalOverflow": false,
+        "scrollHeight": 1024,
+        "viewportHeight": 1024,
+        "mainScrollHeight": 968,
+        "mainClientHeight": 968,
+        "mainScrolls": false,
+        "footer": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "bottom": 0,
+          "left": 0,
+          "right": 0
+        },
+        "shell": {
+          "x": 230,
+          "y": 86,
+          "width": 1120,
+          "height": 906.296875,
+          "top": 86,
+          "bottom": 992.296875,
+          "left": 230,
+          "right": 1350
+        },
+        "table": {
+          "x": 230,
+          "y": 347.296875,
+          "width": 1120,
+          "height": 552,
+          "top": 347.296875,
+          "bottom": 899.296875,
+          "left": 230,
+          "right": 1350
+        },
+        "detail": null,
+        "kpiCount": 4,
+        "filterCount": 0,
+        "tableHeadingCount": 5,
+        "rowCount": 8,
+        "selectedRowCount": 0,
+        "detailCardCount": 0,
+        "disabledActions": [],
+        "regionText": {
+          "title": false,
+          "noLegacyTitle": true,
+          "hero": false,
+          "kpis": false,
+          "filters": false,
+          "table": false,
+          "detail": false,
+          "truthfulUnavailable": false
+        },
+        "railSeparated": true
+      },
+      "navigationError": "page.waitForFunction: Timeout 120000ms exceeded.",
+      "passed": false
+    }
+  ],
+  "interactions": [],
+  "sideBySide": null,
+  "pageErrors": [],
+  "consoleWarnings": [],
+  "passed": false
+}

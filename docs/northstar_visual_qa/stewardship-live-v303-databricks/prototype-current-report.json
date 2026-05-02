@@ -1,0 +1,42 @@
+{
+  "generatedAt": "2026-05-01T15:27:37.921Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f145719f1f1abf94e6754be1223dfc",
+  "buildId": "frontend-5f4d8d113643",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "route": "stewardship",
+  "captures": [
+    {
+      "route": "stewardship",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/stewardship-live-v303-databricks/stewardship-live-1536x1024.png",
+      "loaded": true
+    }
+  ],
+  "interactions": [
+    {
+      "route": "stewardship",
+      "interaction": "deployed-stewardship-row-selection",
+      "loaded": true,
+      "rowCount": 0,
+      "mode": "truthful-empty-state",
+      "emptyText": "No open work items are available for this filter.",
+      "detailText": "Select a work item to review evidence, affected asset, suggested actions, and resolution controls.",
+      "commentControls": 0,
+      "resolveControls": 0,
+      "validation": {
+        "checks": {
+          "emptyStateVisible": true,
+          "detailPlaceholderVisible": true,
+          "validationSeedsHidden": true,
+          "mutationControlsHidden": true
+        }
+      }
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "console": [],
+  "passed": true
+}

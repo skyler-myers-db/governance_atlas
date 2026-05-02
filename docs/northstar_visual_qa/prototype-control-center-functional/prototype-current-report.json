@@ -1,0 +1,784 @@
+{
+  "generatedAt": "2026-04-28T14:22:04.013Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "routeFilter": [
+    "control-center"
+  ],
+  "captures": [
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-control-center-functional/control-center-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-control-center-functional/control-center-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": {
+            "top": 56,
+            "left": 240,
+            "right": 1128,
+            "bottom": 1024,
+            "width": 888,
+            "height": 968
+          },
+          "shell": {
+            "top": 74,
+            "left": 262,
+            "right": 1108,
+            "bottom": 868.953125,
+            "width": 846,
+            "height": 794.953125
+          },
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 0% coverage Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Configure scan jobs, policy engine, integrations, and tenant-level branding. Designed to run as a Databricks App against the host workspace. Dev · datapact.atlas Scheduled jobs Lakeflow Jobs powering Atlas JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Healthy Lineage collector Every 1 hr 21 min ago Healthy Quality + freshness check Every 1 hr 32 min ago Healthy Policy engine evaluator Hourly + on-write 7 min ago Healthy PII classifier (model serving) Daily 02:00 UTC 8 hr ago Healthy Trust score recompute Daily 03:00 UTC 7 hr ago Slow Integrations ▱ Unity Catalog Connected live Ok ▱ Databricks SQL Warehouse gov atlas wh M Ok ▱ Lakeflow Jobs 6 jobs scheduled Ok ▱ Model Serving · classifier-v2 Endpoint healthy Ok ▱ Slack · #governance-alerts Connected Ok ▱ PagerDuty · P1 stewardship Connected Ok Policy coverage Active policies · auto-evaluated Owner required on production 96% CDEs must have description 100% PII columns require tag 92% 90-day re-certification 87% Restricted catalogs require justified grant 100% Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which domains have the lowest metadata coverage? ↗ Which critical assets are not certified? ↗ What changed in governance metadata recently? ↗",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "UC metadata sweeper Every 15 min 4 min ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage collector Every 1 hr 21 min ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Quality + freshness check Every 1 hr 32 min ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policy engine evaluator Hourly + on-write 7 min ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "PII classifier (model serving) Daily 02:00 UTC 8 hr ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trust score recompute Daily 03:00 UTC 7 hr ago Slow",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Unity Catalog Connected live Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Databricks SQL Warehouse gov atlas wh M Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Lakeflow Jobs 6 jobs scheduled Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Model Serving · classifier-v2 Endpoint healthy Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Slack · #governance-alerts Connected Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ PagerDuty · P1 stewardship Connected Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-control-center-functional/control-center-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-control-center-functional/control-center-1440x900-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 900,
+          "documentWidth": 1440,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1440,
+          "bottom": 56,
+          "width": 1200,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 900,
+          "width": 240,
+          "height": 900
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1200,
+          "height": 844
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 844,
+          "clientHeight": 844,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": {
+            "top": 56,
+            "left": 240,
+            "right": 1032,
+            "bottom": 900,
+            "width": 792,
+            "height": 844
+          },
+          "shell": {
+            "top": 74,
+            "left": 262,
+            "right": 1012,
+            "bottom": 865.296875,
+            "width": 750,
+            "height": 791.296875
+          },
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 0% coverage Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Configure scan jobs, policy engine, integrations, and tenant-level branding. Designed to run as a Databricks App against the host workspace. Dev · datapact.atlas Scheduled jobs Lakeflow Jobs powering Atlas JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Healthy Lineage collector Every 1 hr 21 min ago Healthy Quality + freshness check Every 1 hr 32 min ago Healthy Policy engine evaluator Hourly + on-write 7 min ago Healthy PII classifier (model serving) Daily 02:00 UTC 8 hr ago Healthy Trust score recompute Daily 03:00 UTC 7 hr ago Slow Integrations ▱ Unity Catalog Connected live Ok ▱ Databricks SQL Warehouse gov atlas wh M Ok ▱ Lakeflow Jobs 6 jobs scheduled Ok ▱ Model Serving · classifier-v2 Endpoint healthy Ok ▱ Slack · #governance-alerts Connected Ok ▱ PagerDuty · P1 stewardship Connected Ok Policy coverage Active policies · auto-evaluated Owner required on production 96% CDEs must have description 100% PII columns require tag 92% 90-day re-certification 87% Restricted catalogs require justified grant 100% Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which domains have the lowest metadata coverage? ↗ Which critical assets are not certified? ↗ What changed in governance metadata recently? ↗",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "UC metadata sweeper Every 15 min 4 min ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage collector Every 1 hr 21 min ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Quality + freshness check Every 1 hr 32 min ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policy engine evaluator Hourly + on-write 7 min ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "PII classifier (model serving) Daily 02:00 UTC 8 hr ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trust score recompute Daily 03:00 UTC 7 hr ago Slow",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Unity Catalog Connected live Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Databricks SQL Warehouse gov atlas wh M Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Lakeflow Jobs 6 jobs scheduled Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Model Serving · classifier-v2 Endpoint healthy Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Slack · #governance-alerts Connected Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ PagerDuty · P1 stewardship Connected Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/prototype-control-center-functional/control-center-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-control-center-functional/control-center-1280x720-full.png",
+      "wait": {
+        "settleSelectorMatched": true
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1280,
+          "height": 720,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 720,
+          "documentWidth": 1280,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1280,
+          "bottom": 56,
+          "width": 1040,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 720,
+          "width": 240,
+          "height": 720
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1040,
+          "height": 664
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 753,
+          "clientHeight": 664,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": {
+            "top": 56,
+            "left": 240,
+            "right": 872,
+            "bottom": 720,
+            "width": 632,
+            "height": 664
+          },
+          "shell": {
+            "top": 70,
+            "left": 262,
+            "right": 852,
+            "bottom": 809.328125,
+            "width": 590,
+            "height": 739.328125
+          },
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 0% coverage Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Configure scan jobs, policy engine, integrations, and tenant-level branding. Designed to run as a Databricks App against the host workspace. Dev · datapact.atlas Scheduled jobs Lakeflow Jobs powering Atlas JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Every 15 min 4 min ago Healthy Lineage collector Every 1 hr 21 min ago Healthy Quality + freshness check Every 1 hr 32 min ago Healthy Policy engine evaluator Hourly + on-write 7 min ago Healthy PII classifier (model serving) Daily 02:00 UTC 8 hr ago Healthy Trust score recompute Daily 03:00 UTC 7 hr ago Slow Integrations ▱ Unity Catalog Connected live Ok ▱ Databricks SQL Warehouse gov atlas wh M Ok ▱ Lakeflow Jobs 6 jobs scheduled Ok ▱ Model Serving · classifier-v2 Endpoint healthy Ok ▱ Slack · #governance-alerts Connected Ok ▱ PagerDuty · P1 stewardship Connected Ok Policy coverage Active policies · auto-evaluated Owner required on production 96% CDEs must have description 100% PII columns require tag 92% 90-day re-certification 87% Restricted catalogs require justified grant 100% Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which domains have the lowest metadata coverage? ↗ Which critical assets are not certified? ↗ What changed in governance metadata recently? ↗",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "UC metadata sweeper Every 15 min 4 min ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage collector Every 1 hr 21 min ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Quality + freshness check Every 1 hr 32 min ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Policy engine evaluator Hourly + on-write 7 min ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "PII classifier (model serving) Daily 02:00 UTC 8 hr ago Healthy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trust score recompute Daily 03:00 UTC 7 hr ago Slow",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Unity Catalog Connected live Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Databricks SQL Warehouse gov atlas wh M Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Lakeflow Jobs 6 jobs scheduled Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Model Serving · classifier-v2 Endpoint healthy Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ Slack · #governance-alerts Connected Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "▱ PagerDuty · P1 stewardship Connected Ok",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    }
+  ],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/admin"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

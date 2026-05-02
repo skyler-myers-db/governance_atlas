@@ -1,0 +1,718 @@
+{
+  "generatedAt": "2026-05-01T20:04:09.052Z",
+  "baseUrl": "http://127.0.0.1:5173",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "evidenceKind": "prototype_mock",
+  "mockEvidenceWarning": "Prototype mock data, not live Databricks evidence.",
+  "routeFilter": [
+    "stewardship",
+    "glossary",
+    "cde-registry"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "stewardship",
+    "glossary",
+    "cde-registry"
+  ],
+  "viewports": [
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    }
+  ],
+  "expectedCaptureCount": 3,
+  "captures": [
+    {
+      "route": "stewardship",
+      "path": "/stewardship",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/governance-taxonomy-v347-local/stewardship-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/governance-taxonomy-v347-local/stewardship-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/governance",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI STEWARDSHIP WORKBENCH 184 open work items · 7 SLA breaches Prototype stewardship rows preserve the target queue and detail workflow, but they are not live governance request, assignment, or SLA proof. Filter Bulk assign New work item All 8 P1 critical 3 Overdue 2 Assigned to me 1 Work queue 8 items · sorted by prototype fixture order ID ITEM ASSET ASSIGNED SLA PRIORITY SI-2491 Owner missing Age 11d experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue P1 SI-2487 Description missing Age 5d product_events.bronze.clickstream_events Customer Stewards 2d left P2 SI-2482 Re-certification due Age 89d finance_prod.curated.revenue_daily Marisol Reyes Today P2 SI-2479 Tag policy violation Age 8d customer_360.silver.contact_events Customer Stewards 1d overdue P1 SI-2475 Lineage gap Age 2d marketing_mart.gold.attribution_daily Marketing Stewards 6d left P3 SI-2471 Quality regression Age 1d sales_prod.silver.orders Priya Natarajan 12h left P1 SI-2469 Access exception Age 16h hr_secure.confidential.compensation_band People Stewards 3d left P2 SI-2462 Glossary mapping Age 4d customer_360.gold.customer_profile Customer Stewards 8d left P3 SI-2491 Owner missing P1 · P1 critical 4d overdue Revenue Stewards AFFECTED ASSET experimental.sandbox.pricing_experiment_2025q4 Why this is open Auto-flag: no owner set; queries det",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications unavailable",
+            "disabled": false,
+            "aria": "Notifications unavailable"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Filter",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Bulk assign",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "New work item",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All 8",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "P1 critical 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Overdue 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assigned to me 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2491 Owner missing Age 11d experimental.sandbox.pricing_experiment_2025q4 Revenue Stewards 4d overdue P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2487 Description missing Age 5d product_events.bronze.clickstream_events Customer Stewards 2d left P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2482 Re-certification due Age 89d finance_prod.curated.revenue_daily Marisol Reyes Today P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2479 Tag policy violation Age 8d customer_360.silver.contact_events Customer Stewards 1d overdue P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2475 Lineage gap Age 2d marketing_mart.gold.attribution_daily Marketing Stewards 6d left P3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2471 Quality regression Age 1d sales_prod.silver.orders Priya Natarajan 12h left P1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2469 Access exception Age 16h hr_secure.confidential.compensation_band People Stewards 3d left P2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SI-2462 Glossary mapping Age 4d customer_360.gold.customer_profile Customer Stewards 8d left P3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "experimental.sandbox.pricing_experiment_2025q4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assign owner from suggested teams Sales Engineering: 92% match (queries, tags)",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Archive sandbox cleanup No queries in 30+ days",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Comment",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Resolve",
+            "disabled": true,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "glossary",
+      "path": "/glossary-cdes",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/governance-taxonomy-v347-local/glossary-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/governance-taxonomy-v347-local/glossary-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/taxonomy",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 4 CDE Registry 5 Showing 4 of 4 governed glossary terms HIERARCHY 4 visible terms Root term Net Revenue No child terms recorded Root term Active Customer No child terms recorded Root term Churn Propensity No child terms recorded Root term Booking No child terms recorded Net Revenue Finance · Finance Stewards Approved Gross revenue minus discounts and refunds; recognized per ASC 606. Source-of-record column: `finance_prod.curated.revenue_daily.net_revenue_usd`. SOURCE Prototype fixture provenance ASSOCIATIONS 4 actor-visible linked assets REVIEW Status fixture; review n/a 4 assets View lineage -> Active Customer Customer · Customer Stewards Approved A customer with at least one billable order in the trailing 90 days. Computed in `customer_360.gold.customer_profile.lifecycle_stage`. SOURCE Prototype fixture provenance ASSOCIATIONS 7 actor-visible linked assets REVIEW Status fixture; review n/a 7 assets View lineage -> Churn Propensity Customer · Customer Stewards Approved Modeled probability that a customer will churn in the next 30 days. Served via `customer_360.ml.churn_propensity_v3`. SOURCE Prototype f",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications unavailable",
+            "disabled": false,
+            "aria": "Notifications unavailable"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 5",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Net Revenue Finance · Finance Stewards Approved Gross revenue minus discounts and refunds; recognized per ASC 606. Sourc",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "4 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Active Customer Customer · Customer Stewards Approved A customer with at least one billable order in the trailing 90 day",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "7 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Churn Propensity Customer · Customer Stewards Approved Modeled probability that a customer will churn in the next 30 day",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "3 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Booking Revenue & Sales · Revenue Stewards In Review A confirmed order, regardless of recognition status. SOURCE Prototy",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "6 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "View lineage ->",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/governance-taxonomy-v347-local/cde-registry-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/governance-taxonomy-v347-local/cde-registry-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:5173/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship 184 KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center MR Marisol Reyes Finance · Steward Workspace › entrada-prod ⌘K Prototype mock · UC not verified Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 4 CDE Registry 5 Showing 5 of 5 CDE registry rows Net Revenue (USD) SOX finance_prod.curated.revenue_daily.net_revenue_usd Finance Stewards 90d Recertification workflow evidence unavailable Healthy Quality/test-run evidence unavailable Customer ID customer_360.gold.customer_profile.customer_id Customer Stewards 180d Recertification workflow evidence unavailable Healthy Quality/test-run evidence unavailable Lifetime Value (USD) customer_360.gold.customer_profile.lifetime_value_usd Customer Stewards 90d Recertification workflow evidence unavailable Recert Due (8d) Quality/test-run evidence unavailable Compensation Band hr_secure.confidential.compensation_band.band_id People Stewards 180d Recertification workflow evidence unavailable Healthy Quality/test-run evidence unavailable Order Total (USD) SOX sales_prod.silver.orders.gross_total_usd Revenue Stewards 90d Recertification workflow evidence unavailable Healthy Quality/test-run evidence unavailable Status and recertification are prototype registry fixtures - not live Unity Catalog, quality test-run, or recertification workflow proof.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship 184",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "MR Marisol Reyes Finance · Steward",
+            "disabled": false,
+            "aria": "Open profile menu for Marisol Reyes"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications unavailable",
+            "disabled": false,
+            "aria": "Notifications unavailable"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 5",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/governance"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/taxonomy"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/taxonomy"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:5173/taxonomy?tab=cdes"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:5173/taxonomy?tab=cdes"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "passed": true
+}

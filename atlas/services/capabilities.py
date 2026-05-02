@@ -196,11 +196,25 @@ def bootstrap_capabilities(
                 "authorization / OBO is enabled."
             )
         )
-        if int(observed_catalog_count or 0) > 0:
+        lineage_query_available = (
+            int(observed_catalog_count or 0) > 0 or int(visible_asset_count or 0) > 0
+        )
+        if lineage_query_available:
+            lineage_no_edges_note = (
+                ""
+                if int(observed_catalog_count or 0) > 0
+                else (
+                    "No lineage-observed catalogs are detected yet; the lineage surface can open, "
+                    "but focused assets may show an empty graph until system lineage tables report relationships."
+                )
+            )
+            resolved_lineage_note = " ".join(
+                note for note in [lineage_workspace_note, lineage_no_edges_note] if note
+            )
             table_lineage = _flag(
                 available=True,
                 state="available",
-                reason=lineage_workspace_note,
+                reason=resolved_lineage_note,
                 actor_scoped=actor_scoped_reads,
                 workspace_scoped=not actor_scoped_reads,
                 visibility_scope=read_visibility_scope,
@@ -211,7 +225,7 @@ def bootstrap_capabilities(
             column_lineage = _flag(
                 available=True,
                 state="available",
-                reason=lineage_workspace_note,
+                reason=resolved_lineage_note,
                 actor_scoped=actor_scoped_reads,
                 workspace_scoped=not actor_scoped_reads,
                 visibility_scope=read_visibility_scope,
@@ -221,7 +235,7 @@ def bootstrap_capabilities(
             )
         else:
             table_lineage = _flag(
-                available=True,
+                available=False,
                 state="unknown",
                 reason=(
                     "No lineage-observed catalogs are detected yet; lineage surfaces will hydrate "
@@ -235,7 +249,7 @@ def bootstrap_capabilities(
                 product_mode=auth_mode,
             )
             column_lineage = _flag(
-                available=True,
+                available=False,
                 state="unknown",
                 reason=(
                     "Column lineage uses the same system lineage plane and still requires per-asset verification."

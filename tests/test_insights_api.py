@@ -19,7 +19,7 @@ import pandas as pd
 from atlas.api import insights as insights_api
 
 
-NOW = datetime(2026, 4, 20, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime.now(timezone.utc).replace(microsecond=0)
 
 
 def _request() -> SimpleNamespace:

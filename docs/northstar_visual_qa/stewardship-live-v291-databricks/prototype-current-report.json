@@ -1,0 +1,30 @@
+{
+  "generatedAt": "2026-05-01T13:42:11.947Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f1455d0c6b10809cde14296fa99d23",
+  "buildId": "frontend-0821ce3424c6",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "route": "stewardship",
+  "captures": [
+    {
+      "route": "stewardship",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/stewardship-live-v291-databricks/stewardship-live-1536x1024.png",
+      "loaded": true
+    }
+  ],
+  "interactions": [
+    {
+      "route": "stewardship",
+      "interaction": "deployed-stewardship-row-selection",
+      "loaded": false,
+      "error": "Stewardship row selection failed checks: {\"rowCountPositive\":true,\"detailVisible\":true,\"detailUpdated\":true,\"selectedAtMostOne\":true,\"governanceEvidence\":false}",
+      "screenshot": "docs/northstar_visual_qa/stewardship-live-v291-databricks/stewardship-live-failure-deployed-stewardship-row-selection.png"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "console": [],
+  "passed": false
+}

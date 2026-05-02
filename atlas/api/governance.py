@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 
 from atlas.services import governance as governance_service
+from atlas.services import input_safety
 from atlas.services.assets import normalize_str as _normalize_str
 
 
@@ -15,9 +16,32 @@ class GovernanceRequestStatusPatch(BaseModel):
     status: str
     reviewNote: str = ""
 
+    @field_validator("status", mode="before")
+    @classmethod
+    def _sanitize_status(cls, value: Any) -> str:
+        return input_safety.sanitize_allowed(
+            value,
+            field="status",
+            allowed=("pending", "approved", "rejected", "resolved", "closed"),
+        )
+
+    @field_validator("reviewNote", mode="before")
+    @classmethod
+    def _sanitize_review_note(cls, value: Any) -> str:
+        return input_safety.sanitize_markdown(value, field="reviewNote", max_length=4000)
+
 
 class GovernanceNotificationPatch(BaseModel):
     action: str
+
+    @field_validator("action", mode="before")
+    @classmethod
+    def _sanitize_action(cls, value: Any) -> str:
+        return input_safety.sanitize_allowed(
+            value,
+            field="action",
+            allowed=("seen", "read", "dismiss"),
+        )
 
 
 class GlossaryTermUpsert(BaseModel):
@@ -35,20 +59,38 @@ class GlossaryTermUpsert(BaseModel):
     def _coerce_reviewers(cls, value: Any) -> Any:
         if value is None:
             return None
-        if not isinstance(value, list):
-            return value
-        coerced: List[Dict[str, Any]] = []
-        for item in value:
-            if isinstance(item, str):
-                coerced.append({"reviewerEmail": item})
-            elif isinstance(item, dict):
-                coerced.append(item)
-        return coerced
+        return input_safety.sanitize_reviewer_entries(value)
 
     @field_validator("status", mode="before")
     @classmethod
     def _normalize_status(cls, value: Any) -> str:
-        return governance_service.normalize_glossary_term_status(value)
+        return governance_service.normalize_glossary_term_status(
+            input_safety.sanitize_plain_text(value, field="status", max_length=64)
+        )
+
+    @field_validator("termId", "name", "domain", mode="before")
+    @classmethod
+    def _sanitize_short_text(cls, value: Any, info) -> str:
+        return input_safety.sanitize_plain_text(
+            value,
+            field=info.field_name,
+            max_length=256,
+            allow_empty=info.field_name != "name",
+        )
+
+    @field_validator("definition", "changeNote", mode="before")
+    @classmethod
+    def _sanitize_markdown_text(cls, value: Any, info) -> str:
+        return input_safety.sanitize_markdown(
+            value,
+            field=info.field_name,
+            max_length=4000,
+        )
+
+    @field_validator("ownerEmail", mode="before")
+    @classmethod
+    def _sanitize_owner_email(cls, value: Any) -> str:
+        return input_safety.sanitize_email(value, field="ownerEmail")
 
 
 def api_governance_summary(request: Request) -> JSONResponse:
@@ -172,6 +214,7 @@ async def api_governance_create_request(request: Request) -> JSONResponse:
         _ensure_can_mutate,
         _ensure_live_runtime,
         _governance_summary,
+        _http_request_id,
         _store,
         _user_role_slug,
     )
@@ -181,9 +224,16 @@ async def api_governance_create_request(request: Request) -> JSONResponse:
     actor_role = _user_role_slug(request)
     store = _store()
     payload = await request.json()
-    asset_fqn = _normalize_str(payload.get("assetFqn"))
-    title = _normalize_str(payload.get("title"))
-    note = _normalize_str(payload.get("note"))
+    try:
+        asset_fqn = input_safety.sanitize_plain_text(
+            payload.get("assetFqn"), field="assetFqn", max_length=512, allow_empty=False
+        )
+        title = input_safety.sanitize_plain_text(
+            payload.get("title"), field="title", max_length=256, allow_empty=False
+        )
+        note = input_safety.sanitize_markdown(payload.get("note"), field="note", max_length=4000)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     if not asset_fqn or not title:
         raise HTTPException(status_code=400, detail="assetFqn and title are required.")
     if not _asset_is_openable(asset_fqn, request):
@@ -214,7 +264,7 @@ def api_governance_patch_request(
     from runtime_app import (
         _asset_detail_payload,
         _asset_visibility_record,
-        _ensure_can_mutate,
+        _ensure_can_approve,
         _ensure_live_runtime,
         _governance_summary,
         _invalidate_asset_caches,
@@ -223,7 +273,7 @@ def api_governance_patch_request(
     )
 
     _ensure_live_runtime()
-    actor_email = _ensure_can_mutate(request)
+    actor_email = _ensure_can_approve(request)
     actor_role = _user_role_slug(request)
     store = _store()
     change_request = store.get_change_request(request_id)
@@ -237,9 +287,10 @@ def api_governance_patch_request(
                 status_code=404, detail="Asset not found or not visible."
             )
     status = _normalize_str(payload.status).lower()
-    if status not in {"pending", "approved", "rejected"}:
+    if status not in {"pending", "approved", "rejected", "resolved", "closed"}:
         raise HTTPException(
-            status_code=400, detail="status must be pending, approved, or rejected."
+            status_code=400,
+            detail="status must be pending, approved, rejected, resolved, or closed.",
         )
     store.set_request_status(
         request_id=request_id,
@@ -322,9 +373,21 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
     actor_role = _user_role_slug(request)
     store = _store()
     payload = await request.json()
-    asset_fqn = _normalize_str(payload.get("assetFqn"))
-    owner_email = _normalize_str(payload.get("ownerEmail")).lower()
-    owner_type = (_normalize_str(payload.get("ownerType")) or "steward").lower()
+    try:
+        asset_fqn = input_safety.sanitize_plain_text(
+            payload.get("assetFqn"), field="assetFqn", max_length=512, allow_empty=False
+        )
+        owner_email = input_safety.sanitize_email(
+            payload.get("ownerEmail"), field="ownerEmail", allow_empty=False
+        )
+        owner_type = input_safety.sanitize_allowed(
+            payload.get("ownerType") or "steward",
+            field="ownerType",
+            allowed=("business", "technical", "steward"),
+            default="steward",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     if not asset_fqn or not owner_email:
         raise HTTPException(
             status_code=400, detail="assetFqn and ownerEmail are required."
@@ -338,6 +401,7 @@ async def api_governance_upsert_owner(request: Request) -> JSONResponse:
         owner_type=owner_type,
         updated_by=actor_email,
         actor_role=actor_role,
+        request_id=_http_request_id(request),
     )
     return JSONResponse(
         {

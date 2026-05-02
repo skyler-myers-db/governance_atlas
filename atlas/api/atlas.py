@@ -6,17 +6,30 @@ from typing import Optional
 
 from fastapi import APIRouter, Body, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from atlas.api.identity import _request_auth_mode
+from atlas.api.identity import _request_auth_mode, _user_email
 from atlas.api.response import _error_response, _with_meta
 from atlas.services import atlas_metrics
 from atlas.services import capabilities as capability_service
+from atlas.services import genie as genie_service
+from atlas.services import governance as governance_service
+from atlas.services import input_safety
 from atlas.services.assets import normalize_str as _normalize_str
 
 
 class AtlasAiQuestion(BaseModel):
     question: str = Field(default="", max_length=2000)
+
+    @field_validator("question", mode="before")
+    @classmethod
+    def _sanitize_question(cls, value):
+        return input_safety.sanitize_plain_text(
+            value,
+            field="question",
+            max_length=2000,
+            allow_empty=True,
+        )
 
 
 def _obo_fallback_payload(uc_client) -> tuple[bool, str]:
@@ -33,6 +46,24 @@ def _obo_fallback_payload(uc_client) -> tuple[bool, str]:
         True,
         "The forwarded user token is missing the `sql` scope; this response is computed from the app-principal view of the catalog. Re-authenticate, then retry to restore actor-scoped visibility.",
     )
+
+
+def _steward_or_admin(request: Request) -> str:
+    from runtime_app import _user_role_slug
+
+    role = _user_role_slug(request)
+    if role not in ("admin", "steward"):
+        raise HTTPException(status_code=403, detail="Steward or admin role required.")
+    return role
+
+
+def _admin_required(request: Request) -> str:
+    from runtime_app import _user_role_slug
+
+    role = _user_role_slug(request)
+    if role != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required.")
+    return role
 
 
 def _wrap(
@@ -97,6 +128,19 @@ def _hidden_asset_error(asset_fqn: str, request: Request, visibility: dict, *, s
         entity_id=asset_fqn,
         capabilities={"visibilityState": visibility.get("visibilityState") or "missing"},
     )
+
+
+def _extract_visible_asset_fqns(frame) -> list[str]:
+    try:
+        if frame is None or frame.empty or "fqn" not in frame.columns:
+            return []
+        return [
+            _normalize_str(value)
+            for value in frame["fqn"].dropna().astype(str).tolist()
+            if _normalize_str(value)
+        ]
+    except Exception:
+        return []
 
 
 def api_command_center(
@@ -248,32 +292,65 @@ def api_insights_dashboard(request: Request) -> JSONResponse:
         visible_assets=_visible_assets(request),
         store=_store_for_read(),
     )
-    state = "degraded" if not payload.get("signalAvailability", {}).get("quality") else "available"
+    capabilities = payload.get("signalAvailability") or {}
     warnings = []
-    if state == "degraded":
-        warnings.append("Quality-runner signal is unavailable; maturity score excludes quality health.")
+    if not capabilities.get("quality"):
+        warnings.append("Quality health score is unavailable; maturity score excludes quality health.")
+    if not capabilities.get("policyCompliance"):
+        warnings.append("Policy compliance is unavailable until an authoritative policy evaluation source is configured.")
+    if not capabilities.get("auditReadiness"):
+        warnings.append("Audit readiness is unavailable until a readiness formula/source is configured.")
+    if capabilities.get("policyExceptions") == "degraded":
+        warnings.append("Critical policy exceptions are text-derived from governance requests and audit records.")
+    state = "degraded" if warnings else "available"
     return _wrap(
         payload,
         request,
         source="unity-catalog-inventory+quality-runner",
         state=state,
-        authoritative=True,
+        authoritative=not warnings,
         warnings=warnings or None,
-        capabilities=payload.get("signalAvailability") or {},
+        capabilities=capabilities,
     )
 
 
 def api_taxonomy_overview(request: Request) -> JSONResponse:
-    from runtime_app import _ensure_live_runtime, _store_for_read
+    from runtime_app import _ensure_live_runtime, _store_for_read, _uc_for_request
 
     _ensure_live_runtime()
-    payload = atlas_metrics.taxonomy_overview_payload(store=_store_for_read())
+    store = _store_for_read()
+    warnings = []
+    enriched_glossary = None
+    try:
+        enriched_glossary = governance_service.glossary_terms(
+            _uc_for_request(request),
+            store,
+            actor_email=_user_email(request),
+            limit=500,
+        )
+    except Exception as exc:
+        warnings.append(
+            _normalize_str(exc)
+            or "Glossary enrichment is unavailable; taxonomy overview is using raw glossary rows."
+        )
+    payload = atlas_metrics.taxonomy_overview_payload(
+        store=store,
+        glossary_terms=enriched_glossary,
+    )
     return _wrap(
         payload,
         request,
         source="governance-store+unity-catalog-inventory",
-        state="available",
-        authoritative=True,
+        state="degraded" if warnings else "available",
+        authoritative=not warnings,
+        warnings=warnings or None,
+        capabilities={
+            "glossaryEnriched": enriched_glossary is not None,
+            "classificationTree": bool(payload.get("classifications")),
+            "domainTree": bool(payload.get("domains")),
+            "dataProducts": bool(payload.get("dataProducts")),
+            "columnGroups": bool(payload.get("columnGroups")),
+        },
     )
 
 
@@ -288,9 +365,9 @@ def api_cde_dashboard(request: Request) -> JSONResponse:
     return _wrap(
         payload,
         request,
-        source="unity-catalog-inventory+governance-store+quality-runner",
+        source="unity-catalog-inventory+governance-store",
         state="degraded",
-        authoritative=True,
+        authoritative=False,
         warnings=warnings,
         capabilities={"controlCoverage": False},
     )
@@ -308,16 +385,16 @@ def api_cde_detail(cde_id: str, request: Request) -> JSONResponse:
         return _error_response(
             request,
             status_code=404,
-            source="unity-catalog-inventory+governance-store+quality-runner",
+            source="unity-catalog-inventory+governance-store",
             detail="Critical data element not found in visible metadata.",
             entity_id=cde_id,
         )
     return _wrap(
         payload,
         request,
-        source="unity-catalog-inventory+governance-store+quality-runner",
+        source="unity-catalog-inventory+governance-store",
         state="degraded",
-        authoritative=True,
+        authoritative=False,
         entity_id=cde_id,
         warnings=[
             "Dedicated CDE control coverage is unavailable; controls are marked unavailable rather than inferred."
@@ -329,28 +406,70 @@ def api_cde_detail(cde_id: str, request: Request) -> JSONResponse:
 def api_audit_evidence(
     request: Request,
     audit_id: Optional[str] = Query(default=None),
+    date_range: Optional[str] = Query(default=None),
     limit: int = Query(default=200, ge=1, le=500),
 ) -> JSONResponse:
-    from runtime_app import _ensure_live_runtime, _store_for_read
+    from runtime_app import _ensure_live_runtime, _store_for_read, _visible_assets
 
     _ensure_live_runtime()
+    actor_role = _steward_or_admin(request)
+    audit_id_value = audit_id if isinstance(audit_id, str) else None
+    date_range_value = date_range if isinstance(date_range, str) else None
+    limit_value = int(limit) if isinstance(limit, int) else 200
+    try:
+        visible_asset_fqns = _extract_visible_asset_fqns(_visible_assets(request))
+    except Exception as exc:
+        detail = (
+            _normalize_str(exc)
+            or "Audit visibility scope could not be verified."
+        )
+        return _error_response(
+            request,
+            status_code=503,
+            source="governance-store+metadata-audit-log",
+            detail=(
+                "Audit visibility scope could not be verified; audit evidence is unavailable "
+                "rather than exposing unscoped actor identities."
+            ),
+            state="unavailable",
+            entity_id=audit_id_value,
+            capabilities={
+                "requiredRole": "steward-or-admin",
+                "actorRole": actor_role,
+                "rowLevelSecurity": "fail-closed-visible-assets",
+                "actorIdentityExposure": "steward-admin-gated",
+            },
+            warnings=[detail],
+        )
     payload = atlas_metrics.audit_evidence_payload(
         store=_store_for_read(),
-        audit_id=audit_id,
-        limit=limit,
+        audit_id=audit_id_value,
+        date_range=date_range_value,
+        limit=limit_value,
+        visible_asset_fqns=visible_asset_fqns,
     )
+    has_events = bool(payload.get("events"))
     return _wrap(
         payload,
         request,
-        source="governance-store+metadata-audit-log+change-events",
-        state="available",
-        authoritative=True,
-        entity_id=audit_id,
+        source="governance-store+metadata-audit-log",
+        state="available" if has_events else "degraded",
+        authoritative=has_events,
+        entity_id=audit_id_value,
+        warnings=None if has_events else ["No metadata audit rows were returned; audit evidence is unavailable rather than inferred."],
+        capabilities={
+            "requiredRole": "steward-or-admin",
+            "actorRole": actor_role,
+            "rowLevelSecurity": "visible-assets-only",
+            "actorIdentityExposure": "steward-admin-gated",
+            "visibleAssetCount": len(visible_asset_fqns),
+        },
     )
 
 
 def api_admin_control_center(request: Request) -> JSONResponse:
     from runtime_app import (
+        _config,
         _ensure_live_runtime,
         _store_for_read,
         _uc_runtime_status_fast,
@@ -358,15 +477,49 @@ def api_admin_control_center(request: Request) -> JSONResponse:
     )
 
     _ensure_live_runtime()
+    role = _admin_required(request)
+    cfg = _config()
+    target_label = _normalize_str(cfg.deploy_target) or (
+        _normalize_str(cfg.environment_label).split("-", 1)[0].strip()
+        if _normalize_str(cfg.environment_label)
+        else ""
+    )
+    namespace = ".".join(part for part in [cfg.gov_catalog, cfg.gov_schema] if _normalize_str(part))
+    environment_display = (
+        f"{target_label} · {namespace}"
+        if target_label and namespace
+        else namespace
+        or _normalize_str(cfg.environment_label)
+        or "Workspace"
+    )
+    try:
+        ai_status = genie_service.provider_status(cfg)
+    except Exception as exc:
+        ai_status = {
+            "state": "unavailable",
+            "provider": "genie",
+            "message": f"{exc.__class__.__name__}: {exc}",
+        }
     payload = atlas_metrics.admin_control_center_payload(
         visible_assets=_visible_assets(request),
         store=_store_for_read(),
         runtime=_uc_runtime_status_fast(background=False),
+        environment={
+            "label": cfg.environment_label or environment_display,
+            "displayLabel": environment_display,
+            "target": target_label,
+            "catalog": cfg.gov_catalog,
+            "schema": cfg.gov_schema,
+            "warehouseId": cfg.warehouse_id,
+            "workspaceHost": cfg.workspace_host,
+        },
+        actor_role=role,
+        ai_status=ai_status,
     )
     return _wrap(
         payload,
         request,
-        source="runtime-diagnostics+governance-store+background-runner",
+        source="runtime-diagnostics+governance-store",
         state="available",
         authoritative=True,
     )
@@ -376,31 +529,99 @@ def api_atlas_ai_recommendations(
     request: Request,
     body: AtlasAiQuestion | None = Body(default=None),
 ) -> JSONResponse:
-    from runtime_app import _ensure_live_runtime, _store_for_read, _visible_assets
+    from runtime_app import _config, _ensure_live_runtime, _request_obo_token, _store_for_read, _visible_assets
 
     _ensure_live_runtime()
     question = _normalize_str(body.question if body else "")
+    genie_warning = ""
+    genie_status: dict = {"state": "degraded", "provider": "local"}
+    try:
+        cfg = _config()
+        genie_status = genie_service.provider_status(cfg)
+        if genie_status.get("provider") == "genie" and genie_status.get("state") == "available":
+            forwarded_token = _request_obo_token(request)
+            if not forwarded_token:
+                genie_warning = (
+                    "Genie-backed Atlas AI requires the forwarded Databricks user token; "
+                    "the local evidence engine was used instead."
+                )
+            else:
+                payload = genie_service.ask_genie(
+                    config=cfg,
+                    question=question,
+                    user_access_token=forwarded_token,
+                )
+                if not payload.get("recommendations") and any(
+                    token in question.lower()
+                    for token in ("recommend", "priority", "priorities")
+                ):
+                    structured = atlas_metrics.build_ai_recommendations(
+                        visible_assets=_visible_assets(request),
+                        store=_store_for_read(),
+                        question=question,
+                    )
+                    recommendations = structured.get("recommendations") or []
+                    if recommendations:
+                        structured_evidence = structured.get("evidence") or []
+                        payload = {
+                            **payload,
+                            "recommendations": recommendations,
+                            "evidence": payload.get("evidence") or structured_evidence,
+                            "suggestedActions": structured.get("suggestedActions", []),
+                            "structuredRecommendationsSource": "unity-catalog-inventory+governance-store",
+                            "recommendationsProvider": "genie+evidence",
+                        }
+                payload_warnings = payload.get("warnings") if isinstance(payload.get("warnings"), list) else []
+                has_evidence = bool(payload.get("evidence"))
+                return _wrap(
+                    payload,
+                    request,
+                    source="databricks-genie",
+                    state="available" if has_evidence else "degraded",
+                    authoritative=has_evidence,
+                    capabilities={
+                        "provider": "genie",
+                        "spaceId": genie_status.get("spaceId", ""),
+                        "benchmarkState": genie_status.get("benchmarkState", ""),
+                        "sampleValuesIncluded": False,
+                        "piiValuesIncluded": False,
+                    },
+                    warnings=payload_warnings or None,
+                )
+        elif genie_status.get("provider") == "genie":
+            genie_warning = _normalize_str(genie_status.get("message"))
+    except Exception as exc:
+        genie_warning = f"Genie-backed Atlas AI unavailable: {exc.__class__.__name__}: {exc}"
+
     payload = atlas_metrics.build_ai_recommendations(
         visible_assets=_visible_assets(request),
         store=_store_for_read(),
         question=question,
     )
+    payload["provider"] = "local-evidence"
+    payload["providerState"] = genie_status
     if not payload.get("evidence"):
         payload["confidence"] = "low"
     payload_warnings = payload.get("warnings") if isinstance(payload.get("warnings"), list) else []
+    warnings = list(payload_warnings)
+    if genie_warning:
+        warnings.insert(0, genie_warning)
+    if not payload.get("evidence") and not warnings:
+        warnings.append("No evidence-backed recommendation is available for the current visible metadata.")
     return _wrap(
         payload,
         request,
-        source="unity-catalog-inventory+governance-store",
+        source="unity-catalog-inventory+governance-store+local-evidence",
         state="available" if payload.get("evidence") else "degraded",
-        authoritative=True,
-        capabilities={"sampleValuesIncluded": False, "piiValuesIncluded": False},
-        warnings=payload_warnings
-        or (
-            None
-            if payload.get("evidence")
-            else ["No evidence-backed recommendation is available for the current visible metadata."]
-        ),
+        authoritative=False,
+        capabilities={
+            "provider": "local-evidence",
+            "genie": genie_status,
+            "evidenceBacked": bool(payload.get("evidence")),
+            "sampleValuesIncluded": False,
+            "piiValuesIncluded": False,
+        },
+        warnings=warnings or None,
     )
 
 

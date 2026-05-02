@@ -3,7 +3,7 @@
  *
  * Pins the honesty-of-rendering fixes the user demanded in the 2026-04-19
  * reconstruction audit. Previously the Discovery card intentionally
- * synthesized "High Trust 92%", "PII / Transaction / Critical" tags,
+ * synthesized "High Coverage 92%", "PII / Transaction / Critical" tags,
  * "Namer Avatar" ownership, and "PUBLISHED" workflow state regardless of
  * the real metadata — "to match the mockup silhouette" — which meant
  * stewards couldn't tell real governance signal from UI cosmetics.
@@ -40,7 +40,7 @@ vi.mock("../lib/assetRecordNavigation", () => ({
 
 // Minimal asset with NO owners, NO tags, NO coverage — the worst case
 // where the old code synthesized placeholders. Honest rendering should
-// surface "No owner", "Untagged", and omit the trust chip entirely.
+// surface an unavailable owner state and omit coverage/workflow cosmetics.
 const bareAsset = {
   fqn: "prod.silver.orders",
   name: "orders",
@@ -156,6 +156,12 @@ function renderWith(assets) {
   );
 }
 
+function previewMetadataValue(container, label) {
+  const rows = Array.from(container.querySelectorAll(".gh-asset-preview-metadata-row"));
+  const row = rows.find((candidate) => candidate.querySelector("dt")?.textContent === label);
+  return row?.querySelector("dd")?.textContent || "";
+}
+
 beforeEach(() => {
   useDiscoveryWorkspaceMock.mockReset();
   useAssetDetailMock.mockReset();
@@ -164,32 +170,31 @@ beforeEach(() => {
 });
 
 describe("DiscoveryWorkspace — honest card rendering (Tranche C)", () => {
-  it("defect 9 + 13: a bare asset renders 'No owner', 'Untagged', no trust chip, no workflow chip", () => {
+  it("defect 9 + 13: a bare asset renders unavailable governance state without synthetic chips", () => {
     const { container } = renderWith([bareAsset]);
     const card = container.querySelector(`[data-asset-fqn="${bareAsset.fqn}"]`);
     expect(card).not.toBeNull();
     const cardText = card.textContent;
 
-    // Owner: honest "No owner" text, no hardcoded "Namer Avatar".
-    expect(cardText).toContain("No owner");
+    // Owner: honest unavailable text, no hardcoded "Namer Avatar".
+    expect(cardText).toContain("Unassigned");
     expect(cardText).not.toContain("Namer Avatar");
 
-    // Tags: honest "Untagged" chip, never the synthetic PII/Transaction/Critical row.
-    expect(cardText).toContain("Untagged");
+    // Tags/signals: never the synthetic PII/Transaction/Critical row.
     expect(cardText).not.toMatch(/\bPII\b/);
     expect(cardText).not.toMatch(/\bTransaction\b/);
     expect(cardText).not.toMatch(/\bCritical\b/);
 
     // Coverage chip: omitted entirely when coverageScore is 0 / unknown.
     expect(card.querySelector(".gh-discovery-asset-trust")).toBeNull();
-    expect(cardText).not.toMatch(/High Trust\s+92%/);
+    expect(cardText).not.toMatch(/High Coverage\s+92%/);
 
     // Workflow chip: omitted when governanceStatus is empty.
     expect(card.querySelector(".gh-discovery-asset-status")).toBeNull();
     expect(cardText).not.toContain("PUBLISHED");
   });
 
-  it("defect 9: a rich asset renders its REAL governance signals (owner, tags, trust, workflow)", () => {
+  it("defect 9: a rich asset renders its REAL governance signals without legacy placeholders", () => {
     const { container } = renderWith([richAsset]);
     const card = container.querySelector(`[data-asset-fqn="${richAsset.fqn}"]`);
     expect(card).not.toBeNull();
@@ -197,13 +202,46 @@ describe("DiscoveryWorkspace — honest card rendering (Tranche C)", () => {
 
     // Owner label uses real first-name / last-name shape.
     expect(cardText).toContain("Jane Steward");
-    // Real tags surface unchanged.
-    expect(cardText).toContain("Finance");
-    expect(cardText).toContain("Curated");
-    // Trust chip matches real coverage (82% → "High Trust 82%", not the old 92%).
+    // Coverage evidence matches the real coverage score (82%, not the old synthetic 92%).
     expect(card.querySelector(".gh-discovery-asset-trust")?.textContent).toContain("82%");
-    // Real workflow state surfaces as PUBLISHED because governanceStatus was "Published".
-    expect(card.querySelector(".gh-discovery-asset-status")?.textContent).toBe("PUBLISHED");
+    // Workflow/status badge from the legacy card grid is not resurrected.
+    expect(card.querySelector(".gh-discovery-asset-status")).toBeNull();
+    expect(cardText).not.toContain("PUBLISHED");
+  });
+
+  it("preview steward is role-backed and not inferred from owner ordering", () => {
+    const orderedOwnersAsset = {
+      ...richAsset,
+      fqn: "prod.silver.customer_dim",
+      name: "customer_dim",
+      owners: [
+        { name: "Emily Carter", email: "emily@entrada.ai", title: "Business Owner" },
+        { name: "David Lin", email: "david@entrada.ai", title: "Technical Owner" },
+        { name: "James Wilson", email: "james@entrada.ai", title: "Steward" },
+      ],
+    };
+    const { container } = renderWith([orderedOwnersAsset]);
+
+    const stewardValue = previewMetadataValue(container, "Steward");
+    expect(stewardValue).toContain("James Wilson");
+    expect(stewardValue).not.toContain("David Lin");
+  });
+
+  it("preview steward degrades to Unassigned when no explicit steward role is present", () => {
+    const noStewardAsset = {
+      ...richAsset,
+      fqn: "prod.silver.order_fact",
+      name: "order_fact",
+      owners: [
+        { name: "Emily Carter", email: "emily@entrada.ai", title: "Business Owner" },
+        { name: "David Lin", email: "david@entrada.ai", title: "Technical Owner" },
+      ],
+    };
+    const { container } = renderWith([noStewardAsset]);
+
+    const stewardValue = previewMetadataValue(container, "Steward");
+    expect(stewardValue).toContain("Unassigned");
+    expect(stewardValue).not.toContain("David Lin");
   });
 });
 
@@ -295,14 +333,12 @@ describe("DiscoveryWorkspace — sort dropdown (Tranche E, defect 12)", () => {
 });
 
 describe("DiscoveryWorkspace — mockup parity lock (2026-04-19 audit)", () => {
-  it("renders Discovery and Navigation sub-tabs with Discovery active by default", () => {
+  it("renders the North Star hero/table surface without the retired Discovery/Navigation tabs", () => {
     const { container } = renderWith([richAsset]);
-    const discoveryTab = container.querySelector('[role="tab"][aria-selected="true"]');
-    expect(discoveryTab).not.toBeNull();
-    expect(discoveryTab.textContent).toBe("Discovery");
-    const navTab = container.querySelector('[role="tab"][aria-selected="false"]');
-    expect(navTab).not.toBeNull();
-    expect(navTab.textContent).toBe("Navigation");
+    expect(container.querySelector('[role="tab"]')).toBeNull();
+    expect(within(container).getByRole("heading", { name: "Find trusted, governed data" })).not.toBeNull();
+    expect(within(container).getByRole("table")).not.toBeNull();
+    expect(within(container).getByRole("columnheader", { name: "Asset Name" })).not.toBeNull();
   });
 
   it("never renders the mockup placeholder labels Banonns, Namer Avatar, or Anner Avatar", () => {
@@ -412,18 +448,10 @@ describe("DiscoveryWorkspace — owner filter (Tranche D, defect 23)", () => {
     const bob = { ...richAsset, fqn: "prod.silver.bob_asset", owners: [{ name: "Bob T", email: "bob@x.com" }] };
     const empty = { ...bareAsset, fqn: "prod.silver.empty_asset", owners: [] };
     const { container } = renderWith([jane, bob, empty]);
-    // Scope to the sidebar owner section. Collapsible sections use
-    // gh-surface-rail-section; Owner is one of them.
-    const sidebar = container.querySelector(".gh-filters-rail");
-    const section = within(sidebar).getByText("Owner").closest(".gh-surface-rail-section");
-    expect(section).not.toBeNull();
-    const sectionScope = within(section);
-    // "All owners" is present as the default and reflects the live total count (3).
-    expect(sectionScope.getByLabelText("Show assets from all owners")).not.toBeNull();
-    // Real owners appear as checkboxes.
-    expect(sectionScope.getByLabelText("Filter by owner jane@x.com")).not.toBeNull();
-    expect(sectionScope.getByLabelText("Filter by owner bob@x.com")).not.toBeNull();
-    // Unassigned count surfaces honestly.
-    expect(sectionScope.getByLabelText("Show assets with no owner")).not.toBeNull();
+    const ownerSelect = within(container).getByLabelText("Owner");
+    expect(within(ownerSelect).getByRole("option", { name: "All Owners" })).not.toBeNull();
+    expect(within(ownerSelect).getByRole("option", { name: "Jane S" })).not.toBeNull();
+    expect(within(ownerSelect).getByRole("option", { name: "Bob T" })).not.toBeNull();
+    expect(within(ownerSelect).queryByRole("option", { name: "Namer Avatar" })).toBeNull();
   });
 });

@@ -24,9 +24,17 @@ function objectValue(value) {
 }
 
 function normalizeInsightsDashboard(payload) {
-  const data = objectValue(payload);
+  const raw = objectValue(payload);
+  const data = raw.data && typeof raw.data === "object" && !Array.isArray(raw.data)
+    ? raw.data
+    : raw;
   const scoring = objectValue(data.scoring);
-  const meta = objectValue(data.meta);
+  const envelopeMeta = objectValue(raw.meta);
+  const dataMeta = objectValue(data.meta);
+  const warnings = Array.from(new Set([
+    ...arrayValue(envelopeMeta.warnings),
+    ...arrayValue(dataMeta.warnings),
+  ].filter(Boolean)));
   return {
     ...EMPTY_INSIGHTS_DASHBOARD,
     ...data,
@@ -45,8 +53,14 @@ function normalizeInsightsDashboard(payload) {
     },
     signalAvailability: objectValue(data.signalAvailability),
     meta: {
-      ...meta,
-      warnings: arrayValue(meta.warnings),
+      ...envelopeMeta,
+      ...dataMeta,
+      warnings,
+      state: dataMeta.state || envelopeMeta.state || "unknown",
+      capabilities: {
+        ...objectValue(envelopeMeta.capabilities),
+        ...objectValue(dataMeta.capabilities),
+      },
     },
   };
 }

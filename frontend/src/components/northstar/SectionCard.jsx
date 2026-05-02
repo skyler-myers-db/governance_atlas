@@ -1,4 +1,4 @@
-export function SectionCard({ title, eyebrow = "", actions = null, children, className = "", tooltip = "" }) {
+export function SectionCard({ title, eyebrow = "", subtitle = "", actions = null, children, className = "", tooltip = "" }) {
   return (
     <section className={`ga-section-card ${className}`.trim()}>
       <header className="ga-section-card-header">
@@ -17,6 +17,7 @@ export function SectionCard({ title, eyebrow = "", actions = null, children, cla
               </button>
             ) : null}
           </h2>
+          {subtitle ? <p className="ga-section-card-subtitle">{subtitle}</p> : null}
         </div>
         {actions ? <div className="ga-section-actions">{actions}</div> : null}
       </header>

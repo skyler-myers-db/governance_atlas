@@ -262,7 +262,7 @@ describe("EntityWorkspace schema tab — column filter + extended metadata", () 
     const { container } = renderWorkspace(detail);
 
     await waitFor(() => {
-      expect(screen.getAllByText("Schema").length).toBeGreaterThan(1);
+      expect(container.querySelector(".gh-schema-table")).not.toBeNull();
     });
 
     const schemaTable = container.querySelector(".gh-schema-table");
@@ -305,7 +305,7 @@ describe("EntityWorkspace schema tab — column filter + extended metadata", () 
     const { container } = renderWorkspace(detail);
 
     await waitFor(() => {
-      expect(screen.getAllByText("Schema").length).toBeGreaterThan(1);
+      expect(container.querySelector(".gh-schema-table")).not.toBeNull();
     });
 
     const schemaTable = container.querySelector(".gh-schema-table");

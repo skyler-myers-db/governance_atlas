@@ -13,7 +13,14 @@ const entityWorkspaceMock = vi.fn(() => <div data-testid="entity-workspace" />);
 const lineageWorkspaceMock = vi.fn(() => <div data-testid="lineage-workspace" />);
 const governanceWorkspaceMock = vi.fn(() => <div data-testid="governance-workspace" />);
 const adminWorkspaceMock = vi.fn(() => <div data-testid="admin-workspace" />);
+const homePageMock = vi.fn(({ estate = {} } = {}) => (
+  <div data-testid="home-page">
+    <span>{String(estate.visibleAssetCount ?? "")}</span>
+    <span>{estate.coverageScore == null ? "" : `${estate.coverageScore}%`}</span>
+  </div>
+));
 const workspaceSetupWizardMock = vi.fn(() => <div data-testid="workspace-setup-wizard" />);
+const openAssetRecordSafelyMock = vi.fn();
 
 vi.mock("./hooks/useAppRouteState", () => ({
   useAppRouteState: (...args) => useAppRouteStateMock(...args),
@@ -88,6 +95,10 @@ vi.mock("./components/AdminWorkspace", () => ({
   default: (...args) => adminWorkspaceMock(...args),
 }));
 
+vi.mock("./components/HomePage", () => ({
+  default: (...args) => homePageMock(...args),
+}));
+
 vi.mock("./components/WorkspaceSetupWizard", () => ({
   default: (...args) => workspaceSetupWizardMock(...args),
 }));
@@ -110,6 +121,10 @@ vi.mock("./lib/api", () => ({
   }),
 }));
 
+vi.mock("./lib/assetRecordNavigation", () => ({
+  openAssetRecordSafely: (...args) => openAssetRecordSafelyMock(...args),
+}));
+
 import App from "./App";
 
 describe("App", () => {
@@ -126,7 +141,13 @@ describe("App", () => {
     lineageWorkspaceMock.mockClear();
     governanceWorkspaceMock.mockClear();
     adminWorkspaceMock.mockClear();
+    homePageMock.mockClear();
     workspaceSetupWizardMock.mockClear();
+    openAssetRecordSafelyMock.mockReset();
+    openAssetRecordSafelyMock.mockImplementation((assetFqn, options = {}) => {
+      options.onOpen?.(assetFqn, {});
+      return Promise.resolve(true);
+    });
 
     useAppRouteStateMock.mockReturnValue({
       surface: "discovery",
@@ -838,7 +859,7 @@ describe("App", () => {
     });
   });
 
-  it("opens Asset 360 from the Discovery preview asset without clearing preview context", () => {
+  it("opens Asset 360 from the Discovery preview asset after the safe record guard passes", async () => {
     const openEntityWorkspace = vi.fn();
     const openDiscoveryWorkspace = vi.fn();
     useAppRouteStateMock.mockReturnValue({
@@ -909,8 +930,99 @@ describe("App", () => {
     const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
     expect(appFrameProps?.currentAssetFqn).toBe("main.sales.returns");
     appFrameProps?.onOpenAsset360();
-    expect(openEntityWorkspace).toHaveBeenCalledWith("main.sales.returns", "Overview");
+    await waitFor(() => {
+      expect(openEntityWorkspace).toHaveBeenCalledWith("main.sales.returns", "Overview");
+    });
+    expect(openAssetRecordSafelyMock).toHaveBeenCalledWith(
+      "main.sales.returns",
+      expect.objectContaining({
+        loadingLabel: "Opening Asset 360…",
+      }),
+    );
     expect(openDiscoveryWorkspace).not.toHaveBeenCalled();
+  });
+
+  it("returns Asset 360 shell navigation to Discovery when the focused record is not openable", async () => {
+    const openEntityWorkspace = vi.fn();
+    const openDiscoveryWorkspace = vi.fn();
+    openAssetRecordSafelyMock.mockImplementation((assetFqn, options = {}) => {
+      options.onUnavailable?.({ assetFqn, availability: { openable: false }, detail: null });
+      return Promise.resolve(false);
+    });
+    useAppRouteStateMock.mockReturnValue({
+      surface: "discovery",
+      setSurface: vi.fn(),
+      routeAssetFqn: "",
+      discoveryRouteState: {
+        filterGroups: {
+          types: ["Table"],
+          catalogs: ["main"],
+          domains: ["Finance"],
+          tiers: [],
+          certifications: [],
+          sensitivities: [],
+        },
+        query: "finance",
+        previewAssetFqn: "main.sales.restricted",
+        sortBy: "Recently updated",
+        views: ["Needs review"],
+        fresh: false,
+        requestKey: "seed-preview",
+      },
+      setDiscoveryRouteFilterGroups: vi.fn(),
+      setDiscoveryRoutePreview: vi.fn(),
+      setDiscoveryRouteQuery: vi.fn(),
+      setDiscoveryRouteSort: vi.fn(),
+      setDiscoveryRouteViews: vi.fn(),
+      openDiscoveryWorkspace,
+      openEntityWorkspace,
+      openLineageWorkspace: vi.fn(),
+      openGovernanceWorkspace: vi.fn(),
+      onModuleChange: vi.fn(),
+    });
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "live",
+        shell: {
+          role: "Admin",
+          userEmail: "admin@example.com",
+          diagnosticsEnabled: true,
+        },
+        discovery: {
+          summary: {
+            visibleAssets: 1,
+          },
+        },
+        governance: {
+          metrics: [],
+          backlog: [],
+          glossary: [],
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+    });
+
+    render(<App />);
+
+    appFrameMock.mock.calls.at(-1)?.[0]?.onOpenAsset360();
+
+    await waitFor(() => {
+      expect(openDiscoveryWorkspace).toHaveBeenCalledWith("finance", {
+        fresh: false,
+        previewAssetFqn: "main.sales.restricted",
+      });
+    });
+    expect(openEntityWorkspace).not.toHaveBeenCalled();
   });
 
   it("uses a fresh discovery open when the shell browse action is triggered", async () => {
@@ -1106,7 +1218,7 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(screen.getByText("42")).not.toBeNull();
-      expect(screen.getByText("88%")).not.toBeNull();
+      expect(screen.getAllByText("88%").length).toBeGreaterThan(0);
     });
     expect(useCommandCenterMock).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -6,13 +6,14 @@
   "scripts": {
     "dev": "vite",
     "lint": "eslint src vite.config.js",
-    "test": "vitest run",
+    "test": "NODE_OPTIONS=--no-experimental-webstorage node --no-experimental-webstorage ./node_modules/vitest/vitest.mjs run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "vite build && node scripts/write_build_manifest.mjs",
     "smoke:deployed": "node scripts/atlas_deployed_smoke.mjs",
     "screenshots:phase2": "node scripts/phase2_screenshot_pack.mjs",
     "qa:deployed": "node scripts/atlas_comprehensive_qa.mjs",
     "identity:deployed": "node scripts/atlas_structural_identity.mjs",
+    "northstar:audit-contract": "python3 ../scripts/check_northstar_audit_contract.py",
     "preview": "vite preview --host 0.0.0.0 --port 4173"
   },
   "dependencies": {
@@ -21,7 +22,9 @@
     "playwright": "^1.58.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.30.1"
+    "react-router-dom": "^6.30.1",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.1",

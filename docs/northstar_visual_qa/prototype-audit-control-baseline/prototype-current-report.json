@@ -1,0 +1,1347 @@
+{
+  "generatedAt": "2026-04-28T13:29:26.199Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": true,
+  "routeFilter": [
+    "audit",
+    "control-center"
+  ],
+  "captures": [
+    {
+      "route": "audit",
+      "path": "/audit-evidence",
+      "viewport": "1536x1024",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/prototype-audit-control-baseline/audit-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-audit-control-baseline/audit-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": false
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/audit",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 0% coverage Atlas AI Audit Trail & Change Evidence Immutable audit log of changes across your governance ecosystem. ▣ Immutable Log WORM proof unavailable ▦ Total Changes Unavailable 0 loaded audit rows ▤ Policy Changes Unavailable Text-derived from audit evidence ✓ Approvals Unavailable Requires explicit approval events ! Failed Actions Unavailable Backed by failed audit status Audit trail unavailable Request failed: 404 (Client request ID: 36d30703-004c-46af-9dc0-6826ded9305e) Actor Action All Date Range → Object Request ID Domain All Saved Views Clear Apply Filters Time (UTC) Actor Asset / Term / Policy Action Source Status Request ID No audit events match the current filters. Showing 0 to 0 of 0 results ‹ 1 › Rows per page 8 12 20 50 No audit event selected Select an event row to inspect its backed evidence. Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which domains have the lowest metadata coverage? ↗ Which critical assets are not certified? ↗ What changed in governance metadata recently? ↗ Which assets need stewardship attention? ↗ Atlas AI uses AI. Review for accuracy.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Saved Views",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Clear",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Apply Filters",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "‹",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "1536x1024",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/prototype-audit-control-baseline/control-center-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-audit-control-baseline/control-center-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": false
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1296,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 1024,
+          "width": 240,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1296,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 0% coverage Atlas AI Administration & Control Center Configure, manage, and extend Governance Atlas to fit your organization. Environment: Dev · datapact.atlas Role: Admin Admin control center unavailable Request failed: 404 (Client request ID: c3d4c775-0e31-4a21-ae9d-3fe0efe80a07) Coverage Branding Bulk Import Integrations Governance Policy Requirements i Total Policies Unavailable Policy source unavailable. Required Policies Unavailable Policy source unavailable. Enforced Policies Unavailable Policy source unavailable. At Risk Unavailable Policy source unavailable. Policy Coverage by Domain Domain Required Enforced Coverage Trend Unavailable Unavailable Unavailable Unavailable Compliance Drilldown - Compliant View Policy Exceptions › Recent Admin Activity View all No recent admin activity is available. Branding ENTRADA Unified visibility. Trusted data. Confident decisions. Brand Settings Governance Atlas Logo Unavailable Primary Color Unavailable Accent Color Unavailable Theme Unavailable Favicon Unavailable Edit Branding › Bulk Import Upload Status Unavailable No bulk import job is recorded. Validation Summary Unavailable Total Unavailable Valid Unavailable Warnings Unavailable Errors View Full Report › Import History View all No backed import history is available. Integrations & Runtime Manage Integrations › System & Access Users Unavailable Roles Unavailable Groups Una",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Coverage",
+            "disabled": false,
+            "aria": "Admin tab Coverage"
+          },
+          {
+            "text": "Branding",
+            "disabled": false,
+            "aria": "Admin tab Branding"
+          },
+          {
+            "text": "Bulk Import",
+            "disabled": false,
+            "aria": "Admin tab Bulk Import"
+          },
+          {
+            "text": "Integrations",
+            "disabled": false,
+            "aria": "Admin tab Integrations"
+          },
+          {
+            "text": "View Policy Exceptions ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": "View all admin activity"
+          },
+          {
+            "text": "Edit Branding ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "View Full Report ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": true,
+            "aria": "View all import history"
+          },
+          {
+            "text": "Manage Integrations ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Manage Access ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "audit",
+      "path": "/audit-evidence",
+      "viewport": "1440x900",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/prototype-audit-control-baseline/audit-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-audit-control-baseline/audit-1440x900-full.png",
+      "wait": {
+        "settleSelectorMatched": false
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/audit",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 900,
+          "documentWidth": 1440,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1440,
+          "bottom": 56,
+          "width": 1200,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 900,
+          "width": 240,
+          "height": 900
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1200,
+          "height": 844
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 844,
+          "clientHeight": 844,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 0% coverage Atlas AI Audit Trail & Change Evidence Immutable audit log of changes across your governance ecosystem. ▣ Immutable Log WORM proof unavailable ▦ Total Changes Unavailable 0 loaded audit rows ▤ Policy Changes Unavailable Text-derived from audit evidence ✓ Approvals Unavailable Requires explicit approval events ! Failed Actions Unavailable Backed by failed audit status Audit trail unavailable Request failed: 404 (Client request ID: b76bc50d-40f6-48be-8dbb-b7464bdf1f1c) Actor Action All Date Range → Object Request ID Domain All Saved Views Clear Apply Filters Time (UTC) Actor Asset / Term / Policy Action Source Status Request ID No audit events match the current filters. Showing 0 to 0 of 0 results ‹ 1 › Rows per page 8 12 20 50 No audit event selected Select an event row to inspect its backed evidence. Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which domains have the lowest metadata coverage? ↗ Which critical assets are not certified? ↗ What changed in governance metadata recently? ↗ Which assets need stewardship attention? ↗ Atlas AI uses AI. Review for accuracy.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Saved Views",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Clear",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Apply Filters",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "‹",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "1440x900",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/prototype-audit-control-baseline/control-center-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-audit-control-baseline/control-center-1440x900-full.png",
+      "wait": {
+        "settleSelectorMatched": false
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 900,
+          "documentWidth": 1440,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1440,
+          "bottom": 56,
+          "width": 1200,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 900,
+          "width": 240,
+          "height": 900
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1200,
+          "height": 844
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 844,
+          "clientHeight": 844,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 0% coverage Atlas AI Administration & Control Center Configure, manage, and extend Governance Atlas to fit your organization. Environment: Dev · datapact.atlas Role: Admin Admin control center unavailable Request failed: 404 (Client request ID: a6208ed0-60af-480e-b78b-2bb76bf80fc1) Coverage Branding Bulk Import Integrations Governance Policy Requirements i Total Policies Unavailable Policy source unavailable. Required Policies Unavailable Policy source unavailable. Enforced Policies Unavailable Policy source unavailable. At Risk Unavailable Policy source unavailable. Policy Coverage by Domain Domain Required Enforced Coverage Trend Unavailable Unavailable Unavailable Unavailable Compliance Drilldown - Compliant View Policy Exceptions › Recent Admin Activity View all No recent admin activity is available. Branding ENTRADA Unified visibility. Trusted data. Confident decisions. Brand Settings Governance Atlas Logo Unavailable Primary Color Unavailable Accent Color Unavailable Theme Unavailable Favicon Unavailable Edit Branding › Bulk Import Upload Status Unavailable No bulk import job is recorded. Validation Summary Unavailable Total Unavailable Valid Unavailable Warnings Unavailable Errors View Full Report › Import History View all No backed import history is available. Integrations & Runtime Manage Integrations › System & Access Users Unavailable Roles Unavailable Groups Una",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Coverage",
+            "disabled": false,
+            "aria": "Admin tab Coverage"
+          },
+          {
+            "text": "Branding",
+            "disabled": false,
+            "aria": "Admin tab Branding"
+          },
+          {
+            "text": "Bulk Import",
+            "disabled": false,
+            "aria": "Admin tab Bulk Import"
+          },
+          {
+            "text": "Integrations",
+            "disabled": false,
+            "aria": "Admin tab Integrations"
+          },
+          {
+            "text": "View Policy Exceptions ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": "View all admin activity"
+          },
+          {
+            "text": "Edit Branding ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "View Full Report ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": true,
+            "aria": "View all import history"
+          },
+          {
+            "text": "Manage Integrations ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Manage Access ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "audit",
+      "path": "/audit-evidence",
+      "viewport": "1280x720",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/prototype-audit-control-baseline/audit-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-audit-control-baseline/audit-1280x720-full.png",
+      "wait": {
+        "settleSelectorMatched": false
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/audit",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1280,
+          "height": 720,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 720,
+          "documentWidth": 1280,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1280,
+          "bottom": 56,
+          "width": 1040,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 720,
+          "width": 240,
+          "height": 720
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1040,
+          "height": 664
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 664,
+          "clientHeight": 664,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 0% coverage Atlas AI Audit Trail & Change Evidence Immutable audit log of changes across your governance ecosystem. ▣ Immutable Log WORM proof unavailable ▦ Total Changes Unavailable 0 loaded audit rows ▤ Policy Changes Unavailable Text-derived from audit evidence ✓ Approvals Unavailable Requires explicit approval events ! Failed Actions Unavailable Backed by failed audit status Audit trail unavailable Request failed: 404 (Client request ID: 662e344e-ccd5-4162-8552-32f9fc638758) Actor Action All Date Range → Object Request ID Domain All Saved Views Clear Apply Filters Time (UTC) Actor Asset / Term / Policy Action Source Status Request ID No audit events match the current filters. Showing 0 to 0 of 0 results ‹ 1 › Rows per page 8 12 20 50 No audit event selected Select an event row to inspect its backed evidence. Atlas AI Hi, Skyler. x ATLAS AI I answer questions about governed data using Unity Catalog metadata. I never read raw row values. Which domains have the lowest metadata coverage? ↗ Which critical assets are not certified? ↗ What changed in governance metadata recently? ↗ Which assets need stewardship attention? ↗ Atlas AI uses AI. Review for accuracy.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Saved Views",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Clear",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Apply Filters",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "‹",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "1280x720",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/prototype-audit-control-baseline/control-center-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/prototype-audit-control-baseline/control-center-1280x720-full.png",
+      "wait": {
+        "settleSelectorMatched": false
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:3000/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1280,
+          "height": 720,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 720,
+          "documentWidth": 1280,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 240,
+          "right": 1280,
+          "bottom": 56,
+          "width": 1040,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 240,
+          "bottom": 720,
+          "width": 240,
+          "height": 720
+        },
+        "main": {
+          "top": 56,
+          "left": 240,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1040,
+          "height": 664
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 664,
+          "clientHeight": 664,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › Dev ⌘ K UC connected · 0% coverage Atlas AI Administration & Control Center Configure, manage, and extend Governance Atlas to fit your organization. Environment: Dev · datapact.atlas Role: Admin Admin control center unavailable Request failed: 404 (Client request ID: 6e9a4363-7757-4ac6-8ec3-c127f64fc253) Coverage Branding Bulk Import Integrations Governance Policy Requirements i Total Policies Unavailable Policy source unavailable. Required Policies Unavailable Policy source unavailable. Enforced Policies Unavailable Policy source unavailable. At Risk Unavailable Policy source unavailable. Policy Coverage by Domain Domain Required Enforced Coverage Trend Unavailable Unavailable Unavailable Unavailable Compliance Drilldown - Compliant View Policy Exceptions › Recent Admin Activity View all No recent admin activity is available. Branding ENTRADA Unified visibility. Trusted data. Confident decisions. Brand Settings Governance Atlas Logo Unavailable Primary Color Unavailable Accent Color Unavailable Theme Unavailable Favicon Unavailable Edit Branding › Bulk Import Upload Status Unavailable Validation Summary Unavailable Total Unavailable Valid Unavailable Warnings Unavailable Errors View Full Report › Import History View all No backed import history is available. Integrations & Runtime Manage Integrations › System & Access Users Unavailable Roles Unavailable Groups Unavailable API Clients Unavailable",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers. Role verification pending."
+          },
+          {
+            "text": "Workspace › Dev",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Coverage",
+            "disabled": false,
+            "aria": "Admin tab Coverage"
+          },
+          {
+            "text": "Branding",
+            "disabled": false,
+            "aria": "Admin tab Branding"
+          },
+          {
+            "text": "Bulk Import",
+            "disabled": false,
+            "aria": "Admin tab Bulk Import"
+          },
+          {
+            "text": "Integrations",
+            "disabled": false,
+            "aria": "Admin tab Integrations"
+          },
+          {
+            "text": "View Policy Exceptions ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": "View all admin activity"
+          },
+          {
+            "text": "Edit Branding ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "View Full Report ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "View all",
+            "disabled": true,
+            "aria": "View all import history"
+          },
+          {
+            "text": "Manage Integrations ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Manage Access ›",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "Which domains have the lowest metadata coverage? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which critical assets are not certified? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "What changed in governance metadata recently? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Which assets need stewardship attention? ↗",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          }
+        ]
+      }
+    }
+  ],
+  "console": [
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/audit"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/audit"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:3000/audit"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/audit"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/audit"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:3000/audit"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/audit"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/audit"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:3000/audit"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "warning",
+      "text": "⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.",
+      "url": "http://127.0.0.1:3000/admin"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:3000/admin"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/atlas/audit/evidence?limit=200",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/atlas/admin/control-center",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/atlas/audit/evidence?limit=200",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/atlas/admin/control-center",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/atlas/audit/evidence?limit=200",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3000/api/atlas/admin/control-center",
+      "status": 404
+    }
+  ],
+  "passed": false
+}

@@ -1,0 +1,446 @@
+{
+  "generatedAt": "2026-05-02T03:33:59.460Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "appUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f145d4dfdb1a55bcec553fc2f90b7d",
+  "buildId": "frontend-3ff1094cfbf2",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "passed": true,
+  "captureCount": 32,
+  "interactionCount": 0,
+  "requestFailureCount": 8,
+  "consoleErrorCount": 8,
+  "pageErrorCount": 0,
+  "sourceCaptureReport": "docs/northstar_visual_qa/all-routes-live-v416-databricks/prototype-current-report.json",
+  "sourceCapturePassed": false,
+  "sourceFailureReason": "Source capture-health is expected to be false for Reader access because Audit/Admin APIs return 403; this report verifies the rendered unavailable/admin-only states.",
+  "runtimeStatus": {
+    "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/runtime/status",
+    "status": 200,
+    "ok": true,
+    "buildId": "frontend-3ff1094cfbf2",
+    "state": "live",
+    "actorRole": "Reader",
+    "govCatalog": "main",
+    "govSchema": "atlas"
+  },
+  "expectedForbiddenEndpoints": [
+    "/api/atlas/audit/evidence",
+    "/api/atlas/admin/control-center"
+  ],
+  "captures": [
+    {
+      "route": "command-center",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/command-center-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/command-center-3037x1269-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/command-center-3037x1269-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 11.4% coverage Atlas AI EXECUTIVE COMMAND CENTER Live Governance posture, at a glance Backed values use live Unity Catalog and governance-store signals; unavailable values are labeled instead of inferred. Export brief Present mode POSTURE 11.4% Trend unavailable THE STATE OF DATAPACT 792 governed assets are in scope. Coverage is 11%. CERTIFIED ASSETS 13 Signal unavailable OPEN EXPOSURES - No authoritative policy-exception signal is available. CDES TRACKED - Lineage proof unavailable WHAT CHANGED TODAY Coverage 11% Coverage signal unavailable Quality SLA - Quality signal unavailable Open exposures - No authoritative policy-exception signal is available. Lineage coverage - Lineage signal unavailable GOVERNANCE COVERAGE 11% Signal unavailable CERTIFIED ASSETS 13 Signal unavailable OPEN"
+    },
+    {
+      "route": "discover",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/discover-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/discover-3037x1269-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/discover-3037x1269-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI CERTIFICATION 792 results Certified 10 In Review 0 Uncertified 0 Trusted 3 DOMAIN Customer 3 Finance 3 Marketing 3 Operations 3 Product 3 Risk 3 CLASSIFICATION Confidential 10 Restricted 4 confidential_customer 3 confidential_model_metrics 2 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed trust signals. Saved searches Advanced Showing 60 of 792 assets Sort: Relevance risk_policy_exception_register datapact.governance_atlas_demo.risk_policy_exception_register Certified 65% 65% Restricted — Aggregated policy-exception register derived from Cotality lien records. ⋮ Open Record Open lineage Cer"
+    },
+    {
+      "route": "stewardship",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/stewardship-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/stewardship-3037x1269-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI STEWARDSHIP WORKBENCH 0 open work items · SLA evidence unavailable Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available. Filter Bulk assign New work item All 0 P1 critical 0 Overdue 0 Assigned to me 0 Work queue 0 items · sorted by available work-item evidence ID ITEM ASSET ASSIGNED SLA PRIORITY -- No work items in this filter Queue shape retained; no synthetic `SI-*` request row is created. Workspace scope Assignee unavailable Evidence unavailable -- Select a work item to review evidence, affected asset, suggested actions, and resolution controls."
+    },
+    {
+      "route": "glossary",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/glossary-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/glossary-3037x1269-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 0 CDE Registry 17 Showing 0 of 0 governed glossary terms HIERARCHY Unavailable Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Glossary term unavailable Source and owner unavailable Unavailable Term, hierarchy, reviewe"
+    },
+    {
+      "route": "cde-registry",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/cde-registry-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/cde-registry-3037x1269-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 0 CDE Registry 17 Showing 5 of 17 CDE registry rows CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Customer Identity Quality Source column unavailable Unassigned Unavailable Unavailable Customer Profile Coverage Source column unavailable Unassigned Unavailable Unavailable Customer Stewardship Queue Source column unavailable Unassigned Unavailable Unavailable Finance Exception Review Source column unavailable Unassigned Unavailable Unavailable Finance Lien Risk Summary Source column unavailable Unassigned Unavailable Unavailable Status and "
+    },
+    {
+      "route": "lineage",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/lineage-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/lineage-3037x1269-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/lineage-3037x1269-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS datapact.governance_atlas_demo.customer_stewardship_queue Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Trusted Freshness unavailable CDEs unavailable Owner: Unavailable 1 upstream · 0 downstream Revenue impact unavailable Column lineage Run impact analysis + - 2 nodes · 1 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 03:21:23 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is"
+    },
+    {
+      "route": "audit",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/audit-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/audit-3037x1269-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI AUDIT EVIDENCE Immutable governance event log Audit evidence is unavailable for this workspace. The evidence log structure remains visible so exports, filters, and retention state can fail closed. Date range Generate report Export CSV EVENTS · LOADED Unavailable No scoped event summary reported; showing loaded rows POLICY VIOLATIONS Unavailable Policy summary unavailable unless reported by audit API ACCESS REVIEWS · OPEN Unavailable Access review summary unavailable unless reported by audit API RETENTION Unavailable Retention policy not reported Audit trail is steward/admin only Ask a workspace steward or admin to grant audit visibility. All events By users By services Violations Time (UTC) Actor Event Target Evidence No audit events match the current filters"
+    },
+    {
+      "route": "control-center",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/control-center-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/control-center-3037x1269-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Review runtime diagnostics for jobs, integrations, and policy coverage reported by the app. Unsupported controls stay marked unavailable. Control Center is admin-only Ask a workspace admin to grant administration access. Scheduled jobs Lakeflow Jobs powering Atlas JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Schedule unavailable Unavailable Unavailable Lineage collector Schedule unavailable Unavailable Unavailable Quality + freshness check Schedule unavailable Unavailable Unavailable Policy engine evaluator Schedule unavailable Unavailable Unavailable PII classifier Schedule unavailable Unavailable Unavailable Trust score recompute Schedule unavailable Unavailable Unavailable Integrations Unity Catalo"
+    },
+    {
+      "route": "command-center",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/command-center-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/command-center-1536x1024-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/command-center-1536x1024-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 11.4% coverage Atlas AI EXECUTIVE COMMAND CENTER Live Governance posture, at a glance Backed values use live Unity Catalog and governance-store signals; unavailable values are labeled instead of inferred. Export brief Present mode POSTURE 11.4% Trend unavailable THE STATE OF DATAPACT 792 governed assets are in scope. Coverage is 11%. CERTIFIED ASSETS 13 Signal unavailable OPEN EXPOSURES - No authoritative policy-exception signal is available. CDES TRACKED - Lineage proof unavailable WHAT CHANGED TODAY Coverage 11% Coverage signal unavailable Quality SLA - Quality signal unavailable Open exposures - No authoritative policy-exception signal is available. Lineage coverage - Lineage signal unavailable GOVERNANCE COVERAGE 11% Signal unavailable CERTIFIED ASSETS 13 Signal unavailable OPEN"
+    },
+    {
+      "route": "discover",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/discover-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/discover-1536x1024-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/discover-1536x1024-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI CERTIFICATION 792 results Certified 10 In Review 0 Uncertified 0 Trusted 3 DOMAIN Customer 3 Finance 3 Marketing 3 Operations 3 Product 3 Risk 3 CLASSIFICATION Confidential 10 Restricted 4 confidential_customer 3 confidential_model_metrics 2 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed trust signals. Saved searches Advanced Showing 60 of 792 assets Sort: Relevance risk_policy_exception_register datapact.governance_atlas_demo.risk_policy_exception_register Certified 65% 65% Restricted — Aggregated policy-exception register derived from Cotality lien records. ⋮ Open Record Open lineage Cer"
+    },
+    {
+      "route": "stewardship",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/stewardship-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/stewardship-1536x1024-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI STEWARDSHIP WORKBENCH 0 open work items · SLA evidence unavailable Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available. Filter Bulk assign New work item All 0 P1 critical 0 Overdue 0 Assigned to me 0 Work queue 0 items · sorted by available work-item evidence ID ITEM ASSET ASSIGNED SLA PRIORITY -- No work items in this filter Workspace scope Assignee unavailable Evidence unavailable -- Select a work item to review evidence, affected asset, suggested actions, and resolution controls."
+    },
+    {
+      "route": "glossary",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/glossary-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/glossary-1536x1024-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 0 CDE Registry 17 Showing 0 of 0 governed glossary terms HIERARCHY Unavailable Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Glossary term unavailable Source and owner unavailable Unavailable Term, hierarchy, reviewe"
+    },
+    {
+      "route": "cde-registry",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/cde-registry-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/cde-registry-1536x1024-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 0 CDE Registry 17 Showing 5 of 17 CDE registry rows CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Customer Identity Quality Source column unavailable Unassigned Unavailable Unavailable Customer Profile Coverage Source column unavailable Unassigned Unavailable Unavailable Customer Stewardship Queue Source column unavailable Unassigned Unavailable Unavailable Finance Exception Review Source column unavailable Unassigned Unavailable Unavailable Finance Lien Risk Summary Source column unavailable Unassigned Unavailable Unavailable Status and "
+    },
+    {
+      "route": "lineage",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/lineage-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/lineage-1536x1024-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/lineage-1536x1024-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS datapact.governance_atlas_demo.customer_stewardship_queue Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Trusted Freshness unavailable CDEs unavailable Owner: Unavailable 1 upstream · 0 downstream Revenue impact unavailable Column lineage Run impact analysis + - 2 nodes · 1 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 03:21:23 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is"
+    },
+    {
+      "route": "audit",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/audit-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/audit-1536x1024-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/audit-1536x1024-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI AUDIT EVIDENCE Immutable governance event log Audit evidence is unavailable for this workspace. The evidence log structure remains visible so exports, filters, and retention state can fail closed. Date range Generate report Export CSV EVENTS · LOADED Unavailable No scoped event summary reported; showing loaded rows POLICY VIOLATIONS Unavailable Policy summary unavailable unless reported by audit API ACCESS REVIEWS · OPEN Unavailable Access review summary unavailable unless reported by audit API RETENTION Unavailable Retention policy not reported Audit trail is steward/admin only Ask a workspace steward or admin to grant audit visibility. All events By users By services Violations Time (UTC) Actor Event Target Evidence No audit events match the current filters"
+    },
+    {
+      "route": "control-center",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/control-center-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/control-center-1536x1024-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/control-center-1536x1024-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Review runtime diagnostics for jobs, integrations, and policy coverage reported by the app. Unsupported controls stay marked unavailable. Control Center is admin-only Ask a workspace admin to grant administration access. Scheduled jobs Lakeflow Jobs powering Atlas JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Schedule unavailable Unavailable Unavailable Lineage collector Schedule unavailable Unavailable Unavailable Quality + freshness check Schedule unavailable Unavailable Unavailable Policy engine evaluator Schedule unavailable Unavailable Unavailable PII classifier Schedule unavailable Unavailable Unavailable Trust score recompute Schedule unavailable Unavailable Unavailable Integrations Unity Catalo"
+    },
+    {
+      "route": "command-center",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/command-center-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/command-center-1440x900-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/command-center-1440x900-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 11.4% coverage Atlas AI EXECUTIVE COMMAND CENTER Live Governance posture, at a glance Backed values use live Unity Catalog and governance-store signals; unavailable values are labeled instead of inferred. Export brief Present mode POSTURE 11.4% Trend unavailable THE STATE OF DATAPACT 792 governed assets are in scope. Coverage is 11%. CERTIFIED ASSETS 13 Signal unavailable OPEN EXPOSURES - No authoritative policy-exception signal is available. CDES TRACKED - Lineage proof unavailable WHAT CHANGED TODAY Coverage 11% Coverage signal unavailable Quality SLA - Quality signal unavailable Open exposures - No authoritative policy-exception signal is available. Lineage coverage - Lineage signal unavailable GOVERNANCE COVERAGE 11% Signal unavailable CERTIFIED ASSETS 13 Signal unavailable OPEN"
+    },
+    {
+      "route": "discover",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/discover-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/discover-1440x900-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/discover-1440x900-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI CERTIFICATION 792 results Certified 10 In Review 0 Uncertified 0 Trusted 3 DOMAIN Customer 3 Finance 3 Marketing 3 Operations 3 Product 3 Risk 3 CLASSIFICATION Confidential 10 Restricted 4 confidential_customer 3 confidential_model_metrics 2 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed trust signals. Saved searches Advanced Showing 60 of 792 assets Sort: Relevance risk_policy_exception_register datapact.governance_atlas_demo.risk_policy_exception_register Certified 65% 65% Restricted — Aggregated policy-exception register derived from Cotality lien records. ⋮ Open Record Open lineage Cer"
+    },
+    {
+      "route": "stewardship",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/stewardship-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/stewardship-1440x900-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI STEWARDSHIP WORKBENCH 0 open work items · SLA evidence unavailable Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available. Filter Bulk assign New work item All 0 P1 critical 0 Overdue 0 Assigned to me 0 Work queue 0 items · sorted by available work-item evidence ID ITEM ASSET ASSIGNED SLA PRIORITY -- No work items in this filter Workspace scope Assignee unavailable Evidence unavailable -- Select a work item to review evidence, affected asset, suggested actions, and resolution controls."
+    },
+    {
+      "route": "glossary",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/glossary-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/glossary-1440x900-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 0 CDE Registry 17 Showing 0 of 0 governed glossary terms HIERARCHY Unavailable Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Glossary term unavailable Source and owner unavailable Unavailable Term, hierarchy, reviewe"
+    },
+    {
+      "route": "cde-registry",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/cde-registry-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/cde-registry-1440x900-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 0 CDE Registry 17 Showing 5 of 17 CDE registry rows CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Customer Identity Quality Source column unavailable Unassigned Unavailable Unavailable Customer Profile Coverage Source column unavailable Unassigned Unavailable Unavailable Customer Stewardship Queue Source column unavailable Unassigned Unavailable Unavailable Finance Exception Review Source column unavailable Unassigned Unavailable Unavailable Finance Lien Risk Summary Source column unavailable Unassigned Unavailable Unavailable Status and "
+    },
+    {
+      "route": "lineage",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/lineage-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/lineage-1440x900-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/lineage-1440x900-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS datapact.governance_atlas_demo.customer_stewardship_queue Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Trusted Freshness unavailable CDEs unavailable Owner: Unavailable 1 upstream · 0 downstream Revenue impact unavailable Column lineage Run impact analysis + - 2 nodes · 1 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 03:21:23 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is"
+    },
+    {
+      "route": "audit",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/audit-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/audit-1440x900-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/audit-1440x900-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI AUDIT EVIDENCE Immutable governance event log Audit evidence is unavailable for this workspace. The evidence log structure remains visible so exports, filters, and retention state can fail closed. Date range Generate report Export CSV EVENTS · LOADED Unavailable No scoped event summary reported; showing loaded rows POLICY VIOLATIONS Unavailable Policy summary unavailable unless reported by audit API ACCESS REVIEWS · OPEN Unavailable Access review summary unavailable unless reported by audit API RETENTION Unavailable Retention policy not reported Audit trail is steward/admin only Ask a workspace steward or admin to grant audit visibility. All events By users By services Violations Time (UTC) Actor Event Target Evidence No audit events match the current filters"
+    },
+    {
+      "route": "control-center",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/control-center-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/control-center-1440x900-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/control-center-1440x900-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Review runtime diagnostics for jobs, integrations, and policy coverage reported by the app. Unsupported controls stay marked unavailable. Control Center is admin-only Ask a workspace admin to grant administration access. Scheduled jobs Lakeflow Jobs powering Atlas JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Schedule unavailable Unavailable Unavailable Lineage collector Schedule unavailable Unavailable Unavailable Quality + freshness check Schedule unavailable Unavailable Unavailable Policy engine evaluator Schedule unavailable Unavailable Unavailable PII classifier Schedule unavailable Unavailable Unavailable Trust score recompute Schedule unavailable Unavailable Unavailable Integrations Unity Catalo"
+    },
+    {
+      "route": "command-center",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/command-center-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/command-center-1280x720-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/command-center-1280x720-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 11.4% coverage Atlas AI EXECUTIVE COMMAND CENTER Live Governance posture, at a glance Backed values use live Unity Catalog and governance-store signals; unavailable values are labeled instead of inferred. Export brief Present mode POSTURE 11.4% Trend unavailable THE STATE OF DATAPACT 792 governed assets are in scope. Coverage is 11%. CERTIFIED ASSETS 13 Signal unavailable OPEN EXPOSURES - No authoritative policy-exception signal is available. CDES TRACKED - Lineage proof unavailable WHAT CHANGED TODAY Coverage 11% Coverage signal unavailable Quality SLA - Quality signal unavailable Open exposures - No authoritative policy-exception signal is available. Lineage coverage - Lineage signal unavailable GOVERNANCE COVERAGE 11% Signal unavailable CERTIFIED ASSETS 13 Signal unavailable OPEN"
+    },
+    {
+      "route": "discover",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/discover-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/discover-1280x720-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/discover-1280x720-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI CERTIFICATION 792 results Certified 10 In Review 0 Uncertified 0 Trusted 3 DOMAIN Customer 3 Finance 3 Marketing 3 Operations 3 Product 3 Risk 3 CLASSIFICATION Confidential 10 Restricted 4 confidential_customer 3 confidential_model_metrics 2 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed trust signals. Saved searches Advanced Showing 60 of 792 assets Sort: Relevance risk_policy_exception_register datapact.governance_atlas_demo.risk_policy_exception_register Certified 65% 65% Restricted — Aggregated policy-exception register derived from Cotality lien records. ⋮ Open Record Open lineage Cer"
+    },
+    {
+      "route": "stewardship",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/stewardship-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/stewardship-1280x720-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI STEWARDSHIP WORKBENCH 0 open work items · SLA evidence unavailable Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available. Filter Bulk assign New work item All 0 P1 critical 0 Overdue 0 Assigned to me 0 Work queue 0 items · sorted by available work-item evidence ID ITEM ASSET ASSIGNED SLA PRIORITY -- No work items in this filter Workspace scope Assignee unavailable Evidence unavailable -- Select a work item to review evidence, affected asset, suggested actions, and resolution controls."
+    },
+    {
+      "route": "glossary",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/glossary-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/glossary-1280x720-full.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 0 CDE Registry 17 Showing 0 of 0 governed glossary terms HIERARCHY Unavailable Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Hierarchy unavailable Term evidence unavailable No parent or child relationship was returned. Glossary term unavailable Source and owner unavailable Unavailable Term, hierarchy, reviewe"
+    },
+    {
+      "route": "cde-registry",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/cde-registry-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/cde-registry-1280x720-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/cde-registry-1280x720-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 0 CDE Registry 17 Showing 5 of 17 CDE registry rows Customer Identity Quality Source column unavailable Unassigned Unavailable Unavailable Customer Profile Coverage Source column unavailable Unassigned Unavailable Unavailable Customer Stewardship Queue Source column unavailable Unassigned Unavailable Unavailable Finance Exception Review Source column unavailable Unassigned Unavailable Unavailable Finance Lien Risk Summary Source column unavailable Unassigned Unavailable Unavailable Status and recertification are prototype registry fixtures "
+    },
+    {
+      "route": "lineage",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/lineage-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/lineage-1280x720-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/lineage-1280x720-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS datapact.governance_atlas_demo.customer_stewardship_queue Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Trusted Freshness unavailable CDEs unavailable Owner: Unavailable 1 upstream · 0 downstream Revenue impact unavailable Column lineage Run impact analysis + - 2 nodes · 1 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 03:21:23 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is"
+    },
+    {
+      "route": "audit",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/audit-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/audit-1280x720-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/audit-1280x720-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI AUDIT EVIDENCE Immutable governance event log Audit evidence is unavailable for this workspace. The evidence log structure remains visible so exports, filters, and retention state can fail closed. Date range Generate report Export CSV EVENTS · LOADED Unavailable No scoped event summary reported; showing loaded rows POLICY VIOLATIONS Unavailable Policy summary unavailable unless reported by audit API ACCESS REVIEWS · OPEN Unavailable Access review summary unavailable unless reported by audit API RETENTION Unavailable Retention policy not reported Audit trail is steward/admin only Ask a workspace steward or admin to grant audit visibility. All events By users By services Violations Time (UTC) Actor Event Target Evidence No audit events match the current filters"
+    },
+    {
+      "route": "control-center",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/control-center-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/control-center-1280x720-full.png",
+      "mainBottomScreenshot": "docs/northstar_visual_qa/all-routes-live-v416-databricks/control-center-1280x720-main-bottom.png",
+      "shellReady": true,
+      "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI CONTROL CENTER Atlas runtime, integrations, and policy Review runtime diagnostics for jobs, integrations, and policy coverage reported by the app. Unsupported controls stay marked unavailable. Control Center is admin-only Ask a workspace admin to grant administration access. Scheduled jobs Lakeflow Jobs powering Atlas JOB SCHEDULE LAST RUN STATUS UC metadata sweeper Schedule unavailable Unavailable Unavailable Lineage collector Schedule unavailable Unavailable Unavailable Quality + freshness check Schedule unavailable Unavailable Unavailable Policy engine evaluator Schedule unavailable Unavailable Unavailable PII classifier Schedule unavailable Unavailable Unavailable Trust score recompute Schedule unavailable Unavailable Unavailable Integrations Unity Catalo"
+    }
+  ],
+  "interactions": [],
+  "requestFailures": [
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/atlas/audit/evidence?date_range=24h&limit=200",
+      "status": 403
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/atlas/admin/control-center",
+      "status": 403
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/atlas/audit/evidence?date_range=24h&limit=200",
+      "status": 403
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/atlas/admin/control-center",
+      "status": 403
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/atlas/audit/evidence?date_range=24h&limit=200",
+      "status": 403
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/atlas/admin/control-center",
+      "status": 403
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/atlas/audit/evidence?date_range=24h&limit=200",
+      "status": 403
+    },
+    {
+      "method": "GET",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/atlas/admin/control-center",
+      "status": 403
+    }
+  ],
+  "console": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/audit"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/admin"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/audit"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/admin"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/audit"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/admin"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/audit"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 403 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/admin"
+    }
+  ],
+  "pageErrors": [],
+  "checks": {
+    "sourceLiveDatabricks": true,
+    "runtimeLive": true,
+    "buildMatches": true,
+    "deploymentPinned": true,
+    "allCapturesLoaded": true,
+    "routeCoverageComplete": true,
+    "noPageErrors": true,
+    "expectedForbiddenOnly": true,
+    "expectedConsoleErrorsOnly": true,
+    "shellAndFabHandled": true,
+    "commandCenterLabelsUnavailable": true,
+    "stewardshipNoSyntheticRows": true,
+    "glossaryUnavailableShape": true,
+    "cdeUnavailableShape": true,
+    "lineageUnavailableLabels": true,
+    "auditUnavailableShape": true,
+    "controlCenterAdminOnlyShape": true
+  }
+}

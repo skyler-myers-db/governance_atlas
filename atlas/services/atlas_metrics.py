@@ -9,6 +9,9 @@ unavailable so callers can render degraded states truthfully.
 from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass
+import datetime as dt
+import math
+from numbers import Integral, Real
 from typing import Any, Dict, Iterable, List, Mapping, Sequence
 
 import pandas as pd
@@ -51,6 +54,28 @@ def _safe_count(df: pd.DataFrame | None) -> int:
         return int(len(df.index))
     except Exception:
         return 0
+
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {str(key): _json_safe(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, pd.Timestamp):
+        return None if pd.isna(value) else value.isoformat()
+    if isinstance(value, (dt.datetime, dt.date)):
+        return value.isoformat()
+    if isinstance(value, Integral) and not isinstance(value, bool):
+        return int(value)
+    if isinstance(value, Real) and not isinstance(value, bool):
+        numeric = float(value)
+        return numeric if math.isfinite(numeric) else None
+    try:
+        if value is not None and pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+    return value
 
 
 def _text(value: Any) -> str:
@@ -99,7 +124,7 @@ def _records(df: Any, limit: int = 200) -> List[Dict[str, Any]]:
         return []
     rows: List[Dict[str, Any]] = []
     for _, row in frame.head(max(0, int(limit))).iterrows():
-        rows.append({str(key): value for key, value in row.to_dict().items()})
+        rows.append({str(key): _json_safe(value) for key, value in row.to_dict().items()})
     return rows
 
 
@@ -162,7 +187,7 @@ def owner_count_for_row(row: Mapping[str, Any]) -> int:
 
 def metadata_coverage_for_row(row: Mapping[str, Any] | pd.Series) -> float:
     row_map = _row_dict(row)
-    total = 6
+    total = 7
     present = 0
 
     if _has_value(_row_value(row_map, "comment", "description")):
@@ -173,6 +198,7 @@ def metadata_coverage_for_row(row: Mapping[str, Any] | pd.Series) -> float:
         ("certification",),
         ("sensitivity",),
         ("criticality", "business_criticality", "businessCriticality"),
+        ("data_product", "dataProduct"),
     ):
         if _has_value(_row_value(row_map, *key_group)):
             present += 1
@@ -302,10 +328,23 @@ def _recent_events(audit_rows: Sequence[Mapping[str, Any]], limit: int = 8) -> L
     events: List[Dict[str, Any]] = []
     for row in list(audit_rows)[:limit]:
         status = _lower(row.get("status"))
+        action = _text(row.get("action"))
+        event_text = " ".join(
+            _lower(row.get(key))
+            for key in ("action", "detail", "entity_fqn", "source", "status")
+        )
+        priority = ""
+        severity = ""
+        if status == "failed" or any(
+            token in event_text
+            for token in ("policy exception", "critical", "p0", "p1", "high priority")
+        ):
+            priority = "high"
+            severity = "high"
         events.append(
             {
                 "id": _text(row.get("audit_id")) or _text(row.get("id")),
-                "title": _text(row.get("action")) or "Metadata event",
+                "title": _event_title(action),
                 "detail": _text(row.get("detail"))
                 or _text(row.get("entity_fqn"))
                 or _text(row.get("entity_id")),
@@ -313,9 +352,124 @@ def _recent_events(audit_rows: Sequence[Mapping[str, Any]], limit: int = 8) -> L
                 "actorEmail": _text(row.get("actor_email")) or _text(row.get("actorEmail")),
                 "tone": "bad" if status == "failed" else "info",
                 "status": _text(row.get("status")) or "Success",
+                "priority": priority,
+                "severity": severity,
             }
         )
     return events
+
+
+def _timestamp(value: Any) -> pd.Timestamp | None:
+    if not _has_value(value):
+        return None
+    try:
+        ts = pd.to_datetime(value, utc=True, errors="coerce")
+    except Exception:
+        return None
+    if pd.isna(ts):
+        return None
+    return ts
+
+
+def _series_anchor(timestamps: Sequence[pd.Timestamp]) -> pd.Timestamp:
+    values = [ts for ts in timestamps if ts is not None]
+    if values:
+        return max(values)
+    return pd.Timestamp.utcnow()
+
+
+def _sparkline_points(anchor: pd.Timestamp, *, days: int = 30, buckets: int = 6) -> List[pd.Timestamp]:
+    start = anchor - pd.Timedelta(days=days)
+    if buckets <= 1:
+        return [anchor]
+    step = pd.Timedelta(days=days) / (buckets - 1)
+    return [start + step * index for index in range(buckets)]
+
+
+def _format_delta(delta: int, *, suffix: str = "vs 30 days ago") -> str:
+    if delta > 0:
+        return f"+{delta} {suffix}"
+    if delta < 0:
+        return f"-{abs(delta)} {suffix}"
+    return f"0 {suffix}"
+
+
+def _open_request_trend(request_rows: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+    rows = list(request_rows)
+    if not rows:
+        return {}
+    timestamps: List[pd.Timestamp] = []
+    prepared: List[tuple[pd.Timestamp | None, pd.Timestamp | None, str]] = []
+    for row in rows:
+        created = _timestamp(row.get("created_at") or row.get("createdAt"))
+        closed = _timestamp(row.get("reviewed_at") or row.get("reviewedAt") or row.get("updated_at") or row.get("updatedAt"))
+        if created is not None:
+            timestamps.append(created)
+        if closed is not None:
+            timestamps.append(closed)
+        prepared.append((created, closed, _lower(row.get("status"))))
+    if not timestamps:
+        return {}
+    anchor = _series_anchor(timestamps)
+    points = _sparkline_points(anchor)
+
+    def count_open(point: pd.Timestamp) -> int:
+        count = 0
+        for created, closed, status in prepared:
+            if created is None or created > point:
+                continue
+            if status in {"approved", "rejected", "closed", "resolved", "cancelled", "canceled"} and closed is not None and closed <= point:
+                continue
+            if status in {"approved", "rejected", "closed", "resolved", "cancelled", "canceled"} and closed is None:
+                continue
+            count += 1
+        return count
+
+    sparkline = [count_open(point) for point in points]
+    delta = sparkline[-1] - sparkline[0]
+    return {
+        "sparkline": sparkline,
+        "delta": _format_delta(delta),
+        "deltaTone": "bad" if delta > 0 else "good" if delta < 0 else "warn",
+    }
+
+
+def _policy_exception_trend(
+    request_rows: Sequence[Mapping[str, Any]],
+    audit_rows: Sequence[Mapping[str, Any]],
+) -> Dict[str, Any]:
+    events: List[pd.Timestamp] = []
+    for row in [*request_rows, *audit_rows]:
+        if _policy_exception_count([row], []) <= 0 and _policy_exception_count([], [row]) <= 0:
+            continue
+        ts = _timestamp(row.get("created_at") or row.get("createdAt") or row.get("updated_at") or row.get("updatedAt"))
+        if ts is not None:
+            events.append(ts)
+    if not events:
+        return {}
+    anchor = _series_anchor(events)
+    points = _sparkline_points(anchor)
+    sparkline = [sum(1 for ts in events if ts <= point) for point in points]
+    delta = sparkline[-1] - sparkline[0]
+    return {
+        "sparkline": sparkline,
+        "delta": _format_delta(delta),
+        "deltaTone": "warn",
+    }
+
+
+def _event_title(action: str) -> str:
+    text = _text(action)
+    if not text:
+        return "Metadata Event"
+    words = [
+        word
+        for word in text.replace("_", "-").replace("/", "-").split("-")
+        if word.strip()
+    ]
+    if not words:
+        return text
+    return " ".join(word.capitalize() for word in words)
 
 
 def _domain_summary(assets_df: pd.DataFrame) -> List[Dict[str, Any]]:
@@ -380,6 +534,121 @@ def _coverage_heatmap(domain_summary: Sequence[Mapping[str, Any]]) -> List[Dict[
                 }
             )
     return cells
+
+
+def _tier_label(value: Any) -> str:
+    text = _text(value)
+    lower = text.lower()
+    if lower in {"tier 1", "t1", "tier-1", "business critical", "critical"}:
+        return "Tier 1 - Business Critical"
+    if lower in {"tier 2", "t2", "tier-2", "important", "high"}:
+        return "Tier 2 - Important"
+    if lower in {"tier 3", "t3", "tier-3", "supporting", "medium"}:
+        return "Tier 3 - Supporting"
+    if lower in {"tier 4", "t4", "tier-4", "other", "low"}:
+        return "Tier 4 - Other"
+    return text
+
+
+def _tier_order(label: str) -> tuple[int, str]:
+    lower = label.lower()
+    if "tier 1" in lower:
+        return (1, label)
+    if "tier 2" in lower:
+        return (2, label)
+    if "tier 3" in lower:
+        return (3, label)
+    if "tier 4" in lower:
+        return (4, label)
+    return (9, label)
+
+
+def _certification_coverage_by_tier(assets_df: pd.DataFrame) -> List[Dict[str, Any]]:
+    if assets_df.empty:
+        return []
+    buckets: Dict[str, Dict[str, int]] = {}
+    has_tier_signal = False
+    for _, row in assets_df.iterrows():
+        row_map = row.to_dict()
+        tier_value = _row_value(row_map, "tier", "criticality", "business_criticality", "businessCriticality")
+        if not _has_value(tier_value):
+            continue
+        has_tier_signal = True
+        label = _tier_label(tier_value)
+        bucket = buckets.setdefault(label, {"certified": 0, "total": 0})
+        bucket["total"] += 1
+        if _is_certified(row_map):
+            bucket["certified"] += 1
+    if not has_tier_signal:
+        return []
+    rows: List[Dict[str, Any]] = []
+    for label, counts in buckets.items():
+        total = counts["total"]
+        value = round((counts["certified"] / total) * 100, 1) if total else 0.0
+        rows.append(
+            {
+                "tier": label,
+                "label": label,
+                "value": value,
+                "certified": counts["certified"],
+                "total": total,
+            }
+        )
+    rows.sort(key=lambda item: _tier_order(_text(item.get("label"))))
+    return rows
+
+
+def _risk_impact_label(row: Mapping[str, Any]) -> str:
+    value = _lower(_row_value(row, "criticality", "business_criticality", "businessCriticality", "tier"))
+    if value in {"critical", "mission critical", "business critical", "tier 1", "t1"}:
+        return "Very High"
+    if value in {"high", "tier 2", "t2", "important"}:
+        return "High"
+    if value in {"medium", "tier 3", "t3", "supporting"}:
+        return "Medium"
+    if value in {"low", "tier 4", "t4", "other"}:
+        return "Low"
+    return "Very Low"
+
+
+def _risk_likelihood_label(metadata_gap: float) -> str:
+    if metadata_gap >= 80:
+        return "Very High"
+    if metadata_gap >= 60:
+        return "High"
+    if metadata_gap >= 40:
+        return "Medium"
+    if metadata_gap >= 20:
+        return "Low"
+    return "Very Low"
+
+
+def _risk_heatmap(assets_df: pd.DataFrame) -> List[Dict[str, Any]]:
+    if assets_df.empty:
+        return []
+    has_criticality_signal = False
+    counts: Dict[tuple[str, str], int] = {}
+    for _, row in assets_df.iterrows():
+        row_map = row.to_dict()
+        if not _has_value(_row_value(row_map, "criticality", "business_criticality", "businessCriticality", "tier")):
+            continue
+        has_criticality_signal = True
+        impact = _risk_impact_label(row_map)
+        likelihood = _risk_likelihood_label(100.0 - metadata_coverage_for_row(row_map))
+        counts[(impact, likelihood)] = counts.get((impact, likelihood), 0) + 1
+    if not has_criticality_signal:
+        return []
+    return [
+        {
+            "row": impact,
+            "impact": impact,
+            "column": likelihood,
+            "likelihood": likelihood,
+            "value": count,
+            "count": count,
+        }
+        for (impact, likelihood), count in sorted(counts.items())
+    ]
 
 
 def _estate_from_assets(
@@ -450,6 +719,12 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
     audit, audit_available, audit_reason = _audit_rows_with_state(store, limit=50)
     policy_exception_signal = _policy_exception_signal(all_requests, audit)
     policy_exceptions = policy_exception_signal["value"]
+    open_request_trend = _open_request_trend(all_requests) if requests_available else {}
+    policy_exception_trend = (
+        _policy_exception_trend(all_requests, audit)
+        if requests_available or audit_available
+        else {}
+    )
     audit_readiness = None
     domains = _domain_summary(assets_df)
     posture_overall = None
@@ -462,7 +737,7 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
         if warning
     ]
 
-    return {
+    payload = {
         "estate": _estate_from_assets(
             assets_df,
             open_requests=open_requests,
@@ -502,6 +777,7 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
                 "format": "number",
                 "state": "available" if requests_available else "unavailable",
                 "reason": "" if requests_available else "Governance request source is unavailable.",
+                **open_request_trend,
             },
             {
                 "key": "policyExceptions",
@@ -510,6 +786,7 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
                 "format": "number",
                 "state": policy_exception_signal["state"],
                 "reason": policy_exception_signal["reason"],
+                **policy_exception_trend,
             },
             {
                 "key": "auditReadiness",
@@ -569,6 +846,7 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
             "warnings": source_warnings,
         },
     }
+    return _json_safe(payload)
 
 
 def asset_360_payload(
@@ -688,7 +966,7 @@ def _request_record(row: Mapping[str, Any]) -> Dict[str, Any]:
         "id": request_id,
         "title": title.split(":", 1)[0] if ":" in title else title,
         "detail": note,
-        "type": _text(row.get("request_type")) or _text(row.get("type")) or "metadata_change",
+        "type": _text(row.get("request_type")) or _text(row.get("type")),
         "priority": _text(row.get("priority")),
         "status": status.title(),
         "requester": _text(row.get("created_by")) or _text(row.get("requester")),
@@ -711,10 +989,15 @@ def governance_workbench_payload(*, store: Any, selected_request_id: str | None 
     ]
     policy_exceptions = [
         row
-        for row in requests
+        for row in open_requests
         if "policy" in _lower(row.get("title")) and "exception" in _lower(row.get("title"))
     ]
-    selected_id = selected_request_id or (requests[0]["requestId"] if requests else "")
+    open_request_ids = {_text(row.get("requestId")) for row in open_requests}
+    selected_id = (
+        selected_request_id
+        if selected_request_id and selected_request_id in open_request_ids
+        else (open_requests[0]["requestId"] if open_requests else "")
+    )
     selected = governance_request_detail_payload(store=store, request_id=selected_id) if selected_id else None
     return {
         "metrics": [
@@ -723,7 +1006,7 @@ def governance_workbench_payload(*, store: Any, selected_request_id: str | None 
             {"key": "policyExceptions", "label": "Policy Exceptions", "value": len(policy_exceptions)},
             {"key": "slaPerformance", "label": "SLA Performance", "value": None, "state": "unavailable"},
         ],
-        "requests": requests,
+        "requests": open_requests,
         "selectedRequest": selected,
     }
 
@@ -773,7 +1056,9 @@ def governance_request_detail_payload(*, store: Any, request_id: str) -> Dict[st
             },
         ],
         "comments": [],
+        "commentsState": "unavailable",
         "evidence": [],
+        "evidenceState": "unavailable",
     }
 
 
@@ -787,14 +1072,11 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
     certification_coverage = round((certified / total_assets) * 100, 1) if total_assets else 0.0
     ownership_coverage = round((owner_covered / total_assets) * 100, 1) if total_assets else 0.0
     audit = _audit_rows(store, limit=100)
-    audit_readiness = 100.0 if audit else None
+    audit_readiness = None
     quality_df = _call_store(store, "list_quality_run_results", limit=1000)
-    quality_available = isinstance(quality_df, pd.DataFrame)
     quality_health = None
     policy_compliance = None
-    policy_exceptions = _policy_exception_count(_change_requests(store, limit=200), audit)
-    if policy_exceptions == 0 and total_assets:
-        policy_compliance = 100.0
+    policy_exception_signal = _policy_exception_signal(_change_requests(store, limit=200), audit)
 
     weighted_signals = [
         ("metadataCoverage", 0.30, metadata_coverage),
@@ -834,17 +1116,24 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
     return {
         "kpis": [
             {"key": "maturity", "label": "Governance Maturity Score", "value": maturity, "format": "score"},
-            {"key": "policyCompliance", "label": "Policy Compliance", "value": policy_compliance, "format": "percent", "state": "available" if policy_compliance is not None else "unavailable"},
+            {"key": "policyCompliance", "label": "Policy Compliance", "value": policy_compliance, "format": "percent", "state": "unavailable", "reason": "No authoritative policy-compliance evaluation source is configured."},
             {"key": "resolutionDays", "label": "Time to Resolution (P1)", "value": None, "state": "unavailable"},
             {"key": "certifiedAssets", "label": "Certified Assets", "value": certified},
-            {"key": "criticalExceptions", "label": "Critical Policy Exceptions", "value": policy_exceptions},
+            {
+                "key": "criticalExceptions",
+                "label": "Critical Policy Exceptions",
+                "value": policy_exception_signal["value"],
+                "state": policy_exception_signal["state"],
+                "reason": policy_exception_signal["reason"],
+                "source": "governance-request-and-audit-text" if policy_exception_signal["state"] == "degraded" else "",
+            },
             {"key": "metadataCoverage", "label": "Metadata Coverage", "value": metadata_coverage, "format": "percent"},
         ],
         "policyComplianceTrend": [],
         "resolutionTrend": [],
         "metadataCoverageHeatmap": _coverage_heatmap(domains),
-        "certificationCoverageByTier": [],
-        "riskHeatmap": [],
+        "certificationCoverageByTier": _certification_coverage_by_tier(assets_df),
+        "riskHeatmap": _risk_heatmap(assets_df),
         "domainLeaderboard": domains,
         "recommendations": recommendations,
         "scoring": {
@@ -857,16 +1146,38 @@ def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> D
             ],
         },
         "signalAvailability": {
-            "quality": quality_available,
+            "quality": quality_health is not None,
+            "qualityRowsAvailable": isinstance(quality_df, pd.DataFrame),
             "audit": bool(audit),
+            "auditReadiness": audit_readiness is not None,
+            "policyCompliance": policy_compliance is not None,
+            "policyExceptions": policy_exception_signal["state"],
         },
     }
 
 
-def taxonomy_overview_payload(*, store: Any) -> Dict[str, Any]:
-    glossary = _records(_call_store(store, "list_glossary_terms", limit=500), limit=500)
+def taxonomy_overview_payload(
+    *,
+    store: Any,
+    glossary_terms: Sequence[Mapping[str, Any]] | None = None,
+) -> Dict[str, Any]:
+    glossary = (
+        _records(pd.DataFrame(list(glossary_terms)), limit=500)
+        if glossary_terms is not None
+        else _records(_call_store(store, "list_glossary_terms", limit=500), limit=500)
+    )
+    classifications = _records(_call_store(store, "list_classifications"), limit=500)
+    classification_terms: List[Dict[str, Any]] = []
+    for classification in classifications:
+        classification_id = _row_text(classification, "classification_id", "classificationId", "id")
+        if not classification_id:
+            continue
+        classification_terms.extend(
+            _records(_call_store(store, "list_classification_terms", classification_id), limit=500)
+        )
     return {
-        "classifications": _records(_call_store(store, "list_classifications"), limit=500),
+        "classifications": classifications,
+        "classificationTerms": classification_terms[:500],
         "domains": _records(_call_store(store, "list_domains"), limit=500),
         "dataProducts": _records(_call_store(store, "list_data_products"), limit=500),
         "columnGroups": _records(_call_store(store, "list_logical_column_groups"), limit=500),
@@ -944,7 +1255,8 @@ def cde_dashboard_payload(*, visible_assets: pd.DataFrame) -> Dict[str, Any]:
     return {
         "summary": {
             "totalCdes": len(items),
-            "protectedCdes": len(protected),
+            "protectedCdes": None,
+            "sensitiveCandidates": len(protected),
             "overdueReviews": None,
             "domainsCovered": len(grouped),
         },
@@ -974,8 +1286,62 @@ def cde_detail_payload(*, visible_assets: pd.DataFrame, cde_id: str) -> Dict[str
     return None
 
 
-def audit_evidence_payload(*, store: Any, audit_id: str | None = None, limit: int = 200) -> Dict[str, Any]:
-    audit = _audit_rows(store, limit=limit)
+def _audit_window_start(date_range: str | None) -> pd.Timedelta | None:
+    value = _lower(date_range)
+    if value in {"24h", "1d"}:
+        return pd.Timedelta(hours=24)
+    if value in {"7d", "1w"}:
+        return pd.Timedelta(days=7)
+    if value in {"30d", "1m"}:
+        return pd.Timedelta(days=30)
+    return None
+
+
+def _filter_audit_rows_by_range(rows: Sequence[Mapping[str, Any]], date_range: str | None) -> List[Dict[str, Any]]:
+    window = _audit_window_start(date_range)
+    if window is None:
+        return [dict(row) for row in rows]
+    now = pd.Timestamp.utcnow()
+    cutoff = now - window
+    filtered: List[Dict[str, Any]] = []
+    for row in rows:
+        timestamp = _timestamp(row.get("created_at") or row.get("createdAt") or row.get("updated_at") or row.get("updatedAt"))
+        if timestamp is not None and timestamp >= cutoff:
+            filtered.append(dict(row))
+    return filtered
+
+
+def _filter_audit_rows_by_visible_assets(
+    rows: Sequence[Mapping[str, Any]],
+    visible_asset_fqns: Sequence[str] | None,
+) -> List[Dict[str, Any]]:
+    if visible_asset_fqns is None:
+        return [dict(row) for row in rows]
+    visible_keys = {_lower(value) for value in visible_asset_fqns if _has_value(value)}
+    filtered: List[Dict[str, Any]] = []
+    for row in rows:
+        entity_fqn = _text(
+            row.get("entity_fqn")
+            or row.get("entityFqn")
+            or row.get("asset_fqn")
+            or row.get("assetFqn")
+        )
+        if entity_fqn and _lower(entity_fqn) not in visible_keys:
+            continue
+        filtered.append(dict(row))
+    return filtered
+
+
+def audit_evidence_payload(
+    *,
+    store: Any,
+    audit_id: str | None = None,
+    date_range: str | None = None,
+    limit: int = 200,
+    visible_asset_fqns: Sequence[str] | None = None,
+) -> Dict[str, Any]:
+    ranged_audit = _filter_audit_rows_by_range(_audit_rows(store, limit=limit), date_range)
+    audit = _filter_audit_rows_by_visible_assets(ranged_audit, visible_asset_fqns)
     selected = None
     if audit_id:
         selected = next((row for row in audit if _text(row.get("audit_id")) == _text(audit_id)), None)
@@ -987,9 +1353,13 @@ def audit_evidence_payload(*, store: Any, audit_id: str | None = None, limit: in
     return {
         "summary": {
             "totalChanges": len(audit),
+            "dateRange": _text(date_range),
             "policyChanges": len(policy),
             "approvals": len(approvals),
             "failedActions": len(failed),
+            "summarySource": "metadata-audit rows",
+            "rowScope": "visible-assets" if visible_asset_fqns is not None else "metadata-audit rows",
+            "hiddenRowsExcluded": max(0, len(ranged_audit) - len(audit)),
         },
         "events": audit,
         "selectedEvent": selected,
@@ -1005,32 +1375,210 @@ def audit_evidence_payload(*, store: Any, audit_id: str | None = None, limit: in
     }
 
 
-def admin_control_center_payload(*, visible_assets: pd.DataFrame, store: Any, runtime: Mapping[str, Any] | None = None) -> Dict[str, Any]:
+def _admin_policy_requirements(command: Mapping[str, Any]) -> Dict[str, Any]:
+    policy_kpi = next(
+        (
+            item
+            for item in command.get("kpis", [])
+            if isinstance(item, Mapping) and item.get("key") == "policyExceptions"
+        ),
+        {},
+    )
+    exception_value = policy_kpi.get("value")
+    exception_state = _text(policy_kpi.get("state")) or ("available" if exception_value is not None else "unavailable")
+    unavailable_reason = "No authoritative policy library or control-enforcement source is configured."
+    cards = [
+        {"key": "totalPolicies", "label": "Total Policies", "value": None, "state": "unavailable", "reason": unavailable_reason},
+        {"key": "requiredPolicies", "label": "Required Policies", "value": None, "state": "unavailable", "reason": unavailable_reason},
+        {"key": "enforcedPolicies", "label": "Enforced Policies", "value": None, "state": "unavailable", "reason": unavailable_reason},
+        {"key": "atRisk", "label": "At Risk", "value": None, "state": "unavailable", "reason": unavailable_reason},
+        {
+            "key": "exceptions",
+            "label": "Exceptions",
+            "value": exception_value,
+            "state": exception_state,
+            "reason": _text(policy_kpi.get("reason")) or "Derived only from backed policy-exception audit/request text.",
+        },
+    ]
+    by_domain = [
+        {
+            "domain": _text(row.get("domain") or row.get("label")) or "Unassigned",
+            "required": None,
+            "enforced": None,
+            "coverage": None,
+            "trend": [],
+            "state": "unavailable",
+            "metadataCoverage": row.get("score", row.get("value")),
+            "assetCount": row.get("assetCount"),
+            "reason": unavailable_reason,
+        }
+        for row in command.get("posture", {}).get("byDomain", [])[:5]
+        if isinstance(row, Mapping)
+    ]
+    return {
+        "cards": cards,
+        "byDomain": by_domain,
+        "compliance": {
+            "score": None,
+            "state": "unavailable",
+            "reason": unavailable_reason,
+            "segments": [
+                {"key": "compliant", "label": "Compliant", "value": None, "state": "unavailable"},
+                {"key": "atRisk", "label": "At Risk", "value": None, "state": "unavailable"},
+                {"key": "nonCompliant", "label": "Non-Compliant", "value": None, "state": "unavailable"},
+            ],
+        },
+        "capabilities": {
+            "policyLibrary": False,
+            "policyCoverage": False,
+            "controlEnforcement": False,
+        },
+    }
+
+
+def _admin_access_summary(store: Any) -> Dict[str, Any]:
+    roles_df = _safe_df(_call_store(store, "list_roles"))
+    identities_df = _safe_df(_call_store(store, "list_identity_directory_entries", active_only=True))
+    identity_available = not identities_df.empty
+    roles_available = not roles_df.empty
+
+    def principal_count(*types: str) -> int | None:
+        if not identity_available or "principal_type" not in identities_df.columns:
+            return None
+        wanted = {item.lower() for item in types}
+        return int(
+            identities_df["principal_type"]
+            .fillna("")
+            .astype(str)
+            .str.lower()
+            .isin(wanted)
+            .sum()
+        )
+
+    return {
+        "users": {"value": principal_count("user"), "state": "available" if identity_available else "unavailable"},
+        "roles": {"value": int(len(roles_df.index)) if roles_available else None, "state": "available" if roles_available else "unavailable"},
+        "groups": {"value": principal_count("group"), "state": "available" if identity_available else "unavailable"},
+        "apiClients": {"value": principal_count("service_principal", "api_client"), "state": "available" if identity_available else "unavailable"},
+        "sso": {"value": None, "state": "unavailable", "reason": "SSO configuration is not exposed by the current runtime diagnostics."},
+        "mfa": {"value": None, "state": "unavailable", "reason": "MFA requirements are not exposed by the current runtime diagnostics."},
+    }
+
+
+def _admin_runtime_summary(runtime: Mapping[str, Any] | None, *, ai_status: Mapping[str, Any] | None = None) -> Dict[str, Any]:
+    runtime = runtime or {}
+    client = runtime.get("client") if isinstance(runtime.get("client"), Mapping) else {}
+    return {
+        "state": _text(runtime.get("state")) or "unavailable",
+        "message": _text(runtime.get("message")),
+        "catalogCount": runtime.get("catalogCount"),
+        "authMode": _text(client.get("authMode") or client.get("authType")),
+        "warehouseId": _text(client.get("warehouseId")),
+        "workspaceId": _text(client.get("workspaceId")),
+        "host": _text(client.get("host")),
+        "ai": {
+            "provider": _text(ai_status.get("provider") if ai_status else ""),
+            "state": _text(ai_status.get("state") if ai_status else "") or "unavailable",
+            "spaceId": _text(ai_status.get("spaceId") if ai_status else ""),
+        },
+    }
+
+
+def _admin_integrations(
+    *,
+    visible_asset_count: int | None,
+    audit_rows: Sequence[Mapping[str, Any]],
+    pending_requests: Sequence[Mapping[str, Any]],
+    ai_status: Mapping[str, Any] | None = None,
+) -> List[Dict[str, Any]]:
+    ai_state = _text(ai_status.get("state") if ai_status else "") or "unavailable"
+    return [
+        {
+            "key": "unityCatalog",
+            "label": "Unity Catalog",
+            "subtitle": "Workspace inventory",
+            "state": "connected" if visible_asset_count is not None else "unavailable",
+            "health": "Healthy" if visible_asset_count is not None else "Unavailable",
+        },
+        {
+            "key": "lineageService",
+            "label": "Lineage Service",
+            "subtitle": "Unity Catalog lineage",
+            "state": "unavailable",
+            "health": "Unavailable",
+            "reason": "Dedicated lineage service health is not exposed by the current Admin payload.",
+        },
+        {
+            "key": "aiCopilot",
+            "label": "AI Copilot",
+            "subtitle": "Atlas AI Genie",
+            "state": "connected" if ai_state == "available" else ai_state,
+            "health": "Healthy" if ai_state == "available" else "Unavailable",
+        },
+        {
+            "key": "notifications",
+            "label": "Notifications",
+            "subtitle": "In-app delivery",
+            "state": "unavailable",
+            "health": "Unavailable",
+            "reason": "Notification delivery health is not exposed by the current Admin payload.",
+        },
+    ]
+
+
+def admin_control_center_payload(
+    *,
+    visible_assets: pd.DataFrame,
+    store: Any,
+    runtime: Mapping[str, Any] | None = None,
+    environment: Mapping[str, Any] | None = None,
+    actor_role: str | None = None,
+    ai_status: Mapping[str, Any] | None = None,
+) -> Dict[str, Any]:
     command = command_center_payload(visible_assets=visible_assets, store=store)
     audit = _audit_rows(store, limit=10)
+    pending_requests = command.get("governance", {}).get("pendingRequests", [])
+    visible_asset_count = command.get("estate", {}).get("visibleAssetCount")
     return {
         "coverage": {
             "metadataCoverage": command["estate"]["coverageScore"],
             "byDomain": command["posture"]["byDomain"],
         },
+        "environment": dict(environment or {}),
+        "role": {
+            "value": _text(actor_role) or "unavailable",
+            "label": "Platform Admin" if _lower(actor_role) == "admin" else (_text(actor_role).title() if actor_role else "Unavailable"),
+            "state": "available" if actor_role else "unavailable",
+        },
+        "policyRequirements": _admin_policy_requirements(command),
         "branding": {
             "companyName": "Entrada",
             "productName": "Governance Atlas",
+            "logo": "entrada-wordmark.svg",
+            "primaryColor": "#35b7ff",
+            "accentColor": "#22c5d5",
+            "theme": "Dark (Default)",
+            "favicon": "app default",
+            "editable": False,
+            "reason": "Brand editing is not backed by a persisted settings API yet.",
         },
-        "bulkImport": {"state": "unavailable", "message": "Bulk import status is available from the admin import endpoints."},
-        "integrations": [
-            {
-                "key": "unityCatalog",
-                "label": "Unity Catalog",
-                "state": "connected" if command["estate"]["visibleAssetCount"] is not None else "unavailable",
-            },
-            {
-                "key": "governanceStore",
-                "label": "Governance Store",
-                "state": "connected" if audit or command["governance"]["pendingRequests"] else "unavailable",
-            },
-        ],
-        "system": dict(runtime or {}),
+        "bulkImport": {
+            "state": "unavailable",
+            "message": "Bulk import status is available only when backed import jobs are recorded.",
+            "uploadStatus": None,
+            "validationSummary": {"total": None, "valid": None, "warnings": None, "errors": None},
+            "history": [],
+            "reportAvailable": False,
+        },
+        "integrations": _admin_integrations(
+            visible_asset_count=visible_asset_count,
+            audit_rows=audit,
+            pending_requests=pending_requests,
+            ai_status=ai_status,
+        ),
+        "access": _admin_access_summary(store),
+        "runtimeSummary": _admin_runtime_summary(runtime, ai_status=ai_status),
+        "system": _admin_runtime_summary(runtime, ai_status=ai_status),
         "recentAdminActivity": _recent_events(audit, limit=5),
     }
 
@@ -1231,6 +1779,39 @@ def _recent_change_recommendations(store: Any) -> List[Dict[str, Any]]:
     return recommendations
 
 
+def _merge_recommendation_sets(
+    recommendation_sets: Sequence[Sequence[Mapping[str, Any]]],
+    *,
+    limit: int = 3,
+) -> List[Dict[str, Any]]:
+    merged: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for recommendations in recommendation_sets:
+        for recommendation in recommendations:
+            title = _text(recommendation.get("title"))
+            detail = _text(recommendation.get("detail"))
+            evidence_key = "|".join(
+                ":".join(
+                    [
+                        _text(evidence.get("type")),
+                        _text(evidence.get("id")),
+                        _text(evidence.get("metric")),
+                        _text(evidence.get("value")),
+                    ]
+                )
+                for evidence in recommendation.get("evidence", [])
+                if isinstance(evidence, Mapping)
+            )
+            key = "|".join(part for part in (title.lower(), detail.lower(), evidence_key.lower()) if part)
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            merged.append(dict(recommendation))
+            if len(merged) >= limit:
+                return merged
+    return merged
+
+
 def build_ai_recommendations(*, visible_assets: pd.DataFrame, store: Any, question: str = "") -> Dict[str, Any]:
     command = command_center_payload(visible_assets=visible_assets, store=store)
     assets_df = _safe_df(visible_assets)
@@ -1286,9 +1867,9 @@ def build_ai_recommendations(*, visible_assets: pd.DataFrame, store: Any, questi
         certification_recommendations, certification_answer, certification_supported = _critical_certification_recommendations(assets_df)
         if certification_supported:
             candidate_sets.insert(1, certification_recommendations)
-        for recommendations in candidate_sets:
-            if recommendations:
-                return _ai_response(question=question, intent=intent, recommendations=recommendations)
+        merged_recommendations = _merge_recommendation_sets(candidate_sets, limit=3)
+        if merged_recommendations:
+            return _ai_response(question=question, intent=intent, recommendations=merged_recommendations)
         if certification_answer:
             warnings.append(certification_answer)
         return _ai_response(

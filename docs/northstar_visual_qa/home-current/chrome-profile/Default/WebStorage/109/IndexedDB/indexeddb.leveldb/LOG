@@ -1,6 +1,0 @@
-2026/04/17-16:04:33.338 9222 Creating DB /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/109/IndexedDB/indexeddb.leveldb since it was missing.
-2026/04/17-16:04:33.340 9222 Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/WebStorage/109/IndexedDB/indexeddb.leveldb/MANIFEST-000001
-2026/04/17-16:45:57.636 9220 Level-0 table #5: started
-2026/04/17-16:45:57.638 9220 Level-0 table #5: 1363 bytes OK
-2026/04/17-16:45:57.639 9220 Delete type=0 #3
-2026/04/17-16:45:57.640 9220 Manual compaction at level-0 from (begin) .. (end); will stop at (end)

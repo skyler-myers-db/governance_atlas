@@ -50,8 +50,8 @@ function summaryForAsset(
 }
 
 export function useSeededAssetContext(assetFqn, bootstrap, discoveryAssets = [], options = {}) {
-  const bootstrapAssets = bootstrap?.assets || [];
-  const bootstrapIndex = bootstrap?.assetIndex || {};
+  const bootstrapAssets = useMemo(() => bootstrap?.assets || [], [bootstrap?.assets]);
+  const bootstrapIndex = useMemo(() => bootstrap?.assetIndex || {}, [bootstrap?.assetIndex]);
   const allowFallback = options?.allowFallback !== false;
 
   const summary = useMemo(

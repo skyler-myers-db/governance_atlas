@@ -101,6 +101,29 @@ class RuntimeRouteServingTests(unittest.TestCase):
         shell_response.assert_called_once_with(request)
         self.assertEqual(response, "shell-response")
 
+    def test_client_route_shell_serves_active_prototype_paths(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = object()
+        prototype_paths = [
+            "command-center",
+            "discover",
+            "stewardship",
+            "glossary-cdes",
+            "glossary-cdes?tab=cdes",
+            "lineage-atlas/finance_prod.curated.revenue_daily",
+            "audit-evidence",
+            "control-center",
+        ]
+
+        with patch.object(runtime_app, "_spa_shell_response", return_value="shell-response") as shell_response:
+            responses = [
+                runtime_app.client_route_shell(client_path, request)
+                for client_path in prototype_paths
+            ]
+
+        self.assertEqual(responses, ["shell-response"] * len(prototype_paths))
+        self.assertEqual(shell_response.call_count, len(prototype_paths))
+
     def test_run_app_fails_fast_when_frontend_bundle_contract_is_invalid(self) -> None:
         with (
             patch.object(run_app.importlib.util, "find_spec", return_value=object()),

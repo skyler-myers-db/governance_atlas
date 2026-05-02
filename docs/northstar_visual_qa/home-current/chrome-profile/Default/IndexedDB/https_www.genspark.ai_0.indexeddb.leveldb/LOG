@@ -1,6 +1,0 @@
-2026/03/19-16:04:18.426 2c6a Creating DB /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_www.genspark.ai_0.indexeddb.leveldb since it was missing.
-2026/03/19-16:04:18.436 2c6a Reusing MANIFEST /Users/entrada-mac/Library/Application Support/Google/Chrome/Default/IndexedDB/https_www.genspark.ai_0.indexeddb.leveldb/MANIFEST-000001
-2026/03/19-16:05:25.623 2bdd Level-0 table #5: started
-2026/03/19-16:05:25.624 2bdd Level-0 table #5: 1884 bytes OK
-2026/03/19-16:05:25.627 2bdd Delete type=0 #3
-2026/03/19-16:05:25.627 2bdd Manual compaction at level-0 from (begin) .. (end); will stop at (end)

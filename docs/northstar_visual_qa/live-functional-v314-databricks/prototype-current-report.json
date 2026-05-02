@@ -1,0 +1,646 @@
+{
+  "generatedAt": "2026-05-01T16:03:58.402Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "deploymentId": "01f1457296eb19a3933a38bdfec0e3bc",
+  "buildId": "frontend-5f4d8d113643",
+  "evidenceKind": "live_databricks",
+  "mockApi": false,
+  "passed": true,
+  "sources": [
+    {
+      "path": "docs/northstar_visual_qa/live-route-v304-databricks/route-validation.json",
+      "kind": "live-route-api-validation",
+      "generatedAt": "2026-05-01T15:36:21.202Z",
+      "passed": true,
+      "buildId": "frontend-5f4d8d113643",
+      "deploymentId": "01f1457296eb19a3933a38bdfec0e3bc"
+    },
+    {
+      "path": "docs/northstar_visual_qa/discover-live-v307-databricks/prototype-current-report.json",
+      "kind": "deployed-discover-browser-validation",
+      "generatedAt": "2026-05-01T15:37:06.675Z",
+      "passed": true,
+      "buildId": "frontend-5f4d8d113643",
+      "deploymentId": "01f1457296eb19a3933a38bdfec0e3bc"
+    },
+    {
+      "path": "docs/northstar_visual_qa/stewardship-live-v305-databricks/prototype-current-report.json",
+      "kind": "deployed-stewardship-browser-validation",
+      "generatedAt": "2026-05-01T15:34:05.987Z",
+      "passed": true,
+      "buildId": "frontend-5f4d8d113643",
+      "deploymentId": "01f1457296eb19a3933a38bdfec0e3bc"
+    },
+    {
+      "path": "docs/northstar_visual_qa/glossary-live-v310-databricks/prototype-current-report.json",
+      "kind": "deployed-glossary-browser-validation",
+      "generatedAt": "2026-05-01T15:37:06.676Z",
+      "passed": true,
+      "buildId": "frontend-5f4d8d113643",
+      "deploymentId": "01f1457296eb19a3933a38bdfec0e3bc"
+    },
+    {
+      "path": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-report.json",
+      "kind": "deployed-cde-browser-validation",
+      "generatedAt": "2026-05-01T15:58:45.746Z",
+      "passed": true,
+      "buildId": "frontend-5f4d8d113643",
+      "deploymentId": "01f1457296eb19a3933a38bdfec0e3bc"
+    },
+    {
+      "path": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-report.json",
+      "kind": "deployed-lineage-browser-validation",
+      "generatedAt": "2026-05-01T15:37:06.687Z",
+      "passed": true,
+      "buildId": "frontend-5f4d8d113643",
+      "deploymentId": "01f1457296eb19a3933a38bdfec0e3bc"
+    },
+    {
+      "path": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-report.json",
+      "kind": "deployed-audit-browser-validation",
+      "generatedAt": "2026-05-01T15:58:45.744Z",
+      "passed": true,
+      "buildId": "frontend-5f4d8d113643",
+      "deploymentId": "01f1457296eb19a3933a38bdfec0e3bc"
+    }
+  ],
+  "captures": [
+    {
+      "route": "discover",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/discover-live-v307-databricks/discover-live-1536x1024.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks",
+      "sourceReport": "docs/northstar_visual_qa/discover-live-v307-databricks/prototype-current-report.json"
+    },
+    {
+      "route": "stewardship",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/stewardship-live-v305-databricks/stewardship-live-1536x1024.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks",
+      "sourceReport": "docs/northstar_visual_qa/stewardship-live-v305-databricks/prototype-current-report.json"
+    },
+    {
+      "route": "glossary",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/glossary-live-v310-databricks/glossary-live-1536x1024.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks",
+      "sourceReport": "docs/northstar_visual_qa/glossary-live-v310-databricks/prototype-current-report.json"
+    },
+    {
+      "route": "cde-registry",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-1536x1024.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks",
+      "sourceReport": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-report.json"
+    },
+    {
+      "route": "cde-registry",
+      "viewport": "1440x900",
+      "screenshot": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-1440x900.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks",
+      "sourceReport": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-report.json"
+    },
+    {
+      "route": "cde-registry",
+      "viewport": "1280x720",
+      "screenshot": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-1280x720.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks",
+      "sourceReport": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-1536x1024.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks",
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "viewport": "1440x900",
+      "screenshot": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-1440x900.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks",
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "viewport": "1280x720",
+      "screenshot": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-1280x720.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks",
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "audit",
+      "viewport": "1536x1024",
+      "screenshot": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-1536x1024.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks",
+      "sourceReport": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-report.json"
+    },
+    {
+      "route": "audit",
+      "viewport": "1440x900",
+      "screenshot": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-1440x900.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks",
+      "sourceReport": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-report.json"
+    },
+    {
+      "route": "audit",
+      "viewport": "1280x720",
+      "screenshot": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-1280x720.png",
+      "loaded": true,
+      "evidenceKind": "live_databricks",
+      "sourceReport": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-report.json"
+    }
+  ],
+  "interactions": [
+    {
+      "route": "deployed",
+      "interaction": "deployed-live-route-validation",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "runtimeOk": true,
+          "bootstrapOk": true,
+          "assetDetailOk": true,
+          "asset360Ok": true,
+          "lineageOk": true,
+          "governanceWorkbenchOk": true,
+          "governanceMetricCount": true,
+          "governanceRequestCount": true,
+          "governanceSelectedRequestId": true,
+          "governanceRequestDetailOk": true,
+          "governanceDiffRows": true,
+          "governanceApproverSteps": true,
+          "insightsDashboardOk": true,
+          "insightsKpiCount": true,
+          "insightsHeatmapCellCount": true,
+          "insightsTierCount": true,
+          "insightsRiskCellCount": true,
+          "taxonomyOverviewOk": true,
+          "taxonomyClassificationCount": true,
+          "taxonomyDomainCount": true,
+          "taxonomyDataProductCount": true,
+          "taxonomyColumnGroupCount": true,
+          "taxonomyGlossaryTermCount": true,
+          "taxonomyGlossaryEnriched": true,
+          "cdeDashboardOk": true,
+          "cdeItemCount": true,
+          "cdeGroupCount": true,
+          "cdeTotalCdes": true,
+          "cdeDomainsCovered": true,
+          "cdeControlCoverageUnavailable": true,
+          "cdeProtectedNotInferred": true,
+          "cdeSensitiveCandidateCount": true,
+          "cdeSourceNoQualityRunner": true,
+          "cdeDetailId": true,
+          "cdeDetailOk": true,
+          "cdeDetailControlsArray": true,
+          "cdeDetailLineageSnapshot": true,
+          "cdeDetailLinkedAssetsArray": true,
+          "cdeDetailActivityArray": true,
+          "auditEvidenceOk": true,
+          "auditEventCount": true,
+          "auditSelectedId": true,
+          "auditSourceTruth": true,
+          "auditNoChangeEventsClaim": true,
+          "auditAuthoritative": true,
+          "auditSummaryNumeric": true,
+          "auditDetailOk": true,
+          "auditEvidenceArrays": true,
+          "auditBeforeAfterKeys": true,
+          "auditLinkedRequestKey": true,
+          "adminControlCenterOk": true,
+          "adminMetaOk": true,
+          "adminCoverageOk": true,
+          "adminBrandingOk": true,
+          "adminBulkImportOk": true,
+          "adminIntegrationsOk": true,
+          "adminSystemOk": true,
+          "adminRecentActivityOk": true,
+          "genieChatOk": true,
+          "buildMatches": true,
+          "lakebaseWriteMirror": true,
+          "lakebaseMode": true,
+          "lakebaseAttempted": true,
+          "lakebaseSucceeded": true,
+          "lakebaseFailedZero": true,
+          "lakebaseActiveTables": true,
+          "lakebaseDeferredTables": true,
+          "lakebaseDeltaRetainedTables": true,
+          "asset360SameAsset": true,
+          "asset360Sections": true,
+          "asset360SchemaCount": true,
+          "asset360ActivityCount": true,
+          "lineageAuthoritative": true,
+          "lineageNodeCount": true,
+          "lineageUpstreamCount": true,
+          "lineageDownstreamCount": true,
+          "lineageColumnLineageCount": true,
+          "genieProvider": true,
+          "genieConfidence": true,
+          "genieEvidenceCount": true,
+          "genieAnswerLength": true,
+          "noGenieSentinelSqlFallback": true,
+          "noGenieSentinelRowFallback": true,
+          "noGenieSentinelWarning": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/live-route-v304-databricks/route-validation.json"
+    },
+    {
+      "route": "discover",
+      "interaction": "discover-deployed-browser-validation-summary",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "reportPassed": true,
+          "allCapturesPassed": true,
+          "allInteractionsPassed": true,
+          "pageErrorsClear": true,
+          "requestFailuresClear": true,
+          "consoleErrorsClear": true,
+          "buildIdMatched": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/discover-live-v307-databricks/prototype-current-report.json"
+    },
+    {
+      "route": "discover",
+      "interaction": "deployed-discover-search-and-layout-controls",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "listPressed": true,
+          "gridPressed": true,
+          "savedSearchesVisible": true,
+          "searchApplied": true,
+          "resultsVisible": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/discover-live-v307-databricks/prototype-current-report.json"
+    },
+    {
+      "route": "discover",
+      "interaction": "deployed-discover-row-menu-routing",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "originalFqn": true,
+          "detailPath": true,
+          "governancePath": true,
+          "lineagePath": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/discover-live-v307-databricks/prototype-current-report.json"
+    },
+    {
+      "route": "discover",
+      "interaction": "deployed-discover-preview-tabs-and-actions",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "overviewTab": true,
+          "columnsTab": true,
+          "lineageTab": true,
+          "qualityTab": true,
+          "accessTab": true,
+          "commentUnavailable": true,
+          "requestAccessUnavailable": true,
+          "reviewRoutesGovernance": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/discover-live-v307-databricks/prototype-current-report.json"
+    },
+    {
+      "route": "discover",
+      "interaction": "deployed-discover-atlas-ai",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "promptVisible": true,
+          "assistantAnswered": true,
+          "groundedCopy": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/discover-live-v307-databricks/prototype-current-report.json"
+    },
+    {
+      "route": "stewardship",
+      "interaction": "stewardship-deployed-browser-validation-summary",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "reportPassed": true,
+          "allCapturesPassed": true,
+          "allInteractionsPassed": true,
+          "pageErrorsClear": true,
+          "requestFailuresClear": true,
+          "consoleErrorsClear": true,
+          "buildIdMatched": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/stewardship-live-v305-databricks/prototype-current-report.json"
+    },
+    {
+      "route": "stewardship",
+      "interaction": "deployed-stewardship-row-selection",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "emptyStateVisible": true,
+          "detailPlaceholderVisible": true,
+          "validationSeedsHidden": true,
+          "mutationControlsHidden": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/stewardship-live-v305-databricks/prototype-current-report.json"
+    },
+    {
+      "route": "glossary",
+      "interaction": "glossary-deployed-browser-validation-summary",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "reportPassed": true,
+          "allCapturesPassed": true,
+          "allInteractionsPassed": true,
+          "pageErrorsClear": true,
+          "requestFailuresClear": true,
+          "consoleErrorsClear": true,
+          "buildIdMatched": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/glossary-live-v310-databricks/prototype-current-report.json"
+    },
+    {
+      "route": "glossary",
+      "interaction": "deployed-glossary-tab-click-validation",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "glossarySelected": true,
+          "cdeSelected": true,
+          "returnedGlossarySelected": true,
+          "glossaryHasCards": true,
+          "cdeHasRowsOrEmptyState": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/glossary-live-v310-databricks/prototype-current-report.json"
+    },
+    {
+      "route": "cde-registry",
+      "interaction": "cde-registry-deployed-browser-validation-summary",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "reportPassed": true,
+          "allCapturesPassed": true,
+          "allInteractionsPassed": true,
+          "pageErrorsClear": true,
+          "requestFailuresClear": true,
+          "consoleErrorsClear": true,
+          "buildIdMatched": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-report.json"
+    },
+    {
+      "route": "cde-registry",
+      "interaction": "Direct CDE route settled",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "interactionPassed": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-report.json"
+    },
+    {
+      "route": "cde-registry",
+      "interaction": "Glossary/CDE tab round trip",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "interactionPassed": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-report.json"
+    },
+    {
+      "route": "cde-registry",
+      "interaction": "Row selection and selected detail",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "selectedDetail": true,
+          "sourceOfRecord": true,
+          "ownership": true,
+          "reviewerWorkflow": true,
+          "associationSource": true,
+          "prototypeBoundary": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-report.json"
+    },
+    {
+      "route": "cde-registry",
+      "interaction": "Unavailable CDE workflow controls",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "requestUnavailable": true,
+          "recertDisabled": true,
+          "ownerStatusUnavailable": true,
+          "recertStatusUnavailable": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/cde-live-v313-databricks/cde-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "lineage-deployed-browser-validation-summary",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "reportPassed": true,
+          "allCapturesPassed": true,
+          "allInteractionsPassed": true,
+          "pageErrorsClear": true,
+          "requestFailuresClear": true,
+          "consoleErrorsClear": true,
+          "buildIdMatched": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-route-settled",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "pathIsLineage": true,
+          "northstarVisible": true,
+          "noLoadingCopy": true,
+          "liveEvidenceLabel": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-column-action",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "columnStatusVisible": true,
+          "noBackedColumnClaimWithoutRows": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-impact-action",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "impactPanelVisible": true,
+          "notifyOwnersDisabledWithoutBackedImpact": true,
+          "noFakeImpactJobClaim": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-canvas-zoom",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "zoomInChanged": true,
+          "zoomOutChanged": true,
+          "fitReset": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-focus-node-selection",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "focusNodeClicked": true,
+          "detailPanelPresent": true,
+          "selectedStatusVisible": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "lineage",
+      "interaction": "deployed-lineage-refocus-graph",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "refocusFeedbackVisible": true,
+          "routeStillLineage": true,
+          "noSyntheticEdgesIntroduced": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/lineage-live-v311-databricks/lineage-live-report.json"
+    },
+    {
+      "route": "audit",
+      "interaction": "audit-deployed-browser-validation-summary",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "reportPassed": true,
+          "allCapturesPassed": true,
+          "allInteractionsPassed": true,
+          "pageErrorsClear": true,
+          "requestFailuresClear": true,
+          "consoleErrorsClear": true,
+          "buildIdMatched": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-report.json"
+    },
+    {
+      "route": "audit",
+      "interaction": "Direct Audit route settled",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "interactionPassed": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-report.json"
+    },
+    {
+      "route": "audit",
+      "interaction": "Date range menu and audit category filters",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "interactionPassed": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-report.json"
+    },
+    {
+      "route": "audit",
+      "interaction": "Row selection and detail actions",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "interactionPassed": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-report.json"
+    },
+    {
+      "route": "audit",
+      "interaction": "Report artifact download",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "hasEvents": true,
+          "hasSummary": true,
+          "hasEvidenceKind": true,
+          "notPrototypeMock": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-report.json"
+    },
+    {
+      "route": "audit",
+      "interaction": "CSV artifact download",
+      "loaded": true,
+      "validation": {
+        "checks": {
+          "hasRows": true,
+          "hasEvidenceKindColumn": true,
+          "hasAuthoritativeColumn": true,
+          "notPrototypeMockCsv": true
+        }
+      },
+      "sourceReport": "docs/northstar_visual_qa/audit-live-v312-databricks/audit-live-report.json"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "console": []
+}
