@@ -1509,6 +1509,7 @@ export default function LineageGraph({
   userEmail = "",
   workspaceHost = "",
 }) {
+  const onAssetSearchQueryChangeRef = useRef(onAssetSearchQueryChange);
   const nodeTypes = useMemo(() => ({ assetNode: AssetNode }), []);
   const edgeTypes = useMemo(() => ({ assetEdge: AssetEdge }), []);
   const transformedBase = useMemo(() => transformGraph(graph), [graph]);
@@ -1740,6 +1741,10 @@ export default function LineageGraph({
     setDrawerOpen(false);
   };
 
+  useEffect(() => {
+    onAssetSearchQueryChangeRef.current = onAssetSearchQueryChange;
+  }, [onAssetSearchQueryChange]);
+
   const nodesById = useMemo(
     () =>
       transformed.nodes.reduce((acc, node) => {
@@ -1758,7 +1763,7 @@ export default function LineageGraph({
     setRefocusOpen(false);
     setCollapsedBranches({});
     setNodeDrawerTab("details");
-    onAssetSearchQueryChange?.("");
+    onAssetSearchQueryChangeRef.current?.("");
   }, [asset?.fqn, defaultFocusNodeId]);
 
   useEffect(() => {
@@ -2005,7 +2010,16 @@ export default function LineageGraph({
       return { nodeIds: [selectedEdge.source, selectedEdge.target], edgeIds: [selectedEdge.id] };
     }
     return connectedSelection(transformed.edges, selectedNode?.id || defaultFocusNodeId);
-  }, [defaultFocusNodeId, graphMode, selectedEdge, selectedNode?.id, selectedTarget?.id, transformed.edges]);
+  }, [
+    allowDefaultSelection,
+    defaultFocusNodeId,
+    graphMode,
+    selectedEdge,
+    selectedNode,
+    selectedSource?.id,
+    selectedTarget?.id,
+    transformed.edges,
+  ]);
 
   const activeNodeIds = activeSelection.nodeIds;
   const activeEdgeIds = activeSelection.edgeIds;

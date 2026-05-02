@@ -20,6 +20,10 @@ from atlas.services import capabilities as capability_service
 from atlas.services.assets import normalize_str as _normalize_str
 
 
+REQUEST_ID_HEADER = "X-Request-ID"
+CLIENT_REQUEST_ID_HEADER = "X-GOVAT-Client-Request-ID"
+
+
 def _compute_etag(payload: Dict[str, Any]) -> str:
     # Hash only the business payload (strip meta.observedAt, which changes
     # every call) so an unchanged lineage graph produces a stable ETag and
@@ -92,6 +96,22 @@ def _request_scope_warning(request: Optional[Request], source: str) -> str:
     return ""
 
 
+def _request_id(request: Optional[Request]) -> str:
+    if request is None:
+        return ""
+    state = getattr(request, "state", None)
+    request_id = _normalize_str(getattr(state, "http_request_id", ""))
+    if request_id:
+        return request_id
+    try:
+        return _normalize_str(
+            request.headers.get(CLIENT_REQUEST_ID_HEADER)
+            or request.headers.get(REQUEST_ID_HEADER)
+        )
+    except Exception:
+        return ""
+
+
 def _response_meta(
     request: Optional[Request],
     *,
@@ -116,6 +136,8 @@ def _response_meta(
     if not resolved_authoritative and normalized_state == "available":
         normalized_state = "degraded"
     return {
+        "requestId": _request_id(request),
+        "httpRequestId": _request_id(request),
         "state": normalized_state,
         "entityId": entity_id,
         "entityFqn": entity_fqn,
@@ -184,6 +206,10 @@ def _error_response(
     payload = dict(extra or {})
     payload["detail"] = detail
     payload["errors"] = list(payload.get("errors") or [{"message": detail}])
+    request_id = _request_id(request)
+    if request_id:
+        payload["requestId"] = request_id
+        payload["httpRequestId"] = request_id
     payload["meta"] = _response_meta(
         request,
         source=source,
@@ -196,4 +222,5 @@ def _error_response(
         unavailable_reason=detail,
     )
     payload["authoritative"] = False
-    return JSONResponse(status_code=status_code, content=payload)
+    headers = {REQUEST_ID_HEADER: request_id} if request_id else None
+    return JSONResponse(status_code=status_code, content=payload, headers=headers)

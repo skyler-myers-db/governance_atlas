@@ -5924,18 +5924,22 @@ button[class*="back-to-discovery"] {
   width: 100%;
   max-width: none;
   margin: 0;
-  padding: 24px 28px 28px;
+  padding: 16px 28px 22px;
   display: grid;
-  gap: 14px;
+  gap: 8px;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 82% 2%, rgba(75, 178, 231, 0.24), transparent 34%),
+    linear-gradient(180deg, rgba(12, 55, 85, 0.94) 0%, rgba(10, 48, 75, 0.96) 42%, rgba(9, 43, 68, 0.98) 100%);
 }
 
 .gh-home-hero {
   position: relative;
-  min-height: 96px;
+  min-height: 84px;
   display: grid;
   grid-template-columns: minmax(0, 0.52fr) minmax(420px, 0.48fr);
   align-items: start;
-  gap: 20px;
+  gap: 16px;
   overflow: hidden;
 }
 
@@ -5946,8 +5950,8 @@ button[class*="back-to-discovery"] {
   height: 260px;
   pointer-events: none;
   background:
-    radial-gradient(circle at 56% 64%, rgba(85, 189, 244, 0.24), transparent 34%),
-    radial-gradient(circle at 70% 52%, rgba(92, 225, 230, 0.13), transparent 32%);
+    radial-gradient(circle at 56% 64%, rgba(85, 189, 244, 0.34), transparent 34%),
+    radial-gradient(circle at 70% 52%, rgba(92, 225, 230, 0.18), transparent 32%);
   filter: blur(2px);
 }
 
@@ -5979,23 +5983,84 @@ button[class*="back-to-discovery"] {
 .gh-home-globe {
   position: absolute;
   z-index: 0;
-  top: -42px;
-  right: -8px;
-  width: min(54%, 660px);
-  min-height: 190px;
+  top: -54px;
+  right: -26px;
+  width: min(64%, 920px);
+  height: 228px;
   opacity: 0.98;
+  filter:
+    drop-shadow(0 0 26px rgba(85, 189, 244, 0.28))
+    drop-shadow(0 20px 42px rgba(2, 18, 32, 0.46));
 }
 
-.gh-home-globe svg {
+.gh-home-globe canvas {
   width: 100%;
-  height: 210px;
+  height: 100%;
   display: block;
+}
+
+.gh-home-globe-network,
+.gh-home-globe-orbit-nodes,
+.gh-home-globe-city-lights,
+.gh-home-globe-micro {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.gh-home-globe-network {
+  animation: gh-globe-drift 18s linear infinite;
+}
+
+.gh-home-globe-orbit-nodes {
+  animation: gh-globe-pulse 3.8s ease-in-out infinite;
+}
+
+.gh-home-globe-city-lights,
+.gh-home-globe-micro {
+  animation: gh-globe-twinkle 2.8s ease-in-out infinite alternate;
+}
+
+.gh-home-globe-shine {
+  stroke-dasharray: 190 420;
+  animation: gh-globe-shine 5.2s ease-in-out infinite;
+}
+
+@keyframes gh-globe-drift {
+  from { transform: translateX(-8px); }
+  to { transform: translateX(10px); }
+}
+
+@keyframes gh-globe-pulse {
+  0%, 100% { opacity: 0.28; }
+  50% { opacity: 0.62; }
+}
+
+@keyframes gh-globe-twinkle {
+  0% { opacity: 0.2; }
+  100% { opacity: 0.52; }
+}
+
+@keyframes gh-globe-shine {
+  0% { stroke-dashoffset: 180; opacity: 0; }
+  22% { opacity: 0.72; }
+  72% { opacity: 0.5; }
+  100% { stroke-dashoffset: -260; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gh-home-globe-network,
+  .gh-home-globe-orbit-nodes,
+  .gh-home-globe-city-lights,
+  .gh-home-globe-micro,
+  .gh-home-globe-shine {
+    animation: none;
+  }
 }
 
 .gh-home-status {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   padding: 12px 14px;
   border: 1px solid var(--ga-border);
@@ -6003,6 +6068,68 @@ button[class*="back-to-discovery"] {
   background: var(--ga-surface-soft);
   color: var(--ga-text-soft);
   box-shadow: var(--ga-shadow-xs);
+}
+
+.gh-home-hydration-status {
+  background:
+    linear-gradient(90deg, rgba(102, 197, 255, 0.16), rgba(92, 225, 230, 0.07)),
+    var(--ga-surface);
+}
+
+.gh-home-status strong,
+.gh-home-status em {
+  display: block;
+  font-style: normal;
+}
+
+.gh-home-status strong {
+  color: var(--ga-text);
+  font-weight: 600;
+}
+
+.gh-home-status em {
+  margin-top: 2px;
+  color: var(--ga-text-muted);
+  font-size: 0.78rem;
+}
+
+.gh-home-status-spinner,
+.gh-floating-ai-spinner {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border: 2px solid rgba(207, 239, 255, 0.22);
+  border-top-color: var(--ga-bright-blue);
+  border-radius: 50%;
+  animation: gh-loading-spin 0.8s linear infinite;
+}
+
+@keyframes gh-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+.gh-home-page.is-hydrating .ga-metric-card,
+.gh-home-page.is-hydrating .ga-section-card,
+.gh-home-page.is-hydrating .ga-atlas-ai-panel {
+  position: relative;
+}
+
+.gh-home-page.is-hydrating .ga-metric-card::after,
+.gh-home-page.is-hydrating .ga-section-card::after,
+.gh-home-page.is-hydrating .ga-atlas-ai-panel::after {
+  content: "";
+  position: absolute;
+  inset: auto 12px 10px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(102, 197, 255, 0.8), transparent);
+  animation: gh-home-hydration-sweep 1.35s ease-in-out infinite;
+}
+
+@keyframes gh-home-hydration-sweep {
+  0% { transform: translateX(-18%); opacity: 0.25; }
+  50% { opacity: 0.95; }
+  100% { transform: translateX(18%); opacity: 0.25; }
 }
 
 .gh-home-status button {
@@ -6034,7 +6161,7 @@ button[class*="back-to-discovery"] {
   min-height: 126px;
   padding: 14px;
   gap: 8px;
-  background: rgba(8, 36, 58, 0.9);
+  background: rgba(7, 43, 68, 0.96);
 }
 
 .gh-home-kpi .ga-metric-card-head {
@@ -6060,8 +6187,29 @@ button[class*="back-to-discovery"] {
   display: inline-flex;
   align-items: center;
   color: var(--ga-text);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   line-height: 1.25;
+  white-space: nowrap;
+}
+
+.gh-home-kpi.tone-owner .ga-metric-label {
+  font-size: 0.76rem;
+}
+
+.gh-home-events .ga-section-card-header h2 .ga-info-tooltip {
+  display: none;
+}
+
+.gh-home-events .ga-section-card-header {
+  gap: 7px;
+}
+
+.gh-home-events .ga-section-card-header h2 {
+  font-size: 0.78rem;
+}
+
+.gh-home-events .ga-section-actions {
+  font-size: 0.78rem;
 }
 
 .gh-home-kpi.tone-flag .ga-metric-icon {
@@ -6091,41 +6239,69 @@ button[class*="back-to-discovery"] {
   font-size: 1.8rem;
 }
 
-.gh-home-kpi.is-unavailable .ga-metric-main strong,
-.gh-home-kpi.is-unavailable .ga-metric-label {
+.gh-home-kpi.is-unavailable .ga-metric-main strong {
   color: var(--ga-text-muted);
+}
+
+.gh-home-kpi.is-unavailable .ga-metric-label {
+  color: var(--ga-text-soft);
 }
 
 .gh-home-dashboard-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 336px;
+  grid-template-columns: minmax(0, 1fr) 380px;
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
+}
+
+.gh-home-page .ga-section-card-header h2 {
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+}
+
+.gh-home-page .ga-section-card-header > div {
+  min-width: 0;
+}
+
+.gh-home-page .ga-section-card-header h2 > span {
+  min-width: 0;
+}
+
+.gh-home-top-domains .ga-section-card-header h2 > span,
+.gh-home-events .ga-section-card-header h2 > span,
+.gh-home-actions .ga-section-card-header h2 > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .gh-home-main-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: minmax(250px, 0.94fr) minmax(284px, 1fr);
   gap: 14px;
-  align-content: start;
+  align-content: stretch;
+  height: 100%;
 }
 
 .gh-home-posture-card {
   grid-column: span 3;
-  min-height: 260px;
+  min-height: 0;
+  height: 100%;
 }
 
 .gh-home-heatmap-card {
   grid-column: span 3;
-  min-height: 260px;
+  min-height: 0;
+  height: 100%;
 }
 
 .gh-home-top-domains,
 .gh-home-events,
 .gh-home-actions {
   grid-column: span 2;
-  min-height: 214px;
-  height: 258px;
+  min-height: 0;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -6398,10 +6574,12 @@ button[class*="back-to-discovery"] {
   background: linear-gradient(90deg, var(--ga-highlight-blue), var(--ga-bright-blue));
 }
 
-.gh-home-domain-list em {
-  color: var(--ga-text);
-  font-style: normal;
-}
+  .gh-home-domain-list em {
+    color: var(--ga-text);
+    font-style: normal;
+    justify-self: end;
+    text-align: right;
+  }
 
 .gh-home-event-list li,
 .gh-home-event-empty {
@@ -6553,8 +6731,8 @@ button[class*="back-to-discovery"] {
 
 .gh-home-ai-copy {
   display: grid;
-  gap: 6px;
-  margin: 12px 0;
+  gap: 7px;
+  margin: 8px 0 9px;
 }
 
 .gh-home-ai-copy strong {
@@ -6565,6 +6743,84 @@ button[class*="back-to-discovery"] {
 .gh-home-ai-copy span {
   color: var(--ga-text-soft);
   font-size: 0.86rem;
+}
+
+.gh-home-ai-transcript {
+  min-height: 132px;
+  max-height: min(228px, 30vh);
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid rgba(102, 197, 255, 0.2);
+  border-radius: var(--ga-radius-md);
+  background: rgba(2, 22, 38, 0.18);
+}
+
+.gh-home-ai-message {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid rgba(102, 197, 255, 0.22);
+  border-radius: var(--ga-radius-md);
+  background: rgba(207, 239, 255, 0.07);
+}
+
+.gh-home-ai-message.tone-user {
+  margin-left: 18px;
+  border-color: rgba(92, 225, 230, 0.28);
+  background: rgba(92, 225, 230, 0.1);
+}
+
+.gh-home-ai-message.tone-assistant {
+  margin-right: 12px;
+}
+
+.gh-home-ai-message.is-empty {
+  opacity: 0.82;
+}
+
+.gh-home-ai-message.is-pending strong::after {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-left: 7px;
+  vertical-align: -2px;
+  border: 2px solid rgba(207, 239, 255, 0.2);
+  border-top-color: var(--ga-bright-blue);
+  border-radius: 50%;
+  animation: gh-loading-spin 0.8s linear infinite;
+}
+
+.gh-home-ai-message.tone-warn {
+  border-color: rgba(255, 184, 77, 0.34);
+  background: rgba(255, 184, 77, 0.1);
+}
+
+.gh-home-ai-message span {
+  color: var(--ga-bright-blue);
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.gh-home-ai-message strong,
+.gh-home-ai-message .gh-ai-message-markdown {
+  color: var(--ga-text);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.32;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.gh-home-ai-message em {
+  color: var(--ga-text-muted);
+  font-size: 0.68rem;
+  font-style: normal;
 }
 
 .gh-home-ai-result {
@@ -6595,20 +6851,24 @@ button[class*="back-to-discovery"] {
 }
 
 .gh-home-ai-input {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 42px;
-  gap: 8px;
-  margin-top: 18px;
+  display: block;
+  margin-top: auto;
+}
+
+.gh-home-ai-input-shell {
+  position: relative;
+  display: block;
 }
 
 .gh-home-ai-input input {
-  min-height: 42px;
+  min-height: 48px;
   min-width: 0;
+  width: 100%;
   border: 1px solid var(--ga-border);
   border-radius: var(--ga-radius-md);
   background: rgba(207, 239, 255, 0.08);
   color: var(--ga-text);
-  padding: 0 12px;
+  padding: 0 44px 0 12px;
   font: inherit;
 }
 
@@ -6618,9 +6878,14 @@ button[class*="back-to-discovery"] {
 }
 
 .gh-home-ai-input button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 32px;
+  height: 32px;
   border: 1px solid var(--ga-border);
-  border-radius: var(--ga-radius-md);
-  background: rgba(102, 197, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(102, 197, 255, 0.08);
   color: var(--ga-bright-blue);
   font: inherit;
   cursor: pointer;
@@ -6632,9 +6897,11 @@ button[class*="back-to-discovery"] {
 }
 
 .gh-home-page .ga-atlas-ai-panel {
-  min-height: 578px;
+  min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  background: rgba(7, 43, 68, 0.98);
 }
 
 .gh-home-page .ga-atlas-ai-panel header > div {
@@ -6665,7 +6932,8 @@ button[class*="back-to-discovery"] {
 
 .gh-home-page .ga-ai-prompts {
   display: grid;
-  gap: 8px;
+  gap: 7px;
+  flex: 0 0 auto;
 }
 
 .gh-home-page .ga-ai-prompts button {
@@ -6673,12 +6941,14 @@ button[class*="back-to-discovery"] {
   justify-content: space-between;
   gap: 10px;
   width: 100%;
-  padding: 12px;
+  padding: 9px 10px;
   border: 1px solid var(--ga-border);
   border-radius: var(--ga-radius-md);
   background: rgba(207, 239, 255, 0.08);
   color: var(--ga-text);
   font: inherit;
+  font-size: 0.8rem;
+  line-height: 1.25;
   text-align: left;
   cursor: pointer;
 }
@@ -6696,7 +6966,7 @@ button[class*="back-to-discovery"] {
 
 .gh-home-page .ga-ai-more {
   width: max-content;
-  margin: 12px 0 4px;
+  margin: 10px 0 12px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -6712,9 +6982,31 @@ button[class*="back-to-discovery"] {
 }
 
 .gh-home-page .ga-ai-disclaimer {
-  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 10px 0 0;
   color: var(--ga-text-muted);
   font-size: 0.74rem;
+  flex: 0 0 auto;
+}
+
+.gh-home-page .ga-ai-disclaimer-info {
+  width: 15px;
+  height: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(207, 239, 255, 0.28);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ga-text-muted);
+  font: inherit;
+  font-size: 0.62rem;
+  line-height: 1;
+  cursor: help;
 }
 
 .sr-only {
@@ -6742,11 +7034,11 @@ button[class*="back-to-discovery"] {
 @media (max-height: 920px) and (min-width: 981px) {
   .gh-home-page.ga-page {
     padding: 18px 24px 18px;
-    gap: 10px;
+    gap: 8px;
   }
 
   .gh-home-hero {
-    min-height: 80px;
+    min-height: 74px;
   }
 
   .gh-home-hero h1 {
@@ -6758,19 +7050,23 @@ button[class*="back-to-discovery"] {
   }
 
   .gh-home-globe {
-    top: -50px;
-    width: min(56%, 620px);
-    min-height: 168px;
+    top: -58px;
+    width: min(62%, 700px);
+    height: 204px;
   }
 
-  .gh-home-globe svg {
-    height: 188px;
+  .gh-home-globe canvas {
+    height: 204px;
   }
 
   .gh-home-page .gh-home-kpis.ga-kpi-grid,
   .gh-home-main-grid,
   .gh-home-dashboard-grid {
     gap: 10px;
+  }
+
+  .gh-home-main-grid {
+    grid-template-rows: minmax(210px, 0.9fr) minmax(250px, 1fr);
   }
 
   .gh-home-page .ga-section-card,
@@ -6780,6 +7076,32 @@ button[class*="back-to-discovery"] {
 
   .gh-home-page .ga-section-card-header {
     margin-bottom: 8px;
+  }
+
+  .gh-home-page .ga-section-card-header h2 {
+    font-size: 0.96rem;
+  }
+
+  .gh-home-top-domains .ga-section-card-header h2,
+  .gh-home-events .ga-section-card-header h2,
+  .gh-home-actions .ga-section-card-header h2 {
+    font-size: 0.78rem;
+  }
+
+  .gh-home-events .ga-section-card-header h2 .ga-info-tooltip {
+    display: none;
+  }
+
+  .gh-home-top-domains .ga-section-card-header,
+  .gh-home-events .ga-section-card-header,
+  .gh-home-actions .ga-section-card-header {
+    gap: 8px;
+  }
+
+  .gh-home-top-domains .ga-section-actions,
+  .gh-home-events .ga-section-actions,
+  .gh-home-actions .ga-section-actions {
+    font-size: 0.78rem;
   }
 
   .gh-home-kpi.ga-metric-card {
@@ -6799,7 +7121,7 @@ button[class*="back-to-discovery"] {
 
   .gh-home-kpi .ga-metric-label {
     min-height: 27px;
-    font-size: 0.76rem;
+    font-size: 0.72rem;
   }
 
   .gh-home-kpi .ga-metric-main strong {
@@ -6812,14 +7134,15 @@ button[class*="back-to-discovery"] {
 
   .gh-home-posture-card,
   .gh-home-heatmap-card {
-    min-height: 204px;
+    min-height: 0;
+    height: 100%;
   }
 
   .gh-home-top-domains,
   .gh-home-events,
   .gh-home-actions {
-    min-height: 210px;
-    height: 210px;
+    min-height: 0;
+    height: 100%;
     overflow: hidden;
   }
 
@@ -6904,7 +7227,7 @@ button[class*="back-to-discovery"] {
   }
 
   .gh-home-page .ga-atlas-ai-panel {
-    min-height: 480px;
+    min-height: 0;
   }
 
   .gh-home-page .ga-ai-prompts {
@@ -6917,7 +7240,7 @@ button[class*="back-to-discovery"] {
   }
 
   .gh-home-ai-input {
-    margin-top: 10px;
+    margin-top: auto;
   }
 }
 
@@ -6925,6 +7248,10 @@ button[class*="back-to-discovery"] {
   .gh-home-page.ga-page {
     padding: 12px 20px;
     gap: 8px;
+    grid-template-rows: 58px 106px minmax(0, 1fr);
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
   }
 
   .gh-home-page .ga-section-card {
@@ -6933,10 +7260,60 @@ button[class*="back-to-discovery"] {
 
   .gh-home-page .ga-section-card-header {
     margin-bottom: 6px;
+    gap: 6px;
+  }
+
+  .gh-home-page .ga-section-card-header h2 {
+    font-size: 0.88rem;
+  }
+
+  .gh-home-posture-card .ga-section-card-header h2 {
+    font-size: 0.72rem;
+  }
+
+  .gh-home-posture-card .ga-section-card-header h2 > span {
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .gh-home-range-button {
+    min-height: 22px;
+    padding: 0 6px;
+    font-size: 0.68rem;
+  }
+
+  .gh-home-top-domains .ga-section-card-header h2,
+  .gh-home-events .ga-section-card-header h2,
+  .gh-home-actions .ga-section-card-header h2 {
+    font-size: 0.72rem;
+    gap: 4px;
+  }
+
+  .gh-home-events .ga-section-card-header h2 {
+    font-size: 0.66rem;
+  }
+
+  .gh-home-events .ga-section-card-header h2 > span {
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .gh-home-events .ga-section-card-header h2 .ga-info-tooltip {
+    display: none;
+  }
+
+  .gh-home-top-domains .ga-section-actions,
+  .gh-home-events .ga-section-actions,
+  .gh-home-actions .ga-section-actions {
+    font-size: 0.72rem;
+  }
+
+  .gh-home-events .ga-section-actions {
+    font-size: 0.68rem;
   }
 
   .gh-home-hero {
-    min-height: 64px;
+    min-height: 58px;
   }
 
   .gh-home-hero-copy {
@@ -6952,12 +7329,12 @@ button[class*="back-to-discovery"] {
   }
 
   .gh-home-globe {
-    top: -62px;
-    width: min(56%, 560px);
+    top: -66px;
+    width: min(62%, 590px);
   }
 
-  .gh-home-globe svg {
-    height: 160px;
+  .gh-home-globe canvas {
+    height: 186px;
   }
 
   .gh-home-kpi.ga-metric-card {
@@ -6972,7 +7349,12 @@ button[class*="back-to-discovery"] {
 
   .gh-home-kpi .ga-metric-label {
     min-height: 24px;
-    font-size: 0.7rem;
+    font-size: 0.66rem;
+  }
+
+  .gh-home-kpi.tone-owner .ga-metric-label {
+    font-size: 0.56rem;
+    gap: 4px;
   }
 
   .gh-home-kpi .ga-metric-main strong {
@@ -6985,16 +7367,31 @@ button[class*="back-to-discovery"] {
 
   .gh-home-posture-card,
   .gh-home-heatmap-card {
-    min-height: 188px;
-    height: 188px;
+    min-height: 0;
+    height: 100%;
     overflow: hidden;
   }
 
   .gh-home-top-domains,
   .gh-home-events,
   .gh-home-actions {
-    min-height: 190px;
-    height: 190px;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .gh-home-main-grid {
+    grid-template-rows: minmax(188px, 0.92fr) minmax(202px, 1fr);
+  }
+
+  .gh-home-dashboard-grid {
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .gh-home-main-grid {
+    min-height: 0;
     overflow: hidden;
   }
 
@@ -7045,20 +7442,26 @@ button[class*="back-to-discovery"] {
   }
 
   .gh-home-heatmap-cell {
-    min-height: 22px;
+    min-height: 18px;
   }
 
   .gh-home-heatmap-legend {
-    margin-top: 7px;
+    margin-top: 5px;
   }
 
   .gh-home-event-list {
     gap: 4px;
   }
 
+  .gh-home-domain-list li {
+    grid-template-columns: 16px minmax(58px, 1fr) minmax(50px, 0.65fr) 34px;
+    gap: 6px;
+    font-size: 0.74rem;
+  }
+
   .gh-home-page .ga-atlas-ai-panel {
     min-height: 0;
-    height: 384px;
+    height: 100%;
     padding: 10px;
     overflow: hidden;
   }
@@ -7078,19 +7481,29 @@ button[class*="back-to-discovery"] {
     margin: 6px 0;
   }
 
+  .gh-home-ai-transcript {
+    min-height: 72px;
+    max-height: 108px;
+    padding: 6px;
+  }
+
   .gh-home-page .ga-ai-more {
     margin: 6px 0 2px;
   }
 
   .gh-home-ai-input {
-    grid-template-columns: minmax(0, 1fr) 36px;
-    gap: 6px;
-    margin-top: 6px;
+    margin-top: auto;
   }
 
-  .gh-home-ai-input input,
+  .gh-home-ai-input input {
+    min-height: 42px;
+  }
+
   .gh-home-ai-input button {
-    min-height: 32px;
+    top: 5px;
+    right: 5px;
+    width: 30px;
+    height: 30px;
   }
 
   .gh-home-page .ga-ai-disclaimer {

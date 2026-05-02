@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional
 from unittest.mock import patch
 
 import pandas as pd
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 from atlas.api import classification as classification_api
 from atlas.services import classification as classification_service
@@ -78,9 +80,11 @@ class FakeStore:
 class FakeUC:
     def __init__(self, columns: Optional[List[Dict[str, Any]]] = None) -> None:
         self.column_tag_writes: List[Dict[str, Any]] = []
+        self.column_reads = 0
         self._columns = columns or []
 
     def get_table_columns(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
+        self.column_reads += 1
         return pd.DataFrame(self._columns) if self._columns else pd.DataFrame()
 
     def get_column_tags(
@@ -106,13 +110,22 @@ _RUNTIME_STUB_ATTRS = (
     "_ensure_live_runtime",
     "_ensure_governance_store",
     "_store",
+    "_ensure_can_approve",
     "_ensure_can_mutate",
+    "_http_request_id",
     "_user_role_slug",
     "_uc_for_request",
+    "_asset_is_openable",
 )
 
 
-def _install_fake_runtime_app(store: FakeStore, uc: FakeUC):
+def _install_fake_runtime_app(
+    store: FakeStore,
+    uc: FakeUC,
+    *,
+    openable: bool = True,
+    openable_assets: Optional[set[str]] = None,
+):
     """Patch ``runtime_app`` with test stubs and return a restore thunk.
 
     We avoid replacing the whole module in ``sys.modules`` because that
@@ -133,9 +146,15 @@ def _install_fake_runtime_app(store: FakeStore, uc: FakeUC):
     module._ensure_live_runtime = lambda: None  # type: ignore[attr-defined]
     module._ensure_governance_store = lambda: store  # type: ignore[attr-defined]
     module._store = lambda: store  # type: ignore[attr-defined]
+    module._ensure_can_approve = lambda request: "alice@test.co"  # type: ignore[attr-defined]
     module._ensure_can_mutate = lambda request: "alice@test.co"  # type: ignore[attr-defined]
+    module._http_request_id = lambda request: "test-request-id"  # type: ignore[attr-defined]
     module._user_role_slug = lambda request: "steward"  # type: ignore[attr-defined]
     module._uc_for_request = lambda request: uc  # type: ignore[attr-defined]
+    if openable_assets is not None:
+        module._asset_is_openable = lambda asset_fqn, request: asset_fqn in openable_assets  # type: ignore[attr-defined]
+    else:
+        module._asset_is_openable = lambda asset_fqn, request: openable  # type: ignore[attr-defined]
 
     def _restore() -> None:
         if created_module:
@@ -194,6 +213,65 @@ class ListEndpointTests(unittest.TestCase):
         self.assertEqual(payload["pendingCount"], 1)
         self.assertEqual(payload["recommendations"][0]["recommendationId"], "r1")
 
+    def test_list_with_asset_filter_requires_open_asset(self) -> None:
+        from fastapi import HTTPException
+
+        self._restore_runtime()
+        self._restore_runtime = _install_fake_runtime_app(self.store, self.uc, openable=False)
+        self.store.upsert_classification_recommendation(
+            {
+                "recommendation_id": "r1",
+                "asset_fqn": "main.sales.customers",
+                "column_name": "ssn",
+                "status": "pending",
+                "evidence_json": "[]",
+                "sample_values_json": "",
+                "remediation_suggestions_json": "[]",
+                "sample_redacted": True,
+            }
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            classification_api.api_list_classification_recommendations(
+                request=SimpleNamespace(headers={}),
+                status="pending",
+                asset_fqn="main.sales.customers",
+            )
+
+        self.assertEqual(ctx.exception.status_code, 404)
+
+    def test_list_without_asset_filter_hides_non_openable_records(self) -> None:
+        self._restore_runtime()
+        self._restore_runtime = _install_fake_runtime_app(
+            self.store,
+            self.uc,
+            openable_assets={"main.sales.visible_customers"},
+        )
+        for rec_id, asset_fqn in (
+            ("visible", "main.sales.visible_customers"),
+            ("hidden", "main.sales.hidden_customers"),
+        ):
+            self.store.upsert_classification_recommendation(
+                {
+                    "recommendation_id": rec_id,
+                    "asset_fqn": asset_fqn,
+                    "column_name": "ssn",
+                    "status": "pending",
+                    "evidence_json": "[]",
+                    "sample_values_json": "",
+                    "remediation_suggestions_json": "[]",
+                    "sample_redacted": True,
+                }
+            )
+
+        response = classification_api.api_list_classification_recommendations(
+            request=SimpleNamespace(headers={}), status="all"
+        )
+
+        payload = _parse_response(response)
+        self.assertEqual(payload["count"], 1)
+        self.assertEqual(payload["recommendations"][0]["recommendationId"], "visible")
+
     def test_list_all_aliases_no_filter(self) -> None:
         self.store.upsert_classification_recommendation(
             {
@@ -251,6 +329,31 @@ class GetEndpointTests(unittest.TestCase):
             )
         self.assertEqual(ctx.exception.status_code, 404)
 
+    def test_get_hidden_asset_recommendation_returns_404(self) -> None:
+        from fastapi import HTTPException
+
+        self._restore_runtime()
+        self._restore_runtime = _install_fake_runtime_app(self.store, self.uc, openable=False)
+        self.store.upsert_classification_recommendation(
+            {
+                "recommendation_id": "r1",
+                "asset_fqn": "main.sales.customers",
+                "column_name": "ssn",
+                "status": "pending",
+                "evidence_json": "[]",
+                "sample_values_json": "",
+                "remediation_suggestions_json": "[]",
+                "sample_redacted": True,
+            }
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            classification_api.api_get_classification_recommendation(
+                "r1", request=SimpleNamespace(headers={})
+            )
+
+        self.assertEqual(ctx.exception.status_code, 404)
+
 
 class ReviewEndpointTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -293,7 +396,7 @@ class ReviewEndpointTests(unittest.TestCase):
     def test_invalid_decision_returns_400(self) -> None:
         from fastapi import HTTPException
 
-        payload_model = classification_api.ClassificationReviewPayload(
+        payload_model = classification_api.ClassificationReviewPayload.model_construct(
             decision="maybe", note=""
         )
         with self.assertRaises(HTTPException) as ctx:
@@ -303,6 +406,54 @@ class ReviewEndpointTests(unittest.TestCase):
                 )
             )
         self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_invalid_decision_route_returns_400_not_422(self) -> None:
+        app = FastAPI()
+        app.include_router(classification_api.build_classification_router())
+        client = TestClient(app)
+
+        response = client.post(
+            "/api/classification-recommendations/r1/review",
+            json={"decision": "maybe", "note": ""},
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("decision must be one of", response.text)
+
+    def test_writer_role_cannot_review_recommendation(self) -> None:
+        from fastapi import HTTPException
+        import runtime_app
+
+        runtime_app._ensure_can_approve = lambda request: (_ for _ in ()).throw(  # type: ignore[attr-defined]
+            HTTPException(status_code=403, detail="This action requires steward or admin permissions.")
+        )
+        payload_model = classification_api.ClassificationReviewPayload(
+            decision="approved", note="looks good"
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            asyncio.run(
+                classification_api.api_review_classification_recommendation(
+                    "r1", payload_model, request=SimpleNamespace(headers={})
+                )
+            )
+
+        self.assertEqual(ctx.exception.status_code, 403)
+
+    def test_review_audit_includes_http_request_id_and_reviewer_role(self) -> None:
+        payload_model = classification_api.ClassificationReviewPayload(
+            decision="rejected", note="false positive"
+        )
+        response = asyncio.run(
+            classification_api.api_review_classification_recommendation(
+                "r1", payload_model, request=SimpleNamespace(headers={})
+            )
+        )
+
+        body = _parse_response(response)
+        self.assertTrue(body["ok"])
+        self.assertEqual(self.store.audit_events[-1]["request_id"], "test-request-id")
+        self.assertEqual(self.store.audit_events[-1]["actor_role"], "steward")
 
     def test_missing_recommendation_returns_404(self) -> None:
         from fastapi import HTTPException
@@ -317,6 +468,26 @@ class ReviewEndpointTests(unittest.TestCase):
                 )
             )
         self.assertEqual(ctx.exception.status_code, 404)
+
+    def test_review_hidden_asset_recommendation_returns_404_without_writes(self) -> None:
+        from fastapi import HTTPException
+
+        self._restore_runtime()
+        self._restore_runtime = _install_fake_runtime_app(self.store, self.uc, openable=False)
+        payload_model = classification_api.ClassificationReviewPayload(
+            decision="approved", note="looks good"
+        )
+
+        with self.assertRaises(HTTPException) as ctx:
+            asyncio.run(
+                classification_api.api_review_classification_recommendation(
+                    "r1", payload_model, request=SimpleNamespace(headers={})
+                )
+            )
+
+        self.assertEqual(ctx.exception.status_code, 404)
+        self.assertFalse(self.uc.column_tag_writes)
+        self.assertFalse(self.store.audit_events)
 
 
 class ScanEndpointTests(unittest.TestCase):
@@ -364,6 +535,22 @@ class ScanEndpointTests(unittest.TestCase):
                 )
             )
         self.assertEqual(ctx.exception.status_code, 400)
+
+    def test_scan_requires_open_asset_before_uc_enumeration(self) -> None:
+        from fastapi import HTTPException
+
+        self._restore_runtime()
+        self._restore_runtime = _install_fake_runtime_app(self.store, self.uc, openable=False)
+
+        with self.assertRaises(HTTPException) as ctx:
+            asyncio.run(
+                classification_api.api_scan_classification_recommendations(
+                    asset_fqn="main.sales.customers", request=SimpleNamespace(headers={})
+                )
+            )
+
+        self.assertEqual(ctx.exception.status_code, 404)
+        self.assertEqual(self.uc.column_reads, 0)
 
 
 class RouterShapeTests(unittest.TestCase):

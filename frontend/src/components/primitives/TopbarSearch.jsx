@@ -38,11 +38,17 @@ export function TopbarSearch({
         className={`gh-topbar-search-field ${searchPanelOpen ? "is-open" : ""}`.trim()}
         ref={searchRootRef}
       >
-        <span aria-hidden="true" className="gh-topbar-search-icon">
+        <button
+          aria-label="Submit global search"
+          className="gh-topbar-search-icon"
+          disabled={shellDisabled || !searchQuery.trim()}
+          title={shellDisabledReason || "Search"}
+          type="submit"
+        >
           <SearchIcon />
-        </span>
+        </button>
         <input
-          aria-label="Search assets, domains, policies, and people"
+          aria-label={placeholder}
           className="gh-topbar-search-input"
           disabled={shellDisabled}
           onBlur={() => {
@@ -73,8 +79,7 @@ export function TopbarSearch({
           value={searchQuery}
         />
         <span className="gh-topbar-search-shortcut" aria-hidden="true">
-          <kbd>⌘</kbd>
-          <kbd>K</kbd>
+          <kbd>⌘K</kbd>
         </span>
         {searchEnabled ? (
           <GlobalSearchDropdown

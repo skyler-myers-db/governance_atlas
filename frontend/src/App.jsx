@@ -10,6 +10,7 @@ import { useCommandCenter } from "./hooks/useCommandCenter";
 import { useGovernanceSummary } from "./hooks/useGovernanceSummary";
 import { useRuntimeStatus } from "./hooks/useRuntimeStatus";
 import { normalizeGovernancePayload, updateGovernanceNotification } from "./lib/api";
+import { openAssetRecordSafely } from "./lib/assetRecordNavigation";
 import { diagnosticsRecoveryAvailable, diagnosticsSurfaceAvailable } from "./lib/capabilities";
 
 const GovernanceWorkspace = lazy(() => import("./components/GovernanceWorkspace"));
@@ -43,6 +44,25 @@ function mergeAssetGroups(...groups) {
     merged.push(asset);
   });
   return merged;
+}
+
+function finiteNumberOrNull(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function averageAssetCoverageScore(assets = []) {
+  const scores = [];
+  for (const asset of Array.isArray(assets) ? assets : []) {
+    const score =
+      finiteNumberOrNull(asset?.coverageScore) ??
+      finiteNumberOrNull(asset?.metadataCoverage) ??
+      finiteNumberOrNull(asset?.coverage);
+    if (score !== null) scores.push(score);
+  }
+  if (!scores.length) return null;
+  const total = scores.reduce((sum, score) => sum + score, 0);
+  return Math.round((total / scores.length) * 10) / 10;
 }
 
 function normalizeInboxState(value) {
@@ -254,12 +274,13 @@ export default function App() {
   });
   const runtimeStatusRefresh = runtimeStatus.refresh;
   const resolvedIdentity = runtimeStatus.data?.identity || data?.identity || {};
+  const runtimeStatusLoading = runtimeStatus.data?.runtime?.state === "loading";
   const runtimeCapabilitiesLive =
-    runtimeStatus.data?.runtime?.state && runtimeStatus.data.runtime.state !== "loading"
+    runtimeStatus.data?.runtime?.state && !runtimeStatusLoading
       ? runtimeStatus.data?.capabilities || null
       : null;
   const runtimeFeatureFlagsLive =
-    runtimeStatus.data?.runtime?.state && runtimeStatus.data.runtime.state !== "loading"
+    runtimeStatus.data?.runtime?.state && !runtimeStatusLoading
       ? runtimeStatus.data?.featureFlags ||
         runtimeStatus.data?.diagnostics?.featureFlags ||
         null
@@ -312,14 +333,15 @@ export default function App() {
           }
         : data;
   const governanceSummary = useGovernanceSummary({
-    enabled: !loading && !error && !shellOnly && Boolean(data) && surface === "governance",
+    enabled: !loading && !error && !shellOnly && Boolean(data),
   });
   const runtimeRolloutFlags =
-    runtimeStatus.data?.diagnostics?.featureFlags ||
+    (!runtimeStatusLoading ? runtimeStatus.data?.diagnostics?.featureFlags : null) ||
     diagnosticsSource?.featureFlags ||
     diagnosticsSource?.diagnostics?.featureFlags ||
     [];
   const workspaceAccess = diagnosticsSource?.diagnostics?.workspaceAccess || null;
+  const surfaceWorkspaceAccess = runtimeStatusLoading ? null : workspaceAccess;
   const diagnosticsAvailable = diagnosticsSurfaceAvailable(diagnosticsSource);
   const diagnosticsRecovery = diagnosticsRecoveryAvailable(runtimeStatus.data || diagnosticsSource);
   const setupReadiness =
@@ -457,7 +479,6 @@ export default function App() {
     ? overlayGovernanceDegradedState(governanceBase, governanceSummary.refreshError)
     : governanceBase;
   const governanceInbox = governance?.inbox || null;
-  const governanceSummaryLoading = governanceSummary.loading && !liveGovernanceState && !governanceSummary.data;
   const governanceRouteFallback =
     governance || degradedGovernanceState(governanceSummary.error || governanceSummary.refreshError);
   const shellGovernance = governance || emptyGovernanceState();
@@ -555,16 +576,28 @@ export default function App() {
     searchSeedAssets.length > 0 ||
     (hasBaselineDiscoveryTruth && Number(liveDiscoveryState.baselineCount || 0) > 0);
   const effectiveBootState =
-    bootState === "unavailable" || bootState === "error"
+    bootState === "loading"
+      ? "loading"
+      : bootState === "unavailable" || bootState === "error"
       ? bootState
-      : bootstrapRefreshFailed || bootState === "degraded"
+      : bootState === "prototype_mock"
+        ? "prototype_mock"
+        : bootstrapRefreshFailed || bootState === "degraded"
         ? "degraded"
         : "live";
   const effectiveBootMessage =
     effectiveBootState === "live" && hasRenderableCatalogSeed ? "" : refreshError || bootMessage;
-  const shellBacklogCount = Array.isArray(shellGovernance?.backlog)
-    ? shellGovernance.backlog.length
-    : null;
+  const atlasAiAvailableStates = new Set(["available", "ready", "enabled", "configured", "live"]);
+  const atlasAiProviderState = String(shell?.ai?.state || "").trim().toLowerCase();
+  const atlasAiProviderName = String(shell?.ai?.provider || "").trim().toLowerCase();
+  const atlasAiPrototypeMockAvailable =
+    atlasAiProviderState === "prototype_mock" || atlasAiProviderName === "prototype-mock";
+  const atlasAiAvailable =
+    (effectiveBootState === "live" && atlasAiAvailableStates.has(atlasAiProviderState)) ||
+    atlasAiPrototypeMockAvailable;
+  const atlasAiUnavailableReason =
+    shell?.ai?.message ||
+    "Atlas AI is unavailable until the shell reports a configured Genie endpoint.";
   const commandCenterSeed = useMemo(() => {
     const discoveryPayload = data?.discovery || {};
     const bootstrapSummary = discoveryPayload.summary || {};
@@ -593,12 +626,12 @@ export default function App() {
       || Number(bootstrapSummary.catalogCount)
       || Number(data?.inventory?.catalogCount)
       || (Array.isArray(discoveryPayload.catalogs) ? discoveryPayload.catalogs.length : 0);
-    const openRequests = shellBacklogCount;
+    const openRequests = null;
     const coverageScore =
-      bootstrapSummary.averageCoverage
-      ?? data?.governance?.summary?.coverageScore
-      ?? shellGovernance?.summary?.coverageScore
-      ?? null;
+      finiteNumberOrNull(bootstrapSummary.averageCoverage)
+      ?? finiteNumberOrNull(data?.governance?.summary?.coverageScore)
+      ?? finiteNumberOrNull(shellGovernance?.summary?.coverageScore)
+      ?? averageAssetCoverageScore(discoveryPayload.defaultResults || searchSeedAssets);
     return {
       estate: {
         visibleAssetCount,
@@ -619,7 +652,6 @@ export default function App() {
     liveCatalogVisibleCount,
     liveDiscoveryState.facets,
     searchSeedAssets.length,
-    shellBacklogCount,
     shellGovernance?.summary?.coverageScore,
   ]);
   const commandCenter = useCommandCenter({
@@ -697,7 +729,9 @@ export default function App() {
             onLiveCatalogStateChange={handleLiveCatalogStateChange}
             sharedVisibleAssetSet={visibleAssetSet}
             runtimeFeatureFlags={runtimeRolloutFlags}
-            workspaceAccess={workspaceAccess}
+            workspaceAccess={surfaceWorkspaceAccess}
+            atlasAiAvailable={atlasAiAvailable}
+            atlasAiUnavailableReason={atlasAiUnavailableReason}
           />
         </Suspense>
       );
@@ -713,6 +747,7 @@ export default function App() {
             assetFqn={surface === "entity" ? routeAssetFqn : ""}
             bootstrap={mergedBootstrap}
             contextSeedAssets={contextSeedAssets}
+            effectiveBootState={effectiveBootState}
             onNavigationStateChange={handleNavigationStateChange}
             onSurfaceReady={handleSurfaceReady}
             sharedVisibleAssetSet={visibleAssetSet}
@@ -726,7 +761,7 @@ export default function App() {
             }
             onSelectAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
             runtimeFeatureFlags={runtimeRolloutFlags}
-            workspaceAccess={workspaceAccess}
+            workspaceAccess={surfaceWorkspaceAccess}
           />
         </Suspense>
       );
@@ -750,7 +785,7 @@ export default function App() {
             onOpenGovernance={openGovernanceWorkspace}
             onOpenAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
             runtimeFeatureFlags={runtimeRolloutFlags}
-            workspaceAccess={workspaceAccess}
+            workspaceAccess={surfaceWorkspaceAccess}
             userEmail={shell?.userEmail || ""}
           />
         </Suspense>
@@ -763,7 +798,9 @@ export default function App() {
             "Preparing cross-entity audit events and filters.",
           )}
         >
-          <AuditBrowserWorkspace shell={shell} />
+          <AuditBrowserWorkspace
+            onOpenAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
+          />
         </Suspense>
       );
     } else if (surface === "taxonomy") {
@@ -774,7 +811,11 @@ export default function App() {
             "Preparing classifications, domains, data products, and column groups.",
           )}
         >
-          <TaxonomyWorkspace />
+          <TaxonomyWorkspace
+            onOpenAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
+            onOpenLineage={openLineageWorkspace}
+            onSurfaceReady={handleSurfaceReady}
+          />
         </Suspense>
       );
     } else if (surface === "cde") {
@@ -788,6 +829,7 @@ export default function App() {
           <CdeWorkspace
             onOpenAsset={(assetFqn) => openEntityWorkspace(assetFqn, "Overview")}
             onOpenLineage={openLineageWorkspace}
+            onSurfaceReady={handleSurfaceReady}
           />
         </Suspense>
       );
@@ -800,6 +842,7 @@ export default function App() {
           )}
         >
           <HelpPage
+            bootState={effectiveBootState}
             onBack={() => openDiscoveryWorkspace("", { fresh: false })}
           />
         </Suspense>
@@ -825,7 +868,10 @@ export default function App() {
             "Preparing runtime, integration, and governance-store diagnostics.",
           )}
         >
-          <AdminWorkspace />
+          <AdminWorkspace
+            onNavigate={(surfaceKey) => handleModuleSurfaceChange(surfaceKey)}
+            shell={shell}
+          />
         </Suspense>
       );
     } else if (surface === "insights") {
@@ -851,6 +897,7 @@ export default function App() {
           )}
         >
           <InboxPage
+            bootState={effectiveBootState}
             governanceInbox={shellGovernance.inbox}
             onInboxItemAction={handleInboxItemAction}
             onBack={() => openDiscoveryWorkspace("", { fresh: false })}
@@ -877,6 +924,7 @@ export default function App() {
             estate={commandCenter.data.estate}
             state={homeState}
             message={commandCenter.oboFallbackReason || ""}
+            hydrating={commandCenter.hydrating}
             refreshing={commandCenter.refreshing}
             refreshError={commandCenter.refreshError}
             warnings={commandCenter.warnings}
@@ -888,12 +936,7 @@ export default function App() {
         </Suspense>
       );
     } else {
-      content = governanceSummaryLoading ? (
-        workspaceLoading(
-          "Loading governance",
-          "Preparing live stewardship lanes, glossary context, and inbox state.",
-        )
-      ) : (
+      content = (
         <Suspense
           fallback={workspaceLoading(
             "Loading governance",
@@ -903,6 +946,10 @@ export default function App() {
           <GovernanceWorkspace
             bootstrap={mergedBootstrap}
             contextSeedAssets={contextSeedAssets}
+            currentUser={{
+              email: shell.userEmail || "",
+              name: shell.userName || "",
+            }}
             initialAssetFqn={surface === "governance" ? routeAssetFqn : ""}
             governance={governanceRouteFallback}
             onNavigationStateChange={handleNavigationStateChange}
@@ -932,14 +979,26 @@ export default function App() {
       bootMessage={effectiveBootMessage}
       bootState={effectiveBootState}
       currentAssetFqn={shellAsset360Fqn}
-      governanceInbox={shellGovernance.inbox}
+      governanceInbox={shellGovernance.inbox || null}
       inboxOpen={shellInboxOpen}
       liveCatalogVisibleCount={liveCatalogVisibleCount}
+      ucCoverageScore={commandCenter.data?.estate?.coverageScore ?? commandCenterSeed.estate.coverageScore}
       navigationState={navigationState}
       onBrowseCatalog={handleBrowseCatalog}
       onModuleChange={handleModuleSurfaceChange}
       onOpenAsset360={() => {
-        if (shellAsset360Fqn) openEntityWorkspace(shellAsset360Fqn, "Overview");
+        if (!shellAsset360Fqn) return;
+        void openAssetRecordSafely(shellAsset360Fqn, {
+          loadingLabel: "Opening Asset 360…",
+          onNavigationStateChange: handleNavigationStateChange,
+          onOpen: () => openEntityWorkspace(shellAsset360Fqn, "Overview"),
+          onUnavailable: () => {
+            openDiscoveryWorkspace(discoveryRouteState.query || shellAsset360Fqn, {
+              fresh: false,
+              previewAssetFqn: shellAsset360Fqn,
+            });
+          },
+        });
       }}
       onNavigationStateChange={handleNavigationStateChange}
       onSearchResultSelect={(assetFqn) => {

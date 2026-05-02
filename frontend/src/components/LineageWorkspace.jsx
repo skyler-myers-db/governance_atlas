@@ -18,9 +18,9 @@ import {
 } from "../lib/capabilities";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
-import { WorkspaceStateCard } from "./ShellStatePrimitives";
 
 const LINEAGE_CONTEXT_SESSION_KEY = "gh.lineage.context.v1";
+const LINEAGE_TRANSIENT_REASON_PATTERN = /(warming|hydrate|hydrating|cold start|serverless|warehouse|starting|loading)/i;
 
 function lineageContextSessionKey(assetFqn) {
   if (typeof window === "undefined") return `${LINEAGE_CONTEXT_SESSION_KEY}:${assetFqn || "none"}`;
@@ -34,6 +34,10 @@ function readLineageContext(assetFqn, fallback = "Data Lineage") {
   } catch {
     return fallback;
   }
+}
+
+function lineageCapabilityCanHydrate(reason = "") {
+  return LINEAGE_TRANSIENT_REASON_PATTERN.test(String(reason || ""));
 }
 
 export default function LineageWorkspace({
@@ -89,12 +93,14 @@ export default function LineageWorkspace({
         typeof workspaceAccess.canUseLineage === "boolean"
       ),
   );
-  const lineageAccessPending =
-    !workspaceAccessResolved && lineageAvailable && lineageRolloutAvailable;
-  const lineageSurfaceAvailable = lineageAvailable && lineageRolloutAvailable && workspaceLineageAvailable;
+  const lineageAccessPending = false;
+  const lineageSurfaceAvailable =
+    lineageAvailable &&
+    lineageRolloutAvailable &&
+    (!workspaceAccessResolved || workspaceLineageAvailable);
   const lineageRolloutUnavailableReason =
     "Table lineage rollout is not available in this workspace right now.";
-  const lineageSurfaceUnavailableReason = !workspaceLineageAvailable
+  const lineageSurfaceUnavailableReason = workspaceAccessResolved && !workspaceLineageAvailable
     ? workspaceAccessReason(workspaceAccess, "table_lineage", lineageUnavailableReason)
     : lineageAvailable
     ? lineageRolloutAvailable
@@ -110,7 +116,12 @@ export default function LineageWorkspace({
     allowFallback: false,
   });
   const assetDetail = useAssetDetail(focusAssetFqn || "", { sections: ["header"] });
-  const lineage = useLineage(focusAssetFqn || "", lineageSurfaceAvailable);
+  const lineageHydrationAvailable =
+    Boolean(focusAssetFqn) &&
+    lineageCapabilityCanHydrate(lineageUnavailableReason) &&
+    (!workspaceAccessResolved || workspaceLineageAvailable);
+  const lineageFetchEnabled = lineageSurfaceAvailable || lineageHydrationAvailable;
+  const lineage = useLineage(focusAssetFqn || "", lineageFetchEnabled);
   const asset =
     assetDetail.detail ||
     (focusAssetFqn && assetDetail.loading ? seeded.summary : null);
@@ -280,64 +291,6 @@ export default function LineageWorkspace({
     });
   };
 
-  if (lineageAccessPending) {
-    return (
-      <section className="gh-workspace gh-lineage-shell">
-        <WorkspaceStateCard
-          eyebrow="Lineage Access"
-          message="Checking actor-scoped lineage access for this route."
-          title="Resolving live lineage access..."
-          tone="neutral"
-        >
-          {asset || focusAssetFqn ? (
-            <div className="gh-support-copy">{asset ? assetPathLabel(asset) : focusAssetFqn}</div>
-          ) : null}
-        </WorkspaceStateCard>
-      </section>
-    );
-  }
-
-  if (!lineageSurfaceAvailable) {
-    return (
-      <section className="gh-workspace gh-lineage-shell">
-        <WorkspaceStateCard
-          eyebrow="Lineage Unavailable"
-          message={lineageSurfaceUnavailableReason}
-          title="Live table lineage is not available in this workspace."
-          tone="bad"
-        >
-          {asset || focusAssetFqn ? (
-            <div className="gh-support-copy">{asset ? assetPathLabel(asset) : focusAssetFqn}</div>
-          ) : null}
-          {focusAssetFqn ? (
-            <div className="gh-empty-state-actions">
-              <button
-                className="gh-secondary-button"
-                onClick={() => {
-                  onNavigationStateChange?.(true, "Opening metadata record…");
-                  onOpenAsset?.(focusAssetFqn, "Overview");
-                }}
-                type="button"
-              >
-                Open metadata record
-              </button>
-              <button
-                className="gh-secondary-button"
-                onClick={() => {
-                  onNavigationStateChange?.(true, "Opening governance…");
-                  onOpenGovernance?.(focusAssetFqn);
-                }}
-                type="button"
-              >
-                Open governance
-              </button>
-            </div>
-          ) : null}
-        </WorkspaceStateCard>
-      </section>
-    );
-  }
-
   // Defect 1 — the node drawer footer's "View in Databricks Catalog" button
   // deep-links to the Unity Catalog explorer page. We plumb the workspace
   // host down through LineageStage → LineageGraph so the button can build
@@ -355,6 +308,99 @@ export default function LineageWorkspace({
       ? browserHost.replace(/^[^.]+\./, "").replace(/databricksapps\.com$/, "databricks.net")
       : "");
 
+  if (!focusAssetFqn) {
+    return (
+      <section className="gh-lineage-shell">
+        <LineageStage
+          asset={null}
+          assetSearchLoading={assetSearch.loading}
+          assetSearchQuery={assetSearchQuery}
+          assetSearchResults={assetSearch.assets}
+          assetSearchResolvedQuery={assetSearch.resolvedQuery}
+          context={localContext}
+          modeFlags={modeFlags}
+          onModeChange={setModeFlags}
+          embedded={false}
+          workspaceHost={workspaceHost}
+          error=""
+          graphBundle={null}
+          lineagePayload={null}
+          loading={false}
+          linkedRecordUnavailableOverrides={linkedRecordUnavailableOverrides}
+          notice={linkFeedback}
+          authoritative={false}
+          provisional={false}
+          overlay={searchOverlay}
+          upstreamLevels={upstreamLevels}
+          downstreamLevels={downstreamLevels}
+          maxDepth={maxDepth}
+          nodesPerLayer={nodesPerLayer}
+          includeColumns={includeColumns}
+          onUpstreamLevelsChange={setUpstreamLevels}
+          onDownstreamLevelsChange={setDownstreamLevels}
+          onMaxDepthChange={setMaxDepth}
+          onNodesPerLayerChange={setNodesPerLayer}
+          onIncludeColumnsChange={setIncludeColumns}
+          onAssetSearchQueryChange={setAssetSearchQuery}
+          onContextChange={setLocalContext}
+          onOpenGovernance={onOpenGovernance}
+          onOpenAsset={openLineageAsset}
+          onSelectAsset={(assetFqn) => {
+            onNavigationStateChange?.(true, "Refocusing lineage…");
+            setLinkFeedback("");
+            onRouteAssetChange?.(assetFqn, localContext);
+          }}
+          userEmail={userEmail}
+        />
+      </section>
+    );
+  }
+
+  const lineagePayloadAvailable = Boolean(
+    lineage.payload ||
+      lineage.graph?.data?.nodes?.length ||
+      lineage.graph?.operational?.nodes?.length,
+  );
+  const lineageStageAvailable =
+    lineageSurfaceAvailable || lineageHydrationAvailable || lineagePayloadAvailable;
+  const lineageUnavailableOverlay = !lineageStageAvailable || lineageAccessPending ? (
+    <div className="gh-lineage-overlay-card">
+      <div className="gh-panel-title">{lineageAccessPending ? "Lineage Access" : "Lineage Unavailable"}</div>
+      <div className="gh-support-copy">
+        {lineageAccessPending
+          ? "Checking actor-scoped lineage access for this route."
+          : lineageSurfaceUnavailableReason}
+      </div>
+      {asset || focusAssetFqn ? (
+        <div className="gh-support-copy">{asset ? assetPathLabel(asset) : focusAssetFqn}</div>
+      ) : null}
+      {focusAssetFqn ? (
+        <div className="gh-empty-state-actions">
+          <button
+            className="gh-secondary-button"
+            onClick={() => {
+              onNavigationStateChange?.(true, "Opening metadata record…");
+              onOpenAsset?.(focusAssetFqn, "Overview");
+            }}
+            type="button"
+          >
+            Open metadata record
+          </button>
+          <button
+            className="gh-secondary-button"
+            onClick={() => {
+              onNavigationStateChange?.(true, "Opening governance…");
+              onOpenGovernance?.(focusAssetFqn);
+            }}
+            type="button"
+          >
+            Open governance
+          </button>
+        </div>
+      ) : null}
+    </div>
+  ) : null;
+
   return (
     <section className="gh-lineage-shell">
       <LineageStage
@@ -368,15 +414,15 @@ export default function LineageWorkspace({
         onModeChange={setModeFlags}
         embedded={false}
         workspaceHost={workspaceHost}
-        error={lineage.error}
+        error={!lineageStageAvailable ? lineageSurfaceUnavailableReason : lineage.error}
         graphBundle={lineage.graph}
         lineagePayload={lineage.payload}
-        loading={lineage.loading}
+        loading={lineageAccessPending || lineage.loading}
         linkedRecordUnavailableOverrides={linkedRecordUnavailableOverrides}
         notice={linkFeedback}
         authoritative={lineage.authoritative}
         provisional={lineage.provisional}
-        overlay={!hasGraph ? searchOverlay : null}
+        overlay={lineageUnavailableOverlay || (!hasGraph ? searchOverlay : null)}
         upstreamLevels={upstreamLevels}
         downstreamLevels={downstreamLevels}
         maxDepth={maxDepth}

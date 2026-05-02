@@ -29,6 +29,7 @@ describe("useDiscoveryResults", () => {
       facets: {
         catalogs: [{ value: "main", count: 1 }],
       },
+      meta: { authoritative: true },
     });
 
     const { result } = renderHook(
@@ -85,6 +86,7 @@ describe("useDiscoveryResults", () => {
         assets: [{ fqn: "main.sales.authoritative" }],
         count: 1,
         facets: null,
+        meta: { authoritative: true },
       })
       .mockImplementationOnce(
         () =>
@@ -132,6 +134,7 @@ describe("useDiscoveryResults", () => {
         assets: [{ fqn: "main.sales.authoritative" }],
         count: 150,
         facets: null,
+        meta: { authoritative: true },
       })
       .mockImplementationOnce(
         () =>
@@ -240,6 +243,7 @@ describe("useDiscoveryResults", () => {
       assets: [{ fqn: "main.sales.authoritative" }],
       count: 1,
       facets: null,
+      meta: { authoritative: true },
       queryState: {
         state: "valid",
         syntaxHint: "Use field:value with AND/OR groups.",
@@ -296,5 +300,39 @@ describe("useDiscoveryResults", () => {
         },
       ]);
     });
+  });
+
+  it("does not mark successful discovery responses authoritative without backend authority metadata", async () => {
+    fetchDiscoverySearchMock.mockResolvedValue({
+      assets: [{ fqn: "main.sales.degraded" }],
+      count: 1,
+      facets: null,
+    });
+
+    const { result } = renderHook(
+      () =>
+        useDiscoveryResults({
+          query: "",
+          views: [],
+          types: [],
+          catalogs: [],
+          domains: [],
+          tiers: [],
+          certifications: [],
+          sensitivities: [],
+          sortBy: "Best match",
+        }),
+      {
+        wrapper: createWrapper(),
+      },
+    );
+
+    await waitFor(() => {
+      expect(fetchDiscoverySearchMock).toHaveBeenCalledTimes(1);
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.authoritative).toBe(false);
+    expect(result.current.assets).toEqual([{ fqn: "main.sales.degraded" }]);
   });
 });

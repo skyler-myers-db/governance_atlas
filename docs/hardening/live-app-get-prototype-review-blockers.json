@@ -1,0 +1,83 @@
+{
+  "active_deployment": {
+    "create_time":"2026-04-29T00:11:08Z",
+    "creator":"skyler@entrada.ai",
+    "deployment_artifacts": {
+      "source_code_path":"/Workspace/Users/6cc86299-e989-42b7-9268-4f4335124812/src/01f1435febf310a2a1db7cae86e88604"
+    },
+    "deployment_id":"01f1435febf310a2a1db7cae86e88604",
+    "mode":"SNAPSHOT",
+    "source_code_path":"/Workspace/Users/skyler@entrada.ai/.bundle/atlas/dev/files",
+    "status": {
+      "message":"App started successfully",
+      "state":"SUCCEEDED"
+    },
+    "update_time":"2026-04-29T00:14:48Z"
+  },
+  "app_status": {
+    "message":"App has status: App is running",
+    "state":"RUNNING"
+  },
+  "compute_size":"MEDIUM",
+  "compute_status": {
+    "message":"App compute is running.",
+    "state":"ACTIVE"
+  },
+  "create_time":"2026-04-24T06:19:19Z",
+  "creator":"skyler@entrada.ai",
+  "default_source_code_path":"/Workspace/Users/skyler@entrada.ai/.bundle/atlas/dev/files",
+  "description":"Governance Atlas - a Databricks-native enterprise metadata workspace extending Unity Catalog, deployable to any Databricks workspace.\n",
+  "effective_user_api_scopes": [
+    "sql",
+    "catalog.connections",
+    "iam.current-user:read",
+    "dashboards.genie",
+    "catalog.tables:read",
+    "catalog.schemas:read",
+    "iam.access-control:read",
+    "catalog.catalogs:read"
+  ],
+  "id":"6cc86299-e989-42b7-9268-4f4335124812",
+  "name":"atlas",
+  "oauth2_app_client_id":"551ed2fa-4d54-4dc4-bc7f-abb6e9bdb9ad",
+  "oauth2_app_integration_id":"551ed2fa-4d54-4dc4-bc7f-abb6e9bdb9ad",
+  "resources": [
+    {
+      "name":"sql-warehouse",
+      "sql_warehouse": {
+        "id":"da02d15a9490650b",
+        "permission":"CAN_USE"
+      }
+    },
+    {
+      "genie_space": {
+        "name":"Governance Atlas Metadata Room",
+        "permission":"CAN_RUN",
+        "space_id":"01f1406a11221afa985d3fe64c9fbea1"
+      },
+      "name":"atlas-genie-space"
+    },
+    {
+      "name":"atlas-lakebase",
+      "postgres": {
+        "branch":"projects/governance-atlas-state/branches/production",
+        "database":"projects/governance-atlas-state/branches/production/databases/db-y68x-6gpq0zhrl4",
+        "permission":"CAN_CONNECT_AND_CREATE"
+      }
+    }
+  ],
+  "service_principal_client_id":"6cc86299-e989-42b7-9268-4f4335124812",
+  "service_principal_id":73650668244367,
+  "service_principal_name":"app-5q741p atlas",
+  "update_time":"2026-04-29T00:11:08Z",
+  "updater":"skyler@entrada.ai",
+  "url":"https://atlas-2543889327043640.aws.databricksapps.com",
+  "user_api_scopes": [
+    "sql",
+    "catalog.catalogs:read",
+    "catalog.schemas:read",
+    "catalog.tables:read",
+    "catalog.connections",
+    "dashboards.genie"
+  ]
+}

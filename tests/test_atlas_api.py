@@ -87,6 +87,39 @@ class FakeStore:
             review_note=None,
         )
 
+    def list_classifications(self) -> pd.DataFrame:
+        return pd.DataFrame([{"classification_id": "class-1", "display_name": "PII"}])
+
+    def list_domains(self) -> pd.DataFrame:
+        return pd.DataFrame([{"domain_id": "customer", "display_name": "Customer"}])
+
+    def list_data_products(self) -> pd.DataFrame:
+        return pd.DataFrame([{"data_product_id": "customer-360", "display_name": "Customer 360"}])
+
+    def list_logical_column_groups(self) -> pd.DataFrame:
+        return pd.DataFrame([{"group_id": "customer-ids", "display_name": "Customer IDs"}])
+
+    def list_glossary_terms(self, limit: int = 200) -> pd.DataFrame:
+        return pd.DataFrame(
+            [{"term_id": "raw-term", "name": "Raw Term", "definition": "Raw glossary row"}]
+        )
+
+    def list_roles(self) -> pd.DataFrame:
+        return pd.DataFrame([{"email": "admin@example.com", "role": "admin"}])
+
+    def list_identity_directory_entries(
+        self,
+        principal_type: str | None = None,
+        *,
+        active_only: bool = False,
+    ) -> pd.DataFrame:
+        return pd.DataFrame(
+            [
+                {"entry_id": "u1", "principal_type": "user", "email": "admin@example.com", "is_active": True},
+                {"entry_id": "g1", "principal_type": "group", "email": "", "is_active": True},
+            ]
+        )
+
 
 class FailingRequestStore(FakeStore):
     def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
@@ -165,6 +198,227 @@ class AtlasApiTests(unittest.TestCase):
         self.assertTrue(
             any("list_change_requests failed" in warning for warning in payload["meta"]["warnings"])
         )
+
+    def test_taxonomy_overview_returns_enriched_wrapped_contract(self) -> None:
+        import runtime_app
+
+        enriched_terms = [
+            {
+                "termId": "customer-id",
+                "term": "Customer Identifier",
+                "definition": "Business-approved identifier.",
+                "ownerEmail": "customer.owner@entrada.ai",
+                "assetCount": 1,
+            }
+        ]
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _uc_for_request=lambda request: SimpleNamespace(runtime_context=lambda: {}),
+            _store_for_read=lambda: FakeStore(),
+        ), patch.object(
+            atlas_api.governance_service,
+            "glossary_terms",
+            return_value=enriched_terms,
+        ):
+            response = atlas_api.api_taxonomy_overview(_request())
+
+        self.assertEqual(response.status_code, 200)
+        payload = _response_json(response)
+        self.assertEqual(payload["meta"]["source"], "governance-store+unity-catalog-inventory")
+        self.assertEqual(payload["meta"]["state"], "available")
+        self.assertEqual(payload["meta"]["capabilities"]["glossaryEnriched"], True)
+        self.assertEqual(payload["summary"]["termCount"], 1)
+        self.assertEqual(payload["glossaryTerms"][0]["termId"], "customer-id")
+        self.assertEqual(payload["classifications"][0]["classification_id"], "class-1")
+
+    def test_cde_dashboard_and_detail_preserve_truthful_degraded_source(self) -> None:
+        import runtime_app
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _visible_assets=lambda request: _visible_assets(),
+            _uc_for_request=lambda request: SimpleNamespace(runtime_context=lambda: {}),
+        ):
+            dashboard_response = atlas_api.api_cde_dashboard(_request())
+            detail_response = atlas_api.api_cde_detail("main.customer.customer_dim", _request())
+
+        self.assertEqual(dashboard_response.status_code, 200)
+        dashboard = _response_json(dashboard_response)
+        self.assertEqual(dashboard["meta"]["source"], "unity-catalog-inventory+governance-store")
+        self.assertNotIn("quality-runner", dashboard["meta"]["source"])
+        self.assertEqual(dashboard["meta"]["state"], "degraded")
+        self.assertFalse(dashboard["meta"]["capabilities"]["controlCoverage"])
+        self.assertIsNone(dashboard["summary"]["protectedCdes"])
+        self.assertEqual(dashboard["summary"]["sensitiveCandidates"], 1)
+
+        self.assertEqual(detail_response.status_code, 200)
+        detail = _response_json(detail_response)
+        self.assertEqual(detail["meta"]["source"], "unity-catalog-inventory+governance-store")
+        self.assertNotIn("quality-runner", detail["meta"]["source"])
+        self.assertEqual(detail["lineageSnapshot"]["state"], "unavailable")
+        self.assertEqual(detail["controls"][0]["state"], "unavailable")
+        self.assertIsNone(detail["controls"][0]["coverage"])
+
+    def test_audit_evidence_is_steward_admin_gated(self) -> None:
+        import runtime_app
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _user_role_slug=lambda request: "viewer",
+            _store_for_read=lambda: FakeStore(),
+        ):
+            with self.assertRaises(atlas_api.HTTPException) as ctx:
+                atlas_api.api_audit_evidence(_request())
+
+        self.assertEqual(ctx.exception.status_code, 403)
+
+    def test_audit_evidence_returns_truthful_source_and_arrays(self) -> None:
+        import runtime_app
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _user_role_slug=lambda request: "steward",
+            _store_for_read=lambda: FakeStore(),
+            _visible_assets=lambda request: _visible_assets(),
+        ):
+            response = atlas_api.api_audit_evidence(_request(), audit_id="AUD-1", limit=25)
+
+        self.assertEqual(response.status_code, 200)
+        payload = _response_json(response)
+        self.assertEqual(payload["meta"]["source"], "governance-store+metadata-audit-log")
+        self.assertNotIn("change-events", payload["meta"]["source"])
+        self.assertEqual(payload["meta"]["state"], "available")
+        self.assertTrue(payload["authoritative"])
+        self.assertEqual(payload["selectedEvent"]["audit_id"], "AUD-1")
+        self.assertIsInstance(payload["events"], list)
+        self.assertIsInstance(payload["evidence"]["approvalChain"], list)
+        self.assertIsInstance(payload["evidence"]["artifacts"], list)
+        self.assertEqual(payload["summary"]["rowScope"], "visible-assets")
+        self.assertEqual(payload["meta"]["capabilities"]["rowLevelSecurity"], "visible-assets-only")
+        self.assertEqual(payload["meta"]["capabilities"]["actorIdentityExposure"], "steward-admin-gated")
+
+    def test_audit_evidence_filters_rows_to_visible_assets(self) -> None:
+        import runtime_app
+
+        class MixedAuditStore(FakeStore):
+            def list_metadata_audit(self, **_: object) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "audit_id": "AUD-1",
+                            "entity_fqn": "main.customer.customer_dim",
+                            "action": "metadata updated",
+                            "status": "success",
+                            "detail": "Owner changed",
+                            "created_at": "2026-04-24 01:05:00",
+                            "actor_email": "visible.steward@entrada.ai",
+                        },
+                        {
+                            "audit_id": "AUD-HIDDEN",
+                            "entity_fqn": "restricted.payroll.salary_raw",
+                            "action": "grant changed",
+                            "status": "success",
+                            "detail": "Privilege changed",
+                            "created_at": "2026-04-24 01:06:00",
+                            "actor_email": "hidden.admin@entrada.ai",
+                        },
+                    ]
+                )
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _user_role_slug=lambda request: "steward",
+            _store_for_read=lambda: MixedAuditStore(),
+            _visible_assets=lambda request: _visible_assets(),
+        ):
+            response = atlas_api.api_audit_evidence(_request(), limit=25)
+
+        payload = _response_json(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([row["audit_id"] for row in payload["events"]], ["AUD-1"])
+        self.assertEqual(payload["summary"]["hiddenRowsExcluded"], 1)
+        self.assertNotIn("hidden.admin@entrada.ai", json.dumps(payload))
+
+    def test_audit_evidence_fails_closed_when_visibility_scope_unavailable(self) -> None:
+        import runtime_app
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _user_role_slug=lambda request: "steward",
+            _store_for_read=lambda: FakeStore(),
+            _visible_assets=lambda request: (_ for _ in ()).throw(RuntimeError("inventory unavailable")),
+        ):
+            response = atlas_api.api_audit_evidence(_request(), limit=25)
+
+        payload = _response_json(response)
+        self.assertEqual(response.status_code, 503)
+        self.assertFalse(payload["authoritative"])
+        self.assertEqual(payload["meta"]["capabilities"]["rowLevelSecurity"], "fail-closed-visible-assets")
+        self.assertIn("unscoped actor identities", payload["detail"])
+
+    def test_admin_control_center_is_admin_gated(self) -> None:
+        import runtime_app
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _user_role_slug=lambda request: "steward",
+        ):
+            with self.assertRaises(atlas_api.HTTPException) as ctx:
+                atlas_api.api_admin_control_center(_request())
+
+        self.assertEqual(ctx.exception.status_code, 403)
+
+    def test_admin_control_center_returns_curated_source_and_sections(self) -> None:
+        import runtime_app
+
+        cfg = SimpleNamespace(
+            deploy_target="Dev",
+            environment_label="",
+            gov_catalog="datapact",
+            gov_schema="atlas",
+            warehouse_id="wh-1",
+            workspace_host="dbc.example.cloud.databricks.com",
+        )
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _user_role_slug=lambda request: "admin",
+            _config=lambda: cfg,
+            _visible_assets=lambda request: _visible_assets(),
+            _store_for_read=lambda: FakeStore(),
+            _uc_runtime_status_fast=lambda background=False: {
+                "state": "live",
+                "client": {"authMode": "oauth-m2m-env", "clientSecretPresent": True},
+            },
+        ), patch.object(
+            atlas_api.genie_service,
+            "provider_status",
+            return_value={"state": "available", "provider": "genie", "spaceId": "space-1"},
+        ):
+            response = atlas_api.api_admin_control_center(_request())
+
+        self.assertEqual(response.status_code, 200)
+        payload = _response_json(response)
+        self.assertEqual(payload["meta"]["source"], "runtime-diagnostics+governance-store")
+        self.assertNotIn("background-runner", payload["meta"]["source"])
+        self.assertEqual(payload["environment"]["displayLabel"], "Dev · datapact.atlas")
+        self.assertEqual(payload["role"]["label"], "Platform Admin")
+        self.assertIn("policyRequirements", payload)
+        self.assertEqual(payload["bulkImport"]["state"], "unavailable")
+        notifications = next(item for item in payload["integrations"] if item["key"] == "notifications")
+        self.assertEqual(notifications["state"], "unavailable")
+        self.assertIn("Notification delivery health", notifications["reason"])
+        self.assertIn("access", payload)
+        self.assertNotIn("clientSecretPresent", payload["system"])
 
     def test_asset_360_checks_visibility_before_detail_payload(self) -> None:
         import runtime_app
@@ -260,6 +514,58 @@ class AtlasApiTests(unittest.TestCase):
         self.assertTrue(
             any("Unsupported Home Atlas AI question type" in warning for warning in payload["meta"]["warnings"])
         )
+
+    def test_atlas_ai_uses_genie_when_configured_with_forwarded_token(self) -> None:
+        import runtime_app
+
+        config = SimpleNamespace(
+            atlas_ai_provider="genie",
+            genie_space_id="space-1",
+            genie_space_title="Governance Atlas Metadata Room",
+            atlas_ai_require_benchmark=True,
+            workspace_host="https://example.cloud.databricks.com",
+        )
+        genie_payload = {
+            "question": "Which assets are missing stewardship?",
+            "intent": "genie",
+            "answer": "Two assets are missing owners.",
+            "recommendations": [],
+            "evidence": [
+                {
+                    "type": "genie_query",
+                    "statementId": "stmt-1",
+                    "sql": "SELECT asset_fqn FROM datapact.atlas_ai.atlas_ai_assets_current",
+                }
+            ],
+            "confidence": "genie-grounded",
+            "provider": "genie",
+            "providerState": {
+                "provider": "genie",
+                "state": "available",
+                "spaceId": "space-1",
+                "benchmarkState": "required",
+            },
+            "warnings": [],
+        }
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _config=lambda: config,
+        ), patch.object(atlas_api.genie_service, "ask_genie", return_value=genie_payload) as ask_genie:
+            response = atlas_api.api_atlas_ai_recommendations(
+                _request({"x-forwarded-access-token": "obo-token-1"}),
+                atlas_api.AtlasAiQuestion(question="Which assets are missing stewardship?"),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = _response_json(response)
+        ask_genie.assert_called_once()
+        self.assertEqual(payload["provider"], "genie")
+        self.assertEqual(payload["meta"]["source"], "databricks-genie")
+        self.assertEqual(payload["meta"]["state"], "available")
+        self.assertEqual(payload["meta"]["capabilities"]["spaceId"], "space-1")
+        self.assertTrue(payload["authoritative"])
 
 
 if __name__ == "__main__":

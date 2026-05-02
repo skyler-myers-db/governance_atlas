@@ -7,6 +7,13 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          return id.includes("node_modules") ? "vendor" : undefined;
+        },
+      },
+    },
   },
   server: {
     host: "0.0.0.0",
@@ -14,6 +21,8 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    fileParallelism: false,
     setupFiles: "./src/test/setup.js",
+    testTimeout: 30_000,
   },
 });

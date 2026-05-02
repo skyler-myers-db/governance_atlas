@@ -1,0 +1,119 @@
+{
+  "generatedAt": "2026-04-28T21:39:12Z",
+  "principal": "skyler@entrada.ai",
+  "statementCount": 28,
+  "results": [
+    {
+      "label": "use-catalog:finance_prod",
+      "status": "ok"
+    },
+    {
+      "label": "use-schema:finance_prod.raw",
+      "status": "ok"
+    },
+    {
+      "label": "select-schema:finance_prod.raw",
+      "status": "ok"
+    },
+    {
+      "label": "use-schema:finance_prod.bronze",
+      "status": "ok"
+    },
+    {
+      "label": "select-schema:finance_prod.bronze",
+      "status": "ok"
+    },
+    {
+      "label": "use-schema:finance_prod.silver",
+      "status": "ok"
+    },
+    {
+      "label": "select-schema:finance_prod.silver",
+      "status": "ok"
+    },
+    {
+      "label": "use-schema:finance_prod.gold",
+      "status": "ok"
+    },
+    {
+      "label": "select-schema:finance_prod.gold",
+      "status": "ok"
+    },
+    {
+      "label": "use-schema:finance_prod.curated",
+      "status": "ok"
+    },
+    {
+      "label": "select-schema:finance_prod.curated",
+      "status": "ok"
+    },
+    {
+      "label": "use-catalog:sales_prod",
+      "status": "ok"
+    },
+    {
+      "label": "use-schema:sales_prod.silver",
+      "status": "ok"
+    },
+    {
+      "label": "select-schema:sales_prod.silver",
+      "status": "ok"
+    },
+    {
+      "label": "use-catalog:customer_360",
+      "status": "ok"
+    },
+    {
+      "label": "use-schema:customer_360.gold",
+      "status": "ok"
+    },
+    {
+      "label": "select-schema:customer_360.gold",
+      "status": "ok"
+    },
+    {
+      "label": "use-schema:customer_360.ml",
+      "status": "ok"
+    },
+    {
+      "label": "select-schema:customer_360.ml",
+      "status": "ok"
+    },
+    {
+      "label": "use-catalog:product_events",
+      "status": "ok"
+    },
+    {
+      "label": "use-schema:product_events.bronze",
+      "status": "ok"
+    },
+    {
+      "label": "select-schema:product_events.bronze",
+      "status": "ok"
+    },
+    {
+      "label": "use-catalog:marketing_mart",
+      "status": "ok"
+    },
+    {
+      "label": "use-schema:marketing_mart.gold",
+      "status": "ok"
+    },
+    {
+      "label": "select-schema:marketing_mart.gold",
+      "status": "ok"
+    },
+    {
+      "label": "use-catalog:hr_secure",
+      "status": "ok"
+    },
+    {
+      "label": "use-schema:hr_secure.confidential",
+      "status": "ok"
+    },
+    {
+      "label": "select-schema:hr_secure.confidential",
+      "status": "ok"
+    }
+  ]
+}

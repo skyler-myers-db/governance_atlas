@@ -22,13 +22,6 @@ sync:
     - frontend/node_modules/**
     - node_modules/**
     - docs/northstar_visual_qa/**
-    - docs/northstar_baseline_screenshots/**
-    - docs/screenshots/**
-    - docs/mockups/*.png
-    - docs/mockups/*.jpg
-    - docs/mockups/*.jpeg
-    - frontend/test-results/**
-    - frontend/playwright-report/**
     - tests/**
 
 # ── Variables ──────────────────────────────────────────────
@@ -49,6 +42,39 @@ variables:
   environment_label:
     description: "User-facing environment label for the app shell"
     default: ""
+  deploy_target:
+    description: "User-facing bundle target for runtime environment metadata"
+    default: ""
+  atlas_ai_provider:
+    description: "Atlas AI provider: local or genie"
+    default: "local"
+  genie_space_id:
+    description: "Optional Databricks Genie space ID used by Atlas AI"
+    default: "not-configured"
+  genie_space_title:
+    description: "User-facing title for the Atlas AI Genie space"
+    default: "Governance Atlas Metadata Room"
+  atlas_ai_require_benchmark:
+    description: "Whether Atlas AI should report the Genie benchmark as a required readiness gate"
+    default: "false"
+  lakebase_enabled:
+    description: "Whether the app should enable Lakebase-backed operational state"
+    default: "false"
+  lakebase_endpoint_name:
+    description: "Optional Lakebase endpoint path/name for OAuth credential rotation"
+    default: "not-configured"
+  lakebase_branch:
+    description: "Optional Lakebase branch resource path for Databricks App resource binding"
+    default: "not-configured"
+  lakebase_database_resource:
+    description: "Optional Lakebase database resource path for Databricks App resource binding"
+    default: "not-configured"
+  lakebase_schema:
+    description: "Lakebase Postgres schema for app operational tables"
+    default: "atlas_app"
+  lakebase_uc_catalog:
+    description: "Optional UC catalog registered for Lakebase synced/foreign tables"
+    default: "not-configured"
 
 # ── App resource ────────────────────────────────────────────
 resources:
@@ -74,6 +100,24 @@ resources:
             value: ${var.admin_emails}
           - name: GOVAT_ENVIRONMENT_LABEL
             value: ${var.environment_label}
+          - name: GOVAT_DEPLOY_TARGET
+            value: ${var.deploy_target}
+          - name: GOVAT_ATLAS_AI_PROVIDER
+            value: ${var.atlas_ai_provider}
+          - name: GOVAT_GENIE_SPACE_ID
+            value: ${var.genie_space_id}
+          - name: GOVAT_GENIE_SPACE_TITLE
+            value: ${var.genie_space_title}
+          - name: GOVAT_ATLAS_AI_REQUIRE_BENCHMARK
+            value: ${var.atlas_ai_require_benchmark}
+          - name: GOVAT_LAKEBASE_ENABLED
+            value: ${var.lakebase_enabled}
+          - name: GOVAT_LAKEBASE_ENDPOINT_NAME
+            value: ${var.lakebase_endpoint_name}
+          - name: GOVAT_LAKEBASE_SCHEMA
+            value: ${var.lakebase_schema}
+          - name: GOVAT_LAKEBASE_UC_CATALOG
+            value: ${var.lakebase_uc_catalog}
       # OBO (on-behalf-of-user) scopes. Without these declared here, every
       # `bundle deploy` wipes scopes the operator set in the Databricks UI,
       # which silently demotes user reads to app-principal fallback and makes
@@ -107,20 +151,52 @@ targets:
   dev:
     mode: development
     default: true
+    # Entrada internal dev target: binds the current managed Genie/Lakebase
+    # resources used for live validation. Portable installs should override
+    # these variables or use targets without these optional resource bindings.
     variables:
       gov_catalog: datapact
       gov_schema: atlas
       admin_emails: "skyler@entrada.ai"
       environment_label: "Dev - DEFAULT"
+      deploy_target: "Dev"
+      atlas_ai_provider: "genie"
+      genie_space_id: "01f1406a11221afa985d3fe64c9fbea1"
+      atlas_ai_require_benchmark: "true"
+      lakebase_enabled: "true"
+      lakebase_endpoint_name: "projects/governance-atlas-state/branches/production/endpoints/primary"
+      lakebase_branch: "projects/governance-atlas-state/branches/production"
+      lakebase_database_resource: "projects/governance-atlas-state/branches/production/databases/db-y68x-6gpq0zhrl4"
+      lakebase_schema: "atlas_app"
+    resources:
+      apps:
+        atlas:
+          resources:
+            - name: sql-warehouse
+              sql_warehouse:
+                id: ${var.warehouse_id}
+                permission: CAN_USE
+            - name: atlas-genie-space
+              genie_space:
+                name: Governance Atlas Metadata Room
+                space_id: ${var.genie_space_id}
+                permission: CAN_RUN
+            - name: atlas-lakebase
+              postgres:
+                branch: ${var.lakebase_branch}
+                database: ${var.lakebase_database_resource}
+                permission: CAN_CONNECT_AND_CREATE
 
   staging:
     variables:
       gov_catalog: staging
       gov_schema: atlas
       environment_label: "Stage - DEFAULT"
+      deploy_target: "Stage"
 
   prod:
     variables:
       gov_catalog: prod
       gov_schema: atlas
       environment_label: "Prod - DEFAULT"
+      deploy_target: "Prod"

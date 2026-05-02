@@ -19,6 +19,10 @@ function isInlineShellBootstrap(payload) {
   return payload?.bootstrapContract?.mode === "inline-shell";
 }
 
+function isLoadingRouteBootstrap(payload) {
+  return payload?.bootstrapContract?.mode === "route-bootstrap" && payload?.bootState === "loading";
+}
+
 export function useBootstrap(routeContext = {}) {
   const seeded = useMemo(() => initialBootstrap(), []);
   const resolvedRouteContext = normalizeRouteContext(routeContext);
@@ -32,13 +36,20 @@ export function useBootstrap(routeContext = {}) {
     initialData: seeded || undefined,
     initialDataUpdatedAt: 0,
     staleTime: 60_000,
+    refetchInterval: (currentQuery) => (
+      isInlineShellBootstrap(currentQuery.state.data) || isLoadingRouteBootstrap(currentQuery.state.data)
+        ? 3_000
+        : false
+    ),
+    refetchIntervalInBackground: true,
   });
   const message = query.error?.message || "Failed to load Governance Atlas bootstrap payload.";
   const shellOnly = isInlineShellBootstrap(query.data);
+  const routeBootstrapLoading = isLoadingRouteBootstrap(query.data);
   const hasData = Boolean(query.data);
 
   return {
-    loading: !hasData || (shellOnly && query.isFetching),
+    loading: !hasData || ((shellOnly || routeBootstrapLoading) && query.isFetching),
     refreshing: query.isFetching,
     shellOnly,
     error: !hasData && query.isError ? message : "",

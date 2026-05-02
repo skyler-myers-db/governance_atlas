@@ -2,6 +2,7 @@ import { useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import AppFrame from "./AppFrame";
+import { fetchAtlasAiRecommendations } from "../lib/api";
 
 vi.mock("../hooks/useAssetSearch", () => ({
   useAssetSearch: () => ({
@@ -11,10 +12,17 @@ vi.mock("../hooks/useAssetSearch", () => ({
   }),
 }));
 
+vi.mock("../lib/api", () => ({
+  fetchAtlasAiRecommendations: vi.fn(),
+}));
+
 function FrameHarness({
+  activeModule = "discovery",
+  bootState = "live",
   diagnosticsAvailable = true,
   diagnosticsStatus = null,
   governanceInbox = null,
+  shellOverrides = {},
   onModuleChange = () => { },
 }) {
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
@@ -23,15 +31,16 @@ function FrameHarness({
 
   return (
     <AppFrame
-      activeModule="discovery"
+      activeModule={activeModule}
       bootMessage=""
-      bootState="live"
+      bootState={bootState}
       governanceInbox={currentInbox}
       inboxOpen={inboxOpen}
       diagnosticsAvailable={diagnosticsAvailable}
       diagnosticsStatus={diagnosticsStatus}
       diagnosticsOpen={diagnosticsOpen}
       liveCatalogVisibleCount={3}
+      ucCoverageScore={87.4}
       navigationState={{ pending: false, label: "" }}
       onInboxItemAction={(notificationId, action) => {
         setCurrentInbox((current) => {
@@ -63,7 +72,10 @@ function FrameHarness({
       searchSeedAssets={[]}
       shell={{
         role: "Admin",
+        userName: "Admin User",
         userEmail: "admin@example.com",
+        ai: { state: "available" },
+        ...shellOverrides,
       }}
       visibleAssetSet={new Set()}
     >
@@ -84,6 +96,7 @@ describe("AppFrame", () => {
         diagnosticsStatus={null}
         diagnosticsOpen={false}
         liveCatalogVisibleCount={3}
+        ucCoverageScore={87.4}
         navigationState={{ pending: false, label: "" }}
         onBrowseCatalog={() => { }}
         onInboxItemAction={() => { }}
@@ -93,7 +106,7 @@ describe("AppFrame", () => {
         onToggleDiagnostics={onToggle}
         onToggleInbox={() => { }}
         searchSeedAssets={[]}
-        shell={{ role: "Admin", userEmail: "admin@example.com" }}
+        shell={{ role: "Admin", userEmail: "admin@example.com", ai: { state: "available" } }}
         visibleAssetSet={new Set()}
       >
         <div>Workspace body</div>
@@ -138,12 +151,54 @@ describe("AppFrame", () => {
     // placeholder guidance used to live in a separate command-bar block; it
     // now reads from the input's placeholder attribute instead.
     const searchInput = screen.getByLabelText(
-      /Search assets, domains, policies, and people/i,
+      /Search assets, columns, glossary terms, owners/i,
     );
     expect(searchInput).not.toBeNull();
     expect(searchInput.getAttribute("placeholder")).toMatch(
-      /Search assets, domains, policies, people/i,
+      /Search assets, columns, glossary terms, owners/i,
     );
+  });
+
+  it("submits global search with Enter and the mouse submit control", () => {
+    const onBrowseCatalog = vi.fn();
+
+    render(
+      <AppFrame
+        activeModule="home"
+        bootMessage=""
+        bootState="live"
+        diagnosticsAvailable
+        diagnosticsStatus={null}
+        diagnosticsOpen={false}
+        liveCatalogVisibleCount={3}
+        ucCoverageScore={87.4}
+        navigationState={{ pending: false, label: "" }}
+        onBrowseCatalog={onBrowseCatalog}
+        onInboxItemAction={() => { }}
+        onModuleChange={() => { }}
+        onNavigationStateChange={() => { }}
+        onSearchResultSelect={() => { }}
+        onToggleDiagnostics={() => { }}
+        onToggleInbox={() => { }}
+        searchSeedAssets={[]}
+        shell={{ role: "Admin", userEmail: "admin@example.com", ai: { state: "available" } }}
+        visibleAssetSet={new Set()}
+      >
+        <div>Workspace body</div>
+      </AppFrame>,
+    );
+
+    const searchInput = screen.getByLabelText(/Search assets, columns, glossary terms, owners/i);
+    fireEvent.change(searchInput, { target: { value: "net revenue" } });
+    fireEvent.keyDown(searchInput, { key: "Enter" });
+    fireEvent.submit(searchInput.closest("form"));
+
+    expect(onBrowseCatalog).toHaveBeenLastCalledWith("net revenue");
+
+    fireEvent.change(searchInput, { target: { value: "customer profile" } });
+    fireEvent.click(screen.getByRole("button", { name: "Submit global search" }));
+
+    expect(onBrowseCatalog).toHaveBeenLastCalledWith("customer profile");
   });
 
   it("publishes a measured shell header height for sticky workspace offsets", async () => {
@@ -192,37 +247,260 @@ describe("AppFrame", () => {
 
     render(<FrameHarness onModuleChange={onModuleChange} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Governance Atlas/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Discovery" }));
-    fireEvent.click(screen.getByRole("button", { name: "Lineage" }));
+    fireEvent.click(screen.getByRole("button", { name: /Open Governance Atlas Command Center/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Discover" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lineage Atlas" }));
 
     expect(onModuleChange).toHaveBeenNthCalledWith(1, "home");
     expect(onModuleChange).toHaveBeenNthCalledWith(2, "discovery");
     expect(onModuleChange).toHaveBeenNthCalledWith(3, "lineage");
   });
 
-  it("routes AI Copilot to Home without opening the command palette", () => {
+  it("opens Atlas AI as a floating chat without changing the active route", () => {
     const onModuleChange = vi.fn();
 
     render(<FrameHarness onModuleChange={onModuleChange} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "AI Copilot" }));
+    if (!screen.queryByRole("dialog", { name: "Atlas AI" })) {
+      fireEvent.click(screen.getByRole("button", { name: "Atlas AI" }));
+    }
+    expect(screen.getByRole("dialog", { name: "Atlas AI" })).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Close Atlas AI" }));
+    expect(screen.queryByRole("dialog", { name: "Atlas AI" })).toBeNull();
 
-    expect(onModuleChange).toHaveBeenCalledWith("home");
-    expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Atlas AI" }));
+
+    expect(onModuleChange).not.toHaveBeenCalledWith("home");
+    const dialog = screen.getByRole("dialog", { name: "Atlas AI" });
+    expect(dialog).not.toBeNull();
+    expect(dialog.classList.contains("gh-floating-ai-chat")).toBe(true);
+    expect(screen.queryByRole("dialog", { name: /command/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close Atlas AI" }));
+    expect(screen.queryByRole("dialog", { name: "Atlas AI" })).toBeNull();
   });
 
-  it("collapses and expands the side navigation", () => {
+  it("does not auto-open Atlas AI on Lineage Atlas, but keeps the launcher operational", async () => {
+    render(<FrameHarness activeModule="lineage" />);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Atlas AI" })).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Atlas AI" }));
+    expect(screen.getByRole("dialog", { name: "Atlas AI" })).not.toBeNull();
+  });
+
+  it("closes the floating Atlas AI dialog with Escape while preserving shell controls", () => {
+    render(<FrameHarness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Atlas AI" }));
+    expect(screen.getByRole("dialog", { name: "Atlas AI" })).not.toBeNull();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Atlas AI" })).toBeNull();
+
+    expect(screen.getByRole("button", { name: "Open Atlas AI" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Open profile menu/i })).not.toBeNull();
+  });
+
+  it("disables Atlas AI when runtime marks the provider unavailable", () => {
+    render(
+      <FrameHarness
+        shellOverrides={{
+          ai: {
+            state: "unavailable",
+            message: "Atlas AI is configured for Genie, but GOVAT_GENIE_SPACE_ID is missing.",
+          },
+        }}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Atlas AI" });
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute("title")).toMatch(/GOVAT_GENIE_SPACE_ID/);
+    expect(screen.getByRole("button", { name: "Open Atlas AI" }).disabled).toBe(true);
+  });
+
+  it("keeps prototype-mock Atlas AI visible while labeling it as non-live evidence", () => {
+    render(
+      <FrameHarness
+        bootState="degraded"
+        shellOverrides={{
+          ai: {
+            state: "prototype_mock",
+            provider: "prototype-mock",
+            message: "Prototype mock data, not live Databricks evidence.",
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Atlas AI" }).disabled).toBe(false);
+    expect(screen.getByRole("button", { name: "Open Atlas AI" }).disabled).toBe(false);
+    if (!screen.queryByRole("dialog", { name: "Atlas AI" })) {
+      fireEvent.click(screen.getByRole("button", { name: "Open Atlas AI" }));
+    }
+    expect(screen.getByRole("dialog", { name: "Atlas AI" })).not.toBeNull();
+    expect(screen.getByText("Prototype mock evidence - not live Databricks")).not.toBeNull();
+    expect(screen.getByText(/prototype mock governance metadata, not live Unity Catalog evidence/i)).not.toBeNull();
+    expect(screen.getByText("TRY ASKING")).not.toBeNull();
+    expect(screen.getByPlaceholderText("Ask about search results, owners, or glossary coverage...")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Atlas AI accuracy notice" }));
+    expect(screen.getByText(/prototype answers use mock governance metadata/i)).not.toBeNull();
+  });
+
+  it("uses route-specific Atlas AI prompts and input copy", () => {
+    const { rerender } = render(
+      <FrameHarness
+        activeModule="admin"
+        shellOverrides={{
+          ai: {
+            state: "prototype_mock",
+            provider: "prototype-mock",
+            message: "Prototype mock data, not live Databricks evidence.",
+          },
+        }}
+      />,
+    );
+
+    if (!screen.queryByRole("dialog", { name: "Atlas AI" })) {
+      fireEvent.click(screen.getByRole("button", { name: "Open Atlas AI" }));
+    }
+
+    expect(screen.getByText("Which runtime job or integration needs attention?")).not.toBeNull();
+    expect(screen.getByPlaceholderText("Ask about runtime jobs, integrations, or policies...")).not.toBeNull();
+    expect(screen.getByText(/prototype runtime health, integrations, policy coverage/i)).not.toBeNull();
+
+    rerender(
+      <FrameHarness
+        activeModule="audit"
+        shellOverrides={{
+          ai: {
+            state: "prototype_mock",
+            provider: "prototype-mock",
+            message: "Prototype mock data, not live Databricks evidence.",
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Summarize audit evidence for the selected window.")).not.toBeNull();
+    expect(screen.getByPlaceholderText("Ask about audit evidence, grants, or exports...")).not.toBeNull();
+  });
+
+  it("renders routed Atlas AI evidence chips for grounded answers", async () => {
+    const onSearchResultSelect = vi.fn();
+    fetchAtlasAiRecommendations.mockResolvedValueOnce({
+      answer: "Genie said: **finance_prod.curated.revenue_daily** is certified.",
+      evidence: [
+        {
+          label: "finance_prod.curated.revenue_daily",
+          type: "asset",
+        },
+      ],
+    });
+
+    render(
+      <AppFrame
+        activeModule="home"
+        bootMessage=""
+        bootState="live"
+        diagnosticsAvailable
+        diagnosticsStatus={null}
+        diagnosticsOpen={false}
+        liveCatalogVisibleCount={3}
+        ucCoverageScore={87.4}
+        navigationState={{ pending: false, label: "" }}
+        onBrowseCatalog={() => { }}
+        onInboxItemAction={() => { }}
+        onModuleChange={() => { }}
+        onNavigationStateChange={() => { }}
+        onSearchResultSelect={onSearchResultSelect}
+        onToggleDiagnostics={() => { }}
+        onToggleInbox={() => { }}
+        searchSeedAssets={[]}
+        shell={{ role: "Admin", userEmail: "admin@example.com", ai: { state: "available" } }}
+        visibleAssetSet={new Set()}
+      >
+        <div>Workspace body</div>
+      </AppFrame>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Atlas AI" }));
+    const input = screen.getByPlaceholderText("Ask about a dashboard, owner, or risk signal...");
+    fireEvent.change(input, { target: { value: "Who owns net revenue?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask Atlas AI" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("1 evidence record returned.")).not.toBeNull();
+    });
+    expect(screen.queryByText(/Genie said/i)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /finance_prod\.curated\.revenue_daily/i }));
+    expect(onSearchResultSelect).toHaveBeenCalledWith("finance_prod.curated.revenue_daily");
+  });
+
+  it("renders Atlas AI markdown without raw formatting artifacts or unsafe links", async () => {
+    fetchAtlasAiRecommendations.mockResolvedValueOnce({
+      answer: [
+        "**Certified** context is available for `finance_prod.curated.revenue_daily`.",
+        "",
+        "- Evidence is governance metadata.",
+        "- Safe reference: [record](https://example.com/asset).",
+        "- Unsafe reference: [bad](javascript:alert(1)).",
+      ].join("\n"),
+      evidence: [],
+    });
+
+    const { container } = render(<FrameHarness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Atlas AI" }));
+    const input = screen.getByPlaceholderText("Ask about search results, owners, or glossary coverage...");
+    fireEvent.change(input, { target: { value: "markdown rendering proof" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask Atlas AI" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Certified")).not.toBeNull();
+    });
+
+    const messages = container.querySelectorAll(".gh-ai-message-markdown");
+    const message = messages[messages.length - 1];
+    expect(message?.querySelector("strong")?.textContent).toBe("Certified");
+    expect(message?.querySelector("code")?.textContent).toBe("finance_prod.curated.revenue_daily");
+    expect(message?.querySelectorAll("li").length).toBe(3);
+    expect(message?.textContent).not.toContain("**");
+    expect(message?.textContent).not.toContain("`finance_prod");
+    expect(message?.querySelector("a[href^='https://']")?.textContent).toBe("record");
+    expect(message?.querySelector("a[href^='javascript:']")).toBeNull();
+  });
+
+  it("uses the prototype rail without exposing the legacy collapse control", () => {
     const { container } = render(<FrameHarness />);
 
     expect(container.querySelector(".gh-app")?.getAttribute("data-rail-collapsed")).toBe("false");
-    fireEvent.click(screen.getByRole("button", { name: "Collapse navigation" }));
-    expect(container.querySelector(".gh-app")?.getAttribute("data-rail-collapsed")).toBe("true");
-    fireEvent.click(screen.getByRole("button", { name: "Expand navigation" }));
-    expect(container.querySelector(".gh-app")?.getAttribute("data-rail-collapsed")).toBe("false");
+    expect(screen.queryByRole("button", { name: /Collapse navigation/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Expand navigation/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /Open profile menu/i })).not.toBeNull();
   });
 
-  it("routes footer links to help and system status surfaces", () => {
+  it("renders the stewardship shell badge from the governance inbox count", () => {
+    render(
+      <FrameHarness
+        governanceInbox={{
+          state: "ready",
+          message: "Notifications from workflow activity.",
+          unreadCount: 2,
+          stewardshipCount: 184,
+          items: [],
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /Stewardship/ })).not.toBeNull();
+    expect(screen.getByText("184")).not.toBeNull();
+  });
+
+  it("uses topbar help/status chrome instead of visible footer links", () => {
     const onModuleChange = vi.fn();
     const onOpenCapabilities = vi.fn();
 
@@ -235,6 +513,7 @@ describe("AppFrame", () => {
         diagnosticsStatus={null}
         diagnosticsOpen={false}
         liveCatalogVisibleCount={3}
+        ucCoverageScore={87.4}
         navigationState={{ pending: false, label: "" }}
         onBrowseCatalog={() => { }}
         onInboxItemAction={() => { }}
@@ -245,33 +524,43 @@ describe("AppFrame", () => {
         onToggleDiagnostics={() => { }}
         onToggleInbox={() => { }}
         searchSeedAssets={[]}
-        shell={{ role: "Admin", userEmail: "admin@example.com" }}
+        shell={{ role: "Admin", userEmail: "admin@example.com", ai: { state: "available" } }}
         visibleAssetSet={new Set()}
       >
         <div>Workspace body</div>
       </AppFrame>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Privacy" }));
-    fireEvent.click(screen.getByRole("button", { name: "Support" }));
-    fireEvent.click(screen.getByRole("button", { name: /System Status/i }));
+    expect(screen.queryByRole("button", { name: "Privacy" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Support" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /System Status/i })).toBeNull();
+    expect(screen.getByText("UC connected · 87.4% coverage")).not.toBeNull();
 
-    expect(onModuleChange).toHaveBeenNthCalledWith(1, "help");
-    expect(onModuleChange).toHaveBeenNthCalledWith(2, "help");
-    expect(onOpenCapabilities).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Help" }));
+    expect(onModuleChange).toHaveBeenCalledWith("help");
+    expect(onOpenCapabilities).not.toHaveBeenCalled();
   });
 
-  it("only shows a success system-status dot when diagnostics report ready", () => {
+  it("keeps the UC status scoped to app liveness while diagnostics stay separate", () => {
     const { container, rerender } = render(<FrameHarness diagnosticsStatus={null} />);
 
-    expect(container.querySelector(".ga-system-status i")).toBeNull();
+    expect(screen.getByText("UC connected · 87.4% coverage").closest(".ga-env-chip")?.className).toContain("tone-good");
+    expect(container.querySelector(".ga-env-chip .ga-status-dot")).not.toBeNull();
 
     rerender(<FrameHarness diagnosticsStatus={{ state: "attention_required" }} />);
-    expect(screen.getByRole("button", { name: /System Status: Attention Required/i }).className).toContain("tone-warn");
-    expect(container.querySelector(".ga-system-status.tone-good")).toBeNull();
+    expect(screen.getByText("UC connected · 87.4% coverage").closest(".ga-env-chip")?.className).toContain("tone-good");
+
+    rerender(<FrameHarness diagnosticsStatus={{ state: "degraded" }} />);
+    expect(screen.getByText("UC connected · 87.4% coverage").closest(".ga-env-chip")?.className).toContain("tone-good");
+
+    rerender(<FrameHarness diagnosticsStatus={{ state: "unavailable" }} />);
+    expect(screen.getByText("UC connected · 87.4% coverage").closest(".ga-env-chip")?.className).toContain("tone-good");
 
     rerender(<FrameHarness diagnosticsStatus={{ state: "ready" }} />);
-    expect(screen.getByRole("button", { name: /System Status: Ready/i }).className).toContain("tone-good");
+    expect(screen.getByText("UC connected · 87.4% coverage").closest(".ga-env-chip")?.className).toContain("tone-good");
+
+    rerender(<FrameHarness bootState="degraded" diagnosticsStatus={{ state: "ready" }} />);
+    expect(screen.getByText("UC status degraded").closest(".ga-env-chip")?.className).toContain("tone-warn");
   });
 
   it("keeps diagnostics reachable via the profile menu even without a 'Workspace setup' trigger", () => {

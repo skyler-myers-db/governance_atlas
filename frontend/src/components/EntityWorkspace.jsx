@@ -41,11 +41,12 @@ import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
 import LineageStage from "./LineageStage";
 import { SurfacePanelSection, SurfaceTabs } from "./ShellLayoutPrimitives";
-import { EmptyStateBlock, LoadingState, SkeletonBlock, WorkspaceStateCard } from "./ShellStatePrimitives";
-import { EntityHero } from "./primitives/EntityHero";
+import { LoadingState, SkeletonBlock } from "./ShellStatePrimitives";
+import { AssetTypeIcon } from "./primitives/AssetTypeIcon";
+import { Breadcrumbs } from "./primitives/Breadcrumbs";
+import { OwnerAvatar } from "./primitives/OwnerAvatar";
 import { TabIcon } from "./primitives/TabIcon";
 import { AccessExplainerBanner } from "./primitives/AccessExplainerBanner";
-import { InlineEditableDescription } from "./primitives/InlineEditableDescription";
 import { CustomPropertiesPanel } from "./primitives/CustomPropertiesPanel";
 import { ProfilePanel } from "./primitives/ProfilePanel";
 import { QualityPanel } from "./primitives/QualityPanel";
@@ -220,9 +221,12 @@ function metadataDraftFromAsset(asset) {
 function detailSectionsForTab(activeTab, previewAvailable = true, workloadAvailable = true) {
   switch (activeTab) {
     case "Overview":
-      return ["header"];
+      return ["header", "activity", "schema", "operational", "profiler", "properties"];
     case "Activity":
       return ["header", "activity"];
+    case "Governance":
+    case "Access":
+      return ["header", "activity", "properties"];
     case "Schema":
       return ["header", "activity", "schema"];
     case "SampleData":
@@ -246,14 +250,11 @@ function detailSectionsForTab(activeTab, previewAvailable = true, workloadAvaila
 function entityTabs(previewAvailable = true, lineageAvailable = true, workloadAvailable = true) {
   return [
     { key: "Overview", label: "Overview", iconId: "overview" },
-    { key: "Schema", label: "Schema", iconId: "schema" },
-    { key: "Activity", label: "Activity & Tasks", iconId: "activity" },
-    ...(previewAvailable ? [{ key: "SampleData", label: "Sample Data", iconId: "sample" }] : []),
-    ...(workloadAvailable ? [{ key: "Queries", label: "Usage & Workloads", iconId: "queries" }] : []),
-    { key: "Profiler", label: "Profiler & Evidence", iconId: "profiler" },
+    { key: "Schema", label: "Columns", iconId: "schema" },
+    { key: "Governance", label: "Governance", iconId: "governance" },
     { key: "Quality", label: "Quality", iconId: "quality" },
-    ...(lineageAvailable ? [{ key: "Lineage", label: "Lineage", iconId: "lineage" }] : []),
-    { key: "CustomProperties", label: "Custom Properties", iconId: "properties" },
+    { key: "Access", label: "Access", iconId: "properties" },
+    { key: "Activity", label: "Activity", iconId: "activity" },
   ];
 }
 
@@ -356,6 +357,634 @@ function OwnerList({ owners }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function ownerLabel(owner) {
+  if (!owner) return "";
+  if (typeof owner === "string") return owner;
+  return owner.name || owner.email || owner.ownerEmail || owner.label || owner.title || "";
+}
+
+function ownerTitle(owner, fallback = "Data Owner") {
+  if (!owner || typeof owner === "string") return fallback;
+  return owner.title || owner.role || owner.ownerRole || fallback;
+}
+
+function prettyOwnerDisplay(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return "Unassigned";
+  const local = raw.includes("@") ? raw.split("@")[0] : raw;
+  const parts = local.split(/[\s._+-]+/).filter(Boolean);
+  if (!parts.length) return raw;
+  return parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+}
+
+function ownerForRole(asset, matcher, fallbackIndex = 0) {
+  const owners = Array.isArray(asset?.owners) ? asset.owners : [];
+  const matched = owners.find((owner) => {
+    if (!owner || typeof owner === "string") return false;
+    const role = `${owner.role || ""} ${owner.title || ""} ${owner.ownerRole || ""}`;
+    return matcher.test(role);
+  });
+  return matched || owners[fallbackIndex] || null;
+}
+
+function firstMeaningful(...values) {
+  for (const value of values) {
+    const text = String(value ?? "").trim();
+    if (text && text !== "—" && text.toLowerCase() !== "unassigned") return text;
+  }
+  return "";
+}
+
+function displayBadgeLabel(badge) {
+  if (badge == null) return "";
+  if (typeof badge === "object") {
+    return firstMeaningful(
+      badge.label,
+      badge.name,
+      badge.title,
+      badge.value,
+      badge.key,
+      badge.type,
+      badge.status,
+    );
+  }
+  return firstMeaningful(badge);
+}
+
+function relatedAssetFqn(item) {
+  if (item == null) return "";
+  if (typeof item === "object") {
+    return firstMeaningful(item.fqn, item.assetFqn, item.entity_fqn, item.fullPath, item.id, item.name, item.title);
+  }
+  return firstMeaningful(item);
+}
+
+function compactRelatedName(value = "") {
+  const parts = String(value || "").split(".").filter(Boolean);
+  return parts.at(-1) || String(value || "").trim() || "Related asset";
+}
+
+function compactRelatedPath(value = "") {
+  const parts = String(value || "").split(".").filter(Boolean);
+  if (parts.length <= 1) return "";
+  return parts.slice(0, -1).join(".");
+}
+
+function relatedAssetLabel(item) {
+  if (item == null) return "Related asset";
+  if (typeof item === "object") {
+    const fqn = relatedAssetFqn(item);
+    return firstMeaningful(item.name, item.label, item.title, compactRelatedName(fqn), fqn);
+  }
+  return compactRelatedName(item);
+}
+
+function relatedAssetSubtitle(item) {
+  if (item == null || typeof item !== "object") {
+    return compactRelatedPath(item);
+  }
+  const fqn = relatedAssetFqn(item);
+  return firstMeaningful(item.relationship, item.type, item.source, compactRelatedPath(fqn));
+}
+
+function compactNumber(value, fallback = "—") {
+  if (value == null || value === "") return fallback;
+  const numeric = Number(String(value).replace(/,/g, ""));
+  if (!Number.isFinite(numeric)) return String(value);
+  if (numeric >= 1_000_000_000) return `${(numeric / 1_000_000_000).toFixed(1)}B`;
+  if (numeric >= 1_000_000) return `${(numeric / 1_000_000).toFixed(1)}M`;
+  if (numeric >= 1_000) return `${(numeric / 1_000).toFixed(1)}K`;
+  return String(numeric);
+}
+
+function Asset360PersonaCard({ label, owner, fallbackTitle }) {
+  const name = ownerLabel(owner);
+  return (
+    <div className="ga-asset360-card ga-asset360-persona-card">
+      <span className="ga-asset360-card-label">{label}</span>
+      {name ? (
+        <div className="ga-asset360-persona">
+          <OwnerAvatar owner={name} size={38} />
+          <span>
+            <strong>{prettyOwnerDisplay(name)}</strong>
+            <small>{ownerTitle(owner, fallbackTitle)}</small>
+          </span>
+        </div>
+      ) : (
+        <div className="ga-asset360-unavailable">Unassigned</div>
+      )}
+    </div>
+  );
+}
+
+function Asset360SignalCard({ label, value, detail = "", action = null, trend = false, tone = "" }) {
+  return (
+    <div className={`ga-asset360-card ga-asset360-signal-card ${tone ? `tone-${tone}` : ""}`.trim()}>
+      <div className="ga-asset360-card-head">
+        <span className="ga-asset360-card-label">{label}</span>
+        {action}
+      </div>
+      <strong>{value || "—"}</strong>
+      <span>{detail}</span>
+      {trend ? (
+        <svg aria-hidden="true" className="ga-asset360-sparkline" viewBox="0 0 120 24">
+          <path d="M2 18 C18 18 18 12 34 12 S51 16 63 10 81 8 94 9 110 5 118 5" />
+        </svg>
+      ) : null}
+    </div>
+  );
+}
+
+function Asset360Hero({
+  asset,
+  objectType,
+  identityLine,
+  lineageSurfaceAvailable,
+  lineageAccessPending,
+  lineageSurfaceUnavailableReason,
+  prototypeEvidence = false,
+  onOpenLineage,
+  onOpenGovernance,
+  onNavigationStateChange,
+  onBack,
+}) {
+  const [shareLabel, setShareLabel] = useState("Share link");
+  const copyShareLink = async () => {
+    if (typeof window === "undefined") return;
+    try {
+      await navigator?.clipboard?.writeText?.(window.location.href);
+      setShareLabel("Link copied");
+    } catch {
+      setShareLabel("Copy failed");
+    }
+    setTimeout(() => setShareLabel("Share link"), 1600);
+  };
+  const criticality = firstMeaningful(asset?.criticality);
+  const sensitivity = firstMeaningful(asset?.sensitivity);
+  const domain = firstMeaningful(asset?.domain);
+  const dataProduct = firstMeaningful(asset?.dataProduct, asset?.data_product);
+  const certification = firstMeaningful(asset?.certification);
+
+  return (
+    <header className="ga-asset360-hero">
+      <Breadcrumbs
+        className="ga-asset360-breadcrumbs"
+        items={[
+          {
+            key: "asset360",
+            label: "Asset 360",
+            onClick: () => {
+              onNavigationStateChange?.(true, "Returning to discovery...");
+              onBack?.();
+            },
+          },
+          { key: "assets", label: "Assets" },
+          { key: "asset", label: asset?.name || asset?.fqn || "Asset" },
+        ]}
+      />
+      <div className="ga-asset360-hero-main">
+        <div className="ga-asset360-title-block">
+          <AssetTypeIcon asset={asset} size="xl" />
+          <div>
+            <div className="ga-asset360-title-row">
+              <h1>{asset?.name || asset?.fqn || "Asset"}</h1>
+              {certification ? <span className="ga-asset360-cert-chip">{certification}</span> : null}
+            </div>
+            <p>{domain ? `${domain} 360` : objectType || "Metadata asset"}</p>
+            <small>{identityLine}</small>
+          </div>
+        </div>
+        <div className="ga-asset360-actions">
+          <button
+            className="gh-secondary-button"
+            disabled={prototypeEvidence}
+            onClick={() => onOpenGovernance(asset.fqn)}
+            title={prototypeEvidence ? "Change requests require live Databricks-backed metadata." : undefined}
+            type="button"
+          >
+            {prototypeEvidence ? "Request Unavailable" : "Request Change"}
+          </button>
+          <button
+            className="gh-secondary-button"
+            disabled={!lineageSurfaceAvailable}
+            onClick={() => {
+              onNavigationStateChange?.(true, "Opening lineage...");
+              onOpenLineage(asset.fqn, "Data Lineage");
+            }}
+            title={
+              lineageAccessPending
+                ? "Checking actor-scoped lineage access for this route."
+                : !lineageSurfaceAvailable
+                  ? lineageSurfaceUnavailableReason
+                  : undefined
+            }
+            type="button"
+          >
+            {lineageAccessPending ? "Checking Lineage" : lineageSurfaceAvailable ? "Open Lineage" : "Lineage Unavailable"}
+          </button>
+          <button
+            className="gh-primary-button ga-asset360-certify-button"
+            disabled={prototypeEvidence}
+            onClick={() => onOpenGovernance(asset.fqn)}
+            title={prototypeEvidence ? "Certification requires live Databricks-backed governance state." : undefined}
+            type="button"
+          >
+            {prototypeEvidence ? "Certification Unavailable" : "Certify"} <span aria-hidden="true">⌄</span>
+          </button>
+          <button aria-label="More asset actions" className="gh-tertiary-button ga-asset360-kebab" onClick={copyShareLink} title={shareLabel} type="button">
+            ⋮
+          </button>
+        </div>
+      </div>
+      <div className="ga-asset360-chip-row">
+        {criticality ? <span className="ga-asset360-chip tone-critical">{criticality}</span> : null}
+        {sensitivity ? <span className="ga-asset360-chip tone-sensitive">{sensitivity}</span> : null}
+        {domain ? <span className="ga-asset360-kv-chip"><span>Domain</span><strong>{domain}</strong></span> : null}
+        {dataProduct ? <span className="ga-asset360-kv-chip"><span>Data Product</span><strong>{dataProduct}</strong></span> : null}
+      </div>
+    </header>
+  );
+}
+
+function Asset360SchemaPreview({ columns = [], onViewAll, onSearch }) {
+  const visibleColumns = columns.slice(0, 8);
+  return (
+    <section className="ga-asset360-panel ga-asset360-schema-card">
+      <header>
+        <div>
+          <h2>Schema</h2>
+          <span>{columns.length ? `${columns.length} columns` : "No columns surfaced"}</span>
+        </div>
+        <label>
+          <span className="gh-visually-hidden">Search columns</span>
+          <input onChange={onSearch} placeholder="Search columns..." type="search" />
+        </label>
+      </header>
+      {visibleColumns.length ? (
+        <table>
+          <thead>
+            <tr>
+              <th>Column Name</th>
+              <th>Type</th>
+              <th>Glossary Term</th>
+              <th>Sensitivity</th>
+              <th>Policy Tags</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleColumns.map((column) => (
+              <tr key={column.name}>
+                <td>{column.name}</td>
+                <td>{column.type || "—"}</td>
+                <td>{column.glossaryTerm || column.glossaryTerms?.[0] || "—"}</td>
+                <td>{column.sensitivity || column.tagLabels?.find((tag) => /sensitive|confidential|pii/i.test(tag)) || "—"}</td>
+                <td>{column.tagLabels?.slice(0, 2).join(", ") || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <div className="gh-empty-state">No schema metadata is available for this asset.</div>
+      )}
+      <footer>
+        <span>{columns.length ? `Showing 1-${visibleColumns.length} of ${columns.length} columns` : "No columns to show"}</span>
+        <button className="gh-tertiary-button gh-inline-link-button" onClick={onViewAll} type="button">
+          View all columns →
+        </button>
+      </footer>
+    </section>
+  );
+}
+
+function Asset360CardRow({ asset, asset360Data, recordFacts, prototypeEvidence = false, onOpenGovernance }) {
+  const usage = asset360Data?.usage || asset?.usage || {};
+  const owner = ownerForRole(asset, /owner/i, 0);
+  const steward = ownerForRole(asset, /steward/i, 1);
+  const freshnessState = firstMeaningful(asset360Data?.freshness?.state);
+  const normalizedFreshnessState = String(freshnessState || "").toLowerCase();
+  const hasLiveFreshnessEvidence = !prototypeEvidence && Boolean(
+    asset?.updatedAt || (freshnessState && normalizedFreshnessState !== "unavailable"),
+  );
+  const freshnessDetail = prototypeEvidence
+    ? "Prototype only - no live freshness proof"
+    : asset?.updatedAt
+    || (normalizedFreshnessState === "unavailable"
+      ? "No live freshness signal"
+      : asset360Data?.freshness?.message || "Freshness evidence unavailable");
+  const rowsValue = prototypeEvidence ? "Prototype only" : compactNumber(asset?.rows || usage.rows);
+  const rowsDetail = prototypeEvidence ? "No live row-count proof" : usage.rowDeltaLabel || "";
+  const sizeValue = prototypeEvidence ? "Prototype only" : asset?.size || recordFacts.find((item) => item.label === "Size")?.value || "—";
+  const sizeDetail = prototypeEvidence ? "No live storage-size proof" : "";
+
+  return (
+    <div className="ga-asset360-card-row">
+      <Asset360PersonaCard label="Owner" owner={owner} fallbackTitle="Data Owner" />
+      <Asset360PersonaCard label="Steward" owner={steward} fallbackTitle="Data Steward" />
+      <Asset360SignalCard
+        action={<button className="gh-tertiary-button gh-inline-link-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">View history</button>}
+        detail={freshnessDetail}
+        label="Freshness"
+        tone={hasLiveFreshnessEvidence ? (normalizedFreshnessState === "stale" ? "warn" : "good") : ""}
+        trend={hasLiveFreshnessEvidence}
+        value={
+          hasLiveFreshnessEvidence
+            ? asset360Data?.freshness?.label || statusText(freshnessState, asset?.updatedAt ? "Fresh" : "Unavailable")
+            : "Unavailable"
+        }
+      />
+      <Asset360SignalCard detail={rowsDetail} label="Rows" value={rowsValue} />
+      <Asset360SignalCard detail={sizeDetail} label="Size" value={sizeValue} />
+    </div>
+  );
+}
+
+function Asset360Overview({
+  asset,
+  asset360Data,
+  liveColumns,
+  relatedAssets,
+  downstreamAssets,
+  prototypeEvidence = false,
+  onOpenLineage,
+  onOpenGovernance,
+  onOpenSchema,
+  setSchemaColumnFilter,
+}) {
+  const usage = asset360Data?.usage || asset?.usage || {};
+  const rawActivity = Array.isArray(asset360Data?.activity) && asset360Data.activity.length ? asset360Data.activity : asset?.activity || [];
+  const activity = prototypeEvidence ? [] : rawActivity;
+  const related = Array.isArray(asset360Data?.relatedAssets) && asset360Data.relatedAssets.length
+    ? asset360Data.relatedAssets
+    : relatedAssets;
+  const dashboards = prototypeEvidence
+    ? []
+    : Array.isArray(asset360Data?.downstreamDashboards) ? asset360Data.downstreamDashboards : [];
+  const policies = (asset?.policies || asset?.linkedPolicies || asset360Data?.governance?.policies || []).slice(0, 3);
+  const owner = ownerForRole(asset, /owner/i, 0);
+  const steward = ownerForRole(asset, /steward/i, 1);
+  const primaryUses = [asset?.domain, asset?.dataProduct || asset?.data_product, asset?.tier, asset?.certification]
+    .map((item) => firstMeaningful(item))
+    .filter(Boolean)
+    .slice(0, 5);
+  const operationalUnavailable = prototypeEvidence || (!usage.queryCount && !usage.downstreamConsumerCount && !usage.downstreamAssetCount);
+  const descriptionText = prototypeSafeAsset360Text(
+    asset?.description || "No business description has been captured for this asset yet.",
+  );
+
+  return (
+    <div className="ga-asset360-overview">
+      <div className="ga-asset360-main-grid">
+        <div className="ga-asset360-primary">
+          <section className="ga-asset360-panel ga-asset360-description-card">
+            <h2>Business Description</h2>
+            <p>{descriptionText}</p>
+            {prototypeEvidence ? (
+              <p className="gh-support-copy">Prototype-mock description only; not live Databricks catalog proof.</p>
+            ) : null}
+            {primaryUses.length ? (
+              <>
+                <h3>Primary Uses</h3>
+                <div className="ga-asset360-use-chips">
+                  {primaryUses.map((use) => <span key={use}>{use}</span>)}
+                </div>
+              </>
+            ) : null}
+          </section>
+          <section className="ga-asset360-panel ga-asset360-usage-card">
+            <header>
+              <h2>Usage Summary <span>(Last 30 days)</span></h2>
+              <button className="gh-tertiary-button gh-inline-link-button" onClick={() => onOpenLineage(asset.fqn, "Operational Context")} type="button">
+                View all usage
+              </button>
+            </header>
+            <div className="ga-asset360-usage-grid">
+              <div><strong>{operationalUnavailable ? "—" : compactNumber(usage.downstreamAssetCount || downstreamAssets.length || related.length, "0")}</strong><span>Downstream Assets</span></div>
+              <div><strong>{operationalUnavailable ? "—" : compactNumber(usage.downstreamConsumerCount || usage.consumerCount, "0")}</strong><span>Users</span></div>
+              <div><strong>{operationalUnavailable ? "—" : compactNumber(usage.queryCount, "0")}</strong><span>Queries</span></div>
+            </div>
+            {operationalUnavailable ? (
+              <p className="gh-support-copy">
+                {prototypeEvidence
+                  ? "Usage evidence is prototype-only; live query and downstream-user counts are unavailable."
+                  : "Usage evidence is unavailable for this actor/workspace."}
+              </p>
+            ) : null}
+          </section>
+          <Asset360SchemaPreview
+            columns={liveColumns}
+            onSearch={(event) => setSchemaColumnFilter(event.target.value)}
+            onViewAll={onOpenSchema}
+          />
+          <section className="ga-asset360-panel ga-asset360-governance-card">
+            <header>
+              <h2>Governance</h2>
+              <button className="gh-tertiary-button gh-inline-link-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">
+                View all policies →
+              </button>
+            </header>
+            <div className="ga-asset360-governance-list">
+              <div><span>Certification</span><strong>{firstMeaningful(asset?.certification) || "Unassigned"}</strong></div>
+              <div><span>Business Criticality</span><strong>{firstMeaningful(asset?.criticality) || "Unassigned"}</strong></div>
+              <div><span>Owner</span><strong>{ownerLabel(owner) ? prettyOwnerDisplay(ownerLabel(owner)) : "Unassigned"}</strong></div>
+              <div><span>Steward</span><strong>{ownerLabel(steward) ? prettyOwnerDisplay(ownerLabel(steward)) : "Unassigned"}</strong></div>
+            </div>
+            {policies.length ? (
+              <div className="ga-asset360-policy-list">
+                {policies.map((policy, index) => {
+                  const label = typeof policy === "object"
+                    ? firstMeaningful(policy.name, policy.title, policy.label, policy.id)
+                    : firstMeaningful(policy);
+                  return label ? <span key={`${label}-${index}`}>{label}</span> : null;
+                })}
+              </div>
+            ) : (
+              <div className="gh-support-copy">No linked policies are surfaced for this asset yet.</div>
+            )}
+          </section>
+        </div>
+        <aside className="ga-asset360-rail">
+          <section className="ga-asset360-panel">
+            <header>
+              <h2>Recent Activity</h2>
+              <button className="gh-tertiary-button gh-inline-link-button" onClick={() => onOpenGovernance(asset.fqn)} type="button">View all</button>
+            </header>
+            <div className="ga-asset360-rail-list">
+              {activity.length ? activity.slice(0, 5).map((item, index) => (
+                <button key={item.id || `${item.title}-${index}`} onClick={() => onOpenGovernance(asset.fqn)} type="button">
+                  <span>{prototypeSafeAsset360Text(item.title || item.action || "Governance activity")}</span>
+                  <small>{prototypeSafeAsset360Text(item.createdAt || item.actorEmail || item.detail || "")}</small>
+                </button>
+              )) : (
+                <div className="gh-empty-state">
+                  {prototypeEvidence
+                    ? "No live activity proof is available in prototype evidence."
+                    : "No recent activity is recorded for this asset."}
+                </div>
+              )}
+            </div>
+          </section>
+          <section className="ga-asset360-panel">
+            <header>
+              <h2>Related Assets</h2>
+              <button className="gh-tertiary-button gh-inline-link-button" onClick={() => onOpenLineage(asset.fqn, "Data Lineage")} type="button">View all</button>
+            </header>
+            <div className="ga-asset360-rail-list">
+              {related.length ? related.slice(0, 4).map((item, index) => {
+                const fqn = relatedAssetFqn(item);
+                const label = relatedAssetLabel(item);
+                const subtitle = relatedAssetSubtitle(item);
+                return (
+                  <button key={`${fqn || label}-${index}`} onClick={() => onOpenLineage(fqn || asset.fqn, "Data Lineage")} type="button">
+                    <span>{label}</span>
+                    <small>{subtitle}</small>
+                  </button>
+                );
+              }) : <div className="gh-empty-state">No related assets are surfaced yet.</div>}
+            </div>
+          </section>
+          <section className="ga-asset360-panel">
+            <header>
+              <h2>Downstream Dashboards ({dashboards.length})</h2>
+              <button className="gh-tertiary-button gh-inline-link-button" onClick={() => onOpenLineage(asset.fqn, "Operational Context")} type="button">View all</button>
+            </header>
+            <div className="ga-asset360-rail-list">
+              {dashboards.length ? dashboards.slice(0, 4).map((item) => (
+                <button key={item.id || item.name || item.title} onClick={() => onOpenLineage(asset.fqn, "Operational Context")} type="button">
+                  <span>{item.name || item.title || "Dashboard"}</span>
+                  <small>{item.type || item.source || "Dashboard"}</small>
+                </button>
+              )) : (
+                <div className="gh-empty-state">
+                  {prototypeEvidence
+                    ? "No live downstream-dashboard proof is available in prototype evidence."
+                    : "No downstream dashboards are surfaced yet."}
+                </div>
+              )}
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function EntityShellPlaceholder({
+  assetFqn = "",
+  launchAssets = [],
+  loading = false,
+  message = "",
+  onBack,
+  onSelectAsset,
+  title = "Asset record unavailable",
+  tone = "warn",
+}) {
+  const tabs = ["Overview", "Columns", "Lineage", "Governance", "Access"];
+  return (
+    <section className="gh-workspace gh-entity-workspace">
+      <section className="gh-panel gh-entity-shell gh-entity-record-shell">
+        <header className="ga-asset360-hero">
+          <Breadcrumbs
+            className="ga-asset360-breadcrumbs"
+            items={[
+              { key: "asset360", label: "Asset 360", onClick: onBack },
+              { key: "assets", label: "Assets" },
+              { key: "asset", label: assetFqn || "Asset" },
+            ]}
+          />
+          <div className="ga-asset360-hero-main">
+            <div className="ga-asset360-title-block">
+              <AssetTypeIcon asset={{ fqn: assetFqn }} size="xl" />
+              <div>
+                <div className="ga-asset360-title-row">
+                  <h1>{loading ? "Loading asset record" : "Asset unavailable"}</h1>
+                </div>
+                <p>{loading ? "Hydrating live metadata" : "Metadata record not openable"}</p>
+                <small>{assetFqn || "No asset selected"}</small>
+              </div>
+            </div>
+            <div className="ga-asset360-actions">
+              <button className="gh-secondary-button" disabled type="button">Request Change</button>
+              <button className="gh-secondary-button" disabled type="button">Lineage Unavailable</button>
+              <button className="gh-primary-button ga-asset360-certify-button" disabled type="button">Certify</button>
+              <button aria-label="More asset actions unavailable" className="gh-tertiary-button ga-asset360-kebab" disabled type="button">⋮</button>
+            </div>
+          </div>
+          <div className="ga-asset360-chip-row">
+            <span className="ga-asset360-kv-chip"><span>Domain</span><strong>Unavailable</strong></span>
+            <span className="ga-asset360-kv-chip"><span>Data Product</span><strong>Unavailable</strong></span>
+          </div>
+        </header>
+
+        <div className={`gh-inline-alert tone-${tone}`.trim()}>
+          {message || "The live metadata record is unavailable for the current actor and workspace."}
+        </div>
+
+        <div className="ga-asset360-card-row">
+          {["Owner", "Steward", "Freshness", "Rows", "Size"].map((label) => (
+            <div className="ga-asset360-card ga-asset360-signal-card" key={label}>
+              <span className="ga-asset360-card-label">{label}</span>
+              {loading ? <SkeletonBlock compact lines={2} message={`Loading ${label}`} /> : <strong>Unavailable</strong>}
+            </div>
+          ))}
+        </div>
+
+        <SurfaceTabs
+          activeKey="Overview"
+          ariaLabel="Entity sections"
+          className="gh-entity-record-tabs"
+          items={tabs.map((tab) => ({ key: tab, label: tab }))}
+          onChange={() => {}}
+        />
+
+        <div className="ga-asset360-overview">
+          <div className="ga-asset360-main-grid">
+            <div className="ga-asset360-primary">
+              <section className="ga-asset360-panel ga-asset360-description-card">
+                <h2>{title}</h2>
+                {loading ? (
+                  <SkeletonBlock lines={4} message="Loading asset description" />
+                ) : (
+                  <p>{message || "No backed metadata record is visible for this asset."}</p>
+                )}
+              </section>
+              <section className="ga-asset360-panel ga-asset360-schema-card">
+                <header>
+                  <div>
+                    <h2>Schema</h2>
+                    <span>{loading ? "Loading columns" : "Unavailable"}</span>
+                  </div>
+                </header>
+                {loading ? <SkeletonBlock lines={6} message="Loading schema columns" /> : <div className="gh-empty-state">Schema metadata is unavailable.</div>}
+              </section>
+            </div>
+            <aside className="ga-asset360-rail">
+              <section className="ga-asset360-panel">
+                <header><h2>Recent Activity</h2></header>
+                {loading ? <SkeletonBlock lines={4} message="Loading recent activity" /> : <div className="gh-empty-state">No backed activity is available.</div>}
+              </section>
+              <section className="ga-asset360-panel">
+                <header><h2>Related Assets</h2></header>
+                {launchAssets.length ? (
+                  <div className="ga-asset360-rail-list">
+                    {launchAssets.map((candidate) => (
+                      <button key={candidate.fqn} onClick={() => onSelectAsset(candidate.fqn)} type="button">
+                        <span>{candidate.name || candidate.fqn}</span>
+                        <small>{candidate.fqn}</small>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="gh-empty-state">No related assets are surfaced yet.</div>
+                )}
+              </section>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </section>
   );
 }
 
@@ -697,12 +1326,24 @@ function statusText(value, fallback = "Unavailable") {
   return text.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function Asset360Panel({ data, loading = false, refreshing = false, error = "" }) {
+function prototypeSafeAsset360Text(value = "") {
+  return String(value || "")
+    .replace(/\bAuthoritative\b/gi, "Prototype")
+    .replace(/\bSource-of-record\b/gi, "Prototype reference")
+    .replace(/system\.access\.column_lineage/gi, "prototype column-lineage shape")
+    .replace(/system\.access\.table_lineage/gi, "prototype table-lineage shape");
+}
+
+function Asset360Panel({ data, loading = false, refreshing = false, error = "", evidenceKind = "live" }) {
+  const prototypeEvidence = evidenceKind === "prototype_mock";
+  const asset360Description = prototypeEvidence
+    ? "Composite prototype-mock context for the selected record; this is not live Databricks proof."
+    : "Composite live context returned by the Atlas Asset 360 endpoint for the selected record.";
   if (loading && !data) {
     return (
       <EntityRecordSection
         className="gh-entity-record-asset360-section"
-        description="Loading the composite Asset 360 payload for this record."
+        description={prototypeEvidence ? "Loading prototype-mock Asset 360 context for this record." : "Loading the composite Asset 360 payload for this record."}
         title="Asset 360"
       >
         <SkeletonBlock lines={4} message="Loading Asset 360…" />
@@ -759,16 +1400,19 @@ function Asset360Panel({ data, loading = false, refreshing = false, error = "" }
   return (
     <EntityRecordSection
       className="gh-entity-record-asset360-section"
-      description="Composite live context returned by the Atlas Asset 360 endpoint for the selected record."
+      description={asset360Description}
       title="Asset 360"
       titleMeta={refreshing ? <span className="gh-state-pill">Refreshing</span> : null}
     >
       {error ? <div className="gh-inline-alert tone-warn">{error}</div> : null}
       {data.badges?.length ? (
         <div className="gh-chip-row">
-          {data.badges.slice(0, 8).map((badge) => (
-            <span className="gh-chip gh-chip-soft" key={badge}>{badge}</span>
-          ))}
+          {data.badges.slice(0, 8).map((badge, index) => {
+            const label = displayBadgeLabel(badge);
+            return label ? (
+              <span className="gh-chip gh-chip-soft" key={`${label}-${index}`}>{label}</span>
+            ) : null;
+          })}
         </div>
       ) : null}
       <AttributeList items={facts} />
@@ -780,6 +1424,7 @@ export default function EntityWorkspace({
   assetFqn,
   bootstrap,
   contextSeedAssets = [],
+  effectiveBootState = "live",
   onNavigationStateChange,
   onSurfaceReady,
   sharedVisibleAssetSet,
@@ -797,6 +1442,7 @@ export default function EntityWorkspace({
   const lineageUnavailableReason = tableLineageReason(bootstrap);
   const workloadAvailable = workloadVisibilityAvailable(bootstrap);
   const workloadUnavailableReason = workloadVisibilityReason(bootstrap);
+  const prototypeEvidence = effectiveBootState === "prototype_mock" || bootstrap?.bootState === "prototype_mock";
   const workspacePreviewAvailable = workspaceAccessAvailable(workspaceAccess, "canUseAssetPreview", false);
   const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", false);
   const workspaceWorkloadAvailable = workspaceAccessAvailable(workspaceAccess, "canUseQueryHistory", false);
@@ -886,7 +1532,10 @@ export default function EntityWorkspace({
   });
   const [linkNotice, setLinkNotice] = useState("");
   const [linkedRecordUnavailableOverrides, setLinkedRecordUnavailableOverrides] = useState({});
-  const seedAssets = contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [];
+  const seedAssets = useMemo(
+    () => (contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || []),
+    [bootstrap?.assets, contextSeedAssets],
+  );
   const launchAssets = seedAssets.slice(0, 6);
   const tabs = useMemo(
     () => entityTabs(previewTabAvailable, lineageTabAvailable, workloadTabAvailable),
@@ -989,7 +1638,7 @@ export default function EntityWorkspace({
         : [],
     [asset?.fqn, asset?.relatedAssets, graphRelatedAssets, lineageSurfaceAvailable],
   );
-  const columns = asset?.columns || [];
+  const columns = useMemo(() => asset?.columns || [], [asset?.columns]);
   const preview = asset?.preview || [];
   const detailLoading = assetDetail.loading;
   const detailReady = Boolean(usableDetail);
@@ -1004,7 +1653,10 @@ export default function EntityWorkspace({
   const columnMetadataReadOnlyMessage =
     editor.config?.message ||
     "Column metadata editing is not available for this asset type right now.";
-  const liveColumns = detailReady && schemaLoaded ? columns : [];
+  const liveColumns = useMemo(
+    () => (detailReady && schemaLoaded ? columns : []),
+    [columns, detailReady, schemaLoaded],
+  );
   const filteredLiveColumns = useMemo(() => {
     const term = schemaColumnFilter.trim().toLowerCase();
     if (!term) return liveColumns;
@@ -1210,19 +1862,7 @@ export default function EntityWorkspace({
   useEffect(() => {
     if (!asset || metadataDirty) return;
     setMetadataDraft(metadataDraftFromAsset(asset));
-  }, [
-    asset?.description,
-    asset?.domain,
-    asset?.tier,
-    asset?.certification,
-    asset?.sensitivity,
-    asset?.criticality,
-    asset?.data_product,
-    asset?.dataProduct,
-    asset?.tagEntries,
-    asset?.fqn,
-    metadataDirty,
-  ]);
+  }, [asset, metadataDirty]);
 
   useEffect(() => {
     if (!selectedColumnName) return;
@@ -1352,82 +1992,45 @@ export default function EntityWorkspace({
 
   if (assetFqn && assetDetail.loading && !asset) {
     return (
-      <section className="gh-workspace gh-entity-workspace">
-        <WorkspaceStateCard
-          eyebrow="Loading Asset"
-          loading
-          message={`Loading the record header and recent activity for ${assetFqn}.`}
-          title="Refreshing the metadata record."
-        />
-      </section>
+      <EntityShellPlaceholder
+        assetFqn={assetFqn}
+        launchAssets={launchAssets}
+        loading
+        message={`Loading the record header and recent activity for ${assetFqn}.`}
+        onBack={onBack}
+        onSelectAsset={onSelectAsset}
+        title="Refreshing the metadata record"
+      />
     );
   }
 
   if (assetFqn && !asset && !assetDetail.loading) {
     return (
-      <section className="gh-workspace gh-entity-workspace">
-        <WorkspaceStateCard
-          actions={(
-            <button className="gh-secondary-button" onClick={onBack} type="button">
-              Return to Catalog
-            </button>
-          )}
-          eyebrow="Asset Unavailable"
-          message={
-            assetDetail.error ||
-            "This asset appears in lineage or linked navigation, but it is not currently visible in the live catalog with the current permissions."
-          }
-          title="The selected asset could not be opened."
-          tone="bad"
-        >
-          {launchAssets.length ? (
-            <div className="gh-chip-stack">
-              {launchAssets.map((candidate) => (
-                <button
-                  className="gh-filter-chip gh-chip-soft"
-                  key={candidate.fqn}
-                  onClick={() => onSelectAsset(candidate.fqn)}
-                  type="button"
-                >
-                  {candidate.name}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </WorkspaceStateCard>
-      </section>
+      <EntityShellPlaceholder
+        assetFqn={assetFqn}
+        launchAssets={launchAssets}
+        message={
+          assetDetail.error ||
+          "This asset appears in lineage or linked navigation, but it is not currently visible in the live catalog with the current permissions."
+        }
+        onBack={onBack}
+        onSelectAsset={onSelectAsset}
+        title="The selected asset could not be opened"
+        tone="warn"
+      />
     );
   }
 
   if (!asset) {
     return (
-      <section className="gh-workspace gh-entity-workspace">
-        <WorkspaceStateCard eyebrow="Asset" title="Select an asset to inspect its metadata.">
-          <EmptyStateBlock
-            actions={(
-              <button className="gh-secondary-button" onClick={onBack} type="button">
-                Return to Catalog
-              </button>
-            )}
-            message="Select an asset from discovery to inspect its metadata."
-          >
-            {launchAssets.length ? (
-              <div className="gh-chip-stack">
-                {launchAssets.map((candidate) => (
-                  <button
-                    className="gh-filter-chip gh-chip-soft"
-                    key={candidate.fqn}
-                    onClick={() => onSelectAsset(candidate.fqn)}
-                    type="button"
-                  >
-                    {candidate.name}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </EmptyStateBlock>
-        </WorkspaceStateCard>
-      </section>
+      <EntityShellPlaceholder
+        launchAssets={launchAssets}
+        message="Select an asset from discovery to inspect its metadata."
+        onBack={onBack}
+        onSelectAsset={onSelectAsset}
+        title="Select an asset to inspect its metadata"
+        tone="neutral"
+      />
     );
   }
 
@@ -1725,34 +2328,40 @@ export default function EntityWorkspace({
   return (
     <section className="gh-workspace gh-entity-workspace">
       <section className="gh-panel gh-entity-shell gh-entity-record-shell">
-        <EntityHero
+        <Asset360Hero
           asset={asset}
           identityLine={identityLine}
           objectType={objectType}
-          liveDetailStatus={liveDetailStatus}
-          detailUnavailable={detailUnavailable}
-          assetDetail={assetDetail}
-          linkNotice={linkNotice}
           lineageSurfaceAvailable={lineageSurfaceAvailable}
           lineageAccessPending={lineageAccessPending}
           lineageSurfaceUnavailableReason={lineageSurfaceUnavailableReason}
+          prototypeEvidence={prototypeEvidence}
           onOpenLineage={onOpenLineage}
           onOpenGovernance={onOpenGovernance}
           onNavigationStateChange={onNavigationStateChange}
           onBack={onBack}
         />
+        {prototypeEvidence ? (
+          <div className="gh-inline-alert tone-warn ga-asset360-prototype-alert">
+            Prototype mock - not live Databricks evidence. Mutating governance actions are disabled until this record is backed by live metadata.
+          </div>
+        ) : null}
+        {detailUnavailable || linkNotice ? (
+          <div className={`gh-inline-alert ${detailUnavailable ? "tone-warn" : ""}`.trim()}>
+            {detailUnavailable
+              ? assetDetail.error || "Some live metadata sections are unavailable for this asset right now."
+              : linkNotice}
+          </div>
+        ) : null}
+        {liveDetailStatus ? <div className="gh-support-copy ga-asset360-live-status">{liveDetailStatus}</div> : null}
 
-        <div className="gh-preview-stat-grid gh-entity-record-metrics">
-          {metricTiles.map((item) => (
-            <MetricTile
-              key={item.label}
-              label={item.label}
-              value={item.value}
-              hint={item.hint || ""}
-              tone={item.tone || ""}
-            />
-          ))}
-        </div>
+        <Asset360CardRow
+          asset={asset}
+          asset360Data={asset360Data}
+          onOpenGovernance={onOpenGovernance}
+          prototypeEvidence={prototypeEvidence}
+          recordFacts={recordFacts}
+        />
 
         <SurfaceTabs
           activeKey={activeTab}
@@ -1767,166 +2376,32 @@ export default function EntityWorkspace({
         />
 
         {activeTab === "Overview" ? (
-          <div className="gh-entity-record-layout">
-            <div className="gh-entity-record-primary">
-              <AccessExplainerBanner assetFqn={asset.fqn} />
-              <EntityRecordSection title="Definition">
-                <InlineEditableDescription
-                  assetFqn={asset.fqn}
-                  description={asset.description}
-                  onSaved={() => invalidateAssetDetail?.(asset.fqn)}
-                />
-              </EntityRecordSection>
+          <Asset360Overview
+            asset={asset}
+            asset360Data={asset360Data}
+            downstreamAssets={downstreamAssets}
+            liveColumns={liveColumns}
+            onOpenGovernance={onOpenGovernance}
+            onOpenLineage={onOpenLineage}
+            onOpenSchema={() => setActiveTab("Schema")}
+            prototypeEvidence={prototypeEvidence}
+            relatedAssets={relatedAssets}
+            setSchemaColumnFilter={setSchemaColumnFilter}
+          />
+        ) : null}
 
-              <EntityRecordSection
-                description={
-                  lineageAccessPending
-                    ? "Checking actor-scoped lineage access for this asset."
-                    : !lineageSurfaceAvailable
-                    ? lineageSurfaceUnavailableReason
-                    : lineageProvisional && !lineageAuthoritative
-                    ? "Refreshing live lineage context for this asset."
-                    : lineageLoading && !relatedAssets.length
-                    ? "Loading connected lineage context for this asset."
-                    : upstreamAssets.length || downstreamAssets.length
-                    ? "Review upstream and downstream neighbors before changing the asset."
-                    : lineageUnavailable
-                    ? "Lineage signals are temporarily unavailable for this asset right now."
-                    : relatedAssets.length
-                      ? "Review connected lineage neighbors before changing the asset."
-                      : "No connected lineage edges are surfaced for this asset yet."
-                }
-                title="Lineage Context"
-              >
-                {lineageAccessPending ? (
-                  <LoadingState message="Checking lineage access..." />
-                ) : lineageSurfaceAvailable ? (
-                  <>
-                    <SurfaceTabs
-                      activeKey={localLineageContext}
-                      ariaLabel="Entity lineage context"
-                      className="gh-lineage-context-toggle"
-                      items={["Data Lineage", "Operational Context"].map((option) => ({
-                        key: option,
-                        label: option,
-                      }))}
-                      onChange={setLocalLineageContext}
-                    />
-                    {upstreamAssets.length || downstreamAssets.length ? (
-                      <div className="gh-lineage-context-groups">
-                        <div className="gh-lineage-context-group">
-                          <div className="gh-lineage-context-label">
-                            Upstream {upstreamAssets.length ? `(${upstreamAssets.length})` : ""}
-                          </div>
-                          {upstreamAssets.length ? (
-                            <div className="gh-lineage-linked-list">
-                              {upstreamAssets.slice(0, 4).map((item) => renderLinkedAssetRow(item, "up"))}
-                            </div>
-                          ) : (
-                            <div className="gh-support-copy">No upstream assets are currently surfaced.</div>
-                          )}
-                        </div>
-                        <div className="gh-lineage-context-group">
-                          <div className="gh-lineage-context-label">
-                            Downstream {downstreamAssets.length ? `(${downstreamAssets.length})` : ""}
-                          </div>
-                          {downstreamAssets.length ? (
-                            <div className="gh-lineage-linked-list">
-                              {downstreamAssets.slice(0, 4).map((item) => renderLinkedAssetRow(item, "down"))}
-                            </div>
-                          ) : (
-                            <div className="gh-support-copy">No downstream assets are currently surfaced.</div>
-                          )}
-                        </div>
-                      </div>
-                    ) : relatedAssets.length ? (
-                      <div className="gh-lineage-linked-list">
-                        {relatedAssets.slice(0, 6).map((item) => renderLinkedAssetRow(item, "related"))}
-                      </div>
-                    ) : null}
-                  </>
-                ) : (
-                  <div className="gh-empty-state">{lineageSurfaceUnavailableReason}</div>
-                )}
-              </EntityRecordSection>
-
-              <EntityRecordSection
-                description="Change requests and review events tied to this record."
-                title="Recent Activity"
-              >
-                {!activityLoaded && !asset.activity?.length && !asset.metadataAudit?.length ? (
-                  <SkeletonBlock lines={4} message="Loading activity feed…" />
-                ) : (
-                  <ActivityFeed
-                    items={(asset.activity || []).slice(0, 4)}
-                    auditItems={(asset.metadataAudit || []).slice(0, 6)}
-                    onOpenGovernance={() => onOpenGovernance(asset.fqn)}
-                  />
-                )}
-              </EntityRecordSection>
-            </div>
-
-            <div className="gh-entity-record-secondary">
-              <EntityRecordSection
-                description={
-                  workloadSurfaceAvailable
-                    ? "Storage shape, workload usage, and connected-record context."
-                    : "Storage shape and connected-record context."
-                }
-                title="Live Record Signals"
-              >
-                <AttributeList items={recordFacts} />
-              </EntityRecordSection>
-
-              <Asset360Panel
-                data={asset360Data}
-                error={asset360.error}
-                loading={asset360.loading}
-                refreshing={asset360.refreshing}
-              />
-
-              {livePreview.length ? (
-                <EntityRecordSection
-                  actions={
-                    <button
-                      className="gh-tertiary-button gh-inline-link-button"
-                      onClick={() => setActiveTab("SampleData")}
-                      type="button"
-                    >
-                      See all rows
-                    </button>
-                  }
-                  className="gh-entity-record-overview-preview"
-                  description={`First ${Math.min(livePreview.length, 3)} row${livePreview.length === 1 ? "" : "s"} returned from the live asset preview.`}
-                  title="Live Preview"
-                >
-                  <div className="gh-entity-overview-preview-scroll">
-                    <table className="gh-table gh-entity-overview-preview-table">
-                      <thead>
-                        <tr>
-                          {previewKeys.slice(0, 5).map((key) => (
-                            <th key={key}>{key}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {livePreview.slice(0, 3).map((row, index) => (
-                          <tr key={`${asset.fqn}-overview-preview-${index}`}>
-                            {previewKeys.slice(0, 5).map((key) => (
-                              <td key={key}>{row[key]}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </EntityRecordSection>
-              ) : null}
-
+        {activeTab === "Governance" ? (
+          <div className="gh-entity-record-layout gh-entity-record-layout-governance">
+            <EntityRecordSection
+              description="Governance classifications, coverage signals, and steward-editable metadata for this asset."
+              title="Governance"
+            >
+              <CoverageSignalRows items={postureChecks} onOpenGovernance={() => onOpenGovernance(asset.fqn)} />
+            </EntityRecordSection>
+            <aside className="gh-entity-record-secondary">
               <EntityRecordSection title="Owners">
                 <OwnerList owners={asset.owners} />
               </EntityRecordSection>
-
               <MetadataEditorPanel
                 asset={asset}
                 bootstrap={bootstrap}
@@ -1937,14 +2412,36 @@ export default function EntityWorkspace({
                 onReset={resetMetadataDraft}
                 onSave={saveMetadata}
               />
+            </aside>
+          </div>
+        ) : null}
 
+        {activeTab === "Access" ? (
+          <div className="gh-entity-record-layout gh-entity-record-layout-governance">
+            <div className="gh-entity-record-primary">
+              <AccessExplainerBanner assetFqn={asset.fqn} />
               <EntityRecordSection
-                description="These signals summarize where core governance metadata is present and where steward review is still needed."
-                title="Governance coverage"
+                description={
+                  prototypeEvidence
+                    ? "Storage shape and connected-record context from prototype-mock evidence, not live Databricks proof."
+                    : workloadSurfaceAvailable
+                      ? "Storage shape, workload usage, and connected-record context."
+                      : "Storage shape and connected-record context."
+                }
+                title={prototypeEvidence ? "Record Signals" : "Live Record Signals"}
               >
-                <CoverageSignalRows items={postureChecks.slice(0, 4)} onOpenGovernance={() => onOpenGovernance(asset.fqn)} />
+                <AttributeList items={recordFacts} />
               </EntityRecordSection>
             </div>
+            <aside className="gh-entity-record-secondary">
+              <Asset360Panel
+                data={asset360Data}
+                evidenceKind={prototypeEvidence ? "prototype_mock" : "live"}
+                error={asset360.error}
+                loading={asset360.loading}
+                refreshing={asset360.refreshing}
+              />
+            </aside>
           </div>
         ) : null}
 

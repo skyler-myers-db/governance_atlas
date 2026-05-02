@@ -21,58 +21,12 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
         _asset_visibility_record,
         _ensure_live_runtime,
         _lineage_payload,
-        _safe_int,
     )
 
     _ensure_live_runtime()
     actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
-    if not actor_scoped:
-        return _cacheable_json_response(
-            _with_meta(
-                {
-                    "fqn": asset_fqn,
-                    "graphs": {
-                        "data": {"nodes": [], "edges": [], "meta": {}},
-                        "operational": {"nodes": [], "edges": [], "meta": {}},
-                    },
-                    "columnLineage": {"upstream": [], "downstream": [], "meta": {}},
-                    "lineageDepth": {
-                        "oneHop": {"upstream": [], "downstream": []},
-                        "twoHop": {"upstream": {}, "downstream": {}},
-                    },
-                    "edgeDetails": {},
-                    "stats": {},
-                    "unavailableReason": "Lineage is not available for actor-scoped reads in the current runtime mode.",
-                },
-                request,
-                source="unity-catalog-lineage",
-                state="degraded",
-                authoritative=False,
-                entity_fqn=asset_fqn,
-                entity_id=asset_fqn,
-                warnings=[
-                    "Lineage stays degraded until Databricks per-user authorization / OBO is available for actor-scoped reads.",
-                ],
-                unavailable_reason="Lineage is not available for actor-scoped reads in the current runtime mode.",
-            ),
-            request,
-            max_age=120,
-            stale_while_revalidate=600,
-        )
-    payload = _lineage_payload(asset_fqn, request=request)
-    stats = payload.get("stats") or {}
-    column_lineage = payload.get("columnLineage") or {}
-    has_lineage_context = any(
-        _safe_int(stats.get(key)) > 0
-        for key in [
-            "upstreamCount",
-            "downstreamCount",
-            "operationalProducerCount",
-            "operationalConsumerCount",
-        ]
-    ) or bool(column_lineage.get("upstream") or column_lineage.get("downstream"))
     visibility = _asset_visibility_record(asset_fqn, request)
-    if not visibility.get("openable") and not has_lineage_context:
+    if not visibility.get("openable"):
         if visibility.get("visibilityState") == "hidden":
             return _error_response(
                 request,
@@ -110,6 +64,7 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
                 "visibilityState": visibility.get("visibilityState") or "missing"
             },
         )
+    payload = _lineage_payload(asset_fqn, request=request)
     return _cacheable_json_response(
         _with_meta(
             payload,
@@ -124,8 +79,19 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
                 "includesOperationalContext": bool(
                     (payload.get("graphs") or {}).get("operational")
                 ),
+                "visibilityScope": (
+                    capability_service.ACTOR_SCOPED_VISIBILITY
+                    if actor_scoped
+                    else capability_service.WORKSPACE_APP_PRINCIPAL_VISIBILITY
+                ),
+                "lineageProfile": payload.get("profile") or "full",
+                "progressive": (payload.get("stats") or {}).get("progressive") or {},
             },
-            warnings=[],
+            warnings=[]
+            if actor_scoped
+            else [
+                "Lineage is shown from workspace-scoped app-principal reads; per-user authorization is not available."
+            ],
         ),
         request,
         max_age=60,
@@ -160,7 +126,7 @@ def api_column_lineage_trace(
     """Phase 9 — multi-hop column lineage. Walks system.access.column_lineage
     recursively, bounded by depth/node/fanout caps to fail closed against
     runaway fan-out."""
-    from runtime_app import _ensure_live_runtime, _uc
+    from runtime_app import _ensure_live_runtime, _uc_for_request
 
     _ensure_live_runtime()
     actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
@@ -170,7 +136,7 @@ def api_column_lineage_trace(
             detail="Column lineage requires per-user authorization (OBO).",
         )
     try:
-        system_uc = _uc()
+        system_uc = _uc_for_request(request)
     except Exception:
         system_uc = None
     if system_uc is None:

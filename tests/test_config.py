@@ -6,6 +6,8 @@ from unittest.mock import patch
 
 from atlas.config import AppConfig
 
+ROOT = os.path.dirname(os.path.dirname(__file__))
+
 
 class AppConfigTests(unittest.TestCase):
     @patch.dict(
@@ -23,6 +25,12 @@ class AppConfigTests(unittest.TestCase):
         self.assertEqual(config.build_id, "")
         self.assertTrue(config.diagnostics_enabled)
         self.assertEqual(config.slow_request_ms, 1500)
+        self.assertEqual(config.atlas_ai_provider, "local")
+        self.assertEqual(config.genie_space_id, "")
+        self.assertFalse(config.atlas_ai_require_benchmark)
+        self.assertFalse(config.lakebase_enabled)
+        self.assertEqual(config.lakebase_endpoint_name, "")
+        self.assertEqual(config.lakebase_schema, "atlas_app")
 
     @patch.dict(
         os.environ,
@@ -78,6 +86,30 @@ class AppConfigTests(unittest.TestCase):
 
         self.assertEqual(config.gov_catalog, "preferred")
         self.assertEqual(config.gov_schema, "atlas")
+
+    def test_source_app_yaml_keeps_genie_and_lakebase_optional(self) -> None:
+        content = open(os.path.join(ROOT, "app.yaml"), encoding="utf-8").read()
+
+        self.assertIn("name: GOVAT_CATALOG\n    value: \"main\"", content)
+        self.assertIn("name: GOVAT_ADMIN_EMAILS\n    value: \"\"", content)
+        self.assertIn("name: GOVAT_ATLAS_AI_PROVIDER\n    value: \"local\"", content)
+        self.assertIn("name: GOVAT_GENIE_SPACE_ID\n    value: \"not-configured\"", content)
+        self.assertIn("name: GOVAT_ATLAS_AI_REQUIRE_BENCHMARK\n    value: \"false\"", content)
+        self.assertIn("name: GOVAT_LAKEBASE_ENABLED\n    value: \"false\"", content)
+        self.assertIn("name: GOVAT_LAKEBASE_ENDPOINT_NAME\n    value: \"not-configured\"", content)
+        self.assertNotIn("skyler@entrada.ai", content)
+        self.assertNotIn('value: "datapact"', content)
+        self.assertNotIn("01f1406a11221afa985d3fe64c9fbea1", content)
+        self.assertNotIn("projects/governance-atlas-state/branches/production", content)
+
+    def test_dev_bundle_target_documents_internal_optional_resource_bindings(self) -> None:
+        content = open(os.path.join(ROOT, "databricks.yml"), encoding="utf-8").read()
+
+        self.assertIn("Entrada internal dev target", content)
+        self.assertIn("atlas-genie-space", content)
+        self.assertIn("atlas-lakebase", content)
+        self.assertIn('atlas_ai_provider: "genie"', content)
+        self.assertIn('lakebase_enabled: "true"', content)
 
 
 if __name__ == "__main__":

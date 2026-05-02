@@ -120,6 +120,15 @@ These are injected explicitly per deployment target from `databricks.yml`.
 Source defaults remain neutral and must not encode personal emails or
 production-only settings.
 
+`app.yaml` is intentionally portable source config: it defaults to
+`main.atlas`, no bootstrap admin, local Atlas AI fallback, and Lakebase disabled.
+Real installs should override `GOVAT_CATALOG`, `GOVAT_SCHEMA`, and
+`GOVAT_ADMIN_EMAILS` per workspace. Genie and Lakebase are optional resources:
+leave `GOVAT_ATLAS_AI_PROVIDER=local` and `GOVAT_LAKEBASE_ENABLED=false` for a
+minimal install, or bind a curated Genie space plus Lakebase branch/database in
+the bundle target. The `dev` target in `databricks.yml` is Entrada's internal
+validation target and is not a portable default for customer workspaces.
+
 ## Governance Tables
 
 Governance Atlas currently persists governance state in Delta tables under

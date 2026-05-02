@@ -33,8 +33,10 @@ vi.mock("./LineageStage", () => ({
     linkedRecordUnavailableOverrides = {},
     notice = "",
     onOpenAsset = () => {},
+    overlay = null,
   }) => (
     <div data-testid="lineage-stage">
+      {overlay ? <div data-testid="lineage-overlay">{overlay}</div> : null}
       {notice ? (
         <div data-testid="lineage-notice">
           <div>Navigation limited</div>
@@ -152,6 +154,35 @@ describe("LineageWorkspace", () => {
     expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false);
   });
 
+  it("fetches focused lineage through transient warehouse warmup instead of blocking the route", () => {
+    render(
+      <LineageWorkspace
+        bootstrap={{
+          assets: [asset],
+          capabilities: {
+            tableLineage: {
+              available: false,
+              state: "unavailable",
+              reason:
+                "Warming the Databricks SQL warehouse. Serverless warehouses take 30-90 seconds to start after idle; capabilities will hydrate automatically.",
+            },
+          },
+        }}
+        contextSeedAssets={[asset]}
+        initialAssetFqn={asset.fqn}
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenGovernance={() => {}}
+        onRouteAssetChange={() => {}}
+        onSurfaceReady={() => {}}
+      />,
+    );
+
+    expect(screen.queryByText("Lineage Unavailable")).toBeNull();
+    expect(screen.getByTestId("lineage-stage")).not.toBeNull();
+    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, true);
+  });
+
   it("shows a truthful unavailable panel when the lineage rollout is disabled", () => {
     render(
       <LineageWorkspace
@@ -189,7 +220,7 @@ describe("LineageWorkspace", () => {
     expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false);
   });
 
-  it("shows a pending access state before workspace lineage access resolves", () => {
+  it("opens the lineage surface from bootstrap capabilities while workspace access resolves", () => {
     render(
       <LineageWorkspace
         bootstrap={{
@@ -219,9 +250,29 @@ describe("LineageWorkspace", () => {
       />,
     );
 
-    expect(screen.getByText("Resolving live lineage access...")).not.toBeNull();
-    expect(screen.getByText("Checking actor-scoped lineage access for this route.")).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false);
+    expect(screen.queryByText("Resolving live lineage access...")).toBeNull();
+    expect(screen.getByTestId("lineage-stage")).not.toBeNull();
+    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, true);
+  });
+
+  it("keeps the empty Lineage surface usable as an asset search even before lineage gates resolve", () => {
+    render(
+      <LineageWorkspace
+        bootstrap={bootstrapPayload()}
+        contextSeedAssets={[asset]}
+        initialAssetFqn=""
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenGovernance={() => {}}
+        onRouteAssetChange={() => {}}
+        onSurfaceReady={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("lineage-stage")).not.toBeNull();
+    expect(screen.getByText("Search for an asset and open the graph directly from there.")).not.toBeNull();
+    expect(screen.queryByText("Lineage Unavailable")).toBeNull();
+    expect(useLineageMock).toHaveBeenCalledWith("", false);
   });
 
   it("fails closed when the lineage rollout flag is missing", () => {

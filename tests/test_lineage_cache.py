@@ -107,6 +107,103 @@ class LineageCacheTests(unittest.TestCase):
 
         self.assertEqual(len(load_calls), 3)
 
+    def test_lineage_payload_cache_keys_separate_initial_and_full_profiles(self) -> None:
+        uc = FakeUC()
+        store = object()
+        load_calls: list[tuple[str, str]] = []
+
+        def fake_build(_uc, _store, asset_fqn: str, **kwargs):
+            profile = kwargs.get("profile") or "full"
+            load_calls.append((asset_fqn, profile))
+            return {
+                "fqn": asset_fqn,
+                "profile": profile,
+                "sequence": len(load_calls),
+            }
+
+        with patch("atlas.services.lineage._build_lineage_payload", side_effect=fake_build):
+            initial = lineage_service.lineage_payload(
+                uc,
+                store,
+                "main.sales.orders",
+                profile="initial",
+            )
+            full = lineage_service.lineage_payload(
+                uc,
+                store,
+                "main.sales.orders",
+                profile="full",
+            )
+            initial_again = lineage_service.lineage_payload(
+                uc,
+                store,
+                "main.sales.orders",
+                profile="initial",
+            )
+
+        self.assertEqual(initial["sequence"], 1)
+        self.assertEqual(full["sequence"], 2)
+        self.assertEqual(initial_again["sequence"], 1)
+        self.assertEqual(load_calls, [("main.sales.orders", "initial"), ("main.sales.orders", "full")])
+        self.assertIn(
+            "lineage:initial:warehouse-1:shared:main.sales.orders",
+            lineage_service._TTL_CACHE,
+        )
+        self.assertIn(
+            "lineage:warehouse-1:shared:main.sales.orders",
+            lineage_service._TTL_CACHE,
+        )
+
+    def test_initial_profile_defers_table_lineage_scans(self) -> None:
+        class InitialOnlyUC(FakeUC):
+            def __init__(self) -> None:
+                super().__init__()
+                self.table_lineage_calls = 0
+
+            def get_table_identity(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "table_catalog": catalog,
+                            "table_schema": schema,
+                            "table_name": table,
+                            "table_type": "MANAGED",
+                            "data_source_format": "DELTA",
+                            "comment": "Orders table",
+                        }
+                    ]
+                )
+
+            def get_table_tags(self, *_args, **_kwargs) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {"tag_name": "certification", "tag_value": "Trusted"},
+                    ]
+                )
+
+            def get_table_lineage_upstream(self, *_args, **_kwargs) -> pd.DataFrame:
+                self.table_lineage_calls += 1
+                raise AssertionError("initial profile must not scan upstream table lineage")
+
+            def get_table_lineage_downstream(self, *_args, **_kwargs) -> pd.DataFrame:
+                self.table_lineage_calls += 1
+                raise AssertionError("initial profile must not scan downstream table lineage")
+
+        uc = InitialOnlyUC()
+        payload = lineage_service._build_lineage_payload(
+            uc,
+            object(),
+            "main.sales.orders",
+            profile="initial",
+        )
+
+        self.assertEqual(payload["profile"], "initial")
+        self.assertEqual(uc.table_lineage_calls, 0)
+        self.assertEqual(len(payload["graphs"]["data"]["nodes"]), 1)
+        self.assertEqual(payload["graphs"]["data"]["edges"], [])
+        self.assertTrue(payload["graphs"]["data"]["meta"]["tableLineageDeferred"])
+        self.assertTrue(payload["stats"]["progressive"]["tableLineageDeferred"])
+
     def test_runtime_app_lineage_helper_threads_request_cache_scope(self) -> None:
         source = Path("runtime_app.py").read_text(encoding="utf-8")
         tree = ast.parse(source, filename="runtime_app.py")

@@ -13,13 +13,17 @@ the behavior.
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional
 
+from atlas.services import input_safety
+
 SUPPORTED_TYPES = ("string", "number", "boolean", "date", "enum", "markdown")
 SUPPORTED_ENTITY_KINDS = ("asset", "column", "glossary_term")
+_PROPERTY_KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.:-]{0,127}$")
 
 
 @dataclass(frozen=True)
@@ -120,9 +124,17 @@ def validate_value(
         return ValidationResult(ok=True, value=None)
 
     if data_type == "string":
-        return ValidationResult(ok=True, value=str(value))
+        try:
+            cleaned = input_safety.sanitize_plain_text(value, field="value", max_length=4000)
+        except ValueError as exc:
+            return ValidationResult(ok=False, reason=str(exc))
+        return ValidationResult(ok=True, value=cleaned)
     if data_type == "markdown":
-        return ValidationResult(ok=True, value=str(value))
+        try:
+            cleaned = input_safety.sanitize_markdown(value, field="value", max_length=8000)
+        except ValueError as exc:
+            return ValidationResult(ok=False, reason=str(exc))
+        return ValidationResult(ok=True, value=cleaned)
     if data_type == "number":
         return _coerce_number(value)
     if data_type == "boolean":
@@ -136,33 +148,64 @@ def validate_value(
 
 def normalize_definition_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Validate the shape of a definition payload and return a clean dict."""
-    data_type = (payload.get("dataType") or "").strip().lower()
-    if data_type not in SUPPORTED_TYPES:
-        raise ValueError(
-            f"Unsupported dataType {data_type!r}; expected one of {SUPPORTED_TYPES}."
+    try:
+        data_type = input_safety.sanitize_allowed(
+            payload.get("dataType") or "",
+            field="dataType",
+            allowed=SUPPORTED_TYPES,
         )
-    entity_kind = (payload.get("entityKind") or "").strip().lower()
-    if entity_kind not in SUPPORTED_ENTITY_KINDS:
+    except ValueError:
         raise ValueError(
-            f"Unsupported entityKind {entity_kind!r}; expected one of {SUPPORTED_ENTITY_KINDS}."
+            f"Unsupported dataType {(payload.get('dataType') or '')!r}; expected one of {SUPPORTED_TYPES}."
         )
-    property_key = (payload.get("propertyKey") or "").strip()
-    if not property_key:
-        raise ValueError("propertyKey is required.")
+    try:
+        entity_kind = input_safety.sanitize_allowed(
+            payload.get("entityKind") or "",
+            field="entityKind",
+            allowed=SUPPORTED_ENTITY_KINDS,
+        )
+    except ValueError:
+        raise ValueError(
+            f"Unsupported entityKind {(payload.get('entityKind') or '')!r}; expected one of {SUPPORTED_ENTITY_KINDS}."
+        )
+    property_key = input_safety.sanitize_plain_text(
+        payload.get("propertyKey") or "",
+        field="propertyKey",
+        max_length=128,
+        allow_empty=False,
+    )
+    if not _PROPERTY_KEY_RE.match(property_key):
+        raise ValueError("propertyKey must start with a letter and use only letters, numbers, underscore, dash, dot, or colon.")
     enum_values = payload.get("enumValues") or []
     if data_type == "enum":
         if not isinstance(enum_values, list) or not enum_values:
             raise ValueError("Enum properties must declare a non-empty enumValues list.")
+    display_name = input_safety.sanitize_plain_text(
+        payload.get("displayName") or property_key,
+        field="displayName",
+        max_length=256,
+        allow_empty=False,
+    )
+    description_raw = payload.get("description")
+    description = (
+        input_safety.sanitize_markdown(description_raw, field="description", max_length=4000)
+        if description_raw is not None
+        else None
+    )
+    scope = input_safety.sanitize_json_value(payload.get("scope") or {}, field="scope", max_depth=4)
     return {
         "entityKind": entity_kind,
         "propertyKey": property_key,
-        "displayName": payload.get("displayName") or property_key,
-        "description": payload.get("description"),
+        "displayName": display_name,
+        "description": description,
         "dataType": data_type,
-        "enumValues": [str(v) for v in enum_values] if data_type == "enum" else [],
+        "enumValues": [
+            input_safety.sanitize_plain_text(v, field="enumValues", max_length=128, allow_empty=False)
+            for v in enum_values
+        ] if data_type == "enum" else [],
         "isRequired": bool(payload.get("isRequired")),
         "isMulti": bool(payload.get("isMulti")),
-        "scope": payload.get("scope") or {},
+        "scope": scope,
     }
 
 

@@ -1,4 +1,4 @@
-function AtlasAiMark() {
+export function AtlasAiMark() {
   return (
     <svg aria-hidden="true" className="ga-ai-mark" viewBox="0 0 24 24" width="20" height="20" fill="none">
       <circle cx="4.5" cy="7" r="1.6" fill="currentColor" opacity="0.82" />
@@ -22,9 +22,11 @@ function AtlasAiMark() {
 }
 
 export function AtlasAiPanel({
-  title = "Ask Atlas AI",
+  title = "Atlas AI",
+  groundingLine = "Grounded in available governance metadata - no raw rows read",
   prompts = [],
   promptsDisabled = false,
+  promptsDisabledTitle = "Atlas AI is working on the current question.",
   onPromptClick = undefined,
   children,
   moreLabel = "",
@@ -36,20 +38,24 @@ export function AtlasAiPanel({
       <header>
         <div>
           <AtlasAiMark />
-          <h2>{title}</h2>
+          <span>
+            <h2>{title}</h2>
+            {groundingLine ? <em>{groundingLine}</em> : null}
+          </span>
         </div>
         <span className="ga-beta-pill">Beta</span>
       </header>
       {children}
       {prompts.length ? (
         <div className="ga-ai-prompts">
+          <div className="ga-ai-prompt-label">Try asking</div>
           {prompts.map((prompt) => (
             <button
               aria-disabled={promptsDisabled || undefined}
               disabled={promptsDisabled}
               key={prompt}
               onClick={() => onPromptClick?.(prompt)}
-              title={promptsDisabled ? "Atlas AI recommendations require evidence-backed chat configuration." : undefined}
+              title={promptsDisabled ? promptsDisabledTitle : undefined}
               type="button"
             >
               <span>{prompt}</span>
@@ -63,13 +69,24 @@ export function AtlasAiPanel({
           className="ga-ai-more"
           disabled={!onMoreSuggestions}
           onClick={onMoreSuggestions}
+          title={!onMoreSuggestions ? "More suggestions are unavailable for this view." : undefined}
           type="button"
         >
           {moreLabel}
         </button>
       ) : null}
       {footer}
-      <p className="ga-ai-disclaimer">Atlas AI uses AI. Review for accuracy.</p>
+      <p className="ga-ai-disclaimer">
+        <span>Atlas AI uses AI. Review for accuracy.</span>
+        <button
+          aria-label="Atlas AI accuracy notice"
+          className="ga-ai-disclaimer-info"
+          title="Atlas AI answers are grounded in available governance metadata and should be reviewed for accuracy."
+          type="button"
+        >
+          i
+        </button>
+      </p>
     </section>
   );
 }

@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from atlas.api.identity import _request_auth_mode
 from atlas.api.response import (
@@ -14,16 +14,37 @@ from atlas.api.response import (
 )
 from atlas.services import capabilities as capability_service
 from atlas.services import governance as governance_service
+from atlas.services import input_safety
 from atlas.services.assets import normalize_str as _normalize_str
 
 
 class AssetDescriptionPatch(BaseModel):
     description: str = ""
 
+    @field_validator("description", mode="before")
+    @classmethod
+    def _sanitize_description(cls, value):
+        return input_safety.sanitize_markdown(value, field="description", max_length=8000)
+
 
 class OwnerAssignment(BaseModel):
     ownerEmail: str
     ownerType: str = "steward"
+
+    @field_validator("ownerEmail", mode="before")
+    @classmethod
+    def _sanitize_owner_email(cls, value):
+        return input_safety.sanitize_email(value, field="ownerEmail", allow_empty=False)
+
+    @field_validator("ownerType", mode="before")
+    @classmethod
+    def _sanitize_owner_type(cls, value):
+        return input_safety.sanitize_allowed(
+            value or "steward",
+            field="ownerType",
+            allowed=("business", "technical", "steward"),
+            default="steward",
+        )
 
 
 class AssetOwnersPatch(BaseModel):
@@ -40,9 +61,31 @@ class AssetMetadataPatch(BaseModel):
     dataProduct: Optional[str] = None
     freeformTags: Optional[Dict[str, str]] = None
 
+    @field_validator("description", mode="before")
+    @classmethod
+    def _sanitize_description(cls, value):
+        return input_safety.sanitize_markdown(value, field="description", max_length=8000)
+
+    @field_validator("domain", "tier", "certification", "sensitivity", "criticality", "dataProduct", mode="before")
+    @classmethod
+    def _sanitize_optional_short_text(cls, value, info):
+        if value is None:
+            return None
+        return input_safety.sanitize_plain_text(value, field=info.field_name, max_length=256)
+
+    @field_validator("freeformTags", mode="before")
+    @classmethod
+    def _sanitize_freeform_tags(cls, value):
+        return input_safety.sanitize_tag_map(value, field="freeformTags") if value is not None else None
+
 
 class AssetTagsPatch(BaseModel):
     tags: Dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def _sanitize_tags(cls, value):
+        return input_safety.sanitize_tag_map(value, field="tags")
 
 
 class AssetAvailabilityRequest(BaseModel):
@@ -52,14 +95,34 @@ class AssetAvailabilityRequest(BaseModel):
 class ColumnDescriptionPatch(BaseModel):
     description: str = ""
 
+    @field_validator("description", mode="before")
+    @classmethod
+    def _sanitize_description(cls, value):
+        return input_safety.sanitize_markdown(value, field="description", max_length=8000)
+
 
 class ColumnTagsPatch(BaseModel):
     tags: Dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def _sanitize_tags(cls, value):
+        return input_safety.sanitize_tag_map(value, field="tags")
 
 
 class ColumnMetadataPatch(BaseModel):
     description: str = ""
     tags: Dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("description", mode="before")
+    @classmethod
+    def _sanitize_description(cls, value):
+        return input_safety.sanitize_markdown(value, field="description", max_length=8000)
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def _sanitize_tags(cls, value):
+        return input_safety.sanitize_tag_map(value, field="tags")
 
 
 def api_asset_availability(
@@ -183,6 +246,7 @@ def api_patch_column_description(
         _ensure_asset_column_exists,
         _ensure_can_mutate_uc_metadata,
         _ensure_live_runtime,
+        _http_request_id,
         _metadata_audit_column_snapshot,
         _record_metadata_audit,
         _uc_for_request,
@@ -211,9 +275,11 @@ def api_patch_column_description(
         entity_fqn=asset_fqn,
         entity_id=asset_fqn,
         column_name=column_name,
+        request_id=_http_request_id(request),
         before=before,
         after=after,
         detail=payload.description or "",
+        fail_closed=True,
     )
     return JSONResponse(
         {
@@ -242,6 +308,7 @@ def api_patch_column_tags(
         _ensure_asset_column_exists,
         _ensure_can_mutate_uc_metadata,
         _ensure_live_runtime,
+        _http_request_id,
         _invalidate_asset_caches,
         _metadata_audit_column_snapshot,
         _record_metadata_audit,
@@ -279,9 +346,11 @@ def api_patch_column_tags(
         entity_fqn=asset_fqn,
         entity_id=asset_fqn,
         column_name=column_name,
+        request_id=_http_request_id(request),
         before=before,
         after=after,
         detail=", ".join(f"{key}={value}" for key, value in requested.items()),
+        fail_closed=True,
     )
     return JSONResponse(
         {
@@ -309,6 +378,7 @@ def api_patch_column_metadata(
         _ensure_asset_column_exists,
         _ensure_can_mutate_uc_metadata,
         _ensure_live_runtime,
+        _http_request_id,
         _metadata_audit_column_snapshot,
         _record_metadata_audit,
         _uc_for_request,
@@ -338,9 +408,11 @@ def api_patch_column_metadata(
         entity_fqn=asset_fqn,
         entity_id=asset_fqn,
         column_name=column_name,
+        request_id=_http_request_id(request),
         before=before,
         after=after,
         detail=payload.description or "",
+        fail_closed=True,
     )
     return JSONResponse(
         {
@@ -368,6 +440,7 @@ def api_patch_asset_description(
         _ensure_can_mutate_uc_metadata,
         _ensure_live_runtime,
         _governance_summary,
+        _http_request_id,
         _metadata_audit_asset_snapshot,
         _record_metadata_audit,
         _uc_for_request,
@@ -393,9 +466,11 @@ def api_patch_asset_description(
         actor_role=actor_role,
         entity_fqn=asset_fqn,
         entity_id=asset_fqn,
+        request_id=_http_request_id(request),
         before=before,
         after=after,
         detail=payload.description or "",
+        fail_closed=True,
     )
     return JSONResponse(
         {
@@ -419,6 +494,7 @@ def api_patch_asset_metadata(
         _ensure_can_mutate_uc_metadata,
         _ensure_live_runtime,
         _governance_summary,
+        _http_request_id,
         _metadata_audit_asset_snapshot,
         _record_metadata_audit,
         _user_role_slug,
@@ -439,9 +515,11 @@ def api_patch_asset_metadata(
         actor_role=actor_role,
         entity_fqn=asset_fqn,
         entity_id=asset_fqn,
+        request_id=_http_request_id(request),
         before=before,
         after=after,
         detail=payload.description or "",
+        fail_closed=True,
     )
     return JSONResponse(
         {
@@ -465,6 +543,7 @@ def api_patch_asset_owners(
         _ensure_can_mutate,
         _ensure_live_runtime,
         _governance_summary,
+        _http_request_id,
         _store,
         _user_role_slug,
     )
@@ -482,6 +561,7 @@ def api_patch_asset_owners(
         updated_by=actor_email,
         replace=True,
         actor_role=actor_role,
+        request_id=_http_request_id(request),
     )
     return JSONResponse(
         {
@@ -505,6 +585,7 @@ def api_patch_asset_tags(
         _asset_table_type,
         _ensure_can_mutate_uc_metadata,
         _ensure_live_runtime,
+        _http_request_id,
         _invalidate_asset_caches,
         _metadata_audit_asset_snapshot,
         _record_metadata_audit,
@@ -538,9 +619,11 @@ def api_patch_asset_tags(
         actor_role=actor_role,
         entity_fqn=asset_fqn,
         entity_id=asset_fqn,
+        request_id=_http_request_id(request),
         before=before,
         after=after,
         detail=", ".join(f"{key}={value}" for key, value in requested.items()),
+        fail_closed=True,
     )
     return JSONResponse(
         {

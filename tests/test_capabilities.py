@@ -59,6 +59,23 @@ class CapabilityPayloadTests(unittest.TestCase):
         self.assertEqual(payload["columnLineage"]["state"], "unknown")
         self.assertEqual(payload["workloadVisibility"]["state"], "unknown")
 
+    def test_visible_inventory_keeps_lineage_surface_open_without_observed_edges(self) -> None:
+        payload = capability_service.bootstrap_capabilities(
+            actor_role="reader",
+            authenticated=True,
+            runtime_state="live",
+            store_state="live",
+            visible_asset_count=12,
+            available_catalog_count=2,
+            observed_catalog_count=0,
+        )
+
+        self.assertEqual(payload["tableLineage"]["state"], "available")
+        self.assertTrue(payload["tableLineage"]["available"])
+        self.assertIn("empty graph", payload["tableLineage"]["reason"])
+        self.assertEqual(payload["columnLineage"]["state"], "available")
+        self.assertTrue(payload["columnLineage"]["available"])
+
     def test_runtime_unavailable_marks_runtime_scoped_capabilities_unavailable(
         self,
     ) -> None:

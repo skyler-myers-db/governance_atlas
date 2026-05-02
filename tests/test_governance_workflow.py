@@ -272,6 +272,54 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertTrue(any("task-status-updated" in sql for sql in uc.executed))
         self.assertFalse(any("UPDATE `main`.`atlas`.`change_requests`" in sql for sql in uc.executed))
 
+    def test_set_request_status_resolved_closes_task_rows(self) -> None:
+        workflow_rows = pd.DataFrame(
+            [
+                {
+                    "task_id": "task-123",
+                    "thread_id": "thread-123",
+                    "entity_id": "entity-123",
+                    "entity_fqn_snapshot": "main.sales.orders",
+                    "column_name": None,
+                    "task_type": "description_change",
+                    "diff_before_json": None,
+                    "diff_after_json": '{"title":"Update description","note":"Add owner context"}',
+                    "requested_payload_json": '{"title":"Update description","note":"Add owner context","fullComment":"Update description: Add owner context","requestedTags":{}}',
+                    "assignee_entry_id": None,
+                    "assignee_email": None,
+                    "reviewer_entry_id": None,
+                    "reviewer_email": None,
+                    "due_at": None,
+                    "task_status": "open",
+                    "resolution_code": None,
+                    "resolved_payload_json": None,
+                    "expected_version": 1,
+                    "created_at": "2026-04-14 22:00:00",
+                    "updated_at": "2026-04-14 22:00:00",
+                    "thread_type": "task_request",
+                    "thread_status": "open",
+                    "created_by_entry_id": "entry-123",
+                    "created_by_email": "writer@example.com",
+                }
+            ]
+        )
+        uc = FakeUC(responses=[("FROM `main`.`atlas`.`tasks` t", workflow_rows)])
+        store = GovernanceStore(uc, "main", "atlas")
+
+        store.set_request_status(
+            request_id="task-123",
+            status="resolved",
+            reviewed_by="steward@example.com",
+            review_note="Resolved from Stewardship Workbench.",
+            actor_role="steward",
+        )
+
+        executed_sql = "\n".join(uc.executed)
+        self.assertIn("status = 'resolved'", executed_sql)
+        self.assertIn("resolution_code = 'approved'", executed_sql)
+        self.assertIn("INSERT INTO `main`.`atlas`.`thread_posts`", executed_sql)
+        self.assertIn("INSERT INTO `main`.`atlas`.`activity_events`", executed_sql)
+
     def test_create_change_request_fans_out_owner_inbox_notification(self) -> None:
         owners_df = pd.DataFrame(
             [

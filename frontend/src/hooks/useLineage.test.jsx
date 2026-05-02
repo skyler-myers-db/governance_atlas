@@ -21,15 +21,27 @@ describe("useLineage", () => {
   });
 
   it("starts without provisional seeded lineage and resolves to the live payload", async () => {
-    fetchLineageMock.mockResolvedValue({
-      fqn: "main.sales.orders",
-      graphs: {
-        data: {
-          nodes: [{ id: "live", assetFqn: "main.sales.orders" }],
-          edges: [],
+    fetchLineageMock
+      .mockResolvedValueOnce({
+        fqn: "main.sales.orders",
+        profile: "initial",
+        graphs: {
+          data: {
+            nodes: [{ id: "initial", assetFqn: "main.sales.orders" }],
+            edges: [],
+          },
         },
-      },
-    });
+      })
+      .mockResolvedValueOnce({
+        fqn: "main.sales.orders",
+        profile: "full",
+        graphs: {
+          data: {
+            nodes: [{ id: "live", assetFqn: "main.sales.orders" }],
+            edges: [],
+          },
+        },
+      });
 
     const { result } = renderHook(
       () => useLineage("main.sales.orders", true),
@@ -44,10 +56,17 @@ describe("useLineage", () => {
     expect(result.current.provisional).toBe(false);
 
     await waitFor(() => {
-      expect(fetchLineageMock).toHaveBeenCalledTimes(1);
+      expect(fetchLineageMock).toHaveBeenCalled();
       expect(result.current.loading).toBe(false);
       expect(result.current.authoritative).toBe(true);
       expect(result.current.provisional).toBe(false);
+      expect(result.current.graph).not.toBe(null);
+    });
+
+    expect(fetchLineageMock.mock.calls[0][1].profile).toBe("initial");
+
+    await waitFor(() => {
+      expect(fetchLineageMock).toHaveBeenCalledTimes(2);
       expect(result.current.graph).toEqual({
         data: {
           nodes: [{ id: "live", assetFqn: "main.sales.orders" }],
@@ -57,12 +76,14 @@ describe("useLineage", () => {
     });
 
     expect(fetchLineageMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
+    expect(fetchLineageMock.mock.calls[1][1].profile).toBe("full");
   });
 
   it("does not reuse the previous asset graph when route focus changes", async () => {
     fetchLineageMock
       .mockResolvedValueOnce({
         fqn: "main.sales.orders",
+        profile: "initial",
         graphs: {
           data: {
             nodes: [{ id: "orders", assetFqn: "main.sales.orders" }],
@@ -70,7 +91,7 @@ describe("useLineage", () => {
           },
         },
       })
-      .mockImplementationOnce(
+      .mockImplementation(
         () =>
           new Promise(() => {}),
       );
@@ -104,5 +125,26 @@ describe("useLineage", () => {
     expect(result.current.payload).toBe(null);
     expect(result.current.authoritative).toBe(false);
     expect(result.current.provisional).toBe(false);
+  });
+
+  it("surfaces unavailable lineage errors without staying in retry-loading state", async () => {
+    fetchLineageMock.mockRejectedValueOnce(new Error("Lineage unavailable"));
+
+    const { result } = renderHook(
+      () => useLineage("main.sales.missing", true),
+      {
+        wrapper: Wrapper,
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.error).toBe("Lineage unavailable");
+      expect(result.current.graph).toBe(null);
+      expect(result.current.payload).toBe(null);
+    });
+
+    expect(fetchLineageMock).toHaveBeenCalledTimes(1);
+    expect(fetchLineageMock.mock.calls[0][1].profile).toBe("initial");
   });
 });

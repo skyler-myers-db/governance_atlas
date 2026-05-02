@@ -1,5 +1,6 @@
 export function DonutMetric({ value = 0, label, size = 132 }) {
   const pct = Math.max(0, Math.min(100, Number(value) || 0));
+  const displayValue = Number.isInteger(pct) ? pct.toFixed(0) : pct.toFixed(1);
   const radius = 45;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (pct / 100) * circumference;
@@ -18,7 +19,7 @@ export function DonutMetric({ value = 0, label, size = 132 }) {
         />
       </svg>
       <div className="ga-donut-label">
-        <strong>{pct}%</strong>
+        <strong>{displayValue}%</strong>
         {label ? <span>{label}</span> : null}
       </div>
     </div>

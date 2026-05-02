@@ -38,9 +38,10 @@ function ownerInitials(label) {
   return raw[0]?.toUpperCase() || "—";
 }
 
-export function OwnerAvatar({ owner = "", size = 22, className = "" }) {
+export function OwnerAvatar({ owner = "", size = 22, className = "", imageUrl = "" }) {
   const profile = PALETTE[hashString(owner) % PALETTE.length];
   const initials = ownerInitials(owner);
+  const normalizedImageUrl = String(imageUrl || "").trim();
   return (
     <span
       aria-label={owner || "No owner"}
@@ -62,7 +63,9 @@ export function OwnerAvatar({ owner = "", size = 22, className = "" }) {
       }}
       title={owner || "No owner"}
     >
-      {initials}
+      {normalizedImageUrl ? (
+        <img alt="" src={normalizedImageUrl} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />
+      ) : initials}
     </span>
   );
 }

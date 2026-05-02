@@ -369,11 +369,28 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
   color: #60748e;
+  cursor: pointer;
   flex: 0 0 auto;
   /* Round 12: slightly larger magnifying glass to match the bigger
      placeholder text. */
   font-size: 1.05rem;
+  padding: 0;
+}
+
+.gh-topbar-search-icon:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.gh-topbar-search-icon:focus-visible {
+  outline: none;
+  border-radius: 6px;
+  box-shadow: var(--gh-focus-ring, 0 0 0 3px rgba(91, 67, 238, 0.22));
 }
 
 .gh-topbar-search-icon svg {

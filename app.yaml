@@ -11,13 +11,33 @@ env:
 
   # ── Governance Atlas target config ────────────────────────
   # Databricks Asset Bundles inject these per target through
-  # resources.apps.atlas.config.env. Direct API deploys must provide
-  # explicit env_vars rather than relying on source defaults.
+  # resources.apps.atlas.config.env. Direct API deploys should provide
+  # explicit env_vars for the installing workspace. Source defaults stay
+  # generic: no personal admin, local Atlas AI fallback, Lakebase disabled.
+  # The repo dev bundle target binds Entrada's current validation resources.
   - name: GOVAT_CATALOG
-    value: "datapact"
+    value: "main"
   - name: GOVAT_SCHEMA
     value: "atlas"
   - name: GOVAT_ADMIN_EMAILS
-    value: "skyler@entrada.ai"
+    value: ""
   - name: GOVAT_ENVIRONMENT_LABEL
-    value: "Dev - DEFAULT"
+    value: "Unconfigured"
+  - name: GOVAT_DEPLOY_TARGET
+    value: "Direct"
+  - name: GOVAT_ATLAS_AI_PROVIDER
+    value: "local"
+  - name: GOVAT_GENIE_SPACE_TITLE
+    value: "Governance Atlas Metadata Room"
+  - name: GOVAT_GENIE_SPACE_ID
+    value: "not-configured"
+  - name: GOVAT_ATLAS_AI_REQUIRE_BENCHMARK
+    value: "false"
+  - name: GOVAT_LAKEBASE_ENABLED
+    value: "false"
+  - name: GOVAT_LAKEBASE_ENDPOINT_NAME
+    value: "not-configured"
+  - name: GOVAT_LAKEBASE_SCHEMA
+    value: "atlas_app"
+  - name: GOVAT_LAKEBASE_UC_CATALOG
+    value: "not-configured"

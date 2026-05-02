@@ -169,7 +169,7 @@ class RuntimeDiagnosticsTests(unittest.TestCase):
             },
             "tableLineage": {
                 "state": "unknown",
-                "available": True,
+                "available": False,
                 "reason": "No lineage-observed catalogs are detected yet.",
             },
             "workloadVisibility": {

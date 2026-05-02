@@ -1,0 +1,177 @@
+{
+  "generatedAt": "2026-04-25T09:12:46Z",
+  "deploymentId": "01f14085e4a81baa9f74ebe8f88edd5e",
+  "mode": "live-delta-primary-lakebase-shadow-store-validation",
+  "assetFqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+  "actor": "skyler@entrada.ai",
+  "operations": {
+    "role": "atlas-lakebase-role-20260425051025@entrada.ai",
+    "owner": "atlas-lakebase-recipient-20260425051025@entrada.ai",
+    "workflowTaskId": "6824b7c0aafb47a2aa79488fa4e5bc50",
+    "customDefinitionId": "1907dcb698f34b1ca139a48de53fbb63",
+    "customAssignmentId": "a75084fd98be4f9d8f85eddc7029648c",
+    "classificationRecommendationId": "ga-lakebase-proof-20260425051025",
+    "notificationId": "4be7f1374111e07c62cd3da8"
+  },
+  "mirrorStatus": {
+    "enabled": true,
+    "mode": "delta-primary-lakebase-shadow",
+    "state": "active",
+    "attempted": 7,
+    "succeeded": 7,
+    "failed": 0,
+    "lastError": "",
+    "lastOperation": "notification_receipt",
+    "lastTable": "notification_receipts",
+    "schema": "atlas_app",
+    "activeTables": [
+      "user_roles",
+      "identity_directory_entries",
+      "entity_registry",
+      "entity_aliases",
+      "data_owners",
+      "threads",
+      "thread_posts",
+      "tasks",
+      "activity_events",
+      "notifications",
+      "notification_receipts",
+      "custom_property_definitions",
+      "custom_property_assignments",
+      "classification_recommendations"
+    ],
+    "deferredTables": [
+      "user_profiles",
+      "identity_directory_memberships",
+      "glossaries",
+      "glossary_terms",
+      "glossary_term_reviewers",
+      "glossary_term_links",
+      "notification_preferences",
+      "quality_test_definitions",
+      "quality_suites",
+      "quality_test_cases",
+      "export_jobs",
+      "background_work_items",
+      "background_work_runs",
+      "background_dead_letters"
+    ],
+    "deltaRetainedTables": [
+      "metadata_audit_log",
+      "change_events",
+      "change_event_consumers",
+      "change_event_consumer_offsets",
+      "entity_versions",
+      "entity_relationships",
+      "glossary_term_versions",
+      "custom_property_definition_versions",
+      "profile_runs",
+      "profile_table_metrics",
+      "profile_column_metrics",
+      "quality_test_definition_versions",
+      "quality_runs",
+      "quality_run_results",
+      "quality_alerts",
+      "governance_queue_projection",
+      "glossary_summary_projection",
+      "schema_migrations"
+    ]
+  },
+  "passChecks": {
+    "user_roles": true,
+    "data_owners": true,
+    "tasks": true,
+    "threads": true,
+    "activity_events": true,
+    "notifications": true,
+    "notification_receipts_update": true,
+    "custom_property_definitions": true,
+    "custom_property_assignments": true,
+    "classification_recommendations": true,
+    "mirror_status": true
+  },
+  "passed": true,
+  "lakebaseChecks": {
+    "user_roles": [
+      {
+        "email": "atlas-lakebase-role-20260425051025@entrada.ai",
+        "role": "steward",
+        "updated_by": "skyler@entrada.ai"
+      }
+    ],
+    "data_owners": [
+      {
+        "owner_email": "atlas-lakebase-recipient-20260425051025@entrada.ai",
+        "owner_type": "steward"
+      }
+    ],
+    "tasks": [
+      {
+        "task_id": "6824b7c0aafb47a2aa79488fa4e5bc50",
+        "thread_id": "ac36352e9117472ba23331acd1773765",
+        "entity_fqn_snapshot": "datapact.governance_atlas_demo.customer_stewardship_queue",
+        "status": "open"
+      }
+    ],
+    "threads": [
+      {
+        "thread_id": "ac36352e9117472ba23331acd1773765",
+        "status": "open"
+      }
+    ],
+    "activity_events": [
+      {
+        "event_id": "a102567750964f96a3dbd5ca0577f4d5",
+        "event_type": "task_created"
+      },
+      {
+        "event_id": "5e7b600153084230ab024d56c5cd358f",
+        "event_type": "comment_created"
+      }
+    ],
+    "notifications": [
+      {
+        "notification_id": "4be7f1374111e07c62cd3da8",
+        "event_id": "a102567750964f96a3dbd5ca0577f4d5",
+        "delivery_state": "delivered"
+      }
+    ],
+    "notification_receipts_before_update": [
+      {
+        "notification_id": "4be7f1374111e07c62cd3da8",
+        "recipient_entry_id": "cf624f93cd2a441aa74d077c23bd4c7e",
+        "inbox_state": "new"
+      }
+    ],
+    "custom_property_definitions": [
+      {
+        "definition_id": "1907dcb698f34b1ca139a48de53fbb63",
+        "property_key": "lakebase_live_proof_20260425051025",
+        "retired_at": null
+      }
+    ],
+    "custom_property_assignments": [
+      {
+        "assignment_id": "a75084fd98be4f9d8f85eddc7029648c",
+        "definition_id": "1907dcb698f34b1ca139a48de53fbb63",
+        "entity_fqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+        "value_json": "validated-20260425051025"
+      }
+    ],
+    "classification_recommendations": [
+      {
+        "recommendation_id": "ga-lakebase-proof-20260425051025",
+        "sample_values_json": [],
+        "status": "pending"
+      }
+    ],
+    "notification_receipts_after_update": [
+      {
+        "notification_id": "4be7f1374111e07c62cd3da8",
+        "recipient_entry_id": "cf624f93cd2a441aa74d077c23bd4c7e",
+        "inbox_state": "read",
+        "read_at": "2026-04-25 09:12:37+00:00"
+      }
+    ]
+  }
+}

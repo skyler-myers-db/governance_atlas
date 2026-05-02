@@ -8,15 +8,15 @@
 :root {
   color-scheme: dark;
 
-  --ga-navy-980: #071827;
-  --ga-navy-950: #082033;
-  --ga-navy-925: #092941;
-  --ga-navy-900: #0a3150;
-  --ga-navy-850: #0d3c61;
+  --ga-navy-980: #050e18;
+  --ga-navy-950: #061321;
+  --ga-navy-925: #091b2f;
+  --ga-navy-900: #0d2740;
+  --ga-navy-850: #14324f;
 
   --ga-entrada-blue: #025080;
   --ga-highlight-blue: #3d84ad;
-  --ga-bright-blue: #55bdf4;
+  --ga-bright-blue: #66c5ff;
   --ga-light-blue: #cfefff;
   --ga-gray: #b2bdc2;
   --ga-white: #ffffff;
@@ -27,17 +27,17 @@
   --ga-danger: #ff5c6c;
   --ga-purple: #9d7cff;
 
-  --ga-bg: var(--ga-navy-980);
-  --ga-shell: #071927;
-  --ga-chrome-bg: linear-gradient(180deg, rgba(8, 36, 58, 0.98) 0%, rgba(7, 27, 44, 0.98) 100%);
-  --ga-surface: rgba(9, 42, 67, 0.84);
-  --ga-surface-strong: rgba(10, 49, 78, 0.96);
-  --ga-surface-raised: rgba(8, 33, 54, 0.92);
-  --ga-surface-soft: rgba(102, 197, 255, 0.08);
-  --ga-surface-muted: rgba(10, 45, 73, 0.68);
-  --ga-border: rgba(102, 197, 255, 0.18);
-  --ga-border-strong: rgba(102, 197, 255, 0.34);
-  --ga-border-muted: rgba(207, 239, 255, 0.1);
+  --ga-bg: #08172a;
+  --ga-shell: var(--ga-navy-980);
+  --ga-chrome-bg: var(--ga-navy-980);
+  --ga-surface: rgba(12, 33, 56, 0.96);
+  --ga-surface-strong: rgba(17, 44, 72, 0.98);
+  --ga-surface-raised: rgba(12, 33, 56, 0.98);
+  --ga-surface-soft: rgba(102, 197, 255, 0.07);
+  --ga-surface-muted: rgba(12, 33, 56, 0.68);
+  --ga-border: rgba(31, 63, 95, 0.96);
+  --ga-border-strong: rgba(44, 86, 128, 0.98);
+  --ga-border-muted: rgba(207, 239, 255, 0.08);
 
   --ga-text: #f5fbff;
   --ga-text-soft: #cfefff;

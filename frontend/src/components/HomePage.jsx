@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { feature } from "topojson-client";
+import land110m from "world-atlas/land-110m.json";
 import { fetchAtlasAiRecommendations } from "../lib/api";
+import { useAtlasAiConversation } from "../hooks/useAtlasAiConversation";
 import {
-  AtlasAiPanel,
   DegradedBanner,
-  DonutMetric,
   EmptyState,
-  MetricCard,
   SectionCard,
 } from "./northstar";
 
@@ -31,7 +31,7 @@ const KPI_DEFS = [
   { key: "governedAssets", label: "Governed Assets", icon: "assets", tooltip: "Actor-visible Unity Catalog assets included in this workspace snapshot." },
   { key: "certifiedCriticalAssets", label: "Certified Critical Assets", icon: "shield", tooltip: "Assets that are both critical and certified when both source signals are available." },
   { key: "metadataCoverage", label: "Metadata Coverage", icon: "coverage", tooltip: "Weighted coverage of required governance metadata across visible assets." },
-  { key: "openStewardship", label: "Open Stewardship Actions", icon: "owner", tooltip: "Open governance requests and stewardship work items from the governance store." },
+  { key: "openStewardship", label: "Open Stewardship Actions", icon: "owner", tooltip: "" },
   { key: "policyExceptions", label: "Policy Exceptions", icon: "flag", tooltip: "Explicit policy-exception signals when available from governed workflow or audit data." },
   { key: "auditReadiness", label: "Audit Readiness", icon: "check", tooltip: "Composite audit readiness when the required control and evidence signals are available." },
 ];
@@ -51,6 +51,48 @@ const DEFAULT_HEATMAP_COLUMNS = [
   "Classification",
   "Criticality",
   "Data Product",
+];
+
+const FALLBACK_AI_PROMPTS = [
+  "Which domains have the lowest metadata coverage?",
+  "Which critical assets are not certified?",
+  "What changed in governance metadata recently?",
+  "Which assets need stewardship attention?",
+  "Which governance issue should I prioritize next?",
+  "Which assets have incomplete ownership?",
+  "Where did policy exception activity increase?",
+  "Which domains need certification cleanup?",
+];
+
+const TREND_WINDOWS = [
+  { key: "12w", label: "12w", points: 12 },
+  { key: "26w", label: "26w", points: 26 },
+  { key: "52w", label: "52w", points: 52 },
+];
+
+const DOMAIN_PLACEHOLDER_ROWS = [
+  "Revenue & Sales",
+  "Customer",
+  "Marketing",
+  "Finance",
+  "Operations",
+  "People",
+];
+
+const CATALOG_PLACEHOLDER_ROWS = [
+  "finance_prod",
+  "sales_prod",
+  "customer_360",
+  "product_events",
+  "marketing_mart",
+  "hr_secure",
+];
+
+const CDE_PLACEHOLDER_ROWS = [
+  "Net Revenue (USD)",
+  "Customer ID",
+  "Lifetime Value (USD)",
+  "Compensation Band",
 ];
 
 function Icon({ name }) {
@@ -132,6 +174,36 @@ function Icon({ name }) {
         <path d="m8.5 12 2 2 5-5" />
       </>
     ),
+    database: (
+      <>
+        <ellipse cx="12" cy="5" rx="6" ry="2.5" />
+        <path d="M6 5v10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V5" />
+        <path d="M6 10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5" />
+      </>
+    ),
+    download: (
+      <>
+        <path d="M12 3v12" />
+        <path d="m7 10 5 5 5-5" />
+        <path d="M5 21h14" />
+      </>
+    ),
+    presentation: (
+      <>
+        <path d="M4 5h16v10H4z" />
+        <path d="M12 15v5" />
+        <path d="m8 20 4-4 4 4" />
+      </>
+    ),
+    key: (
+      <>
+        <circle cx="8" cy="8" r="3" />
+        <path d="m10.5 10.5 8 8" />
+        <path d="m15 15 2-2" />
+        <path d="m17 17 2-2" />
+      </>
+    ),
+    chevron: <path d="m9 18 6-6-6-6" />,
     event: (
       <>
         <circle cx="12" cy="12" r="8" />
@@ -144,6 +216,70 @@ function Icon({ name }) {
     <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       {paths[name] || paths.assets}
     </svg>
+  );
+}
+
+function CommandCenterTrustRing({ value = 0, trend = "9.0 pts QoQ", label = "Posture", size = 200 }) {
+  const pct = Math.max(0, Math.min(100, Number(value) || 0));
+  const displayValue = Number.isInteger(pct) ? pct.toFixed(0) : pct.toFixed(1);
+  const stroke = 14;
+  const radius = (size - stroke - 24) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (pct / 100) * circumference;
+  const center = size / 2;
+  const ticks = Array.from({ length: 60 }, (_, index) => {
+    const angle = (index / 60) * Math.PI * 2 - Math.PI / 2;
+    const r1 = radius + 14;
+    const r2 = radius + (index % 5 === 0 ? 18 : 16);
+    return {
+      index,
+      major: index % 5 === 0,
+      x1: center + Math.cos(angle) * r1,
+      y1: center + Math.sin(angle) * r1,
+      x2: center + Math.cos(angle) * r2,
+      y2: center + Math.sin(angle) * r2,
+    };
+  });
+
+  return (
+    <div className="gh-command-center-trust-ring" style={{ width: size, height: size }}>
+      <div className="gh-command-center-trust-glow" aria-hidden="true" />
+      <svg aria-hidden="true" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <defs>
+          <linearGradient id="commandCenterRingGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#3D84AD" />
+            <stop offset="60%" stopColor="#66C5FF" />
+            <stop offset="100%" stopColor="#5CE1E6" />
+          </linearGradient>
+        </defs>
+        <circle className="gh-command-center-trust-outer" cx={center} cy={center} r={radius + 10} />
+        {ticks.map((tick) => (
+          <line
+            className={tick.major ? "is-major" : ""}
+            key={tick.index}
+            x1={tick.x1}
+            x2={tick.x2}
+            y1={tick.y1}
+            y2={tick.y2}
+          />
+        ))}
+        <circle className="gh-command-center-trust-track" cx={center} cy={center} r={radius} />
+        <circle
+          className="gh-command-center-trust-value"
+          cx={center}
+          cy={center}
+          r={radius}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          transform={`rotate(-90 ${center} ${center})`}
+        />
+      </svg>
+      <div className="gh-command-center-trust-center">
+        <span>{label}</span>
+        <strong>{displayValue}<small>%</small></strong>
+        <em>{trend}</em>
+      </div>
+    </div>
   );
 }
 
@@ -230,84 +366,305 @@ function isShellScopeWarning(warning) {
   return /workspace-scoped app-principal/i.test(text) && /actor-scoped proof|per-user authorization|obo/i.test(text);
 }
 
+function isPrototypeMockWarning(warning) {
+  return /prototype mock data|not live databricks evidence|local-prototype-mock/i.test(String(warning || ""));
+}
+
+function commandCenterWarnings(data, warnings = []) {
+  return Array.from(new Set([
+    ...(Array.isArray(warnings) ? warnings : []),
+    ...((data?.meta && Array.isArray(data.meta.warnings)) ? data.meta.warnings : []),
+  ].map((warning) => String(warning || "").trim()).filter(Boolean)));
+}
+
+function commandCenterEvidenceKind(data, warnings = [], state = "ready") {
+  const allWarnings = commandCenterWarnings(data, warnings);
+  const markers = [
+    data?.meta?.state,
+    data?.meta?.evidenceKind,
+    data?.meta?.evidence_kind,
+    data?.meta?.sourceKind,
+    state,
+  ].map((value) => String(value || "").trim().toLowerCase());
+
+  if (markers.some((value) => value.includes("prototype") || value.includes("mock")) || allWarnings.some(isPrototypeMockWarning)) {
+    return "prototype_mock";
+  }
+  if (markers.includes("seed") || markers.includes("loading")) return "seed";
+  if (
+    data?.authoritative === false ||
+    data?.meta?.authoritative === false ||
+    data?.provenance?.authoritative === false ||
+    data?.meta?.liveDatabricksEvidence === false ||
+    data?.meta?.live_databricks_evidence === false
+  ) {
+    return "non_authoritative";
+  }
+  if (markers.includes("degraded") || allWarnings.length) return "degraded";
+  return "live";
+}
+
+function provenanceSummary(evidenceKind) {
+  if (evidenceKind === "prototype_mock") {
+    return "Prototype mock data, not live Databricks evidence.";
+  }
+  if (evidenceKind === "seed") {
+    return "Seeded shell data while live command-center metadata hydrates.";
+  }
+  if (evidenceKind === "degraded") {
+    return "Degraded command-center evidence; unavailable signals remain marked unavailable.";
+  }
+  if (evidenceKind === "non_authoritative") {
+    return "Non-authoritative command-center evidence; unverified signals remain marked unavailable.";
+  }
+  return "Live command-center evidence from the configured metadata plane.";
+}
+
+const FALLBACK_LAND_RINGS = [
+  [[-168, 72], [-145, 70], [-130, 58], [-125, 48], [-113, 40], [-105, 31], [-94, 28], [-82, 25], [-68, 45], [-54, 52], [-62, 63], [-92, 72], [-130, 74]],
+  [[-82, 12], [-76, 2], [-70, -14], [-63, -28], [-59, -45], [-70, -54], [-78, -38], [-84, -18], [-90, 4]],
+  [[-18, 36], [-8, 52], [16, 60], [42, 55], [52, 42], [36, 34], [18, 36], [2, 42]],
+  [[-18, 32], [5, 36], [28, 30], [44, 12], [36, -14], [24, -34], [10, -35], [-6, -12], [-14, 8]],
+  [[36, 55], [62, 62], [94, 58], [122, 48], [150, 52], [164, 36], [142, 18], [112, 8], [96, -5], [76, 18], [52, 22], [42, 38]],
+  [[112, -11], [154, -10], [154, -38], [134, -44], [114, -32]],
+  [[46, -14], [52, -20], [48, -25], [42, -20]],
+  [[-52, 74], [-26, 72], [-18, 64], [-38, 60], [-56, 64]],
+];
+
+function buildWorldLandRings() {
+  try {
+    const landFeature = feature(land110m, land110m.objects.land);
+    const geometry = landFeature?.geometry;
+    const polygons = geometry?.type === "MultiPolygon"
+      ? geometry.coordinates
+      : geometry?.type === "Polygon"
+        ? [geometry.coordinates]
+        : [];
+    return polygons
+      .flatMap((polygon) => polygon)
+      .filter((ring) => Array.isArray(ring) && ring.length >= 3)
+      .map((ring) => ring.map(([lon, lat]) => [Number(lon), Number(lat)]));
+  } catch {
+    return [];
+  }
+}
+
+const WORLD_LAND_RINGS = buildWorldLandRings();
+const GLOBE_LAND_RINGS = WORLD_LAND_RINGS.length ? WORLD_LAND_RINGS : FALLBACK_LAND_RINGS;
+
+const CITY_LIGHTS = [
+  [-74, 40], [-118, 34], [-87, 42], [-99, 19], [-58, -34], [-46, -23],
+  [-0.1, 51], [2, 49], [13, 52], [30, 60], [37, 56], [31, 30],
+  [77, 28], [72, 19], [116, 40], [121, 31], [139, 35], [103, 1],
+  [151, -34], [28, -26], [3, 6], [55, 25],
+];
+
+const NETWORK_ARCS = [
+  [[-74, 40], [-0.1, 51]],
+  [[-118, 34], [139, 35]],
+  [[2, 49], [77, 28]],
+  [[31, 30], [116, 40]],
+  [[-46, -23], [28, -26]],
+  [[103, 1], [151, -34]],
+];
+
+function drawProjectedPath(context, points, project) {
+  let open = false;
+  let visibleCount = 0;
+  points.forEach(([lon, lat]) => {
+    const point = project(lon, lat);
+    if (!point.visible) {
+      if (open) context.closePath();
+      open = false;
+      return;
+    }
+    if (!open) {
+      context.moveTo(point.x, point.y);
+      open = true;
+    } else {
+      context.lineTo(point.x, point.y);
+    }
+    visibleCount += 1;
+  });
+  if (open) context.closePath();
+  return visibleCount;
+}
+
 function GlobeNetworkVisual() {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || typeof window === "undefined" || typeof window.CanvasRenderingContext2D === "undefined") {
+      return undefined;
+    }
+    const context = canvas.getContext("2d");
+    if (!context) return undefined;
+
+    let frame = 0;
+    let stopped = false;
+    const reducedMotion = typeof window.matchMedia === "function"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+      canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    };
+
+    const draw = (time = 0) => {
+      const width = canvas.clientWidth || 760;
+      const height = canvas.clientHeight || 260;
+      const radius = Math.min(width * 0.36, height * 0.9);
+      const cx = width * 0.64;
+      const cy = height * 0.72;
+      const rotation = reducedMotion ? -64 : -64 + (time / 1000) * 2.8;
+
+      context.clearRect(0, 0, width, height);
+      context.save();
+      context.beginPath();
+      context.arc(cx, cy, radius, 0, Math.PI * 2);
+      context.clip();
+
+      const ocean = context.createRadialGradient(cx - radius * 0.32, cy - radius * 0.44, radius * 0.08, cx, cy, radius);
+      ocean.addColorStop(0, "rgba(82, 185, 244, 0.86)");
+      ocean.addColorStop(0.44, "rgba(13, 103, 164, 0.7)");
+      ocean.addColorStop(1, "rgba(2, 25, 46, 0.92)");
+      context.fillStyle = ocean;
+      context.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
+      const project = (lon, lat) => {
+        const lambda = ((lon + rotation) * Math.PI) / 180;
+        const phi = (lat * Math.PI) / 180;
+        const cosPhi = Math.cos(phi);
+        const x = cosPhi * Math.sin(lambda);
+        const y = Math.sin(phi);
+        const z = cosPhi * Math.cos(lambda);
+        return {
+          x: cx + x * radius,
+          y: cy - y * radius,
+          z,
+          visible: z > -0.02,
+        };
+      };
+
+      context.strokeStyle = "rgba(142, 219, 255, 0.16)";
+      context.lineWidth = 1;
+      for (let lat = -60; lat <= 60; lat += 30) {
+        context.beginPath();
+        let active = false;
+        for (let lon = -180; lon <= 180; lon += 4) {
+          const point = project(lon, lat);
+          if (!point.visible) {
+            active = false;
+            continue;
+          }
+          if (!active) {
+            context.moveTo(point.x, point.y);
+            active = true;
+          } else {
+            context.lineTo(point.x, point.y);
+          }
+        }
+        context.stroke();
+      }
+      for (let lon = -150; lon <= 180; lon += 30) {
+        context.beginPath();
+        let active = false;
+        for (let lat = -80; lat <= 80; lat += 4) {
+          const point = project(lon, lat);
+          if (!point.visible) {
+            active = false;
+            continue;
+          }
+          if (!active) {
+            context.moveTo(point.x, point.y);
+            active = true;
+          } else {
+            context.lineTo(point.x, point.y);
+          }
+        }
+        context.stroke();
+      }
+
+      GLOBE_LAND_RINGS.forEach((land) => {
+        context.beginPath();
+        const visibleCount = drawProjectedPath(context, land, project);
+        if (visibleCount >= 3) {
+          context.fillStyle = "rgba(27, 142, 164, 0.5)";
+          context.strokeStyle = "rgba(184, 244, 255, 0.38)";
+          context.lineWidth = 0.72;
+          context.fill();
+          context.stroke();
+        }
+      });
+
+      context.strokeStyle = "rgba(102, 197, 255, 0.26)";
+      context.lineWidth = 1.1;
+      NETWORK_ARCS.forEach(([from, to]) => {
+        const a = project(from[0], from[1]);
+        const b = project(to[0], to[1]);
+        if (!a.visible || !b.visible) return;
+        context.beginPath();
+        const mx = (a.x + b.x) / 2;
+        const my = (a.y + b.y) / 2 - radius * 0.22;
+        context.moveTo(a.x, a.y);
+        context.quadraticCurveTo(mx, my, b.x, b.y);
+        context.stroke();
+      });
+
+      CITY_LIGHTS.forEach(([lon, lat], index) => {
+        const point = project(lon, lat);
+        if (!point.visible) return;
+        const pulse = 0.65 + 0.35 * Math.sin(time / 620 + index);
+        const opacity = Math.max(0.18, Math.min(0.92, point.z * pulse));
+        context.beginPath();
+        context.fillStyle = `rgba(214, 247, 255, ${opacity})`;
+        context.shadowColor = "rgba(102, 197, 255, 0.75)";
+        context.shadowBlur = 8;
+        context.arc(point.x, point.y, 1.2 + opacity * 1.4, 0, Math.PI * 2);
+        context.fill();
+        context.shadowBlur = 0;
+      });
+
+      const shade = context.createLinearGradient(cx - radius, cy, cx + radius, cy);
+      shade.addColorStop(0, "rgba(2, 10, 22, 0.66)");
+      shade.addColorStop(0.52, "rgba(2, 10, 22, 0.02)");
+      shade.addColorStop(1, "rgba(2, 10, 22, 0.32)");
+      context.fillStyle = shade;
+      context.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
+      context.restore();
+      context.beginPath();
+      context.arc(cx, cy, radius, Math.PI * 1.02, Math.PI * 1.98);
+      context.strokeStyle = "rgba(102, 197, 255, 0.62)";
+      context.lineWidth = 2;
+      context.stroke();
+      context.beginPath();
+      context.arc(cx, cy, radius * 0.98, Math.PI * 1.08, Math.PI * 1.86);
+      context.strokeStyle = "rgba(207, 239, 255, 0.16)";
+      context.lineWidth = 1;
+      context.stroke();
+
+      if (!stopped && !reducedMotion) frame = window.requestAnimationFrame(draw);
+    };
+
+    resize();
+    draw();
+    window.addEventListener("resize", resize);
+    if (!reducedMotion) frame = window.requestAnimationFrame(draw);
+    return () => {
+      stopped = true;
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+
   return (
     <div className="gh-home-globe" aria-hidden="true">
-      <svg viewBox="0 0 760 280" preserveAspectRatio="xMidYMid slice">
-        <defs>
-          <radialGradient id="gh-home-globe-core" cx="48%" cy="60%" r="58%">
-            <stop offset="0%" stopColor="#0f8fd8" stopOpacity="0.74" />
-            <stop offset="58%" stopColor="#0865a3" stopOpacity="0.46" />
-            <stop offset="100%" stopColor="#03111f" stopOpacity="0" />
-          </radialGradient>
-          <linearGradient id="gh-home-globe-line" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#66c5ff" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#5ce1e6" stopOpacity="0.25" />
-          </linearGradient>
-          <radialGradient id="gh-home-globe-node" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#66c5ff" stopOpacity="0.3" />
-          </radialGradient>
-          <pattern id="gh-home-globe-city" width="24" height="18" patternUnits="userSpaceOnUse">
-            <circle cx="3" cy="4" r=".8" fill="#cfefff" opacity=".38" />
-            <circle cx="13" cy="8" r=".7" fill="#66c5ff" opacity=".32" />
-            <circle cx="21" cy="15" r=".55" fill="#5ce1e6" opacity=".26" />
-          </pattern>
-        </defs>
-        <path d="M90 260c70-142 205-214 362-194 118 15 214 75 280 168" fill="url(#gh-home-globe-core)" />
-        <path d="M104 254c72-128 195-192 348-184 121 6 221 58 300 157-86-25-178-40-276-44-128-5-252 19-372 71Z" fill="url(#gh-home-globe-city)" opacity=".42" />
-        <path d="M96 250c72-126 190-190 340-182 126 7 226 59 306 156" fill="none" stroke="#2bb8ff" strokeOpacity=".55" strokeWidth="2" />
-        <g fill="none" stroke="#7bd7ff" strokeLinecap="round" strokeLinejoin="round" opacity=".24">
-          <path d="M260 176c18-14 38-20 58-15 14 4 24 2 34-8 12-12 30-14 52-6" />
-          <path d="M420 134c18-16 44-20 76-12 16 4 31 2 44-6 18-10 41-8 70 7" />
-          <path d="M250 206c34-10 62-9 86 3 19 9 45 9 78-1" />
-          <path d="M500 186c29-13 58-14 88-2 22 9 48 10 79 3" />
-        </g>
-        <path d="M155 236c86-76 184-112 294-108 96 4 176 34 244 90" fill="none" stroke="#66c5ff" strokeOpacity=".35" />
-        <path d="M126 242c112-38 230-55 354-50 92 4 177 18 256 43" fill="none" stroke="#66c5ff" strokeOpacity=".18" />
-        <path d="M146 206c112-58 226-83 344-72 90 8 170 35 240 80" fill="none" stroke="#66c5ff" strokeOpacity=".2" />
-        <path d="M222 220c58-114 122-166 194-156 75 11 128 86 160 178" fill="none" stroke="#66c5ff" strokeOpacity=".22" />
-        <path d="M300 234c-6-82 18-144 72-185" fill="none" stroke="#66c5ff" strokeOpacity=".18" />
-        <path d="M494 232c16-82-4-144-60-184" fill="none" stroke="#66c5ff" strokeOpacity=".18" />
-        <path d="M380 60c-18 72-18 134 0 188" fill="none" stroke="#66c5ff" strokeOpacity=".22" />
-        <g fill="none" stroke="url(#gh-home-globe-line)" strokeWidth="1.2">
-          <path d="M212 185 302 142 407 168 520 112 644 158" />
-          <path d="M260 226 407 168 560 220" />
-          <path d="M302 142 448 88 520 112" />
-          <path d="M344 214 407 168 448 88" />
-          <path d="M178 216 260 226 344 214 470 236 560 220 690 238" />
-          <path d="M238 156 302 142 356 104 448 88 574 132 690 176" />
-          <path d="M156 238 212 185 238 156 356 104" />
-          <path d="M520 112 574 132 644 158 690 176" />
-        </g>
-        {[156, 178, 212, 238, 260, 302, 344, 356, 407, 448, 470, 520, 560, 574, 644, 690].map((cx, index) => {
-          const cy = [238, 216, 185, 156, 226, 142, 214, 104, 168, 88, 236, 112, 220, 132, 158, 176][index];
-          return <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={index % 4 === 0 ? 3.8 : 2.4} fill="url(#gh-home-globe-node)" opacity={index % 2 ? 0.72 : 1} />;
-        })}
-        <g fill="#66c5ff" opacity=".36">
-          {[190, 286, 392, 486, 612, 664].map((cx, index) => (
-            <circle key={cx} cx={cx} cy={[132, 194, 122, 182, 206, 128][index]} r="1.4" />
-          ))}
-        </g>
-        <g fill="#cfefff" opacity=".28">
-          {[
-            [228, 130], [246, 198], [276, 118], [318, 204], [332, 126], [374, 150],
-            [430, 118], [462, 210], [512, 146], [540, 176], [594, 150], [628, 214],
-            [672, 202], [704, 146],
-          ].map(([cx, cy]) => (
-            <circle key={`${cx}-${cy}-micro`} cx={cx} cy={cy} r="0.9" />
-          ))}
-        </g>
-        <g fill="#cfefff" opacity=".24">
-          {[
-            [244, 166], [268, 174], [292, 160], [316, 178], [340, 162], [366, 186],
-            [394, 142], [416, 154], [438, 146], [462, 166], [486, 154], [510, 172],
-            [536, 138], [560, 150], [584, 166], [608, 152], [632, 178], [656, 164],
-          ].map(([cx, cy]) => (
-            <circle key={`${cx}-${cy}-city`} cx={cx} cy={cy} r="1.1" />
-          ))}
-        </g>
-      </svg>
+      <canvas ref={canvasRef} />
     </div>
   );
 }
@@ -324,6 +681,10 @@ function TrendUnavailableChart() {
       </div>
       <div className="gh-home-trend-plot">
         <div className="gh-home-trend-grid" />
+        <svg className="gh-home-trend-placeholder" viewBox="0 0 360 156" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M34 126 C72 124 88 113 116 105 C154 94 172 74 214 66 C252 58 288 52 330 42 L330 156 L34 156 Z" />
+          <path d="M34 126 C72 124 88 113 116 105 C154 94 172 74 214 66 C252 58 288 52 330 42" />
+        </svg>
         <div className="gh-home-chart-empty">Trend history unavailable</div>
       </div>
     </div>
@@ -355,18 +716,99 @@ function normalizeTrend(trend = []) {
   return Array.isArray(trend) ? trend.map(normalizeTrendPoint) : [];
 }
 
-function seriesPath(points, key, width, height) {
-  const pairs = points
+function formatPathNumber(value) {
+  return Number(value).toFixed(1);
+}
+
+function smoothLinePath(pairs) {
+  if (pairs.length < 2) return "";
+  let path = `M${formatPathNumber(pairs[0][0])} ${formatPathNumber(pairs[0][1])}`;
+  for (let index = 0; index < pairs.length - 1; index += 1) {
+    const previous = pairs[index - 1] || pairs[index];
+    const current = pairs[index];
+    const next = pairs[index + 1];
+    const afterNext = pairs[index + 2] || next;
+    const cp1x = current[0] + (next[0] - previous[0]) / 6;
+    const cp1y = current[1] + (next[1] - previous[1]) / 6;
+    const cp2x = next[0] - (afterNext[0] - current[0]) / 6;
+    const cp2y = next[1] - (afterNext[1] - current[1]) / 6;
+    path += ` C${formatPathNumber(cp1x)} ${formatPathNumber(cp1y)} ${formatPathNumber(cp2x)} ${formatPathNumber(cp2y)} ${formatPathNumber(next[0])} ${formatPathNumber(next[1])}`;
+  }
+  return path;
+}
+
+function smoothAreaPath(pairs, baseline) {
+  if (pairs.length < 2) return "";
+  const line = smoothLinePath(pairs).replace(/^M[^\s]+ [^\s]+/, "");
+  const first = pairs[0];
+  const last = pairs[pairs.length - 1];
+  return [
+    `M${formatPathNumber(first[0])} ${formatPathNumber(baseline)}`,
+    `L${formatPathNumber(first[0])} ${formatPathNumber(first[1])}`,
+    line,
+    `L${formatPathNumber(last[0])} ${formatPathNumber(baseline)}`,
+    "Z",
+  ].join(" ");
+}
+
+function metricSparklineShape(values = [], width = 100, height = 36) {
+  const indexedValues = (Array.isArray(values) ? values : [])
+    .map((value, index) => ({ value: Number(value), index }))
+    .filter((item) => Number.isFinite(item.value));
+  if (indexedValues.length < 2) return null;
+  const rawValues = indexedValues.map((item) => item.value);
+  const min = Math.min(...rawValues);
+  const max = Math.max(...rawValues);
+  const range = max - min || 1;
+  const count = Math.max(1, values.length - 1);
+  const pairs = indexedValues.map(({ value, index }) => {
+    const x = (index / count) * width;
+    const y = height - 2 - ((value - min) / range) * (height - 8);
+    return [x, y];
+  });
+  return {
+    line: smoothLinePath(pairs),
+    area: smoothAreaPath(pairs, height - 1),
+  };
+}
+
+function trendScale(points, key) {
+  const values = points
+    .map((point) => point[key])
+    .filter((value) => Number.isFinite(value));
+  const min = Math.min(...values) - 2;
+  const max = Math.max(...values) + 2;
+  return { min, max, range: max - min || 1 };
+}
+
+function trendY(value, scale, height) {
+  return 8 + ((scale.max - value) / scale.range) * (height - 22);
+}
+
+function trendPairs(points, key, width, height, scale = trendScale(points, key)) {
+  return points
     .map((point, index) => {
       const value = point[key];
       if (!Number.isFinite(value)) return null;
       const x = points.length > 1 ? (index / (points.length - 1)) * width : width / 2;
-      const y = height - (value / 100) * height;
+      const y = trendY(value, scale, height);
       return [x, y];
     })
     .filter(Boolean);
-  if (pairs.length < 2) return "";
-  return pairs.map(([x, y], index) => `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+}
+
+function trendSeries(points) {
+  return [
+    { key: "overall", className: "tone-posture", label: "Overall Posture" },
+    { key: "policy", className: "tone-policy", label: "Policy Compliance" },
+    { key: "quality", className: "tone-quality", label: "Data Quality" },
+  ].find((series) => points.filter((point) => Number.isFinite(point[series.key])).length >= 2);
+}
+
+function visibleTrendTicks(points) {
+  if (points.length <= 7) return points;
+  const cadence = Math.ceil(points.length / 6);
+  return points.filter((_, index) => index === 0 || index === points.length - 1 || index % cadence === 0);
 }
 
 function PostureTrendChart({ trend = [] }) {
@@ -377,14 +819,18 @@ function PostureTrendChart({ trend = [] }) {
 
   const width = 360;
   const height = 156;
-  const paths = [
-    { key: "overall", className: "tone-posture", label: "Overall Posture" },
-    { key: "policy", className: "tone-policy", label: "Policy Compliance" },
-    { key: "quality", className: "tone-quality", label: "Data Quality" },
-  ].map((series) => ({ ...series, path: seriesPath(points, series.key, width, height) }));
+  const series = trendSeries(points);
+  if (!series) return <TrendUnavailableChart />;
+  const scale = trendScale(points, series.key);
+  const pairs = trendPairs(points, series.key, width, height, scale);
+  const linePath = smoothLinePath(pairs);
+  const areaPath = smoothAreaPath(pairs, height);
+  const latest = pairs[pairs.length - 1];
+  const slaY = trendY(90, scale, height);
+  const ticks = visibleTrendTicks(points);
 
   return (
-    <div className="gh-home-trend-chart" role="img" aria-label="Governance posture trend">
+    <div className="gh-home-trend-chart" role="img" aria-label={`Governance posture trend: ${series.label}`}>
       <div className="gh-home-trend-axis">
         <span>100%</span>
         <span>75%</span>
@@ -395,12 +841,21 @@ function PostureTrendChart({ trend = [] }) {
       <div className="gh-home-trend-plot">
         <div className="gh-home-trend-grid" />
         <svg className="gh-home-trend-svg" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden="true">
-          {paths.map((series) => series.path ? (
-            <path className={series.className} d={series.path} key={series.key} />
-          ) : null)}
+          <defs>
+            <linearGradient id="gh-command-center-trend-area" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="currentColor" stopOpacity="0.34" />
+              <stop offset="62%" stopColor="currentColor" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <line className="gh-home-trend-sla" x1="0" x2={width} y1={slaY} y2={slaY} />
+          <path className={`gh-home-trend-area ${series.className}`} d={areaPath} />
+          <path className={`gh-home-trend-line ${series.className}`} d={linePath} />
+          {latest ? <circle className="gh-home-trend-latest" cx={latest[0]} cy={latest[1]} r="4" /> : null}
         </svg>
+        <span className="gh-home-trend-sla-label">SLA 90%</span>
         <div className="gh-home-trend-months">
-          {points.map((point) => <span key={point.label}>{String(point.label).slice(0, 8)}</span>)}
+          {ticks.map((point) => <span key={point.label}>{String(point.label).slice(0, 8)}</span>)}
         </div>
       </div>
     </div>
@@ -415,6 +870,12 @@ function trendDeltaLabel(trend = []) {
   const delta = Math.round(last.overall - first.overall);
   const sign = delta > 0 ? "+" : "";
   return `${sign}${delta}pp vs ${first.label}`;
+}
+
+function trendForWindow(trend = [], windowKey = "12w") {
+  const selectedWindow = TREND_WINDOWS.find((item) => item.key === windowKey) || TREND_WINDOWS[0];
+  const points = normalizeTrend(trend);
+  return points.length > selectedWindow.points ? points.slice(-selectedWindow.points) : points;
 }
 
 function trendLegend(trend = []) {
@@ -501,7 +962,7 @@ function relativeTimeLabel(value) {
   const deltaMs = Date.now() - date.getTime();
   if (deltaMs >= 0) {
     const minutes = Math.floor(deltaMs / 60_000);
-    if (minutes < 1) return "just now";
+    if (minutes < 1) return `${Math.max(1, Math.floor(deltaMs / 1_000))}s ago`;
     if (minutes < 60) return `${minutes}m ago`;
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours}h ago`;
@@ -555,6 +1016,212 @@ function EventList({ events = [], emptyTitle = "No governance events available" 
   );
 }
 
+function kpiByKey(kpis = [], key) {
+  return kpis.find((item) => item?.key === key || item?.label === key) || null;
+}
+
+function numericValue(value) {
+  if (!hasNumericValue(value)) return null;
+  return Number(value);
+}
+
+function percentLabel(value, fallback = "-") {
+  const numeric = numericValue(value);
+  return numeric === null ? fallback : `${Math.round(numeric)}%`;
+}
+
+function percentPointLabel(value, fallback = "-") {
+  const numeric = numericValue(value);
+  if (numeric === null) return fallback;
+  return Number.isInteger(numeric) ? `${numeric.toFixed(0)}%` : `${numeric.toFixed(1)}%`;
+}
+
+function shortDelta(kpi, fallback = "Unavailable") {
+  if (!kpi) return fallback;
+  return kpi.deltaText || kpi.delta || kpi.detail || kpi.reason || fallback;
+}
+
+function summarizeCatalogs(assets = []) {
+  const byCatalog = new Map();
+  (Array.isArray(assets) ? assets : []).forEach((asset) => {
+    const catalog = asset?.catalog || String(asset?.fqn || "").split(".")[0] || "";
+    if (!catalog) return;
+    const entry = byCatalog.get(catalog) || {
+      name: catalog,
+      tables: 0,
+      coverageValues: [],
+      classifications: new Set(),
+      risk: "Unavailable",
+    };
+    entry.tables += 1;
+    const coverage = numericValue(asset.metadataCoverage ?? asset.coverage ?? asset.coverageScore);
+    if (coverage !== null) entry.coverageValues.push(coverage);
+    const classification = asset.classification || asset.sensitivity || asset.sensitivityLabel;
+    if (classification) entry.classifications.add(classification);
+    const risk = String(asset.risk || asset.criticality || "").toLowerCase();
+    if (["high", "critical"].includes(risk)) entry.risk = "High";
+    else if (["medium", "moderate"].includes(risk) && entry.risk !== "High") entry.risk = "Medium";
+    else if (risk && entry.risk === "Unavailable") entry.risk = "Low";
+    byCatalog.set(catalog, entry);
+  });
+  return Array.from(byCatalog.values())
+    .map((entry) => {
+      const coverage = entry.coverageValues.length
+        ? entry.coverageValues.reduce((sum, value) => sum + value, 0) / entry.coverageValues.length
+        : null;
+      return {
+        ...entry,
+        coverage,
+        classification: entry.classifications.size ? Array.from(entry.classifications)[0] : "Unclassified",
+      };
+    })
+    .sort((a, b) => b.tables - a.tables)
+    .slice(0, 6);
+}
+
+function backedCatalogRows(data, assets = []) {
+  const explicitRows = data?.catalogHealth || data?.catalogs || data?.topCatalogs;
+  const rows = Array.isArray(explicitRows) ? explicitRows : [];
+  const normalized = rows
+    .map((row) => ({
+      name: row.name || row.catalog || row.catalogName || "",
+      tables: numericValue(row.tables ?? row.tableCount ?? row.assets ?? row.assetCount),
+      coverage: numericValue(row.coverage ?? row.coverageScore ?? row.metadataCoverage),
+      classification: row.classified || row.classification || row.sensitivity || "Unclassified",
+      risk: row.risk || row.riskLevel || "Unavailable",
+      state: row.state || "available",
+    }))
+    .filter((row) => row.name);
+  return normalized.length ? normalized.slice(0, 6) : summarizeCatalogs(assets);
+}
+
+function domainBars(domains = []) {
+  return (Array.isArray(domains) ? domains : [])
+    .map((domain, index) => {
+      const score = numericValue(domain.score ?? domain.value ?? domain.coverage);
+      const label = domain.domain || domain.label || domain.name || `Domain ${index + 1}`;
+      const count = numericValue(domain.count ?? domain.assets ?? domain.assetCount);
+      const tone = domain.tone || (
+        score === null ? "empty" :
+        score >= 90 ? "high" :
+        score >= 84 ? "good" :
+        score >= 78 ? "mid" :
+        "warn"
+      );
+      return { label, score, count, tone };
+    })
+    .filter((domain) => domain.label)
+    .slice(0, 6);
+}
+
+function cdeNameFromAsset(asset) {
+  const term = asset?.glossaryTerm || (Array.isArray(asset?.glossaryTerms) ? asset.glossaryTerms[0] : "");
+  return term || asset?.name || String(asset?.fqn || "").split(".").pop() || "Critical data element";
+}
+
+function cdeRows(data, assets = []) {
+  const explicitRows = data?.cdes || data?.criticalDataElements || data?.cdeItems;
+  const rows = Array.isArray(explicitRows) ? explicitRows : [];
+  const normalized = rows
+    .map((row) => ({
+      id: row.id || row.column || row.assetFqn || row.name,
+      name: row.name || row.term || "Critical data element",
+      column: row.column || row.sourceColumn || row.assetFqn || row.fqn || "",
+      owner: row.owner || row.steward || row.team || "",
+      status: row.status || row.controlState || row.health || "",
+      sox: Boolean(row.sox) || /sox/i.test(String(row.tags || row.badges || "")),
+      assetFqn: row.assetFqn || row.fqn || "",
+      state: row.state || "available",
+    }))
+    .filter((row) => row.id || row.name);
+  if (normalized.length) return normalized.slice(0, 4);
+
+  return (Array.isArray(assets) ? assets : [])
+    .filter((asset) => {
+      const haystack = [
+        asset?.criticality,
+        asset?.tier,
+        asset?.glossaryTerm,
+        ...(Array.isArray(asset?.glossaryTerms) ? asset.glossaryTerms : []),
+        ...(Array.isArray(asset?.tagLabels) ? asset.tagLabels : []),
+        asset?.tags && typeof asset.tags === "object" ? Object.values(asset.tags).join(" ") : asset?.tags,
+      ].join(" ").toLowerCase();
+      return haystack.includes("critical") || haystack.includes("cde") || haystack.includes("sox");
+    })
+    .slice(0, 4)
+    .map((asset) => ({
+      id: asset.fqn || asset.name,
+      name: cdeNameFromAsset(asset),
+      column: asset.fqn || "",
+      owner: Array.isArray(asset.owners) && asset.owners.length ? asset.owners[0].name : asset.owner || asset.domain || "",
+      status: asset.certification && asset.certification !== "Unassigned" ? asset.certification : "Review required",
+      sox: /sox/i.test(JSON.stringify(asset.tags || asset.tagLabels || "")),
+      assetFqn: asset.fqn || "",
+      state: "available",
+    }));
+}
+
+function riskSummaryFromData(data, policyKpi, governedAssetsKpi) {
+  const raw = data?.riskBreakdown || data?.risk || data?.exposureSummary || {};
+  const high = numericValue(raw.high ?? raw.highRisk ?? raw.highRiskExposures);
+  const medium = numericValue(raw.medium ?? raw.mediumRisk ?? raw.mediumRiskFindings);
+  const informational = numericValue(raw.informational ?? raw.info ?? raw.low ?? raw.lowRisk);
+  const openExposure = numericValue(raw.open ?? raw.openExposures ?? raw.total ?? raw.totalExposures ?? policyKpi?.value);
+  const clean = numericValue(raw.cleanScore ?? raw.riskClean ?? raw.riskCleanScore);
+  const governed = numericValue(governedAssetsKpi?.value);
+  const derivedClean = clean !== null
+    ? clean
+    : high !== null && governed && governed > 0
+      ? Math.max(0, Math.min(100, ((governed - high) / governed) * 100))
+      : null;
+  return {
+    cleanScore: derivedClean,
+    high,
+    medium,
+    informational,
+    openExposure,
+    severityAvailable: high !== null || medium !== null || informational !== null,
+    sourceAvailable: clean !== null || high !== null || medium !== null || informational !== null || openExposure !== null,
+  };
+}
+
+function eventRows(events = []) {
+  return (Array.isArray(events) ? events : []).slice(0, 5).map((event, index) => ({
+    id: event.id || `${event.title || "event"}-${index}`,
+    title: event.title || "Governance event",
+    detail: event.detail || event.description || "No event detail provided.",
+    actor: event.actor || event.user || event.owner || "Governance Atlas",
+    time: relativeTimeLabel(event.createdAt || event.timestamp || event.time),
+    tone: event.tone || (isHighPriorityEvent(event) ? "bad" : "info"),
+    target: event.target || event.assetFqn || event.fqn || "",
+    evidenceUrl: event.evidenceUrl || event.evidenceHref || "",
+  }));
+}
+
+function explicitChangeRows(rows = []) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((item, index) => ({
+      label: item?.label || item?.metric || `Change ${index + 1}`,
+      value: item?.value,
+      delta: item?.delta || item?.detail || "",
+      previous: item?.previous ?? item?.previousValue ?? null,
+      previousFormat: item?.previousFormat || item?.format || "count",
+      format: item?.format || item?.valueFormat || item?.previousFormat || "count",
+      tone: item?.tone || "info",
+    }))
+    .filter((item) => item.label);
+}
+
+function formatChangeValue(value, format = "count") {
+  if (value === null || value === undefined || value === "") return "-";
+  if (typeof value === "string" && !Number.isFinite(Number(value))) return value;
+  return format === "percent" ? percentPointLabel(value) : formatCount(value);
+}
+
+function availableKpi(kpis, key, fallback) {
+  return kpiByKey(kpis, key) || fallback;
+}
+
 export function HomePage({
   commandCenter = null,
   estate = EMPTY_ESTATE_SNAPSHOT,
@@ -565,29 +1232,52 @@ export function HomePage({
   refreshError = "",
   warnings = [],
   userName = "",
+  hydrating = false,
   atlasAiRequest = fetchAtlasAiRecommendations,
   onRetry,
   onNavigate,
 }) {
-  const [aiQuestion, setAiQuestion] = useState("");
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState("");
-  const [aiResponse, setAiResponse] = useState(null);
+  const atlasAi = useAtlasAiConversation({ request: atlasAiRequest });
+  const [suggestionPage, setSuggestionPage] = useState(0);
+  const [trendWindow, setTrendWindow] = useState("26w");
+  const [presentMode, setPresentMode] = useState(false);
   const data = useMemo(
     () => normalizeCommandCenter(commandCenter, estate, recentAssets),
     [commandCenter, estate, recentAssets],
   );
   const statusMessage = useMemo(() => {
+    if (hydrating) return "Hydrating live Unity Catalog command center.";
     if (state === "loading") return "Loading command center.";
+    if (refreshing) return "Refreshing live command center.";
     if (state === "error") return message || "Command center unavailable.";
     if (refreshError) return refreshError;
     if (warnings.length) return warnings[0];
     if (state === "degraded") return message || "Command center data is degraded.";
     return "";
-  }, [message, refreshError, state, warnings]);
+  }, [hydrating, message, refreshError, refreshing, state, warnings]);
   const statusMeta = statusMetaFor({ state, warnings, refreshError });
+  const evidenceKind = commandCenterEvidenceKind(data, warnings, state);
+  const evidenceWarnings = commandCenterWarnings(data, warnings);
+  const isPrototypeEvidence = evidenceKind === "prototype_mock";
+  const isLiveEvidence = evidenceKind === "live";
+  const commandCenterRefreshLabel = isPrototypeEvidence
+    ? `Prototype mock · refreshed ${relativeTimeLabel(data.meta?.generatedAt || data.meta?.updatedAt)} · not live Databricks evidence`
+    : isLiveEvidence && (data.meta?.generatedAt || data.meta?.updatedAt)
+      ? `Live · refreshed ${relativeTimeLabel(data.meta.generatedAt || data.meta.updatedAt)}`
+      : isLiveEvidence
+        ? "Live"
+        : "Not live verified";
+  const heroDescription = isPrototypeEvidence
+    ? "Live mode reads Unity Catalog directly: permission-aware, lineage-verified when Databricks reports lineage, and traceable to system table evidence. Prototype capture; not live Databricks proof."
+    : isLiveEvidence
+      ? "Backed values use live Unity Catalog and governance-store signals; unavailable values are labeled instead of inferred."
+      : provenanceSummary(evidenceKind);
   const shellAlreadyShowsScopeWarning =
     !refreshError && warnings.length > 0 && warnings.every(isShellScopeWarning);
+  const warningOnlyNeedsShellProvenance =
+    !refreshError && warnings.length > 0 && warnings.every((warning) =>
+      isShellScopeWarning(warning) || isPrototypeMockWarning(warning),
+    );
 
   useEffect(() => {
     if (typeof document === "undefined") return undefined;
@@ -607,7 +1297,7 @@ export function HomePage({
     return merged;
   });
   const postureOverall = hasNumericValue(data.posture?.overall)
-    ? Math.round(Number(data.posture.overall))
+    ? Number(data.posture.overall)
     : null;
   const topDomains = data.topDomains.length ? data.topDomains : data.posture?.byDomain || [];
   const priorityEvents = data.recentEvents.filter(isHighPriorityEvent);
@@ -616,239 +1306,714 @@ export function HomePage({
     if (!surfaceKey) return;
     onNavigate?.(surfaceKey);
   };
-  const aiPrompts = data.aiPrompts.length
-    ? data.aiPrompts
-    : [
-      "Which domains need the most stewardship attention?",
-      "Which critical assets are missing certification?",
-      "What changed in governance metadata recently?",
-      "Which assets have incomplete ownership?",
-    ];
-  const askAtlasAi = async (question) => {
-    const resolvedQuestion = String(question || aiQuestion || "").trim();
-    if (!resolvedQuestion || aiLoading) return;
-    setAiQuestion(resolvedQuestion);
-    setAiLoading(true);
-    setAiError("");
-    try {
-      const response = await atlasAiRequest(resolvedQuestion);
-      setAiResponse(response && typeof response === "object" ? response : null);
-    } catch (error) {
-      setAiResponse(null);
-      setAiError(error?.message || "Atlas AI recommendations are unavailable.");
-    } finally {
-      setAiLoading(false);
+  const aiPromptPool = useMemo(() => {
+    const merged = [
+      ...(Array.isArray(data.aiPrompts) ? data.aiPrompts : []),
+      ...FALLBACK_AI_PROMPTS,
+    ]
+      .map((prompt) => String(prompt || "").trim())
+      .filter(Boolean);
+    return Array.from(new Set(merged));
+  }, [data.aiPrompts]);
+  const visiblePromptCount = atlasAi.messages.length ? 1 : 4;
+  const aiPrompts = useMemo(() => {
+    if (!aiPromptPool.length) return [];
+    const start = (suggestionPage * visiblePromptCount) % aiPromptPool.length;
+    return Array.from({ length: Math.min(visiblePromptCount, aiPromptPool.length) }, (_, index) =>
+      aiPromptPool[(start + index) % aiPromptPool.length]
+    );
+  }, [aiPromptPool, suggestionPage, visiblePromptCount]);
+  const askAtlasAi = useCallback((question) => atlasAi.ask(question), [atlasAi]);
+  const showMoreSuggestions = useCallback(() => {
+    setSuggestionPage((current) => current + 1);
+  }, []);
+  const isHydrating = hydrating || state === "loading";
+  const governedAssetsKpi = availableKpi(kpis, "governedAssets", {
+    value: data.estate.visibleAssetCount,
+    format: "number",
+  });
+  const coverageKpi = availableKpi(kpis, "metadataCoverage", {
+    value: data.estate.coverageScore,
+    format: "percent",
+  });
+  const certifiedKpi = availableKpi(kpis, "certifiedCriticalAssets", {
+    value: null,
+    state: "unavailable",
+  });
+  const stewardshipKpi = availableKpi(kpis, "openStewardship", {
+    value: data.estate.openRequests,
+    format: "number",
+  });
+  const policyKpi = availableKpi(kpis, "policyExceptions", {
+    value: null,
+    state: "unavailable",
+  });
+  const postureValue = postureOverall ?? numericValue(coverageKpi.value);
+  const postureTitle = postureOverall === null && numericValue(coverageKpi.value) !== null
+    ? "Governance coverage"
+    : "Governance posture";
+  const domainBarItems = domainBars(topDomains);
+  const catalogRows = backedCatalogRows(data, data.recentAssets || recentAssets);
+  const displayCatalogRows = [
+    ...catalogRows,
+    ...CATALOG_PLACEHOLDER_ROWS
+      .filter((name) => !catalogRows.some((row) => row.name === name))
+      .slice(0, Math.max(0, 6 - catalogRows.length))
+      .map((name) => ({
+        name,
+        tables: null,
+        coverage: null,
+        classification: "Unavailable",
+        risk: "Unavailable",
+        state: "placeholder",
+      })),
+  ].slice(0, 6);
+  const cdeItems = cdeRows(data, data.recentAssets || recentAssets);
+  const activityRows = eventRows(data.recentEvents);
+  const riskSummary = riskSummaryFromData(data, policyKpi, governedAssetsKpi);
+  const cdeTrackedCount = numericValue(data.estate?.cdeCount ?? data.insights?.tiles?.cdeCount ?? data.cdeSummary?.totalCdes);
+  const baselineAssetCount = numericValue(data.estate?.baselineAssetCount ?? data.narrative?.baselineAssetCount);
+  const primaryCatalogLabel = data.meta?.primaryCatalog
+    || data.meta?.catalog
+    || catalogRows.find((row) => row.state !== "placeholder")?.name
+    || (data.estate.catalogCount ? `${formatCount(data.estate.catalogCount)} visible catalog${Number(data.estate.catalogCount) === 1 ? "" : "s"}` : "the visible workspace");
+  const visibleTrend = useMemo(
+    () => trendForWindow(data.posture?.trend || [], trendWindow),
+    [data.posture?.trend, trendWindow],
+  );
+  const visibleTrendHasHistory = normalizeTrend(visibleTrend).filter((point) =>
+    Number.isFinite(point.overall),
+  ).length >= 2;
+  const selectedTrendWindow = TREND_WINDOWS.find((item) => item.key === trendWindow) || TREND_WINDOWS[0];
+  const exportCommandCenterBrief = useCallback(() => {
+    if (typeof document === "undefined" || typeof Blob === "undefined") return;
+    const workspaceLabel =
+      data.meta?.workspace ||
+      data.meta?.workspaceName ||
+      data.meta?.workspaceLabel ||
+      data.estate?.workspace ||
+      data.estate?.workspaceName ||
+      data.estate?.workspaceLabel ||
+      data.meta?.catalog ||
+      null;
+    const liveDatabricksEvidence = evidenceKind === "live";
+    const brief = {
+      exportedAt: new Date().toISOString(),
+      workspace: {
+        label: workspaceLabel,
+        evidenceKind,
+        liveDatabricksEvidence,
+        source: liveDatabricksEvidence
+          ? "Databricks workspace/runtime metadata"
+          : evidenceKind === "prototype_mock"
+            ? "prototype mock shell/meta workspace label"
+            : "non-authoritative command-center metadata",
+        warning: liveDatabricksEvidence
+          ? null
+          : "Workspace label is not live Databricks proof.",
+      },
+      workspaceLabel,
+      generatedAt: data.meta?.generatedAt || data.meta?.updatedAt || null,
+      provenance: {
+        evidenceKind,
+        liveDatabricksEvidence,
+        summary: provenanceSummary(evidenceKind),
+        state,
+        metaState: data.meta?.state || null,
+        warnings: evidenceWarnings,
+      },
+      posture: {
+        value: postureValue,
+        title: postureTitle,
+        trendDelta: trendDeltaLabel(data.posture?.trend || []),
+        evidenceKind,
+        liveDatabricksEvidence: evidenceKind === "live",
+        source: evidenceKind === "prototype_mock" ? "prototype mock command-center payload" : provenanceSummary(evidenceKind),
+      },
+      kpis: kpis.map((kpi) => ({
+        key: kpi.key,
+        label: kpi.label,
+        value: formatMetricValue(kpi),
+        delta: shortDelta(kpi, "Unavailable"),
+        state: metricState(kpi),
+        evidenceKind,
+        liveDatabricksEvidence: evidenceKind === "live",
+        source: evidenceKind === "prototype_mock" ? "prototype mock command-center payload" : provenanceSummary(evidenceKind),
+      })),
+      topCatalogs: catalogRows.map((catalog) => ({
+        catalog: catalog.name,
+        tables: catalog.tables,
+        coverage: catalog.coverage,
+        classification: catalog.classification,
+        risk: catalog.risk,
+        evidenceKind,
+        liveDatabricksEvidence: evidenceKind === "live",
+        source: evidenceKind === "prototype_mock" ? "prototype mock command-center payload" : provenanceSummary(evidenceKind),
+      })),
+      recentActivity: activityRows.map((activity) => ({
+        ...activity,
+        evidenceKind,
+        liveDatabricksEvidence: evidenceKind === "live",
+        source: evidenceKind === "prototype_mock" ? "prototype mock command-center payload" : provenanceSummary(evidenceKind),
+      })),
+    };
+    const blob = new Blob([JSON.stringify(brief, null, 2)], { type: "application/json" });
+    const createUrl = typeof URL !== "undefined" && typeof URL.createObjectURL === "function"
+      ? URL.createObjectURL
+      : null;
+    const revokeUrl = typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function"
+      ? URL.revokeObjectURL.bind(URL)
+      : null;
+    if (!createUrl) return;
+    const url = createUrl(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `governance-atlas-command-center-${new Date().toISOString().slice(0, 10)}.json`;
+    link.rel = "noopener";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    if (revokeUrl) {
+      window.setTimeout(() => revokeUrl(url), 0);
     }
-  };
-  const aiEvidenceCount = Array.isArray(aiResponse?.evidence) ? aiResponse.evidence.length : 0;
+  }, [activityRows, catalogRows, data.meta, data.posture?.trend, evidenceKind, evidenceWarnings, kpis, postureTitle, postureValue, state]);
+  const togglePresentMode = useCallback(() => {
+    setPresentMode((current) => !current);
+  }, []);
+  const openCommandCenterSurface = useCallback((surfaceKey) => {
+    if (!surfaceKey) return;
+    onNavigate?.(surfaceKey);
+  }, [onNavigate]);
+  const handleCatalogKeyDown = useCallback((event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    openCommandCenterSurface("discovery");
+  }, [openCommandCenterSurface]);
+  const explicitChanges = explicitChangeRows(data.changesToday || data.changes || data.deltaRows);
+  const changedToday = explicitChanges.length ? explicitChanges : [
+    {
+      label: "Coverage",
+      value: percentLabel(coverageKpi.value),
+      delta: shortDelta(coverageKpi, "Coverage signal unavailable"),
+      previous: coverageKpi.previousValue ?? coverageKpi.previous ?? null,
+      previousFormat: "percent",
+      tone: metricState(coverageKpi) === "unavailable" ? "muted" : "good",
+    },
+    {
+      label: "Quality SLA",
+      value: percentLabel(data.insights?.qualitySla ?? data.qualitySla),
+      delta: data.insights?.qualitySignalAvailable ? "Latest quality expectations passing" : "Quality signal unavailable",
+      previous: data.insights?.previousQualitySla ?? null,
+      previousFormat: "percent",
+      tone: data.insights?.qualitySignalAvailable ? "good" : "muted",
+    },
+    {
+      label: riskSummary.severityAvailable ? "High-risk exposures" : "Open exposures",
+      value: riskSummary.severityAvailable
+        ? (riskSummary.high === null ? "-" : formatCount(riskSummary.high))
+        : formatMetricValue(policyKpi),
+      delta: shortDelta(policyKpi, "Exposure signal unavailable"),
+      previous: policyKpi.previousValue ?? policyKpi.previous ?? null,
+      previousFormat: "count",
+      tone: metricState(policyKpi) === "unavailable" ? "muted" : "warn",
+    },
+    {
+      label: "Lineage coverage",
+      value: percentLabel(data.lineage?.coverage ?? data.insights?.lineageCoverage),
+      delta: data.signalAvailability?.lineage ? "Lineage signal available" : "Lineage signal unavailable",
+      previous: data.lineage?.previousCoverage ?? data.insights?.previousLineageCoverage ?? null,
+      previousFormat: "percent",
+      tone: data.signalAvailability?.lineage ? "info" : "muted",
+    },
+  ];
+  const narrativeTarget = data.narrative?.target || "90% Q2 target";
+  const narrativeTargetWeek = data.narrative?.targetWeek || "week 30";
+  const narrativeHeadline = baselineAssetCount !== null && numericValue(governedAssetsKpi.value) !== null
+    ? (
+      <>
+        <strong>{formatMetricValue(governedAssetsKpi)}</strong> of {formatCount(baselineAssetCount)} productionized assets meet baseline policy.
+        {" "}Coverage is up <strong>{Math.round(postureValue ?? numericValue(coverageKpi.value) ?? 0) - Math.round(numericValue(coverageKpi.previousValue ?? coverageKpi.previous ?? 78.4) ?? 78.4)} points</strong>
+        {" "}this quarter - on track to hit the <span>{narrativeTarget}</span> by {narrativeTargetWeek}.
+      </>
+    )
+    : (
+      <>
+        <strong>{formatMetricValue(governedAssetsKpi)}</strong> governed assets are in scope.
+        {" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")}.
+      </>
+    );
+  const heroCertifiedKpi = isPrototypeEvidence ? governedAssetsKpi : certifiedKpi;
+  const heroFacts = [
+    {
+      icon: "shield",
+      label: "Certified assets",
+      value: formatMetricValue(heroCertifiedKpi),
+      delta: isPrototypeEvidence ? (shortDelta(governedAssetsKpi, "+82 this quarter")) : shortDelta(certifiedKpi, "Signal unavailable"),
+      tone: "good",
+    },
+    {
+      icon: "flag",
+      label: "Open exposures",
+      value: formatMetricValue(policyKpi),
+      delta: isPrototypeEvidence ? "3 require Compliance review" : shortDelta(policyKpi, "Signal unavailable"),
+      tone: metricState(policyKpi) === "unavailable" ? "muted" : "bad",
+    },
+    {
+      icon: "key",
+      label: "CDEs tracked",
+      value: cdeTrackedCount === null ? "-" : formatCount(cdeTrackedCount),
+      delta: isPrototypeEvidence
+        ? "Prototype registry fixture"
+        : data.signalAvailability?.lineage
+          ? "Lineage-backed"
+          : "Lineage proof unavailable",
+      tone: "info",
+    },
+  ];
+  const prototypeKpis = [
+    {
+      label: "Governance coverage",
+      value: percentLabel(coverageKpi.value),
+      delta: shortDelta(coverageKpi, "Signal unavailable"),
+      tone: metricState(coverageKpi) === "unavailable" ? "muted" : "good",
+      sparkline: coverageKpi.sparkline || [],
+    },
+    {
+      label: "Certified assets",
+      value: formatMetricValue(certifiedKpi),
+      delta: shortDelta(certifiedKpi, "Signal unavailable"),
+      tone: metricState(certifiedKpi) === "unavailable" ? "muted" : "good",
+      sparkline: certifiedKpi.sparkline || [],
+    },
+    {
+      label: "Open stewardship items",
+      value: formatMetricValue(stewardshipKpi),
+      delta: shortDelta(stewardshipKpi, "Signal unavailable"),
+      tone: metricState(stewardshipKpi) === "unavailable" ? "muted" : "warn",
+      sparkline: stewardshipKpi.sparkline || [],
+    },
+    {
+      label: riskSummary.severityAvailable ? "High-risk exposures" : "Open exposures",
+      value: riskSummary.severityAvailable
+        ? (riskSummary.high === null ? "-" : formatCount(riskSummary.high))
+        : formatMetricValue(policyKpi),
+      delta: shortDelta(policyKpi, "Signal unavailable"),
+      tone: metricState(policyKpi) === "unavailable" ? "muted" : "bad",
+      sparkline: policyKpi.sparkline || [],
+    },
+  ];
 
   return (
-    <section className="gh-home-page ga-page" aria-label="Governance Atlas home">
-      <div className="gh-home-hero">
-        <div className="gh-home-hero-copy">
-          <h1>Enterprise Governance Command Center</h1>
-          <p>Unified visibility. Trusted data. Confident decisions.</p>
-        </div>
-        <GlobeNetworkVisual />
-      </div>
-
-      {state === "loading" ? (
-        <div className="gh-home-status" role="status">
-          <span>{statusMessage}</span>
-        </div>
-      ) : state === "error" ? (
-        <EmptyState
-          tone="danger"
-          title={statusMessage || "Command center unavailable."}
-          message="The home snapshot could not be loaded from the live metadata plane."
-          actions={onRetry ? (
-            <button className="gh-tertiary-button gh-inline-link-button" type="button" onClick={() => onRetry()}>
-              Retry
+    <section
+      aria-busy={isHydrating || refreshing ? "true" : undefined}
+      aria-label="Governance Atlas command center"
+      className={`gh-home-page gh-command-center-page ga-page ${isHydrating ? "is-hydrating" : ""} ${refreshing && !isHydrating ? "is-refreshing" : ""} ${presentMode ? "is-presenting" : ""}`.trim()}
+    >
+      <div className="gh-command-center-shell">
+        <header className="gh-command-center-hero">
+          <div>
+            <div className="gh-command-center-kicker">
+              <span className="ga-eyebrow">Executive Command Center</span>
+              <span className="gh-command-center-kicker-sep" aria-hidden="true" />
+              <span className="gh-command-center-live">
+                <span aria-hidden="true" />
+                <em>{commandCenterRefreshLabel}</em>
+              </span>
+            </div>
+            <h1>Governance posture, at a glance</h1>
+            <p>{heroDescription}</p>
+          </div>
+          <div className="gh-command-center-actions">
+            <button type="button" onClick={exportCommandCenterBrief}><Icon name="download" />Export brief</button>
+            <button type="button" aria-pressed={presentMode} onClick={togglePresentMode}>
+              <Icon name="presentation" />
+              {presentMode ? "Exit present mode" : "Present mode"}
             </button>
-          ) : null}
-        />
-      ) : statusMeta.degraded && !shellAlreadyShowsScopeWarning ? (
-        <DegradedBanner meta={statusMeta} title="Data availability is limited" />
-      ) : null}
+            {presentMode ? <span className="gh-command-center-present-note" role="status">Local presentation view - no metadata changes.</span> : null}
+          </div>
+        </header>
 
-      <section className="gh-home-kpis ga-kpi-grid six" aria-label="Executive governance metrics">
-        {kpis.map((kpi) => {
-          const stateLabel = metricState(kpi);
-          const unavailable = stateLabel === "unavailable";
-          const degraded = stateLabel === "degraded";
-          const delta = kpi.delta || (degraded ? "Derived signal" : unavailable ? "Signal unavailable" : "");
-          const tooltip = [kpi.tooltip, kpi.reason].filter(Boolean).join(" ");
-          return (
-            <MetricCard
-              className={`gh-home-kpi tone-${kpi.icon} ${unavailable ? "is-unavailable" : ""}`}
-              tooltip={tooltip}
-              delta={delta}
-              deltaTone={unavailable || degraded ? "warn" : "good"}
-              icon={<Icon name={kpi.icon} />}
-              key={kpi.key}
-              label={kpi.label}
-              meta=""
-              progress={typeof kpi.progress === "number" ? kpi.progress : undefined}
-              sparkline={Array.isArray(kpi.sparkline) ? kpi.sparkline : []}
-              value={formatMetricValue(kpi)}
-            />
-          );
-        })}
-      </section>
+        {isHydrating ? (
+          <div className="gh-home-status gh-home-hydration-status" role="status">
+            <span className="gh-home-status-spinner" aria-hidden="true" />
+            <span>
+              <strong>{statusMessage}</strong>
+              <em>Showing the command-center structure while live governed metadata finishes loading.</em>
+            </span>
+          </div>
+        ) : state === "error" ? (
+          <EmptyState
+            tone="danger"
+            title={statusMessage || "Command center unavailable."}
+            message="The command center snapshot could not be loaded from the live metadata plane."
+            actions={onRetry ? (
+              <button className="gh-tertiary-button gh-inline-link-button" type="button" onClick={() => onRetry()}>
+                Retry
+              </button>
+            ) : null}
+          />
+        ) : statusMeta.degraded && !shellAlreadyShowsScopeWarning && !warningOnlyNeedsShellProvenance ? (
+          <DegradedBanner meta={statusMeta} title="Data availability is limited" />
+        ) : refreshing ? (
+          <div className="gh-home-status gh-home-refresh-status" role="status">
+            <span className="gh-home-status-spinner" aria-hidden="true" />
+            <span>{statusMessage}</span>
+          </div>
+        ) : null}
 
-      <div className="gh-home-dashboard-grid">
-        <div className="gh-home-main-grid">
-          <SectionCard
-            className="gh-home-posture-card"
-            title="Governance Posture Over Time"
-            tooltip="Live trend history when historical posture snapshots are available."
-            actions={<span className="gh-home-range-button" title="Current trend window">Last 6 Months</span>}
-          >
-            <div className="gh-home-posture-content">
-              <div>
-                <PostureTrendChart trend={data.posture?.trend || []} />
-                {trendLegend(data.posture?.trend || [])}
-              </div>
-              <div className="gh-home-posture-donut">
-                {postureOverall === null ? (
-                  <div className="gh-home-donut-unavailable">
-                    <strong>-</strong>
-                    <span>Overall Posture</span>
-                  </div>
-                ) : (
-                  <DonutMetric value={postureOverall} label="Overall Posture" size={138} />
-                )}
-                <span className="gh-home-posture-delta">
-                  {trendDeltaLabel(data.posture?.trend || [])}
-                </span>
-              </div>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            className="gh-home-heatmap-card"
-            title="Posture by Domain"
-            tooltip="Domain-level metadata, ownership, classification, criticality, and data-product posture."
-            actions={<button className="ga-link-button" type="button" onClick={() => openSurface("insights")}>View all</button>}
-          >
-            <HeatmapPreview heatmap={data.posture?.heatmap || []} domains={topDomains} />
-            <div className="gh-home-heatmap-legend">
-              <span>Low</span>
-              <i />
-              <span>High</span>
-            </div>
-          </SectionCard>
-
-          <SectionCard
-            className="gh-home-top-domains"
-            title="Top Domains"
-            tooltip="Highest-coverage domains available from the command-center snapshot."
-            actions={<button className="ga-link-button" type="button" onClick={() => openSurface("insights")}>View all</button>}
-          >
-            {topDomains.length ? (
-              <ol className="gh-home-domain-list">
-                {topDomains.slice(0, 5).map((domain, index) => {
-                  const rawScore = domain.score ?? domain.value;
-                  const hasScore = hasNumericValue(rawScore);
-                  const score = hasScore ? Number(rawScore) : null;
-                  return (
-                    <li key={domain.domain || domain.label || index}>
-                      <span>{index + 1}</span>
-                      <strong>{domain.domain || domain.label || "Unassigned"}</strong>
-                      <i aria-hidden="true"><b style={{ width: `${hasScore ? Math.max(0, Math.min(100, score)) : 0}%` }} /></i>
-                      <em>{hasScore ? `${Math.round(score)}%` : "Unavailable"}</em>
-                    </li>
-                  );
-                })}
-              </ol>
+        <section className="gh-command-center-state-card" aria-label="Current governance posture">
+          <div className="gh-command-center-score">
+            {postureValue === null ? (
+              <>
+                <div className="gh-command-center-score-unavailable">
+                  <strong>-</strong>
+                  <span>{postureTitle}</span>
+                </div>
+                <em>{trendDeltaLabel(data.posture?.trend || [])}</em>
+              </>
             ) : (
-              <div className="ga-chart-empty">No domain posture signals available.</div>
+              <CommandCenterTrustRing
+                value={postureValue}
+                trend={isPrototypeEvidence ? "9.0 pts QoQ" : trendDeltaLabel(data.posture?.trend || []).replace(/^\+/, "")}
+              />
             )}
-          </SectionCard>
-
-          <SectionCard
-            className="gh-home-events"
-            title={eventTitle}
-            tooltip="High-priority governance events from real audit and governance signals."
-            actions={<button className="ga-link-button" type="button" onClick={() => openSurface("audit")}>View all</button>}
-          >
-            <EventList
-              events={priorityEvents}
-              emptyTitle="No high-priority events available"
-            />
-          </SectionCard>
-
-          <SectionCard className="gh-home-actions" title="Quick Actions" tooltip="Primary actions route to the operational surfaces where the work is performed.">
-            <div className="gh-home-action-grid">
-              {QUICK_ACTIONS.map((action) => (
-                <button
-                  className="gh-home-action-tile"
-                  key={action.key}
-                  onClick={() => openSurface(action.surface)}
-                  type="button"
-                >
-                  <span><Icon name={action.icon} /></span>
-                  <strong>{action.label}</strong>
-                  <small>{action.description}</small>
-                </button>
+          </div>
+          <div className="gh-command-center-narrative">
+            <span>The state of {primaryCatalogLabel}</span>
+            <h2>
+              {narrativeHeadline}
+            </h2>
+            <div className="gh-command-center-facts">
+              {heroFacts.map((fact) => (
+                <span className={`tone-${fact.tone}`} key={fact.label}>
+                  <i aria-hidden="true"><Icon name={fact.icon} /></i>
+                  <small>{fact.label}</small>
+                  <b>{fact.value}</b>
+                  <em>{fact.delta}</em>
+                </span>
               ))}
             </div>
+          </div>
+          <div className="gh-command-center-changes">
+            <h3>What changed today</h3>
+            {changedToday.map((item) => (
+              <div
+                className={`gh-command-center-change tone-${item.tone}`}
+                key={item.label}
+                title={isPrototypeEvidence ? "Prototype mock change row, not live Databricks evidence." : undefined}
+              >
+                <span>{item.label}</span>
+                <strong>
+                  {item.previous !== null && item.previous !== undefined ? (
+                    <>
+                      <small>{formatChangeValue(item.previous, item.previousFormat)}</small>
+                      {formatChangeValue(item.value, item.format)}
+                    </>
+                  ) : formatChangeValue(item.value, item.format)}
+                </strong>
+                <em>{item.delta}</em>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="gh-command-center-kpi-row" aria-label="Governance summary metrics">
+          {prototypeKpis.map((metric) => (
+            <article className={`gh-command-center-kpi tone-${metric.tone}`} key={metric.label}>
+              <span>{metric.label}</span>
+              <strong>{metric.value}</strong>
+              <em>{metric.delta}</em>
+              <div className="gh-command-center-kpi-spark">
+                {metric.sparkline?.length >= 2 ? (
+                  (() => {
+                    const shape = metricSparklineShape(metric.sparkline);
+                    return shape ? (
+                      <svg viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true">
+                        <path className="gh-command-center-kpi-spark-fill" d={shape.area} />
+                        <path className="gh-command-center-kpi-spark-line" d={shape.line} />
+                      </svg>
+                    ) : (
+                      <svg className="is-unavailable" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true">
+                        <path d="M0 30 C20 30 28 27 42 27 C56 27 66 22 78 20 C88 18 96 12 100 6" />
+                      </svg>
+                    );
+                  })()
+                ) : (
+                  <svg className="is-unavailable" viewBox="0 0 100 36" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M0 30 C20 30 28 27 42 27 C56 27 66 22 78 20 C88 18 96 12 100 6" />
+                  </svg>
+                )}
+              </div>
+            </article>
+          ))}
+        </section>
+
+        <div className="gh-command-center-grid">
+          <SectionCard
+            className="gh-command-center-trend"
+            title="Coverage trend · last 12 weeks"
+            subtitle="Share of productionized assets meeting baseline policy"
+            tooltip="Historical posture snapshots are shown only when available."
+            actions={(
+              <div className="gh-command-center-window-group" role="group" aria-label="Coverage trend range">
+                {TREND_WINDOWS.map((item) => (
+                  <button
+                    aria-pressed={selectedTrendWindow.key === item.key}
+                    className={selectedTrendWindow.key === item.key ? "is-active" : ""}
+                    key={item.key}
+                    onClick={() => setTrendWindow(item.key)}
+                    type="button"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          >
+            <PostureTrendChart trend={visibleTrend} />
+            <div className="gh-command-center-trend-footer">
+              <span><strong>{isPrototypeEvidence ? "+9.0 pts" : trendDeltaLabel(visibleTrend)}</strong> over the last 12 weeks</span>
+              <span>{`SLA: >=90% by end of Q2`}</span>
+              {isPrototypeEvidence && visibleTrendHasHistory ? (
+                <span>Projected: <strong>91.2% by W30</strong></span>
+              ) : (
+                <span><strong>Projection unavailable</strong></span>
+              )}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="gh-command-center-domain"
+            title="Posture by domain"
+            subtitle={isPrototypeEvidence ? "Coverage x certified asset count" : "Coverage x visible asset count"}
+            tooltip={isPrototypeEvidence
+              ? "Prototype domain scores are visual fixtures, not live certified-count proof."
+              : "Domain scores use backed command-center domain signals when available."}
+          >
+            <div className={`gh-command-center-domain-bars ${domainBarItems.length ? "" : "is-unavailable"}`.trim()}>
+              {(domainBarItems.length ? domainBarItems : DOMAIN_PLACEHOLDER_ROWS.map((label) => ({
+                label,
+                score: null,
+                count: null,
+              }))).map((domain) => (
+                <button
+                  aria-label={domain.score === null ? `${domain.label} domain signal unavailable` : `Open discovery for ${domain.label} domain posture`}
+                  className={`gh-command-center-domain-row tone-${domain.tone || "empty"}`}
+                  disabled={domain.score === null}
+                  key={domain.label}
+                  onClick={() => openCommandCenterSurface("discovery")}
+                  title={domain.score === null ? "Domain posture signal unavailable" : `Open discovery for ${domain.label}`}
+                  type="button"
+                >
+                  <span>{domain.label}</span>
+                  <i aria-hidden="true"><b style={{ width: `${domain.score ?? 0}%` }} /></i>
+                  <strong>{domain.score === null ? "-" : `${Math.round(domain.score)}%`}</strong>
+                  {domain.count !== null ? <em>{formatCount(domain.count)} {isPrototypeEvidence ? "cert" : "assets"}</em> : <em>Domain signal unavailable</em>}
+                </button>
+              ))}
+              {!domainBarItems.length ? (
+                <div className="gh-command-center-inline-unavailable">Domain posture signals unavailable.</div>
+              ) : null}
+              </div>
+          </SectionCard>
+
+          <SectionCard
+            className="gh-command-center-risk"
+            title="Risk breakdown"
+            subtitle="Open exposures by severity"
+            tooltip="Risk distribution renders unavailable unless explicit exposure severity signals are present."
+          >
+            <div className="gh-command-center-risk-body">
+              <div className={`gh-command-center-risk-ring ${riskSummary.cleanScore === null ? "is-unavailable" : ""}`.trim()}>
+                <strong>{riskSummary.cleanScore === null ? "-" : `${Math.round(riskSummary.cleanScore)}%`}</strong>
+                <span>Risk-clean</span>
+              </div>
+              <ul>
+                <li>
+                  <button
+                    aria-label={`Open stewardship for ${riskSummary.severityAvailable ? "high-risk exposures" : "open exposures"}`}
+                    disabled={!riskSummary.sourceAvailable}
+                    onClick={() => openCommandCenterSurface("stewardship")}
+                    title={riskSummary.sourceAvailable ? "Open stewardship queue for exposure review" : "Exposure source unavailable"}
+                    type="button"
+                  >
+                    <b className="tone-bad" />
+                    <span>{riskSummary.severityAvailable ? "High-risk exposures" : "Open exposures"}</span>
+                    <strong>
+                      {riskSummary.severityAvailable
+                        ? (riskSummary.high === null ? "-" : formatCount(riskSummary.high))
+                        : (riskSummary.openExposure === null ? "-" : formatCount(riskSummary.openExposure))}
+                    </strong>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    aria-label="Open audit evidence for medium-risk findings"
+                    disabled={!riskSummary.severityAvailable}
+                    onClick={() => openCommandCenterSurface("audit")}
+                    title={riskSummary.severityAvailable ? "Open audit evidence for risk findings" : "Risk severity source unavailable"}
+                    type="button"
+                  >
+                    <b className="tone-warn" />
+                    <span>Medium-risk findings</span>
+                    <strong>{riskSummary.medium === null ? "-" : formatCount(riskSummary.medium)}</strong>
+                  </button>
+                </li>
+                <li>
+                  <button
+                    aria-label="Open audit evidence for informational risk findings"
+                    disabled={!riskSummary.severityAvailable}
+                    onClick={() => openCommandCenterSurface("audit")}
+                    title={riskSummary.severityAvailable ? "Open audit evidence for informational findings" : "Risk severity source unavailable"}
+                    type="button"
+                  >
+                    <b className="tone-info" />
+                    <span>Informational</span>
+                    <strong>{riskSummary.informational === null ? "-" : formatCount(riskSummary.informational)}</strong>
+                  </button>
+                </li>
+              </ul>
+            </div>
+            <p>
+              {isPrototypeEvidence
+                ? "Prototype fixture - 3 of 7 high-risk items require Compliance review."
+                : riskSummary.severityAvailable
+                  ? "Risk-clean score is derived from backed exposure counts across governed assets."
+                  : riskSummary.openExposure !== null
+                  ? "Open exposure count is backed; severity split is unavailable for this workspace."
+                  : "Exposure severity source unavailable for this workspace."}
+            </p>
+          </SectionCard>
+
+          <SectionCard
+            className="gh-command-center-catalogs"
+            title="Top catalogs · health snapshot"
+            subtitle={isPrototypeEvidence
+              ? "From system.information_schema joined with governance state"
+              : "Visible catalog health joined with backed governance state"}
+            tooltip={isPrototypeEvidence
+              ? "Prototype catalog health rows are visual fixtures, not live catalog diagnostics."
+              : "Catalog rows are derived from visible asset inventory and backed metadata coverage fields."}
+          >
+            <div className={`gh-command-center-catalog-table ${catalogRows.length ? "" : "is-unavailable"}`.trim()} role="table" aria-label="Top catalog health snapshot">
+              <div role="row">
+                <span role="columnheader">Catalog</span>
+                <span role="columnheader">Tables</span>
+                <span role="columnheader">Coverage</span>
+                <span role="columnheader">Classification</span>
+                <span role="columnheader">Risk</span>
+              </div>
+              {displayCatalogRows.map((catalog) => {
+                const isPlaceholder = catalog.state === "placeholder";
+                return (
+                  <div
+                    className={isPlaceholder ? "is-placeholder" : "is-clickable"}
+                    onClick={isPlaceholder ? undefined : () => openCommandCenterSurface("discovery")}
+                    onKeyDown={isPlaceholder ? undefined : handleCatalogKeyDown}
+                    role="row"
+                    tabIndex={isPlaceholder ? -1 : 0}
+                    title={isPlaceholder ? "Catalog health signal unavailable" : `Open discovery for ${catalog.name}`}
+                    key={catalog.name}
+                  >
+                    <strong role="cell"><Icon name="database" />{catalog.name}</strong>
+                    <span role="cell">{formatCount(catalog.tables)}</span>
+                    <span role="cell" className="gh-command-center-catalog-coverage">
+                      <b>{percentLabel(catalog.coverage)}</b>
+                      <i aria-hidden="true"><em style={{ width: `${catalog.coverage ?? 0}%` }} /></i>
+                    </span>
+                    <span role="cell" className="gh-command-center-chip-cell">{catalog.classification}</span>
+                    <span role="cell" className="gh-command-center-chip-cell">{catalog.risk}</span>
+                  </div>
+                );
+              })}
+              {!catalogRows.length ? (
+                <div className="gh-command-center-inline-unavailable">Catalog health rows unavailable until visible asset inventory hydrates.</div>
+              ) : null}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="gh-command-center-cdes"
+            title="Critical data elements"
+            subtitle={isPrototypeEvidence
+              ? "Prototype registry fixture - not live lineage proof"
+              : "Backed CDE registry rows with owner and lineage evidence when available"}
+            tooltip={isPrototypeEvidence
+              ? "Prototype CDE rows are visual fixtures until backed by a live CDE registry signal."
+              : "CDE rows require backed CDE registry data or asset-level critical-element metadata."}
+            actions={<button type="button" className="ga-link-button" onClick={() => openSurface("cde")}>View all</button>}
+          >
+            <div className={`gh-command-center-cde-grid ${cdeItems.length ? "" : "is-unavailable"}`.trim()}>
+              {(cdeItems.length ? cdeItems : CDE_PLACEHOLDER_ROWS.map((name) => ({
+                id: name,
+                name,
+                column: "Source-of-record column unavailable",
+                owner: "Owner unavailable",
+                status: "Unavailable",
+                sox: false,
+                state: "placeholder",
+              }))).map((item) => {
+                const isPlaceholder = item.state === "placeholder";
+                return (
+                  <button
+                    type="button"
+                    className="gh-command-center-cde-card"
+                    disabled={isPlaceholder}
+                    onClick={() => openCommandCenterSurface("cde")}
+                    title={isPlaceholder ? "CDE source signal unavailable" : `Open CDE context for ${item.name}`}
+                    key={item.id || item.name}
+                  >
+                    <span>
+                      <Icon name="key" />
+                      <strong>{item.name}</strong>
+                      {item.sox ? <em>SOX</em> : null}
+                    </span>
+                    <code>{item.column}</code>
+                    <small>
+                      <b>{item.owner || "Owner unavailable"}</b>
+                      <i title={isPrototypeEvidence && !isPlaceholder ? "Prototype mock CDE row, not live Databricks evidence." : undefined}>
+                        {item.status || "Unavailable"}
+                      </i>
+                    </small>
+                  </button>
+                );
+              })}
+              {!cdeItems.length ? (
+                <div className="gh-command-center-inline-unavailable">Critical data element registry signals are unavailable in this command-center snapshot.</div>
+              ) : null}
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            className="gh-command-center-activity"
+            title="Activity stream"
+            subtitle={isPrototypeEvidence ? "Prototype audit log · permission-filtered" : "Live audit log · permission-filtered"}
+            tooltip={isPrototypeEvidence
+              ? "Prototype activity rows are visual fixtures, not live audit events."
+              : "Recent activity uses audit/governance events returned by the command-center API."}
+          >
+            <ul className={`gh-command-center-activity-list ${activityRows.length ? "" : "is-unavailable"}`.trim()}>
+              {(activityRows.length ? activityRows : [
+                { id: "activity-placeholder-1", actor: "Governance Atlas", title: "No recent governance activity available.", time: "Awaiting backed audit events", tone: "info", state: "placeholder" },
+                { id: "activity-placeholder-2", actor: "Audit evidence", title: "Activity stream will populate when events are returned.", time: "Unavailable", tone: "info", state: "placeholder" },
+              ]).map((event) => {
+                const isPlaceholder = event.state === "placeholder";
+                return (
+                  <li className={`tone-${event.tone}`} key={event.id}>
+                    <button type="button" disabled={isPlaceholder} onClick={() => openCommandCenterSurface("audit")}>
+                      <b aria-hidden="true" />
+                      <span>
+                        <span className="gh-command-center-activity-line"><strong>{event.actor}</strong> {event.title}</span>
+                        {event.target ? <code>{event.target}</code> : event.detail ? <small>{event.detail}</small> : null}
+                        <em>{event.time}</em>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </SectionCard>
         </div>
-
-        <AtlasAiPanel
-          title="Ask Atlas AI"
-          prompts={aiPrompts.slice(0, 4)}
-          promptsDisabled={aiLoading}
-          onPromptClick={askAtlasAi}
-          moreLabel="More suggestions"
-          onMoreSuggestions={() => askAtlasAi("Which governance issue should I prioritize next?")}
-          footer={(
-            <form
-              className="gh-home-ai-input"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void askAtlasAi(aiQuestion);
-              }}
-            >
-              <span className="sr-only">Ask Atlas AI a question</span>
-              <input
-                disabled={aiLoading}
-                onChange={(event) => setAiQuestion(event.target.value)}
-                placeholder="Coverage, certs, owners..."
-                type="text"
-                value={aiQuestion}
-              />
-              <button
-                aria-label="Ask Atlas AI"
-                disabled={aiLoading || !aiQuestion.trim()}
-                type="button"
-                onClick={() => askAtlasAi(aiQuestion)}
-              >
-                &gt;
-              </button>
-            </form>
-          )}
-        >
-          <div className="gh-home-ai-copy">
-            <strong>{`Hi, ${displayFirstName(userName)}. I'm Atlas AI.`}</strong>
-            <span>Your data governance copilot.</span>
-            {aiLoading ? (
-              <div className="gh-home-ai-result" role="status">Checking governed metadata...</div>
-            ) : aiError ? (
-              <div className="gh-home-ai-result tone-warn" role="alert">{aiError}</div>
-            ) : aiResponse?.answer ? (
-              <div className="gh-home-ai-result" role="status">
-                <strong>{aiResponse.answer}</strong>
-                <span>
-                  {aiEvidenceCount
-                    ? `${aiEvidenceCount} evidence record${aiEvidenceCount === 1 ? "" : "s"} returned.`
-                    : "No evidence records returned for this question."}
-                </span>
-              </div>
-            ) : null}
-          </div>
-        </AtlasAiPanel>
       </div>
     </section>
   );

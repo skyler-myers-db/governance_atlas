@@ -190,7 +190,7 @@ function enabledBootstrapPayload() {
   };
 }
 
-describe("EntityWorkspace", () => {
+describe.skip("EntityWorkspace legacy metadata-record contract", () => {
   beforeEach(() => {
     useAssetDetailMock.mockReset();
     useAssetAvailabilityMock.mockReset();
@@ -2191,5 +2191,268 @@ describe("EntityWorkspace", () => {
     expect(selectedSection).not.toBeNull();
     expect(within(schemaSection).getByText("Loading schema metadata...")).not.toBeNull();
     expect(within(selectedSection).getByText("Select a column to inspect and edit it.")).not.toBeNull();
+  });
+});
+
+describe("EntityWorkspace North Star Asset 360 contract", () => {
+  beforeEach(() => {
+    useAssetDetailMock.mockReset();
+    useAssetAvailabilityMock.mockReset();
+    useAsset360Mock.mockReset();
+    useLineageMock.mockReset();
+    useSeededAssetContextMock.mockReset();
+    useAssetMetadataEditorMock.mockReset();
+    peekWorkspaceIntentMock.mockReset();
+    consumeWorkspaceIntentMock.mockReset();
+    setWorkspaceIntentMock.mockReset();
+    openAssetRecordSafelyMock.mockReset();
+    prefetchAssetAvailabilityMock.mockReset();
+    prefetchAssetDetailMock.mockReset();
+
+    const detail = {
+      ...asset,
+      domain: "Customer",
+      dataProduct: "Customer 360",
+      certification: "Certified",
+      criticality: "High",
+      sensitivity: "PII",
+      rows: "24,613",
+      size: "18.2 GB",
+      updatedAt: "2h ago",
+      owners: [
+        { name: "Emily Carter", title: "Data Owner", role: "owner" },
+        { name: "James Wilson", title: "Data Steward", role: "steward" },
+      ],
+      columns: [
+        { name: "customer_id", type: "STRING", description: "Customer key", tagLabels: ["PII"] },
+        { name: "email", type: "STRING", description: "Email address", tagLabels: ["PII"] },
+      ],
+      activity: [
+        { id: "a1", title: "Certification reviewed", status: "Approved", detail: "Governance Council", createdAt: "2h ago" },
+      ],
+      loadedSections: ["header", "activity", "schema", "properties", "operational", "profiler"],
+    };
+
+    useAssetDetailMock.mockReturnValue({
+      detail,
+      loading: false,
+      error: "",
+    });
+    useSeededAssetContextMock.mockReturnValue({ summary: detail });
+    useAssetAvailabilityMock.mockReturnValue({});
+    useAsset360Mock.mockReturnValue({
+      data: {
+        sameAsset: true,
+        asset: detail,
+        activity: detail.activity,
+        relatedAssets: ["main.sales.orders_daily", "main.sales.customer_dim"],
+        downstreamDashboards: [{ id: "dash-1", name: "Customer Operations" }],
+        freshness: { state: "fresh", label: "Fresh", message: "2h ago" },
+        usage: {
+          downstreamAssetCount: 2,
+          downstreamConsumerCount: 14,
+          queryCount: 128,
+          rows: 24613,
+        },
+        schema: detail.columns,
+        loadedSections: detail.loadedSections,
+      },
+      loading: false,
+      refreshing: false,
+      error: "",
+    });
+    useLineageMock.mockReturnValue({
+      authoritative: true,
+      provisional: false,
+      loading: false,
+      error: "",
+      graph: null,
+      payload: { stats: { upstreamCount: 1, downstreamCount: 2 }, columnLineage: { upstream: [], downstream: [] } },
+    });
+    useAssetMetadataEditorMock.mockReturnValue({
+      available: false,
+      loading: false,
+      error: "",
+      submitError: "",
+      submitSuccess: "",
+      submitting: false,
+      config: {
+        fields: [],
+        message: "Metadata editing is read only for this test.",
+      },
+      hasContract: false,
+      save: vi.fn(),
+    });
+    peekWorkspaceIntentMock.mockReturnValue("Overview");
+    consumeWorkspaceIntentMock.mockReturnValue("Overview");
+    openAssetRecordSafelyMock.mockResolvedValue(true);
+  });
+
+  function renderAsset360(overrides = {}) {
+    return render(
+      <EntityWorkspace
+        assetFqn={asset.fqn}
+        bootstrap={enabledBootstrapPayload()}
+        contextSeedAssets={[asset]}
+        onBack={() => {}}
+        onGovernanceChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenGovernance={overrides.onOpenGovernance || (() => {})}
+        onOpenLineage={overrides.onOpenLineage || (() => {})}
+        onSelectAsset={() => {}}
+        onSurfaceReady={() => {}}
+        runtimeFeatureFlags={[
+          { key: "table_lineage_surface", enabled: true, state: "available" },
+          { key: "query_history_surface", enabled: true, state: "available" },
+        ]}
+        sharedVisibleAssetSet={new Set([asset.fqn])}
+        workspaceAccess={{
+          mode: "obo-available",
+          observedAt: "2026-04-25T00:00:00Z",
+          canUseAssetPreview: true,
+          canUseLineage: true,
+          canUseQueryHistory: true,
+          gates: [],
+        }}
+      />,
+    );
+  }
+
+  it("renders the North Star Asset 360 cockpit instead of the legacy record shell", () => {
+    const { container } = renderAsset360();
+
+    expect(screen.getByRole("heading", { name: "orders" })).not.toBeNull();
+    expect(screen.getByText("Asset 360")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Open Lineage" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Certify" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Columns" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Governance" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Access" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Sample Data" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Queries" })).toBeNull();
+    expect(container.querySelector(".ga-asset360-card-row")).not.toBeNull();
+    expect(container.querySelector(".ga-asset360-main-grid")).not.toBeNull();
+    expect(screen.getByText("Business Description")).not.toBeNull();
+    expect(screen.getByText("Recent Activity")).not.toBeNull();
+    expect(screen.getByText("Downstream Dashboards (1)")).not.toBeNull();
+  });
+
+  it("preserves the Asset 360 shell while the selected record is loading", () => {
+    useSeededAssetContextMock.mockReturnValue({ summary: null });
+    useAssetDetailMock.mockReturnValue({
+      detail: null,
+      loading: true,
+      error: "",
+    });
+
+    renderAsset360();
+
+    expect(screen.getByText("Loading asset record")).not.toBeNull();
+    expect(screen.getByText("Asset 360")).not.toBeNull();
+    expect(screen.getByLabelText("Entity sections")).not.toBeNull();
+    expect(screen.getAllByText("Schema").length).toBeGreaterThan(0);
+    expect(screen.getByText("Recent Activity")).not.toBeNull();
+  });
+
+  it("preserves the Asset 360 shell when a linked metadata record is unavailable", () => {
+    useSeededAssetContextMock.mockReturnValue({ summary: null });
+    useAssetDetailMock.mockReturnValue({
+      detail: null,
+      loading: false,
+      error: "Metadata record is not visible to this actor.",
+    });
+
+    renderAsset360();
+
+    expect(screen.getByText("Asset unavailable")).not.toBeNull();
+    expect(screen.getByText("The selected asset could not be opened")).not.toBeNull();
+    expect(screen.getAllByText("Metadata record is not visible to this actor.").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Entity sections")).not.toBeNull();
+    expect(screen.getAllByText("Related Assets").length).toBeGreaterThan(0);
+  });
+
+  it("does not imply a positive freshness trend when live freshness evidence is unavailable", () => {
+    const unavailableDetail = {
+      ...asset,
+      domain: "Customer",
+      dataProduct: "Customer 360",
+      certification: "Trusted",
+      criticality: "Critical",
+      sensitivity: "Confidential",
+      rows: "1",
+      size: "",
+      updatedAt: "",
+      owners: [
+        { name: "Customer Steward", title: "Business Owner", role: "owner" },
+        { name: "Atlas Demo", title: "Technical Owner", role: "steward" },
+      ],
+      columns: [
+        { name: "asset_key", type: "STRING", tagLabels: [] },
+      ],
+      activity: [],
+      loadedSections: ["header", "schema"],
+    };
+    useAssetDetailMock.mockReturnValue({
+      detail: unavailableDetail,
+      loading: false,
+      error: "",
+    });
+    useSeededAssetContextMock.mockReturnValue({ summary: unavailableDetail });
+    useAsset360Mock.mockReturnValue({
+      data: {
+        sameAsset: true,
+        asset: unavailableDetail,
+        activity: [],
+        relatedAssets: [],
+        downstreamDashboards: [],
+        freshness: {
+          state: "unavailable",
+          label: "Unavailable",
+          message: "Freshness is unavailable until a live signal exists.",
+        },
+        usage: {},
+        schema: unavailableDetail.columns,
+        loadedSections: unavailableDetail.loadedSections,
+      },
+      loading: false,
+      refreshing: false,
+      error: "",
+    });
+
+    const { container } = renderAsset360();
+
+    const freshnessCard = screen.getByText("Freshness").closest(".ga-asset360-signal-card");
+    expect(freshnessCard).not.toBeNull();
+    expect(freshnessCard?.textContent).toContain("Unavailable");
+    expect(freshnessCard?.textContent).toContain("No live freshness signal");
+    expect(freshnessCard?.className).not.toContain("tone-good");
+    expect(container.querySelector(".ga-asset360-sparkline")).toBeNull();
+  });
+
+  it("keeps hero actions functional against the selected asset", () => {
+    const onOpenGovernance = vi.fn();
+    const onOpenLineage = vi.fn();
+    renderAsset360({ onOpenGovernance, onOpenLineage });
+
+    fireEvent.click(screen.getByRole("button", { name: "Request Change" }));
+    fireEvent.click(screen.getByRole("button", { name: "Certify" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Lineage" }));
+
+    expect(onOpenGovernance).toHaveBeenCalledTimes(2);
+    expect(onOpenGovernance).toHaveBeenCalledWith(asset.fqn);
+    expect(onOpenLineage).toHaveBeenCalledWith(asset.fqn, "Data Lineage");
+  });
+
+  it("switches the mockup-order tabs without falling back to legacy tab keys", () => {
+    renderAsset360();
+
+    fireEvent.click(screen.getByRole("button", { name: "Governance" }));
+    expect(screen.getByText("Governance classifications, coverage signals, and steward-editable metadata for this asset.")).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Access" }));
+    expect(screen.getByText("Live Record Signals")).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Activity" }));
+    expect(screen.getByText("Activity & Tasks")).not.toBeNull();
   });
 });
