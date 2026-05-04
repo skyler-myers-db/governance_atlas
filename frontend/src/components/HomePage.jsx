@@ -1747,7 +1747,8 @@ export function HomePage({
   ];
   const narrativeTarget = data.narrative?.target || "90% Q2 target";
   const narrativeTargetWeek = data.narrative?.targetWeek || "week 30";
-  const narrativeHeadline = baselineAssetCount !== null && numericValue(governedAssetsKpi.value) !== null
+  const governedCount = numericValue(governedAssetsKpi.value);
+  const narrativeHeadline = baselineAssetCount !== null && governedCount !== null
     ? (
       <>
         <strong>{formatMetricValue(governedAssetsKpi)}</strong> of {formatCount(baselineAssetCount)} productionized assets meet baseline policy.
@@ -1755,9 +1756,20 @@ export function HomePage({
         {" "}this quarter - on track to hit the <span>{narrativeTarget}</span> by {narrativeTargetWeek}.
       </>
     )
-    : (
+    : governedCount !== null
+    ? (
       <>
         <strong>{formatMetricValue(governedAssetsKpi)}</strong> governed assets are in scope.
+        {" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")}.
+      </>
+    )
+    : (
+      // No governed-asset count available — render an honest fallback
+      // headline instead of the literal "- governed assets are in scope"
+      // string the user reported. Coverage continues to surface its own
+      // honest "unavailable" copy in the second clause.
+      <>
+        <strong>Governed asset count unavailable.</strong>
         {" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")}.
       </>
     );

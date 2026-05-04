@@ -1402,15 +1402,19 @@ button.gh-chip:not(.is-readonly):focus-visible,
   display: grid;
   gap: 12px;
   padding: 24px;
-  border: 1px solid rgba(201, 212, 232, 0.88);
+  border: 1px solid rgba(102, 197, 255, 0.20);
   border-radius: 24px;
+  /* First-mount Suspense fallback. Re-tokenized from cream/white +
+     purple radials to dark Entrada navy with subtle cyan accents so
+     it doesn't flash a foreign palette during route transitions. */
   background:
-    radial-gradient(circle at top left, rgba(91, 67, 238, 0.07), transparent 30%),
-    radial-gradient(circle at top right, rgba(15, 92, 192, 0.05), transparent 26%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.985) 0%, rgba(248, 251, 255, 0.972) 100%);
+    radial-gradient(circle at top left, rgba(92, 225, 230, 0.08), transparent 30%),
+    radial-gradient(circle at top right, rgba(102, 197, 255, 0.06), transparent 26%),
+    linear-gradient(180deg, rgba(12, 38, 60, 0.96) 0%, rgba(9, 32, 52, 0.98) 100%);
   box-shadow:
-    0 18px 36px rgba(18, 35, 58, 0.075),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+    0 18px 36px rgba(0, 14, 28, 0.32),
+    0 1px 0 rgba(102, 197, 255, 0.08) inset;
+  color: var(--ga-text, #f5f8ff);
 }
 
 .gh-workspace-state-card::before {
@@ -5960,10 +5964,28 @@ button[class*="back-to-discovery"] {
    override applied at the global panel layer. */
 .gh-inbox-page .gh-shell-inbox-panel {
   background: linear-gradient(180deg, rgba(17, 44, 72, 0.92), rgba(8, 23, 42, 0.92)) !important;
-  border: 1px solid rgba(20, 44, 70, 0.85) !important;
+  /* Border was rgba(20, 44, 70, 0.85) — same hue/value as the panel
+     background, so the panel had no visible edge and the empty-state
+     "Inbox items are loading…" copy looked like it was floating
+     outside the card. Brightened to the bright-blue tint we use on
+     other cards so the panel reads as a contained surface. */
+  border: 1px solid rgba(102, 197, 255, 0.20) !important;
+  box-shadow: 0 8px 32px rgba(0, 14, 28, 0.34);
+  padding: 24px;
+  border-radius: 16px;
+  margin-top: 16px;
+  min-height: 180px;
 }
 .gh-inbox-page .gh-shell-inbox-panel .gh-shell-inbox-head {
   display: none;
+}
+.gh-inbox-page .gh-shell-inbox-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  font-size: 14px;
+  color: var(--ga-text-muted, #b2bdc2);
 }
 .gh-inbox-page-title {
   margin: 6px 0 8px;

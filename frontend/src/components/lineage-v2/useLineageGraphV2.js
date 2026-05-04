@@ -247,16 +247,42 @@ export function useLineageGraphV2(assetFqn, options = {}) {
       String(meta.state || "").toLowerCase() === "loading" ||
       Boolean(meta?.capabilities?.hydrating) ||
       Boolean(stats?.progressive?.tableLineageDeferred);
-    const rawNodes = payload.graphs?.data?.nodes || payload.graph?.nodes || [];
-    const rawEdges = payload.graphs?.data?.edges || payload.graph?.edges || [];
-    const nodes = rawNodes
+    // Pull BOTH the data graph (table lineage) and the operational graph
+    // (jobs/pipelines/notebooks that produce or consume the focus asset).
+    // Previously the v2 hook only consumed graphs.data — the operational
+    // hops never reached the canvas, which is part of why the user
+    // reported "the whole lineage of each object still does not load".
+    const dataNodes = payload.graphs?.data?.nodes || payload.graph?.nodes || [];
+    const dataEdges = payload.graphs?.data?.edges || payload.graph?.edges || [];
+    const opNodes = payload.graphs?.operational?.nodes || [];
+    const opEdges = payload.graphs?.operational?.edges || [];
+    // De-dupe by id when the same node appears in both subgraphs (the focus
+    // asset typically does). Operational copy supplements with kicker /
+    // foot data that mentions producer/consumer counts.
+    const seen = new Set();
+    const merged = [];
+    for (const raw of [...dataNodes, ...opNodes]) {
+      const id = String(raw?.id || "");
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      merged.push(raw);
+    }
+    const nodes = merged
       .map((node) => normalizeNode(node, focusFqn))
       .filter(Boolean);
-    const edges = rawEdges.map(normalizeEdge).filter(Boolean);
+    const edges = [...dataEdges, ...opEdges].map(normalizeEdge).filter(Boolean);
     const focusNode = nodes.find((node) => node.isFocus) || null;
-    const columnEdges = Array.isArray(payload.columnLineage?.edges)
-      ? payload.columnLineage.edges
+    // Column lineage payload shape: { upstream: [...], downstream: [...], meta }.
+    // Each entry is per-column. We surface the count + flatten upstream
+    // and downstream column edges so the side rail can show "N column
+    // links upstream / M column links downstream" honestly.
+    const columnUpstream = Array.isArray(payload.columnLineage?.upstream)
+      ? payload.columnLineage.upstream
       : [];
+    const columnDownstream = Array.isArray(payload.columnLineage?.downstream)
+      ? payload.columnLineage.downstream
+      : [];
+    const columnEdges = [...columnUpstream, ...columnDownstream];
     return {
       focus: focusNode,
       nodes,
