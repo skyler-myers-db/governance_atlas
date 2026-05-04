@@ -7211,3 +7211,282 @@
     display: none;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   Control Center — tab strip + Metastore truth check (task #52)
+   ───────────────────────────────────────────────────────────────── */
+
+.gh-admin-tabstrip {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gh-admin-tabstrip-tab {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.65));
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 999px;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.gh-admin-tabstrip-tab:hover {
+  color: var(--ga-ink-strong, #f5f8ff);
+}
+
+.gh-admin-tabstrip-tab.is-active {
+  background: linear-gradient(135deg, #025080 0%, #3D84AD 100%);
+  color: #ffffff;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18) inset;
+}
+
+.gh-admin-truth-check {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.gh-admin-truth-check-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr);
+  gap: 24px;
+  align-items: flex-start;
+  padding: 20px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gh-admin-truth-check-hero h2 {
+  font-family: var(--ga-font-display, "Instrument Sans", "Hanken Grotesk", sans-serif);
+  font-size: 22px;
+  margin: 6px 0 8px;
+  color: var(--ga-ink-strong, #f5f8ff);
+}
+
+.gh-admin-truth-check-hero p {
+  margin: 0;
+  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.7));
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.gh-admin-truth-check-hero code {
+  background: rgba(102, 197, 255, 0.12);
+  color: #66C5FF;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+}
+
+.gh-admin-truth-check-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gh-admin-truth-check-totals > div {
+  background: rgba(2, 80, 128, 0.18);
+  border: 1px solid rgba(102, 197, 255, 0.18);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gh-admin-truth-check-totals small {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.55));
+}
+
+.gh-admin-truth-check-totals strong {
+  font-family: var(--ga-font-display, "Instrument Sans", sans-serif);
+  font-size: 24px;
+  color: var(--ga-ink-strong, #f5f8ff);
+}
+
+.gh-admin-truth-check-totals span {
+  font-size: 11px;
+  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.6));
+}
+
+.gh-admin-truth-check-meta {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.65));
+}
+
+.gh-admin-truth-check-meta strong {
+  color: var(--ga-ink-strong, #f5f8ff);
+  font-weight: 600;
+}
+
+.gh-admin-truth-check-meta code {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin: 0 2px;
+  font-size: 11px;
+  color: #66C5FF;
+}
+
+.gh-admin-truth-check-meta button {
+  margin-left: auto;
+}
+
+.gh-admin-truth-check-table-wrap {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+
+.gh-admin-truth-check-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.gh-admin-truth-check-table thead th {
+  text-align: left;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.6));
+  font-weight: 600;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.gh-admin-truth-check-table tbody td,
+.gh-admin-truth-check-table tbody th {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--ga-ink-strong, #f5f8ff);
+  vertical-align: middle;
+}
+
+.gh-admin-truth-check-table tbody tr:last-child td,
+.gh-admin-truth-check-table tbody tr:last-child th {
+  border-bottom: none;
+}
+
+.gh-admin-truth-check-table tbody th code {
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+
+.gh-admin-truth-check-delta {
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.gh-admin-truth-check-delta.tone-muted {
+  color: rgba(245, 248, 255, 0.55);
+}
+
+.gh-admin-truth-check-delta.tone-warn {
+  color: #ffbe5c;
+}
+
+.gh-admin-truth-check-delta.tone-bad {
+  color: #ff6b6b;
+}
+
+.gh-admin-truth-check-queries {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 12px 16px;
+}
+
+.gh-admin-truth-check-queries summary {
+  cursor: pointer;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.65));
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.gh-admin-truth-check-queries ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gh-admin-truth-check-queries li header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.gh-admin-truth-check-queries li header span {
+  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.6));
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+}
+
+.gh-admin-truth-check-queries pre {
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: ui-monospace, "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: #cfe6ff;
+  overflow-x: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.gh-admin-truth-check-query-error {
+  margin: 6px 0 0;
+  color: #ff6b6b;
+  font-size: 12px;
+}
+
+.gh-admin-truth-check-note {
+  font-size: 12px;
+  color: var(--ga-ink-muted, rgba(245, 248, 255, 0.6));
+  margin: 0;
+}
+
+.gh-admin-truth-check-note[data-state="degraded"] strong {
+  color: #ffbe5c;
+}
+
+@media (max-width: 960px) {
+  .gh-admin-truth-check-hero {
+    grid-template-columns: 1fr;
+  }
+  .gh-admin-truth-check-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

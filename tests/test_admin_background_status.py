@@ -150,5 +150,146 @@ class AdminBackgroundStatusTests(unittest.TestCase):
             self.assertIn("/api/admin/background/status", paths)
 
 
+class _FakeUC:
+    """Minimal stand-in for UCSQLClient used by the truth-check tests."""
+
+    def __init__(self, results):
+        # results: dict mapping a substring of the SQL to a pandas DataFrame.
+        import pandas as pd  # local import to keep top-level import optional
+        self._pd = pd
+        self._results = results
+        self.calls = []
+
+    def query_df(self, sql, **_kwargs):
+        self.calls.append(sql)
+        for needle, df in self._results.items():
+            if needle in sql:
+                return df
+        return self._pd.DataFrame()
+
+
+class TruthCheckTests(unittest.TestCase):
+    def setUp(self) -> None:
+        # Reset the in-process truth-check cache so each test produces a
+        # fresh payload from its fakes.
+        admin._TRUTH_CACHE.clear()
+
+    def test_payload_aggregates_per_catalog_and_drift(self) -> None:
+        import pandas as pd
+
+        catalogs_df = pd.DataFrame([{"catalog_count": 12}])
+        schemas_df = pd.DataFrame(
+            [
+                {"catalog": "datapact", "schema_count": 5},
+                {"catalog": "finance_prod", "schema_count": 3},
+            ]
+        )
+        tables_df = pd.DataFrame(
+            [
+                {"catalog": "datapact", "table_count": 200},
+                {"catalog": "finance_prod", "table_count": 40},
+            ]
+        )
+        fake_uc = _FakeUC({
+            "system.information_schema.catalogs": catalogs_df,
+            "system.information_schema.schemata": schemas_df,
+            "system.information_schema.tables": tables_df,
+        })
+
+        # Build a fake runtime_app exposing _uc that returns our FakeUC.
+        fake_runtime_app = ModuleType("runtime_app")
+        fake_runtime_app._uc = lambda: fake_uc
+        fake_runtime_app._store = lambda: None
+        fake_runtime_app._user_role_slug = lambda _request: "admin"
+
+        # Patch the real atlas.services.assets module so the lazy import
+        # inside _ui_inventory_counts picks up our deterministic fixtures.
+        from atlas.services import assets as real_assets
+        inventory_df = pd.DataFrame(
+            [{"table_catalog": "datapact"} for _ in range(198)]
+            + [{"table_catalog": "finance_prod"} for _ in range(40)]
+        )
+        visible_df = pd.DataFrame(
+            [{"table_catalog": "datapact"} for _ in range(195)]
+            + [{"table_catalog": "finance_prod"} for _ in range(40)]
+        )
+
+        env = {
+            "GOVAT_DISCOVERY_CATALOGS": "datapact,finance_prod",
+        }
+
+        with patch.dict(sys.modules, {"runtime_app": fake_runtime_app}), patch.dict(
+            "os.environ", env, clear=False
+        ), patch.object(
+            real_assets, "inventory", lambda *_a, **_k: inventory_df
+        ), patch.object(
+            real_assets, "visible_assets", lambda _df, **_k: visible_df
+        ):
+            payload = admin._build_truth_check_payload()
+
+        self.assertIn("data", payload)
+        data = payload["data"]
+        self.assertEqual(data["discoveryCatalogs"], ["datapact", "finance_prod"])
+        self.assertEqual(data["metastore"]["catalogTotal"], 12)
+        self.assertEqual(data["metastore"]["schemaTotalForDiscovery"], 8)
+        self.assertEqual(data["metastore"]["tableTotalForDiscovery"], 240)
+        self.assertEqual(data["ui"]["inventoryTotal"], 238)
+        self.assertEqual(data["ui"]["visibleTotal"], 235)
+        # Drift = metastore tables - ui inventory = 240 - 238 = 2
+        self.assertEqual(data["drift"]["inventoryDelta"], 2)
+        # hiddenByVisibility = ui inventory - ui visible = 238 - 235 = 3
+        self.assertEqual(data["drift"]["hiddenByVisibility"], 3)
+        # Per-catalog breakdown contains both discovery catalogs.
+        catalogs = {entry["catalog"]: entry for entry in data["metastore"]["perCatalog"]}
+        self.assertIn("datapact", catalogs)
+        self.assertEqual(catalogs["datapact"]["metastore"]["tableCount"], 200)
+        self.assertEqual(catalogs["datapact"]["ui"]["inventoryAssetCount"], 198)
+        self.assertEqual(catalogs["datapact"]["drift"]["inventoryDelta"], 2)
+        self.assertTrue(catalogs["datapact"]["configured"])
+        # Queries collection is non-empty with no errors.
+        self.assertGreaterEqual(len(data["queries"]), 3)
+        self.assertTrue(all(q["error"] is None for q in data["queries"]))
+        self.assertEqual(payload["meta"]["state"], "available")
+
+    def test_query_failure_marks_state_degraded(self) -> None:
+        import pandas as pd
+
+        class _FailingUC:
+            def query_df(self, sql, **_kwargs):
+                raise RuntimeError("warehouse unreachable")
+
+        fake_runtime_app = ModuleType("runtime_app")
+        fake_runtime_app._uc = lambda: _FailingUC()
+        fake_runtime_app._store = lambda: None
+        fake_runtime_app._user_role_slug = lambda _request: "admin"
+
+        from atlas.services import assets as real_assets
+
+        with patch.dict(sys.modules, {"runtime_app": fake_runtime_app}), patch.dict(
+            "os.environ", {"GOVAT_DISCOVERY_CATALOGS": "datapact"}, clear=False
+        ), patch.object(
+            real_assets, "inventory", lambda *_a, **_k: pd.DataFrame()
+        ), patch.object(
+            real_assets, "visible_assets", lambda _df, **_k: pd.DataFrame()
+        ):
+            payload = admin._build_truth_check_payload()
+
+        self.assertEqual(payload["meta"]["state"], "degraded")
+        self.assertIn("warehouse unreachable", payload["meta"]["reason"])
+        self.assertGreater(len(payload["data"]["drift"]["warnings"]), 0)
+        # All probes still surface so the operator can see what failed.
+        self.assertGreaterEqual(len(payload["data"]["queries"]), 3)
+
+    def test_router_registers_truth_check_route(self) -> None:
+        router = admin.build_admin_router()
+        if hasattr(router, "routes") and router.routes:
+            paths = []
+            for route in router.routes:
+                path = getattr(route, "path", None)
+                if path:
+                    paths.append(path)
+            self.assertIn("/api/admin/truth-check", paths)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -963,6 +963,17 @@ export function fetchAdminBackgroundStatus(options = {}) {
   return request(path || "/admin/background/status", options);
 }
 
+export function fetchAdminTruthCheck(options = {}) {
+  // /api/admin/truth-check is mounted directly under /api by the
+  // admin router (no contract entry), so build the path manually and
+  // strip the /api prefix that request() will re-add.
+  const path = "/admin/truth-check";
+  const params = new URLSearchParams();
+  if (options.refresh) params.set("refresh", "1");
+  const query = params.toString();
+  return request(`${path}${query ? `?${query}` : ""}`, { signal: options.signal });
+}
+
 function appendList(params, key, values) {
   (values || []).forEach((value) => {
     if (!value) return;
