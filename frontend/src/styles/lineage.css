@@ -30,31 +30,47 @@
 .gh-lineage-search-row {
   width: 100%;
   padding: 0.72rem 0.8rem;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid transparent;
-  background: #fff;
+  background: rgba(8, 23, 42, 0.85);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   font: inherit;
   cursor: pointer;
-  color: var(--gh-ink);
+  color: var(--ga-text-strong, #ffffff);
+  text-align: left;
+  transition: background 160ms cubic-bezier(0.22, 1, 0.36, 1), border-color 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.gh-lineage-search-row span:first-child {
+  color: var(--ga-text-strong, #ffffff);
+  font-weight: 600;
 }
 
 .gh-lineage-search-row span:last-child {
-  color: var(--gh-ink-soft);
+  color: var(--ga-text-muted, #b2bdc2);
   font-size: 0.84rem;
+  font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
+}
+
+.gh-lineage-search-row:hover,
+.gh-lineage-search-row:focus-visible {
+  background: rgba(61, 132, 173, 0.18);
+  border-color: rgba(61, 132, 173, 0.45);
+  outline: none;
 }
 
 .gh-lineage-search-row.is-active {
-  border-color: rgba(91, 67, 238, 0.28);
-  box-shadow: 0 0 0 2px rgba(111, 105, 255, 0.08);
+  border-color: rgba(102, 197, 255, 0.55);
+  background: rgba(61, 132, 173, 0.22);
+  box-shadow: 0 0 0 2px rgba(102, 197, 255, 0.18);
 }
 
 .gh-lineage-search-empty {
   padding: 0.7rem 0.3rem;
-  color: var(--gh-ink-soft);
+  color: var(--ga-text-muted, #b2bdc2);
   font-size: 0.9rem;
 }
 
@@ -2966,10 +2982,11 @@
   display: grid;
   gap: 12px;
   padding: 14px;
-  border: 1px solid rgba(198, 210, 234, 0.88);
+  border: 1px solid rgba(61, 132, 173, 0.32);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.97);
-  box-shadow: 0 10px 20px rgba(19, 31, 65, 0.08);
+  background: linear-gradient(180deg, rgba(17, 44, 72, 0.96), rgba(8, 23, 42, 0.96));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  color: var(--ga-text, #dce6ed);
   pointer-events: auto;
 }
 
@@ -3501,7 +3518,7 @@
 
 .gh-lineage-record-card,
 .gh-lineage-overlay-card {
-  border-color: rgba(198, 210, 234, 0.92);
+  border-color: rgba(61, 132, 173, 0.45);
 }
 
 .gh-lineage-edge-toggle {

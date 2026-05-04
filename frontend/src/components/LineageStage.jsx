@@ -1642,8 +1642,21 @@ function NorthStarLineageExplorer({
     ? `${upstreamCount} upstream · ${downstreamCount} downstream`
     : `${upstreamCount} upstream · ${downstreamCount} downstream`;
   const impactActionLabel = "Run impact analysis";
-  const graphCounterLabel = authoritative
-    ? `${viewModel.nodes.length || 0} nodes · ${asArray(viewModel.edges).length || 0} edges`
+  // Detect the initial-profile / hydrating window. The /api/lineage backend
+  // returns a shell payload immediately (profile=initial, meta.state=loading,
+  // progressive.tableLineageDeferred=true) and only resolves the full
+  // topology after Unity Catalog system tables warm up — typically
+  // 15-30 seconds for a cold serverless warehouse. Showing "0 nodes · 0
+  // edges" against that loading payload reads as "this asset has no
+  // lineage", which is misleading. Surface a "Hydrating…" indicator
+  // instead until the full profile lands.
+  const lineageIsHydrating =
+    String(lineagePayload?.profile || "").toLowerCase() === "initial" ||
+    Boolean(lineagePayload?.stats?.progressive?.tableLineageDeferred) ||
+    String(lineagePayload?.meta?.state || "").toLowerCase() === "loading" ||
+    Boolean(lineagePayload?.meta?.capabilities?.hydrating);
+  const graphCounterLabel = lineageIsHydrating
+    ? "Hydrating from Unity Catalog…"
     : `${viewModel.nodes.length || 0} nodes · ${asArray(viewModel.edges).length || 0} edges`;
   const unavailableChipTitle = !backedLineageGraph
       ? "Value unavailable; no live lineage proof returned for this route."
