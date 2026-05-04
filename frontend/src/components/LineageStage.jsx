@@ -1265,21 +1265,33 @@ function NorthStarLineageExplorer({
     // Re-anchor the lineage focus on the selected node when the user clicks
     // an upstream/downstream/peer node. onSelectAsset stays inside the
     // lineage workspace and reloads the graph for the chosen asset, instead
-    // of navigating away to the entity workspace. Skip when the node is
-    // explicitly not openable (lineage-only references, permission
-    // boundaries, operational placeholders) — those cases are handled by
-    // the right-side detail panel's Refocus / Open buttons, which gate
-    // on the same openability flag and remain disabled with a tooltip.
+    // of navigating away to the entity workspace. Permission-boundary
+    // nodes are blocked here (they have no real assetFqn). Lineage-only
+    // references where openability is "unverified" are also blocked so
+    // the click matches the disabled state of the detail-panel's Refocus
+    // button. Lineage references where openability is unknown OR
+    // verified-true are allowed — the click triggers a fetch on the new
+    // focus and any 404 / unavailable response is rendered as a truthful
+    // empty state by the explorer chrome.
     const nodeAssetFqn = nodeFqn(node);
     const focusAssetFqn = asset?.fqn || "";
-    const nodeIsOpenable =
-      node?.details?.isOpenable !== false && !isPermissionBoundaryNode(node);
+    const nodeOpenability = String(node?.details?.openabilityState || "").toLowerCase();
+    const nodeResolution = String(node?.details?.resolutionState || "").toLowerCase();
+    // Match the same "is this navigable?" check the right-side detail
+    // panel's Refocus button uses: a node is navigable when it has a real
+    // assetFqn AND isOpenable !== false AND its resolutionState isn't
+    // explicitly lineage-only AND its openabilityState isn't unverified.
+    const nodeIsNavigable =
+      node?.details?.isOpenable !== false &&
+      nodeResolution !== "lineage-only" &&
+      nodeOpenability !== "unverified" &&
+      !isPermissionBoundaryNode(node);
     if (
       typeof onSelectAsset === "function" &&
       nodeAssetFqn &&
       nodeAssetFqn !== focusAssetFqn &&
       node?.role !== "focus" &&
-      nodeIsOpenable
+      nodeIsNavigable
     ) {
       onSelectAsset(nodeAssetFqn);
     }
