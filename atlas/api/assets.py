@@ -52,6 +52,15 @@ class AssetOwnersPatch(BaseModel):
     owners: List[OwnerAssignment] = Field(default_factory=list)
 
 
+BUSINESS_CRITICALITY_VALUES = (
+    "Mission Critical",
+    "Business Critical",
+    "Operational",
+    "Low Impact",
+    "Not Assessed",
+)
+
+
 class AssetMetadataPatch(BaseModel):
     description: str = ""
     domain: Optional[str] = None
@@ -59,7 +68,16 @@ class AssetMetadataPatch(BaseModel):
     certification: Optional[str] = None
     sensitivity: Optional[str] = None
     criticality: Optional[str] = None
+    # Business Criticality is orthogonal to tier/criticality (SLA).
+    # Demo feedback: stewards want a business-impact axis with fixed
+    # enum values, round-tripped to UC tag `business_criticality`.
+    businessCriticality: Optional[str] = None
     dataProduct: Optional[str] = None
+    # Critical Data Element marker. When set, rides as UC tag
+    # `cde=true` (absent tag means "not a CDE"). The rationale text
+    # rides alongside as tag `cde_rationale`.
+    isCde: Optional[bool] = None
+    cdeRationale: Optional[str] = None
     freeformTags: Optional[Dict[str, str]] = None
 
     @field_validator("description", mode="before")
@@ -67,17 +85,39 @@ class AssetMetadataPatch(BaseModel):
     def _sanitize_description(cls, value):
         return input_safety.sanitize_markdown(value, field="description", max_length=8000)
 
-    @field_validator("domain", "tier", "certification", "sensitivity", "criticality", "dataProduct", mode="before")
+    @field_validator(
+        "domain",
+        "tier",
+        "certification",
+        "sensitivity",
+        "criticality",
+        "dataProduct",
+        "cdeRationale",
+        mode="before",
+    )
     @classmethod
     def _sanitize_optional_short_text(cls, value, info):
         if value is None:
             return None
-        return input_safety.sanitize_plain_text(value, field=info.field_name, max_length=256)
+        return input_safety.sanitize_plain_text(value, field=info.field_name, max_length=512)
 
     @field_validator("freeformTags", mode="before")
     @classmethod
     def _sanitize_freeform_tags(cls, value):
         return input_safety.sanitize_tag_map(value, field="freeformTags") if value is not None else None
+
+    @field_validator("businessCriticality")
+    @classmethod
+    def _validate_business_criticality(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        normalized = str(value).strip()
+        if not normalized:
+            return ""
+        if normalized not in BUSINESS_CRITICALITY_VALUES:
+            allowed = ", ".join(BUSINESS_CRITICALITY_VALUES)
+            raise ValueError(f"businessCriticality must be one of: {allowed}")
+        return normalized
 
 
 class AssetTagsPatch(BaseModel):
@@ -535,6 +575,37 @@ def api_patch_asset_metadata(
         raise HTTPException(status_code=404, detail="Asset not found or not visible.")
     before = _metadata_audit_asset_snapshot(asset_fqn, request)
     asset, warning = _apply_asset_metadata(asset_fqn, payload, request=request)
+    approval_info = asset.get("approval") if isinstance(asset, dict) else None
+    if isinstance(approval_info, dict) and approval_info.get("status") == "pending":
+        # Write was queued for approval. Skip the "asset-metadata-updated"
+        # audit (no UC write happened) and emit a separate "proposed"
+        # audit row so the change has a breadcrumb. Return the queued
+        # envelope so the frontend can flip to a "pending approval"
+        # toast instead of pretending the change applied.
+        try:
+            _record_metadata_audit(
+                entity_type="change_request",
+                action="asset-metadata-proposed",
+                actor_email=actor_email,
+                actor_role=actor_role,
+                entity_fqn=asset_fqn,
+                entity_id=approval_info.get("requestId") or asset_fqn,
+                before=before,
+                after={"approval": approval_info},
+                detail=payload.description or "",
+            )
+        except Exception:
+            pass
+        return JSONResponse(
+            {
+                "ok": True,
+                "fqn": asset_fqn,
+                "approval": approval_info,
+                "asset": asset,
+                "governance": _governance_summary(request),
+                "warning": "",
+            }
+        )
     after = _metadata_audit_asset_snapshot(asset_fqn, request)
     _record_metadata_audit(
         entity_type="asset",

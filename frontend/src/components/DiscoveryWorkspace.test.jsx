@@ -129,6 +129,8 @@ function discoveryFilters(overrides = {}) {
     tiers: [],
     certifications: [],
     sensitivities: [],
+    businessCriticalities: [],
+    cdeOnly: false,
     ...overrides,
   };
 }
@@ -2292,7 +2294,7 @@ describe("DiscoveryWorkspace", () => {
     const prototypeGrid = document.querySelector(".gh-discovery-main-grid");
     if (!preview) throw new Error("Expected selected-asset preview drawer");
     expect(prototypeGrid?.getAttribute("data-preview-open")).toBe("true");
-    expect(screen.getByRole("button", { name: "Close asset preview overlay" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Close preview" })).not.toBeNull();
     expect(within(preview).getByRole("tab", { name: "Overview" })).not.toBeNull();
     expect(within(preview).getByRole("tab", { name: "Columns · 8" })).not.toBeNull();
     expect(within(preview).getByRole("tab", { name: "Lineage · 1" })).not.toBeNull();

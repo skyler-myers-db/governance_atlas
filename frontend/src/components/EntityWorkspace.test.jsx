@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import EntityWorkspace from "./EntityWorkspace";
 
@@ -2290,31 +2291,33 @@ describe("EntityWorkspace North Star Asset 360 contract", () => {
 
   function renderAsset360(overrides = {}) {
     return render(
-      <EntityWorkspace
-        assetFqn={asset.fqn}
-        bootstrap={enabledBootstrapPayload()}
-        contextSeedAssets={[asset]}
-        onBack={() => {}}
-        onGovernanceChange={() => {}}
-        onNavigationStateChange={() => {}}
-        onOpenGovernance={overrides.onOpenGovernance || (() => {})}
-        onOpenLineage={overrides.onOpenLineage || (() => {})}
-        onSelectAsset={() => {}}
-        onSurfaceReady={() => {}}
-        runtimeFeatureFlags={[
-          { key: "table_lineage_surface", enabled: true, state: "available" },
-          { key: "query_history_surface", enabled: true, state: "available" },
-        ]}
-        sharedVisibleAssetSet={new Set([asset.fqn])}
-        workspaceAccess={{
-          mode: "obo-available",
-          observedAt: "2026-04-25T00:00:00Z",
-          canUseAssetPreview: true,
-          canUseLineage: true,
-          canUseQueryHistory: true,
-          gates: [],
-        }}
-      />,
+      <MemoryRouter>
+        <EntityWorkspace
+          assetFqn={asset.fqn}
+          bootstrap={enabledBootstrapPayload()}
+          contextSeedAssets={[asset]}
+          onBack={() => {}}
+          onGovernanceChange={() => {}}
+          onNavigationStateChange={() => {}}
+          onOpenGovernance={overrides.onOpenGovernance || (() => {})}
+          onOpenLineage={overrides.onOpenLineage || (() => {})}
+          onSelectAsset={() => {}}
+          onSurfaceReady={() => {}}
+          runtimeFeatureFlags={[
+            { key: "table_lineage_surface", enabled: true, state: "available" },
+            { key: "query_history_surface", enabled: true, state: "available" },
+          ]}
+          sharedVisibleAssetSet={new Set([asset.fqn])}
+          workspaceAccess={{
+            mode: "obo-available",
+            observedAt: "2026-04-25T00:00:00Z",
+            canUseAssetPreview: true,
+            canUseLineage: true,
+            canUseQueryHistory: true,
+            gates: [],
+          }}
+        />
+      </MemoryRouter>,
     );
   }
 

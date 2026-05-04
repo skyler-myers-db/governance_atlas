@@ -419,15 +419,19 @@ def api_governance_patch_request(
     ),
 ) -> JSONResponse:
     from runtime_app import (
+        _apply_asset_metadata,
         _asset_detail_payload,
         _asset_visibility_record,
         _ensure_can_approve,
         _ensure_live_runtime,
         _governance_summary,
         _invalidate_asset_caches,
+        _record_metadata_audit,
         _store,
         _user_role_slug,
     )
+    from atlas.api.assets import AssetMetadataPatch
+    from atlas.services import approvals as approval_service
 
     _ensure_live_runtime()
     actor_email = _ensure_can_approve(request)
@@ -452,6 +456,18 @@ def api_governance_patch_request(
             status_code=400,
             detail="status must be pending, approved, rejected, resolved, or closed.",
         )
+    # Approve/reject is steward/admin-only. Pending-status updates stay
+    # open to the proposer so a writer can withdraw their own request.
+    if status in {"approved", "rejected"} and not approval_service.role_can_decide(
+        actor_role
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Only stewards or admins can approve or reject metadata change"
+                " requests."
+            ),
+        )
     store.set_request_status(
         request_id=raw_request_id,
         status=status,
@@ -460,6 +476,51 @@ def api_governance_patch_request(
         actor_role=actor_role,
         refresh_projection=not fast,
     )
+    apply_warning = ""
+    if status == "approved":
+        # Re-read the stashed patch and replay the real metadata write
+        # with bypass_approval=True so the same helper runs but skips
+        # the gate this time. Guard against an empty payload — a
+        # corrupt stash must NOT wipe the asset description.
+        kind, stash = approval_service.load_pending_patch(store, raw_request_id)
+        if kind == approval_service.CHANGE_REQUEST_KIND_ASSET_METADATA:
+            stored_patch = stash.get("patch") if isinstance(stash, dict) else {}
+            asset_fqn = (
+                _normalize_str(stash.get("assetFqn"))
+                or change_request.uc_full_name
+            )
+            if asset_fqn and isinstance(stored_patch, dict) and stored_patch:
+                try:
+                    applied_model = AssetMetadataPatch(**stored_patch)
+                except Exception:
+                    applied_model = None
+                if applied_model is not None:
+                    before = {"approval": {"requestId": raw_request_id}}
+                    _, apply_warning = _apply_asset_metadata(
+                        asset_fqn,
+                        applied_model,
+                        request=request,
+                        bypass_approval=True,
+                    )
+                    # Audit the consumed approval so the change request
+                    # has a traceable "applied" breadcrumb separate
+                    # from the original "proposed" audit row.
+                    try:
+                        _record_metadata_audit(
+                            entity_type="change_request",
+                            action="change-request-approved",
+                            actor_email=actor_email,
+                            actor_role=actor_role,
+                            entity_fqn=asset_fqn,
+                            entity_id=raw_request_id,
+                            before=before,
+                            after={"applied": stored_patch},
+                            detail="",
+                        )
+                    except Exception:
+                        # Audit is best-effort here — never block the
+                        # approval response on a logging hiccup.
+                        pass
     if change_request.uc_full_name:
         _invalidate_asset_caches(change_request.uc_full_name)
     else:
@@ -477,7 +538,9 @@ def api_governance_patch_request(
         {
             "ok": True,
             "requestId": atlas_metrics._customer_safe_text(raw_request_id),
+            "status": status,
             "asset": asset_payload,
+            "applyWarning": apply_warning,
             "governance": governance_payload,
             "refreshDeferred": bool(fast),
         }

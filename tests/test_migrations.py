@@ -50,7 +50,7 @@ class MigrationTests(unittest.TestCase):
 
         applied = migrations.apply_migrations(uc, "main", "atlas")
 
-        self.assertEqual(applied, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15])
+        self.assertEqual(applied, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
         self.assertTrue(
             any("CREATE TABLE IF NOT EXISTS `main`.`atlas`.`schema_migrations`" in sql for sql in uc.executed)
         )
@@ -174,7 +174,18 @@ class MigrationTests(unittest.TestCase):
             ),
             "expected classification_recommendations create statement",
         )
-        self.assertEqual(uc._applied_versions, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
+        # F7 — tenant_branding landed in migration v16.
+        self.assertTrue(
+            any(
+                "CREATE TABLE IF NOT EXISTS `main`.`atlas`.`tenant_branding`" in sql
+                for sql in uc.executed
+            ),
+            "expected tenant_branding create statement",
+        )
+        self.assertEqual(
+            uc._applied_versions,
+            {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+        )
 
     def test_apply_migrations_is_idempotent(self) -> None:
         uc = FakeUC()

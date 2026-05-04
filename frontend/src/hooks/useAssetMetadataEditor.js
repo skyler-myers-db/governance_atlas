@@ -12,8 +12,19 @@ const EDITABLE_FIELD_KEYS = [
   "certification",
   "sensitivity",
   "criticality",
+  "businessCriticality",
   "dataProduct",
+  "isCde",
+  "cdeRationale",
   "freeformTags",
+];
+
+export const BUSINESS_CRITICALITY_OPTIONS = [
+  "Mission Critical",
+  "Business Critical",
+  "Operational",
+  "Low Impact",
+  "Not Assessed",
 ];
 
 function titleCase(value) {
@@ -44,6 +55,9 @@ function fieldOptions(key, bootstrap, field) {
   if (key === "criticality") {
     return ["Tier 0", "Tier 1", "Tier 2", "Tier 3"];
   }
+  if (key === "businessCriticality") {
+    return BUSINESS_CRITICALITY_OPTIONS;
+  }
   return [];
 }
 
@@ -54,14 +68,18 @@ function normalizeField(field, bootstrap) {
   const requestedType = (field?.type || field?.kind || (key === "description" ? "textarea" : "select"))
     .toString()
     .toLowerCase();
-  const resolvedType =
-    key === "description"
-      ? "textarea"
-      : requestedType === "text"
-        ? "text"
-        : options.length
-          ? "select"
-          : "text";
+  let resolvedType;
+  if (key === "description" || key === "cdeRationale") {
+    resolvedType = "textarea";
+  } else if (key === "isCde") {
+    resolvedType = "toggle";
+  } else if (requestedType === "text") {
+    resolvedType = "text";
+  } else if (options.length) {
+    resolvedType = "select";
+  } else {
+    resolvedType = "text";
+  }
   const defaultHelpText =
     key !== "description" && !options.length
       ? `No preset ${titleCase(key).toLowerCase()} options are configured yet. Type a value to save it directly on this asset.`
@@ -228,6 +246,19 @@ export function useAssetMetadataEditor({ assetFqn, asset, bootstrap }) {
     try {
       const response = await updateAssetMetadata(assetFqn, payload, state.config || {});
       const warning = String(response?.warning || "").trim();
+      const approvalStatus = String(response?.approval?.status || "")
+        .trim()
+        .toLowerCase();
+      if (approvalStatus === "pending") {
+        setState((current) => ({
+          ...current,
+          submitting: false,
+          submitError: "",
+          submitSuccess:
+            "Submitted for approval. A steward needs to review before it applies to Unity Catalog.",
+        }));
+        return response;
+      }
       setState((current) => ({
         ...current,
         submitting: false,

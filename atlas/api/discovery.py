@@ -191,6 +191,10 @@ def api_discovery_search(
     tiers: Optional[List[str]] = Query(default=None),
     certifications: Optional[List[str]] = Query(default=None),
     sensitivities: Optional[List[str]] = Query(default=None),
+    business_criticalities: Optional[List[str]] = Query(
+        default=None, alias="businessCriticalities"
+    ),
+    cde_only: bool = Query(default=False, alias="cdeOnly"),
     sort_by: str = Query(default="Best match", alias="sortBy"),
     limit: int = 60,
     offset: int = 0,
@@ -311,6 +315,8 @@ def api_discovery_search(
             tiers=tiers,
             certifications=certifications,
             sensitivities=sensitivities,
+            business_criticalities=business_criticalities,
+            cde_only=cde_only,
             sort_by=sort_by,
             limit=limit,
             offset=offset,

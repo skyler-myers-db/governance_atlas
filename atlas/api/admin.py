@@ -23,11 +23,19 @@ import os
 import threading
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+
+
+class BrandingPatch(BaseModel):
+    primaryColor: str = ""
+    accentColor: str = ""
+    logoUrl: str = ""
+    orgDisplayName: str = ""
 
 
 def _background_status_payload() -> Dict[str, Any]:
@@ -66,6 +74,26 @@ def _background_status_payload() -> Dict[str, Any]:
             "reason": reason,
         },
     }
+
+
+def _visible_fqns(request: Request) -> set[str]:
+    try:
+        from runtime_app import _visible_assets
+    except Exception:
+        return set()
+    try:
+        frame = _visible_assets(request)
+    except Exception:
+        return set()
+    if frame is None:
+        return set()
+    try:
+        column = frame.get("fqn")
+        if column is None:
+            return set()
+        return {str(entry).strip() for entry in column if str(entry).strip()}
+    except Exception:
+        return set()
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -456,5 +484,250 @@ def build_admin_router() -> APIRouter:
         )
         payload = _truth_check_payload(force_refresh=force_refresh)
         return JSONResponse(payload)
+
+    @router.post("/bulk-import/dry-run")
+    async def api_bulk_import_dry_run(request: Request) -> JSONResponse:
+        from runtime_app import _ensure_can_mutate, _ensure_live_runtime, _user_role_slug
+        from atlas.services import approvals as approval_service
+        from atlas.services import bulk_import as bulk_import_service
+
+        _ensure_live_runtime()
+        _ensure_can_mutate(request)
+        if not approval_service.role_can_decide(_user_role_slug(request)):
+            raise HTTPException(
+                status_code=403,
+                detail="Bulk import is restricted to stewards and admins.",
+            )
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Body must be valid JSON.")
+        parsed = bulk_import_service.parse_csv(str(body.get("csvText") or ""))
+        if parsed.get("errors") and not parsed.get("rows"):
+            return JSONResponse(
+                {
+                    "ok": False,
+                    "headers": parsed.get("headers", []),
+                    "rowCount": 0,
+                    "results": [],
+                    "summary": {"total": 0, "valid": 0, "invalid": 0, "empty": 0},
+                    "parseErrors": parsed.get("errors", []),
+                }
+            )
+        visible = _visible_fqns(request)
+        validation = bulk_import_service.validate_rows(
+            parsed.get("rows", []),
+            asset_exists=(lambda fqn: fqn in visible) if visible else None,
+        )
+        return JSONResponse(
+            {
+                "ok": True,
+                "headers": parsed.get("headers", []),
+                "rowCount": len(parsed.get("rows", [])),
+                "results": validation["results"],
+                "summary": validation["summary"],
+                "parseErrors": parsed.get("errors", []),
+            }
+        )
+
+    @router.post("/bulk-import/commit")
+    async def api_bulk_import_commit(request: Request) -> JSONResponse:
+        from runtime_app import (
+            _apply_asset_metadata,
+            _asset_is_openable,
+            _ensure_can_mutate,
+            _ensure_live_runtime,
+            _metadata_audit_asset_snapshot,
+            _record_metadata_audit,
+            _user_role_slug,
+        )
+        from atlas.api.assets import AssetMetadataPatch
+        from atlas.services import approvals as approval_service
+        from atlas.services import bulk_import as bulk_import_service
+
+        _ensure_live_runtime()
+        actor_email = _ensure_can_mutate(request)
+        actor_role = _user_role_slug(request)
+        if not approval_service.role_can_decide(actor_role):
+            raise HTTPException(
+                status_code=403,
+                detail="Bulk import is restricted to stewards and admins.",
+            )
+        try:
+            body = await request.json()
+        except Exception:
+            raise HTTPException(status_code=400, detail="Body must be valid JSON.")
+        incoming_rows = body.get("rows") if isinstance(body.get("rows"), list) else []
+        normalized_rows: List[Dict[str, Any]] = []
+        for entry in incoming_rows:
+            if not isinstance(entry, dict):
+                continue
+            raw = entry.get("raw") if isinstance(entry.get("raw"), dict) else entry
+            normalized_rows.append({key: value for key, value in raw.items() if isinstance(key, str)})
+        visible = _visible_fqns(request)
+        validation = bulk_import_service.validate_rows(
+            normalized_rows,
+            asset_exists=(lambda fqn: fqn in visible) if visible else None,
+        )
+
+        def apply_one(fqn: str, patch: Dict[str, Any]) -> Dict[str, Any]:
+            try:
+                payload_model = AssetMetadataPatch(**patch)
+            except Exception as exc:
+                raise ValueError(f"Invalid patch: {exc}") from exc
+            if not _asset_is_openable(fqn, request):
+                raise RuntimeError("Asset not openable for current actor.")
+            before = _metadata_audit_asset_snapshot(fqn, request)
+            asset, warning = _apply_asset_metadata(fqn, payload_model, request=request)
+            approval = asset.get("approval") if isinstance(asset, dict) else None
+            if isinstance(approval, dict) and approval.get("status") == "pending":
+                try:
+                    _record_metadata_audit(
+                        entity_type="change_request",
+                        action="asset-metadata-proposed",
+                        actor_email=actor_email,
+                        actor_role=actor_role,
+                        entity_fqn=fqn,
+                        entity_id=approval.get("requestId") or fqn,
+                        before=before,
+                        after={"approval": approval},
+                        detail="bulk-import",
+                    )
+                except Exception:
+                    pass
+                return {"approval": approval, "warning": warning}
+            after = _metadata_audit_asset_snapshot(fqn, request)
+            try:
+                _record_metadata_audit(
+                    entity_type="asset",
+                    action="asset-metadata-updated",
+                    actor_email=actor_email,
+                    actor_role=actor_role,
+                    entity_fqn=fqn,
+                    entity_id=fqn,
+                    before=before,
+                    after=after,
+                    detail="bulk-import",
+                )
+            except Exception:
+                pass
+            return {"asset": asset, "warning": warning}
+
+        commit = bulk_import_service.apply_rows(validation["results"], apply_one=apply_one)
+        return JSONResponse({"ok": True, "results": commit["outcomes"], "summary": commit["summary"]})
+
+    @router.get("/coverage")
+    def api_admin_coverage(
+        request: Request,
+        required_fields: Optional[List[str]] = Query(default=None, alias="requiredFields"),
+    ) -> JSONResponse:
+        from runtime_app import (
+            HIDDEN_CATALOGS,
+            _ensure_can_mutate,
+            _ensure_live_runtime,
+            _user_role_slug,
+            _visible_assets,
+        )
+        from atlas.services import approvals as approval_service
+        from atlas.services import coverage as coverage_service
+
+        _ensure_live_runtime()
+        _ensure_can_mutate(request)
+        if not approval_service.role_can_decide(_user_role_slug(request)):
+            raise HTTPException(
+                status_code=403,
+                detail="Coverage dashboard is restricted to stewards and admins.",
+            )
+        payload = coverage_service.coverage_aggregate(
+            _visible_assets(request),
+            required_fields=required_fields,
+            hidden_catalogs=HIDDEN_CATALOGS,
+        )
+        return JSONResponse(payload)
+
+    @router.get("/coverage/drilldown")
+    def api_admin_coverage_drilldown(
+        request: Request,
+        required_fields: Optional[List[str]] = Query(default=None, alias="requiredFields"),
+        tier: Optional[str] = Query(default=None),
+        domain: Optional[str] = Query(default=None),
+        missing_field: Optional[str] = Query(default=None, alias="missingField"),
+        limit: int = Query(default=200),
+    ) -> JSONResponse:
+        from runtime_app import (
+            HIDDEN_CATALOGS,
+            _ensure_can_mutate,
+            _ensure_live_runtime,
+            _user_role_slug,
+            _visible_assets,
+        )
+        from atlas.services import approvals as approval_service
+        from atlas.services import coverage as coverage_service
+        from atlas.services.assets import normalize_str
+
+        _ensure_live_runtime()
+        _ensure_can_mutate(request)
+        if not approval_service.role_can_decide(_user_role_slug(request)):
+            raise HTTPException(
+                status_code=403,
+                detail="Coverage dashboard is restricted to stewards and admins.",
+            )
+        payload = coverage_service.coverage_drilldown(
+            _visible_assets(request),
+            required_fields=required_fields,
+            tier=normalize_str(tier) or None,
+            domain=normalize_str(domain) or None,
+            missing_field=normalize_str(missing_field) or None,
+            limit=limit,
+            hidden_catalogs=HIDDEN_CATALOGS,
+        )
+        return JSONResponse(payload)
+
+    @router.get("/branding")
+    def api_admin_branding_get(request: Request) -> JSONResponse:
+        from runtime_app import (
+            _ensure_can_mutate,
+            _ensure_governance_store,
+            _ensure_live_runtime,
+            _store,
+            _user_role_slug,
+        )
+        from atlas.services import branding as branding_service
+
+        _ensure_live_runtime()
+        _ensure_can_mutate(request)
+        if _user_role_slug(request) != "admin":
+            raise HTTPException(status_code=403, detail="Admin role required.")
+        _ensure_governance_store()
+        return JSONResponse({"ok": True, "branding": branding_service.get_branding(_store())})
+
+    @router.put("/branding")
+    def api_admin_branding_put(payload: BrandingPatch, request: Request) -> JSONResponse:
+        from runtime_app import (
+            _ensure_can_mutate,
+            _ensure_governance_store,
+            _ensure_live_runtime,
+            _store,
+            _user_role_slug,
+        )
+        from atlas.services import branding as branding_service
+
+        _ensure_live_runtime()
+        actor_email = _ensure_can_mutate(request)
+        if _user_role_slug(request) != "admin":
+            raise HTTPException(status_code=403, detail="Admin role required.")
+        _ensure_governance_store()
+        try:
+            branding = branding_service.set_branding(
+                _store(),
+                primary_color=payload.primaryColor,
+                accent_color=payload.accentColor,
+                logo_url=payload.logoUrl,
+                org_display_name=payload.orgDisplayName,
+                updated_by=actor_email,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return JSONResponse({"ok": True, "branding": branding})
 
     return router

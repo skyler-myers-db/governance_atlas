@@ -1,12 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import TaxonomyWorkspace from "./TaxonomyWorkspace";
-import { fetchCdeDashboard, fetchTaxonomyOverview } from "../lib/api";
+import { fetchCdeDashboard, fetchTaxonomyOverview, upsertGovernanceGlossaryTerm } from "../lib/api";
 
 vi.mock("../lib/api", () => ({
   fetchCdeDashboard: vi.fn(),
   fetchTaxonomyOverview: vi.fn(),
+  upsertGovernanceGlossaryTerm: vi.fn(),
 }));
 
 function renderTaxonomy(override, props = {}) {
@@ -119,6 +120,8 @@ describe("TaxonomyWorkspace", () => {
     fetchCdeDashboard.mockResolvedValue({ data: { items: [] }, meta: { state: "available" } });
     fetchTaxonomyOverview.mockReset();
     fetchTaxonomyOverview.mockResolvedValue(taxonomyPayload);
+    upsertGovernanceGlossaryTerm.mockReset();
+    upsertGovernanceGlossaryTerm.mockResolvedValue({ data: { termId: "gross-margin" } });
   });
 
   it("renders the Glossary & CDE Registry glossary cards", () => {
@@ -167,16 +170,26 @@ describe("TaxonomyWorkspace", () => {
     expect(screen.queryByLabelText("Sort CDE registry")).toBeNull();
   });
 
-  it("wires registry actions to backed route callbacks and disables unavailable workflow mutations", () => {
+  it("wires registry actions to backed route callbacks and disables unavailable workflow mutations", async () => {
     const onOpenAsset = vi.fn();
     const onOpenLineage = vi.fn();
     renderTaxonomy(taxonomyPayload, { onOpenAsset, onOpenLineage });
 
     const newTerm = screen.getByRole("button", { name: "+ New term" });
     expect(newTerm.disabled).toBe(false);
-    expect(newTerm.getAttribute("title")).toBe("Show New term unavailable reason");
+    expect(newTerm.getAttribute("title")).toBe("Open the New term form");
     fireEvent.click(newTerm);
-    expect(screen.getByText("New term request is unavailable until a backed glossary workflow is configured; no local draft was created.")).toBeDefined();
+    expect(screen.getByRole("dialog", { name: "New glossary term" })).toBeDefined();
+    fireEvent.change(screen.getByLabelText(/Term name/), { target: { value: "Gross Margin" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create term" }));
+    await waitFor(() => {
+      expect(upsertGovernanceGlossaryTerm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "Gross Margin",
+          status: "draft",
+        }),
+      );
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "4 assets" }));
     const detail = screen.getByRole("complementary", { name: "Net Revenue detail" });
@@ -263,7 +276,7 @@ describe("TaxonomyWorkspace", () => {
     renderTaxonomy(taxonomyPayload, { onOpenAsset, onOpenLineage });
 
     fireEvent.click(screen.getByRole("tab", { name: "CDE Registry 3" }));
-    const newCde = screen.getByRole("button", { name: "+ New term" });
+    const newCde = screen.getByRole("button", { name: "+ New CDE" });
     expect(newCde.disabled).toBe(false);
     expect(newCde.getAttribute("title")).toBe("Show New CDE unavailable reason");
     fireEvent.click(newCde);

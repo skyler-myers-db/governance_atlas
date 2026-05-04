@@ -278,6 +278,7 @@ function normalizeBootstrapPayload(payload) {
       tiers: arrayValue(discovery.tiers),
       certifications: arrayValue(discovery.certifications),
       sensitivities: arrayValue(discovery.sensitivities),
+      businessCriticalities: arrayValue(discovery.businessCriticalities),
       views: arrayValue(discovery.views),
       sortOptions: arrayValue(discovery.sortOptions),
       assetTypes: arrayValue(discovery.assetTypes),
@@ -997,6 +998,8 @@ export function fetchDiscoverySearch(filters = {}, options = {}) {
   appendList(params, "tiers", filters.tiers);
   appendList(params, "certifications", filters.certifications);
   appendList(params, "sensitivities", filters.sensitivities);
+  appendList(params, "businessCriticalities", filters.businessCriticalities);
+  if (filters.cdeOnly) params.set("cdeOnly", "true");
   // Round 19 OBO hardening: `refresh: true` evicts the server's per-actor
   // inventory cache before the search so the OBO client re-attempts a
   // fresh fetch. Used by the "Retry with actor scope" banner button.
@@ -1022,6 +1025,60 @@ export function fetchAssetDetail(assetFqn, options = {}) {
   );
 }
 
+export function fetchCdeRegistry(options = {}) {
+  const params = new URLSearchParams();
+  appendList(params, "domains", options.domains);
+  const query = params.toString();
+  const path = contractPath("cdeRegistry") || "/cde";
+  return request(`${path}${query ? `?${query}` : ""}`, { signal: options.signal });
+}
+
+export function postBulkImportDryRun(csvText, options = {}) {
+  const path = contractPath("bulkImportDryRun") || "/admin/bulk-import/dry-run";
+  return requestJson(path, "POST", { csvText: String(csvText || "") }, options);
+}
+
+export function postBulkImportCommit(rows, options = {}) {
+  const path = contractPath("bulkImportCommit") || "/admin/bulk-import/commit";
+  return requestJson(
+    path,
+    "POST",
+    { rows: Array.isArray(rows) ? rows : [] },
+    options,
+  );
+}
+
+export function fetchAdminCoverage(options = {}) {
+  const params = new URLSearchParams();
+  appendList(params, "requiredFields", options.requiredFields);
+  const query = params.toString();
+  const path = contractPath("adminCoverage") || "/admin/coverage";
+  return request(`${path}${query ? `?${query}` : ""}`, { signal: options.signal });
+}
+
+export function fetchAdminBranding(options = {}) {
+  const path = contractPath("adminBranding") || "/admin/branding";
+  return request(path, { signal: options.signal });
+}
+
+export function updateAdminBranding(payload, options = {}) {
+  const path = contractPath("adminBranding") || "/admin/branding";
+  return requestJson(path, "PUT", payload || {}, options);
+}
+
+export function fetchAdminCoverageDrilldown(options = {}) {
+  const params = new URLSearchParams();
+  appendList(params, "requiredFields", options.requiredFields);
+  if (options.tier) params.set("tier", options.tier);
+  if (options.domain) params.set("domain", options.domain);
+  if (options.missingField) params.set("missingField", options.missingField);
+  if (options.limit) params.set("limit", String(options.limit));
+  const query = params.toString();
+  const path =
+    contractPath("adminCoverageDrilldown") || "/admin/coverage/drilldown";
+  return request(`${path}${query ? `?${query}` : ""}`, { signal: options.signal });
+}
+
 export function fetchAssetAvailability(assetFqns = [], options = {}) {
   const targets = [...new Set((assetFqns || []).filter(Boolean))];
   if (!targets.length) return Promise.resolve({ assets: {} });
@@ -1032,6 +1089,7 @@ export function fetchAssetAvailability(assetFqns = [], options = {}) {
 export function fetchLineage(assetFqn, options = {}) {
   const params = new URLSearchParams();
   if (options.profile) params.set("profile", String(options.profile));
+  if (options.force) params.set("refresh", "1");
   const query = params.toString();
   const path = `/lineage/${encodeURIComponent(assetFqn)}${query ? `?${query}` : ""}`;
   const execute = () => request(path, { signal: options.signal });

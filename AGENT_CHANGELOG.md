@@ -19099,3 +19099,75 @@ open controls.
     missing deployed proof.
   - Performance telemetry and deployed Databricks App browser evidence remain open.
   - Truth/provenance remains blocked on the reviewer findings above.
+
+## 2026-05-04 19:55 EDT - Branch Synthesis Onto Main
+
+Synthesized the local North Star branch stack with the updated `origin/main`
+demo-enhancement branch line. No North Star page is approved by this entry.
+
+- Trigger:
+  - User asked to examine all working trees/branches, bring the best of each into
+    `main`, and delete the other branches.
+- Working tree and branch review:
+  - `git worktree list --porcelain` showed one local worktree:
+    `/Users/entrada-mac/repos/governance_atlas`.
+  - Local feature branches `feature/governance-atlas-northstar`,
+    `feature/governance-atlas-northstar-design-pass-1`, and
+    `feature/governance-atlas-northstar-design-pass-1-systemic-purge` were an
+    ancestor stack; the active synthesis branch was the only non-ancestor feature tip.
+  - `origin/main` had advanced with the demo-enhancement/admin/CDE work; the stale
+    `origin/feature/demo_enhancements` ref was pruned by fetch.
+- Decisions:
+  - Preserved the current `atlas` namespace, North Star shell, Asset 360, and
+    Lineage v2 surfaces over older `govhub`/legacy UI files from the other branch.
+  - Ported useful `origin/main` capabilities: CDE and business-criticality metadata,
+    admin bulk import/coverage/branding services, tenant branding payloads,
+    approval-gated metadata writes, the legacy `/api/cde` compatibility router,
+    live metadata cache protections, and lineage batching tests adapted to the
+    current lineage service contract.
+  - Removed duplicate macOS-style `* 2.*` files and root screenshot artifacts from
+    the incoming branch rather than carrying them forward.
+  - Rejected staged/local workflow state for Discovery comment/access requests and
+    Stewardship work-item creation; those controls now remain truthfully unavailable
+    until backed mutations exist.
+  - Kept backed glossary term creation, because it calls the governance glossary API;
+    kept CDE creation unavailable until a backed CDE mutation exists.
+- Changes:
+  - Added/adapted `atlas/api/cde.py`, admin governance APIs, approval replay,
+    branding, bulk import, coverage, CDE/business-criticality discovery fields,
+    metadata cache protections, and tenant-branding/theme hooks.
+  - Updated frontend tests and built assets for the synthesized Atlas UI.
+  - Preserved the current North Star evidence boundary and did not claim visual,
+    functional, or deployed Databricks App closure.
+- Review roles:
+  - Repo instructions request subagent review roles for non-trivial passes, but this
+    session's higher-priority tool rule only allows subagents when the user explicitly
+    asks for them. No subagents were spawned; the merge was self-reviewed against the
+    branch graph, conflict diff, test failures, and product-truth rules above.
+- Verification:
+  - `python3 -m py_compile runtime_app.py atlas/api/admin.py atlas/api/assets.py
+    atlas/api/governance.py atlas/api/cde.py atlas/services/approvals.py
+    atlas/services/branding.py atlas/services/bulk_import.py
+    atlas/services/coverage.py atlas/services/live_metadata.py atlas/uc.py` passed.
+  - `.venv/bin/python -m pytest tests/test_lineage_cache.py
+    tests/test_lineage_batched_bfs.py tests/test_admin_branding_gate.py
+    tests/test_role_resolution.py tests/test_inventory_cache_scope.py
+    tests/test_migrations.py tests/test_atlas_api.py tests/test_atlas_metrics.py -q`
+    passed with `77` tests.
+  - `npm --prefix frontend test -- --run` passed with `60` test files,
+    `490` passed tests, and `27` skipped tests.
+  - `npm --prefix frontend run build` passed; Vite emitted the existing large-chunk
+    warning for vendor/application chunks.
+  - `databricks bundle validate --profile DEFAULT` passed for bundle `atlas`,
+    target `dev`, workspace user `skyler@entrada.ai`.
+  - `databricks bundle summary --profile DEFAULT` passed for bundle `atlas`,
+    target `dev`; app `atlas` is still reported as URL `(not deployed)`.
+- Failed or open gates:
+  - `npm --prefix frontend run typecheck` failed on broad JS/TS checking errors across
+    App, Discovery, Entity, Governance, Home, Lineage v2, hooks, and helper modules.
+    This was not expanded into a type-cleanup tranche during branch synthesis.
+  - `npm --prefix frontend run northstar:audit-contract` failed because current-era
+    visual QA JSON artifacts under `docs/northstar_visual_qa/live-runtime-current-v222`
+    through `v226` are neither manifest-allowed nor retired.
+  - No visual parity, functional closure, deployed Databricks App browser proof, or
+    North Star signoff is claimed by this merge.
