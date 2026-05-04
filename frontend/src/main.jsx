@@ -15,6 +15,7 @@ import "./styles/shell-rail.css";
 import "./styles/capability-dashboard.css";
 import "./styles/insights.css";
 import "./styles/northstar.css";
+import "./styles/lineage-v2.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

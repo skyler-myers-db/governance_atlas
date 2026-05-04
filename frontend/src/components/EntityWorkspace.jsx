@@ -40,7 +40,8 @@ import {
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
-import LineageStage from "./LineageStage";
+import { LineageCanvasV2 } from "./lineage-v2/LineageCanvasV2";
+import { useLineageGraphV2 } from "./lineage-v2/useLineageGraphV2";
 import { SurfacePanelSection, SurfaceTabs } from "./ShellLayoutPrimitives";
 import { LoadingState, SkeletonBlock } from "./ShellStatePrimitives";
 import { AssetTypeIcon } from "./primitives/AssetTypeIcon";
@@ -2461,28 +2462,8 @@ export default function EntityWorkspace({
               <LoadingState message="Checking lineage access..." />
             </EntityRecordSection>
           ) : (
-            <LineageStage
-              asset={asset}
-              allowRefocus={false}
-              assetSearchLoading={false}
-              assetSearchQuery=""
-              assetSearchResults={[]}
-              assetSearchResolvedQuery=""
-              context={localLineageContext}
-              embedded
-              error={lineage.error}
-              graphBundle={lineageBundle}
-              lineagePayload={lineagePayload}
-              loading={lineageLoading}
-              authoritative={lineageAuthoritative}
-              provisional={lineageProvisional}
-              onAssetSearchQueryChange={() => {}}
-              onContextChange={setLocalLineageContext}
-              onOpenAsset={(nextAssetFqn) => {
-                setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
-                onSelectAsset(nextAssetFqn, "Overview");
-              }}
-              onOpenGovernance={onOpenGovernance}
+            <EntityLineageEmbed
+              focusAssetFqn={asset?.fqn || ""}
               onSelectAsset={(nextAssetFqn) => {
                 setWorkspaceIntent("lineageContext", nextAssetFqn, localLineageContext);
                 onSelectAsset(nextAssetFqn, "Overview");
@@ -2945,5 +2926,34 @@ export default function EntityWorkspace({
         ) : null}
       </section>
     </section>
+  );
+}
+
+/**
+ * EntityLineageEmbed — embeds the v2 lineage canvas inside the entity
+ * detail page's Lineage tab. Pulls the same useLineageGraphV2 adapter
+ * the full lineage workspace uses, so the embedded view stays in lock
+ * step with the full-page experience.
+ */
+function EntityLineageEmbed({ focusAssetFqn, onSelectAsset }) {
+  const graph = useLineageGraphV2(focusAssetFqn || "", { enabled: Boolean(focusAssetFqn) });
+  if (!focusAssetFqn) {
+    return (
+      <div className="ga-lineage-v2-canvas-state">
+        <strong>No focus asset</strong>
+        <span>Open this asset to view its lineage.</span>
+      </div>
+    );
+  }
+  return (
+    <div className="gh-entity-record-lineage-section">
+      <LineageCanvasV2
+        error={graph.error}
+        focusId={focusAssetFqn}
+        graph={graph}
+        hydrating={graph.hydrating}
+        onFocusChange={onSelectAsset}
+      />
+    </div>
   );
 }

@@ -1,549 +1,146 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import LineageWorkspace from "./LineageWorkspace";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 
-const useAssetDetailMock = vi.fn();
-const useAssetSearchMock = vi.fn();
-const useLineageMock = vi.fn();
-const useSeededAssetContextMock = vi.fn();
-const openAssetRecordSafelyMock = vi.fn();
-const peekWorkspaceIntentMock = vi.fn();
-const consumeWorkspaceIntentMock = vi.fn();
-const setWorkspaceIntentMock = vi.fn();
-
-vi.mock("../hooks/useAssetDetail", () => ({
-  canOpenLinkedAssetRecord: vi.fn(() => true),
-  useAssetDetail: (...args) => useAssetDetailMock(...args),
-}));
-
-vi.mock("../hooks/useAssetSearch", () => ({
-  useAssetSearch: (...args) => useAssetSearchMock(...args),
-}));
-
-vi.mock("../hooks/useLineage", () => ({
-  useLineage: (...args) => useLineageMock(...args),
-}));
-
-vi.mock("../hooks/useSeededAssetContext", () => ({
-  useSeededAssetContext: (...args) => useSeededAssetContextMock(...args),
-}));
-
-vi.mock("./LineageStage", () => ({
-  default: ({
-    linkedRecordUnavailableOverrides = {},
-    notice = "",
-    onOpenAsset = () => {},
-    overlay = null,
-  }) => (
-    <div data-testid="lineage-stage">
-      {overlay ? <div data-testid="lineage-overlay">{overlay}</div> : null}
-      {notice ? (
-        <div data-testid="lineage-notice">
-          <div>Navigation limited</div>
-          <div>{notice}</div>
-        </div>
-      ) : (
-        <div data-testid="lineage-notice" />
-      )}
-      <div data-testid="lineage-overrides">
-        {Object.keys(linkedRecordUnavailableOverrides).sort().join(",")}
-      </div>
-      <button onClick={() => onOpenAsset("main.sales.customers")} type="button">
-        Open linked asset
+vi.mock("../hooks/useAssetDetail", () => ({ useAssetDetail: vi.fn() }));
+vi.mock("../hooks/useAssetSearch", () => ({ useAssetSearch: vi.fn() }));
+vi.mock("../hooks/useSeededAssetContext", () => ({ useSeededAssetContext: vi.fn() }));
+vi.mock("./lineage-v2/useLineageGraphV2", () => ({ useLineageGraphV2: vi.fn() }));
+vi.mock("./lineage-v2/LineageCanvasV2", () => ({
+  LineageCanvasV2: ({ focusId, onFocusChange, graph }) => (
+    <div data-testid="canvas-v2">
+      <span>focus={focusId}</span>
+      <span>nodes={graph?.nodes?.length || 0}</span>
+      <button data-testid="canvas-pick-upstream" onClick={() => onFocusChange("a.b.upstream")} type="button">
+        click upstream
       </button>
     </div>
   ),
 }));
 
-vi.mock("../lib/assetRecordNavigation", () => ({
-  openAssetRecordSafely: (...args) => openAssetRecordSafelyMock(...args),
-}));
+import LineageWorkspace from "./LineageWorkspace";
+import { useAssetDetail } from "../hooks/useAssetDetail";
+import { useAssetSearch } from "../hooks/useAssetSearch";
+import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
+import { useLineageGraphV2 } from "./lineage-v2/useLineageGraphV2";
 
-vi.mock("../lib/workspaceIntent", () => ({
-  consumeWorkspaceIntent: (...args) => consumeWorkspaceIntentMock(...args),
-  peekWorkspaceIntent: (...args) => peekWorkspaceIntentMock(...args),
-  setWorkspaceIntent: (...args) => setWorkspaceIntentMock(...args),
-}));
-
-const asset = {
-  fqn: "main.sales.orders",
-  name: "orders",
-  catalog: "main",
-  schema: "sales",
+const baseBootstrap = {
+  capabilities: { tableLineage: { available: true, state: "available" } },
+  featureFlags: [{ key: "table_lineage_surface", enabled: true }],
 };
+const baseRuntimeFeatureFlags = [{ key: "table_lineage_surface", enabled: true }];
+const baseWorkspaceAccess = { canUseLineage: true, mode: "obo-available" };
 
-const secondAsset = {
-  ...asset,
-  fqn: "main.sales.returns",
-  name: "returns",
-};
+beforeEach(() => {
+  useAssetDetail.mockReset();
+  useAssetSearch.mockReset();
+  useSeededAssetContext.mockReset();
+  useLineageGraphV2.mockReset();
+  useAssetDetail.mockReturnValue({ detail: null, loading: false, error: "" });
+  useAssetSearch.mockReturnValue({ assets: [], loading: false, resolvedQuery: "" });
+  useSeededAssetContext.mockReturnValue({ summary: null });
+  useLineageGraphV2.mockReturnValue({
+    focus: null,
+    nodes: [],
+    edges: [],
+    columnEdges: [],
+    hydrating: false,
+    loading: false,
+    error: "",
+    meta: null,
+    refresh: () => null,
+  });
+});
 
-const lineageUnavailableReason = "Lineage is disabled in this workspace.";
-const fullWorkspaceAccess = {
-  mode: "obo-available",
-  observedAt: "2026-04-16T00:00:00Z",
-  canUseLineage: true,
-  gates: [],
-};
+describe("LineageWorkspace (v2)", () => {
+  it("renders the empty-state hero when no asset is selected", () => {
+    render(
+      <LineageWorkspace
+        bootstrap={baseBootstrap}
+        workspaceAccess={baseWorkspaceAccess}
+      />,
+    );
+    expect(screen.getByText("Trace the path of any governed asset")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Search for an asset")).toBeTruthy();
+    expect(screen.getByText("Node types")).toBeTruthy();
+  });
 
-function bootstrapPayload() {
-  return {
-    assets: [asset],
-    capabilities: {
-      tableLineage: {
-        available: false,
-        state: "unavailable",
-        reason: lineageUnavailableReason,
-      },
-    },
-  };
-}
+  it("offers asset suggestions in the empty-state search", () => {
+    useAssetSearch.mockReturnValue({
+      assets: [{ fqn: "a.b.c", name: "c", catalogName: "a", schemaName: "b" }],
+      loading: false,
+      resolvedQuery: "c",
+    });
+    const onRouteAssetChange = vi.fn();
+    render(
+      <LineageWorkspace
+        bootstrap={baseBootstrap}
+        onRouteAssetChange={onRouteAssetChange}
+        workspaceAccess={baseWorkspaceAccess}
+      />,
+    );
+    fireEvent.click(screen.getByText("c"));
+    expect(onRouteAssetChange).toHaveBeenCalledWith("a.b.c", "Data Lineage");
+  });
 
-describe("LineageWorkspace", () => {
-  beforeEach(() => {
-    useAssetDetailMock.mockReset();
-    useAssetSearchMock.mockReset();
-    useLineageMock.mockReset();
-    useSeededAssetContextMock.mockReset();
-    peekWorkspaceIntentMock.mockReset();
-    consumeWorkspaceIntentMock.mockReset();
-    setWorkspaceIntentMock.mockReset();
-
-    useAssetDetailMock.mockReturnValue({
-      detail: asset,
+  it("renders the v2 canvas + hero when an asset is focused", () => {
+    useLineageGraphV2.mockReturnValue({
+      focus: { id: "f", fqn: "a.b.focus", label: "focus", subtitle: "a / b" },
+      nodes: [{ id: "f", fqn: "a.b.focus", isFocus: true, label: "focus" }],
+      edges: [],
+      columnEdges: [],
+      hydrating: false,
       loading: false,
       error: "",
+      meta: null,
+      refresh: () => null,
     });
-    useAssetSearchMock.mockReturnValue({
-      assets: [],
-      loading: false,
-      resolvedQuery: "",
-    });
-    useLineageMock.mockReturnValue({
-      authoritative: false,
-      provisional: false,
-      loading: false,
-      error: "",
-      graph: null,
-      payload: null,
-    });
-    useSeededAssetContextMock.mockReturnValue({
-      summary: asset,
-    });
-    peekWorkspaceIntentMock.mockReturnValue("Data Lineage");
-    consumeWorkspaceIntentMock.mockReturnValue("Data Lineage");
-  });
-
-  it("shows a truthful unavailable panel when table lineage is unavailable", () => {
     render(
       <LineageWorkspace
-        bootstrap={bootstrapPayload()}
-        contextSeedAssets={[asset]}
-        initialAssetFqn={asset.fqn}
-        onNavigationStateChange={() => {}}
-        onOpenAsset={() => {}}
-        onOpenGovernance={() => {}}
-        onRouteAssetChange={() => {}}
-        onSurfaceReady={() => {}}
+        bootstrap={baseBootstrap}
+        initialAssetFqn="a.b.focus"
+        runtimeFeatureFlags={baseRuntimeFeatureFlags}
+        workspaceAccess={baseWorkspaceAccess}
       />,
     );
-
-    expect(screen.getByText("Lineage Unavailable")).not.toBeNull();
-    expect(screen.getByText(lineageUnavailableReason)).not.toBeNull();
-    expect(screen.getByRole("button", { name: "Open metadata record" })).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false, { fullProfile: true });
+    expect(screen.getByTestId("canvas-v2")).toBeTruthy();
+    expect(screen.getByText("focus=a.b.focus")).toBeTruthy();
+    expect(screen.getByText("nodes=1")).toBeTruthy();
   });
 
-  it("fetches focused lineage through transient warehouse warmup instead of blocking the route", () => {
-    render(
-      <LineageWorkspace
-        bootstrap={{
-          assets: [asset],
-          capabilities: {
-            tableLineage: {
-              available: false,
-              state: "unavailable",
-              reason:
-                "Warming the Databricks SQL warehouse. Serverless warehouses take 30-90 seconds to start after idle; capabilities will hydrate automatically.",
-            },
-          },
-        }}
-        contextSeedAssets={[asset]}
-        initialAssetFqn={asset.fqn}
-        onNavigationStateChange={() => {}}
-        onOpenAsset={() => {}}
-        onOpenGovernance={() => {}}
-        onRouteAssetChange={() => {}}
-        onSurfaceReady={() => {}}
-      />,
-    );
-
-    expect(screen.queryByText("Lineage Unavailable")).toBeNull();
-    expect(screen.getByTestId("lineage-stage")).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, true, { fullProfile: true });
-  });
-
-  it("shows a truthful unavailable panel when the lineage rollout is disabled", () => {
-    render(
-      <LineageWorkspace
-        bootstrap={{
-          assets: [asset],
-          capabilities: {
-            tableLineage: {
-              available: true,
-              state: "available",
-              reason: "",
-            },
-          },
-        }}
-        contextSeedAssets={[asset]}
-        initialAssetFqn={asset.fqn}
-        onNavigationStateChange={() => {}}
-        onOpenAsset={() => {}}
-        onOpenGovernance={() => {}}
-        onRouteAssetChange={() => {}}
-        onSurfaceReady={() => {}}
-        runtimeFeatureFlags={[
-          {
-            key: "table_lineage_surface",
-            enabled: false,
-            state: "unavailable",
-            unavailableReason: "Table lineage rollout is disabled in this workspace.",
-          },
-        ]}
-        workspaceAccess={fullWorkspaceAccess}
-      />,
-    );
-
-    expect(screen.getByText("Lineage Unavailable")).not.toBeNull();
-    expect(screen.getByText("Table lineage rollout is disabled in this workspace.")).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false, { fullProfile: true });
-  });
-
-  it("opens the lineage surface from bootstrap capabilities while workspace access resolves", () => {
-    render(
-      <LineageWorkspace
-        bootstrap={{
-          assets: [asset],
-          capabilities: {
-            tableLineage: {
-              available: true,
-              state: "available",
-              reason: "",
-            },
-          },
-        }}
-        contextSeedAssets={[asset]}
-        initialAssetFqn={asset.fqn}
-        onNavigationStateChange={() => {}}
-        onOpenAsset={() => {}}
-        onOpenGovernance={() => {}}
-        onRouteAssetChange={() => {}}
-        onSurfaceReady={() => {}}
-        runtimeFeatureFlags={[
-          {
-            key: "table_lineage_surface",
-            enabled: true,
-            state: "available",
-          },
-        ]}
-      />,
-    );
-
-    expect(screen.queryByText("Resolving live lineage access...")).toBeNull();
-    expect(screen.getByTestId("lineage-stage")).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, true, { fullProfile: true });
-  });
-
-  it("keeps the empty Lineage surface usable as an asset search even before lineage gates resolve", () => {
-    render(
-      <LineageWorkspace
-        bootstrap={bootstrapPayload()}
-        contextSeedAssets={[asset]}
-        initialAssetFqn=""
-        onNavigationStateChange={() => {}}
-        onOpenAsset={() => {}}
-        onOpenGovernance={() => {}}
-        onRouteAssetChange={() => {}}
-        onSurfaceReady={() => {}}
-      />,
-    );
-
-    expect(screen.getByTestId("lineage-stage")).not.toBeNull();
-    expect(screen.getByText("Search for an asset and open the graph directly from there.")).not.toBeNull();
-    expect(screen.queryByText("Lineage Unavailable")).toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith("", false, { fullProfile: true });
-  });
-
-  it("fails closed when the lineage rollout flag is missing", () => {
-    render(
-      <LineageWorkspace
-        bootstrap={{
-          assets: [asset],
-          capabilities: {
-            tableLineage: {
-              available: true,
-              state: "available",
-              reason: "",
-            },
-          },
-        }}
-        contextSeedAssets={[asset]}
-        initialAssetFqn={asset.fqn}
-        onNavigationStateChange={() => {}}
-        onOpenAsset={() => {}}
-        onOpenGovernance={() => {}}
-        onRouteAssetChange={() => {}}
-        onSurfaceReady={() => {}}
-        runtimeFeatureFlags={[]}
-        workspaceAccess={fullWorkspaceAccess}
-      />,
-    );
-
-    expect(screen.getByText("Lineage Unavailable")).not.toBeNull();
-    expect(
-      screen.getByText("Table lineage rollout is not available in this workspace right now."),
-    ).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false, { fullProfile: true });
-  });
-
-  it("fails closed when workspace access blocks lineage despite available capability and rollout", () => {
-    render(
-      <LineageWorkspace
-        bootstrap={{
-          assets: [asset],
-          capabilities: {
-            tableLineage: {
-              available: true,
-              state: "available",
-              reason: "",
-            },
-          },
-        }}
-        contextSeedAssets={[asset]}
-        initialAssetFqn={asset.fqn}
-        onNavigationStateChange={() => {}}
-        onOpenAsset={() => {}}
-        onOpenGovernance={() => {}}
-        onRouteAssetChange={() => {}}
-        onSurfaceReady={() => {}}
-        runtimeFeatureFlags={[
-          {
-            key: "table_lineage_surface",
-            enabled: true,
-            state: "available",
-          },
-        ]}
-        workspaceAccess={{
-          ...fullWorkspaceAccess,
-          canUseLineage: false,
-          gates: [
-            {
-              key: "table_lineage",
-              reason: "Lineage is blocked by workspace access.",
-            },
-          ],
-        }}
-      />,
-    );
-
-    expect(screen.getByText("Lineage Unavailable")).not.toBeNull();
-    expect(screen.getByText("Lineage is blocked by workspace access.")).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false, { fullProfile: true });
-  });
-
-  it("opens live lineage without passing the seeded bootstrap graph into useLineage", () => {
-    render(
-      <LineageWorkspace
-        bootstrap={{
-          assets: [asset],
-          capabilities: {
-            tableLineage: {
-              available: true,
-              state: "available",
-              reason: "",
-            },
-          },
-        }}
-        contextSeedAssets={[asset]}
-        initialAssetFqn={asset.fqn}
-        onNavigationStateChange={() => {}}
-        onOpenAsset={() => {}}
-        onOpenGovernance={() => {}}
-        onRouteAssetChange={() => {}}
-        onSurfaceReady={() => {}}
-        runtimeFeatureFlags={[
-          {
-            key: "table_lineage_surface",
-            enabled: true,
-            state: "available",
-          },
-        ]}
-        workspaceAccess={{
-          canUseLineage: true,
-          gates: [],
-        }}
-      />,
-    );
-
-    expect(useSeededAssetContextMock).toHaveBeenCalledWith(
-      asset.fqn,
-      expect.any(Object),
-      [asset],
-      { allowFallback: false },
-    );
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, true, { fullProfile: true });
-  });
-
-  it("remembers a denied lineage open until the focused asset changes", async () => {
-    openAssetRecordSafelyMock.mockImplementation((assetFqn, options = {}) => {
-      if (assetFqn === "main.sales.customers") {
-        options.onUnavailable?.({
-          availability: {
-            visible: false,
-            exists: false,
-            openable: false,
-          },
-          detail: null,
-        });
-        return Promise.resolve(false);
-      }
-      options.onOpen?.(assetFqn, {});
-      return Promise.resolve(true);
-    });
-    useAssetDetailMock.mockImplementation((assetFqn) => ({
-      detail: assetFqn === secondAsset.fqn ? secondAsset : asset,
+  it("propagates canvas onFocusChange through onRouteAssetChange", () => {
+    useLineageGraphV2.mockReturnValue({
+      focus: { id: "f", fqn: "a.b.focus" },
+      nodes: [{ id: "f", fqn: "a.b.focus" }],
+      edges: [],
+      columnEdges: [],
+      hydrating: false,
       loading: false,
       error: "",
-    }));
-    useSeededAssetContextMock.mockImplementation((assetFqn) => ({
-      summary: assetFqn === secondAsset.fqn ? secondAsset : asset,
-    }));
-    useLineageMock.mockReturnValue({
-      authoritative: true,
-      provisional: false,
-      loading: false,
-      error: "",
-      graph: {
-        data: {
-          nodes: [
-            {
-              id: "focus",
-              assetFqn: asset.fqn,
-              kind: "Table",
-              label: "orders",
-              role: "focus",
-              subtitle: asset.fqn,
-            },
-            {
-              id: "customer",
-              assetFqn: "main.sales.customers",
-              kind: "Table",
-              label: "customers",
-              role: "source",
-              subtitle: "main.sales.customers",
-            },
-          ],
-          edges: [
-            {
-              id: "customer-focus",
-              source: "customer",
-              target: "focus",
-              data: {
-                kind: "Lineage",
-              },
-            },
-          ],
-        },
-        operational: {
-          nodes: [],
-          edges: [],
-        },
-      },
-      payload: null,
+      meta: null,
+      refresh: () => null,
     });
-
-    const { rerender } = render(
+    const onRouteAssetChange = vi.fn();
+    render(
       <LineageWorkspace
-        bootstrap={{
-          assets: [asset],
-          capabilities: {
-            tableLineage: {
-              available: true,
-              state: "available",
-              reason: "",
-            },
-          },
-        }}
-        contextSeedAssets={[asset]}
-        initialAssetFqn={asset.fqn}
-        onNavigationStateChange={() => {}}
-        onOpenAsset={() => {}}
-        onOpenGovernance={() => {}}
-        onRouteAssetChange={() => {}}
-        onSurfaceReady={() => {}}
-        runtimeFeatureFlags={[
-          {
-            key: "table_lineage_surface",
-            enabled: true,
-            state: "available",
-          },
-        ]}
-        workspaceAccess={{
-          canUseLineage: true,
-          gates: [],
-        }}
+        bootstrap={baseBootstrap}
+        initialAssetFqn="a.b.focus"
+        onRouteAssetChange={onRouteAssetChange}
+        runtimeFeatureFlags={baseRuntimeFeatureFlags}
+        workspaceAccess={baseWorkspaceAccess}
       />,
     );
+    fireEvent.click(screen.getByTestId("canvas-pick-upstream"));
+    expect(onRouteAssetChange).toHaveBeenCalledWith("a.b.upstream", "Data Lineage");
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: "Open linked asset" }));
-
-    await waitFor(() => {
-      expect(screen.getByText("Navigation limited")).not.toBeNull();
-      expect(
-        screen.getByText(
-          "That lineage-linked asset is visible in the graph, but its metadata record is not openable with the current permissions.",
-        ),
-      ).not.toBeNull();
-      expect(screen.getByTestId("lineage-overrides").textContent).toContain("main.sales.customers");
-    });
-
-    rerender(
+  it("shows the unavailable error state when lineage surface is gated off", () => {
+    render(
       <LineageWorkspace
-        bootstrap={{
-          assets: [secondAsset],
-          capabilities: {
-            tableLineage: {
-              available: true,
-              state: "available",
-              reason: "",
-            },
-          },
-        }}
-        contextSeedAssets={[secondAsset]}
-        initialAssetFqn={secondAsset.fqn}
-        onNavigationStateChange={() => {}}
-        onOpenAsset={() => {}}
-        onOpenGovernance={() => {}}
-        onRouteAssetChange={() => {}}
-        onSurfaceReady={() => {}}
-        runtimeFeatureFlags={[
-          {
-            key: "table_lineage_surface",
-            enabled: true,
-            state: "available",
-          },
-        ]}
-        workspaceAccess={{
-          canUseLineage: true,
-          gates: [],
-        }}
+        bootstrap={{ capabilities: { tableLineage: { available: false, reason: "Not granted" } } }}
+        initialAssetFqn="a.b.focus"
+        workspaceAccess={baseWorkspaceAccess}
       />,
     );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("lineage-notice").textContent).toBe("");
-      expect(screen.getByTestId("lineage-overrides").textContent).toBe("");
-    });
+    expect(screen.getByText("Lineage unavailable")).toBeTruthy();
   });
 });
