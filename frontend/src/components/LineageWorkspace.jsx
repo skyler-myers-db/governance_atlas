@@ -343,7 +343,12 @@ export default function LineageWorkspace({
     allowFallback: false,
   });
   const assetDetail = useAssetDetail(focusAssetFqn || "", { sections: ["header"] });
-  const lineageEnabled = lineageSurfaceAvailable || (Boolean(focusAssetFqn) && (!workspaceAccessResolved || workspaceLineageAvailable));
+  // Always try to fetch when we have a focused asset — bootstrap can
+  // under-report capability (e.g. when its workspace-wide check hasn't
+  // hydrated) even though /api/lineage will return real edges. The API
+  // itself is the authoritative source of "is this asset openable"; we
+  // gate the canvas on bootstrap only as a fallback when we have nothing.
+  const lineageEnabled = Boolean(focusAssetFqn);
 
   const graph = useLineageGraphV2(focusAssetFqn || "", { enabled: lineageEnabled });
   const asset =
@@ -414,7 +419,14 @@ export default function LineageWorkspace({
     );
   }
 
-  if (!lineageSurfaceAvailable) {
+  // Bootstrap can report lineage "unavailable" (e.g. "No lineage-observed
+  // catalogs are detected yet") for an asset that the live /api/lineage
+  // endpoint *does* return real edges for — the capability check uses a
+  // narrower workspace-wide signal than the per-asset query. So if we
+  // actually have nodes back from the API, render the canvas regardless
+  // of bootstrap pessimism. Only block when both capability is off AND
+  // the API returned nothing.
+  if (!lineageSurfaceAvailable && !graph.nodes.length) {
     return (
       <section className="gh-lineage-shell">
         <LineageHero

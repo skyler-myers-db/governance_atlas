@@ -604,7 +604,18 @@ function Asset360Hero({
       <div className="ga-asset360-chip-row">
         {criticality ? <span className="ga-asset360-chip tone-critical">{criticality}</span> : null}
         {sensitivity ? <span className="ga-asset360-chip tone-sensitive">{sensitivity}</span> : null}
-        {domain ? <span className="ga-asset360-kv-chip"><span>Domain</span><strong>{domain}</strong></span> : null}
+        {domain && domain !== "Unassigned" ? (
+          <a
+            className="ga-asset360-kv-chip is-link"
+            href={`/discovery?domain=${encodeURIComponent(domain)}`}
+            title={`See all assets in the ${domain} domain`}
+          >
+            <span>Domain</span>
+            <strong>{domain}</strong>
+          </a>
+        ) : domain ? (
+          <span className="ga-asset360-kv-chip"><span>Domain</span><strong>{domain}</strong></span>
+        ) : null}
         {dataProduct ? <span className="ga-asset360-kv-chip"><span>Data Product</span><strong>{dataProduct}</strong></span> : null}
       </div>
     </header>

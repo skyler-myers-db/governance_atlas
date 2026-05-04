@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import dagre from "dagre";
 import {
   Background,
   Controls,
@@ -14,12 +15,12 @@ import { LineageNodeCard } from "./LineageNodeCard";
 /**
  * LineageCanvasV2 — design-faithful lineage canvas built on React Flow.
  *
- * Replaces the legacy band-based NorthStarLineageExplorer for the v2 surface.
- * Layout is BFS-from-focus column distance (NOT medallion / NOT fixed
- * 5-band slots), so the canvas adapts cleanly to graphs of any depth and
- * any branching factor. Each column's width is derived from its node count
- * and longest label so dense fan-in/fan-out gets breathing room while
- * sparse columns stay tight.
+ * Layout is dagre-driven (Sugiyama / layered DAG) with rankdir = LR so
+ * upstream nodes always sit to the LEFT of focus and downstream nodes
+ * always sit to the RIGHT. Multi-parent / multi-child topologies route
+ * cleanly without overlapping siblings. Ranks are stable across re-anchors
+ * because dagre considers the entire returned graph and assigns each
+ * node a deterministic rank from edge structure.
  *
  * Interaction:
  *   wheel = zoom only (React Flow handles the preventDefault for us)
@@ -32,95 +33,58 @@ import { LineageNodeCard } from "./LineageNodeCard";
  * graph viewport like the legacy `.ga-lineage-canvas-tools` did.
  */
 
-const NODE_COLUMN_GAP = 280; // horizontal pixel gap between BFS hop columns
-const NODE_ROW_GAP = 36; // vertical gap between sibling nodes in the same column
+const NODE_WIDTH = 240;
 const NODE_HEIGHT_COMPACT = 96;
 const NODE_HEIGHT_TALL = 230;
+const RANK_SEP = 110; // horizontal gap between dagre ranks (pixels)
+const NODE_SEP = 22; // vertical gap between siblings in the same rank (pixels)
+const EDGE_SEP = 18;
 
 // ---------------------------------------------------------------------------
-// BFS layout: assign each node a column = signed hop distance from focus,
-// then position siblings within each column. The y position centers
-// vertically per column. Nodes that aren't reachable from focus (orphans
-// in the returned graph) get column=0 and are stacked next to focus —
-// rare in practice because the API constructs the graph by walking
-// outward from focus, but kept honest for safety.
+// Dagre layout: feed the entire (nodes, edges) set into a directed graph
+// with rankdir = LR (left-to-right). Dagre handles multi-parent + multi-child
+// topologies by assigning each node a stable rank based on longest path and
+// minimizing edge crossings. The resulting positions are absolute pixel
+// coords we hand straight to React Flow.
 // ---------------------------------------------------------------------------
-function computeBfsLayout(nodes, edges, focusId) {
-  if (!nodes.length) return { positions: new Map(), columns: new Map() };
-  const adjacencyOut = new Map();
-  const adjacencyIn = new Map();
+function computeDagreLayout(nodes, edges) {
+  if (!nodes.length) return new Map();
+  const g = new dagre.graphlib.Graph({ multigraph: false, compound: false });
+  g.setGraph({
+    rankdir: "LR",
+    ranksep: RANK_SEP,
+    nodesep: NODE_SEP,
+    edgesep: EDGE_SEP,
+    marginx: 24,
+    marginy: 24,
+  });
+  g.setDefaultEdgeLabel(() => ({}));
+
+  nodes.forEach((node) => {
+    g.setNode(node.id, {
+      width: NODE_WIDTH,
+      height: nodeIsTall(node) ? NODE_HEIGHT_TALL : NODE_HEIGHT_COMPACT,
+    });
+  });
+
   edges.forEach((edge) => {
-    if (!adjacencyOut.has(edge.source)) adjacencyOut.set(edge.source, []);
-    if (!adjacencyIn.has(edge.target)) adjacencyIn.set(edge.target, []);
-    adjacencyOut.get(edge.source).push(edge.target);
-    adjacencyIn.get(edge.target).push(edge.source);
-  });
-  const hop = new Map();
-  if (focusId) hop.set(focusId, 0);
-  // Walk upstream (negative hops)
-  let frontier = focusId ? [focusId] : [];
-  while (frontier.length) {
-    const next = [];
-    frontier.forEach((id) => {
-      (adjacencyIn.get(id) || []).forEach((parent) => {
-        if (!hop.has(parent)) {
-          hop.set(parent, hop.get(id) - 1);
-          next.push(parent);
-        }
-      });
-    });
-    frontier = next;
-  }
-  // Walk downstream (positive hops)
-  frontier = focusId ? [focusId] : [];
-  while (frontier.length) {
-    const next = [];
-    frontier.forEach((id) => {
-      (adjacencyOut.get(id) || []).forEach((child) => {
-        if (!hop.has(child)) {
-          hop.set(child, hop.get(id) + 1);
-          next.push(child);
-        }
-      });
-    });
-    frontier = next;
-  }
-  // Orphans
-  nodes.forEach((node) => {
-    if (!hop.has(node.id)) hop.set(node.id, 0);
+    if (!g.hasNode(edge.source) || !g.hasNode(edge.target)) return;
+    g.setEdge(edge.source, edge.target);
   });
 
-  // Group by column
-  const columns = new Map();
-  nodes.forEach((node) => {
-    const col = hop.get(node.id);
-    if (!columns.has(col)) columns.set(col, []);
-    columns.get(col).push(node);
-  });
+  dagre.layout(g);
 
-  // Sort each column by label so layout is stable across renders
-  for (const [, column] of columns) {
-    column.sort((a, b) => String(a.label).localeCompare(String(b.label)));
-  }
-
-  // Position: column index 0 = focus column at x=0; negative columns to the
-  // left (upstream), positive columns to the right (downstream).
   const positions = new Map();
-  for (const [col, columnNodes] of columns) {
-    const colHeight = columnNodes.reduce((acc, node) => {
-      return acc + (nodeIsTall(node) ? NODE_HEIGHT_TALL : NODE_HEIGHT_COMPACT) + NODE_ROW_GAP;
-    }, -NODE_ROW_GAP);
-    let cursor = -colHeight / 2;
-    columnNodes.forEach((node) => {
-      const height = nodeIsTall(node) ? NODE_HEIGHT_TALL : NODE_HEIGHT_COMPACT;
-      positions.set(node.id, {
-        x: col * NODE_COLUMN_GAP,
-        y: cursor,
-      });
-      cursor += height + NODE_ROW_GAP;
+  nodes.forEach((node) => {
+    const layoutNode = g.node(node.id);
+    if (!layoutNode) return;
+    // dagre returns center positions; React Flow expects top-left.
+    positions.set(node.id, {
+      x: layoutNode.x - NODE_WIDTH / 2,
+      y: layoutNode.y - (nodeIsTall(node) ? NODE_HEIGHT_TALL : NODE_HEIGHT_COMPACT) / 2,
     });
-  }
-  return { positions, columns, hop };
+  });
+  return positions;
 }
 
 function nodeIsTall(node) {
@@ -195,9 +159,21 @@ function CanvasInner({
 }) {
   const reactFlow = useReactFlow();
   const [hoveredNodeId, setHoveredNodeId] = useState("");
+  // Retain the previously rendered nodes/edges across focus switches so
+  // the canvas doesn't blank-flash while the new query is in flight. The
+  // moment the new graph arrives with nodes, we adopt it; until then we
+  // continue rendering the prior topology with a subtle "Switching focus"
+  // banner instead of the full hydrating state.
+  const [stickyGraph, setStickyGraph] = useState({ nodes: graph.nodes, edges: graph.edges });
+  useEffect(() => {
+    if (graph.nodes.length) {
+      setStickyGraph({ nodes: graph.nodes, edges: graph.edges });
+    }
+  }, [graph.nodes, graph.edges]);
 
-  const nodesArray = graph.nodes;
-  const edgesArray = graph.edges;
+  const useSticky = !graph.nodes.length && stickyGraph.nodes.length > 0;
+  const nodesArray = useSticky ? stickyGraph.nodes : graph.nodes;
+  const edgesArray = useSticky ? stickyGraph.edges : graph.edges;
   const adjacency = useMemo(() => buildAdjacency(edgesArray), [edgesArray]);
   const tracedNodeIds = useMemo(() => tracedSubgraph(adjacency, hoveredNodeId), [adjacency, hoveredNodeId]);
 
@@ -213,9 +189,9 @@ function CanvasInner({
     [focusId, onFocusChange],
   );
 
-  const layout = useMemo(
-    () => computeBfsLayout(nodesArray, edgesArray, focusId || graph.focus?.fqn),
-    [nodesArray, edgesArray, focusId, graph.focus?.fqn],
+  const positions = useMemo(
+    () => computeDagreLayout(nodesArray, edgesArray),
+    [nodesArray, edgesArray],
   );
 
   // React Flow expects { id, position, data, type } for nodes and
@@ -224,7 +200,7 @@ function CanvasInner({
   // through `data` without the parent re-mounting React Flow.
   const flowNodes = useMemo(() => {
     return nodesArray.map((node) => {
-      const position = layout.positions.get(node.id) || { x: 0, y: 0 };
+      const position = positions.get(node.id) || { x: 0, y: 0 };
       const isFocus = node.isFocus;
       const isHovered = hoveredNodeId === node.id;
       const isTraced = !hoveredNodeId || tracedNodeIds.has(node.id);
@@ -247,7 +223,7 @@ function CanvasInner({
         draggable: false,
       };
     });
-  }, [nodesArray, layout, hoveredNodeId, tracedNodeIds, handleNodeClick]);
+  }, [nodesArray, positions, hoveredNodeId, tracedNodeIds, handleNodeClick]);
 
   const focusReactFlowId = graph.focus?.id;
   const flowEdges = useMemo(() => {
@@ -325,10 +301,10 @@ function CanvasInner({
 
   return (
     <div className="ga-lineage-v2-canvas">
-      {hydrating ? (
+      {hydrating || useSticky ? (
         <div className="ga-lineage-v2-canvas-banner" role="status">
           <span aria-hidden="true" className="ga-lineage-v2-canvas-spinner" />
-          Hydrating from Unity Catalog…
+          {useSticky ? "Switching focus…" : "Hydrating from Unity Catalog…"}
         </div>
       ) : null}
       <ReactFlow

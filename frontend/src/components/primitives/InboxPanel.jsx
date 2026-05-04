@@ -3,6 +3,11 @@ import { humanizeStatusLabel, inboxStatusLabel, inboxStatusTone } from "./shellS
 export function InboxPanel({
   governanceInbox,
   onInboxItemAction,
+  // When mounted inside the dedicated /inbox page (InboxPage already
+  // renders its own page-level header) the panel's internal head row is
+  // a duplicate. Setting this true suppresses the internal head so the
+  // page only shows one Inbox title.
+  hideHeader = false,
 }) {
   const inboxItems = Array.isArray(governanceInbox?.items) ? governanceInbox.items : [];
   const inboxUnreadCount = Number.isFinite(Number(governanceInbox?.unreadCount))
@@ -17,18 +22,20 @@ export function InboxPanel({
 
   return (
     <section className="gh-panel gh-shell-inbox-panel" aria-label="Governance inbox">
-      <div className="gh-shell-inbox-head">
-        <div className="gh-shell-inbox-title-block">
-          <div className="gh-panel-title">Inbox</div>
-          <div className="gh-support-copy">{inboxMessage}</div>
+      {hideHeader ? null : (
+        <div className="gh-shell-inbox-head">
+          <div className="gh-shell-inbox-title-block">
+            <div className="gh-panel-title">Inbox</div>
+            <div className="gh-support-copy">{inboxMessage}</div>
+          </div>
+          <div className="gh-shell-inbox-head-meta">
+            <span className={`gh-chip gh-chip-status tone-${inboxTone}`}>{inboxLabel}</span>
+            <span className="gh-shell-inbox-count">
+              {inboxUnreadCount > 0 ? `${inboxUnreadCount} unread` : "No unread items"}
+            </span>
+          </div>
         </div>
-        <div className="gh-shell-inbox-head-meta">
-          <span className={`gh-chip gh-chip-status tone-${inboxTone}`}>{inboxLabel}</span>
-          <span className="gh-shell-inbox-count">
-            {inboxUnreadCount > 0 ? `${inboxUnreadCount} unread` : "No unread items"}
-          </span>
-        </div>
-      </div>
+      )}
       {inboxItems.length ? (
         <div className="gh-shell-inbox-list">
           {inboxItems.map((item, index) => {

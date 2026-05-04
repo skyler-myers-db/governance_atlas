@@ -35,6 +35,7 @@ export function InboxPage({ bootState = "live", governanceInbox, onInboxItemActi
       <InboxPanel
         governanceInbox={governanceInbox}
         onInboxItemAction={onInboxItemAction}
+        hideHeader
       />
     </section>
   );

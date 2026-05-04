@@ -108,7 +108,7 @@ function normalizeNode(rawNode, focusFqn) {
   ).trim();
   if (!fqn && !rawNode.id) return null;
   const id = String(rawNode.id || fqn).trim();
-  const role = String(rawNode.role || rawNode.kind || "").toLowerCase();
+  const role = String(rawNode.role || "").toLowerCase();
   const isFocus = role === "focus" || (focusFqn && fqn === focusFqn);
   const details = rawNode.details && typeof rawNode.details === "object" ? rawNode.details : {};
   const isOpenable =
@@ -121,17 +121,35 @@ function normalizeNode(rawNode, focusFqn) {
   const totalColumns = Number.isFinite(Number(rawNode.totalColumns))
     ? Number(rawNode.totalColumns)
     : columns.length;
+  // Lineage payload doesn't carry row count / freshness / owner data — those
+  // live on the asset detail endpoint, not on lineage system tables. So we
+  // pass through whatever the API gave us (typically null) and let the card
+  // render the API-provided `foot` strings instead of "Metadata pending"
+  // when we have nothing to derive.
   const rowCount = compactNumber(
     rawNode.rowCount ?? rawNode.rows ?? details.rows ?? details.rowCount,
   );
   const freshnessRaw = rawNode.freshness || rawNode.lastRefresh || details.freshness || details.lastRefresh || "";
   const freshness = relativeTime(freshnessRaw) || String(freshnessRaw || "").trim();
+  // The lineage API ships per-node pre-formatted `foot` strings (e.g.
+  // ["Table"], ["Metadata unavailable", "Metadata record unavailable"])
+  // and a `kicker` for the eyebrow tag (e.g. "Focus", "Upstream",
+  // "Downstream"). The legacy renderer used these directly and that's
+  // honest — we don't know rows / freshness / owners from system.access.*.
+  const footRaw = Array.isArray(rawNode.foot)
+    ? rawNode.foot.map((entry) => String(entry || "").trim()).filter(Boolean)
+    : [];
+  const kicker = String(rawNode.kicker || "").trim();
+  const apiKindRaw = String(rawNode.kind || details.kind || "").trim();
   return {
     id,
     fqn,
     label: rawNode.label || compactName(fqn) || id,
     subtitle: rawNode.subtitle || compactPath(fqn),
-    kind: normalizeKind(rawNode.kind || rawNode.type || details.kind),
+    kind: normalizeKind(apiKindRaw),
+    apiKind: apiKindRaw, // raw API kind ("Table", "View", "Lineage Reference") for honest display
+    kicker, // eyebrow ("Focus" | "Upstream" | "Downstream" | "")
+    foot: footRaw, // pre-formatted footer lines from the API
     role: isFocus ? "focus" : role || "peer",
     hop: Number.isFinite(Number(rawNode.depth ?? rawNode.hop ?? rawNode.distance))
       ? Number(rawNode.depth ?? rawNode.hop ?? rawNode.distance)
@@ -142,6 +160,9 @@ function normalizeNode(rawNode, focusFqn) {
       String(details.certification || rawNode.certification || "").toLowerCase().includes("certified"),
     classification: String(details.sensitivity || rawNode.classification || "").trim(),
     containsPii: Boolean(details.containsPii ?? rawNode.containsPii ?? false),
+    description: String(details.description || rawNode.description || "").trim(),
+    governanceStatus: String(details.governanceStatus || "").trim(),
+    domain: String(details.domain || "").trim(),
     rowCount,
     freshness,
     freshnessRaw,
