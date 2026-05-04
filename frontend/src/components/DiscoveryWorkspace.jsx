@@ -3692,9 +3692,27 @@ function SelectionPreview({
                 </div>
                 {governanceTags.length || terms.length ? (
                   <div className="gh-discovery-glossary-list">
-                    {governanceTags.slice(0, 5).map((tag) => (
-                      <span className="gh-labeled-pill gh-labeled-pill-tag" key={`tag-${tag}`}>{tag}</span>
-                    ))}
+                    {governanceTags.slice(0, 5).map((tag) => {
+                      // Split UC tag strings of the form "key=value" into a
+                      // visible key + value with a divider so they don't
+                      // smush together in the chip ("certificationCertified"
+                      // was the rendered bug). Falls back to the raw tag for
+                      // tags that aren't key=value shaped.
+                      const eqIndex = typeof tag === "string" ? tag.indexOf("=") : -1;
+                      if (eqIndex > 0 && eqIndex < tag.length - 1) {
+                        const tagKey = tag.slice(0, eqIndex);
+                        const tagValue = tag.slice(eqIndex + 1);
+                        return (
+                          <span className="gh-labeled-pill gh-labeled-pill-tag is-keyvalue" key={`tag-${tag}`}>
+                            <em className="gh-labeled-pill-key">{tagKey}</em>
+                            <strong className="gh-labeled-pill-value">{tagValue}</strong>
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="gh-labeled-pill gh-labeled-pill-tag" key={`tag-${tag}`}>{tag}</span>
+                      );
+                    })}
                     {terms.slice(0, 5).map((term) => (
                       <span className="gh-labeled-pill gh-labeled-pill-glossary" key={`term-${term}`}>{term}</span>
                     ))}

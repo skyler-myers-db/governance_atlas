@@ -5420,6 +5420,32 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   background: rgba(49, 133, 184, 0.2) !important;
 }
 
+/* Key=value tag rendering — splits the smushed "certificationCertified"
+   string into a clearly delimited [key | value] chip. */
+.gh-labeled-pill-tag.is-keyvalue {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 4px 1px 8px !important;
+  font-size: 0.72rem;
+}
+.gh-labeled-pill-tag.is-keyvalue .gh-labeled-pill-key {
+  font-style: normal;
+  font-weight: 600;
+  color: rgba(178, 189, 194, 0.85);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 0.62rem;
+}
+.gh-labeled-pill-tag.is-keyvalue .gh-labeled-pill-value {
+  font-weight: 700;
+  color: #cfefff;
+  background: rgba(8, 23, 42, 0.65);
+  padding: 1px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(102, 197, 255, 0.22);
+}
+
 .gh-discovery-preview-buildability p,
 .gh-discovery-preview-access-note {
   margin: 0;
@@ -7452,4 +7478,167 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 @media (prefers-reduced-motion: reduce) {
   .ga-ai-stage-plan-line { animation: none; opacity: 1; }
   .ga-ai-stage-caret { animation: none; }
+}
+
+/* ==========================================================================
+   GLOBAL DARK-THEME OVERRIDES — clean up legacy cream backgrounds
+   ==========================================================================
+   The legacy `app.css` carries 30+ rules with hardcoded #fff / #fdfaf1 /
+   #faf6ec / rgba(255,255,255,0.x) backgrounds inherited from the original
+   light cream theme. They were never re-tokened when the app shifted to
+   the Entrada dark navy palette, which is why the Inbox panel, Sort
+   dropdown, popovers, command palette, and various surface-rail panels
+   keep rendering as cream blocks against the dark shell.
+   This override block targets every offender at the SELECTOR level so
+   the dark theme actually wins the cascade. Anything new that surfaces
+   the same defect in the future should be added here rather than
+   patched component-by-component.
+   ========================================================================== */
+
+/* Shell header — was hardcoded #faf6ec !important */
+.gh-shell-header {
+  background: var(--ga-shell, #08172a) !important;
+  border-bottom: 1px solid rgba(20, 44, 70, 0.85) !important;
+}
+
+/* Generic .gh-panel — was light blue-grey border + soft shadow with no bg */
+.gh-panel,
+.gh-shell-inbox-panel {
+  background: linear-gradient(180deg, rgba(17, 44, 72, 0.92), rgba(8, 23, 42, 0.92)) !important;
+  border: 1px solid rgba(20, 44, 70, 0.85) !important;
+  color: var(--ga-text, #dce6ed) !important;
+}
+
+/* Inbox panel specifically — user-reported cream defect */
+.gh-shell-inbox-panel,
+.gh-shell-inbox-panel * {
+  color: var(--ga-text, #dce6ed);
+}
+.gh-shell-inbox-panel .gh-panel-title,
+.gh-shell-inbox-panel .gh-shell-inbox-title-block {
+  color: var(--ga-text-strong, #ffffff) !important;
+}
+.gh-shell-inbox-panel .gh-shell-inbox-empty,
+.gh-shell-inbox-panel .gh-shell-inbox-item-detail,
+.gh-shell-inbox-panel .gh-shell-inbox-item-meta,
+.gh-shell-inbox-panel .gh-shell-inbox-list,
+.gh-shell-inbox-panel .gh-support-copy,
+.gh-shell-inbox-panel p {
+  color: var(--ga-text-muted, #b2bdc2) !important;
+}
+
+/* Search dropdowns + filters popovers + command palette */
+.gh-search-dropdown,
+.gh-filters-popover,
+.gh-cmdk,
+.gh-discovery-result-row,
+.gh-entity-record-tabs,
+.gh-discovery-results.gh-surface-panel-section,
+.gh-surface-panel-section > .gh-surface-panel-section-head,
+.gh-surface-header,
+.gh-surface-header.is-featured,
+.gh-discovery-command-head,
+.gh-entity-hero,
+.gh-entity-record-section,
+.gh-governance-header,
+.gh-taxonomy-workspace .gh-empty-state,
+.gh-taxonomy-workspace .gh-empty-state-block,
+.gh-request-card,
+.gh-task-card.is-complete,
+.gh-shell-nav-band,
+.gh-lineage-edge-toggle {
+  background: linear-gradient(180deg, rgba(17, 44, 72, 0.92), rgba(8, 23, 42, 0.92)) !important;
+  color: var(--ga-text-strong, #ffffff) !important;
+  border-color: rgba(20, 44, 70, 0.85) !important;
+}
+
+/* Sort dropdown specifically — drops down from .gh-select / .gh-segment-button.
+   Catch the menu container by matching common dropdown wrappers. */
+.gh-sort-popover,
+.gh-sort-menu,
+.gh-select-menu,
+.gh-popover,
+.gh-popover-menu,
+.gh-floating-menu,
+[role="menu"],
+[role="listbox"] {
+  background: var(--ga-shell, #0c2138) !important;
+  border: 1px solid rgba(61, 132, 173, 0.32) !important;
+  color: var(--ga-text-strong, #ffffff) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(255, 255, 255, 0.04) inset !important;
+}
+[role="menu"] [role="menuitem"],
+[role="listbox"] [role="option"],
+.gh-select-menu button,
+.gh-popover button,
+.gh-popover [role="option"] {
+  background: transparent !important;
+  color: var(--ga-text, #dce6ed) !important;
+  border: 0 !important;
+}
+[role="menu"] [role="menuitem"]:hover,
+[role="menu"] [role="menuitem"][data-active="true"],
+[role="listbox"] [role="option"]:hover,
+[role="listbox"] [role="option"][aria-selected="true"],
+.gh-select-menu button:hover,
+.gh-popover button:hover {
+  background: rgba(61, 132, 173, 0.18) !important;
+  color: var(--ga-text-strong, #ffffff) !important;
+}
+
+/* Generic global-search input + plain inputs that were on white */
+.gh-global-search-input,
+.gh-input,
+input.gh-input,
+.gh-search-input,
+.gh-text-input {
+  background: rgba(8, 23, 42, 0.85) !important;
+  color: var(--ga-text-strong, #ffffff) !important;
+  border: 1px solid rgba(61, 132, 173, 0.32) !important;
+}
+.gh-global-search-input::placeholder,
+.gh-input::placeholder {
+  color: var(--ga-text-subtle, #7e8c97) !important;
+}
+.gh-global-search-input:focus,
+.gh-input:focus,
+.gh-input:focus-visible {
+  outline: none !important;
+  border-color: rgba(102, 197, 255, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(102, 197, 255, 0.18) !important;
+}
+
+/* Cards / metric tiles / preview stat cards — kill the cream gradients */
+.gh-preview-stat-card,
+.gh-preview-stat-card.gh-entity-metric-card.tone-warning,
+.gh-preview-stat-card.gh-entity-metric-card.tone-good,
+.gh-preview-stat-card.gh-entity-metric-card.tone-neutral,
+.gh-preview-stat-card.gh-entity-metric-card.tone-info {
+  background: rgba(8, 23, 42, 0.78) !important;
+  border-color: rgba(20, 44, 70, 0.85) !important;
+  color: var(--ga-text, #dce6ed) !important;
+}
+.gh-preview-stat-card .gh-eyebrow,
+.gh-preview-stat-card label {
+  color: var(--ga-text-subtle, #7e8c97) !important;
+}
+
+/* Discovery row hover backgrounds — catch white hover tints. */
+.gh-discovery-result-row:hover,
+.gh-search-dropdown .gh-search-result-row:hover {
+  background: rgba(61, 132, 173, 0.18) !important;
+}
+
+/* Buttons that were on a white surface — keep brand-cyan ghost styling */
+.gh-secondary-button,
+.gh-tertiary-button {
+  background: rgba(8, 23, 42, 0.78) !important;
+  color: var(--ga-text, #dce6ed) !important;
+  border-color: rgba(61, 132, 173, 0.32) !important;
+}
+.gh-secondary-button:hover,
+.gh-tertiary-button:hover {
+  background: rgba(61, 132, 173, 0.20) !important;
+  color: var(--ga-text-strong, #ffffff) !important;
+  border-color: rgba(102, 197, 255, 0.45) !important;
 }

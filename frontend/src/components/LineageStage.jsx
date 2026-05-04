@@ -1688,6 +1688,13 @@ function NorthStarLineageExplorer({
     Boolean(lineagePayload?.stats?.progressive?.tableLineageDeferred) ||
     String(lineagePayload?.meta?.state || "").toLowerCase() === "loading" ||
     Boolean(lineagePayload?.meta?.capabilities?.hydrating);
+  // True when the resolved lineage graph has at least one node beyond the
+  // focus. We use this to suppress the per-band 'No X observed' empty
+  // placeholders when the graph as a whole has data — empty placeholders
+  // sitting next to real node cards reads as broken.
+  const graphHasNodes =
+    !lineageIsHydrating &&
+    (asArray(viewModel.nodes).length > 1 || asArray(viewModel.edges).length > 0);
   const graphCounterLabel = lineageIsHydrating
     ? "Hydrating from Unity Catalog…"
     : `${viewModel.nodes.length || 0} nodes · ${asArray(viewModel.edges).length || 0} edges`;
@@ -1793,6 +1800,14 @@ function NorthStarLineageExplorer({
     const native = event?.nativeEvent || {};
     const deltaY = Number(event?.deltaY ?? native.deltaY);
     if (!Number.isFinite(deltaY) || deltaY === 0) return;
+    // Stop the wheel event from ALSO scrolling the page beneath the
+    // canvas. Without this the wheel did a "half-scroll + half-zoom"
+    // because both handlers fired. preventDefault on a passive listener
+    // can throw — guard.
+    try {
+      if (typeof event.preventDefault === "function") event.preventDefault();
+      if (typeof native.preventDefault === "function") native.preventDefault();
+    } catch (_) { /* passive listener — ignore */ }
     setGraphZoom((current) => {
       const nextZoom = Math.min(1.25, Math.max(0.85, current + (deltaY < 0 ? 0.05 : -0.05)));
       setStatus(`Lineage graph zoom set to ${Math.round(nextZoom * 100)}%.`);
@@ -2320,6 +2335,14 @@ function NorthStarLineageExplorer({
                           className="ga-lineage-band-skeleton"
                           data-band-role={band.role || ""}
                         />
+                      ) : graphHasNodes ? (
+                        // Once hydration completes, suppress the per-band
+                        // empty-state placeholder boxes when the graph as a
+                        // whole has nodes. Empty boxes alongside real node
+                        // cards looked broken — the user expected the
+                        // bands to silently collapse when there's nothing
+                        // to show on that hop.
+                        null
                       ) : (
                         <EmptyGraphSlot title={band.emptyTitle} message={band.emptyMessage} role={band.role} />
                       )}
