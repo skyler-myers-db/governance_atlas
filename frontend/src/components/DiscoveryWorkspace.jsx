@@ -3648,12 +3648,11 @@ function SelectionPreview({
         </div>
 
         <div className="gh-discovery-preview-body">
-          {actionNotice ? (
-            <div className="gh-selection-preview-inline-notice gh-selection-preview-action-notice" role="status">
-              <span className="gh-selection-preview-inline-notice-label">Action unavailable</span>
-              <span className="gh-selection-preview-inline-notice-body">{actionNotice}</span>
-            </div>
-          ) : null}
+          {/* Action notice is now rendered as a toast in the footer
+              (gh-discovery-preview-action-toast) so it's visible right
+              by the buttons that triggered it. The legacy inline
+              "Action unavailable" notice is no longer needed since the
+              new buttons stage actions instead of failing. */}
 
           {activeTab === "overview" ? (
             <div
