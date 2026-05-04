@@ -219,9 +219,15 @@ function LineageDetailRail({ graph, focus, asset, onOpenAsset, onSelectAsset }) 
           <div>
             <span>Rows</span>
             <strong>
-              {detailRowCount != null && detailRowCount !== ""
-                ? Number(detailRowCount).toLocaleString?.() || String(detailRowCount)
-                : focus.rowCount || "Unavailable"}
+              {(() => {
+                if (detailRowCount != null && detailRowCount !== "") {
+                  const num = Number(detailRowCount);
+                  if (Number.isFinite(num)) return num.toLocaleString();
+                  // Non-numeric (e.g. already-formatted "1.2M") — render as-is
+                  return String(detailRowCount);
+                }
+                return focus.rowCount || "Unavailable";
+              })()}
             </strong>
           </div>
           <div>
