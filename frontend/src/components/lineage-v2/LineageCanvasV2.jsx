@@ -226,6 +226,15 @@ function CanvasInner({
   }, [nodesArray, positions, hoveredNodeId, tracedNodeIds, handleNodeClick]);
 
   const focusReactFlowId = graph.focus?.id;
+  // Pull edge colors from CSS custom properties so design-token updates
+  // flow through automatically. Falls back to the Entrada bright-blue if
+  // the variable isn't yet applied (SSR / first-paint).
+  const cssVar = (name, fallback) =>
+    (typeof document !== "undefined"
+      && getComputedStyle(document.documentElement).getPropertyValue(name).trim())
+    || fallback;
+  const focusEdgeColor = cssVar("--ga-bright-blue", "#66c5ff");
+  const idleEdgeColor = "rgba(178, 189, 194, 0.55)";
   const flowEdges = useMemo(() => {
     return edgesArray.map((edge) => {
       const isFocusEdge = focusReactFlowId
@@ -239,9 +248,9 @@ function CanvasInner({
         target: edge.target,
         type: "smoothstep",
         animated: isFocusEdge,
-        markerEnd: { type: MarkerType.ArrowClosed, color: isFocusEdge ? "#66c5ff" : "rgba(178, 189, 194, 0.55)" },
+        markerEnd: { type: MarkerType.ArrowClosed, color: isFocusEdge ? focusEdgeColor : idleEdgeColor },
         style: {
-          stroke: isFocusEdge ? "#66c5ff" : "rgba(102, 197, 255, 0.45)",
+          stroke: isFocusEdge ? focusEdgeColor : `rgba(102, 197, 255, 0.45)`,
           strokeWidth: isFocusEdge ? 1.6 : 1.1,
           opacity: isTraced ? (isFocusEdge ? 1 : 0.6) : 0.18,
           transition: "opacity 200ms cubic-bezier(0.22, 1, 0.36, 1)",
@@ -250,7 +259,7 @@ function CanvasInner({
         className: edge.isRestricted ? "ga-lineage-v2-edge-restricted" : undefined,
       };
     });
-  }, [edgesArray, focusReactFlowId, hoveredNodeId, tracedNodeIds]);
+  }, [edgesArray, focusReactFlowId, hoveredNodeId, tracedNodeIds, focusEdgeColor]);
 
   // After the graph changes, fit the new node set into view exactly once.
   useEffect(() => {

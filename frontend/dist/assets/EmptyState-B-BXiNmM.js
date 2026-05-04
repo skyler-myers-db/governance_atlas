@@ -1,0 +1,1 @@
+import{j as t}from"./vendor-wq6gVMfD.js";function a({title:s="Nothing to show",message:e="",actions:n=null,tone:l="neutral"}){return t.jsxs("div",{className:`ga-empty-state tone-${l}`.trim(),children:[t.jsx("h3",{children:s}),e?t.jsx("p",{children:e}):null,n?t.jsx("div",{className:"ga-empty-state-actions",children:n}):null]})}export{a as E};
