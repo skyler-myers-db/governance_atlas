@@ -83,24 +83,28 @@ body {
   right: 20px;
   bottom: 20px;
   z-index: 1120;
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(102, 197, 255, 0.48);
+  border: 0;
   border-radius: 999px;
-  background: radial-gradient(circle at 32% 28%, #8ce9ff, #44bddf 48%, #1c7fac 100%);
-  color: #03243a;
-  box-shadow: 0 18px 48px rgba(51, 189, 231, 0.36), 0 0 0 1px rgba(207, 239, 255, 0.08) inset;
+  /* Flat brand-highlight pill (matches the design's `tb-btn primary`).
+     The previous radial-gradient + 48px cyan glow read as a 3-D sphere; the
+     handoff bundle uses a clean filled pill with an inset highlight. */
+  background: #3d84ad;
+  color: #011b2d;
+  box-shadow: 0 8px 20px rgba(2, 80, 128, 0.45), 0 1px 0 rgba(255, 255, 255, 0.18) inset;
   cursor: pointer;
-  transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, opacity 160ms ease;
 }
 
 .gh-atlas-ai-fab:hover:not(:disabled),
 .gh-atlas-ai-fab:focus-visible:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 22px 58px rgba(51, 189, 231, 0.46), 0 0 0 1px rgba(255, 255, 255, 0.22) inset;
+  background: #4f99c4;
+  box-shadow: 0 12px 28px rgba(2, 80, 128, 0.55), 0 1px 0 rgba(255, 255, 255, 0.22) inset;
   outline: none;
 }
 
@@ -123,10 +127,9 @@ body {
   .gh-atlas-ai-fab {
     right: 14px;
     bottom: 14px;
-    width: 48px;
-    height: 48px;
-    opacity: 0.94;
-    box-shadow: 0 14px 36px rgba(51, 189, 231, 0.30), 0 0 0 1px rgba(207, 239, 255, 0.08) inset;
+    width: 44px;
+    height: 44px;
+    box-shadow: 0 6px 16px rgba(2, 80, 128, 0.40), 0 1px 0 rgba(255, 255, 255, 0.18) inset;
   }
 
   .gh-atlas-ai-fab .ga-ai-mark {
@@ -1906,6 +1909,21 @@ body {
   color: var(--ga-success);
   font-size: 0.58rem;
   line-height: 1;
+}
+
+/* Suppress the green "+" badge when the trend value is genuinely
+   unavailable — the badge against an "Unavailable" string is misleading
+   (looks like a positive delta) and was visually colliding with the
+   gauge stroke at narrow widths. */
+.gh-command-center-trust-center em[data-trend-state="unavailable"] {
+  color: var(--ga-text-muted, #b2bdc2);
+  font-weight: 600;
+  font-size: 0.62rem;
+  margin-top: 4px;
+  letter-spacing: 0.04em;
+}
+.gh-command-center-trust-center em[data-trend-state="unavailable"]::before {
+  display: none;
 }
 
 .gh-command-center-score em {
@@ -5033,12 +5051,16 @@ aside.gh-selection-preview.gh-discovery-preview-card {
 }
 
 .gh-discovery-preview-badges {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 6px 8px;
 }
 
+/* Pin the coverage indicator to its own row so the certification + sensitivity
+   chips on either side never get squeezed off-canvas in the narrow preview
+   pane. The previous 3-column grid forced a horizontal layout that clipped the
+   trailing 'Restricted' chip when the AI dock claimed right-rail width. */
 .gh-discovery-coverage-chip {
   display: inline-flex;
   align-items: center;
@@ -5048,6 +5070,8 @@ aside.gh-selection-preview.gh-discovery-preview-card {
   color: rgba(220, 236, 247, 0.86);
   font-size: 0.64rem;
   white-space: nowrap;
+  flex-basis: 100%;
+  order: 99;
 }
 
 .gh-discovery-coverage-chip i {

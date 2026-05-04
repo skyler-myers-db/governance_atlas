@@ -368,7 +368,7 @@ function CommandCenterTrustRing({ value = 0, trend = "9.0 pts QoQ", label = "Pos
       <div className="gh-command-center-trust-center">
         <span>{label}</span>
         <strong>{displayValue}<small>%</small></strong>
-        <em>{trend}</em>
+        <em data-trend-state={/(unavailable|^-$)/i.test(String(trend)) ? "unavailable" : "delta"}>{trend}</em>
       </div>
     </div>
   );
