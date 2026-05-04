@@ -237,3 +237,147 @@
   border-top: 0;
   padding-top: 2px;
 }
+
+/* ==========================================================================
+   LineageCanvasV2 chrome — host wrapper, hydrating banner, state cards,
+   React Flow controls override.
+   ========================================================================== */
+
+.ga-lineage-v2-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: clamp(420px, calc(100dvh - 320px), 720px);
+  background:
+    radial-gradient(ellipse 60% 80% at 50% 0%, rgba(102, 197, 255, 0.04), transparent 65%),
+    linear-gradient(180deg, rgba(8, 23, 42, 0.55), rgba(5, 14, 24, 0.55));
+  border: 1px solid rgba(20, 44, 70, 0.85);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.ga-lineage-v2-flow-node {
+  position: relative;
+}
+
+/* Hide React Flow's default node connection handles — the node card
+   already provides the visual edge anchor and we don't allow the user
+   to draw new edges. */
+.ga-lineage-v2-flow-handle {
+  width: 0 !important;
+  height: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Restricted edges (permission boundary) — dashed amber to signal that
+   the upstream/downstream is real but the actor lacks visibility on
+   that segment. */
+.ga-lineage-v2-edge-restricted .react-flow__edge-path {
+  stroke-dasharray: 6 4 !important;
+  stroke: rgba(244, 183, 64, 0.65) !important;
+}
+
+/* Hydrating banner — pinned top-left inside the canvas */
+.ga-lineage-v2-canvas-banner {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(8, 23, 42, 0.92);
+  border: 1px solid rgba(102, 197, 255, 0.45);
+  color: var(--ga-text-strong, #ffffff);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.ga-lineage-v2-canvas-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(102, 197, 255, 0.35);
+  border-top-color: #66c5ff;
+  animation: ga-lineage-v2-spin 0.9s linear infinite;
+}
+@keyframes ga-lineage-v2-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ga-lineage-v2-canvas-spinner { animation: none; }
+}
+
+/* State cards — when nothing renders */
+.ga-lineage-v2-canvas-state {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  padding: 80px 32px;
+  text-align: center;
+  color: var(--ga-text-muted, #b2bdc2);
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: clamp(360px, calc(100dvh - 360px), 640px);
+  background:
+    radial-gradient(ellipse 60% 80% at 50% 0%, rgba(102, 197, 255, 0.04), transparent 65%),
+    linear-gradient(180deg, rgba(8, 23, 42, 0.55), rgba(5, 14, 24, 0.55));
+  border: 1px dashed rgba(20, 44, 70, 0.85);
+  border-radius: 16px;
+}
+.ga-lineage-v2-canvas-state strong {
+  color: var(--ga-text-strong, #ffffff);
+  font-family: var(--ga-font-heading, "Hanken Grotesk", sans-serif);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.ga-lineage-v2-canvas-state-hydrating {
+  border-style: solid;
+  border-color: rgba(61, 132, 173, 0.32);
+}
+.ga-lineage-v2-canvas-state-error {
+  border-color: rgba(244, 113, 116, 0.4);
+}
+.ga-lineage-v2-canvas-state-error strong {
+  color: #f47174;
+}
+
+/* React Flow Controls — re-tone to brand palette */
+.ga-lineage-v2-canvas .react-flow__controls {
+  background: rgba(8, 23, 42, 0.92) !important;
+  border: 1px solid rgba(61, 132, 173, 0.32) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+.ga-lineage-v2-canvas .react-flow__controls button {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(20, 44, 70, 0.85) !important;
+  color: var(--ga-text, #dce6ed) !important;
+  width: 30px !important;
+  height: 30px !important;
+}
+.ga-lineage-v2-canvas .react-flow__controls button:last-child {
+  border-bottom: 0 !important;
+}
+.ga-lineage-v2-canvas .react-flow__controls button:hover {
+  background: rgba(61, 132, 173, 0.20) !important;
+  color: var(--ga-text-strong, #ffffff) !important;
+}
+.ga-lineage-v2-canvas .react-flow__controls button svg {
+  fill: currentColor !important;
+}
+
+/* React Flow background dots — tighten to brand */
+.ga-lineage-v2-canvas .react-flow__background {
+  background: transparent !important;
+}
