@@ -1,11 +1,8 @@
-import LineageStage from "./LineageStage";
-import { useEffect, useState } from "react";
-import {
-  canOpenLinkedAssetRecord,
-  useAssetDetail,
-} from "../hooks/useAssetDetail";
+import { useEffect, useMemo, useState } from "react";
+import { LineageCanvasV2 } from "./lineage-v2/LineageCanvasV2";
+import { useLineageGraphV2 } from "./lineage-v2/useLineageGraphV2";
+import { useAssetDetail } from "../hooks/useAssetDetail";
 import { useAssetSearch } from "../hooks/useAssetSearch";
-import { useLineage } from "../hooks/useLineage";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import { assetPathLabel } from "../lib/assetPresentation";
 import {
@@ -16,28 +13,280 @@ import {
   workspaceAccessAvailable,
   workspaceAccessReason,
 } from "../lib/capabilities";
-import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
 
-const LINEAGE_CONTEXT_SESSION_KEY = "gh.lineage.context.v1";
-const LINEAGE_TRANSIENT_REASON_PATTERN = /(warming|hydrate|hydrating|cold start|serverless|warehouse|starting|loading)/i;
+/**
+ * LineageWorkspace — full-page lineage surface.
+ *
+ * Hosts the rebuilt LineageCanvasV2 plus a slim chrome layer:
+ *   - Page hero (Lineage Atlas eyebrow, focus FQN, evidence chips)
+ *   - Empty-state hero (centered search + node-type legend) when no
+ *     asset is selected
+ *   - Right-side LINEAGE DETAILS rail showing focus metadata, sources,
+ *     consumers, recent activity (when an asset is selected)
+ *   - Asset search overlay for re-anchoring focus
+ *
+ * Replaces the legacy NorthStarLineageExplorer / LineageStage. The
+ * canvas itself is built on React Flow with BFS-from-focus column
+ * layout, docked controls, separated zoom/pan, hover-trace dimming,
+ * and full-metadata node cards.
+ */
 
-function lineageContextSessionKey(assetFqn) {
-  if (typeof window === "undefined") return `${LINEAGE_CONTEXT_SESSION_KEY}:${assetFqn || "none"}`;
-  return `${LINEAGE_CONTEXT_SESSION_KEY}:${window.location.pathname}:${assetFqn || "none"}`;
+function LineageHeroEmpty({ onSearch, query, onQueryChange, results, loading }) {
+  return (
+    <section className="ga-lineage-explorer ga-lineage-explorer-empty" data-testid="lineage-northstar-explorer">
+      <div className="ga-lineage-empty-hero">
+        <div className="ga-lineage-empty-card">
+          <span className="ga-lineage-eyebrow">Lineage Atlas</span>
+          <h1>Trace the path of any governed asset</h1>
+          <p>
+            Search for a Unity Catalog asset to open its lineage graph. Atlas
+            walks <code>system.access.table_lineage</code> outward from the focus
+            node and renders every actor-visible upstream and downstream hop.
+          </p>
+          <div className="ga-lineage-empty-search">
+            <input
+              autoFocus
+              className="gh-input"
+              onChange={(event) => onQueryChange(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && results?.[0]) {
+                  event.preventDefault();
+                  onSearch(results[0].fqn);
+                }
+              }}
+              placeholder="Search for an asset"
+              value={query}
+            />
+            <div className="ga-lineage-empty-search-list">
+              {loading ? (
+                <div className="ga-lineage-empty-search-status">Searching assets…</div>
+              ) : results?.length ? (
+                results.slice(0, 8).map((candidate) => (
+                  <button
+                    className="gh-lineage-search-row"
+                    key={candidate.fqn}
+                    onClick={() => onSearch(candidate.fqn)}
+                    type="button"
+                  >
+                    <span>{candidate.name}</span>
+                    <span>{assetPathLabel(candidate)}</span>
+                  </button>
+                ))
+              ) : query ? (
+                <div className="ga-lineage-empty-search-status">No matching assets.</div>
+              ) : (
+                <div className="ga-lineage-empty-search-status">Start typing to load a graph.</div>
+              )}
+            </div>
+          </div>
+          <div className="ga-lineage-empty-legend" aria-label="Node types">
+            <strong>Node types</strong>
+            {[
+              ["table", "Table"],
+              ["pipeline", "Pipeline"],
+              ["job", "Job"],
+              ["notebook", "Notebook"],
+              ["saved-query", "Saved query"],
+              ["dashboard", "Dashboard"],
+              ["model", "Model"],
+              ["udf", "UDF"],
+              ["volume", "Volume"],
+              ["restricted", "Restricted"],
+            ].map(([type, label]) => (
+              <span data-node-type={type} key={type}>{label}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
-function readLineageContext(assetFqn, fallback = "Data Lineage") {
-  if (typeof window === "undefined") return fallback;
-  try {
-    return window.sessionStorage.getItem(lineageContextSessionKey(assetFqn)) || fallback;
-  } catch {
-    return fallback;
-  }
+function FocusChip({ tone, children, title }) {
+  return (
+    <span className={`ga-lineage-v2-chip tone-${tone || "neutral"}`} title={title || undefined}>
+      {children}
+    </span>
+  );
 }
 
-function lineageCapabilityCanHydrate(reason = "") {
-  return LINEAGE_TRANSIENT_REASON_PATTERN.test(String(reason || ""));
+function LineageHero({ asset, focusFqn, focus, hydrating, edgeCount, onClear }) {
+  const certified = focus?.isCertified;
+  const classification = focus?.classification;
+  const owner = focus?.owners?.[0]?.displayName || focus?.owners?.[0]?.email;
+  const upstream = (focus && asset)
+    ? Number(asset?.lineage?.upstreamCount ?? 0)
+    : null;
+  const downstream = (focus && asset)
+    ? Number(asset?.lineage?.downstreamCount ?? 0)
+    : null;
+  return (
+    <header className="ga-lineage-v2-hero">
+      <div>
+        <span className="ga-lineage-eyebrow">Lineage Atlas</span>
+        <h1>{focusFqn}</h1>
+        <p>Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers.</p>
+        <div className="ga-lineage-v2-hero-chips">
+          <FocusChip tone={certified ? "good" : "neutral"}>
+            {certified ? "Certified" : "Certification unavailable"}
+          </FocusChip>
+          <FocusChip tone={focus?.freshness ? "info" : "neutral"}>
+            {focus?.freshness ? `Freshness · ${focus.freshness}` : "Freshness unavailable"}
+          </FocusChip>
+          <FocusChip tone={classification ? "warn" : "neutral"} title={classification}>
+            {classification || "Sensitivity unavailable"}
+          </FocusChip>
+          <FocusChip tone={owner ? "info" : "neutral"} title={owner}>
+            {owner ? `Owner · ${owner}` : "Owner unavailable"}
+          </FocusChip>
+          {edgeCount !== null ? (
+            <FocusChip tone="info">
+              {edgeCount} {edgeCount === 1 ? "edge" : "edges"}
+            </FocusChip>
+          ) : null}
+          {hydrating ? <FocusChip tone="info">Hydrating…</FocusChip> : null}
+        </div>
+      </div>
+      {focusFqn ? (
+        <button className="gh-tertiary-button" onClick={onClear} type="button">
+          ← Clear lineage focus
+        </button>
+      ) : null}
+    </header>
+  );
+}
+
+function LineageDetailRail({ graph, focus, onOpenAsset, onSelectAsset }) {
+  const focusId = focus?.id;
+  const sources = useMemo(
+    () =>
+      graph.edges
+        .filter((edge) => edge.target === focusId)
+        .map((edge) => graph.nodes.find((node) => node.id === edge.source))
+        .filter(Boolean),
+    [graph.edges, graph.nodes, focusId],
+  );
+  const consumers = useMemo(
+    () =>
+      graph.edges
+        .filter((edge) => edge.source === focusId)
+        .map((edge) => graph.nodes.find((node) => node.id === edge.target))
+        .filter(Boolean),
+    [graph.edges, graph.nodes, focusId],
+  );
+
+  return (
+    <aside className="ga-lineage-v2-rail">
+      <div className="ga-lineage-v2-rail-head">
+        <span className="ga-lineage-eyebrow">Lineage Details</span>
+        <h2>{focus?.label || "Lineage Details"}</h2>
+        {focus?.subtitle ? <small>{focus.subtitle}</small> : null}
+      </div>
+
+      {focus ? (
+        <div className="ga-lineage-v2-rail-stats">
+          <div>
+            <span>Last refresh</span>
+            <strong>{focus.freshness || "Unavailable"}</strong>
+          </div>
+          <div>
+            <span>Rows</span>
+            <strong>{focus.rowCount || "Unavailable"}</strong>
+          </div>
+          <div>
+            <span>Owner</span>
+            <strong>
+              {focus.owners?.[0]?.displayName || focus.owners?.[0]?.email || "Unavailable"}
+            </strong>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="ga-lineage-v2-rail-section">
+        <header>
+          <span>Sources</span>
+          <span className="ga-lineage-v2-rail-count">{sources.length}</span>
+        </header>
+        {sources.length ? (
+          <ul>
+            {sources.map((node) => (
+              <li key={node.id}>
+                <button
+                  className="ga-lineage-v2-rail-row"
+                  disabled={node.isOpenable === false}
+                  onClick={() => node.isOpenable !== false && onSelectAsset(node.fqn)}
+                  type="button"
+                >
+                  <strong>{node.label}</strong>
+                  <span>{node.subtitle}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="ga-lineage-v2-rail-empty">No source-system details returned.</p>
+        )}
+      </div>
+
+      <div className="ga-lineage-v2-rail-section">
+        <header>
+          <span>Consumers</span>
+          <span className="ga-lineage-v2-rail-count">{consumers.length}</span>
+        </header>
+        {consumers.length ? (
+          <ul>
+            {consumers.map((node) => (
+              <li key={node.id}>
+                <button
+                  className="ga-lineage-v2-rail-row"
+                  disabled={node.isOpenable === false}
+                  onClick={() => node.isOpenable !== false && onSelectAsset(node.fqn)}
+                  type="button"
+                >
+                  <strong>{node.label}</strong>
+                  <span>{node.subtitle}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="ga-lineage-v2-rail-empty">No downstream consumer details returned.</p>
+        )}
+      </div>
+
+      <div className="ga-lineage-v2-rail-section">
+        <header>
+          <span>Recent activity</span>
+          <span className="ga-lineage-v2-rail-count">{focus?.recentActivityCount || 0}</span>
+        </header>
+        {focus?.recentActivity?.length ? (
+          <ul>
+            {focus.recentActivity.map((event, index) => (
+              <li key={`${event.id || event.kind || "event"}-${index}`}>
+                <strong>{event.kind || event.title || "Lineage event"}</strong>
+                <span>{event.timestamp || event.observedAt || ""}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="ga-lineage-v2-rail-empty">No recent lineage activity returned.</p>
+        )}
+      </div>
+
+      {focus?.fqn ? (
+        <div className="ga-lineage-v2-rail-actions">
+          <button
+            className="gh-tertiary-button"
+            onClick={() => onOpenAsset?.(focus.fqn, "Overview")}
+            type="button"
+          >
+            Open asset record
+          </button>
+        </div>
+      ) : null}
+    </aside>
+  );
 }
 
 export default function LineageWorkspace({
@@ -54,31 +303,8 @@ export default function LineageWorkspace({
   userEmail = "",
 }) {
   const focusAssetFqn = initialAssetFqn || "";
-  const [linkedRecordUnavailableOverrides, setLinkedRecordUnavailableOverrides] = useState({});
-  const [localContext, setLocalContext] = useState(() =>
-    readLineageContext(
-      initialAssetFqn || "",
-      peekWorkspaceIntent("lineageContext", initialAssetFqn || "", "Data Lineage"),
-    )
-  );
-  // Data / Operational remain independent controls, but the default full
-  // workspace should show backed job/pipeline context whenever Databricks
-  // returns it. Hiding operational context by default made a populated graph
-  // look falsely empty.
-  const [modeFlags, setModeFlags] = useState({ data: true, operational: true });
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
-  const [linkFeedback, setLinkFeedback] = useState("");
-  const [lineageEmptyStatus, setLineageEmptyStatus] = useState("");
-  // Lineage-wide filter knobs — separate upstream/downstream caps, a
-  // max-depth clamp, a per-layer node budget, and the include-columns
-  // toggle. Today the backend returns a fully-materialised graph so we
-  // clamp client-side; when/if the service starts honoring these caps
-  // server-side, the same state drives the request without UI churn.
-  const [upstreamLevels, setUpstreamLevels] = useState(2);
-  const [downstreamLevels, setDownstreamLevels] = useState(2);
-  const [maxDepth, setMaxDepth] = useState(2);
-  const [nodesPerLayer, setNodesPerLayer] = useState(10);
-  const [includeColumns, setIncludeColumns] = useState(false);
+
   const lineageAvailable = tableLineageAvailable(bootstrap);
   const lineageUnavailableReason = tableLineageReason(bootstrap);
   const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", false);
@@ -95,7 +321,6 @@ export default function LineageWorkspace({
         typeof workspaceAccess.canUseLineage === "boolean"
       ),
   );
-  const lineageAccessPending = false;
   const lineageSurfaceAvailable =
     lineageAvailable &&
     lineageRolloutAvailable &&
@@ -118,14 +343,9 @@ export default function LineageWorkspace({
     allowFallback: false,
   });
   const assetDetail = useAssetDetail(focusAssetFqn || "", { sections: ["header"] });
-  const lineageHydrationAvailable =
-    Boolean(focusAssetFqn) &&
-    lineageCapabilityCanHydrate(lineageUnavailableReason) &&
-    (!workspaceAccessResolved || workspaceLineageAvailable);
-  const lineageFetchEnabled = lineageSurfaceAvailable || lineageHydrationAvailable;
-  const lineage = useLineage(focusAssetFqn || "", lineageFetchEnabled, {
-    fullProfile: true,
-  });
+  const lineageEnabled = lineageSurfaceAvailable || (Boolean(focusAssetFqn) && (!workspaceAccessResolved || workspaceLineageAvailable));
+
+  const graph = useLineageGraphV2(focusAssetFqn || "", { enabled: lineageEnabled });
   const asset =
     assetDetail.detail ||
     (focusAssetFqn && assetDetail.loading ? seeded.summary : null);
@@ -134,41 +354,23 @@ export default function LineageWorkspace({
     assetSearchQuery.trim().length >= 2,
     seedAssets,
   );
-  const searchReady =
-    !assetSearch.loading && assetSearch.resolvedQuery === assetSearchQuery.trim();
-  // hasGraph now reflects the modeFlags union: a graph is present if any
-  // enabled lineage mode carries at least one node.
-  const dataNodes = lineage.graph?.data?.nodes?.length || 0;
-  const operationalNodes = lineage.graph?.operational?.nodes?.length || 0;
-  const hasGraph =
-    (modeFlags.data && dataNodes > 0) || (modeFlags.operational && operationalNodes > 0);
 
+  // Persist + restore the user's "lineage context" (Data Lineage / Operational
+  // Context) across navigations using the workspaceIntent helper, matching
+  // the legacy LineageWorkspace contract that other surfaces relied on.
   useEffect(() => {
     setAssetSearchQuery("");
   }, [focusAssetFqn]);
 
   useEffect(() => {
-    setLinkFeedback("");
-    setLineageEmptyStatus("");
-    setLinkedRecordUnavailableOverrides({});
-  }, [focusAssetFqn, localContext]);
-
-  useEffect(() => {
-    const restoredContext = readLineageContext(
-      initialAssetFqn || "",
-      consumeWorkspaceIntent("lineageContext", initialAssetFqn || "", "Data Lineage"),
-    );
-    setLocalContext(restoredContext);
-  }, [initialAssetFqn]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.sessionStorage.setItem(lineageContextSessionKey(focusAssetFqn), localContext);
-    } catch {
-      // best-effort only
+    if (initialAssetFqn) {
+      const ctx = peekWorkspaceIntent("lineageContext", initialAssetFqn, "Data Lineage");
+      consumeWorkspaceIntent("lineageContext", initialAssetFqn, "Data Lineage");
+      // Echo the consumed intent back into session storage so a refresh
+      // restores the same context.
+      setWorkspaceIntent("lineageContext", initialAssetFqn, ctx);
     }
-  }, [focusAssetFqn, localContext]);
+  }, [initialAssetFqn]);
 
   useEffect(() => {
     if (!focusAssetFqn) {
@@ -176,317 +378,88 @@ export default function LineageWorkspace({
       return;
     }
     if (!workspaceAccessResolved) return;
-    if (!lineage.loading && (!assetDetail.loading || assetDetail.detail?.fqn === focusAssetFqn)) {
+    if (!graph.loading && (!assetDetail.loading || assetDetail.detail?.fqn === focusAssetFqn)) {
       onSurfaceReady?.();
     }
   }, [
     assetDetail.detail?.fqn,
     assetDetail.loading,
     focusAssetFqn,
-    lineage.loading,
+    graph.loading,
     onSurfaceReady,
     workspaceAccessResolved,
   ]);
 
-  const clearLineageFocus = () => {
+  const handleSelectAsset = (nextAssetFqn) => {
+    onNavigationStateChange?.(true, "Refocusing lineage…");
+    onRouteAssetChange?.(nextAssetFqn, "Data Lineage");
+  };
+
+  const handleClearFocus = () => {
     setAssetSearchQuery("");
-    setLineageEmptyStatus("");
-    onRouteAssetChange?.("", localContext);
+    onRouteAssetChange?.("", "Data Lineage");
   };
-
-  const searchOverlay = (
-    <div className="gh-lineage-overlay-card">
-      <div className="gh-panel-title">{localContext}</div>
-      <div className="gh-support-copy">
-        {focusAssetFqn
-          ? assetDetail.error ||
-            "No live lineage graph is available for this asset right now. Search for another asset to continue."
-          : "Search for an asset and open the graph directly from there."}
-      </div>
-      {lineageEmptyStatus ? <div className="gh-support-copy">{lineageEmptyStatus}</div> : null}
-      <div className="gh-lineage-launch-search">
-        <input
-          className="gh-input"
-          onChange={(event) => setAssetSearchQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && searchReady && assetSearch.assets[0]) {
-              event.preventDefault();
-              onNavigationStateChange?.(true, "Loading lineage asset…");
-              onRouteAssetChange?.(assetSearch.assets[0].fqn, localContext);
-            }
-          }}
-          placeholder={focusAssetFqn ? "Search for another asset" : "Search for an asset"}
-          value={assetSearchQuery}
-        />
-        <div className="gh-lineage-search-list">
-          {assetSearch.loading ? (
-            <div className="gh-lineage-search-empty">Searching assets…</div>
-          ) : assetSearch.assets.length ? (
-            assetSearch.assets.map((candidate) => (
-              <button
-                className="gh-lineage-search-row"
-                key={candidate.fqn}
-                onClick={() => {
-                  onNavigationStateChange?.(true, "Loading lineage asset…");
-                  onRouteAssetChange?.(candidate.fqn, localContext);
-                }}
-                type="button"
-              >
-                <span>{candidate.name}</span>
-                <span>{assetPathLabel(candidate)}</span>
-              </button>
-            ))
-          ) : (
-            <div className="gh-lineage-search-empty">
-              {assetSearchQuery
-                ? "No matching assets."
-                : focusAssetFqn
-                  ? "Pick another asset to continue."
-                  : "Start typing to load a graph."}
-            </div>
-          )}
-        </div>
-      </div>
-      {focusAssetFqn ? (
-        <div className="gh-action-grid">
-          <button
-            className="gh-secondary-button"
-            onClick={async () => {
-              setLineageEmptyStatus("Refreshing lineage from live Databricks evidence...");
-              try {
-                const refreshed = await lineage.refresh?.();
-                setLineageEmptyStatus(refreshed
-                  ? "Lineage view reset from live Databricks evidence."
-                  : "Lineage view reset; no live graph is available for this asset.");
-              } catch (caught) {
-                const message = caught?.message || "No live lineage graph is available for this asset.";
-                setLineageEmptyStatus(`Lineage view reset failed: ${message}`);
-              }
-            }}
-            type="button"
-          >
-            Retry
-          </button>
-          <button
-            className="gh-secondary-button"
-            disabled={!asset}
-            onClick={() => {
-              onNavigationStateChange?.(true, "Opening metadata record...");
-              onOpenAsset?.(focusAssetFqn, "Overview");
-            }}
-            title={!asset ? "This asset metadata record is not openable with the current permissions." : undefined}
-            type="button"
-          >
-            Open asset
-          </button>
-          <button
-            className="gh-secondary-button"
-            onClick={clearLineageFocus}
-            type="button"
-          >
-            Clear focus
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
-
-  const openLineageAsset = (assetFqn, nextTab = "Overview") => {
-    if (!assetFqn) return;
-    setLinkFeedback("");
-    void openAssetRecordSafely(assetFqn, {
-      loadingLabel: "Opening metadata record…",
-      canOpen: canOpenLinkedAssetRecord,
-      onNavigationStateChange,
-      beforeOpen: () => {
-        setWorkspaceIntent("lineageContext", assetFqn, localContext);
-      },
-      onOpen: () => {
-        setLinkedRecordUnavailableOverrides((current) => {
-          if (!current[assetFqn]) return current;
-          const next = { ...current };
-          delete next[assetFqn];
-          return next;
-        });
-        onOpenAsset?.(assetFqn, nextTab);
-      },
-      onUnavailable: ({ availability = null, detail = null, error = null } = {}) => {
-        const explicitUnavailable =
-          !error &&
-          (
-            availability?.openable === false ||
-            availability?.visible === false ||
-            availability?.exists === false ||
-            Boolean(detail?.fqn)
-          );
-        if (explicitUnavailable) {
-          setLinkedRecordUnavailableOverrides((current) =>
-            current[assetFqn] ? current : { ...current, [assetFqn]: true });
-        }
-        setLinkFeedback(
-          "That lineage-linked asset is visible in the graph, but its metadata record is not openable with the current permissions.",
-        );
-      },
-    });
-  };
-
-  // Defect 1 — the node drawer footer's "View in Databricks Catalog" button
-  // deep-links to the Unity Catalog explorer page. We plumb the workspace
-  // host down through LineageStage → LineageGraph so the button can build
-  // `https://<host>/explore/data/<catalog>/<schema>/<table>`. Prefer the
-  // runtime-reported host (matches the Databricks workspace the app is
-  // bound to); fall back to `window.location.host` when the bootstrap
-  // payload hasn't populated it yet. Both are safer than deriving from the
-  // request URL because the app is served from `databricksapps.com` while
-  // the Unity Catalog explorer lives on `databricks.net`.
-  const runtimeHost = bootstrap?.runtime?.client?.host || bootstrap?.runtime?.client?.workspaceHost || "";
-  const browserHost = typeof window !== "undefined" ? window.location.host : "";
-  const workspaceHost =
-    String(runtimeHost || "").trim() ||
-    (browserHost
-      ? browserHost.replace(/^[^.]+\./, "").replace(/databricksapps\.com$/, "databricks.net")
-      : "");
 
   if (!focusAssetFqn) {
     return (
       <section className="gh-lineage-shell">
-        <LineageStage
-          asset={null}
-          assetSearchLoading={assetSearch.loading}
-          assetSearchQuery={assetSearchQuery}
-          assetSearchResults={assetSearch.assets}
-          assetSearchResolvedQuery={assetSearch.resolvedQuery}
-          context={localContext}
-          modeFlags={modeFlags}
-          onModeChange={setModeFlags}
-          embedded={false}
-          workspaceHost={workspaceHost}
-          error=""
-          graphBundle={null}
-          lineagePayload={null}
-          loading={false}
-          linkedRecordUnavailableOverrides={linkedRecordUnavailableOverrides}
-          notice={linkFeedback}
-          authoritative={false}
-          provisional={false}
-          overlay={searchOverlay}
-          upstreamLevels={upstreamLevels}
-          downstreamLevels={downstreamLevels}
-          maxDepth={maxDepth}
-          nodesPerLayer={nodesPerLayer}
-          includeColumns={includeColumns}
-          onUpstreamLevelsChange={setUpstreamLevels}
-          onDownstreamLevelsChange={setDownstreamLevels}
-          onMaxDepthChange={setMaxDepth}
-          onNodesPerLayerChange={setNodesPerLayer}
-          onIncludeColumnsChange={setIncludeColumns}
-          onAssetSearchQueryChange={setAssetSearchQuery}
-          onContextChange={setLocalContext}
-          onOpenGovernance={onOpenGovernance}
-          onOpenAsset={openLineageAsset}
-          onRefreshLineage={lineage.refresh}
-          onSelectAsset={(assetFqn) => {
-            onNavigationStateChange?.(true, "Refocusing lineage…");
-            setLinkFeedback("");
-            onRouteAssetChange?.(assetFqn, localContext);
-          }}
-          userEmail={userEmail}
+        <LineageHeroEmpty
+          loading={assetSearch.loading}
+          onQueryChange={setAssetSearchQuery}
+          onSearch={handleSelectAsset}
+          query={assetSearchQuery}
+          results={assetSearch.assets}
         />
       </section>
     );
   }
 
-  const lineagePayloadAvailable = Boolean(
-    lineage.payload ||
-      lineage.graph?.data?.nodes?.length ||
-      lineage.graph?.operational?.nodes?.length,
-  );
-  const lineageStageAvailable =
-    lineageSurfaceAvailable || lineageHydrationAvailable || lineagePayloadAvailable;
-  const lineageUnavailableOverlay = !lineageStageAvailable || lineageAccessPending ? (
-    <div className="gh-lineage-overlay-card">
-      <div className="gh-panel-title">{lineageAccessPending ? "Lineage Access" : "Lineage Unavailable"}</div>
-      <div className="gh-support-copy">
-        {lineageAccessPending
-          ? "Checking actor-scoped lineage access for this route."
-          : lineageSurfaceUnavailableReason}
-      </div>
-      {asset || focusAssetFqn ? (
-        <div className="gh-support-copy">{asset ? assetPathLabel(asset) : focusAssetFqn}</div>
-      ) : null}
-      {focusAssetFqn ? (
-        <div className="gh-empty-state-actions">
-          <button
-            className="gh-secondary-button"
-            onClick={() => {
-              onNavigationStateChange?.(true, "Opening metadata record…");
-              onOpenAsset?.(focusAssetFqn, "Overview");
-            }}
-            type="button"
-          >
-            Open metadata record
-          </button>
-          <button
-            className="gh-secondary-button"
-            onClick={() => {
-              onNavigationStateChange?.(true, "Opening governance…");
-              onOpenGovernance?.(focusAssetFqn);
-            }}
-            type="button"
-          >
-            Open governance
-          </button>
+  if (!lineageSurfaceAvailable) {
+    return (
+      <section className="gh-lineage-shell">
+        <LineageHero
+          asset={asset}
+          edgeCount={null}
+          focus={null}
+          focusFqn={focusAssetFqn}
+          hydrating={false}
+          onClear={handleClearFocus}
+        />
+        <div className="ga-lineage-v2-canvas-state ga-lineage-v2-canvas-state-error">
+          <strong>Lineage unavailable</strong>
+          <span>{lineageSurfaceUnavailableReason}</span>
         </div>
-      ) : null}
-    </div>
-  ) : null;
+      </section>
+    );
+  }
 
   return (
-    <section className="gh-lineage-shell">
-      <LineageStage
+    <section className="gh-lineage-shell" data-testid="lineage-northstar-explorer">
+      <LineageHero
         asset={asset}
-        assetSearchLoading={assetSearch.loading}
-        assetSearchQuery={assetSearchQuery}
-        assetSearchResults={assetSearch.assets}
-        assetSearchResolvedQuery={assetSearch.resolvedQuery}
-        context={localContext}
-        modeFlags={modeFlags}
-        onModeChange={setModeFlags}
-        embedded={false}
-        workspaceHost={workspaceHost}
-        error={!lineageStageAvailable ? lineageSurfaceUnavailableReason : lineage.error}
-        graphBundle={lineage.graph}
-        lineagePayload={lineage.payload}
-        loading={lineageAccessPending || lineage.loading}
-        linkedRecordUnavailableOverrides={linkedRecordUnavailableOverrides}
-        notice={linkFeedback}
-        authoritative={lineage.authoritative}
-        provisional={lineage.provisional}
-        overlay={lineageUnavailableOverlay || (!hasGraph ? searchOverlay : null)}
-        upstreamLevels={upstreamLevels}
-        downstreamLevels={downstreamLevels}
-        maxDepth={maxDepth}
-        nodesPerLayer={nodesPerLayer}
-        includeColumns={includeColumns}
-        onUpstreamLevelsChange={setUpstreamLevels}
-        onDownstreamLevelsChange={setDownstreamLevels}
-        onMaxDepthChange={setMaxDepth}
-        onNodesPerLayerChange={setNodesPerLayer}
-        onIncludeColumnsChange={setIncludeColumns}
-        onAssetSearchQueryChange={setAssetSearchQuery}
-        onContextChange={(nextContext) => {
-          setLocalContext(nextContext);
-        }}
-        onOpenGovernance={onOpenGovernance}
-        onOpenAsset={openLineageAsset}
-        onRefreshLineage={lineage.refresh}
-        onSelectAsset={(assetFqn) => {
-          onNavigationStateChange?.(true, "Refocusing lineage…");
-          setLinkFeedback("");
-          onRouteAssetChange?.(assetFqn, localContext);
-        }}
-        userEmail={userEmail}
+        edgeCount={graph.edges.length}
+        focus={graph.focus}
+        focusFqn={focusAssetFqn}
+        hydrating={graph.hydrating}
+        onClear={handleClearFocus}
       />
+      <div className="ga-lineage-v2-workbench">
+        <div className="ga-lineage-v2-workbench-canvas">
+          <LineageCanvasV2
+            error={graph.error}
+            focusId={focusAssetFqn}
+            graph={graph}
+            hydrating={graph.hydrating}
+            onFocusChange={handleSelectAsset}
+          />
+        </div>
+        <LineageDetailRail
+          graph={graph}
+          focus={graph.focus}
+          onOpenAsset={onOpenAsset}
+          onSelectAsset={handleSelectAsset}
+        />
+      </div>
     </section>
   );
 }
