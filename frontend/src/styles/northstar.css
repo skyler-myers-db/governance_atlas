@@ -1854,11 +1854,12 @@ body {
 .gh-command-center-trust-center {
   position: absolute;
   z-index: 2;
-  /* Inset by ~18% — gives the trend caption (em) enough horizontal room
-     for "Trend unavailable" without clipping while still keeping the
-     content clear of the gauge stroke. Previously inset:26% truncated
-     the right edge of "Trend unavailab…". */
-  inset: 18%;
+  /* Inset by ~14% — generous horizontal room so the eyebrow
+     ("METADATA COVERAGE", "GOVERNANCE POSTURE") and trend caption
+     ("Trend unavailable") both fit fully inside the gauge without
+     clipping. Earlier insets at 26% and 18% truncated the eyebrow
+     right edge, e.g. "METADATA COVERAG[E]". */
+  inset: 14%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1871,11 +1872,18 @@ body {
 .gh-command-center-trust-center > span {
   margin-bottom: 2px;
   color: var(--ga-bright-blue);
-  font-size: 0.58rem;
+  font-size: 0.54rem;
   font-weight: 800;
-  letter-spacing: 0.18em;
+  /* Tightened letter-spacing 0.18em → 0.10em — at 0.18em
+     "METADATA COVERAGE" was ~12% wider than the inner content
+     box and clipped the trailing "E". Combined with the wider
+     14% inset above, both eyebrows fit cleanly now. */
+  letter-spacing: 0.10em;
   text-transform: uppercase;
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .gh-command-center-trust-center strong {

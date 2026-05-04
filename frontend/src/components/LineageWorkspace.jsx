@@ -157,7 +157,7 @@ function LineageHero({ asset, focusFqn, focus, hydrating, edgeCount, onClear }) 
   );
 }
 
-function LineageDetailRail({ graph, focus, onOpenAsset, onSelectAsset }) {
+function LineageDetailRail({ graph, focus, asset, onOpenAsset, onSelectAsset }) {
   const focusId = focus?.id;
   const sources = useMemo(
     () =>
@@ -175,6 +175,32 @@ function LineageDetailRail({ graph, focus, onOpenAsset, onSelectAsset }) {
         .filter(Boolean),
     [graph.edges, graph.nodes, focusId],
   );
+  // The lineage payload doesn't carry per-node rows/freshness/owners — those
+  // live on the asset detail endpoint (already fetched by the workspace via
+  // useAssetDetail). Pull them off the focus asset so the rail surfaces real
+  // data instead of "Unavailable" for all three stats. Falls through to the
+  // pre-formatted lineage-payload values when asset detail hasn't loaded yet.
+  const detailFreshness =
+    asset?.lastRefreshDisplay ||
+    asset?.freshness ||
+    asset?.lastRefresh ||
+    asset?.refreshedAt ||
+    asset?.detail?.freshness ||
+    "";
+  const detailRowCount = asset?.rowCountDisplay || asset?.rowCount || asset?.rows;
+  const detailOwner =
+    asset?.ownerDisplayName ||
+    asset?.owner ||
+    asset?.steward ||
+    (Array.isArray(asset?.owners) ? asset.owners[0]?.displayName || asset.owners[0]?.email : "");
+  const detailActivity = Array.isArray(asset?.recentActivity)
+    ? asset.recentActivity
+    : Array.isArray(asset?.activity)
+    ? asset.activity
+    : [];
+  const recentActivity = detailActivity.length ? detailActivity : focus?.recentActivity || [];
+  const recentActivityCount = recentActivity.length || focus?.recentActivityCount || 0;
+  const columnLineageCount = Array.isArray(graph.columnEdges) ? graph.columnEdges.length : 0;
 
   return (
     <aside className="ga-lineage-v2-rail">
@@ -188,18 +214,38 @@ function LineageDetailRail({ graph, focus, onOpenAsset, onSelectAsset }) {
         <div className="ga-lineage-v2-rail-stats">
           <div>
             <span>Last refresh</span>
-            <strong>{focus.freshness || "Unavailable"}</strong>
+            <strong>{detailFreshness || focus.freshness || "Unavailable"}</strong>
           </div>
           <div>
             <span>Rows</span>
-            <strong>{focus.rowCount || "Unavailable"}</strong>
+            <strong>
+              {detailRowCount != null && detailRowCount !== ""
+                ? Number(detailRowCount).toLocaleString?.() || String(detailRowCount)
+                : focus.rowCount || "Unavailable"}
+            </strong>
           </div>
           <div>
             <span>Owner</span>
             <strong>
-              {focus.owners?.[0]?.displayName || focus.owners?.[0]?.email || "Unavailable"}
+              {detailOwner ||
+                focus.owners?.[0]?.displayName ||
+                focus.owners?.[0]?.email ||
+                "Unavailable"}
             </strong>
           </div>
+        </div>
+      ) : null}
+
+      {columnLineageCount > 0 ? (
+        <div className="ga-lineage-v2-rail-section">
+          <header>
+            <span>Column lineage</span>
+            <span className="ga-lineage-v2-rail-count">{columnLineageCount}</span>
+          </header>
+          <p className="ga-lineage-v2-rail-empty">
+            {columnLineageCount} column-level link{columnLineageCount === 1 ? "" : "s"}{" "}
+            traced through this asset (upstream + downstream).
+          </p>
         </div>
       ) : null}
 
@@ -258,14 +304,14 @@ function LineageDetailRail({ graph, focus, onOpenAsset, onSelectAsset }) {
       <div className="ga-lineage-v2-rail-section">
         <header>
           <span>Recent activity</span>
-          <span className="ga-lineage-v2-rail-count">{focus?.recentActivityCount || 0}</span>
+          <span className="ga-lineage-v2-rail-count">{recentActivityCount}</span>
         </header>
-        {focus?.recentActivity?.length ? (
+        {recentActivity.length ? (
           <ul>
-            {focus.recentActivity.map((event, index) => (
+            {recentActivity.slice(0, 5).map((event, index) => (
               <li key={`${event.id || event.kind || "event"}-${index}`}>
-                <strong>{event.kind || event.title || "Lineage event"}</strong>
-                <span>{event.timestamp || event.observedAt || ""}</span>
+                <strong>{event.kind || event.title || event.action || "Activity"}</strong>
+                <span>{event.timestamp || event.observedAt || event.at || ""}</span>
               </li>
             ))}
           </ul>
@@ -405,7 +451,12 @@ export default function LineageWorkspace({
   ]);
 
   const handleSelectAsset = (nextAssetFqn) => {
-    onNavigationStateChange?.(true, "Refocusing lineage…");
+    // Do NOT call onNavigationStateChange here. That used to trigger a
+    // global app-level "Refocusing lineage…" overlay every node click,
+    // which is what made focus-switch feel like a full reload from the
+    // user's perspective. The canvas's own sticky-graph state handles
+    // the transition with a much subtler in-canvas banner; we don't
+    // want a second page-level overlay on top of it.
     onRouteAssetChange?.(nextAssetFqn, "Data Lineage");
   };
 
@@ -413,6 +464,21 @@ export default function LineageWorkspace({
     setAssetSearchQuery("");
     onRouteAssetChange?.("", "Data Lineage");
   };
+
+  // Track whether we've ever shown a populated canvas this session. Once
+  // true, never fall back to the error UI — the canvas's own sticky-graph
+  // logic carries us across the transition. This kills the "click =
+  // full reload" perception the user reported.
+  // CRITICAL: this hook MUST run on every render including the no-focus
+  // empty state below — putting it after an early return causes React
+  // error #310 ("Rendered fewer hooks than expected") whenever the user
+  // navigates from the empty state to a focused asset, because the hook
+  // count would change between renders.
+  useEffect(() => {
+    if (graph.nodes.length > 0 && !canvasEverRendered) {
+      setCanvasEverRendered(true);
+    }
+  }, [graph.nodes.length, canvasEverRendered]);
 
   if (!focusAssetFqn) {
     return (
@@ -427,16 +493,6 @@ export default function LineageWorkspace({
       </section>
     );
   }
-
-  // Track whether we've ever shown a populated canvas this session. Once
-  // true, never fall back to the error UI — the canvas's own sticky-graph
-  // logic carries us across the transition. This kills the "click =
-  // full reload" perception the user reported.
-  useEffect(() => {
-    if (graph.nodes.length > 0 && !canvasEverRendered) {
-      setCanvasEverRendered(true);
-    }
-  }, [graph.nodes.length, canvasEverRendered]);
 
   // Bootstrap can report lineage "unavailable" (e.g. "No lineage-observed
   // catalogs are detected yet") for an asset that the live /api/lineage
@@ -485,6 +541,7 @@ export default function LineageWorkspace({
           />
         </div>
         <LineageDetailRail
+          asset={asset}
           graph={graph}
           focus={graph.focus}
           onOpenAsset={onOpenAsset}
