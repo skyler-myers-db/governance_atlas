@@ -304,6 +304,15 @@ export default function LineageWorkspace({
 }) {
   const focusAssetFqn = initialAssetFqn || "";
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
+  // Once we've successfully rendered a canvas with at least one node, keep
+  // the workspace in canvas mode for the rest of the session. Without this,
+  // a focus-switch click triggers a brief moment where the new asset's
+  // payload hasn't returned yet AND bootstrap.capabilities.tableLineage is
+  // marked unavailable — the workspace would flip to the "Lineage
+  // unavailable" error UI mid-transition, unmount the canvas, then remount
+  // when nodes arrive. The user perceives this as a full reload. We pin
+  // the canvas open so the only thing that swaps is the graph data inside.
+  const [canvasEverRendered, setCanvasEverRendered] = useState(false);
 
   const lineageAvailable = tableLineageAvailable(bootstrap);
   const lineageUnavailableReason = tableLineageReason(bootstrap);
@@ -419,14 +428,24 @@ export default function LineageWorkspace({
     );
   }
 
+  // Track whether we've ever shown a populated canvas this session. Once
+  // true, never fall back to the error UI — the canvas's own sticky-graph
+  // logic carries us across the transition. This kills the "click =
+  // full reload" perception the user reported.
+  useEffect(() => {
+    if (graph.nodes.length > 0 && !canvasEverRendered) {
+      setCanvasEverRendered(true);
+    }
+  }, [graph.nodes.length, canvasEverRendered]);
+
   // Bootstrap can report lineage "unavailable" (e.g. "No lineage-observed
   // catalogs are detected yet") for an asset that the live /api/lineage
   // endpoint *does* return real edges for — the capability check uses a
   // narrower workspace-wide signal than the per-asset query. So if we
   // actually have nodes back from the API, render the canvas regardless
   // of bootstrap pessimism. Only block when both capability is off AND
-  // the API returned nothing.
-  if (!lineageSurfaceAvailable && !graph.nodes.length) {
+  // the API returned nothing AND we've never rendered the canvas before.
+  if (!lineageSurfaceAvailable && !graph.nodes.length && !canvasEverRendered) {
     return (
       <section className="gh-lineage-shell">
         <LineageHero

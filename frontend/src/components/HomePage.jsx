@@ -1364,6 +1364,13 @@ export function HomePage({
   // overlay instead of jumping the surface to the Audit browser. Falls back
   // to the existing onNavigate("audit") flow when no FQN is present.
   onOpenAsset360Drawer = null,
+  // When provided, chip clicks (Customer / Finance / etc. domain bars,
+  // catalog cards, etc.) navigate into Discovery with a pre-applied filter
+  // so the user lands on a meaningfully scoped result set instead of an
+  // unfiltered list. Signature: ({domains?: string[], catalogs?: string[],
+  // tiers?: string[], certifications?: string[], sensitivities?: string[]},
+  // optionalQuery?: string) => void.
+  onOpenDiscoveryWithFilter = null,
 }) {
   const atlasAi = useAtlasAiConversation({ request: atlasAiRequest });
   const [suggestionPage, setSuggestionPage] = useState(0);
@@ -2023,12 +2030,21 @@ export function HomePage({
                 count: null,
               }))).map((domain) => (
                 <button
-                  aria-label={domain.score === null ? `${domain.label} domain signal unavailable` : `Open discovery for ${domain.label} ${domainSignalName}`}
+                  aria-label={domain.score === null ? `${domain.label} domain signal unavailable` : `Open discovery filtered to ${domain.label} domain`}
                   className={`gh-command-center-domain-row tone-${domain.tone || "empty"}`}
                   disabled={domain.score === null}
                   key={domain.label}
-                  onClick={() => openCommandCenterSurface("discovery")}
-                  title={domain.score === null ? `${domainSignalTitle} signal unavailable` : `Open discovery for ${domain.label}`}
+                  onClick={() => {
+                    if (domain.score === null) return;
+                    if (onOpenDiscoveryWithFilter) {
+                      onOpenDiscoveryWithFilter({ domains: [domain.label] });
+                    } else {
+                      openCommandCenterSurface("discovery");
+                    }
+                  }}
+                  title={domain.score === null
+                    ? `${domainSignalTitle} signal unavailable`
+                    : `Open discovery filtered to ${domain.label} domain`}
                   type="button"
                 >
                   <span>{domain.label}</span>
