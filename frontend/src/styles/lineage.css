@@ -4866,3 +4866,72 @@
     display: grid;
   }
 }
+
+/* ==========================================================================
+   Lineage hop-distance pass — design-pass primitives
+   FlowParticles, hover-trace dim, pulsing focus ring, locked-node icon.
+   ========================================================================== */
+
+/* Flow particles — animated dots that travel along edges touching the focus */
+.ga-lineage-flow-particle {
+  fill: rgba(102, 197, 255, 0.95);
+  filter: drop-shadow(0 0 6px rgba(102, 197, 255, 0.8));
+}
+.ga-lineage-flow-particle.is-trail {
+  fill: rgba(92, 225, 230, 0.75);
+}
+
+/* Hover-trace: dim non-connected nodes and edges to ~22% intensity */
+.ga-lineage-graph-bands.is-tracing .ga-lineage-node-wrap.is-untraced {
+  opacity: 0.22;
+  filter: saturate(0.4);
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1), filter 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: auto;
+}
+.ga-lineage-graph-bands.is-tracing .ga-lineage-node-wrap.is-traced {
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ga-lineage-edge-overlay g[data-edge-traced="false"] {
+  opacity: 0.18;
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ga-lineage-edge-overlay g[data-edge-traced="true"] {
+  opacity: 1;
+  transition: opacity 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Focus-edge styling — slightly thicker stroke + brand glow */
+.ga-lineage-edge-overlay path.is-focus-edge {
+  stroke-width: 1.6;
+  filter: drop-shadow(0 0 4px rgba(102, 197, 255, 0.5));
+}
+
+/* Pulsing focus ring around the focus band's node */
+.ga-lineage-graph-bands .is-focus-band .ga-lineage-node-wrap {
+  position: relative;
+}
+.ga-lineage-graph-bands .is-focus-band .ga-lineage-node-wrap::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 12px;
+  border: 1px solid rgba(102, 197, 255, 0.55);
+  box-shadow: 0 0 18px rgba(102, 197, 255, 0.32);
+  pointer-events: none;
+  animation: ga-lineage-focus-pulse 3.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  z-index: 0;
+}
+@keyframes ga-lineage-focus-pulse {
+  0%, 100% { box-shadow: 0 0 16px rgba(102, 197, 255, 0.30); border-color: rgba(102, 197, 255, 0.55); }
+  50%       { box-shadow: 0 0 32px rgba(102, 197, 255, 0.55); border-color: rgba(102, 197, 255, 0.85); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ga-lineage-graph-bands .is-focus-band .ga-lineage-node-wrap::before { animation: none; }
+  .ga-lineage-flow-particle,
+  .ga-lineage-flow-particle.is-trail { display: none; }
+}
+
+/* Wrapper sizing — keep inner NodeButton flush within the band layout. */
+.ga-lineage-node-wrap {
+  display: contents;
+}

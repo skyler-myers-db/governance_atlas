@@ -301,6 +301,52 @@ function AtlasAiEvidenceList({ evidence = [], onOpenEvidence }) {
   );
 }
 
+// Atlas AI thinking-stage. Renders while a question is in-flight to show
+// the user that the agent is preparing a query plan against governed metadata.
+// The plan lines below are illustrative of the system tables the runtime
+// inspects (governance_state.*, system.access.table_lineage, etc.) and are
+// rotated as the request proceeds. The real backend may return a structured
+// plan in the future; until then this stage gives the operator a visible
+// "How I'm answering this" affordance instead of an opaque spinner.
+const AI_PLAN_LINES = [
+  ["Reading governance_state.kpi_snapshot", "joined to UC inventory"],
+  ["Walking system.access.table_lineage", "for citation candidates"],
+  ["Filtering by actor visibility", "permission-aware metadata only"],
+  ["Composing grounded answer", "no raw rows read"],
+];
+
+function AtlasAiThinkingStage() {
+  const [revealed, setRevealed] = useState(1);
+  useEffect(() => {
+    if (revealed >= AI_PLAN_LINES.length) return undefined;
+    const timeout = setTimeout(() => setRevealed((value) => Math.min(AI_PLAN_LINES.length, value + 1)), 700);
+    return () => clearTimeout(timeout);
+  }, [revealed]);
+  return (
+    <div className="ga-ai-stage is-thinking" role="status" aria-live="polite">
+      <div className="ga-ai-stage-label">
+        <span aria-hidden="true" className="ga-live-dot" />
+        How I&rsquo;m answering this
+      </div>
+      {AI_PLAN_LINES.slice(0, revealed).map(([head, tail], index) => {
+        const isLast = index === revealed - 1;
+        return (
+          <div className="ga-ai-stage-plan-line" key={head} style={{ animationDelay: `${index * 80}ms` }}>
+            <span aria-hidden="true">→</span>
+            <span>
+              <span className="ga-ai-stage-plan-mono">{head}</span>{" "}
+              <span>{tail}</span>
+              {isLast && revealed < AI_PLAN_LINES.length ? (
+                <span className="ga-ai-stage-caret" aria-hidden="true" />
+              ) : null}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function AtlasAiMessageList({
   messages = [],
   onOpenEvidence,
@@ -323,7 +369,11 @@ function AtlasAiMessageList({
       role={item.error ? "alert" : "status"}
     >
       <span>{item.role === "user" ? "You" : "Atlas AI"}</span>
-      <MarkdownBlock className="gh-ai-message-markdown" source={item.text} />
+      {item.role === "assistant" && item.pending ? (
+        <AtlasAiThinkingStage />
+      ) : (
+        <MarkdownBlock className="gh-ai-message-markdown" source={item.text} />
+      )}
       {item.role === "assistant" && !item.pending && !item.error ? (
         <>
           <AtlasAiEvidenceList evidence={item.response?.evidence || []} onOpenEvidence={onOpenEvidence} />
