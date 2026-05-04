@@ -171,6 +171,9 @@ export function LineageNodeCard({
           <KindGlyph kind={node?.kind || "table"} />
         </span>
         <span className="ga-lineage-v2-card-title-wrap">
+          {node?.kicker ? (
+            <span className="ga-lineage-v2-card-kicker">{node.kicker}</span>
+          ) : null}
           <span className="ga-lineage-v2-card-title" title={node?.label || node?.fqn || ""}>
             {node?.label || "Unknown"}
           </span>
@@ -205,6 +208,15 @@ export function LineageNodeCard({
       ) : null}
 
       <footer className="ga-lineage-v2-card-foot">
+        {/*
+          The lineage payload doesn't carry rows/freshness/owners — those
+          live on the asset-detail endpoint, not on system.access lineage
+          tables. So we render the pre-formatted `foot` strings the API
+          actually returned (e.g. "Table", "Metadata unavailable") and
+          fall through to row/freshness/owner stats only when the v2
+          adapter could derive them from a richer payload (asset 360
+          enrichment).
+        */}
         {node?.rowCount ? (
           <FootStat
             glyph={
@@ -253,8 +265,30 @@ export function LineageNodeCard({
             title={`${node.recentActivityCount} recent lineage events`}
           />
         ) : null}
-        {!node?.rowCount && !node?.freshness && !node?.ownerCount && !node?.recentActivityCount ? (
-          <span className="ga-lineage-v2-card-footstat is-empty">Metadata pending</span>
+        {!node?.rowCount &&
+        !node?.freshness &&
+        !node?.ownerCount &&
+        !node?.recentActivityCount ? (
+          // No derived metadata — surface the pre-formatted lineage-payload
+          // foot strings the API gave us. They're already honest copy
+          // ("Table" for visible nodes; "Metadata unavailable" when the
+          // asset is lineage-only). Falls back to the original "Metadata
+          // pending" only when the API gave us literally nothing.
+          (node?.foot || []).length ? (
+            (node.foot || []).slice(0, 2).map((line, idx) => (
+              <span
+                className={`ga-lineage-v2-card-footstat ${
+                  /unavailable|pending/i.test(line) ? "is-empty" : ""
+                }`.trim()}
+                key={`${line}-${idx}`}
+                title={line}
+              >
+                {line}
+              </span>
+            ))
+          ) : (
+            <span className="ga-lineage-v2-card-footstat is-empty">Metadata pending</span>
+          )
         ) : null}
       </footer>
     </div>

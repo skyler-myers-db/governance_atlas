@@ -120,9 +120,8 @@ function defaultAiChatPosition() {
 }
 
 function shouldAutoOpenAtlasAi(activeModule = "") {
-  if (!AI_AUTO_OPEN_WIDE_MODULES.has(activeModule)) return false;
-  if (typeof window === "undefined") return false;
-  return window.innerWidth >= 2200;
+  // Disabled auto-open: AI panel should only open when user clicks the FAB button
+  return false;
 }
 
 function clampAiChatPosition(position) {
@@ -353,9 +352,11 @@ function AtlasAiMessageList({
   emptyMessage,
 }) {
   if (!messages.length) {
+    // The panel header already renders the "Atlas AI" eyebrow; repeating
+    // it inside the empty-state body card looked like the panel was
+    // duplicating itself. Empty card now shows the grounding copy only.
     return (
       <div className="gh-floating-ai-message tone-assistant is-empty" role="status">
-        <span>Atlas AI</span>
         <strong>
           {emptyMessage || "I answer questions about your governed data using Unity Catalog metadata. I read Unity Catalog metadata only — no customer or PII row content."}
         </strong>
@@ -684,13 +685,11 @@ export default function AppFrame({
   }, [closeAiCopilot, onModuleChange, onSearchResultSelect]);
 
   useEffect(() => {
+    // Close AI panel when navigating to lineage (lineage-v2 has its own panels)
     if (activeModule === "lineage") {
       setAiChatOpen(false);
-      return;
     }
-    if (shouldAutoOpenAtlasAi(activeModule)) {
-      setAiChatOpen(true);
-    }
+    // AI panel auto-open is disabled; panel should only open when user clicks the FAB button
   }, [activeModule]);
 
   useEffect(() => {

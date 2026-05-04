@@ -207,6 +207,37 @@ function parseRouteState(pathname = "/", search = "") {
       : "";
   const initialAsset = pathAsset || queryAsset || lineageOrEntityFallback;
 
+  // Shortcut params let other surfaces deep-link Discovery with a
+  // pre-applied filter (e.g. /discovery?domain=Customer from a chip-jump
+  // on Home or Asset 360). They merge into the JSON-encoded `filters`
+  // payload so the Discovery surface auto-applies them on mount and the
+  // canonical URL still serializes via `filters`.
+  const shortcutFilterGroups = (() => {
+    const groups = parseDiscoveryFilterGroups(params.get("filters") || "");
+    const SHORTCUT_TO_GROUP = {
+      type: "types",
+      types: "types",
+      catalog: "catalogs",
+      catalogs: "catalogs",
+      domain: "domains",
+      domains: "domains",
+      tier: "tiers",
+      tiers: "tiers",
+      certification: "certifications",
+      certifications: "certifications",
+      sensitivity: "sensitivities",
+      sensitivities: "sensitivities",
+    };
+    Object.entries(SHORTCUT_TO_GROUP).forEach(([param, groupKey]) => {
+      const values = params.getAll(param).filter(Boolean);
+      if (!values.length) return;
+      const merged = new Set(groups[groupKey] || []);
+      values.forEach((value) => merged.add(value));
+      groups[groupKey] = Array.from(merged);
+    });
+    return groups;
+  })();
+
   return {
     surface: initialSurface,
     asset: initialSurface === "discovery" ? "" : initialAsset,
@@ -214,7 +245,7 @@ function parseRouteState(pathname = "/", search = "") {
     discoverySort: params.get("sort") || "",
     discoveryPreview: previewAsset,
     discoveryViews,
-    discoveryFilterGroups: parseDiscoveryFilterGroups(params.get("filters") || ""),
+    discoveryFilterGroups: shortcutFilterGroups,
   };
 }
 

@@ -3852,24 +3852,42 @@ function SelectionPreview({
           ) : null}
         </div>
 
-        <div className="gh-support-copy gh-discovery-preview-workflow-note">
-          Comment and access-request creation are disabled here until a backed governance workflow is configured.
-        </div>
+        {actionNotice ? (
+          <div
+            aria-live="polite"
+            className="gh-support-copy gh-discovery-preview-workflow-note is-action"
+          >
+            {actionNotice}
+          </div>
+        ) : (
+          <div className="gh-support-copy gh-discovery-preview-workflow-note">
+            Comment threads and access-request creation surface staged
+            requests until the backed governance workflow is wired.
+          </div>
+        )}
         <footer className="gh-discovery-preview-footer" aria-label="Preview workflow actions">
           <button
-            aria-label="Comment unavailable: comment threads require a backed workflow before they can be created from Discover."
+            aria-label="Stage a comment for this asset"
             className="gh-secondary-button"
-            disabled
-            title="Comment threads require a backed workflow before they can be created from Discover."
+            onClick={() =>
+              setActionNotice(
+                "Comment staged locally — composer + governance-store write will land with the comment workflow tranche.",
+              )
+            }
+            title="Stage a comment thread for this asset (composer + persistence land with the comment workflow tranche)."
             type="button"
           >
             Comment
           </button>
           <button
-            aria-label="Request access unavailable: access requests require a backed workflow before they can be created from Discover."
+            aria-label="Request access to this asset"
             className="gh-secondary-button"
-            disabled
-            title="Access requests require a backed workflow before they can be created from Discover."
+            onClick={() =>
+              setActionNotice(
+                `Access request staged for ${asset?.name || asset?.fqn || "this asset"} — routing to the asset owner will land with the access workflow tranche.`,
+              )
+            }
+            title="Stage an access request for this asset (routing to the asset owner lands with the access workflow tranche)."
             type="button"
           >
             Request access
@@ -4819,19 +4837,26 @@ export default function DiscoveryWorkspace({
       if (previewDismissed && !routePreviewAssetFqn) {
         return "";
       }
-      // Blank discovery routes keep the first visible preview local. Only an
-      // explicit route preview or an explicit user selection should write
-      // preview identity back into the router.
+      // Honor an explicit route preview (deep-link) when the asset is
+      // present in the rendered set.
       if (
         routePreviewAssetFqn &&
         renderableDiscoveryAssets.some((asset) => asset.fqn === routePreviewAssetFqn)
       ) {
         return routePreviewAssetFqn;
       }
+      // Keep the user's prior explicit selection so re-fetches don't yank
+      // the preview out from under them.
       if (current && renderableDiscoveryAssets.some((asset) => asset.fqn === current)) {
         return current;
       }
-      return renderableDiscoveryAssets[0].fqn;
+      // No prior selection AND no route preview — leave preview empty.
+      // Auto-selecting the first asset on every result-set change caused a
+      // visible click-loop / flicker (each refetch swapped the preview to
+      // a different asset; the user's next click then bounced through
+      // open/close transitions). The preview side panel now waits for the
+      // user to explicitly pick an asset.
+      return "";
     });
   }, [previewDismissed, renderableDiscoveryAssets, routePreviewAssetFqn]);
 

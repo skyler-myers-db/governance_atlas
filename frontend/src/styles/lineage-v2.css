@@ -102,6 +102,15 @@
   gap: 1px;
   min-width: 0;
 }
+.ga-lineage-v2-card-kicker {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #66c5ff;
+  line-height: 1;
+  margin-bottom: 1px;
+}
 .ga-lineage-v2-card-title {
   font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
   font-size: 12.5px;

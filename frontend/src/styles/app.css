@@ -79,13 +79,13 @@ body,
 body {
   margin: 0;
   font-family: var(--gh-font);
-  color: var(--gh-ink);
-  /* Light cream base — operator round 4 asked for another smidget
-     lighter. Radial bloom is a subtle warm highlight only, no hue shift. */
+  color: var(--ga-text);
+  /* Dark navy Entrada north star theme — deep blue gradient with
+     subtle cyan accents matching the Command Center and Discovery surfaces. */
   background:
-    radial-gradient(circle at top left, rgba(224, 196, 132, 0.04), transparent 28%),
-    radial-gradient(circle at top right, rgba(224, 196, 132, 0.03), transparent 24%),
-    linear-gradient(180deg, #fdf9ef 0%, #faf6ec 40%, #f7f1e4 100%);
+    radial-gradient(circle at top left, rgba(92, 225, 230, 0.06), transparent 28%),
+    radial-gradient(circle at top right, rgba(102, 197, 255, 0.04), transparent 24%),
+    linear-gradient(180deg, rgba(9, 43, 68, 0.98) 0%, rgba(8, 38, 62, 0.99) 40%, rgba(6, 28, 48, 1.00) 100%);
   text-rendering: optimizeLegibility;
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
@@ -104,17 +104,16 @@ body {
 
 .gh-panel {
   border-radius: var(--gh-radius-xl);
-  border: 1px solid rgba(182, 198, 216, 0.78);
-  box-shadow: var(--gh-shadow-soft);
+  border: 1px solid rgba(102, 197, 255, 0.20);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.32);
 }
-/* Shell header: no surrounding card but sticky cream background so
-   scrolled content doesn't bleed through. Operator 2026-04-19 round 5
-   flagged scroll-through. */
+/* Shell header: no surrounding card but dark background so
+   scrolled content doesn't bleed through. Uses dark Entrada palette. */
 .gh-shell-header {
   border-radius: 0;
   border: 0;
   box-shadow: none;
-  background: #faf6ec !important;
+  background: linear-gradient(180deg, rgba(12, 38, 60, 0.96), rgba(9, 32, 52, 0.98)) !important;
 }
 
 .gh-eyebrow,
@@ -125,7 +124,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: none;
-  color: #5f718c;
+  color: var(--ga-bright-blue, #66c5ff);
 }
 
 .gh-global-search {
@@ -154,9 +153,9 @@ body {
   display: grid;
   gap: 2px;
   padding: 3px;
-  border: 1px solid rgba(184, 197, 222, 0.96);
+  border: 1px solid rgba(102, 197, 255, 0.22);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.98);
+  background: rgba(17, 44, 72, 0.92);
   box-shadow: 0 10px 18px rgba(19, 31, 65, 0.06);
   z-index: 5;
 }
@@ -401,9 +400,9 @@ body {
   min-height: 42px;
   padding: 0 1rem;
   border-radius: 999px;
-  border: 1px solid var(--gh-line-strong);
-  background: #fff;
-  color: var(--gh-ink);
+  border: 1px solid rgba(102, 197, 255, 0.22);
+  background: rgba(102, 197, 255, 0.08);
+  color: var(--ga-text-strong, #ffffff);
   font-weight: 800;
 }
 
@@ -418,8 +417,8 @@ body {
 }
 
 .gh-secondary-button {
-  background: var(--gh-surface);
-  box-shadow: inset 0 0 0 1px rgba(91, 67, 238, 0.06);
+  background: rgba(102, 197, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(102, 197, 255, 0.18);
 }
 
 .gh-tertiary-button {
@@ -429,13 +428,13 @@ body {
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  color: #4d3bcf;
+  color: var(--ga-bright-blue, #66c5ff);
   font-size: 0.82rem;
   font-weight: 800;
 }
 
 .gh-inline-link-button {
-  color: #4d3bcf;
+  color: var(--ga-bright-blue, #66c5ff);
   text-decoration: none;
 }
 
@@ -813,9 +812,9 @@ button.gh-chip:not(.is-readonly):focus-visible,
   min-height: 44px;
   width: 100%;
   border-radius: 14px;
-  border: 1px solid var(--gh-line-strong);
-  background: #fff;
-  color: var(--gh-ink);
+  border: 1px solid rgba(102, 197, 255, 0.22);
+  background: rgba(102, 197, 255, 0.06);
+  color: var(--ga-text-strong, #ffffff);
   padding: 0 0.9rem;
   font: inherit;
 }
@@ -823,8 +822,8 @@ button.gh-chip:not(.is-readonly):focus-visible,
 .gh-input:focus,
 .gh-select:focus {
   outline: none;
-  border-color: rgba(91, 67, 238, 0.52);
-  box-shadow: 0 0 0 3px rgba(109, 106, 255, 0.1);
+  border-color: rgba(102, 197, 255, 0.52);
+  box-shadow: 0 0 0 3px rgba(102, 197, 255, 0.10);
 }
 
 .gh-support-copy,
@@ -968,18 +967,19 @@ button.gh-chip:not(.is-readonly):focus-visible,
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #fff;
-  border: 1px solid var(--gh-line);
+  background: rgba(102, 197, 255, 0.10);
+  border: 1px solid rgba(102, 197, 255, 0.28);
   font-size: 0.78rem;
+  color: var(--ga-bright-blue, #66c5ff);
 }
 
 .gh-filter-chip {
   min-height: 30px;
   padding: 0.22rem 0.62rem;
   border-radius: 999px;
-  border: 1px solid var(--gh-line);
-  background: #fff;
-  color: var(--gh-ink);
+  border: 1px solid rgba(102, 197, 255, 0.22);
+  background: rgba(102, 197, 255, 0.08);
+  color: var(--ga-text-strong, #ffffff);
   font-size: 0.82rem;
   font-weight: 700;
 }
@@ -2403,7 +2403,7 @@ button:focus-visible,
   position: absolute;
   inset: 0 0 auto 0;
   height: 4px;
-  background: linear-gradient(90deg, rgba(91, 67, 238, 0.92) 0%, rgba(15, 92, 192, 0.74) 100%);
+  background: linear-gradient(90deg, rgba(102, 197, 255, 0.82) 0%, rgba(92, 225, 230, 0.74) 100%);
   opacity: 0.88;
 }
 
@@ -2525,19 +2525,19 @@ button:focus-visible,
   min-height: 42px;
   padding: 0 16px;
   border-radius: 12px;
-  border-color: rgba(199, 211, 232, 0.9);
-  background: rgba(249, 251, 255, 0.94);
-  color: #425674;
+  border-color: rgba(102, 197, 255, 0.18);
+  background: rgba(102, 197, 255, 0.08);
+  color: var(--ga-text-muted, #b2bdc2);
   font-size: 0.9rem;
   font-weight: 800;
   box-shadow: none;
 }
 
 .gh-subtab.is-active {
-  color: #0f5cc0;
-  border-color: rgba(15, 92, 192, 0.22);
-  background: rgba(230, 240, 255, 0.96);
-  box-shadow: inset 0 0 0 1px rgba(15, 92, 192, 0.08);
+  color: var(--ga-bright-blue, #66c5ff);
+  border-color: rgba(102, 197, 255, 0.32);
+  background: rgba(102, 197, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(102, 197, 255, 0.16);
 }
 
 .gh-record-card {
@@ -5250,15 +5250,15 @@ button[class*="back-to-discovery"] {
   gap: 6px;
   align-items: center;
   padding: 8px 14px;
-  background: #fafbfd;
-  border-bottom: 1px solid var(--gh-border, #d8dee9);
+  background: rgba(17, 44, 72, 0.4);
+  border-bottom: 1px solid rgba(102, 197, 255, 0.15);
   min-height: 36px;
 }
 .gh-filter-chip-label {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--gh-text-muted, #5c6b82);
+  color: var(--ga-text-muted, #b2bdc2);
   font-weight: 700;
   margin-right: 4px;
 }
@@ -5267,16 +5267,16 @@ button[class*="back-to-discovery"] {
   align-items: center;
   gap: 4px;
   padding: 2px 6px 2px 8px;
-  background: var(--gh-accent-soft, #eef0ff);
-  border: 1px solid rgba(91, 67, 238, 0.3);
+  background: rgba(102, 197, 255, 0.10);
+  border: 1px solid rgba(102, 197, 255, 0.28);
   border-radius: 3px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--gh-accent, #5b3ff2);
+  color: var(--ga-bright-blue, #66c5ff);
   cursor: pointer;
 }
 .gh-filter-chip:hover {
-  background: rgba(91, 67, 238, 0.14);
+  background: rgba(102, 197, 255, 0.18);
 }
 .gh-filter-chip-x {
   display: inline-flex;
@@ -5291,7 +5291,7 @@ button[class*="back-to-discovery"] {
 .gh-filter-chip-clear-all {
   margin-left: auto;
   font-size: 11px;
-  color: var(--gh-text-muted, #5c6b82);
+  color: var(--ga-text-muted, #b2bdc2);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -5838,22 +5838,25 @@ button[class*="back-to-discovery"] {
   gap: 24px;
   align-items: flex-start;
   justify-content: space-between;
-  background: #fbf6e9;
-  border: 1px solid var(--gh-line, #c9bf9e);
+  background: linear-gradient(180deg, rgba(17, 44, 72, 0.92), rgba(8, 23, 42, 0.92));
+  border: 1px solid rgba(20, 44, 70, 0.85);
   border-radius: 16px;
   padding: 24px 28px;
-  box-shadow: 0 10px 22px rgba(18, 35, 58, 0.05);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 .gh-help-page-title {
   margin: 6px 0 8px;
+  font-family: var(--ga-font-heading, "Hanken Grotesk", sans-serif);
   font-size: 1.6rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: var(--gh-ink, #1a2236);
+  color: var(--ga-text-strong, #ffffff);
 }
 .gh-help-page-lede {
   margin: 0;
-  color: var(--gh-ink-soft, #525e74);
+  color: var(--ga-text-muted, #b2bdc2);
   font-size: 0.98rem;
   line-height: 1.5;
   max-width: 62ch;
@@ -5866,8 +5869,8 @@ button[class*="back-to-discovery"] {
   flex-wrap: wrap;
   gap: 8px;
   padding: 10px 14px;
-  background: var(--gh-surface, #fff);
-  border: 1px solid var(--gh-line, #e2e4ec);
+  background: linear-gradient(180deg, rgba(17, 44, 72, 0.92), rgba(8, 23, 42, 0.92));
+  border: 1px solid rgba(20, 44, 70, 0.85);
   border-radius: 12px;
 }
 .gh-help-page-toc-link {
@@ -5876,24 +5879,24 @@ button[class*="back-to-discovery"] {
   padding: 6px 12px;
   font-size: 0.84rem;
   font-weight: 600;
-  color: var(--gh-ink-soft, #525e74);
+  color: var(--ga-text-muted, #b2bdc2);
   text-decoration: none;
   border-radius: 999px;
   border: 1px solid transparent;
   transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
 .gh-help-page-toc-link:hover {
-  background: rgba(91, 63, 242, 0.06);
-  color: var(--gh-ink, #1a2236);
-  border-color: rgba(91, 63, 242, 0.18);
+  background: rgba(102, 197, 255, 0.12);
+  color: var(--ga-text-strong, #ffffff);
+  border-color: rgba(102, 197, 255, 0.32);
 }
 .gh-help-page-body {
   display: grid;
   gap: 20px;
 }
 .gh-help-page-section {
-  background: #fbf6e9;
-  border: 1px solid var(--gh-line, #c9bf9e);
+  background: linear-gradient(180deg, rgba(17, 44, 72, 0.92), rgba(8, 23, 42, 0.92));
+  border: 1px solid rgba(20, 44, 70, 0.85);
   border-radius: 16px;
   padding: 22px 26px;
 }
@@ -5901,7 +5904,7 @@ button[class*="back-to-discovery"] {
   margin: 0 0 12px;
   font-size: 1.1rem;
   font-weight: 800;
-  color: var(--gh-ink, #1a2236);
+  color: var(--ga-text-strong, #ffffff);
   letter-spacing: -0.015em;
 }
 .gh-help-page-entries {
@@ -5912,21 +5915,21 @@ button[class*="back-to-discovery"] {
   display: grid;
   gap: 6px;
   padding: 14px 16px;
-  background: var(--gh-surface-soft, #faf7f0);
-  border: 1px solid var(--gh-line, #e2e4ec);
+  background: rgba(102, 197, 255, 0.06);
+  border: 1px solid rgba(102, 197, 255, 0.20);
   border-radius: 12px;
 }
 .gh-help-page-entry-heading {
   margin: 0;
   font-size: 0.94rem;
   font-weight: 700;
-  color: var(--gh-ink, #1a2236);
+  color: var(--ga-text-strong, #ffffff);
 }
 .gh-help-page-entry-body {
   margin: 0;
   font-size: 0.9rem;
   line-height: 1.5;
-  color: var(--gh-ink-soft, #525e74);
+  color: var(--ga-text-muted, #b2bdc2);
 }
 
 /* In-app inbox surface — mounted at /inbox. Wraps the InboxPanel with
@@ -5958,6 +5961,9 @@ button[class*="back-to-discovery"] {
 .gh-inbox-page .gh-shell-inbox-panel {
   background: linear-gradient(180deg, rgba(17, 44, 72, 0.92), rgba(8, 23, 42, 0.92)) !important;
   border: 1px solid rgba(20, 44, 70, 0.85) !important;
+}
+.gh-inbox-page .gh-shell-inbox-panel .gh-shell-inbox-head {
+  display: none;
 }
 .gh-inbox-page-title {
   margin: 6px 0 8px;
