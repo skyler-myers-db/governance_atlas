@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 import time
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
@@ -13,6 +14,17 @@ from atlas.services import live_metadata as metadata_service
 
 
 HIDDEN_CATALOGS = {"hive_metastore", "samples", "system", "__databricks_internal"}
+HIDDEN_SCHEMA_PREFIXES = ("atlas_ga_stress_",)
+HIDDEN_SCHEMA_NAMES = {"atlas_ai", "governance_atlas_demo", "governance_hub"}
+INTERNAL_TAG_PREFIXES = (
+    "governance_atlas.",
+    "governance_atlas_",
+    "governance.atlas.",
+)
+ORGANIC_EXCLUDE_TAGS = {
+    "governance_atlas.exclude_from_organic_evidence",
+    "governance_atlas_exclude_from_organic_evidence",
+}
 PLACEHOLDER_DESCRIPTION = "No description has been captured for this asset yet."
 ASSET_DETAIL_SECTIONS = (
     "header",
@@ -111,6 +123,30 @@ lineage_asset_stub = metadata_service.lineage_asset_stub
 empty_inventory = metadata_service.empty_inventory
 
 
+def customer_safe_label(value: Any) -> str:
+    text = normalize_str(value)
+    if not text:
+        return ""
+    return re.sub(
+        r"\bga-taxonomy-term-([a-z0-9-]+)\b",
+        lambda match: match.group(1).replace("-", " ").title(),
+        text,
+        flags=re.IGNORECASE,
+    )
+
+
+def customer_safe_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: customer_safe_payload(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [customer_safe_payload(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(customer_safe_payload(item) for item in value)
+    if isinstance(value, str):
+        return customer_safe_label(value)
+    return value
+
+
 class DiscoveryQuerySyntaxError(ValueError):
     def __init__(self, message: str) -> None:
         super().__init__(message)
@@ -145,6 +181,12 @@ def invalidate_asset_caches(asset_fqn: str | None = None) -> None:
             asset_fqn
             and key.startswith("asset_detail:")
             and normalize_str(asset_fqn) in key
+        ):
+            _TTL_CACHE.pop(key, None)
+            continue
+        if (
+            key.startswith("asset_header_exact:")
+            and (not asset_fqn or normalize_str(asset_fqn) in key)
         ):
             _TTL_CACHE.pop(key, None)
     try:
@@ -230,7 +272,8 @@ def inventory(
 def build_inventory(
     uc, store, hidden_catalogs: Sequence[str], is_skippable_metadata_error
 ) -> pd.DataFrame:
-    catalogs = inventory_catalogs(uc, hidden_catalogs)
+    allowed_catalogs = _configured_catalog_allowlist()
+    catalogs = sorted(allowed_catalogs) if allowed_catalogs else inventory_catalogs(uc, hidden_catalogs)
     if not catalogs:
         fallback = cached_asset_inventory(uc, store)
         return (
@@ -502,6 +545,64 @@ def build_inventory(
     ).reset_index(drop=True)
 
 
+def _configured_catalog_allowlist() -> set[str]:
+    raw = os.getenv("GOVAT_DISCOVERY_CATALOGS", "")
+    return {
+        normalize_str(item).lower()
+        for item in raw.split(",")
+        if normalize_str(item)
+    }
+
+
+def _configured_control_plane_schemas() -> set[tuple[str, str]]:
+    catalog = normalize_str(os.getenv("GOVAT_CATALOG")).lower()
+    schema = normalize_str(os.getenv("GOVAT_SCHEMA")).lower()
+    if not catalog or not schema:
+        return set()
+    return {(catalog, schema)}
+
+
+def _is_control_plane_schema(catalog: Any, schema: Any) -> bool:
+    normalized_catalog = normalize_str(catalog).lower()
+    normalized_schema = normalize_str(schema).lower()
+    if not normalized_schema:
+        return False
+    if normalized_schema in HIDDEN_SCHEMA_NAMES:
+        return True
+    return (normalized_catalog, normalized_schema) in _configured_control_plane_schemas()
+
+
+def asset_fqn_is_hidden(
+    asset_fqn: str,
+    *,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> bool:
+    try:
+        catalog, schema, _ = split_uc_name(asset_fqn)
+    except Exception:
+        return False
+    if normalize_str(catalog).lower() in {str(value).lower() for value in hidden_catalogs}:
+        return True
+    normalized_schema = normalize_str(schema).lower()
+    if any(normalized_schema.startswith(prefix) for prefix in HIDDEN_SCHEMA_PREFIXES):
+        return True
+    return _is_control_plane_schema(catalog, schema)
+
+
+def _tags_exclude_from_organic_evidence(tags: Any) -> bool:
+    if not isinstance(tags, dict):
+        return False
+    normalized = {
+        normalize_str(key).lower(): normalize_str(value).lower()
+        for key, value in tags.items()
+        if normalize_str(key)
+    }
+    return any(
+        normalized.get(tag_name) in {"true", "1", "yes", "enabled"}
+        for tag_name in ORGANIC_EXCLUDE_TAGS
+    )
+
+
 def visible_assets(
     inventory_or_uc,
     store=None,
@@ -516,9 +617,21 @@ def visible_assets(
     if inventory_df is None or inventory_df.empty:
         return inventory_df
     hidden = {str(value).lower() for value in hidden_catalogs}
-    return inventory_df[
-        ~inventory_df["table_catalog"].fillna("").astype(str).str.lower().isin(hidden)
-    ].reset_index(drop=True)
+    visible_mask = ~inventory_df["table_catalog"].fillna("").astype(str).str.lower().isin(hidden)
+    if "table_schema" in inventory_df.columns:
+        schema_series = inventory_df["table_schema"].fillna("").astype(str).str.lower()
+        for prefix in HIDDEN_SCHEMA_PREFIXES:
+            visible_mask &= ~schema_series.str.startswith(prefix)
+        if "table_catalog" in inventory_df.columns:
+            visible_mask &= ~inventory_df.apply(
+                lambda row: _is_control_plane_schema(row.get("table_catalog"), row.get("table_schema")),
+                axis=1,
+            )
+        else:
+            visible_mask &= ~schema_series.isin(HIDDEN_SCHEMA_NAMES)
+    if "tags" in inventory_df.columns:
+        visible_mask &= ~inventory_df["tags"].map(_tags_exclude_from_organic_evidence)
+    return inventory_df[visible_mask].reset_index(drop=True)
 
 
 def inventory_row(
@@ -550,7 +663,7 @@ def inventory_row(
     # and get_table_tags), which dominated lineage build time for graphs
     # with many nodes.
     if uc_client is not None:
-        exact_row = exact_identity_row(uc_client, resolved_asset_fqn)
+        exact_row = None if asset_fqn_is_hidden(resolved_asset_fqn, hidden_catalogs=hidden_catalogs) else exact_identity_row(uc_client, resolved_asset_fqn)
         if exact_row is not None:
             return exact_row
     if inventory_df is None or inventory_df.empty:
@@ -576,7 +689,7 @@ def asset_exists(
             hidden_catalogs=hidden_catalogs,
         )
         resolved_asset_fqn = str(asset_fqn or "")
-        exact_row = exact_identity_row(inventory_or_uc, resolved_asset_fqn)
+        exact_row = None if asset_fqn_is_hidden(resolved_asset_fqn, hidden_catalogs=hidden_catalogs) else exact_identity_row(inventory_or_uc, resolved_asset_fqn)
     if inventory_df is None or inventory_df.empty:
         return exact_row is not None
     if bool((inventory_df["fqn"] == resolved_asset_fqn).any()):
@@ -830,7 +943,9 @@ def asset_badges(row: pd.Series) -> List[str]:
             if key.startswith("__"):
                 continue
             normalized_key = normalize_str(key)
-            normalized_value = normalize_str(value)
+            if not _is_customer_visible_tag(normalized_key):
+                continue
+            normalized_value = customer_safe_label(value)
             if normalized_key.lower() in structured_keys:
                 continue
             label = (
@@ -848,10 +963,17 @@ def raw_tag_map(row: pd.Series) -> Dict[str, str]:
     if not isinstance(tags, dict):
         return {}
     return {
-        normalize_str(key): normalize_str(value)
+        normalize_str(key): customer_safe_label(value)
         for key, value in tags.items()
-        if normalize_str(key)
+        if normalize_str(key) and _is_customer_visible_tag(key)
     }
+
+
+def _is_customer_visible_tag(tag_name: Any) -> bool:
+    normalized = normalize_str(tag_name).lower()
+    if not normalized:
+        return False
+    return not any(normalized.startswith(prefix) for prefix in INTERNAL_TAG_PREFIXES)
 
 
 def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
@@ -862,11 +984,11 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
     glossary_links = row.get("glossaryLinks")
     glossary_terms = row.get("glossaryTerms")
     normalized_glossary_terms = [
-        normalize_str(term.get("term") if isinstance(term, dict) else term)
+        customer_safe_label(term.get("term") if isinstance(term, dict) else term)
         for term in (glossary_terms if isinstance(glossary_terms, list) else [])
-        if normalize_str(term.get("term") if isinstance(term, dict) else term)
+        if customer_safe_label(term.get("term") if isinstance(term, dict) else term)
     ]
-    return {
+    payload = {
         "fqn": normalize_str(row.get("fqn")),
         "name": normalize_str(row.get("table_name"))
         or normalize_str(row.get("fqn")).split(".")[-1],
@@ -912,6 +1034,234 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         "columns": [],
         "governanceStatus": normalize_str(row.get("governance_status")) or "Needs Work",
     }
+    return customer_safe_payload(payload)
+
+
+def asset_header_payload_from_inventory(
+    visible_inventory: pd.DataFrame,
+    asset_fqn: str,
+) -> Optional[Dict[str, Any]]:
+    """Return a fast, backed header payload from the visible inventory row.
+
+    This is used only for explicit `sections=header` requests. It avoids cold
+    per-table SQL probes while preserving the same fail-closed boundary: if the
+    asset is not in the caller-visible inventory, callers must fall back to the
+    normal detail loader or return the visibility error they already computed.
+    """
+
+    inventory = (
+        visible_inventory.copy()
+        if isinstance(visible_inventory, pd.DataFrame)
+        else pd.DataFrame()
+    )
+    if inventory.empty:
+        return None
+    normalized_fqn = normalize_str(asset_fqn)
+    if "fqn" not in inventory.columns:
+        return None
+    match = inventory[inventory["fqn"].fillna("").astype(str).eq(normalized_fqn)]
+    if match.empty:
+        return None
+    row = match.iloc[0]
+    base = base_asset_payload(row)
+    base.update(
+        {
+            "columnCount": 0,
+            "ownerAssignments": [],
+            "activity": [],
+            "metadataAudit": [],
+            "tableProperties": [],
+            "constraints": [],
+            "customProperties": [],
+            "operationalContext": {"producers": [], "consumers": []},
+            "queries": [],
+            "usage": {"queryCount": 0, "producerCount": 0, "consumerCount": 0},
+            "profiler": {"cards": [], "summary": {}},
+            "loadedSections": ["header"],
+            "deferredSections": [
+                section for section in ASSET_DETAIL_SECTIONS if section != "header"
+            ],
+            "headerSource": "visible-unity-catalog-inventory",
+        }
+    )
+    return base
+
+
+def asset_loading_payload(asset_fqn: str) -> Dict[str, Any]:
+    normalized_fqn = normalize_str(asset_fqn)
+    try:
+        catalog, schema, table = split_uc_name(normalized_fqn)
+    except ValueError:
+        catalog, schema, table = "", "", normalized_fqn.rsplit(".", 1)[-1] or normalized_fqn
+    row = pd.Series(
+        {
+            "fqn": normalized_fqn,
+            "table_catalog": catalog,
+            "table_schema": schema,
+            "table_name": table,
+            "table_type": "",
+            "data_source_format": "",
+            "comment": "",
+            "tags": {},
+            "domain": "",
+            "tier": "",
+            "certification": "",
+            "sensitivity": "",
+            "criticality": "",
+            "glossary_term": "",
+            "data_product": "",
+            "governance_score": 0,
+            "pending_requests": 0,
+            "owner_count": 0,
+            "governance_status": "",
+        }
+    )
+    base = base_asset_payload(row)
+    base.update(
+        {
+            "columnCount": 0,
+            "ownerAssignments": [],
+            "activity": [],
+            "metadataAudit": [],
+            "tableProperties": [],
+            "constraints": [],
+            "customProperties": [],
+            "operationalContext": {"producers": [], "consumers": []},
+            "queries": [],
+            "usage": {"queryCount": 0, "producerCount": 0, "consumerCount": 0},
+            "profiler": {"cards": [], "summary": {}},
+            "loadedSections": [],
+            "deferredSections": list(ASSET_DETAIL_SECTIONS),
+            "headerSource": "live-metadata-hydrating",
+            "hydrating": True,
+        }
+    )
+    return base
+
+
+def _enrich_identity_row_with_store(
+    row: pd.Series,
+    store: Any,
+    asset_fqn: str,
+) -> pd.Series:
+    enriched = row.copy()
+    normalized_fqn = normalize_str(asset_fqn)
+    if store is not None and hasattr(store, "list_owner_assignments"):
+        try:
+            owners_df = store.list_owner_assignments()
+        except Exception:
+            owners_df = pd.DataFrame()
+        if owners_df is not None and not owners_df.empty and "uc_full_name" in owners_df.columns:
+            owner_matches = owners_df[
+                owners_df["uc_full_name"].fillna("").astype(str).eq(normalized_fqn)
+            ]
+            enriched["owner_count"] = int(owner_matches["owner_email"].nunique()) if not owner_matches.empty else 0
+            enriched["owners_summary"] = ", ".join(
+                sorted(
+                    {
+                        normalize_str(email)
+                        for email in owner_matches.get("owner_email", pd.Series(dtype=str)).tolist()
+                        if normalize_str(email)
+                    }
+                )[:3]
+            )
+            for owner_type, field_name in [
+                ("business", "business_owner"),
+                ("technical", "technical_owner"),
+                ("steward", "steward"),
+            ]:
+                if owner_matches.empty or "owner_type" not in owner_matches.columns:
+                    enriched[field_name] = ""
+                    continue
+                enriched[field_name] = ", ".join(
+                    sorted(
+                        {
+                            normalize_str(email)
+                            for email in owner_matches.loc[
+                                owner_matches["owner_type"] == owner_type,
+                                "owner_email",
+                            ].tolist()
+                            if normalize_str(email)
+                        }
+                    )
+                )
+    for field_name in ["owner_count", "owners_summary", "business_owner", "technical_owner", "steward"]:
+        if field_name not in enriched:
+            enriched[field_name] = 0 if field_name == "owner_count" else ""
+
+    if store is not None and hasattr(store, "list_change_requests"):
+        try:
+            requests_df = store.list_change_requests(limit=500)
+        except Exception:
+            requests_df = pd.DataFrame()
+        if requests_df is not None and not requests_df.empty and "uc_full_name" in requests_df.columns:
+            request_matches = requests_df[
+                requests_df["uc_full_name"].fillna("").astype(str).eq(normalized_fqn)
+            ]
+            statuses = request_matches.get("status", pd.Series(dtype=str)).fillna("").astype(str)
+            enriched["pending_requests"] = int((statuses == "pending").sum())
+            enriched["approved_requests"] = int((statuses == "approved").sum())
+            enriched["rejected_requests"] = int((statuses == "rejected").sum())
+            enriched["total_requests"] = int(len(request_matches.index))
+    for field_name in ["pending_requests", "approved_requests", "rejected_requests", "total_requests"]:
+        if field_name not in enriched:
+            enriched[field_name] = 0
+
+    owner_count = safe_int(enriched.get("owner_count"))
+    score = (
+        35 * bool(normalize_str(enriched.get("comment")))
+        + 20 * (owner_count > 0)
+        + 15 * bool(normalize_str(enriched.get("domain")))
+        + 15 * bool(normalize_str(enriched.get("certification")))
+        + 15 * bool(normalize_str(enriched.get("glossary_term") or enriched.get("glossaryTerm")))
+    )
+    enriched["governance_score"] = score
+    enriched["governance_status"] = (
+        "Complete" if score >= 90 else "In Progress" if score >= 55 else "Needs Work"
+    )
+    return enriched
+
+
+def asset_header_payload_from_exact_identity(
+    uc,
+    store: Any,
+    asset_fqn: str,
+    *,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> Optional[Dict[str, Any]]:
+    if asset_fqn_is_hidden(asset_fqn, hidden_catalogs=hidden_catalogs):
+        return None
+    cache_key = f"asset_header_exact:{_warehouse_key(uc)}:{normalize_str(asset_fqn)}"
+
+    def load() -> Optional[Dict[str, Any]]:
+        exact_row = exact_identity_row(uc, asset_fqn)
+        if exact_row is None:
+            return None
+        row = _enrich_identity_row_with_store(exact_row, store, asset_fqn)
+        base = base_asset_payload(row)
+        base.update(
+            {
+                "columnCount": 0,
+                "ownerAssignments": [],
+                "activity": [],
+                "metadataAudit": [],
+                "tableProperties": [],
+                "constraints": [],
+                "customProperties": [],
+                "operationalContext": {"producers": [], "consumers": []},
+                "queries": [],
+                "usage": {"queryCount": 0, "producerCount": 0, "consumerCount": 0},
+                "profiler": {"cards": [], "summary": {}},
+                "loadedSections": ["header"],
+                "deferredSections": [
+                    section for section in ASSET_DETAIL_SECTIONS if section != "header"
+                ],
+                "headerSource": "direct-unity-catalog-identity",
+            }
+        )
+        return base
+
+    return _ttl_value(cache_key, 120, load)
 
 
 def exact_identity_row(
@@ -2829,13 +3179,14 @@ def asset_detail_payload(
     section_key = ",".join(requested_sections)
     cache_key = f"asset_detail:{_warehouse_key(uc)}:{normalized_scope}:{normalize_str(asset_fqn)}:{section_key}"
 
-    cached = _TTL_CACHE.get(cache_key)
-    if cached:
-        age = time.time() - cached[0]
-        payload = cached[1]
-        ttl_s = 300 if asset_payload_has_live_signals(payload) else 20
-        if age < ttl_s:
-            return payload
+    cached_payload = cached_asset_detail_payload(
+        uc,
+        asset_fqn,
+        cache_scope=normalized_scope,
+        sections=requested_sections,
+    )
+    if cached_payload is not None:
+        return cached_payload
 
     def load() -> Dict[str, Any]:
         store = (
@@ -3214,6 +3565,28 @@ def asset_detail_payload(
     payload = load()
     _TTL_CACHE[cache_key] = (time.time(), payload)
     return payload
+
+
+def cached_asset_detail_payload(
+    uc,
+    asset_fqn: str,
+    *,
+    cache_scope: str = "",
+    sections: Optional[Sequence[str]] = None,
+) -> Optional[Dict[str, Any]]:
+    normalized_scope = normalize_str(cache_scope) or "shared"
+    requested_sections = normalize_asset_detail_sections(sections)
+    section_key = ",".join(requested_sections)
+    cache_key = f"asset_detail:{_warehouse_key(uc)}:{normalized_scope}:{normalize_str(asset_fqn)}:{section_key}"
+    cached = _TTL_CACHE.get(cache_key)
+    if not cached:
+        return None
+    age = time.time() - cached[0]
+    payload = cached[1]
+    ttl_s = 300 if asset_payload_has_live_signals(payload) else 20
+    if age < ttl_s:
+        return payload
+    return None
 
 
 def asset_payload_has_live_signals(payload: Dict[str, Any]) -> bool:

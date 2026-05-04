@@ -96,7 +96,9 @@ current, structured evidence metadata.
 - Functional: graph node selection does not open a prototype-equivalent selected-node inspector.
 - Functional: restricted node selection does not prove live Unity Catalog permission boundary behavior.
 - Functional: impact row selection is local state, not navigation to a consumer/work item.
-- Functional: `Notify owners` routes to governance but does not open or execute a notification workflow.
+- Functional: the former `Notify owners` control routed to governance but did not
+  open or execute a notification workflow; the control must remain renamed to its
+  backed owner-review behavior or implement a real notification mutation.
 - Functional: `Open asset` is locally validated only and still needs deployed/live proof.
 - Truth/provenance: local mock graph data is useful for visual iteration but cannot be called live lineage truth.
 - Truth/provenance: hidden downstream and column lineage completeness remain unproven against live Databricks system tables.

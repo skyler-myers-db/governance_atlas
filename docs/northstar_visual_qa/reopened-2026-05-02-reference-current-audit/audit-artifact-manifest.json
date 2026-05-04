@@ -1,0 +1,237 @@
+{
+  "generatedAt": "2026-05-02T00:00:00-04:00",
+  "evidenceKind": "reference_current_audit_only",
+  "authoritativeSignoff": false,
+  "pairs": [
+    {
+      "route": "command-center-home1",
+      "reference": "northstar/screenshots/prototype_home1.png",
+      "current": "docs/northstar_visual_qa/all-routes-shared-layout-v415-local/command-center-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/command-center-home1-reference-current.png",
+      "diff": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/command-center-home1-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCropDiffBBox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "referenceSha256": "263bbc34a3e99ae58bc4008a52ce1cd387654872ce9d3c03f0a8c923e7df97d6",
+      "currentSha256": "764f15b4ce3b29a87ee8e241cf59f260e95e83fc97f0924a263f5805ac1b8776"
+    },
+    {
+      "route": "command-center-home2",
+      "reference": "northstar/screenshots/prototype_home2.png",
+      "current": "docs/northstar_visual_qa/all-routes-shared-layout-v415-local/command-center-3037x1269-main-bottom.png",
+      "sideBySide": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/command-center-home2-reference-current.png",
+      "diff": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/command-center-home2-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCropDiffBBox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "referenceSha256": "a8a9f7a891db09bce0cab35b45857ec2039bbe404836ae97bca1bc6790aba046",
+      "currentSha256": "252684ce3b51a94b2c9f25e18c351c2c0a5cb7b7b4964596d8cc1702b25e2518"
+    },
+    {
+      "route": "discover-1",
+      "reference": "northstar/screenshots/prototype_discover1.png",
+      "current": "docs/northstar_visual_qa/all-routes-shared-layout-v415-local/discover-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/discover-1-reference-current.png",
+      "diff": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/discover-1-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCropDiffBBox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "referenceSha256": "3aa6f05041f8fb36f4469372e9053517d804d8bcc0c60c54762c8e133b05ef20",
+      "currentSha256": "2f626b5aa0350d6addfd3bd98dd699b05e3d69234de8c88625bf2a21b5bf1f92"
+    },
+    {
+      "route": "discover-2",
+      "reference": "northstar/screenshots/prototype_discover2.png",
+      "current": "docs/northstar_visual_qa/all-routes-shared-layout-v415-local/discover-selected-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/discover-2-reference-current.png",
+      "diff": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/discover-2-diff-common-crop.png",
+      "referenceSize": [
+        2936,
+        1246
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCropDiffBBox": [
+        0,
+        0,
+        2936,
+        1246
+      ],
+      "referenceSha256": "ce74ad9dc0d072ce19a92a1de566083dc54eed4efee327d0b79ad9adc33043eb",
+      "currentSha256": "7dabcc30a1ac8ac32e507bec39de0eac6f15e96b6381e9c0c014131d5d47b30e"
+    },
+    {
+      "route": "stewardship-1",
+      "reference": "northstar/screenshots/prototype_stewardship1.png",
+      "current": "docs/northstar_visual_qa/all-routes-shared-layout-v415-local/stewardship-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/stewardship-1-reference-current.png",
+      "diff": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/stewardship-1-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCropDiffBBox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "referenceSha256": "3a56e549ffe86c56c1a363bf9771b8c389225b8416bf33550492cb703302d54b",
+      "currentSha256": "def28c1d4e672b02f0b25884d5cf3ad146b00d3ab9f56ae8b42d45e0e8a0fcaf"
+    },
+    {
+      "route": "cde-registry",
+      "reference": "northstar/screenshots/prototype_stewardship2.png",
+      "current": "docs/northstar_visual_qa/all-routes-shared-layout-v415-local/cde-registry-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/cde-registry-reference-current.png",
+      "diff": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/cde-registry-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCropDiffBBox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "referenceSha256": "7d7bb0ab9f52a950cf7829cbcebfd209c8602a97a662afef6b5f29fd05441291",
+      "currentSha256": "35b6ab38cdd80b1d12e9b65527b2844c8ba639b14d26f29b26c2b065c485d819"
+    },
+    {
+      "route": "glossary",
+      "reference": "northstar/screenshots/prototype_glossary1.png",
+      "current": "docs/northstar_visual_qa/all-routes-shared-layout-v415-local/glossary-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/glossary-reference-current.png",
+      "diff": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/glossary-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCropDiffBBox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "referenceSha256": "5b57986a026997cc3cbeb7714c6ae04ffa4366b86449534b1f7fe8fed275f598",
+      "currentSha256": "9405cd9ee8e7dc5c1e5bfacd53508e3b6d09737e7a841fb15febdb77a6812e41"
+    },
+    {
+      "route": "lineage",
+      "reference": "northstar/screenshots/prototype_lineage.png",
+      "current": "docs/northstar_visual_qa/all-routes-shared-layout-v415-local/lineage-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/lineage-reference-current.png",
+      "diff": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/lineage-diff-common-crop.png",
+      "referenceSize": [
+        2933,
+        1249
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCropDiffBBox": [
+        0,
+        0,
+        2933,
+        1249
+      ],
+      "referenceSha256": "db2cc09bc669bd7a78e5661de0bc047aa1205d4e9506c3dda53af878d1b4722d",
+      "currentSha256": "0cbe0e3c11144fcfaa388548cf6998f908a3640ebf4b1f3b577b01a76d15b3d4"
+    },
+    {
+      "route": "audit",
+      "reference": "northstar/screenshots/prototype_audit1.png",
+      "current": "docs/northstar_visual_qa/all-routes-shared-layout-v415-local/audit-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/audit-reference-current.png",
+      "diff": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/audit-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCropDiffBBox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "referenceSha256": "d85d97d6f65677caa29948af516caefd7809be5bb66c473e526422064e46b4bc",
+      "currentSha256": "175b072a2bbc0135fef60e1075012370adb449984e85d0ceeab86b74273d9ed2"
+    },
+    {
+      "route": "control-center",
+      "reference": "northstar/screenshots/prototype_cc.png",
+      "current": "docs/northstar_visual_qa/all-routes-shared-layout-v415-local/control-center-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/control-center-reference-current.png",
+      "diff": "docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/control-center-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCropDiffBBox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "referenceSha256": "1d2a06e3802824d6d31aba9d3c379ff94db2aadda0f562ea79e2ea19daec30bd",
+      "currentSha256": "5189e85e2ae26d2f58ad4fd8ab85193d849e939836aa0c1eccc49f35b3eb7fcf"
+    }
+  ]
+}

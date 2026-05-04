@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAssetAvailability, fetchAssetDetail } from "../lib/api";
+import { isNonAuthoritativeEvidenceEnvelope } from "../lib/nonAuthoritativeEvidence";
 import { atlasQueryClient } from "../lib/queryClient";
 
 const PLACEHOLDER_DESCRIPTION = "No description has been captured for this asset yet.";
@@ -113,6 +114,20 @@ function cachedDetailHasSections(detail, sections = []) {
   return normalizedSections.every((section) => loadedSections.has(section));
 }
 
+function detailHydrating(detail) {
+  if (!detail || typeof detail !== "object") return false;
+  const meta = detail.meta && typeof detail.meta === "object" ? detail.meta : {};
+  const state = String(meta.state || detail.state || "").trim().toLowerCase();
+  const capabilities = meta.capabilities && typeof meta.capabilities === "object"
+    ? meta.capabilities
+    : {};
+  return state === "loading" || detail.hydrating === true || capabilities.hydrating === true;
+}
+
+function assetDetailRefetchInterval(query) {
+  return detailHydrating(query?.state?.data) ? 3_000 : false;
+}
+
 function mergeLoadedSections(currentDetail, incomingDetail) {
   const merged = new Set([...(currentDetail?.loadedSections || []), ...(incomingDetail?.loadedSections || [])]);
   return [...merged].sort();
@@ -146,6 +161,12 @@ function mergeAssetDetail(currentDetail, incomingDetail) {
 }
 
 function setCanonicalDetail(assetFqn, detail) {
+  if (isNonAuthoritativeEvidenceEnvelope(detail)) {
+    atlasQueryClient.removeQueries({ queryKey: assetDetailCanonicalKey(assetFqn), exact: true });
+    atlasQueryClient.removeQueries({ queryKey: [ASSET_DETAIL_REQUEST_PREFIX, assetFqn] });
+    syncAvailabilityRequestsForAsset(assetFqn);
+    return null;
+  }
   const current = readCanonicalDetail(assetFqn, { maxAgeMs: null });
   const mergedDetail = mergeAssetDetail(current, detail);
   atlasQueryClient.setQueryData(assetDetailCanonicalKey(assetFqn), mergedDetail);
@@ -581,6 +602,7 @@ export function useAssetDetail(assetFqn, options = {}) {
       }),
     placeholderData: placeholder || undefined,
     staleTime: DETAIL_CACHE_TTL_MS,
+    refetchInterval: assetDetailRefetchInterval,
   });
 
   if (!assetFqn) {
@@ -601,10 +623,12 @@ export function useAssetDetail(assetFqn, options = {}) {
 
   const detail = query.data || placeholder || null;
   const missingRequestedSections = !cachedDetailHasSections(detail, sections);
+  const hydrating = detailHydrating(detail);
   return {
     loading:
       Boolean(query.isPending && !detail) ||
-      Boolean(query.isFetching && missingRequestedSections),
+      Boolean(query.isFetching && missingRequestedSections) ||
+      hydrating,
     error:
       query.isError && missingRequestedSections
         ? query.error?.message || "Failed to load asset detail."

@@ -1,0 +1,1600 @@
+{
+  "generatedAt": "2026-05-03T20:55:41.048Z",
+  "baseUrl": "http://127.0.0.1:8000",
+  "buildId": "frontend-33133f44f929",
+  "deploymentId": "",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": false,
+  "evidenceKind": "runtime_app_capture",
+  "mockEvidenceWarning": "",
+  "liveDatabricksCapture": false,
+  "forwardedActorCapture": true,
+  "forwardedActorEmail": "skyler@entrada.ai",
+  "forwardedActorTokenPresent": false,
+  "routeFilter": [
+    "cde-registry"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "cde-registry"
+  ],
+  "viewports": [
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    }
+  ],
+  "expectedCaptureCount": 1,
+  "captures": [
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/cde-registry-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/cde-registry-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": [
+            "Atlas AI Atlas AI recommendations require a configured Databricks Genie space."
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › entrada-prod ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 5 of 49 CDE registry rows CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Campaign Roi Revenue marketing_mart.gold.campaign_roi_revenue.net_revenue_usd marketing-steward@entrada.ai 90d Source Backed Cfo Revenue Board Pack finance_prod.gold.cfo_revenue_board_pack.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Customer Revenue Ltv customer_360.gold.customer_revenue_ltv.net_revenue_usd customer-steward@entrada.ai 90d Source Backed Product Revenue Experiment Feed product_events.bronze.product_revenue_experiment_feed.net_revenue_usd product-steward@entrada.ai 90d Source Backed Revenue Anomaly Monitor finance_prod.gold.revenue_anomaly_monitor.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 20",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 49",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI unavailable state: Atlas AI recommendations require a configured Databricks Genie space.",
+            "disabled": false,
+            "aria": "Open Atlas AI unavailable state: Atlas AI recommendations require a configured Databricks Genie space."
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "interaction": "cde-detail-state",
+      "description": "Capture the CDE Registry selected-row/detail state without leaving the route.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/cde-registry-cde-detail-state-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/cde-registry-cde-detail-state-1536x1024-full.png",
+      "runResult": {
+        "detail": {
+          "sourceColumn": true,
+          "ownerWorkflow": true,
+          "status": true
+        },
+        "selectedRows": 1
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "detail": {
+            "sourceColumn": true,
+            "ownerWorkflow": true,
+            "status": true
+          },
+          "selectedRows": 1
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › entrada-prod ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Campaign Roi Revenue selected. Review source-of-record column, owner, recertification, and status. Glossary 20 CDE Registry 49 Showing 5 of 49 CDE registry rows CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Campaign Roi Revenue marketing_mart.gold.campaign_roi_revenue.net_revenue_usd marketing-steward@entrada.ai 90d Source Backed Cfo Revenue Board Pack finance_prod.gold.cfo_revenue_board_pack.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Customer Revenue Ltv customer_360.gold.customer_revenue_ltv.net_revenue_usd customer-steward@entrada.ai 90d Source Backed Product Revenue Experiment Feed product_events.bronze.product_revenue_experiment_feed.net_revenue_usd product-steward@entrada.ai 90d Source Backed Revenue Anomaly Monitor finance_prod.gold.revenue_anomaly_monitor.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned. SELECTED DETAIL Campaign Roi Revenue x",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 20",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 49",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Campaign Roi Revenue detail"
+          },
+          {
+            "text": "Open source asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Request recertification",
+            "disabled": true,
+            "aria": "Request recertification unavailable: recertification workflow is not backed on this route yet."
+          },
+          {
+            "text": "Owner workflow",
+            "disabled": true,
+            "aria": "Owner workflow unavailable: owner workflow requires a backed CDE registry mutation workflow."
+          },
+          {
+            "text": "Recertification evidence",
+            "disabled": true,
+            "aria": "Recertification evidence unavailable: recertification workflow requires a backed CDE registry mutation workflow."
+          },
+          {
+            "text": "Open Atlas AI unavailable state: Atlas AI recommendations require a configured Databricks Genie space.",
+            "disabled": false,
+            "aria": "Open Atlas AI unavailable state: Atlas AI recommendations require a configured Databricks Genie space."
+          }
+        ]
+      }
+    },
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "interaction": "cde-controls",
+      "description": "Exercise CDE Registry detail, owner/recertification unavailable workflows, and lineage navigation.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/cde-registry-cde-controls-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/cde-registry-cde-controls-1536x1024-full.png",
+      "runResult": {
+        "detail": {
+          "sourceColumn": true,
+          "ownerWorkflow": true
+        },
+        "recert": {
+          "text": "Request recertification",
+          "ariaLabel": "Request recertification unavailable: recertification workflow is not backed on this route yet.",
+          "title": "Recertification workflow is not backed on this route yet.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1091,
+            "left": 533,
+            "width": 143,
+            "height": 32
+          }
+        },
+        "ownerWorkflow": {
+          "text": "Owner workflow",
+          "ariaLabel": "Owner workflow unavailable: owner workflow requires a backed CDE registry mutation workflow.",
+          "title": "Owner workflow requires a backed CDE registry mutation workflow; this route does not submit local-only mutations.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1091,
+            "left": 685,
+            "width": 109,
+            "height": 32
+          }
+        },
+        "recertWorkflow": {
+          "text": "Recertification evidence",
+          "ariaLabel": "Recertification evidence unavailable: recertification workflow requires a backed CDE registry mutation workflow.",
+          "title": "Recertification workflow requires a backed CDE registry mutation workflow; this route does not submit local-only mutations.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1091,
+            "left": 802,
+            "width": 151,
+            "height": 32
+          }
+        },
+        "ownerNotice": {
+          "ownerUnavailable": true
+        },
+        "recertNotice": {
+          "recertUnavailable": true
+        },
+        "detailClosed": true,
+        "openLineage": {
+          "text": "Open lineage",
+          "ariaLabel": "",
+          "title": "Open source asset lineage",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1091,
+            "left": 430,
+            "width": 95,
+            "height": 32
+          }
+        },
+        "pathAfterClick": "/lineage/marketing_mart.gold.campaign_roi_revenue?tab=cdes"
+      },
+      "validation": {
+        "loaded": true,
+        "checks": {
+          "lineage": true
+        },
+        "runResult": {
+          "detail": {
+            "sourceColumn": true,
+            "ownerWorkflow": true
+          },
+          "recert": {
+            "text": "Request recertification",
+            "ariaLabel": "Request recertification unavailable: recertification workflow is not backed on this route yet.",
+            "title": "Recertification workflow is not backed on this route yet.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1091,
+              "left": 533,
+              "width": 143,
+              "height": 32
+            }
+          },
+          "ownerWorkflow": {
+            "text": "Owner workflow",
+            "ariaLabel": "Owner workflow unavailable: owner workflow requires a backed CDE registry mutation workflow.",
+            "title": "Owner workflow requires a backed CDE registry mutation workflow; this route does not submit local-only mutations.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1091,
+              "left": 685,
+              "width": 109,
+              "height": 32
+            }
+          },
+          "recertWorkflow": {
+            "text": "Recertification evidence",
+            "ariaLabel": "Recertification evidence unavailable: recertification workflow requires a backed CDE registry mutation workflow.",
+            "title": "Recertification workflow requires a backed CDE registry mutation workflow; this route does not submit local-only mutations.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1091,
+              "left": 802,
+              "width": 151,
+              "height": 32
+            }
+          },
+          "ownerNotice": {
+            "ownerUnavailable": true
+          },
+          "recertNotice": {
+            "recertUnavailable": true
+          },
+          "detailClosed": true,
+          "openLineage": {
+            "text": "Open lineage",
+            "ariaLabel": "",
+            "title": "Open source asset lineage",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1091,
+              "left": 430,
+              "width": 95,
+              "height": 32
+            }
+          },
+          "pathAfterClick": "/lineage/marketing_mart.gold.campaign_roi_revenue?tab=cdes"
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/lineage/marketing_mart.gold.campaign_roi_revenue?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1810,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1865.796875,
+          "width": 1328,
+          "height": 1809.796875
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 208,
+            "right": 1536,
+            "bottom": 1865.796875,
+            "width": 1328,
+            "height": 1809.796875
+          },
+          "hero": {
+            "top": 78,
+            "left": 230,
+            "right": 1516,
+            "bottom": 202.4375,
+            "width": 1286,
+            "height": 124.4375
+          },
+          "workbench": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 1795.796875,
+            "width": 1286,
+            "height": 1557.359375
+          },
+          "graph": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 1400.4375,
+            "width": 1286,
+            "height": 1162
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › entrada-prod ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS marketing_mart.gold.campaign_roi_revenue Workspace-scoped lineage from backed Databricks metadata through permitted app-visible downstream consumers. Certified Freshness unavailable 5 CDEs Owner: marketing-steward@entrada.ai 3 upstream · 0 downstream Revenue impact unavailable Column lineage Run impact analysis + - 4 nodes · 3 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-03 20:53:31 UTC Table lineage Column lineage Search Export 2 HOPS UPSTREAM attribution_daily revenue_daily 1 HOP UPSTREAM revenue_attribution_snapshot marketing_mart / gold PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in workspace-scoped live graph. 1 HOP DOWNSTREAM No downstream consumers observed The workspace-scoped live graph has no downstream edges for this asset. LINEAGE DETAILS campaign_roi_revenue marketing_mart / gold LAST REFRESH 2026-05-03 ROWS Unavailable OWNER marketing-steward@entrada.ai SOURCES 1 revenue_attribution_snapshot marketing_mart / gold CONSUMERS 0 No downstream consumer details returned. RECENT ACTIVITY No recent lineage activity returned. NODE TYPES Table Pipeline Job Notebook Saved query Dashboard Model UDF Volume Restricted via system.access.table_",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_daily",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_attribution_snapshot marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_attribution_snapshot marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Review owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "attributed_revenue_ratio source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attributed_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_scope source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_date source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "interaction": "cde-tab-request-no-extra-tools",
+      "description": "Exercise CDE-tab request semantics and verify non-reference filter/sort controls are absent from the first viewport.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/cde-registry-cde-tab-request-no-extra-tools-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/cde-registry-cde-tab-request-no-extra-tools-1536x1024-full.png",
+      "runResult": {
+        "newRequest": {
+          "cdeRequest": true
+        },
+        "toolState": {
+          "searchVisible": false,
+          "filterVisible": false,
+          "sortVisible": false,
+          "provenanceVisible": true,
+          "rowCount": 5
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "newRequest": {
+            "cdeRequest": true
+          },
+          "toolState": {
+            "searchVisible": false,
+            "filterVisible": false,
+            "sortVisible": false,
+            "provenanceVisible": true,
+            "rowCount": 5
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › entrada-prod ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term New CDE request is unavailable until a backed CDE registry workflow is configured; no local draft was created. Glossary 20 CDE Registry 49 Showing 5 of 49 CDE registry rows CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Campaign Roi Revenue marketing_mart.gold.campaign_roi_revenue.net_revenue_usd marketing-steward@entrada.ai 90d Source Backed Cfo Revenue Board Pack finance_prod.gold.cfo_revenue_board_pack.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Customer Revenue Ltv customer_360.gold.customer_revenue_ltv.net_revenue_usd customer-steward@entrada.ai 90d Source Backed Product Revenue Experiment Feed product_events.bronze.product_revenue_experiment_feed.net_revenue_usd product-steward@entrada.ai 90d Source Backed Revenue Anomaly Monitor finance_prod.gold.revenue_anomaly_monitor.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 20",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 49",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI unavailable state: Atlas AI recommendations require a configured Databricks Genie space.",
+            "disabled": false,
+            "aria": "Open Atlas AI unavailable state: Atlas AI recommendations require a configured Databricks Genie space."
+          }
+        ]
+      }
+    },
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "interaction": "atlas-ai",
+      "description": "Submit a CDE Registry-specific Atlas AI prompt and verify grounded evidence appears.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/cde-registry-atlas-ai-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/cde-registry-atlas-ai-1536x1024-full.png",
+      "runResult": {
+        "unavailable": true,
+        "inputBefore": {
+          "text": "",
+          "ariaLabel": "",
+          "title": "",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 854,
+            "left": 1163,
+            "width": 342,
+            "height": 42
+          }
+        },
+        "promptBefore": {
+          "text": "?Which CDEs are due for review?→",
+          "ariaLabel": "",
+          "title": "Atlas AI recommendations require a configured Databricks Genie space.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 732,
+            "left": 1163,
+            "width": 342,
+            "height": 54
+          }
+        },
+        "submitBefore": {
+          "text": "Ask Atlas AI",
+          "ariaLabel": "Ask Atlas AI",
+          "title": "Atlas AI recommendations require a configured Databricks Genie space.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 859,
+            "left": 1474,
+            "width": 32,
+            "height": 32
+          }
+        },
+        "unavailableState": {
+          "url": "http://127.0.0.1:8000/taxonomy?tab=cdes",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › entrada-prod ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 5 of 49 CDE registry rows CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Campaign Roi Revenue marketing_mart.gold.campaign_roi_revenue.net_revenue_usd marketing-steward@entrada.ai 90d Source Backed Cfo Revenue Board Pack finance_prod.gold.cfo_revenue_board_pack.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Customer Revenue Ltv customer_360.gold.customer_revenue_ltv.net_revenue_usd customer-steward@entrada.ai 90d Source Backed Product Revenue Experiment Feed product_events.bronze.product_revenue_experiment_feed.net_revenue_usd product-steward@entrada.ai 90d Source Backed Revenue Anomaly Monitor finance_prod.gold.revenue_anomaly_monitor.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned. Atlas AI Unavailable until an evidence-backed Atlas AI endpoint is configured x Atlas AI recommendations require a configured Databricks ",
+          "checks": {
+            "reason": true,
+            "disclaimer": true
+          }
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "unavailable": true,
+          "inputBefore": {
+            "text": "",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 854,
+              "left": 1163,
+              "width": 342,
+              "height": 42
+            }
+          },
+          "promptBefore": {
+            "text": "?Which CDEs are due for review?→",
+            "ariaLabel": "",
+            "title": "Atlas AI recommendations require a configured Databricks Genie space.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 732,
+              "left": 1163,
+              "width": 342,
+              "height": 54
+            }
+          },
+          "submitBefore": {
+            "text": "Ask Atlas AI",
+            "ariaLabel": "Ask Atlas AI",
+            "title": "Atlas AI recommendations require a configured Databricks Genie space.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 859,
+              "left": 1474,
+              "width": 32,
+              "height": 32
+            }
+          },
+          "unavailableState": {
+            "url": "http://127.0.0.1:8000/taxonomy?tab=cdes",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › entrada-prod ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 5 of 49 CDE registry rows CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Campaign Roi Revenue marketing_mart.gold.campaign_roi_revenue.net_revenue_usd marketing-steward@entrada.ai 90d Source Backed Cfo Revenue Board Pack finance_prod.gold.cfo_revenue_board_pack.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Customer Revenue Ltv customer_360.gold.customer_revenue_ltv.net_revenue_usd customer-steward@entrada.ai 90d Source Backed Product Revenue Experiment Feed product_events.bronze.product_revenue_experiment_feed.net_revenue_usd product-steward@entrada.ai 90d Source Backed Revenue Anomaly Monitor finance_prod.gold.revenue_anomaly_monitor.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned. Atlas AI Unavailable until an evidence-backed Atlas AI endpoint is configured x Atlas AI recommendations require a configured Databricks ",
+            "checks": {
+              "reason": true,
+              "disclaimer": true
+            }
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › entrada-prod ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 5 of 49 CDE registry rows CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Campaign Roi Revenue marketing_mart.gold.campaign_roi_revenue.net_revenue_usd marketing-steward@entrada.ai 90d Source Backed Cfo Revenue Board Pack finance_prod.gold.cfo_revenue_board_pack.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Customer Revenue Ltv customer_360.gold.customer_revenue_ltv.net_revenue_usd customer-steward@entrada.ai 90d Source Backed Product Revenue Experiment Feed product_events.bronze.product_revenue_experiment_feed.net_revenue_usd product-steward@entrada.ai 90d Source Backed Revenue Anomaly Monitor finance_prod.gold.revenue_anomaly_monitor.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned. Atlas AI Unavailable until an evidence-backed Atlas AI endpoint is configured x Atlas AI recommendations require a configured Databricks ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 20",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 49",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "? Which CDEs are due for review? →",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "? What assets are linked to the selected glossary term? →",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "? Summarize reviewer status for critical CDEs. →",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "? Which glossary term has the most asset coverage? →",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Atlas AI accuracy notice"
+          }
+        ]
+      }
+    },
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "1536x1024",
+      "interaction": "responsive-table-controls",
+      "description": "Validate CDE rows and important cells remain visible or contained at the active viewport.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/cde-registry-responsive-table-controls-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/cde-registry-responsive-table-controls-1536x1024-full.png",
+      "runResult": {
+        "layout": {
+          "viewport": {
+            "width": 1536,
+            "height": 1024
+          },
+          "removedToolCount": 0,
+          "rowCount": 5,
+          "tableScrollable": true,
+          "rowCellFailures": []
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "layout": {
+            "viewport": {
+              "width": 1536,
+              "height": 1024
+            },
+            "removedToolCount": 0,
+            "rowCount": 5,
+            "tableScrollable": true,
+            "rowCellFailures": []
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › entrada-prod ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 5 of 49 CDE registry rows CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Campaign Roi Revenue marketing_mart.gold.campaign_roi_revenue.net_revenue_usd marketing-steward@entrada.ai 90d Source Backed Cfo Revenue Board Pack finance_prod.gold.cfo_revenue_board_pack.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Customer Revenue Ltv customer_360.gold.customer_revenue_ltv.net_revenue_usd customer-steward@entrada.ai 90d Source Backed Product Revenue Experiment Feed product_events.bronze.product_revenue_experiment_feed.net_revenue_usd product-steward@entrada.ai 90d Source Backed Revenue Anomaly Monitor finance_prod.gold.revenue_anomaly_monitor.net_revenue_usd finance-steward@entrada.ai 90d Source Backed Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › entrada-prod",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 20",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 49",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI unavailable state: Atlas AI recommendations require a configured Databricks Genie space.",
+            "disabled": false,
+            "aria": "Open Atlas AI unavailable state: Atlas AI recommendations require a configured Databricks Genie space."
+          }
+        ]
+      }
+    }
+  ],
+  "console": [],
+  "pageErrors": [],
+  "requestFailures": [],
+  "checks": {
+    "buildMatches": true
+  },
+  "runtimeStatus": {
+    "url": "http://127.0.0.1:8000/api/runtime/status",
+    "status": 200,
+    "ok": true,
+    "buildId": "frontend-33133f44f929",
+    "state": "live",
+    "actorRole": "Reader",
+    "govCatalog": "datapact",
+    "govSchema": "atlas"
+  },
+  "captureCount": 1,
+  "interactionCount": 5,
+  "consoleErrorCount": 0,
+  "pageErrorCount": 0,
+  "requestFailureCount": 0,
+  "expectedRequestFailureCount": 0,
+  "passed": true
+}

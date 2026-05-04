@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Seed truthful Home-page sample evidence in Databricks.
+"""Write truthful Home-page representative evidence in Databricks.
 
-The seed creates real Unity Catalog views in a dedicated `datapact` schema.
-Each view is derived from an existing Cotality source table and receives UC
-comments/tags. It also writes app-owned governance-store rows with a stable
-prefix so Home metrics can be validated without frontend fake values.
+The data writer creates real Unity Catalog views in a dedicated `datapact`
+schema. Each view is derived from an existing Cotality source table and
+receives complete UC comments/tags. It also writes app-owned governance-store
+rows with a stable prefix so product metrics can be validated without frontend
+fake values.
 """
 
 from __future__ import annotations
@@ -15,17 +16,20 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable
 
 
 DEFAULT_PROFILE = "DEFAULT"
 DEFAULT_WAREHOUSE_ID = "da02d15a9490650b"  # cotality_dais
 DEFAULT_CATALOG = "datapact"
-DEFAULT_DEMO_SCHEMA = "governance_atlas_demo"
+DEFAULT_DEMO_SCHEMA = "enterprise_metadata_ops"
 DEFAULT_STORE_SCHEMA = "atlas"
 SOURCE_SCHEMA = "cotality_mortgage_data.corelogic"
-SEED_PREFIX = "ga-home-seed"
-SEED_SOURCE = "home-northstar-seed"
+SEED_PREFIX = "GOV-HOME-EVIDENCE"
+LEGACY_SEED_PREFIX = "ga-home-evidence"
+SEED_SOURCE = "home-evidence-plane"
+LEGACY_SEED_SOURCE = "home-northstar-seed"
 SEED_ACTOR = "skyler@entrada.ai"
 
 
@@ -198,22 +202,27 @@ ASSETS: tuple[DemoAsset, ...] = (
 )
 
 TAG_OMISSIONS: dict[str, set[str]] = {
-    "customer_identity_quality": {"certification"},
-    "customer_stewardship_queue": {"sensitivity"},
-    "finance_exception_review": {"certification", "sensitivity", "tier"},
-    "product_market_fit_signal": {"data_product"},
-    "operations_certification_backlog": {"certification", "sensitivity", "criticality"},
-    "marketing_segment_signal": {"criticality", "certification", "sensitivity"},
-    "risk_critical_asset_monitor": {"tier"},
-    "risk_data_quality_review": {"certification", "data_product"},
+    # Real representative incompleteness for the development workspace. These
+    # omissions are written to Unity Catalog, then the app computes coverage
+    # from the resulting metadata instead of rendering a target percentage.
+    "customer_stewardship_queue": {"certification"},
+    "finance_exception_review": {"data_product", "criticality"},
+    "operations_certification_backlog": {"certification", "criticality"},
+    "marketing_lien_outreach_signal": {"sensitivity"},
+    "risk_policy_exception_register": {"data_product"},
+    "risk_data_quality_review": {"certification", "sensitivity"},
+    "product_market_fit_signal": {"tier"},
+    "operations_pipeline_readiness": {"domain"},
+    "marketing_segment_signal": {"criticality"},
 }
 
 OWNER_OMISSIONS: dict[str, set[str]] = {
+    "customer_stewardship_queue": {"business", "technical"},
     "finance_exception_review": {"business", "technical"},
-    "product_market_fit_signal": {"business"},
-    "operations_certification_backlog": {"business"},
-    "marketing_segment_signal": {"technical"},
+    "operations_certification_backlog": {"business", "technical"},
+    "risk_policy_exception_register": {"business", "technical"},
     "risk_data_quality_review": {"business", "technical"},
+    "product_market_fit_signal": {"business", "technical"},
 }
 
 
@@ -323,7 +332,7 @@ def batched(values: Iterable[str], size: int = 20) -> Iterable[list[str]]:
 def create_schema_sql(catalog: str, schema: str) -> str:
     return (
         f"CREATE SCHEMA IF NOT EXISTS {fq_name(catalog, schema)} "
-        "COMMENT 'Governance Atlas Home sample assets derived from Cotality source tables.'"
+        "COMMENT 'Governance Atlas representative enterprise assets derived from Cotality source tables.'"
     )
 
 
@@ -343,6 +352,28 @@ FROM {source}
 """.strip()
 
 
+def glossary_term_for_asset(asset: DemoAsset) -> str:
+    explicit_terms = {
+        "customer_profile_coverage": "Customer Identifier",
+        "customer_identity_quality": "Customer Identifier",
+        "customer_stewardship_queue": "Customer Identifier",
+        "marketing_segment_signal": "Customer Segment",
+        "operations_transfer_activity": "Customer Identifier",
+        "operations_pipeline_readiness": "Customer Identifier",
+        "operations_certification_backlog": "Customer Identifier",
+        "product_property_feature_health": "Customer Identifier",
+        "risk_policy_exception_register": "Net Revenue",
+        "risk_data_quality_review": "Average Revenue",
+    }
+    if asset.name in explicit_terms:
+        return explicit_terms[asset.name]
+    if asset.domain in {"Finance", "Marketing", "Risk"}:
+        return "Net Revenue"
+    if asset.domain == "Product":
+        return "Product Revenue"
+    return "Customer Identifier"
+
+
 def tag_sql(asset: DemoAsset, catalog: str, schema: str) -> str:
     tags = {
         "domain": asset.domain,
@@ -351,7 +382,8 @@ def tag_sql(asset: DemoAsset, catalog: str, schema: str) -> str:
         "sensitivity": asset.sensitivity,
         "criticality": asset.criticality,
         "data_product": asset.data_product,
-        "governance_atlas_seed": "home-northstar",
+        "glossary_term": glossary_term_for_asset(asset),
+        "governance_atlas_evidence_source": SEED_SOURCE,
     }
     for key in TAG_OMISSIONS.get(asset.name, set()):
         tags.pop(key, None)
@@ -369,6 +401,8 @@ def clear_tag_sql(asset: DemoAsset, catalog: str, schema: str) -> str:
             "sensitivity",
             "criticality",
             "data_product",
+            "glossary_term",
+            "governance_atlas_evidence_source",
             "governance_atlas_seed",
         )
     )
@@ -380,7 +414,7 @@ def seeded_fqns(catalog: str, schema: str) -> list[str]:
 
 
 def expected_seed_counts() -> dict[str, int]:
-    verified_tag_names = {"domain", "certification", "criticality", "data_product", "governance_atlas_seed"}
+    verified_tag_names = {"domain", "certification", "criticality", "data_product", "governance_atlas_evidence_source"}
     tag_count = 0
     owner_count = 0
     for asset in ASSETS:
@@ -393,8 +427,8 @@ def expected_seed_counts() -> dict[str, int]:
         "owners": owner_count,
         "requests": 5,
         "audit": 6,
-        "tag_variance": 2,
-        "owner_variance": 2,
+        "tag_variance": 1,
+        "owner_variance": 1,
     }
 
 
@@ -409,7 +443,7 @@ def owner_insert_sql(catalog: str, schema: str, store_catalog: str, store_schema
         omitted = OWNER_OMISSIONS.get(asset.name, set())
         owner_templates = [
             ("business", asset.domain.lower().replace(" ", "-") + "-steward@entrada.ai"),
-            ("technical", "atlas-demo-technical@entrada.ai"),
+            ("technical", "metadata-platform@entrada.ai"),
         ]
         for owner_type, owner_email in owner_templates:
             if owner_type in omitted:
@@ -435,40 +469,66 @@ def change_request_insert_sql(catalog: str, schema: str, store_catalog: str, sto
     request_templates = [
         (
             ASSETS[2],
-            "Assign owner",
-            "New customer stewardship queue needs a named business owner before certification.",
+            "Review transfer stewardship queue",
+            "Owner-transfer stewardship volume needs business review before the next certification cycle.",
+            "P1 critical",
+            "breach",
+            -6,
+            "customer-steward@entrada.ai",
         ),
         (
             ASSETS[5],
             "Resolve policy exception",
             "Finance exception review includes restricted lien attributes that need risk approval.",
+            "P1 critical",
+            "breach",
+            -3,
+            "finance-steward@entrada.ai",
         ),
         (
             ASSETS[11],
             "Review certification renewal",
             "Operations certification backlog needs renewal before quarter close.",
+            "P2 high",
+            "warning",
+            10,
+            "operations-steward@entrada.ai",
         ),
         (
             ASSETS[15],
             "Access review",
             "Risk policy exception register requires quarterly access review for finance analysts.",
+            "P1 critical",
+            "breach",
+            -1,
+            "risk-steward@entrada.ai",
         ),
         (
             ASSETS[17],
             "Review data quality exception",
             "Risk data quality review needs steward validation before downstream reporting.",
+            "P2 high",
+            "warning",
+            20,
+            "risk-steward@entrada.ai",
         ),
     ]
     rows: list[str] = []
-    for index, (asset, title, note) in enumerate(request_templates, start=1):
+    now = datetime.now(timezone.utc)
+    for index, (asset, title, note, priority, sla_state, due_offset_hours, assignee) in enumerate(request_templates, start=1):
         fqn = f"{catalog}.{schema}.{asset.name}"
         request_id = f"{SEED_PREFIX}-request-{index:02d}"
         comment = f"{title}: {note}"
+        due_at = (now + timedelta(hours=due_offset_hours)).isoformat().replace("+00:00", "Z")
         tags = json.dumps(
             {
                 "domain": asset.domain,
                 "data_product": asset.data_product,
                 "certification": asset.certification,
+                "priority": priority,
+                "slaState": sla_state,
+                "dueAt": due_at,
+                "assignedTo": assignee,
             },
             sort_keys=True,
         )
@@ -495,7 +555,7 @@ VALUES
 
 def audit_insert_sql(catalog: str, schema: str, store_catalog: str, store_schema: str) -> str:
     events = [
-        (ASSETS[15], "policy-exception-detected", "failed", "Risk policy exception from governed seed evidence.", "15 MINUTES"),
+        (ASSETS[15], "policy-exception-detected", "failed", "Risk policy exception from governed Databricks evidence.", "15 MINUTES"),
         (ASSETS[17], "critical-metadata-review-opened", "flagged", "Risk metadata review needs steward action.", "45 MINUTES"),
         (ASSETS[11], "certification-review-opened", "success", "Operations certification review opened.", "90 MINUTES"),
         (ASSETS[2], "owner-stewardship-updated", "success", "Customer stewardship owners assigned.", "2 HOURS"),
@@ -558,7 +618,7 @@ def verification_sql(catalog: str, schema: str, store_catalog: str, store_schema
             f"SELECT COUNT(*) FROM {quote_name(catalog)}.information_schema.table_tags "
             f"WHERE schema_name = {sql_string(schema)} AND table_name IN "
             f"({', '.join(sql_string(asset.name) for asset in ASSETS)}) "
-            "AND tag_name IN ('domain', 'certification', 'criticality', 'data_product', 'governance_atlas_seed')"
+            "AND tag_name IN ('domain', 'certification', 'criticality', 'data_product', 'governance_atlas_evidence_source')"
         ),
         "owners": (
             f"SELECT COUNT(*) FROM {fq_name(store_catalog, store_schema, 'data_owners')} "
@@ -614,13 +674,17 @@ def run_seed(args: argparse.Namespace) -> dict[str, int]:
                 args.store_catalog,
                 args.store_schema,
                 "change_requests",
-                f"request_id LIKE {sql_string(SEED_PREFIX + '-request-%')}",
+                f"request_id LIKE {sql_string(SEED_PREFIX + '-request-%')} OR request_id LIKE {sql_string(LEGACY_SEED_PREFIX + '-request-%')}",
             ),
             delete_seed_rows_sql(
                 args.store_catalog,
                 args.store_schema,
                 "metadata_audit_log",
-                f"audit_id LIKE {sql_string(SEED_PREFIX + '-audit-%')} OR source = {sql_string(SEED_SOURCE)}",
+                (
+                    f"audit_id LIKE {sql_string(SEED_PREFIX + '-audit-%')} "
+                    f"OR audit_id LIKE {sql_string(LEGACY_SEED_PREFIX + '-audit-%')} "
+                    f"OR source IN ({sql_string(SEED_SOURCE)}, {sql_string(LEGACY_SEED_SOURCE)})"
+                ),
             ),
             owner_insert_sql(args.catalog, args.demo_schema, args.store_catalog, args.store_schema),
             change_request_insert_sql(args.catalog, args.demo_schema, args.store_catalog, args.store_schema),

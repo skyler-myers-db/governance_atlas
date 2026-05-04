@@ -25,6 +25,7 @@ CHANGELOG_PATH = ROOT / "AGENT_CHANGELOG.md"
 PROTOTYPE_CONTRACT_PATH = ROOT / "docs/northstar_gap_analysis/prototype_contract.md"
 FUNCTIONAL_AUDIT_PATH = ROOT / "docs/northstar_gap_analysis/functional_control_audit.md"
 SIGNOFF_MATRIX_PATH = ROOT / "docs/northstar_gap_analysis/signoff_matrix.md"
+COMPANION_AUDIT_GLOB = "docs/northstar_gap_analysis/*audit*.md"
 STATUS_HISTORY_MARKER = "## Superseded Historical Checkpoints - Do Not Use As Current State"
 REQUIRED_REVIEWER_ROLES = {
     "Visual fidelity",
@@ -58,6 +59,9 @@ COMPLETION_TERMS = [
     "closure approved",
     "approved to close",
     "ready to close",
+    "zero route/shared open rows",
+    "records `0` open controls",
+    "rows are closed",
 ]
 COMPLETION_CONTEXT_ALLOWLIST = (
     "superseded evidence failures",
@@ -104,6 +108,29 @@ STATUS_CONTROL_SUMMARY_RE = re.compile(
     r"The active control-level source of truth .* currently has `(?P<total>\d+)` open controls: (?P<body>.+?)\."
 )
 STATUS_COUNT_PAIR_RE = re.compile(r"(?P<label>[A-Za-z& -]+?) `(?P<count>\d+)`")
+COMPANION_BLOCKER_RE = re.compile(
+    r"status:\s*(?:reopened|open|blocking)|\bdoes not sign off\b|\breopened and blocking\b",
+    re.IGNORECASE,
+)
+COMPANION_UNCHECKED_ROW_RE = re.compile(r"^- \[ \] ", re.MULTILINE)
+COMPANION_NONZERO_SUMMARY_RE = re.compile(
+    r"^\| [^|]+ \|(?: [^|]+ \|){0,3} (?P<count>[1-9]\d*) \| [^|]*"
+    r"(?:reopened|blocking|open)",
+    re.IGNORECASE | re.MULTILINE,
+)
+MOCK_EVIDENCE_KINDS = {"prototype_mock", "non_authoritative_mock_capture"}
+NON_CLOSING_EVIDENCE_TYPES = {
+    "local prototype_mock",
+    "prototype_mock",
+    "prototype mock",
+    "mock",
+    "fixture",
+    "intercepted",
+    "mixed",
+    "local mock",
+    "local fixture",
+    "prototype fixture",
+}
 
 
 @dataclass(frozen=True)
@@ -118,6 +145,27 @@ def _read_text(path: Path) -> str:
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
         raise AssertionError(f"missing required file: {path.relative_to(ROOT)}") from None
+
+
+def validate_companion_audit_blockers() -> None:
+    """Block zero-gap bookkeeping while companion audits still say reopened/blocking."""
+    blockers: list[str] = []
+    for path in sorted(ROOT.glob(COMPANION_AUDIT_GLOB)):
+        if path == AUDIT_PATH or not path.is_file():
+            continue
+        text = _read_text(path)
+        if (
+            COMPANION_BLOCKER_RE.search(text) or
+            COMPANION_UNCHECKED_ROW_RE.search(text) or
+            COMPANION_NONZERO_SUMMARY_RE.search(text)
+        ):
+            blockers.append(path.relative_to(ROOT).as_posix())
+    if blockers:
+        joined = ", ".join(blockers)
+        raise AssertionError(
+            "companion audit blocker(s) remain active and must be superseded row-by-row before signoff: "
+            f"{joined}"
+        )
 
 
 def _load_manifest() -> dict:
@@ -179,6 +227,60 @@ def _truth_evidence_reports(manifest: dict) -> set[str]:
         for item in manifest.get("allowed_live_truth_evidence_reports") or []
         if str(item).strip()
     }
+
+
+def _registered_evidence_artifacts(manifest: dict) -> set[str]:
+    evidence_dir = str(manifest.get("global_current_evidence_dir") or "").strip()
+    artifacts = {
+        f"{evidence_dir}/prototype-current-report.json" if evidence_dir else "",
+        *[str(path).strip() for path in manifest.get("allowed_functional_evidence_reports") or []],
+        *[str(path).strip() for path in manifest.get("allowed_capture_health_evidence_reports") or []],
+        *[str(path).strip() for path in manifest.get("allowed_live_truth_evidence_reports") or []],
+        *[str(path).strip() for path in manifest.get("retired_current_evidence_reports") or []],
+    }
+    for key in (
+        "allowed_process_evidence_artifacts",
+        "allowed_current_visual_evidence_artifacts",
+        "allowed_extra_visual_state_artifacts",
+        "allowed_live_visual_evidence_artifacts",
+    ):
+        for item in manifest.get(key) or []:
+            value = _relative_path(str((item or {}).get("path") or ""))
+            if value.endswith(".json"):
+                artifacts.add(value)
+    for item in manifest.get("allowed_process_evidence_artifacts") or []:
+        for key in ("path", "sourceReport", "sourceManifest"):
+            value = _relative_path(str((item or {}).get(key) or ""))
+            if value.endswith(".json"):
+                artifacts.add(value)
+    return {path for path in artifacts if path}
+
+
+def validate_no_unregistered_current_evidence_reports() -> None:
+    manifest = _load_manifest()
+    cutoff = str(manifest.get("global_current_evidence_generated_at") or "").strip()
+    if not cutoff:
+        raise AssertionError("reference_manifest.json has no global_current_evidence_generated_at")
+    registered = _registered_evidence_artifacts(manifest)
+    unregistered: list[str] = []
+    for artifact_path in sorted((ROOT / "docs/northstar_visual_qa").glob("**/*.json")):
+        relative = artifact_path.relative_to(ROOT).as_posix()
+        if relative in registered:
+            continue
+        try:
+            report = json.loads(artifact_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            if relative in registered:
+                raise AssertionError(f"invalid JSON in registered visual QA report {relative}: {exc}") from exc
+            continue
+        generated_at = str(report.get("generatedAt") or "").strip()
+        if generated_at and generated_at >= cutoff:
+            unregistered.append(relative)
+    if unregistered:
+        raise AssertionError(
+            "current-era visual QA JSON artifact(s) are neither manifest-allowed nor retired: "
+            + ", ".join(unregistered)
+        )
 
 
 def _parse_summary(lines: Iterable[str]) -> dict[str, SummaryRow]:
@@ -531,7 +633,8 @@ def validate_live_visual_evidence_artifacts(manifest: dict) -> None:
                 capture_viewport = str(raw_viewport or "").strip()
             capture_path = _relative_path(str((capture or {}).get("screenshot") or ""))
             capture_passed = capture.get("passed") is True or capture.get("loaded") is True
-            if capture_viewport == viewport and capture_path == artifact_path and capture_passed:
+            capture_route = str((capture or {}).get("route") or "").strip()
+            if capture_route == route and capture_viewport == viewport and capture_path == artifact_path and capture_passed:
                 matched = True
                 break
         if not matched:
@@ -566,8 +669,39 @@ def validate_process_evidence_artifacts(manifest: dict) -> None:
                 f"actual={actual_hash}, manifest={expected_hash}"
             )
         artifact_kind = str(item.get("kind") or "").strip()
-        if artifact_kind not in {"side-by-side", "pixel-diff", "process-readme"}:
+        if artifact_kind not in {"side-by-side", "pixel-diff", "process-readme", "audit-manifest"}:
             raise AssertionError(f"process evidence artifact has unsupported kind: {artifact_path}")
+        if artifact_kind == "audit-manifest":
+            audit_manifest = _load_json_file(artifact_path, label="process audit manifest")
+            generated_at = str(item.get("generatedAt") or "").strip()
+            if not generated_at or str(audit_manifest.get("generatedAt") or "").strip() != generated_at:
+                raise AssertionError(
+                    f"process audit manifest generatedAt mismatch for {artifact_path}: "
+                    f"manifest={generated_at!r}, report={audit_manifest.get('generatedAt')!r}"
+                )
+            evidence_kind = str(item.get("evidenceKind") or "").strip()
+            if not evidence_kind:
+                raise AssertionError(f"process audit manifest is missing evidenceKind: {artifact_path}")
+            pairs = audit_manifest.get("pairs") or []
+            summary = audit_manifest.get("summary") or {}
+            pair_count = int(summary.get("pairCount") or len(pairs))
+            blocked_pair_count = int(
+                summary.get("blockedPairCount")
+                if summary.get("blockedPairCount") is not None
+                else len([pair for pair in pairs if (pair or {}).get("visualGate") == "BLOCKED"])
+            )
+            if pair_count <= 0:
+                raise AssertionError(f"process audit manifest has no visual pairs: {artifact_path}")
+            if blocked_pair_count <= 0:
+                raise AssertionError(
+                    f"process audit manifest must be blocking evidence unless every pair is closed elsewhere: {artifact_path}"
+                )
+            if any(str((pair or {}).get("visualGate") or "") != "BLOCKED" for pair in pairs):
+                raise AssertionError(
+                    f"process audit manifest contains a non-BLOCKED pair; route rows must cite its closure directly: "
+                    f"{artifact_path}"
+                )
+            continue
         route = str(item.get("route") or "").strip()
         if not route:
             raise AssertionError(f"process evidence artifact is missing route: {artifact_path}")
@@ -798,12 +932,11 @@ def validate_current_evidence() -> None:
         )
     if "atlas_prototype_current_capture.mjs" not in expected_capture_command:
         raise AssertionError("reference_manifest.json must record the current capture command")
-    if report.get("mockApi"):
-        warning = str(report.get("mockEvidenceWarning") or "")
-        if evidence_kind != "prototype_mock":
-            raise AssertionError("mock current evidence must use evidenceKind=prototype_mock")
-        if "not live Databricks evidence" not in warning:
-            raise AssertionError("mock current evidence must carry an explicit non-live Databricks warning")
+    if report.get("mockApi") or evidence_kind in MOCK_EVIDENCE_KINDS:
+        raise AssertionError(
+            "active current evidence must be customer-facing runtime/live evidence with mockApi=false; "
+            f"got evidenceKind={evidence_kind!r}, mockApi={report.get('mockApi')!r}"
+        )
     if report.get("passed") is not True:
         raise AssertionError("current evidence report must have passed=true for capture-health use")
     for key in ("pageErrors", "requestFailures"):
@@ -997,6 +1130,17 @@ def _validate_gap_rows(path: Path, *, enforce_categories: bool) -> None:
                 raise AssertionError(
                     f"{path.relative_to(ROOT)}:{lineno} is checked without viewport or interaction metadata"
                 )
+            type_match = re.search(r"\btype:\s*([^.;]+)", line, flags=re.IGNORECASE)
+            if type_match:
+                row_type = type_match.group(1).strip().lower()
+                if row_type in NON_CLOSING_EVIDENCE_TYPES or any(
+                    token in row_type
+                    for token in ("prototype", "fixture", "mock", "intercepted", "mixed")
+                ):
+                    raise AssertionError(
+                        f"{path.relative_to(ROOT)}:{lineno} uses non-closing evidence type in a checked row: "
+                        f"{type_match.group(1).strip()!r}"
+                    )
             evidence_paths = [
                 candidate for candidate in re.findall(r"`([^`]+)`", line)
                 if "/" in candidate and not candidate.startswith("http")
@@ -1416,8 +1560,10 @@ def validate_allowed_functional_reports() -> None:
         if data.get("passed") is not True:
             raise AssertionError(f"functional evidence report must have passed=true: {report}")
         if data.get("mockApi"):
-            if data.get("evidenceKind") != "prototype_mock":
-                raise AssertionError(f"mock functional evidence must use evidenceKind=prototype_mock: {report}")
+            if data.get("evidenceKind") not in MOCK_EVIDENCE_KINDS:
+                raise AssertionError(
+                    f"mock functional evidence must use an explicitly non-authoritative mock evidenceKind: {report}"
+                )
             warning = str(data.get("mockEvidenceWarning") or "")
             if "not live Databricks evidence" not in warning:
                 raise AssertionError(f"mock functional evidence must carry explicit non-live warning: {report}")
@@ -1963,6 +2109,8 @@ def validate_no_completion_language_with_open_rows() -> None:
 def main() -> int:
     try:
         validate_manifest()
+        validate_no_unregistered_current_evidence_reports()
+        validate_companion_audit_blockers()
         validate_current_evidence()
         validate_audit()
         validate_functional_audit()

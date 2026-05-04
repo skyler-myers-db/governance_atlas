@@ -14,6 +14,34 @@ def _response_json(response) -> dict[str, object]:
 
 
 class LineageApiTests(unittest.TestCase):
+    def test_initial_profile_skips_visibility_probe_for_fast_first_paint(self) -> None:
+        request = SimpleNamespace(
+            headers={"x-forwarded-email": "analyst@example.com"},
+            query_params={"profile": "initial"},
+        )
+        lineage_payload = {
+            "fqn": "main.sales.orders",
+            "profile": "initial",
+            "graphs": {"data": {"nodes": [{"id": "focus", "assetFqn": "main.sales.orders"}], "edges": []}},
+            "stats": {"progressive": {"fullProfileAvailable": True}},
+        }
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _lineage_payload=lambda asset_fqn, request=None: lineage_payload,
+            _asset_visibility_record=lambda asset_fqn, request=None: (_ for _ in ()).throw(
+                AssertionError("initial lineage shell must not block first paint on visibility probes")
+            ),
+        ):
+            response = lineage_api.api_lineage("main.sales.orders", request)
+
+        payload = _response_json(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["meta"]["state"], "loading")
+        self.assertEqual(payload["meta"]["capabilities"]["visibilityState"], "unverified")
+        self.assertEqual(payload["meta"]["capabilities"]["lineageProfile"], "initial")
+
     def test_app_principal_lineage_fails_closed_for_hidden_focus_asset(self) -> None:
         request = SimpleNamespace(headers={"x-forwarded-email": "analyst@example.com"})
         with patch.multiple(
@@ -60,8 +88,16 @@ class LineageApiTests(unittest.TestCase):
                 "openable": True,
                 "visibilityState": "visible",
             },
+            _uc_for_request=lambda request: SimpleNamespace(warehouse_id="test"),
+            _uc=lambda: SimpleNamespace(warehouse_id="test"),
+            _request_cache_scope=lambda request: "test-scope",
         ):
-            response = lineage_api.api_lineage("main.sales.orders", request)
+            with patch.object(
+                lineage_api.lineage_service,
+                "cached_lineage_payload",
+                return_value=lineage_payload,
+            ):
+                response = lineage_api.api_lineage("main.sales.orders", request)
 
         payload = _response_json(response)
         self.assertEqual(response.status_code, 200)

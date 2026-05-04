@@ -1,0 +1,2752 @@
+{
+  "generatedAt": "2026-05-03T18:24:23.338Z",
+  "baseUrl": "http://127.0.0.1:8000",
+  "buildId": "frontend-0f0b684bb031",
+  "deploymentId": "",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": false,
+  "evidenceKind": "runtime_app_capture",
+  "mockEvidenceWarning": "",
+  "liveDatabricksCapture": false,
+  "forwardedActorCapture": true,
+  "forwardedActorEmail": "skyler@entrada.ai",
+  "forwardedActorTokenPresent": false,
+  "routeFilter": [
+    "lineage"
+  ],
+  "interactionFilter": [
+    "lineage-selection",
+    "atlas-ai"
+  ],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "lineage"
+  ],
+  "viewports": [
+    {
+      "name": "3037x1269",
+      "width": 3037,
+      "height": 1269
+    }
+  ],
+  "expectedCaptureCount": 1,
+  "captures": [
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v116-lineage-finance-debug-2026-05-03/lineage-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v116-lineage-finance-debug-2026-05-03/lineage-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": [
+            "Atlas AI Atlas AI recommendations require a configured Databricks Genie space."
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 298,
+          "right": 3037,
+          "bottom": 70,
+          "width": 2739,
+          "height": 70
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 298,
+          "bottom": 1269,
+          "width": 298,
+          "height": 1269
+        },
+        "main": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2739,
+          "height": 1199
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1879,
+          "clientHeight": 1199,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1948.90625,
+          "width": 2739,
+          "height": 1878.90625
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 70,
+            "left": 298,
+            "right": 3037,
+            "bottom": 1948.90625,
+            "width": 2739,
+            "height": 1878.90625
+          },
+          "hero": {
+            "top": 92,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 250.796875,
+            "width": 1930,
+            "height": 158.796875
+          },
+          "workbench": {
+            "top": 286.796875,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 1878.90625,
+            "width": 1930,
+            "height": 1592.109375
+          },
+          "graph": {
+            "top": 286.796875,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 1448.796875,
+            "width": 1930,
+            "height": 1162
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › local ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Certified Freshness unavailable 12 CDEs Owner: finance-steward@entrada.ai 4 upstream · 14 downstream Revenue impact unavailable Column lineage Run impact analysis + - 19 nodes · 18 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-03 18:24:51 UTC Partial lineage Limited to 50 table edges. Column lineage may be partial or unavailable in this workspace. Table lineage Column lineage Search Export 2 HOPS UPSTREAM invoices_raw orders_raw 1 HOP UPSTREAM revenue_recognition finance_prod / gold PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold revenue_anomaly_monitor finance_prod / gold LINEAGE DETAILS customer_revenue_ltv customer_360 / gold LAST REFRESH 2026-05-03 ROWS Unavailable OWNER finance-steward@entrada.ai SOURCES 1 revenue_recognition finance_prod / gold CONSUMERS 2 customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold RECENT ACTIVITY No recent lineage activity returned. NODE TYP",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › local",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv customer_360 / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_anomaly_monitor finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv customer_360 / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Review owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv Owner unavailable · customer_360 / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_anomaly_monitor Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_close_control Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "3037x1269",
+      "interaction": "lineage-selection",
+      "description": "Exercise every visible graph node, details-panel row, impact row, and column lineage row.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v116-lineage-finance-debug-2026-05-03/lineage-lineage-selection-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v116-lineage-finance-debug-2026-05-03/lineage-lineage-selection-3037x1269-full.png",
+      "runResult": {
+        "graphNodes": {
+          "total": 14,
+          "visibleCount": 14,
+          "enabledCount": 14,
+          "clickedCount": 14,
+          "labels": [
+            "Select lineage edge from revenue_recognition (finance_prod / gold) to revenue_daily (finance_prod / curated)",
+            "Select lineage edge from invoices_raw (finance_prod / bronze) to revenue_recognition (finance_prod / gold)",
+            "Select lineage edge from orders_raw (finance_prod / bronze) to revenue_recognition (finance_prod / gold)",
+            "Select lineage edge from payments (finance_prod / silver) to revenue_recognition (finance_prod / gold)",
+            "Select lineage edge from revenue_daily (finance_prod / curated) to customer_revenue_ltv (customer_360 / gold)",
+            "Select lineage edge from revenue_daily (finance_prod / curated) to cfo_revenue_board_pack (finance_prod / gold)",
+            "Select lineage edge from revenue_daily (finance_prod / curated) to revenue_anomaly_monitor (finance_prod / gold)",
+            "Select lineage edge from revenue_daily (finance_prod / curated) to revenue_close_control (finance_prod / gold)",
+            "invoices_rawfinance_prod / bronzeTable",
+            "orders_rawfinance_prod / bronzeTable",
+            "revenue_recognitionfinance_prod / goldTable",
+            "customer_revenue_ltvcustomer_360 / goldTable",
+            "cfo_revenue_board_packfinance_prod / goldTable",
+            "revenue_anomaly_monitorfinance_prod / goldTable"
+          ],
+          "results": [
+            {
+              "index": 0,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "Select lineage edge from revenue_recognition (finance_prod / gold) to revenue_daily (finance_prod / curated)",
+                "ariaLabel": "Select lineage edge from revenue_recognition (finance_prod / gold) to revenue_daily (finance_prod / curated)",
+                "title": "",
+                "role": "button",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 764,
+                  "left": 1296,
+                  "width": 286,
+                  "height": 371
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 1,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "Select lineage edge from invoices_raw (finance_prod / bronze) to revenue_recognition (finance_prod / gold)",
+                "ariaLabel": "Select lineage edge from invoices_raw (finance_prod / bronze) to revenue_recognition (finance_prod / gold)",
+                "title": "",
+                "role": "button",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 764,
+                  "left": 871,
+                  "width": 145,
+                  "height": 147
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 2,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "Select lineage edge from orders_raw (finance_prod / bronze) to revenue_recognition (finance_prod / gold)",
+                "ariaLabel": "Select lineage edge from orders_raw (finance_prod / bronze) to revenue_recognition (finance_prod / gold)",
+                "title": "",
+                "role": "button",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 764,
+                  "left": 871,
+                  "width": 145,
+                  "height": 239
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 3,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "Select lineage edge from payments (finance_prod / silver) to revenue_recognition (finance_prod / gold)",
+                "ariaLabel": "Select lineage edge from payments (finance_prod / silver) to revenue_recognition (finance_prod / gold)",
+                "title": "",
+                "role": "button",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 764,
+                  "left": 871,
+                  "width": 145,
+                  "height": 332
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 4,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "Select lineage edge from revenue_daily (finance_prod / curated) to customer_revenue_ltv (customer_360 / gold)",
+                "ariaLabel": "Select lineage edge from revenue_daily (finance_prod / curated) to customer_revenue_ltv (customer_360 / gold)",
+                "title": "",
+                "role": "button",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 744,
+                  "left": 1704,
+                  "width": 107,
+                  "height": 392
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 5,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "Select lineage edge from revenue_daily (finance_prod / curated) to cfo_revenue_board_pack (finance_prod / gold)",
+                "ariaLabel": "Select lineage edge from revenue_daily (finance_prod / curated) to cfo_revenue_board_pack (finance_prod / gold)",
+                "title": "",
+                "role": "button",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 1011,
+                  "left": 1704,
+                  "width": 107,
+                  "height": 124
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 6,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "Select lineage edge from revenue_daily (finance_prod / curated) to revenue_anomaly_monitor (finance_prod / gold)",
+                "ariaLabel": "Select lineage edge from revenue_daily (finance_prod / curated) to revenue_anomaly_monitor (finance_prod / gold)",
+                "title": "",
+                "role": "button",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 1135,
+                  "left": 1704,
+                  "width": 107,
+                  "height": 128
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 7,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "Select lineage edge from revenue_daily (finance_prod / curated) to revenue_close_control (finance_prod / gold)",
+                "ariaLabel": "Select lineage edge from revenue_daily (finance_prod / curated) to revenue_close_control (finance_prod / gold)",
+                "title": "",
+                "role": "button",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 1133,
+                  "left": 1704,
+                  "width": 107,
+                  "height": 11
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 8,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "invoices_rawfinance_prod / bronzeTable",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 894,
+                  "left": 680,
+                  "width": 283,
+                  "height": 85
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 9,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "orders_rawfinance_prod / bronzeTable",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 988,
+                  "left": 680,
+                  "width": 283,
+                  "height": 85
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 10,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "revenue_recognitionfinance_prod / goldTable",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 623,
+                  "left": 1009,
+                  "width": 287,
+                  "height": 330
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 11,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "customer_revenue_ltvcustomer_360 / goldTable",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 610,
+                  "left": 1811,
+                  "width": 290,
+                  "height": 300
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 12,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "cfo_revenue_board_packfinance_prod / goldTable",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 960,
+                  "left": 1811,
+                  "width": 290,
+                  "height": 300
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 13,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "revenue_anomaly_monitorfinance_prod / goldTable",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 1310,
+                  "left": 1811,
+                  "width": 290,
+                  "height": 96
+                }
+              },
+              "after": {
+                "selected": false,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            }
+          ]
+        },
+        "restrictedNodeVisible": false,
+        "restrictedStatus": {
+          "selected": false,
+          "boundary": true
+        },
+        "restrictedWorkflow": {
+          "panel": false,
+          "title": false,
+          "unavailable": false,
+          "mutationGuard": false
+        },
+        "detailRows": {
+          "total": 3,
+          "visibleCount": 3,
+          "enabledCount": 3,
+          "clickedCount": 3,
+          "labels": [
+            "revenue_recognitionfinance_prod / gold",
+            "customer_revenue_ltvcustomer_360 / gold",
+            "cfo_revenue_board_packfinance_prod / gold"
+          ],
+          "results": [
+            {
+              "index": 0,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "revenue_recognitionfinance_prod / gold",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 123,
+                  "left": 2197,
+                  "width": 363,
+                  "height": 50
+                }
+              },
+              "after": {
+                "selected": true,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 1,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "customer_revenue_ltvcustomer_360 / gold",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 223,
+                  "left": 2197,
+                  "width": 363,
+                  "height": 50
+                }
+              },
+              "after": {
+                "selected": true,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 2,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "cfo_revenue_board_packfinance_prod / gold",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 280,
+                  "left": 2197,
+                  "width": 363,
+                  "height": 50
+                }
+              },
+              "after": {
+                "selected": true,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            }
+          ]
+        },
+        "detailStatus": {
+          "inspector": true,
+          "selected": true
+        },
+        "impactRows": {
+          "total": 4,
+          "visibleCount": 4,
+          "enabledCount": 4,
+          "clickedCount": 4,
+          "labels": [
+            "customer_revenue_ltvOwner unavailable · customer_360 / goldSeverity unavailable",
+            "cfo_revenue_board_packOwner unavailable · finance_prod / goldSeverity unavailable",
+            "revenue_anomaly_monitorOwner unavailable · finance_prod / goldSeverity unavailable",
+            "revenue_close_controlOwner unavailable · finance_prod / goldSeverity unavailable"
+          ],
+          "results": [
+            {
+              "index": 0,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "customer_revenue_ltvOwner unavailable · customer_360 / goldSeverity unavailable",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 923,
+                  "left": 660,
+                  "width": 1109,
+                  "height": 59
+                }
+              },
+              "after": {
+                "selected": true,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 1,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "cfo_revenue_board_packOwner unavailable · finance_prod / goldSeverity unavailable",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 1097,
+                  "left": 660,
+                  "width": 1109,
+                  "height": 59
+                }
+              },
+              "after": {
+                "selected": true,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 2,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "revenue_anomaly_monitorOwner unavailable · finance_prod / goldSeverity unavailable",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 1161,
+                  "left": 660,
+                  "width": 1109,
+                  "height": 59
+                }
+              },
+              "after": {
+                "selected": true,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            },
+            {
+              "index": 3,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "revenue_close_controlOwner unavailable · finance_prod / goldSeverity unavailable",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 1225,
+                  "left": 660,
+                  "width": 1109,
+                  "height": 59
+                }
+              },
+              "after": {
+                "selected": true,
+                "inspector": true,
+                "boundary": true,
+                "column": false
+              }
+            }
+          ]
+        },
+        "impactStatus": {
+          "selected": true,
+          "inspector": true,
+          "unavailable": true
+        },
+        "impactWorkflow": {
+          "panel": true,
+          "title": true,
+          "unavailable": true,
+          "mutationGuard": true
+        },
+        "columnRows": {
+          "total": 5,
+          "visibleCount": 5,
+          "enabledCount": 5,
+          "clickedCount": 5,
+          "labels": [
+            "customer_countsource column · this table",
+            "gross_revenue_usdsource column · this table",
+            "net_revenue_usdsource column · this table",
+            "order_countsource column · this table",
+            "processing_fee_usdsource column · this table"
+          ],
+          "results": [
+            {
+              "index": 0,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "customer_countsource column · this table",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 1024,
+                  "left": 1801,
+                  "width": 765,
+                  "height": 44
+                }
+              },
+              "after": {
+                "selected": true,
+                "inspector": true,
+                "boundary": true,
+                "column": true
+              }
+            },
+            {
+              "index": 1,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "gross_revenue_usdsource column · this table",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 1068,
+                  "left": 1801,
+                  "width": 765,
+                  "height": 44
+                }
+              },
+              "after": {
+                "selected": true,
+                "inspector": true,
+                "boundary": true,
+                "column": true
+              }
+            },
+            {
+              "index": 2,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "net_revenue_usdsource column · this table",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 1112,
+                  "left": 1801,
+                  "width": 765,
+                  "height": 44
+                }
+              },
+              "after": {
+                "selected": true,
+                "inspector": true,
+                "boundary": true,
+                "column": true
+              }
+            },
+            {
+              "index": 3,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "order_countsource column · this table",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 1156,
+                  "left": 1801,
+                  "width": 765,
+                  "height": 44
+                }
+              },
+              "after": {
+                "selected": true,
+                "inspector": true,
+                "boundary": true,
+                "column": true
+              }
+            },
+            {
+              "index": 4,
+              "visible": true,
+              "clicked": true,
+              "disabled": false,
+              "before": {
+                "text": "processing_fee_usdsource column · this table",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 1200,
+                  "left": 1801,
+                  "width": 765,
+                  "height": 43
+                }
+              },
+              "after": {
+                "selected": true,
+                "inspector": true,
+                "boundary": true,
+                "column": true
+              }
+            }
+          ]
+        },
+        "columnStatus": {
+          "selected": true
+        },
+        "columnWorkflow": {
+          "panel": true,
+          "title": true,
+          "unavailable": true,
+          "backedTrace": true,
+          "mutationGuard": false
+        },
+        "currentPath": "/lineage/finance_prod.curated.revenue_daily"
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "graphNodes": {
+            "total": 14,
+            "visibleCount": 14,
+            "enabledCount": 14,
+            "clickedCount": 14,
+            "labels": [
+              "Select lineage edge from revenue_recognition (finance_prod / gold) to revenue_daily (finance_prod / curated)",
+              "Select lineage edge from invoices_raw (finance_prod / bronze) to revenue_recognition (finance_prod / gold)",
+              "Select lineage edge from orders_raw (finance_prod / bronze) to revenue_recognition (finance_prod / gold)",
+              "Select lineage edge from payments (finance_prod / silver) to revenue_recognition (finance_prod / gold)",
+              "Select lineage edge from revenue_daily (finance_prod / curated) to customer_revenue_ltv (customer_360 / gold)",
+              "Select lineage edge from revenue_daily (finance_prod / curated) to cfo_revenue_board_pack (finance_prod / gold)",
+              "Select lineage edge from revenue_daily (finance_prod / curated) to revenue_anomaly_monitor (finance_prod / gold)",
+              "Select lineage edge from revenue_daily (finance_prod / curated) to revenue_close_control (finance_prod / gold)",
+              "invoices_rawfinance_prod / bronzeTable",
+              "orders_rawfinance_prod / bronzeTable",
+              "revenue_recognitionfinance_prod / goldTable",
+              "customer_revenue_ltvcustomer_360 / goldTable",
+              "cfo_revenue_board_packfinance_prod / goldTable",
+              "revenue_anomaly_monitorfinance_prod / goldTable"
+            ],
+            "results": [
+              {
+                "index": 0,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "Select lineage edge from revenue_recognition (finance_prod / gold) to revenue_daily (finance_prod / curated)",
+                  "ariaLabel": "Select lineage edge from revenue_recognition (finance_prod / gold) to revenue_daily (finance_prod / curated)",
+                  "title": "",
+                  "role": "button",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 764,
+                    "left": 1296,
+                    "width": 286,
+                    "height": 371
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 1,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "Select lineage edge from invoices_raw (finance_prod / bronze) to revenue_recognition (finance_prod / gold)",
+                  "ariaLabel": "Select lineage edge from invoices_raw (finance_prod / bronze) to revenue_recognition (finance_prod / gold)",
+                  "title": "",
+                  "role": "button",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 764,
+                    "left": 871,
+                    "width": 145,
+                    "height": 147
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 2,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "Select lineage edge from orders_raw (finance_prod / bronze) to revenue_recognition (finance_prod / gold)",
+                  "ariaLabel": "Select lineage edge from orders_raw (finance_prod / bronze) to revenue_recognition (finance_prod / gold)",
+                  "title": "",
+                  "role": "button",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 764,
+                    "left": 871,
+                    "width": 145,
+                    "height": 239
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 3,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "Select lineage edge from payments (finance_prod / silver) to revenue_recognition (finance_prod / gold)",
+                  "ariaLabel": "Select lineage edge from payments (finance_prod / silver) to revenue_recognition (finance_prod / gold)",
+                  "title": "",
+                  "role": "button",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 764,
+                    "left": 871,
+                    "width": 145,
+                    "height": 332
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 4,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "Select lineage edge from revenue_daily (finance_prod / curated) to customer_revenue_ltv (customer_360 / gold)",
+                  "ariaLabel": "Select lineage edge from revenue_daily (finance_prod / curated) to customer_revenue_ltv (customer_360 / gold)",
+                  "title": "",
+                  "role": "button",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 744,
+                    "left": 1704,
+                    "width": 107,
+                    "height": 392
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 5,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "Select lineage edge from revenue_daily (finance_prod / curated) to cfo_revenue_board_pack (finance_prod / gold)",
+                  "ariaLabel": "Select lineage edge from revenue_daily (finance_prod / curated) to cfo_revenue_board_pack (finance_prod / gold)",
+                  "title": "",
+                  "role": "button",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 1011,
+                    "left": 1704,
+                    "width": 107,
+                    "height": 124
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 6,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "Select lineage edge from revenue_daily (finance_prod / curated) to revenue_anomaly_monitor (finance_prod / gold)",
+                  "ariaLabel": "Select lineage edge from revenue_daily (finance_prod / curated) to revenue_anomaly_monitor (finance_prod / gold)",
+                  "title": "",
+                  "role": "button",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 1135,
+                    "left": 1704,
+                    "width": 107,
+                    "height": 128
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 7,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "Select lineage edge from revenue_daily (finance_prod / curated) to revenue_close_control (finance_prod / gold)",
+                  "ariaLabel": "Select lineage edge from revenue_daily (finance_prod / curated) to revenue_close_control (finance_prod / gold)",
+                  "title": "",
+                  "role": "button",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 1133,
+                    "left": 1704,
+                    "width": 107,
+                    "height": 11
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 8,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "invoices_rawfinance_prod / bronzeTable",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 894,
+                    "left": 680,
+                    "width": 283,
+                    "height": 85
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 9,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "orders_rawfinance_prod / bronzeTable",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 988,
+                    "left": 680,
+                    "width": 283,
+                    "height": 85
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 10,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "revenue_recognitionfinance_prod / goldTable",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 623,
+                    "left": 1009,
+                    "width": 287,
+                    "height": 330
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 11,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "customer_revenue_ltvcustomer_360 / goldTable",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 610,
+                    "left": 1811,
+                    "width": 290,
+                    "height": 300
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 12,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "cfo_revenue_board_packfinance_prod / goldTable",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 960,
+                    "left": 1811,
+                    "width": 290,
+                    "height": 300
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 13,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "revenue_anomaly_monitorfinance_prod / goldTable",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 1310,
+                    "left": 1811,
+                    "width": 290,
+                    "height": 96
+                  }
+                },
+                "after": {
+                  "selected": false,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              }
+            ]
+          },
+          "restrictedNodeVisible": false,
+          "restrictedStatus": {
+            "selected": false,
+            "boundary": true
+          },
+          "restrictedWorkflow": {
+            "panel": false,
+            "title": false,
+            "unavailable": false,
+            "mutationGuard": false
+          },
+          "detailRows": {
+            "total": 3,
+            "visibleCount": 3,
+            "enabledCount": 3,
+            "clickedCount": 3,
+            "labels": [
+              "revenue_recognitionfinance_prod / gold",
+              "customer_revenue_ltvcustomer_360 / gold",
+              "cfo_revenue_board_packfinance_prod / gold"
+            ],
+            "results": [
+              {
+                "index": 0,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "revenue_recognitionfinance_prod / gold",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 123,
+                    "left": 2197,
+                    "width": 363,
+                    "height": 50
+                  }
+                },
+                "after": {
+                  "selected": true,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 1,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "customer_revenue_ltvcustomer_360 / gold",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 223,
+                    "left": 2197,
+                    "width": 363,
+                    "height": 50
+                  }
+                },
+                "after": {
+                  "selected": true,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 2,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "cfo_revenue_board_packfinance_prod / gold",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 280,
+                    "left": 2197,
+                    "width": 363,
+                    "height": 50
+                  }
+                },
+                "after": {
+                  "selected": true,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              }
+            ]
+          },
+          "detailStatus": {
+            "inspector": true,
+            "selected": true
+          },
+          "impactRows": {
+            "total": 4,
+            "visibleCount": 4,
+            "enabledCount": 4,
+            "clickedCount": 4,
+            "labels": [
+              "customer_revenue_ltvOwner unavailable · customer_360 / goldSeverity unavailable",
+              "cfo_revenue_board_packOwner unavailable · finance_prod / goldSeverity unavailable",
+              "revenue_anomaly_monitorOwner unavailable · finance_prod / goldSeverity unavailable",
+              "revenue_close_controlOwner unavailable · finance_prod / goldSeverity unavailable"
+            ],
+            "results": [
+              {
+                "index": 0,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "customer_revenue_ltvOwner unavailable · customer_360 / goldSeverity unavailable",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 923,
+                    "left": 660,
+                    "width": 1109,
+                    "height": 59
+                  }
+                },
+                "after": {
+                  "selected": true,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 1,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "cfo_revenue_board_packOwner unavailable · finance_prod / goldSeverity unavailable",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 1097,
+                    "left": 660,
+                    "width": 1109,
+                    "height": 59
+                  }
+                },
+                "after": {
+                  "selected": true,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 2,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "revenue_anomaly_monitorOwner unavailable · finance_prod / goldSeverity unavailable",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 1161,
+                    "left": 660,
+                    "width": 1109,
+                    "height": 59
+                  }
+                },
+                "after": {
+                  "selected": true,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              },
+              {
+                "index": 3,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "revenue_close_controlOwner unavailable · finance_prod / goldSeverity unavailable",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 1225,
+                    "left": 660,
+                    "width": 1109,
+                    "height": 59
+                  }
+                },
+                "after": {
+                  "selected": true,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": false
+                }
+              }
+            ]
+          },
+          "impactStatus": {
+            "selected": true,
+            "inspector": true,
+            "unavailable": true
+          },
+          "impactWorkflow": {
+            "panel": true,
+            "title": true,
+            "unavailable": true,
+            "mutationGuard": true
+          },
+          "columnRows": {
+            "total": 5,
+            "visibleCount": 5,
+            "enabledCount": 5,
+            "clickedCount": 5,
+            "labels": [
+              "customer_countsource column · this table",
+              "gross_revenue_usdsource column · this table",
+              "net_revenue_usdsource column · this table",
+              "order_countsource column · this table",
+              "processing_fee_usdsource column · this table"
+            ],
+            "results": [
+              {
+                "index": 0,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "customer_countsource column · this table",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 1024,
+                    "left": 1801,
+                    "width": 765,
+                    "height": 44
+                  }
+                },
+                "after": {
+                  "selected": true,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": true
+                }
+              },
+              {
+                "index": 1,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "gross_revenue_usdsource column · this table",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 1068,
+                    "left": 1801,
+                    "width": 765,
+                    "height": 44
+                  }
+                },
+                "after": {
+                  "selected": true,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": true
+                }
+              },
+              {
+                "index": 2,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "net_revenue_usdsource column · this table",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 1112,
+                    "left": 1801,
+                    "width": 765,
+                    "height": 44
+                  }
+                },
+                "after": {
+                  "selected": true,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": true
+                }
+              },
+              {
+                "index": 3,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "order_countsource column · this table",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 1156,
+                    "left": 1801,
+                    "width": 765,
+                    "height": 44
+                  }
+                },
+                "after": {
+                  "selected": true,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": true
+                }
+              },
+              {
+                "index": 4,
+                "visible": true,
+                "clicked": true,
+                "disabled": false,
+                "before": {
+                  "text": "processing_fee_usdsource column · this table",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 1200,
+                    "left": 1801,
+                    "width": 765,
+                    "height": 43
+                  }
+                },
+                "after": {
+                  "selected": true,
+                  "inspector": true,
+                  "boundary": true,
+                  "column": true
+                }
+              }
+            ]
+          },
+          "columnStatus": {
+            "selected": true
+          },
+          "columnWorkflow": {
+            "panel": true,
+            "title": true,
+            "unavailable": true,
+            "backedTrace": true,
+            "mutationGuard": false
+          },
+          "currentPath": "/lineage/finance_prod.curated.revenue_daily"
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 298,
+          "right": 3037,
+          "bottom": 70,
+          "width": 2739,
+          "height": 70
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 298,
+          "bottom": 1269,
+          "width": 298,
+          "height": 1269
+        },
+        "main": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2739,
+          "height": 1199
+        },
+        "mainScroll": {
+          "scrollTop": 685,
+          "scrollHeight": 1989,
+          "clientHeight": 1199,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": -615,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1373.875,
+          "width": 2739,
+          "height": 1988.875
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": -615,
+            "left": 298,
+            "right": 3037,
+            "bottom": 1373.875,
+            "width": 2739,
+            "height": 1988.875
+          },
+          "hero": {
+            "top": -593,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": -434.203125,
+            "width": 1930,
+            "height": 158.796875
+          },
+          "workbench": {
+            "top": -398.203125,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 1303.875,
+            "width": 1930,
+            "height": 1702.078125
+          },
+          "graph": {
+            "top": -398.203125,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 763.796875,
+            "width": 1930,
+            "height": 1162
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › local ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Certified Freshness unavailable 12 CDEs Owner: finance-steward@entrada.ai 4 upstream · 14 downstream Revenue impact unavailable Column lineage Run impact analysis + - 19 nodes · 18 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-03 18:24:51 UTC Partial lineage Limited to 50 table edges. Column lineage may be partial or unavailable in this workspace. Table lineage Column lineage Search Export 2 HOPS UPSTREAM invoices_raw orders_raw 1 HOP UPSTREAM revenue_recognition finance_prod / gold PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold revenue_anomaly_monitor finance_prod / gold LINEAGE DETAILS revenue_close_control finance_prod / gold LAST REFRESH 2026-05-03 ROWS Unavailable OWNER finance-steward@entrada.ai SOURCES 1 revenue_recognition finance_prod / gold CONSUMERS 2 customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold RECENT ACTIVITY No recent lineage activity returned. NODE TY",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › local",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv customer_360 / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_anomaly_monitor finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv customer_360 / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Review owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv Owner unavailable · customer_360 / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_anomaly_monitor Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_close_control Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "3037x1269",
+      "interaction": "atlas-ai",
+      "description": "Exercise Lineage Atlas AI suggestions, prompt submission, routed evidence chips, and accuracy notice.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v116-lineage-finance-debug-2026-05-03/lineage-atlas-ai-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v116-lineage-finance-debug-2026-05-03/lineage-atlas-ai-3037x1269-full.png",
+      "runResult": {
+        "unavailable": true,
+        "lineageFabHidden": true,
+        "topbarState": {
+          "text": "Atlas AI",
+          "ariaLabel": "",
+          "title": "Atlas AI recommendations require a configured Databricks Genie space.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 19,
+            "left": 2912,
+            "width": 105,
+            "height": 32
+          }
+        },
+        "unavailableState": {
+          "url": "http://127.0.0.1:8000/lineage/finance_prod.curated.revenue_daily",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › local ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Certified Freshness unavailable 12 CDEs Owner: finance-steward@entrada.ai 4 upstream · 14 downstream Revenue impact unavailable Column lineage Run impact analysis + - 19 nodes · 18 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-03 18:24:51 UTC Partial lineage Limited to 50 table edges. Column lineage may be partial or unavailable in this workspace. Table lineage Column lineage Search Export 2 HOPS UPSTREAM invoices_raw orders_raw 1 HOP UPSTREAM revenue_recognition finance_prod / gold PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold revenue_anomaly_monitor finance_prod / gold LINEAGE DETAILS customer_revenue_ltv customer_360 / gold LAST REFRESH 2026-05-03 ROWS Unavailable OWNER finance-steward@entrada.ai SOURCES 1 revenue_recognition finance_prod / gold CONSUMERS 2 customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold RECENT ACTIVITY No recent lineage activity returned. NODE TYP",
+          "checks": {
+            "reason": true
+          }
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "unavailable": true,
+          "lineageFabHidden": true,
+          "topbarState": {
+            "text": "Atlas AI",
+            "ariaLabel": "",
+            "title": "Atlas AI recommendations require a configured Databricks Genie space.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 19,
+              "left": 2912,
+              "width": 105,
+              "height": 32
+            }
+          },
+          "unavailableState": {
+            "url": "http://127.0.0.1:8000/lineage/finance_prod.curated.revenue_daily",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › local ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Certified Freshness unavailable 12 CDEs Owner: finance-steward@entrada.ai 4 upstream · 14 downstream Revenue impact unavailable Column lineage Run impact analysis + - 19 nodes · 18 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-03 18:24:51 UTC Partial lineage Limited to 50 table edges. Column lineage may be partial or unavailable in this workspace. Table lineage Column lineage Search Export 2 HOPS UPSTREAM invoices_raw orders_raw 1 HOP UPSTREAM revenue_recognition finance_prod / gold PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold revenue_anomaly_monitor finance_prod / gold LINEAGE DETAILS customer_revenue_ltv customer_360 / gold LAST REFRESH 2026-05-03 ROWS Unavailable OWNER finance-steward@entrada.ai SOURCES 1 revenue_recognition finance_prod / gold CONSUMERS 2 customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold RECENT ACTIVITY No recent lineage activity returned. NODE TYP",
+            "checks": {
+              "reason": true
+            }
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 298,
+          "right": 3037,
+          "bottom": 70,
+          "width": 2739,
+          "height": 70
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 298,
+          "bottom": 1269,
+          "width": 298,
+          "height": 1269
+        },
+        "main": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2739,
+          "height": 1199
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1879,
+          "clientHeight": 1199,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1948.90625,
+          "width": 2739,
+          "height": 1878.90625
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 70,
+            "left": 298,
+            "right": 3037,
+            "bottom": 1948.90625,
+            "width": 2739,
+            "height": 1878.90625
+          },
+          "hero": {
+            "top": 92,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 250.796875,
+            "width": 1930,
+            "height": 158.796875
+          },
+          "workbench": {
+            "top": 286.796875,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 1878.90625,
+            "width": 1930,
+            "height": 1592.109375
+          },
+          "graph": {
+            "top": 286.796875,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 1448.796875,
+            "width": 1930,
+            "height": 1162
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › local ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Certified Freshness unavailable 12 CDEs Owner: finance-steward@entrada.ai 4 upstream · 14 downstream Revenue impact unavailable Column lineage Run impact analysis + - 19 nodes · 18 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-03 18:24:51 UTC Partial lineage Limited to 50 table edges. Column lineage may be partial or unavailable in this workspace. Table lineage Column lineage Search Export 2 HOPS UPSTREAM invoices_raw orders_raw 1 HOP UPSTREAM revenue_recognition finance_prod / gold PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold revenue_anomaly_monitor finance_prod / gold LINEAGE DETAILS customer_revenue_ltv customer_360 / gold LAST REFRESH 2026-05-03 ROWS Unavailable OWNER finance-steward@entrada.ai SOURCES 1 revenue_recognition finance_prod / gold CONSUMERS 2 customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold RECENT ACTIVITY No recent lineage activity returned. NODE TYP",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › local",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv customer_360 / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_anomaly_monitor finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv customer_360 / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Review owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv Owner unavailable · customer_360 / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_anomaly_monitor Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_close_control Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    }
+  ],
+  "console": [],
+  "pageErrors": [],
+  "requestFailures": [],
+  "checks": {
+    "buildMatches": true
+  },
+  "runtimeStatus": {
+    "url": "http://127.0.0.1:8000/api/runtime/status",
+    "status": 200,
+    "ok": true,
+    "buildId": "frontend-0f0b684bb031",
+    "state": "live",
+    "actorRole": "Reader",
+    "govCatalog": "datapact",
+    "govSchema": "atlas"
+  },
+  "captureCount": 1,
+  "interactionCount": 2,
+  "consoleErrorCount": 0,
+  "pageErrorCount": 0,
+  "requestFailureCount": 0,
+  "expectedRequestFailureCount": 0,
+  "passed": true
+}

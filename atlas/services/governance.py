@@ -885,39 +885,88 @@ def governance_summary(
     *,
     actor_email: str | None = None,
     hidden_catalogs: set[str] = asset_service.HIDDEN_CATALOGS,
+    sections: Sequence[str] | None = None,
 ) -> Dict[str, Any]:
+    requested_sections = {
+        asset_service.normalize_str(section).lower()
+        for section in (sections or [])
+        if asset_service.normalize_str(section)
+    }
+    inbox_only = bool(requested_sections) and requested_sections <= {"inbox"}
+
     def _loader() -> Dict[str, Any]:
+        normalized_actor = asset_service.normalize_str(actor_email).lower()
+        if inbox_only:
+            inbox = {
+                "state": "unavailable",
+                "message": "A forwarded Databricks user identity is required for a personal governance inbox.",
+                "unreadCount": 0,
+                "items": [],
+            }
+            if normalized_actor and normalized_actor != "unknown":
+                if hasattr(store, "list_notifications") and hasattr(store, "count_unread_notifications"):
+                    try:
+                        inbox_items = _inbox_records(
+                            store.list_notifications(recipient_email=normalized_actor, limit=12)
+                        )
+                        unread_count = int(store.count_unread_notifications(recipient_email=normalized_actor))
+                        filtered_inbox_items = inbox_items
+                        if inbox_items:
+                            inventory = asset_service.visible_assets(
+                                uc,
+                                store,
+                                hidden_catalogs=hidden_catalogs,
+                            )
+                            visible_asset_keys = _visible_asset_keys(inventory)
+                            filtered_inbox_items = _filter_records_to_visible_assets(
+                                inbox_items,
+                                visible_asset_keys,
+                                asset_key="assetFqn",
+                            )
+                            if len(filtered_inbox_items) != len(inbox_items):
+                                unread_count = min(unread_count, len(filtered_inbox_items))
+                        inbox = {
+                            "state": "live",
+                            "message": "",
+                            "unreadCount": unread_count,
+                            "items": filtered_inbox_items,
+                        }
+                    except Exception:
+                        inbox = {
+                            "state": "degraded",
+                            "message": "Governance inbox is temporarily unavailable.",
+                            "unreadCount": 0,
+                            "items": [],
+                        }
+            return {
+                "metrics": [],
+                "backlog": [],
+                "queue": {
+                    "scopeKey": "workspace:default",
+                    "source": "not-requested",
+                    "laneCounts": {},
+                    "openTaskCount": 0,
+                    "observedAt": "",
+                    "staleAfter": "",
+                },
+                "glossary": [],
+                "activity": [],
+                "inbox": inbox,
+                "sections": ["inbox"],
+            }
+
         inventory = asset_service.visible_assets(
             uc,
             store,
             hidden_catalogs=hidden_catalogs,
         )
         visible_asset_keys = _visible_asset_keys(inventory)
-        try:
-            pending = store.list_change_requests(status="pending", limit=5000)
-        except Exception:
-            pending = pd.DataFrame()
-        raw_pending_request_records = _request_records(pending)
-        pending_request_records = _filter_request_records_to_visible_assets(
-            raw_pending_request_records,
-            visible_asset_keys,
-        )
-        pending_request_scope_safe = len(raw_pending_request_records) == len(pending_request_records)
-        try:
-            requests = store.list_change_requests(limit=5000)
-        except Exception:
-            requests = pd.DataFrame()
-        try:
-            activity_events = store.list_activity_events(limit=200)
-        except Exception:
-            activity_events = pd.DataFrame()
         inbox = {
             "state": "unavailable",
             "message": "A forwarded Databricks user identity is required for a personal governance inbox.",
             "unreadCount": 0,
             "items": [],
         }
-        normalized_actor = asset_service.normalize_str(actor_email).lower()
         if normalized_actor and normalized_actor != "unknown":
             if hasattr(store, "list_notifications") and hasattr(store, "count_unread_notifications"):
                 try:
@@ -946,6 +995,24 @@ def governance_summary(
                         "items": [],
                     }
 
+        try:
+            pending = store.list_change_requests(status="pending", limit=5000)
+        except Exception:
+            pending = pd.DataFrame()
+        raw_pending_request_records = _request_records(pending)
+        pending_request_records = _filter_request_records_to_visible_assets(
+            raw_pending_request_records,
+            visible_asset_keys,
+        )
+        pending_request_scope_safe = len(raw_pending_request_records) == len(pending_request_records)
+        try:
+            requests = store.list_change_requests(limit=5000)
+        except Exception:
+            requests = pd.DataFrame()
+        try:
+            activity_events = store.list_activity_events(limit=200)
+        except Exception:
+            activity_events = pd.DataFrame()
         activity_records = _filter_records_to_visible_assets(
             _activity_records(activity_events),
             visible_asset_keys,
@@ -1051,7 +1118,8 @@ def governance_summary(
         }
 
     actor_key = _lookup_key(actor_email) or "anonymous"
-    return _ttl_value(f"governance:{_warehouse_key(uc)}:{actor_key}", 300, _loader)
+    section_key = ",".join(sorted(requested_sections)) or "full"
+    return _ttl_value(f"governance:{_warehouse_key(uc)}:{actor_key}:{section_key}", 300, _loader)
 
 
 def create_change_request(

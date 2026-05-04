@@ -53,6 +53,51 @@ describe("useAssetDetail", () => {
     expect(detail.activity).toEqual([{ id: "activity-new" }]);
   });
 
+  it("does not prime canonical asset detail from non-authoritative mutation payloads", async () => {
+    const primed = primeAssetDetail("main.sales.orders", {
+      fqn: "main.sales.orders",
+      name: "prototype orders",
+      evidenceKind: "non_authoritative_mock_capture",
+      loadedSections: ["header"],
+      deferredSections: [],
+    });
+    fetchAssetDetailMock.mockResolvedValue({
+      fqn: "main.sales.orders",
+      name: "orders",
+      loadedSections: ["header"],
+      deferredSections: [],
+    });
+
+    const { result } = renderHook(
+      () =>
+        useAssetDetail("main.sales.orders", {
+          sections: ["header"],
+        }),
+      {
+        wrapper: Wrapper,
+      },
+    );
+
+    expect(primed).toBeNull();
+    await waitFor(() => {
+      expect(fetchAssetDetailMock).toHaveBeenCalledTimes(1);
+      expect(result.current.detail?.name).toBe("orders");
+    });
+  });
+
+  it("does not prime canonical asset detail from authoritative false payloads", () => {
+    const primed = primeAssetDetail("main.sales.orders", {
+      fqn: "main.sales.orders",
+      name: "orders",
+      authoritative: false,
+      loadedSections: ["header"],
+      deferredSections: [],
+    });
+
+    expect(primed).toBeNull();
+    expect(atlasQueryClient.getQueryData(["asset-detail", "main.sales.orders", "canonical"])).toBeUndefined();
+  });
+
   it("requests asset detail through an abortable query-backed fetch", async () => {
     fetchAssetDetailMock.mockResolvedValue({
       fqn: "main.sales.orders",

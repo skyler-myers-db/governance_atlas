@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchAuditEvidence } from "../lib/api";
 import AuditBrowserWorkspace from "./AuditBrowserWorkspace";
@@ -83,7 +83,7 @@ describe("AuditBrowserWorkspace", () => {
 
     expect(await screen.findByText("Immutable governance event log")).toBeDefined();
     expect(screen.getByText("Audit Evidence")).toBeDefined();
-    expect(screen.getByText(/Events are searchable, time-ordered, and exportable/i)).toBeDefined();
+    expect(screen.getByText(/records backed metadata workflow events/i)).toBeDefined();
     expect(screen.queryByText(/cryptographically ordered/i)).toBeNull();
     expect(await screen.findByText("Events · 24h")).toBeDefined();
     expect(screen.getByText("Policy violations · 7d")).toBeDefined();
@@ -101,6 +101,14 @@ describe("AuditBrowserWorkspace", () => {
     expect(await within(table).findByText("Certification")).toBeDefined();
     expect(within(table).getByText("Policy violation")).toBeDefined();
     expect(screen.queryByText("Audit Trail & Change Evidence")).toBeNull();
+  });
+
+  it("does not call the steward/admin audit endpoint for a reader shell", () => {
+    renderAudit({ shell: { role: "Reader", userEmail: "reader@example.com" } });
+
+    expect(fetchAuditEvidence).not.toHaveBeenCalled();
+    expect(screen.getByText("Audit trail is steward/admin only")).toBeDefined();
+    expect(screen.getByText("Ask a workspace steward or admin to grant audit visibility.")).toBeDefined();
   });
 
   it("filters rows by users, services, and violations", async () => {
@@ -202,5 +210,30 @@ describe("AuditBrowserWorkspace", () => {
     expect(screen.getByText("Events · 24h")).toBeDefined();
     expect(screen.getAllByText("Unavailable").length).toBeGreaterThanOrEqual(4);
     expect(screen.getByText(/Retention policy not reported/)).toBeDefined();
+  });
+
+  it("rejects non-authoritative audit payload values before rendering source rows", async () => {
+    fetchAuditEvidence.mockResolvedValue({
+      data: {
+        summary: {
+          events24h: 999,
+          sourceTable: "system.fake.audit",
+        },
+        events: auditEvents,
+      },
+      meta: {
+        source: "prototype-mock",
+        warnings: ["not live Databricks evidence"],
+      },
+    });
+    renderAudit();
+
+    expect(await screen.findByText("Audit evidence source unavailable · 24h scope")).toBeDefined();
+    await waitFor(() => {
+      expect(screen.queryByText("Loading audit trail")).toBeNull();
+    });
+    expect(screen.queryByText("Certification")).toBeNull();
+    expect(screen.queryByText("system.fake.audit")).toBeNull();
+    expect(screen.getByText("No audit events match the current filters.")).toBeDefined();
   });
 });

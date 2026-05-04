@@ -1,0 +1,1715 @@
+{
+  "generatedAt": "2026-05-03T16:47:05.278Z",
+  "baseUrl": "http://127.0.0.1:8000",
+  "buildId": "frontend-96be2ef7c4c5",
+  "deploymentId": "",
+  "assetFqn": "datapact.enterprise_metadata_ops.customer_stewardship_queue",
+  "mockApi": false,
+  "evidenceKind": "runtime_app_capture",
+  "mockEvidenceWarning": "",
+  "liveDatabricksCapture": false,
+  "forwardedActorCapture": true,
+  "forwardedActorEmail": "skyler@entrada.ai",
+  "forwardedActorTokenPresent": false,
+  "routeFilter": [
+    "glossary"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "glossary"
+  ],
+  "viewports": [
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    }
+  ],
+  "expectedCaptureCount": 1,
+  "captures": [
+    {
+      "route": "glossary",
+      "path": "/glossary-cdes",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v98-focused-glossary-finance-shell-2026-05-03/glossary-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v98-focused-glossary-finance-shell-2026-05-03/glossary-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/taxonomy",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 4 of 20 governed glossary terms HIERARCHY 4 visible terms Parent term recorded Average Revenue No child terms recorded Parent term recorded Billable Amount No child terms recorded Parent term recorded Contracted Revenue No child terms recorded Parent term recorded Customer Identifier No child terms recorded Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfolio analysis. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or transaction rules are applied. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Contracted Revenue Finance · sarah.johnson@entrada.ai Approved Revenue governed by signed customer agre",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 20",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 49",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfo",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or tra",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contracted Revenue Finance · sarah.johnson@entrada.ai Approved Revenue governed by signed customer agreements and commit",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer Identifier Customer · customer-steward@entrada.ai Approved Business-approved identifier used to recognize and j",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "glossary",
+      "path": "/glossary-cdes",
+      "viewport": "1536x1024",
+      "interaction": "glossary-controls",
+      "description": "Exercise Glossary term request, association browser, detail, and lineage navigation controls.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v98-focused-glossary-finance-shell-2026-05-03/glossary-glossary-controls-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v98-focused-glossary-finance-shell-2026-05-03/glossary-glossary-controls-1536x1024-full.png",
+      "runResult": {
+        "newTerm": {
+          "unavailable": true
+        },
+        "detail": {
+          "associations": true,
+          "reviewer": true,
+          "version": true,
+          "hierarchy": true
+        },
+        "associationToggle": {
+          "text": "Hide associations",
+          "ariaLabel": "",
+          "title": "Browse all linked assets for this term",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1363,
+            "left": 516,
+            "width": 118,
+            "height": 32
+          }
+        },
+        "reviewerNotice": {
+          "reviewerUnavailable": true
+        },
+        "detailClosed": true,
+        "pathAfterClick": "/lineage/datapact.enterprise_metadata_ops.product_market_fit_signal"
+      },
+      "validation": {
+        "loaded": true,
+        "checks": {
+          "lineage": true
+        },
+        "runResult": {
+          "newTerm": {
+            "unavailable": true
+          },
+          "detail": {
+            "associations": true,
+            "reviewer": true,
+            "version": true,
+            "hierarchy": true
+          },
+          "associationToggle": {
+            "text": "Hide associations",
+            "ariaLabel": "",
+            "title": "Browse all linked assets for this term",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1363,
+              "left": 516,
+              "width": 118,
+              "height": 32
+            }
+          },
+          "reviewerNotice": {
+            "reviewerUnavailable": true
+          },
+          "detailClosed": true,
+          "pathAfterClick": "/lineage/datapact.enterprise_metadata_ops.product_market_fit_signal"
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/lineage/datapact.enterprise_metadata_ops.product_market_fit_signal",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 970,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1026.140625,
+          "width": 1328,
+          "height": 970.140625
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 208,
+            "right": 1536,
+            "bottom": 1026.140625,
+            "width": 1328,
+            "height": 970.140625
+          },
+          "hero": {
+            "top": 78,
+            "left": 230,
+            "right": 1516,
+            "bottom": 202.4375,
+            "width": 1286,
+            "height": 124.4375
+          },
+          "workbench": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 956.140625,
+            "width": 1286,
+            "height": 717.703125
+          },
+          "graph": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 702.4375,
+            "width": 1286,
+            "height": 464
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS datapact.enterprise_metadata_ops.product_market_fit_signal Lineage is unavailable for this asset in the current workspace scope. Search for an openable asset to continue. Trusted Freshness unavailable CDEs unavailable Owner: Unavailable 0 upstream · 0 downstream Revenue impact unavailable Column lineage Run impact analysis + - 0 nodes · 0 edges Lineage Unavailable Lineage requires per-user authorization / OBO; app-principal fallback does not widen user-visible data. datapact / enterprise_metadata_ops Open metadata record Open governance NODE TYPES Table Pipeline Job Notebook Saved query Dashboard Model UDF Volume Restricted No live topology returned; system.access.table_lineage not verified for this route product_market_fit_signal selected Open asset LINEAGE AS OF: Unavailable No live graph unavailable Unavailable Impact analysis Downstream lineage consumers affected by upstream changes Review owners No downstream impact is observed for this asset. 0 consumer paths visible live impact workflow unavailable Column lineage unavailable No column-lineage rows returned for this asset Column lineage is unavailable until Databricks reports column-level lineage rows for this asset. 0 column paths visible live column lineage unavailable",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": true,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": true,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": true,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Open metadata record",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open governance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Unavailable",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Review owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": true,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "glossary",
+      "path": "/glossary-cdes",
+      "viewport": "1536x1024",
+      "interaction": "global-shell",
+      "description": "Exercise global search, help, and profile controls from the Glossary route.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v98-focused-glossary-finance-shell-2026-05-03/glossary-global-shell-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v98-focused-glossary-finance-shell-2026-05-03/glossary-global-shell-1536x1024-full.png",
+      "runResult": {
+        "pathAfterSearch": "/discovery?q=net+revenue",
+        "searchState": {
+          "url": "http://127.0.0.1:8000/discovery?q=net+revenue",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. CERTIFICATION 27 results Certified 24 In Review 0 Uncertified 0 Draft 1 DOMAIN Finance 15 Marketing 5 Product 2 Risk 2 Sales 3 CLASSIFICATION Confidential 24 Restricted 2 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Workspace-scoped results use Unity Catalog and governance store signals; actor-scoped protected reads remain restricted. Saved searches Advanced FILTERED BY net × revenue × Reset browse Showing 27 of 27 assets Sort: Relevance sales_pipeline_revenue sales_prod.silver.sales_pipeline_revenue Certified 100% 100% Confidential — Governed Revenue Operations asset maintained for Governance Atlas development and validation. Sales Steward ⋮ Open Record Lineage unavailable Certified revenue_booking_bridge sales_prod.silver.revenue_booking_bridge Certified 100% 100% Confidential — Governed Revenue Operations asset maintained for Governance Atlas development and validation. Sales Steward ⋮ Open Record Lineage unavailable Certified revenue_attribution_snapshot marketing_mart.gold.revenue_attribution_snapshot Certified 100% 100% Confidential — Governed Revenue Operations asset maintained for Governance Atlas development an",
+          "checks": {
+            "result": true
+          }
+        },
+        "pathAfterHelp": "/help",
+        "helpState": {
+          "url": "http://127.0.0.1:8000/help",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. Help & docs How Governance Atlas works A short, task-oriented guide to discovery, governance, and access. For a deeper reference and the full change log, visit the GitHub README. ← Back to Discovery Getting started Who sees what Keyboard shortcuts Getting help Privacy Terms Getting started What is Governance Atlas? Governance Atlas is a Databricks-native metadata command center. It discovers Unity Catalog tables, views, columns, and notebook usage in your workspace and surfaces governance context (domain, owner, sensitivity, glossary term, workflow state, lineage) in one place. How do I find an asset? Use the global search bar at the top of the shell, the Discovery tab for faceted browsing across the catalog, or the Navigation tab for breadth-first catalog-tree browsing. Filters on the left rail narrow by catalog, schema, asset type, domain, owner, sensitivity, glossary term, and workflow state. What do the coverage badges mean? The coverage score on each asset card reflects how complete the asset's governance record is (description, owner, domain, glossary term, quality rules). High Coverage is at least 75%. Mid Coverage is 50-74%. Low Coverage is below 50%. The chip is hidden when the governance backfill has not run for that asset. Who se",
+          "checks": {
+            "help": true
+          }
+        },
+        "profileState": {
+          "url": "http://127.0.0.1:8000/taxonomy",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Skyler skyler@entrada.ai Settings & diagnostics Upload local avatar Capability dashboard Sign out Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 4 of 20 governed glossary terms HIERARCHY 4 visible terms Parent term recorded Average Revenue No child terms recorded Parent term recorded Billable Amount No child terms recorded Parent term recorded Contracted Revenue No child terms recorded Parent term recorded Customer Identifier No child terms recorded Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfolio analysis. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or transaction rules are applied. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Contr",
+          "checks": {
+            "settings": true,
+            "avatar": true,
+            "signOut": true
+          },
+          "localAvatarState": {
+            "label": "Upload local avatar",
+            "title": "Stored only in this browser. This does not update a Databricks profile.",
+            "localOnly": true,
+            "databricksProfileExcluded": true
+          }
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "pathAfterSearch": "/discovery?q=net+revenue",
+          "searchState": {
+            "url": "http://127.0.0.1:8000/discovery?q=net+revenue",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. CERTIFICATION 27 results Certified 24 In Review 0 Uncertified 0 Draft 1 DOMAIN Finance 15 Marketing 5 Product 2 Risk 2 Sales 3 CLASSIFICATION Confidential 24 Restricted 2 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Workspace-scoped results use Unity Catalog and governance store signals; actor-scoped protected reads remain restricted. Saved searches Advanced FILTERED BY net × revenue × Reset browse Showing 27 of 27 assets Sort: Relevance sales_pipeline_revenue sales_prod.silver.sales_pipeline_revenue Certified 100% 100% Confidential — Governed Revenue Operations asset maintained for Governance Atlas development and validation. Sales Steward ⋮ Open Record Lineage unavailable Certified revenue_booking_bridge sales_prod.silver.revenue_booking_bridge Certified 100% 100% Confidential — Governed Revenue Operations asset maintained for Governance Atlas development and validation. Sales Steward ⋮ Open Record Lineage unavailable Certified revenue_attribution_snapshot marketing_mart.gold.revenue_attribution_snapshot Certified 100% 100% Confidential — Governed Revenue Operations asset maintained for Governance Atlas development an",
+            "checks": {
+              "result": true
+            }
+          },
+          "pathAfterHelp": "/help",
+          "helpState": {
+            "url": "http://127.0.0.1:8000/help",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. Help & docs How Governance Atlas works A short, task-oriented guide to discovery, governance, and access. For a deeper reference and the full change log, visit the GitHub README. ← Back to Discovery Getting started Who sees what Keyboard shortcuts Getting help Privacy Terms Getting started What is Governance Atlas? Governance Atlas is a Databricks-native metadata command center. It discovers Unity Catalog tables, views, columns, and notebook usage in your workspace and surfaces governance context (domain, owner, sensitivity, glossary term, workflow state, lineage) in one place. How do I find an asset? Use the global search bar at the top of the shell, the Discovery tab for faceted browsing across the catalog, or the Navigation tab for breadth-first catalog-tree browsing. Filters on the left rail narrow by catalog, schema, asset type, domain, owner, sensitivity, glossary term, and workflow state. What do the coverage badges mean? The coverage score on each asset card reflects how complete the asset's governance record is (description, owner, domain, glossary term, quality rules). High Coverage is at least 75%. Mid Coverage is 50-74%. Low Coverage is below 50%. The chip is hidden when the governance backfill has not run for that asset. Who se",
+            "checks": {
+              "help": true
+            }
+          },
+          "profileState": {
+            "url": "http://127.0.0.1:8000/taxonomy",
+            "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Skyler skyler@entrada.ai Settings & diagnostics Upload local avatar Capability dashboard Sign out Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 4 of 20 governed glossary terms HIERARCHY 4 visible terms Parent term recorded Average Revenue No child terms recorded Parent term recorded Billable Amount No child terms recorded Parent term recorded Contracted Revenue No child terms recorded Parent term recorded Customer Identifier No child terms recorded Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfolio analysis. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or transaction rules are applied. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Contr",
+            "checks": {
+              "settings": true,
+              "avatar": true,
+              "signOut": true
+            },
+            "localAvatarState": {
+              "label": "Upload local avatar",
+              "title": "Stored only in this browser. This does not update a Databricks profile.",
+              "localOnly": true,
+              "databricksProfileExcluded": true
+            }
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/taxonomy",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Skyler skyler@entrada.ai Settings & diagnostics Upload local avatar Capability dashboard Sign out Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 4 of 20 governed glossary terms HIERARCHY 4 visible terms Parent term recorded Average Revenue No child terms recorded Parent term recorded Billable Amount No child terms recorded Parent term recorded Contracted Revenue No child terms recorded Parent term recorded Customer Identifier No child terms recorded Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfolio analysis. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or transaction rules are applied. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Contr",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Settings & diagnostics",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Upload local avatar",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Capability dashboard",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Sign out",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 20",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 49",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfo",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or tra",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contracted Revenue Finance · sarah.johnson@entrada.ai Approved Revenue governed by signed customer agreements and commit",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer Identifier Customer · customer-steward@entrada.ai Approved Business-approved identifier used to recognize and j",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "glossary",
+      "path": "/glossary-cdes",
+      "viewport": "1536x1024",
+      "interaction": "atlas-ai",
+      "description": "Submit a Glossary-specific Atlas AI prompt and verify grounded evidence appears.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v98-focused-glossary-finance-shell-2026-05-03/glossary-atlas-ai-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v98-focused-glossary-finance-shell-2026-05-03/glossary-atlas-ai-1536x1024-full.png",
+      "runResult": {
+        "url": "http://127.0.0.1:8000/taxonomy",
+        "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 4 of 20 governed glossary terms HIERARCHY 4 visible terms Parent term recorded Average Revenue No child terms recorded Parent term recorded Billable Amount No child terms recorded Parent term recorded Contracted Revenue No child terms recorded Parent term recorded Customer Identifier No child terms recorded Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfolio analysis. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or transaction rules are applied. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Contracted Revenue Finance · sarah.johnson@entrada.ai Approved Revenue governed by signed customer agre",
+        "checks": {
+          "answer": true,
+          "evidence": true,
+          "disclaimer": true
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "url": "http://127.0.0.1:8000/taxonomy",
+          "text": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 4 of 20 governed glossary terms HIERARCHY 4 visible terms Parent term recorded Average Revenue No child terms recorded Parent term recorded Billable Amount No child terms recorded Parent term recorded Contracted Revenue No child terms recorded Parent term recorded Customer Identifier No child terms recorded Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfolio analysis. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or transaction rules are applied. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Contracted Revenue Finance · sarah.johnson@entrada.ai Approved Revenue governed by signed customer agre",
+          "checks": {
+            "answer": true,
+            "evidence": true,
+            "disclaimer": true
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/taxonomy",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 4 of 20 governed glossary terms HIERARCHY 4 visible terms Parent term recorded Average Revenue No child terms recorded Parent term recorded Billable Amount No child terms recorded Parent term recorded Contracted Revenue No child terms recorded Parent term recorded Customer Identifier No child terms recorded Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfolio analysis. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or transaction rules are applied. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Contracted Revenue Finance · sarah.johnson@entrada.ai Approved Revenue governed by signed customer agre",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 20",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 49",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfo",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or tra",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contracted Revenue Finance · sarah.johnson@entrada.ai Approved Revenue governed by signed customer agreements and commit",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer Identifier Customer · customer-steward@entrada.ai Approved Business-approved identifier used to recognize and j",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "datapact.enterprise_metadata_ops.finance_exception_review Open asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "datapact.enterprise_metadata_ops.customer_stewardship_queue Open asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "datapact.enterprise_metadata_ops.operations_certification_backlog Open asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "datapact.enterprise_metadata_ops.risk_data_quality_review Open asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? Which CDEs are due for review? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Atlas AI accuracy notice"
+          }
+        ]
+      }
+    },
+    {
+      "route": "glossary",
+      "path": "/glossary-cdes",
+      "viewport": "1536x1024",
+      "interaction": "responsive-card-controls",
+      "description": "Validate Glossary card action controls remain visible and inside cards at the active viewport.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v98-focused-glossary-finance-shell-2026-05-03/glossary-responsive-card-controls-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v98-focused-glossary-finance-shell-2026-05-03/glossary-responsive-card-controls-1536x1024-full.png",
+      "runResult": {
+        "layout": {
+          "viewport": {
+            "width": 1536,
+            "height": 1024
+          },
+          "cardCount": 4,
+          "visibleActions": [
+            {
+              "cardIndex": 0,
+              "actionIndex": 0,
+              "text": "1 assets",
+              "visible": true,
+              "insideCard": true,
+              "insideViewport": true,
+              "rect": {
+                "top": 531,
+                "left": 299,
+                "right": 344,
+                "bottom": 557,
+                "width": 45,
+                "height": 26
+              }
+            },
+            {
+              "cardIndex": 0,
+              "actionIndex": 1,
+              "text": "Preview lineage ->",
+              "visible": true,
+              "insideCard": true,
+              "insideViewport": true,
+              "rect": {
+                "top": 531,
+                "left": 354,
+                "right": 453,
+                "bottom": 557,
+                "width": 99,
+                "height": 26
+              }
+            },
+            {
+              "cardIndex": 1,
+              "actionIndex": 0,
+              "text": "1 assets",
+              "visible": true,
+              "insideCard": true,
+              "insideViewport": true,
+              "rect": {
+                "top": 531,
+                "left": 866,
+                "right": 911,
+                "bottom": 557,
+                "width": 45,
+                "height": 26
+              }
+            },
+            {
+              "cardIndex": 1,
+              "actionIndex": 1,
+              "text": "Preview lineage ->",
+              "visible": true,
+              "insideCard": true,
+              "insideViewport": true,
+              "rect": {
+                "top": 531,
+                "left": 921,
+                "right": 1020,
+                "bottom": 557,
+                "width": 99,
+                "height": 26
+              }
+            },
+            {
+              "cardIndex": 2,
+              "actionIndex": 0,
+              "text": "1 assets",
+              "visible": true,
+              "insideCard": true,
+              "insideViewport": true,
+              "rect": {
+                "top": 760,
+                "left": 299,
+                "right": 344,
+                "bottom": 786,
+                "width": 45,
+                "height": 26
+              }
+            },
+            {
+              "cardIndex": 2,
+              "actionIndex": 1,
+              "text": "Preview lineage ->",
+              "visible": true,
+              "insideCard": true,
+              "insideViewport": true,
+              "rect": {
+                "top": 760,
+                "left": 354,
+                "right": 453,
+                "bottom": 786,
+                "width": 99,
+                "height": 26
+              }
+            },
+            {
+              "cardIndex": 3,
+              "actionIndex": 0,
+              "text": "2 assets",
+              "visible": true,
+              "insideCard": true,
+              "insideViewport": true,
+              "rect": {
+                "top": 762,
+                "left": 866,
+                "right": 911,
+                "bottom": 788,
+                "width": 45,
+                "height": 26
+              }
+            },
+            {
+              "cardIndex": 3,
+              "actionIndex": 1,
+              "text": "Preview lineage ->",
+              "visible": true,
+              "insideCard": true,
+              "insideViewport": true,
+              "rect": {
+                "top": 762,
+                "left": 921,
+                "right": 1020,
+                "bottom": 788,
+                "width": 99,
+                "height": 26
+              }
+            }
+          ],
+          "failures": []
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "layout": {
+            "viewport": {
+              "width": 1536,
+              "height": 1024
+            },
+            "cardCount": 4,
+            "visibleActions": [
+              {
+                "cardIndex": 0,
+                "actionIndex": 0,
+                "text": "1 assets",
+                "visible": true,
+                "insideCard": true,
+                "insideViewport": true,
+                "rect": {
+                  "top": 531,
+                  "left": 299,
+                  "right": 344,
+                  "bottom": 557,
+                  "width": 45,
+                  "height": 26
+                }
+              },
+              {
+                "cardIndex": 0,
+                "actionIndex": 1,
+                "text": "Preview lineage ->",
+                "visible": true,
+                "insideCard": true,
+                "insideViewport": true,
+                "rect": {
+                  "top": 531,
+                  "left": 354,
+                  "right": 453,
+                  "bottom": 557,
+                  "width": 99,
+                  "height": 26
+                }
+              },
+              {
+                "cardIndex": 1,
+                "actionIndex": 0,
+                "text": "1 assets",
+                "visible": true,
+                "insideCard": true,
+                "insideViewport": true,
+                "rect": {
+                  "top": 531,
+                  "left": 866,
+                  "right": 911,
+                  "bottom": 557,
+                  "width": 45,
+                  "height": 26
+                }
+              },
+              {
+                "cardIndex": 1,
+                "actionIndex": 1,
+                "text": "Preview lineage ->",
+                "visible": true,
+                "insideCard": true,
+                "insideViewport": true,
+                "rect": {
+                  "top": 531,
+                  "left": 921,
+                  "right": 1020,
+                  "bottom": 557,
+                  "width": 99,
+                  "height": 26
+                }
+              },
+              {
+                "cardIndex": 2,
+                "actionIndex": 0,
+                "text": "1 assets",
+                "visible": true,
+                "insideCard": true,
+                "insideViewport": true,
+                "rect": {
+                  "top": 760,
+                  "left": 299,
+                  "right": 344,
+                  "bottom": 786,
+                  "width": 45,
+                  "height": 26
+                }
+              },
+              {
+                "cardIndex": 2,
+                "actionIndex": 1,
+                "text": "Preview lineage ->",
+                "visible": true,
+                "insideCard": true,
+                "insideViewport": true,
+                "rect": {
+                  "top": 760,
+                  "left": 354,
+                  "right": 453,
+                  "bottom": 786,
+                  "width": 99,
+                  "height": 26
+                }
+              },
+              {
+                "cardIndex": 3,
+                "actionIndex": 0,
+                "text": "2 assets",
+                "visible": true,
+                "insideCard": true,
+                "insideViewport": true,
+                "rect": {
+                  "top": 762,
+                  "left": 866,
+                  "right": 911,
+                  "bottom": 788,
+                  "width": 45,
+                  "height": 26
+                }
+              },
+              {
+                "cardIndex": 3,
+                "actionIndex": 1,
+                "text": "Preview lineage ->",
+                "visible": true,
+                "insideCard": true,
+                "insideViewport": true,
+                "rect": {
+                  "top": 762,
+                  "left": 921,
+                  "right": 1020,
+                  "bottom": 788,
+                  "width": 99,
+                  "height": 26
+                }
+              }
+            ],
+            "failures": []
+          }
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/taxonomy",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 95.5% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 49 Showing 4 of 20 governed glossary terms HIERARCHY 4 visible terms Parent term recorded Average Revenue No child terms recorded Parent term recorded Billable Amount No child terms recorded Parent term recorded Contracted Revenue No child terms recorded Parent term recorded Customer Identifier No child terms recorded Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfolio analysis. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or transaction rules are applied. SOURCE Unity Catalog and governance store ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Contracted Revenue Finance · sarah.johnson@entrada.ai Approved Revenue governed by signed customer agre",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 20",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 49",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfo",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or tra",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contracted Revenue Finance · sarah.johnson@entrada.ai Approved Revenue governed by signed customer agreements and commit",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer Identifier Customer · customer-steward@entrada.ai Approved Business-approved identifier used to recognize and j",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      }
+    }
+  ],
+  "console": [],
+  "pageErrors": [],
+  "requestFailures": [],
+  "checks": {
+    "buildMatches": true
+  },
+  "runtimeStatus": {
+    "url": "http://127.0.0.1:8000/api/runtime/status",
+    "status": 200,
+    "ok": true,
+    "buildId": "frontend-96be2ef7c4c5",
+    "state": "live",
+    "actorRole": "Reader",
+    "govCatalog": "datapact",
+    "govSchema": "atlas"
+  },
+  "captureCount": 1,
+  "interactionCount": 4,
+  "consoleErrorCount": 0,
+  "pageErrorCount": 0,
+  "requestFailureCount": 0,
+  "expectedRequestFailureCount": 0,
+  "passed": true
+}

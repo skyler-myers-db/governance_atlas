@@ -1,15 +1,23 @@
 from __future__ import annotations
 
 import uuid
+import threading
+import time
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 
+from atlas.api.cache import _TTL_CACHE, _invalidate_cache_prefix, _ttl_value
+from atlas.services import atlas_metrics
 from atlas.services import governance as governance_service
 from atlas.services import input_safety
 from atlas.services.assets import normalize_str as _normalize_str
+
+
+_GOVERNANCE_SUMMARY_WARMING: set[str] = set()
+_GOVERNANCE_SUMMARY_WARMING_LOCK = threading.Lock()
 
 
 class GovernanceRequestStatusPatch(BaseModel):
@@ -42,6 +50,92 @@ class GovernanceNotificationPatch(BaseModel):
             field="action",
             allowed=("seen", "read", "dismiss"),
         )
+
+
+def _summary_sections_from_request(request: Request) -> list[str]:
+    raw_values: list[str] = []
+    for key in ("section", "sections"):
+        try:
+            raw_values.extend(request.query_params.getlist(key))
+        except Exception:
+            value = request.query_params.get(key) if request else ""
+            if value:
+                raw_values.append(value)
+    sections: list[str] = []
+    for value in raw_values:
+        for part in _normalize_str(value).split(","):
+            normalized = _normalize_str(part).lower()
+            if normalized == "inbox" and normalized not in sections:
+                sections.append(normalized)
+    return sections
+
+
+def _governance_summary_cache_key(request: Request, sections: list[str]) -> str:
+    actor = _normalize_str(
+        request.headers.get("x-forwarded-email")
+        or request.headers.get("x-forwarded-preferred-username")
+        or request.headers.get("x-forwarded-user")
+        or "unknown"
+    ).lower()
+    return f"governance_summary_payload:{actor}:{','.join(sorted(sections)) or 'full'}"
+
+
+def _cached_governance_summary(cache_key: str, ttl_s: int = 300) -> dict[str, Any] | None:
+    cached = _TTL_CACHE.get(cache_key)
+    if cached and time.time() - cached[0] < ttl_s:
+        value = cached[1]
+        return value if isinstance(value, dict) else None
+    return None
+
+
+def _warm_governance_summary(request: Request, sections: list[str], cache_key: str) -> None:
+    with _GOVERNANCE_SUMMARY_WARMING_LOCK:
+        if cache_key in _GOVERNANCE_SUMMARY_WARMING:
+            return
+        _GOVERNANCE_SUMMARY_WARMING.add(cache_key)
+
+    def warm() -> None:
+        try:
+            from runtime_app import (
+                _ensure_governance_store,
+                _ensure_live_runtime,
+                _governance_summary,
+            )
+
+            _ensure_live_runtime()
+            _ensure_governance_store()
+            _ttl_value(
+                cache_key,
+                300,
+                lambda: _governance_summary(request, sections=sections or None),
+            )
+        except Exception:
+            pass
+        finally:
+            with _GOVERNANCE_SUMMARY_WARMING_LOCK:
+                _GOVERNANCE_SUMMARY_WARMING.discard(cache_key)
+
+    threading.Thread(
+        target=warm,
+        name=f"atlas-governance-summary-warm-{cache_key[:24]}",
+        daemon=True,
+    ).start()
+
+
+def _invalidate_atlas_composite_caches() -> None:
+    for prefix in (
+        "atlas_command_center_payload:",
+        "atlas_governance_workbench_payload:",
+        "atlas_governance_request_detail_payload:",
+        "atlas_insights_dashboard_payload:",
+        "atlas_cde_dashboard_payload:",
+        "atlas_cde_detail_payload:",
+        "atlas_audit_evidence_payload:",
+        "atlas_taxonomy_overview:",
+        "atlas_admin_control_center_payload:",
+        "governance_summary_payload:",
+    ):
+        _invalidate_cache_prefix(prefix)
 
 
 class GlossaryTermUpsert(BaseModel):
@@ -98,11 +192,70 @@ def api_governance_summary(request: Request) -> JSONResponse:
         _ensure_governance_store,
         _ensure_live_runtime,
         _governance_summary,
+        _store_status_fast,
+        _uc_runtime_status_fast,
     )
+
+    sections = _summary_sections_from_request(request)
+    if sections and set(sections) <= {"inbox"}:
+        cache_key = _governance_summary_cache_key(request, sections)
+        cached = _cached_governance_summary(cache_key)
+        if cached is not None:
+            return JSONResponse(cached)
+        runtime_status = _uc_runtime_status_fast(background=True)
+        store_status = _store_status_fast(background=True)
+        blocking_messages = [
+            _normalize_str(runtime_status.get("message"))
+            for status in (runtime_status,)
+            if _normalize_str(status.get("state")).lower() != "live"
+        ]
+        blocking_messages.extend(
+            _normalize_str(store_status.get("message"))
+            for status in (store_status,)
+            if _normalize_str(status.get("state")).lower() != "live"
+        )
+        blocking_messages = [message for message in blocking_messages if message]
+        _warm_governance_summary(request, sections, cache_key)
+        message = " ".join(blocking_messages) or "Governance inbox is hydrating from the live control plane."
+        return JSONResponse(
+            {
+                "metrics": [],
+                "backlog": [],
+                "queue": {
+                    "scopeKey": "workspace:default",
+                    "source": "not-requested",
+                    "laneCounts": {},
+                    "openTaskCount": 0,
+                    "observedAt": "",
+                    "staleAfter": "",
+                },
+                "glossary": [],
+                "activity": [],
+                "inbox": {
+                    "state": "loading",
+                    "message": message,
+                    "unreadCount": 0,
+                    "items": [],
+                },
+                "sections": ["inbox"],
+                "authoritative": False,
+                "provenance": {
+                    "source": "delta_control_plane",
+                    "authoritative": False,
+                    "state": "loading",
+                    "warnings": [message],
+                },
+            }
+        )
 
     _ensure_live_runtime()
     _ensure_governance_store()
-    return JSONResponse(_governance_summary(request))
+    return JSONResponse(
+        _governance_summary(
+            request,
+            sections=sections or None,
+        )
+    )
 
 
 def api_governance_glossary(request: Request) -> JSONResponse:
@@ -260,6 +413,10 @@ def api_governance_patch_request(
     request_id: str,
     payload: GovernanceRequestStatusPatch,
     request: Request,
+    fast: bool = Query(
+        default=False,
+        description="Return a minimal response for row-level status updates that already update local UI state.",
+    ),
 ) -> JSONResponse:
     from runtime_app import (
         _asset_detail_payload,
@@ -276,13 +433,16 @@ def api_governance_patch_request(
     actor_email = _ensure_can_approve(request)
     actor_role = _user_role_slug(request)
     store = _store()
+    raw_request_id = atlas_metrics.resolve_customer_safe_request_id(store, request_id)
     change_request = store.get_change_request(request_id)
+    if change_request is None and raw_request_id != request_id:
+        change_request = store.get_change_request(raw_request_id)
     if change_request is None:
         raise HTTPException(status_code=404, detail="Request not found.")
     visibility = None
     if change_request.uc_full_name:
         visibility = _asset_visibility_record(change_request.uc_full_name, request)
-        if not visibility.get("openable"):
+        if not visibility.get("openable") and visibility.get("visibilityState") != "loading":
             raise HTTPException(
                 status_code=404, detail="Asset not found or not visible."
             )
@@ -293,27 +453,33 @@ def api_governance_patch_request(
             detail="status must be pending, approved, rejected, resolved, or closed.",
         )
     store.set_request_status(
-        request_id=request_id,
+        request_id=raw_request_id,
         status=status,
         reviewed_by=actor_email,
         review_note=_normalize_str(payload.reviewNote) or None,
         actor_role=actor_role,
+        refresh_projection=not fast,
     )
     if change_request.uc_full_name:
         _invalidate_asset_caches(change_request.uc_full_name)
     else:
         governance_service.invalidate_governance_caches()
+        _invalidate_atlas_composite_caches()
     asset_payload = None
     if change_request.uc_full_name and visibility and visibility.get("openable"):
         asset_payload = _asset_detail_payload(
-            change_request.uc_full_name, request=request
+            change_request.uc_full_name,
+            request=request,
+            sections=("header",) if fast else None,
         )
+    governance_payload = None if fast else _governance_summary(request)
     return JSONResponse(
         {
             "ok": True,
-            "requestId": request_id,
+            "requestId": atlas_metrics._customer_safe_text(raw_request_id),
             "asset": asset_payload,
-            "governance": _governance_summary(request),
+            "governance": governance_payload,
+            "refreshDeferred": bool(fast),
         }
     )
 
@@ -348,11 +514,12 @@ def api_governance_patch_notification(
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     governance_service.invalidate_governance_caches()
+    _invalidate_atlas_composite_caches()
     return JSONResponse(
         {
             "ok": True,
             "notificationId": _normalize_str(notification_id),
-            "governance": _governance_summary(request),
+            "governance": _governance_summary(request, sections=["inbox"]),
         }
     )
 

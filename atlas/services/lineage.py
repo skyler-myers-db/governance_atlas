@@ -4,11 +4,11 @@ import threading
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Callable, Deque, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Deque, Dict, List, Optional, Sequence, Set, Tuple
 
 import pandas as pd
 
-from atlas.uc import UCSQLClient
+from atlas.uc import UCSQLClient, sql_literal
 
 from atlas.services import assets as asset_service
 from atlas.services import live_metadata as metadata_service
@@ -33,21 +33,28 @@ def _ttl_cache_lock(key: str) -> threading.Lock:
             existing = threading.Lock()
             _TTL_CACHE_LOCKS[key] = existing
         return existing
-TABLE_LINEAGE_LIMIT = 50
-COLUMN_LINEAGE_LIMIT = 500
-OPERATIONAL_CONTEXT_LIMIT = 200
+TABLE_LINEAGE_LIMIT = 40
+COLUMN_LINEAGE_LIMIT = 250
+OPERATIONAL_CONTEXT_LIMIT = 80
 SECOND_HOP_SEED_LIMIT = 6
 SECOND_HOP_NEIGHBOR_LIMIT = 25
 SECOND_HOP_SAMPLE_LIMIT = 8
-# Keep the primary page load bounded. Deeper lineage expansion is useful, but
-# walking system.access.table_lineage recursively can multiply cold SQL latency
-# across every first-hop neighbor. The first viewport should render the
-# actor-visible first-hop graph quickly and disclose that limit in payload stats.
+# Keep both profiles bounded enough for first-use interaction. The full profile
+# hydrates real one-hop topology, operational context, and column lineage; deeper
+# expansion must stay explicit so one page open cannot turn into many slow
+# system-table scans.
 LINEAGE_GRAPH_DEPTH_LIMIT = 1
-LINEAGE_GRAPH_NODE_LIMIT = 72
-LINEAGE_GRAPH_PER_HOP_LIMIT = 24
+LINEAGE_GRAPH_NODE_LIMIT = 48
+LINEAGE_GRAPH_PER_HOP_LIMIT = 16
+LINEAGE_GRAPH_SECONDARY_SEED_LIMIT = 0
 LINEAGE_PROFILE_FULL = "full"
 LINEAGE_PROFILE_INITIAL = "initial"
+GOVERNED_LINEAGE_FOCUS_TAG = "governance_atlas_lineage_focus_asset"
+GOVERNED_LINEAGE_PROVENANCE = "system.information_schema.table_tags"
+GOVERNED_OPERATIONAL_CONSUMER_JOB_ID_TAG = "governance_atlas_operational_consumer_job_id"
+GOVERNED_OPERATIONAL_CONSUMER_JOB_NAME_TAG = "governance_atlas_operational_consumer_job_name"
+GOVERNED_OPERATIONAL_PRODUCER_JOB_ID_TAG = "governance_atlas_operational_producer_job_id"
+GOVERNED_OPERATIONAL_PRODUCER_JOB_NAME_TAG = "governance_atlas_operational_producer_job_name"
 
 
 def _lineage_profile(value: str = "") -> str:
@@ -91,6 +98,174 @@ def invalidate_lineage_caches(asset_fqn: str | None = None) -> None:
 
 
 FOCUS_COLUMN_PREVIEW_LIMIT = 20
+
+
+def _exact_lineage_row(
+    uc: UCSQLClient,
+    asset_fqn: str,
+    *,
+    inventory_columns: Optional[Sequence[str]] = None,
+) -> Optional[pd.Series]:
+    try:
+        if asset_service.asset_fqn_is_hidden(asset_fqn):
+            return None
+        return asset_service.exact_identity_row(
+            uc,
+            asset_fqn,
+            inventory_columns=inventory_columns,
+        )
+    except Exception:
+        return None
+
+
+def _focus_lineage_inventory(
+    uc: UCSQLClient,
+    asset_fqn: str,
+) -> tuple[pd.Series, pd.DataFrame, Set[str]]:
+    normalized_fqn = asset_service.normalize_str(asset_fqn)
+    exact_row = _exact_lineage_row(uc, normalized_fqn)
+    if exact_row is not None:
+        row = exact_row
+        direct_openable_assets = {normalized_fqn}
+    else:
+        row = asset_service.lineage_asset_stub(pd.DataFrame(), normalized_fqn)
+        direct_openable_assets = set()
+    return row, pd.DataFrame([row.to_dict()]), direct_openable_assets
+
+
+def _lineage_rows_for_assets(
+    uc: UCSQLClient,
+    asset_fqns: Sequence[str],
+    *,
+    inventory_columns: Optional[Sequence[str]] = None,
+) -> pd.DataFrame:
+    normalized_assets: List[str] = []
+    parsed_assets: List[Tuple[str, str, str, str]] = []
+    for raw_fqn in asset_fqns:
+        normalized_fqn = asset_service.normalize_str(raw_fqn)
+        if not normalized_fqn or normalized_fqn in normalized_assets:
+            continue
+        if asset_service.asset_fqn_is_hidden(normalized_fqn):
+            continue
+        try:
+            catalog, schema, table = asset_service.split_uc_name(normalized_fqn)
+        except ValueError:
+            continue
+        normalized_assets.append(normalized_fqn)
+        parsed_assets.append((normalized_fqn, catalog, schema, table))
+    if not parsed_assets:
+        return pd.DataFrame(columns=list(inventory_columns or []))
+
+    predicate = " OR ".join(
+        "("
+        f"table_catalog = {sql_literal(catalog)} "
+        f"AND table_schema = {sql_literal(schema)} "
+        f"AND table_name = {sql_literal(table)}"
+        ")"
+        for _, catalog, schema, table in parsed_assets
+    )
+    try:
+        identity_df = uc.query_df(
+            f"""
+SELECT
+  table_catalog,
+  table_schema,
+  table_name,
+  table_type,
+  data_source_format,
+  comment
+FROM system.information_schema.tables
+WHERE {predicate}
+"""
+        )
+    except Exception:
+        identity_df = pd.DataFrame()
+    if identity_df is None or identity_df.empty:
+        return pd.DataFrame(columns=list(inventory_columns or []))
+
+    identity_df = identity_df.copy()
+    for column in ["table_catalog", "table_schema", "table_name"]:
+        if column not in identity_df.columns:
+            return pd.DataFrame(columns=list(inventory_columns or []))
+        identity_df[column] = identity_df[column].fillna("").astype(str)
+    if "data_source_format" not in identity_df.columns:
+        identity_df["data_source_format"] = ""
+    if "comment" not in identity_df.columns:
+        identity_df["comment"] = ""
+
+    tag_predicate = " OR ".join(
+        "("
+        f"catalog_name = {sql_literal(catalog)} "
+        f"AND schema_name = {sql_literal(schema)} "
+        f"AND table_name = {sql_literal(table)}"
+        ")"
+        for _, catalog, schema, table in parsed_assets
+    )
+    tags_by_fqn: Dict[str, Dict[str, str]] = {}
+    try:
+        tags_df = uc.query_df(
+            f"""
+SELECT
+  catalog_name,
+  schema_name,
+  table_name,
+  tag_name,
+  tag_value
+FROM system.information_schema.table_tags
+WHERE {tag_predicate}
+"""
+        )
+    except Exception:
+        tags_df = pd.DataFrame()
+    if tags_df is not None and not tags_df.empty:
+        for _, tag_row in tags_df.iterrows():
+            tag_fqn = ".".join(
+                asset_service.normalize_str(tag_row.get(column))
+                for column in ["catalog_name", "schema_name", "table_name"]
+            )
+            tag_name = asset_service.normalize_str(tag_row.get("tag_name"))
+            if not tag_fqn or not tag_name:
+                continue
+            tags_by_fqn.setdefault(tag_fqn, {})[tag_name] = asset_service.normalize_str(
+                tag_row.get("tag_value")
+            )
+
+    base_columns = list(inventory_columns or [])
+    rows: List[Dict[str, Any]] = []
+    for _, row in identity_df.iterrows():
+        fqn = ".".join(
+            asset_service.normalize_str(row.get(column))
+            for column in ["table_catalog", "table_schema", "table_name"]
+        )
+        if not fqn:
+            continue
+        tags = tags_by_fqn.get(fqn, {})
+        payload: Dict[str, Any] = {column: "" for column in base_columns}
+        payload.update(
+            {
+                "fqn": fqn,
+                "table_catalog": asset_service.normalize_str(row.get("table_catalog")),
+                "table_schema": asset_service.normalize_str(row.get("table_schema")),
+                "table_name": asset_service.normalize_str(row.get("table_name")),
+                "table_type": asset_service.normalize_str(row.get("table_type")),
+                "data_source_format": asset_service.normalize_str(row.get("data_source_format")),
+                "comment": asset_service.normalize_str(row.get("comment")),
+                "tags": tags,
+                "domain": asset_service.tag_value(tags, "domain"),
+                "tier": asset_service.tag_value(tags, "tier"),
+                "certification": asset_service.tag_value(tags, "certification"),
+                "sensitivity": asset_service.tag_value(tags, "sensitivity"),
+                "criticality": asset_service.tag_value(tags, "criticality"),
+                "glossary_term": asset_service.tag_value(tags, "glossary_term"),
+                "glossaryTerm": asset_service.tag_value(tags, "glossary_term"),
+                "data_product": asset_service.tag_value(tags, "data_product"),
+                "governance_status": "Needs Work",
+            }
+        )
+        rows.append(payload)
+    if not rows:
+        return pd.DataFrame(columns=base_columns)
+    return pd.DataFrame(rows)
 
 
 def _focus_columns_payload(
@@ -197,6 +372,12 @@ def graph_node_for_asset(
     footer = foot or [item_kind]
     if not is_openable and "Metadata record unavailable" not in footer:
         footer = [*footer, "Metadata record unavailable"]
+    metadata_unavailable = not is_openable or not identity_resolved
+    governance_status = asset_service.normalize_str(row.get("governance_status"))
+    domain = asset_service.normalize_str(row.get("domain"))
+    tier = asset_service.normalize_str(row.get("tier"))
+    certification = asset_service.normalize_str(row.get("certification"))
+    sensitivity = asset_service.normalize_str(row.get("sensitivity"))
     # Defect 6 + 8 — only the focus node receives a column preview so the
     # payload stays cheap (non-focus nodes render as compact icon + name
     # cards per round-18 design). `include_columns=False` skips the
@@ -227,12 +408,11 @@ def graph_node_for_asset(
                 if not is_openable
                 else asset_service.PLACEHOLDER_DESCRIPTION
             ),
-            "governanceStatus": asset_service.normalize_str(row.get("governance_status"))
-            or "Needs Work",
-            "domain": asset_service.normalize_str(row.get("domain")) or "Unassigned",
-            "tier": asset_service.normalize_str(row.get("tier")) or "Unassigned",
-            "certification": asset_service.normalize_str(row.get("certification")) or "Unassigned",
-            "sensitivity": asset_service.normalize_str(row.get("sensitivity")) or "Unassigned",
+            "governanceStatus": "Unavailable" if metadata_unavailable else governance_status or "Unassigned",
+            "domain": "Unavailable" if metadata_unavailable else domain or "Unassigned",
+            "tier": "Unavailable" if metadata_unavailable else tier or "Unassigned",
+            "certification": "Unavailable" if metadata_unavailable else certification or "Unassigned",
+            "sensitivity": "Unavailable" if metadata_unavailable else sensitivity or "Unassigned",
             "isOpenable": is_openable,
             "openabilityState": "verified" if is_openable else "unverified",
             "resolutionState": "resolved" if is_openable else "lineage-only",
@@ -392,6 +572,10 @@ def _data_edge_details(
         key = edge.get("key") or _data_edge_key(source_id, target_id)
         source_fqn = asset_service.normalize_str(source_node.get("assetFqn"))
         target_fqn = asset_service.normalize_str(target_node.get("assetFqn"))
+        provenance = (
+            asset_service.normalize_str(edge.get("provenance"))
+            or "system.access.table_lineage"
+        )
         mappings = []
         if target_fqn == focus_fqn:
             mappings = upstream_lookup.get(source_fqn, [])
@@ -401,6 +585,7 @@ def _data_edge_details(
             "kind": "data",
             "sourceAssetFqn": source_fqn,
             "targetAssetFqn": target_fqn,
+            "provenance": provenance,
             "mappingCount": len(mappings),
             "columnMappings": mappings[:20],
             # A5.2 — reserved slot for the SQL snippet that produced the
@@ -411,6 +596,9 @@ def _data_edge_details(
             # through to the edge drawer without frontend changes.
             "sqlSnippet": None,
             "summary": (
+                "Governed lineage evidence recorded in Unity Catalog table tags"
+                if provenance == GOVERNED_LINEAGE_PROVENANCE
+                else
                 f"{len(mappings)} column mapping{'s' if len(mappings) != 1 else ''}"
                 if mappings
                 else "Table-level lineage relationship"
@@ -435,10 +623,74 @@ def _operational_edge_details(graph: Dict[str, Any]) -> Dict[str, Dict[str, Any]
     return details
 
 
+def _governed_operational_job_entities(
+    uc: UCSQLClient,
+    asset_fqn: str,
+    *,
+    role: str,
+) -> List[Dict[str, Any]]:
+    try:
+        catalog, schema, table = asset_service.split_uc_name(asset_fqn)
+    except ValueError:
+        return []
+    if role == "source":
+        id_tag = GOVERNED_OPERATIONAL_PRODUCER_JOB_ID_TAG
+        name_tag = GOVERNED_OPERATIONAL_PRODUCER_JOB_NAME_TAG
+    else:
+        id_tag = GOVERNED_OPERATIONAL_CONSUMER_JOB_ID_TAG
+        name_tag = GOVERNED_OPERATIONAL_CONSUMER_JOB_NAME_TAG
+    try:
+        tags = uc.query_df(
+            f"""
+SELECT tag_name, tag_value
+FROM system.information_schema.table_tags
+WHERE catalog_name = {sql_literal(catalog)}
+  AND schema_name = {sql_literal(schema)}
+  AND table_name = {sql_literal(table)}
+  AND tag_name IN ({sql_literal(id_tag)}, {sql_literal(name_tag)})
+"""
+        )
+    except Exception:
+        return []
+    if tags is None or tags.empty:
+        return []
+    tag_values = {
+        asset_service.normalize_str(row.get("tag_name")): asset_service.normalize_str(row.get("tag_value"))
+        for _, row in tags.iterrows()
+    }
+    entity_id = tag_values.get(id_tag, "")
+    name = tag_values.get(name_tag, "")
+    if not entity_id and not name:
+        return []
+    resolved_name = ""
+    if entity_id:
+        try:
+            resolved_name = uc.resolve_operational_entity_name("JOB", entity_id)
+        except Exception:
+            resolved_name = ""
+    entity_name = resolved_name or name or f"Databricks Job {entity_id}".strip()
+    return [
+        {
+            "key": f"governed-operational-job:{role}:{entity_id or entity_name}",
+            "entityType": "JOB",
+            "entityLabel": "Job",
+            "entityId": entity_id,
+            "statementId": GOVERNED_LINEAGE_PROVENANCE,
+            "runId": "",
+            "name": entity_name,
+            "metadata": "Operational context backed by Unity Catalog table tags and Databricks Jobs API lookup.",
+            "relatedAssets": [asset_service.normalize_str(asset_fqn)],
+            "provenance": GOVERNED_LINEAGE_PROVENANCE,
+        }
+    ]
+
+
 def _first_hop_assets(data_graph: Dict[str, Any]) -> Dict[str, List[str]]:
-    focus_id = next(
-        (node.get("id") for node in data_graph.get("nodes", []) if node.get("role") == "focus"),
-        "",
+    focus_id = asset_service.normalize_str(
+        next(
+            (node.get("id") for node in data_graph.get("nodes", []) if node.get("role") == "focus"),
+            "",
+        )
     )
     node_lookup = {
         asset_service.normalize_str(node.get("id")): node
@@ -467,19 +719,130 @@ def _first_hop_assets(data_graph: Dict[str, Any]) -> Dict[str, List[str]]:
     }
 
 
-def _lineage_neighbors(
+def _lineage_graph_direction_counts(data_graph: Dict[str, Any]) -> Dict[str, int]:
+    focus_id = asset_service.normalize_str(
+        next(
+            (node.get("id") for node in data_graph.get("nodes", []) if node.get("role") == "focus"),
+            "",
+        )
+    )
+    if not focus_id:
+        return {
+            "upstream": 0,
+            "downstream": 0,
+            "directUpstream": 0,
+            "directDownstream": 0,
+        }
+    nodes_by_id = {
+        asset_service.normalize_str(node.get("id")): node
+        for node in data_graph.get("nodes", []) or []
+        if asset_service.normalize_str(node.get("id"))
+    }
+    forward: Dict[str, Set[str]] = {}
+    reverse: Dict[str, Set[str]] = {}
+    for edge in data_graph.get("edges", []) or []:
+        source_id = asset_service.normalize_str(edge.get("source"))
+        target_id = asset_service.normalize_str(edge.get("target"))
+        if not source_id or not target_id:
+            continue
+        forward.setdefault(source_id, set()).add(target_id)
+        reverse.setdefault(target_id, set()).add(source_id)
+
+    def traverse(start_id: str, adjacency: Dict[str, Set[str]]) -> Set[str]:
+        visited: Set[str] = set()
+        queue: Deque[str] = deque([start_id])
+        while queue:
+            current = queue.popleft()
+            for next_id in adjacency.get(current, set()):
+                if next_id in visited:
+                    continue
+                visited.add(next_id)
+                queue.append(next_id)
+        visited.discard(start_id)
+        return {
+            node_id
+            for node_id in visited
+            if asset_service.normalize_str(nodes_by_id.get(node_id, {}).get("assetFqn"))
+        }
+
+    direct_upstream = {
+        node_id
+        for node_id in reverse.get(focus_id, set())
+        if asset_service.normalize_str(nodes_by_id.get(node_id, {}).get("assetFqn"))
+    }
+    direct_downstream = {
+        node_id
+        for node_id in forward.get(focus_id, set())
+        if asset_service.normalize_str(nodes_by_id.get(node_id, {}).get("assetFqn"))
+    }
+    return {
+        "upstream": len(traverse(focus_id, reverse)),
+        "downstream": len(traverse(focus_id, forward)),
+        "directUpstream": len(direct_upstream),
+        "directDownstream": len(direct_downstream),
+    }
+
+
+def _governed_lineage_evidence_neighbors(
+    uc: UCSQLClient,
+    asset_fqn: str,
+    *,
+    limit: int,
+) -> List[str]:
+    normalized_asset = asset_service.normalize_str(asset_fqn)
+    if not normalized_asset:
+        return []
+    try:
+        df = uc.query_df(
+            f"""
+SELECT
+  CONCAT(catalog_name, '.', schema_name, '.', table_name) AS target_table_full_name
+FROM system.information_schema.table_tags
+WHERE tag_name = {sql_literal(GOVERNED_LINEAGE_FOCUS_TAG)}
+  AND tag_value = {sql_literal(normalized_asset)}
+GROUP BY catalog_name, schema_name, table_name
+ORDER BY target_table_full_name
+LIMIT {int(limit)}
+"""
+        )
+    except Exception:
+        return []
+    if df is None or df.empty or "target_table_full_name" not in df.columns:
+        return []
+    filtered = asset_service.filter_asset_rows(df, ["target_table_full_name"])
+    if filtered.empty:
+        return []
+    return [
+        asset_service.normalize_str(value)
+        for value in filtered["target_table_full_name"].dropna().astype(str).tolist()
+        if asset_service.normalize_str(value)
+    ]
+
+
+def _lineage_neighbor_records(
     uc: UCSQLClient,
     asset_fqn: str,
     *,
     direction: str,
     limit: int,
     system_uc: Optional[UCSQLClient] = None,
-) -> List[str]:
+    include_governed_tags: bool = True,
+) -> List[Dict[str, str]]:
     system_client = system_uc or uc
     try:
         catalog, schema, table = asset_service.split_uc_name(asset_fqn)
     except ValueError:
         return []
+    records: List[Dict[str, str]] = []
+    seen: Set[str] = set()
+
+    def add_neighbor(value: Any, provenance: str) -> None:
+        neighbor_fqn = asset_service.normalize_str(value)
+        if not neighbor_fqn or neighbor_fqn in seen:
+            return
+        seen.add(neighbor_fqn)
+        records.append({"assetFqn": neighbor_fqn, "provenance": provenance})
+
     try:
         if direction == "upstream":
             df = system_client.get_table_lineage_upstream(catalog, schema, table, limit=limit)
@@ -488,16 +851,45 @@ def _lineage_neighbors(
             df = system_client.get_table_lineage_downstream(catalog, schema, table, limit=limit)
             column = "target_table_full_name"
     except Exception:
-        return []
-    if df is None or df.empty or column not in df.columns:
-        return []
-    filtered = asset_service.filter_asset_rows(df, [column])
-    if filtered.empty or column not in filtered.columns:
-        return []
+        df = pd.DataFrame()
+        column = ""
+    if df is not None and not df.empty and column in df.columns:
+        filtered = asset_service.filter_asset_rows(df, [column])
+        if not filtered.empty and column in filtered.columns:
+            for value in filtered[column].dropna().astype(str).tolist():
+                add_neighbor(value, "system.access.table_lineage")
+
+    if direction == "downstream" and include_governed_tags and len(records) < limit:
+        remaining = max(0, limit - len(records))
+        for value in _governed_lineage_evidence_neighbors(
+            system_client,
+            asset_fqn,
+            limit=remaining,
+        ):
+            add_neighbor(value, GOVERNED_LINEAGE_PROVENANCE)
+
+    return records
+
+
+def _lineage_neighbors(
+    uc: UCSQLClient,
+    asset_fqn: str,
+    *,
+    direction: str,
+    limit: int,
+    system_uc: Optional[UCSQLClient] = None,
+    include_governed_tags: bool = True,
+) -> List[str]:
     return [
-        asset_service.normalize_str(value)
-        for value in filtered[column].dropna().astype(str).tolist()
-        if asset_service.normalize_str(value)
+        record["assetFqn"]
+        for record in _lineage_neighbor_records(
+            uc,
+            asset_fqn,
+            direction=direction,
+            limit=limit,
+            system_uc=system_uc,
+            include_governed_tags=include_governed_tags,
+        )
     ]
 
 
@@ -512,6 +904,8 @@ def _recursive_branch_graph(
     per_hop_limit: int,
     visible_inventory: Optional[pd.DataFrame] = None,
     system_uc: Optional[UCSQLClient] = None,
+    secondary_seed_limit: int = SECOND_HOP_SEED_LIMIT,
+    direct_openable_assets: Optional[Set[str]] = None,
 ) -> Dict[str, Any]:
     focus_fqn_n = asset_service.normalize_str(focus_fqn)
     branch_role = "source" if direction == "upstream" else "target"
@@ -522,7 +916,10 @@ def _recursive_branch_graph(
     seen_edges: Set[str] = set()
     visited_assets: Set[str] = {focus_fqn_n}
     queue: Deque[Tuple[str, int]] = deque([(focus_fqn_n, 0)])
+    queued_secondary_seeds = 0
     truncated = False
+    evidence_tag_neighbor_count = 0
+    branch_direct_openable_assets = set(direct_openable_assets or set())
 
     def node_id_for(asset_fqn: str) -> str:
         asset_fqn_n = asset_service.normalize_str(asset_fqn)
@@ -535,14 +932,16 @@ def _recursive_branch_graph(
         if current_depth >= depth_limit:
             continue
         neighbor_candidates: List[str] = []
-        for neighbor in _lineage_neighbors(
+        provenance_by_neighbor: Dict[str, str] = {}
+        for record in _lineage_neighbor_records(
             uc,
             current_fqn,
             direction=direction,
             limit=max(TABLE_LINEAGE_LIMIT, per_hop_limit),
             system_uc=system_uc,
+            include_governed_tags=current_depth == 0,
         ):
-            neighbor_fqn = asset_service.normalize_str(neighbor)
+            neighbor_fqn = asset_service.normalize_str(record.get("assetFqn"))
             if (
                 not neighbor_fqn
                 or neighbor_fqn == current_fqn
@@ -551,10 +950,45 @@ def _recursive_branch_graph(
             ):
                 continue
             neighbor_candidates.append(neighbor_fqn)
+            provenance_by_neighbor[neighbor_fqn] = (
+                asset_service.normalize_str(record.get("provenance"))
+                or "system.access.table_lineage"
+            )
+            if provenance_by_neighbor[neighbor_fqn] == GOVERNED_LINEAGE_PROVENANCE:
+                evidence_tag_neighbor_count += 1
 
         if len(neighbor_candidates) > per_hop_limit:
             truncated = True
         neighbors = neighbor_candidates[:per_hop_limit]
+        missing_inventory_rows = [
+            neighbor_fqn
+            for neighbor_fqn in neighbors
+            if neighbor_fqn not in branch_direct_openable_assets
+            and not (
+                isinstance(visible_inventory, pd.DataFrame)
+                and asset_service.asset_is_visible(visible_inventory, neighbor_fqn)
+            )
+        ]
+        if missing_inventory_rows:
+            fetched_rows = _lineage_rows_for_assets(
+                uc,
+                missing_inventory_rows,
+                inventory_columns=(
+                    list(visible_inventory.columns)
+                    if isinstance(visible_inventory, pd.DataFrame)
+                    else None
+                ),
+            )
+            if fetched_rows is not None and not fetched_rows.empty:
+                branch_direct_openable_assets.update(
+                    asset_service.normalize_str(value)
+                    for value in fetched_rows["fqn"].dropna().astype(str).tolist()
+                )
+                visible_inventory = (
+                    pd.concat([visible_inventory, fetched_rows], ignore_index=True)
+                    if isinstance(visible_inventory, pd.DataFrame)
+                    else fetched_rows
+                )
 
         for neighbor_fqn in neighbors:
             if len(nodes) >= node_limit and neighbor_fqn not in visited_assets:
@@ -573,6 +1007,7 @@ def _recursive_branch_graph(
                     kind="Table",
                     depth=current_depth + 1,
                     visible_inventory=visible_inventory,
+                    direct_openable_assets=branch_direct_openable_assets,
                 )
                 node_id = asset_service.normalize_str(node.get("id"))
                 if node_id not in seen_node_ids:
@@ -580,7 +1015,12 @@ def _recursive_branch_graph(
                     seen_node_ids.add(node_id)
                 visited_assets.add(neighbor_fqn)
                 if current_depth + 1 < depth_limit:
-                    queue.append((neighbor_fqn, current_depth + 1))
+                    if current_depth == 0 and queued_secondary_seeds >= secondary_seed_limit:
+                        truncated = True
+                    else:
+                        queue.append((neighbor_fqn, current_depth + 1))
+                        if current_depth == 0:
+                            queued_secondary_seeds += 1
 
             current_node_id = node_id_for(current_fqn)
             neighbor_node_id = node_id_for(neighbor_fqn)
@@ -595,6 +1035,10 @@ def _recursive_branch_graph(
                     "target": target_id,
                     "depth": current_depth + 1,
                     "key": edge_key,
+                    "provenance": provenance_by_neighbor.get(
+                        neighbor_fqn,
+                        "system.access.table_lineage",
+                    ),
                 }
             )
             seen_edges.add(edge_key)
@@ -610,6 +1054,8 @@ def _recursive_branch_graph(
         "nodeLimit": node_limit,
         "depthLimit": depth_limit,
         "perHopLimit": per_hop_limit,
+        "secondaryBranchLimit": secondary_seed_limit,
+        "governedLineageEvidenceTagNeighborCount": evidence_tag_neighbor_count,
     }
 
 
@@ -623,14 +1069,14 @@ def _second_hop_payload(
 ) -> Dict[str, Any]:
     if not first_hop_assets:
         return {
-            "seedCount": 0,
-            "processedSeedCount": 0,
+            "startingAssetCount": 0,
+            "processedStartingAssetCount": 0,
             "uniqueNeighborCount": 0,
             "neighborSamples": [],
-            "seedSummaries": [],
+            "startingAssetSummaries": [],
             "limit": {
-                "seedAssets": SECOND_HOP_SEED_LIMIT,
-                "neighborsPerSeed": SECOND_HOP_NEIGHBOR_LIMIT,
+                "startingAssets": SECOND_HOP_SEED_LIMIT,
+                "neighborsPerStartingAsset": SECOND_HOP_NEIGHBOR_LIMIT,
             },
         }
 
@@ -646,6 +1092,7 @@ def _second_hop_payload(
             direction=direction,
             limit=SECOND_HOP_NEIGHBOR_LIMIT,
             system_uc=system_uc,
+            include_governed_tags=False,
         )
         clean_neighbors: List[str] = []
         for neighbor in neighbors:
@@ -664,14 +1111,14 @@ def _second_hop_payload(
         )
 
     return {
-        "seedCount": len(first_hop_assets),
-        "processedSeedCount": min(len(first_hop_assets), SECOND_HOP_SEED_LIMIT),
+        "startingAssetCount": len(first_hop_assets),
+        "processedStartingAssetCount": min(len(first_hop_assets), SECOND_HOP_SEED_LIMIT),
         "uniqueNeighborCount": len(discovered),
         "neighborSamples": discovered[:SECOND_HOP_SAMPLE_LIMIT],
-        "seedSummaries": seed_summaries,
+        "startingAssetSummaries": seed_summaries,
         "limit": {
-            "seedAssets": SECOND_HOP_SEED_LIMIT,
-            "neighborsPerSeed": SECOND_HOP_NEIGHBOR_LIMIT,
+            "startingAssets": SECOND_HOP_SEED_LIMIT,
+            "neighborsPerStartingAsset": SECOND_HOP_NEIGHBOR_LIMIT,
         },
     }
 
@@ -699,15 +1146,15 @@ def _lineage_depth_payload(
     first_hop = _first_hop_assets(data_graph)
     if not include_second_hop:
         deferred = {
-            "seedCount": 0,
-            "processedSeedCount": 0,
+            "startingAssetCount": 0,
+            "processedStartingAssetCount": 0,
             "uniqueNeighborCount": 0,
             "neighborSamples": [],
-            "seedSummaries": [],
+            "startingAssetSummaries": [],
             "deferred": True,
             "limit": {
-                "seedAssets": SECOND_HOP_SEED_LIMIT,
-                "neighborsPerSeed": SECOND_HOP_NEIGHBOR_LIMIT,
+                "startingAssets": SECOND_HOP_SEED_LIMIT,
+                "neighborsPerStartingAsset": SECOND_HOP_NEIGHBOR_LIMIT,
             },
         }
         return {
@@ -748,18 +1195,7 @@ def build_data_graph(
     *,
     system_uc: Optional[UCSQLClient] = None,
 ) -> Dict[str, Any]:
-    row = asset_service.inventory_row(uc, store, asset_fqn)
-    visible_inventory = asset_service.visible_assets(uc, store)
-    direct_openable_assets: Set[str] = set()
-    if not asset_service.asset_is_visible(visible_inventory, asset_fqn):
-        try:
-            if asset_service.exact_identity_row(uc, asset_fqn) is not None:
-                direct_openable_assets.add(asset_service.normalize_str(asset_fqn))
-        except Exception:
-            pass
-    catalog, schema, table = asset_service.split_uc_name(
-        asset_service.normalize_str(row.get("fqn"))
-    )
+    row, visible_inventory, direct_openable_assets = _focus_lineage_inventory(uc, asset_fqn)
     focus = graph_node_for_asset(
         uc,
         store,
@@ -791,6 +1227,8 @@ def build_data_graph(
             per_hop_limit=LINEAGE_GRAPH_PER_HOP_LIMIT,
             visible_inventory=visible_inventory,
             system_uc=system_uc,
+            secondary_seed_limit=LINEAGE_GRAPH_SECONDARY_SEED_LIMIT,
+            direct_openable_assets=direct_openable_assets,
         )
         downstream_future = executor.submit(
             _recursive_branch_graph,
@@ -803,6 +1241,8 @@ def build_data_graph(
             per_hop_limit=LINEAGE_GRAPH_PER_HOP_LIMIT,
             visible_inventory=visible_inventory,
             system_uc=system_uc,
+            secondary_seed_limit=0,
+            direct_openable_assets=direct_openable_assets,
         )
         upstream_branch = upstream_future.result()
         downstream_branch = downstream_future.result()
@@ -820,8 +1260,26 @@ def build_data_graph(
             "graphNodeLimit": LINEAGE_GRAPH_NODE_LIMIT,
             "graphBranchNodeLimit": per_branch_limit,
             "graphPerHopLimit": LINEAGE_GRAPH_PER_HOP_LIMIT,
+            "graphSecondarySeedLimit": LINEAGE_GRAPH_SECONDARY_SEED_LIMIT,
             "upstreamTruncated": bool(upstream_branch.get("truncated")),
             "downstreamTruncated": bool(downstream_branch.get("truncated")),
+            "lineageEvidenceSources": sorted(
+                {
+                    "system.access.table_lineage",
+                    *(
+                        [GOVERNED_LINEAGE_PROVENANCE]
+                        if (
+                            int(upstream_branch.get("governedLineageEvidenceTagNeighborCount") or 0)
+                            + int(downstream_branch.get("governedLineageEvidenceTagNeighborCount") or 0)
+                        )
+                        else []
+                    ),
+                }
+            ),
+            "governedLineageEvidenceTagNeighborCount": (
+                int(upstream_branch.get("governedLineageEvidenceTagNeighborCount") or 0)
+                + int(downstream_branch.get("governedLineageEvidenceTagNeighborCount") or 0)
+            ),
         },
     }
 
@@ -842,38 +1300,28 @@ def build_initial_data_graph(
     """
 
     normalized_fqn = asset_service.normalize_str(asset_fqn)
-    row = None
     try:
-        row = asset_service.exact_identity_row(uc, normalized_fqn)
-    except Exception:
-        row = None
-
-    if row is None:
-        try:
-            catalog, schema, table = asset_service.split_uc_name(normalized_fqn)
-        except ValueError:
-            catalog, schema, table = "", "", normalized_fqn.split(".")[-1] or normalized_fqn
-        row = pd.Series(
-            {
-                "fqn": normalized_fqn,
-                "table_catalog": catalog,
-                "table_schema": schema,
-                "table_name": table,
-                "table_type": "",
-                "data_source_format": "",
-                "comment": "",
-                "certification": "",
-                "domain": "",
-                "tier": "",
-                "sensitivity": "",
-                "governance_status": "Needs Work",
-            }
-        )
-        visible_inventory = pd.DataFrame()
-        direct_openable_assets: Set[str] = set()
-    else:
-        visible_inventory = pd.DataFrame([row.to_dict()])
-        direct_openable_assets = {normalized_fqn}
+        catalog, schema, table = asset_service.split_uc_name(normalized_fqn)
+    except ValueError:
+        catalog, schema, table = "", "", normalized_fqn.split(".")[-1] or normalized_fqn
+    row = pd.Series(
+        {
+            "fqn": normalized_fqn,
+            "table_catalog": catalog,
+            "table_schema": schema,
+            "table_name": table,
+            "table_type": "",
+            "data_source_format": "",
+            "comment": "",
+            "certification": "",
+            "domain": "",
+            "tier": "",
+            "sensitivity": "",
+            "governance_status": "",
+        }
+    )
+    visible_inventory = pd.DataFrame()
+    direct_openable_assets: Set[str] = set()
 
     focus = graph_node_for_asset(
         uc,
@@ -887,7 +1335,7 @@ def build_initial_data_graph(
             row.get("table_type"),
             row.get("data_source_format"),
         ),
-        foot=[asset_service.normalize_str(row.get("certification")) or "Unassigned"],
+        foot=[asset_service.normalize_str(row.get("certification")) or "Metadata unavailable"],
         depth=0,
         visible_inventory=visible_inventory,
         include_columns=False,
@@ -921,15 +1369,7 @@ def build_operational_graph(
     system_uc: Optional[UCSQLClient] = None,
 ) -> Dict[str, Any]:
     system_client = system_uc or uc
-    row = asset_service.inventory_row(uc, store, asset_fqn)
-    visible_inventory = asset_service.visible_assets(uc, store)
-    direct_openable_assets: Set[str] = set()
-    if not asset_service.asset_is_visible(visible_inventory, asset_fqn):
-        try:
-            if asset_service.exact_identity_row(uc, asset_fqn) is not None:
-                direct_openable_assets.add(asset_service.normalize_str(asset_fqn))
-        except Exception:
-            pass
+    row, visible_inventory, direct_openable_assets = _focus_lineage_inventory(uc, asset_fqn)
     catalog, schema, table = asset_service.split_uc_name(
         asset_service.normalize_str(row.get("fqn"))
     )
@@ -986,6 +1426,10 @@ def build_operational_graph(
         downstream_df = downstream_future.result()
     upstream_entities = asset_service.operational_entity_records(uc, upstream_df)
     downstream_entities = asset_service.operational_entity_records(uc, downstream_df)
+    if not upstream_entities:
+        upstream_entities = _governed_operational_job_entities(uc, asset_fqn, role="source")
+    if not downstream_entities:
+        downstream_entities = _governed_operational_job_entities(uc, asset_fqn, role="target")
 
     nodes = [focus]
     edges: List[Dict[str, Any]] = []
@@ -1066,15 +1510,42 @@ def lineage_payload(
     profile: str = LINEAGE_PROFILE_FULL,
 ) -> Dict[str, Any]:
     profile_name = _lineage_profile(profile)
-    profile_key = "" if profile_name == LINEAGE_PROFILE_FULL else f":{profile_name}"
+    cache_key = lineage_cache_key(uc, asset_fqn, cache_scope=cache_scope, profile=profile_name)
     return _ttl_value(
-        (
-            f"lineage{profile_key}:{_warehouse_key(uc)}:{_cache_scope_key(cache_scope)}:"
-            f"{asset_service.normalize_str(asset_fqn)}"
-        ),
+        cache_key,
         300,
         lambda: _build_lineage_payload(uc, store, asset_fqn, system_uc=system_uc, profile=profile_name),
     )
+
+
+def lineage_cache_key(
+    uc: UCSQLClient,
+    asset_fqn: str,
+    *,
+    cache_scope: str = "",
+    profile: str = LINEAGE_PROFILE_FULL,
+) -> str:
+    profile_name = _lineage_profile(profile)
+    profile_key = "" if profile_name == LINEAGE_PROFILE_FULL else f":{profile_name}"
+    return (
+        f"lineage{profile_key}:{_warehouse_key(uc)}:{_cache_scope_key(cache_scope)}:"
+        f"{asset_service.normalize_str(asset_fqn)}"
+    )
+
+
+def cached_lineage_payload(
+    uc: UCSQLClient,
+    asset_fqn: str,
+    *,
+    cache_scope: str = "",
+    profile: str = LINEAGE_PROFILE_FULL,
+    ttl_s: int = 300,
+) -> Optional[Dict[str, Any]]:
+    cache_key = lineage_cache_key(uc, asset_fqn, cache_scope=cache_scope, profile=profile)
+    cached = _TTL_CACHE.get(cache_key)
+    if cached and time.time() - cached[0] < ttl_s:
+        return cached[1]
+    return None
 
 
 def _build_lineage_payload(
@@ -1128,10 +1599,7 @@ def _build_lineage_payload(
     lineage_depth = _lineage_depth_payload(uc, asset_fqn, data_graph, system_uc=system_uc)
     data_edge_details = _data_edge_details(data_graph, column_lineage)
     operational_edge_details = _operational_edge_details(operational_graph)
-    data_focus_id = next(
-        (node.get("id") for node in data_graph.get("nodes", []) if node.get("role") == "focus"),
-        "",
-    )
+    direction_counts = _lineage_graph_direction_counts(data_graph)
 
     return {
         "fqn": asset_fqn,
@@ -1148,12 +1616,10 @@ def _build_lineage_payload(
             **operational_edge_details,
         },
         "stats": {
-            "upstreamCount": sum(
-                1 for edge in data_graph.get("edges", []) if edge.get("target") == data_focus_id
-            ),
-            "downstreamCount": sum(
-                1 for edge in data_graph.get("edges", []) if edge.get("source") == data_focus_id
-            ),
+            "upstreamCount": direction_counts["upstream"],
+            "downstreamCount": direction_counts["downstream"],
+            "directUpstreamCount": direction_counts["directUpstream"],
+            "directDownstreamCount": direction_counts["directDownstream"],
             "operationalProducerCount": sum(
                 1 for node in operational_graph.get("nodes", []) if node.get("role") == "source"
             ),
@@ -1170,6 +1636,7 @@ def _build_lineage_payload(
                 "graphDepth": LINEAGE_GRAPH_DEPTH_LIMIT,
                 "graphNodes": LINEAGE_GRAPH_NODE_LIMIT,
                 "graphNeighborsPerHop": LINEAGE_GRAPH_PER_HOP_LIMIT,
+                "graphSecondarySeedAssets": LINEAGE_GRAPH_SECONDARY_SEED_LIMIT,
             },
             "truncated": {
                 "upstream": bool(data_graph.get("meta", {}).get("upstreamTruncated")),

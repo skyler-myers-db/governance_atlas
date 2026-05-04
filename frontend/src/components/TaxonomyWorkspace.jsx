@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchCdeDashboard, fetchTaxonomyOverview } from "../lib/api";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { EmptyStateBlock, LoadingState } from "./ShellStatePrimitives";
 import { DegradedBanner, StatusPill } from "./northstar";
 import "../styles/operations-pages.css";
@@ -57,6 +58,15 @@ function envelopeData(payload) {
 
 function envelopeMeta(payload) {
   return payload && typeof payload === "object" ? payload.meta || {} : {};
+}
+
+function hydratingEnvelope(payload) {
+  const meta = envelopeMeta(payload);
+  const capabilities = meta.capabilities && typeof meta.capabilities === "object"
+    ? meta.capabilities
+    : {};
+  const state = text(meta.state || payload?.state).toLowerCase();
+  return state === "loading" || capabilities.hydrating === true;
 }
 
 function arrayValue(value) {
@@ -136,14 +146,20 @@ function statusTone(status) {
   return "neutral";
 }
 
-function prototypeLabel(value, fallback = "Unavailable") {
+function registryLabel(value, fallback = "Unavailable") {
   return titleFromValue(value) || fallback;
 }
 
-function prototypeFixtureLabel(value, fallback = "Unavailable") {
-  const label = prototypeLabel(value, fallback);
-  if (!label || /^unavailable$/i.test(label) || /^fixture\b/i.test(label)) return label;
-  return `Fixture ${label}`;
+function registryEvidenceLabel(value, fallback = "Unavailable") {
+  return registryLabel(value, fallback);
+}
+
+function customerSafeTaxonomySource(value = "") {
+  const source = text(value);
+  if (!source) return "Governance metadata provenance unavailable";
+  if (/^(live|tags)$/i.test(source)) return "Unity Catalog and governance store";
+  if (/prototype|mock|fixture|seed/i.test(source)) return "Reference source unavailable";
+  return source;
 }
 
 function normalizeReviewer(entry, index) {
@@ -329,12 +345,12 @@ function normalizeDashboardCde(item, index) {
 }
 
 function termSourceSummary(term = {}) {
-  return text(term.summarySource || term.source || term.associationSource) || "Prototype fixture provenance";
+  return customerSafeTaxonomySource(term.summarySource || term.source || term.associationSource);
 }
 
 function termAssociationSummary(term = {}) {
   const count = Number(term.assetCount || 0);
-  if (count > 0) return `${count.toLocaleString()} prototype linked asset${count === 1 ? "" : "s"} - actor visibility not verified`;
+  if (count > 0) return `${count.toLocaleString()} linked asset${count === 1 ? "" : "s"} - actor visibility not verified`;
   return "Association evidence unavailable";
 }
 
@@ -344,7 +360,7 @@ function termReviewSummary(term = {}) {
   if (term.reviewers?.length) {
     return `${term.reviewers.length} reviewer${term.reviewers.length === 1 ? "" : "s"} assigned`;
   }
-  return status ? "Status fixture; review n/a" : "Reviewer evidence unavailable";
+  return status ? "Status returned; reviewer evidence unavailable" : "Reviewer evidence unavailable";
 }
 
 function cdeRecertEvidenceSummary(cde = {}) {
@@ -584,9 +600,9 @@ export default function TaxonomyWorkspace({
   onSurfaceReady = undefined,
   taxonomyOverride = null,
 }) {
-  const prototypeMode = true;
+  const useRegistryWorkspace = true;
   const [registryTab, setRegistryTab] = useState(initialRegistryTabFromLocation);
-  const [prototypeActionMessage, setPrototypeActionMessage] = useState("");
+  const [registryActionMessage, setRegistryActionMessage] = useState("");
   const [activeContext, setActiveContext] = useState("classifications");
   const [selectedNodeId, setSelectedNodeId] = useState("");
   const [selectedTermId, setSelectedTermId] = useState("");
@@ -599,21 +615,42 @@ export default function TaxonomyWorkspace({
     queryKey: ["atlas", "taxonomy-overview"],
     queryFn: ({ signal }) => fetchTaxonomyOverview({ signal }),
     staleTime: 60_000,
+    refetchInterval: (query) => hydratingEnvelope(query?.state?.data) ? 3_000 : false,
     enabled: !taxonomyOverride,
   });
   const cdeDashboardQuery = useQuery({
     queryKey: ["atlas", "taxonomy-cde-dashboard"],
     queryFn: ({ signal }) => fetchCdeDashboard({ signal }),
     staleTime: 60_000,
-    enabled: prototypeMode && !taxonomyOverride,
+    refetchInterval: (query) => hydratingEnvelope(query?.state?.data) ? 3_000 : false,
+    enabled: !taxonomyOverride,
   });
 
   const payload = taxonomyOverride || overviewQuery.data;
-  const overview = useMemo(() => normalizeOverview(payload), [payload]);
-  const prototypeCdes = useMemo(() => {
+  const nonAuthoritativeTaxonomyPayload = isNonAuthoritativeMockEvidence(payload, payload?.meta, payload?.warnings);
+  const nonAuthoritativeCdePayload = isNonAuthoritativeMockEvidence(
+    cdeDashboardQuery.data,
+    cdeDashboardQuery.data?.meta,
+    cdeDashboardQuery.data?.warnings,
+  );
+  const overview = useMemo(
+    () =>
+      nonAuthoritativeTaxonomyPayload
+        ? normalizeOverview({
+            data: {},
+            meta: {
+              state: "non_authoritative",
+              warnings: ["Non-authoritative glossary and taxonomy payload rejected."],
+            },
+          })
+        : normalizeOverview(payload),
+    [nonAuthoritativeTaxonomyPayload, payload],
+  );
+  const registryCdes = useMemo(() => {
     if (overview.cdes.length) return overview.cdes;
+    if (nonAuthoritativeCdePayload) return [];
     return cdesFromDashboardPayload(cdeDashboardQuery.data);
-  }, [cdeDashboardQuery.data, overview.cdes]);
+  }, [cdeDashboardQuery.data, nonAuthoritativeCdePayload, overview.cdes]);
   const treeItems = useMemo(
     () => buildTreeItems(overview, activeContext),
     [activeContext, overview],
@@ -680,10 +717,16 @@ export default function TaxonomyWorkspace({
   }, [selectedTerm, selectedTermId]);
 
   useEffect(() => {
-    if (!overviewQuery.isPending && (!prototypeMode || !cdeDashboardQuery.isPending)) onSurfaceReady?.();
-  }, [cdeDashboardQuery.isPending, onSurfaceReady, overviewQuery.isPending, prototypeMode]);
+    if (!overviewQuery.isPending && (!useRegistryWorkspace || !cdeDashboardQuery.isPending)) onSurfaceReady?.();
+  }, [cdeDashboardQuery.isPending, onSurfaceReady, overviewQuery.isPending, useRegistryWorkspace]);
 
-  const meta = overview.meta || {};
+  const meta = {
+    ...(overview.meta || {}),
+    warnings: [
+      ...arrayValue(overview.meta?.warnings),
+      ...(nonAuthoritativeCdePayload ? ["Non-authoritative CDE dashboard payload rejected."] : []),
+    ],
+  };
   const loading = overviewQuery.isPending && !taxonomyOverride;
   const cdeLoading = cdeDashboardQuery.isPending && !taxonomyOverride && !overview.cdes.length;
   const error = overviewQuery.error?.message || "";
@@ -697,7 +740,7 @@ export default function TaxonomyWorkspace({
   const changeRegistryTab = (nextTab) => {
     const normalized = nextTab === "cdes" ? "cdes" : "glossary";
     setRegistryTab(normalized);
-    setPrototypeActionMessage("");
+    setRegistryActionMessage("");
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       if (normalized === "cdes") url.searchParams.set("tab", "cdes");
@@ -706,18 +749,18 @@ export default function TaxonomyWorkspace({
     }
   };
 
-  if (prototypeMode) {
+  if (useRegistryWorkspace) {
     return (
-      <PrototypeGlossaryCdeRegistry
-        cdes={prototypeCdes}
+      <GlossaryCdeRegistry
+        cdes={registryCdes}
         error={error || cdeError}
-        loading={activeRegistryTabLoading(registryTab, loading, cdeLoading, overview.glossaryTerms, prototypeCdes)}
+        loading={activeRegistryTabLoading(registryTab, loading, cdeLoading, overview.glossaryTerms, registryCdes)}
         meta={meta}
-        onActionMessage={setPrototypeActionMessage}
+        onActionMessage={setRegistryActionMessage}
         onOpenAsset={onOpenAsset}
         onOpenLineage={onOpenLineage}
         onTabChange={changeRegistryTab}
-        statusMessage={prototypeActionMessage}
+        statusMessage={registryActionMessage}
         tab={registryTab}
         terms={overview.glossaryTerms}
       />
@@ -785,7 +828,7 @@ export default function TaxonomyWorkspace({
   );
 }
 
-function PrototypeGlossaryCdeRegistry({
+function GlossaryCdeRegistry({
   cdes,
   error,
   loading,
@@ -819,7 +862,7 @@ function PrototypeGlossaryCdeRegistry({
     [terms],
   );
   const hierarchyRows = visibleTerms.map((term) => {
-    const parent = term.parentTermId ? termLookup.get(term.parentTermId)?.term || term.parentTermId : "Root term";
+    const parent = term.parentTermId ? termLookup.get(term.parentTermId)?.term || "Parent term recorded" : "Root term";
     const children = Number(term.childCount || 0);
     return {
       id: term.termId,
@@ -867,13 +910,14 @@ function PrototypeGlossaryCdeRegistry({
           </div>
           <button
             className="gh-taxonomy-prototype-new"
-            onClick={() => {
-              if (activeTab === "cdes") {
-                onActionMessage("New CDE request is unavailable until a backed CDE registry workflow is configured.");
-                return;
-              }
-              onActionMessage("New term request is unavailable until a backed glossary workflow is configured.");
-            }}
+            onClick={() =>
+              onActionMessage(
+                activeTab === "cdes"
+                  ? "New CDE request is unavailable until a backed CDE registry workflow is configured; no local draft was created."
+                  : "New term request is unavailable until a backed glossary workflow is configured; no local draft was created.",
+              )
+            }
+            title={activeTab === "cdes" ? "Show New CDE unavailable reason" : "Show New term unavailable reason"}
             type="button"
           >
             + New term
@@ -964,7 +1008,7 @@ function PrototypeGlossaryCdeRegistry({
                       <span>{term.domain} · {term.stewardEmail || term.ownerEmail || "Unassigned steward"}</span>
                     </div>
                     <StatusPill tone={statusTone(term.status)}>
-                      {prototypeLabel(term.status, "Draft")}
+                      {registryLabel(term.status, "Draft")}
                     </StatusPill>
                   </div>
                   <p>{term.definition || "No live definition recorded for this term."}</p>
@@ -993,7 +1037,7 @@ function PrototypeGlossaryCdeRegistry({
                         if (target && onOpenLineage) onOpenLineage(target, "Data Lineage");
                         else if (target) onOpenAsset?.(target, "Lineage");
                       }}
-                      title={term.assets[0]?.fqn ? "Prototype linked-asset lineage preview; not live UC lineage proof" : "Lineage requires at least one associated asset"}
+                      title={term.assets[0]?.fqn ? "Open lineage for the first linked asset" : "Lineage requires at least one associated asset"}
                       type="button"
                     >
                       Preview lineage -&gt;
@@ -1022,7 +1066,7 @@ function PrototypeGlossaryCdeRegistry({
             )}
           </div>
           {selectedTerm ? (
-            <PrototypeTermDetail
+            <TermRegistryDetail
               associationBrowserOpen={associationBrowserTermId === selectedTerm.termId}
               onActionMessage={onActionMessage}
               onClose={() => setSelectedTermId("")}
@@ -1046,45 +1090,51 @@ function PrototypeGlossaryCdeRegistry({
               <span role="columnheader">Status</span>
             </div>
             {visibleCdes.length ? (
-              visibleCdes.map((cde) => (
-                <div
-                  className={`gh-taxonomy-prototype-cde-row ${selectedCde?.id === cde.id ? "is-selected" : ""}`}
-                  key={cde.id}
-                  onClick={() => {
-                    openCdeDetail(cde);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
+              visibleCdes.map((cde) => {
+                const statusLabel = cde.column ? registryEvidenceLabel(cde.status) : "Source unavailable";
+                const statusEvidence = cde.column
+                  ? cdeHealthEvidenceSummary(cde)
+                  : "Source-of-record column evidence is unavailable for this CDE.";
+                return (
+                  <div
+                    className={`gh-taxonomy-prototype-cde-row ${selectedCde?.id === cde.id ? "is-selected" : ""}`}
+                    key={cde.id}
+                    onClick={() => {
                       openCdeDetail(cde);
-                    }
-                  }}
-                  role="row"
-                  tabIndex={0}
-                >
-                  <span role="cell">
-                    <i aria-hidden="true" className="gh-taxonomy-prototype-key-icon" />
-                    <strong>{cde.name}</strong>
-                    {cde.sox ? <em>SOX</em> : null}
-                  </span>
-                  <span role="cell" className="is-mono">{cde.column || "Source column unavailable"}</span>
-                  <span role="cell">{cde.owner}</span>
-                  <span
-                    aria-label={`Recertification ${prototypeFixtureLabel(cde.recert)}. ${cdeRecertEvidenceSummary(cde)}`}
-                    role="cell"
-                    title={cdeRecertEvidenceSummary(cde)}
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openCdeDetail(cde);
+                      }
+                    }}
+                    role="row"
+                    tabIndex={0}
                   >
-                    <span className="gh-taxonomy-prototype-recert-pill">{prototypeFixtureLabel(cde.recert)}</span>
-                  </span>
-                  <span
-                    aria-label={`Status ${prototypeFixtureLabel(cde.status)}. ${cdeHealthEvidenceSummary(cde)}`}
-                    role="cell"
-                    title={cdeHealthEvidenceSummary(cde)}
-                  >
-                    <StatusPill tone={statusTone(cde.status)}>{prototypeFixtureLabel(cde.status)}</StatusPill>
-                  </span>
-                </div>
-              ))
+                    <span role="cell">
+                      <i aria-hidden="true" className="gh-taxonomy-prototype-key-icon" />
+                      <strong>{cde.name}</strong>
+                      {cde.sox ? <em>SOX</em> : null}
+                    </span>
+                    <span role="cell" className="is-mono">{cde.column || "Source column unavailable"}</span>
+                    <span role="cell">{cde.owner}</span>
+                    <span
+                      aria-label={`Recertification ${registryEvidenceLabel(cde.recert)}. ${cdeRecertEvidenceSummary(cde)}`}
+                      role="cell"
+                      title={cdeRecertEvidenceSummary(cde)}
+                    >
+                      <span className="gh-taxonomy-prototype-recert-pill">{registryEvidenceLabel(cde.recert)}</span>
+                    </span>
+                    <span
+                      aria-label={`Status ${statusLabel}. ${statusEvidence}`}
+                      role="cell"
+                      title={statusEvidence}
+                    >
+                      <StatusPill tone={cde.column ? statusTone(cde.status) : "neutral"}>{statusLabel}</StatusPill>
+                    </span>
+                  </div>
+                );
+              })
             ) : (
               Array.from({ length: 5 }, (_, index) => (
                 <div className="gh-taxonomy-prototype-cde-row is-unavailable" key={`cde-unavailable-${index}`} role="row">
@@ -1112,11 +1162,11 @@ function PrototypeGlossaryCdeRegistry({
               ))
             )}
           </div>
-          <p className="gh-taxonomy-prototype-cde-provenance gh-visually-hidden">
-            Status and recertification are prototype registry fixtures - not live Unity Catalog, quality test-run, or recertification workflow proof.
+          <p className="gh-taxonomy-prototype-cde-provenance">
+            Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned.
           </p>
           {selectedCde ? (
-            <PrototypeCdeDetail
+            <CdeRegistryDetail
               cde={selectedCde}
               onActionMessage={onActionMessage}
               onClose={() => setSelectedCdeId("")}
@@ -1131,7 +1181,7 @@ function PrototypeGlossaryCdeRegistry({
   );
 }
 
-function PrototypeDetailShell({ children, onClose, title }) {
+function RegistryDetailShell({ children, onClose, title }) {
   return (
     <aside className="gh-taxonomy-prototype-detail" aria-label={`${title} detail`}>
       <div className="gh-taxonomy-prototype-detail-head">
@@ -1148,7 +1198,7 @@ function PrototypeDetailShell({ children, onClose, title }) {
   );
 }
 
-function PrototypeTermDetail({ associationBrowserOpen = false, onActionMessage, onClose, onOpenAsset, onOpenLineage, term }) {
+function TermRegistryDetail({ associationBrowserOpen = false, onActionMessage, onClose, onOpenAsset, onOpenLineage, term }) {
   const [showAssociations, setShowAssociations] = useState(Boolean(associationBrowserOpen));
   const firstAsset = term.assets[0] || null;
   const reviewers = term.reviewers.length ? term.reviewers : [];
@@ -1157,7 +1207,7 @@ function PrototypeTermDetail({ associationBrowserOpen = false, onActionMessage, 
     setShowAssociations(Boolean(associationBrowserOpen));
   }, [associationBrowserOpen, term.termId]);
   return (
-    <PrototypeDetailShell onClose={onClose} title={term.term}>
+    <RegistryDetailShell onClose={onClose} title={term.term}>
       <div className="gh-taxonomy-prototype-detail-grid">
         <section className="gh-taxonomy-prototype-detail-card">
           <h3>Definition</h3>
@@ -1171,7 +1221,7 @@ function PrototypeTermDetail({ associationBrowserOpen = false, onActionMessage, 
           <dl>
             <div><dt>Domain</dt><dd>{term.domain || "Unassigned"}</dd></div>
             <div><dt>Owner</dt><dd>{term.ownerEmail || term.stewardEmail || "Unassigned steward"}</dd></div>
-            <div><dt>Status</dt><dd>{prototypeLabel(term.status)}</dd></div>
+            <div><dt>Status</dt><dd>{registryLabel(term.status)}</dd></div>
             <div><dt>Version</dt><dd>{term.currentVersion || "No backed version label"}</dd></div>
             <div><dt>Review evidence</dt><dd>{termReviewSummary(term)}</dd></div>
           </dl>
@@ -1210,7 +1260,7 @@ function PrototypeTermDetail({ associationBrowserOpen = false, onActionMessage, 
           <h3>Hierarchy</h3>
           {term.parentTermId || term.childCount ? (
             <dl>
-              <div><dt>Parent</dt><dd>{term.parentTermId || "Root term"}</dd></div>
+              <div><dt>Parent</dt><dd>{term.parentTermId ? "Parent term recorded" : "Root term"}</dd></div>
               <div><dt>Child terms</dt><dd>{Number(term.childCount || 0).toLocaleString()} links</dd></div>
               <div><dt>Source</dt><dd>{termSourceSummary(term)}</dd></div>
             </dl>
@@ -1249,10 +1299,11 @@ function PrototypeTermDetail({ associationBrowserOpen = false, onActionMessage, 
           {showAssociations ? "Hide associations" : "Browse all associations"}
         </button>
         <button
-          onClick={() => onActionMessage(`${term.term} reviewer workflow is unavailable on this route; no glossary mutation was submitted.`)}
+          disabled
+          title="Reviewer workflow requires a backed glossary task workflow; this route does not submit local-only mutations."
           type="button"
         >
-          Show reviewer workflow note
+          Reviewer workflow unavailable
         </button>
       </div>
       {showAssociations ? (
@@ -1283,14 +1334,14 @@ function PrototypeTermDetail({ associationBrowserOpen = false, onActionMessage, 
           )}
         </section>
       ) : null}
-    </PrototypeDetailShell>
+    </RegistryDetailShell>
   );
 }
 
-function PrototypeCdeDetail({ cde, onActionMessage, onClose, onOpenAsset, onOpenLineage }) {
+function CdeRegistryDetail({ cde, onActionMessage, onClose, onOpenAsset, onOpenLineage }) {
   const sourceAssetFqn = sourceAssetFqnForCde(cde);
   return (
-    <PrototypeDetailShell onClose={onClose} title={cde.name}>
+    <RegistryDetailShell onClose={onClose} title={cde.name}>
       <div className="gh-taxonomy-prototype-detail-grid">
         <section className="gh-taxonomy-prototype-detail-card">
           <h3>Source-of-record column</h3>
@@ -1300,12 +1351,12 @@ function PrototypeCdeDetail({ cde, onActionMessage, onClose, onOpenAsset, onOpen
           <h3>Ownership</h3>
           <dl>
             <div><dt>Owner</dt><dd>{cde.owner || "Unassigned"}</dd></div>
-            <div><dt>Recertification</dt><dd>{prototypeFixtureLabel(cde.recert)}</dd></div>
-            <div><dt>Status</dt><dd>{prototypeFixtureLabel(cde.status)}</dd></div>
+            <div><dt>Recertification</dt><dd>{registryEvidenceLabel(cde.recert)}</dd></div>
+            <div><dt>Status</dt><dd>{registryEvidenceLabel(cde.status)}</dd></div>
             <div><dt>SOX</dt><dd>{cde.sox ? "SOX-relevant" : "Not marked SOX"}</dd></div>
           </dl>
           <p className="gh-taxonomy-prototype-detail-note">
-            Prototype fixture - not live quality, recertification, or Unity Catalog proof.
+            Quality, recertification, and Unity Catalog proof require returned backing evidence.
           </p>
         </section>
         <section className="gh-taxonomy-prototype-detail-card">
@@ -1346,26 +1397,31 @@ function PrototypeCdeDetail({ cde, onActionMessage, onClose, onOpenAsset, onOpen
           Open lineage
         </button>
         <button
+          aria-label="Request recertification unavailable: recertification workflow is not backed on this route yet."
           disabled
           title="Recertification workflow is not backed on this route yet."
           type="button"
         >
-          Request recertification unavailable
+          Request recertification
         </button>
         <button
-          onClick={() => onActionMessage(`${cde.name} owner workflow is unavailable on this route; no CDE owner mutation was submitted.`)}
+          aria-label="Owner workflow unavailable: owner workflow requires a backed CDE registry mutation workflow."
+          disabled
+          title="Owner workflow requires a backed CDE registry mutation workflow; this route does not submit local-only mutations."
           type="button"
         >
-          Show owner workflow note
+          Owner workflow
         </button>
         <button
-          onClick={() => onActionMessage(`${cde.name} recertification workflow is unavailable on this route; no CDE mutation was submitted.`)}
+          aria-label="Recertification evidence unavailable: recertification workflow requires a backed CDE registry mutation workflow."
+          disabled
+          title="Recertification workflow requires a backed CDE registry mutation workflow; this route does not submit local-only mutations."
           type="button"
         >
-          Show recertification note
+          Recertification evidence
         </button>
       </div>
-    </PrototypeDetailShell>
+    </RegistryDetailShell>
   );
 }
 

@@ -1,0 +1,625 @@
+{
+  "generatedAt": "2026-05-02T16:46:01.423Z",
+  "baseUrl": "http://127.0.0.1:8765",
+  "buildId": "",
+  "deploymentId": "",
+  "assetFqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+  "mockApi": false,
+  "evidenceKind": "runtime_app_capture",
+  "mockEvidenceWarning": "",
+  "liveDatabricksCapture": false,
+  "routeFilter": [
+    "stewardship"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "stewardship"
+  ],
+  "viewports": [
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "1280x720",
+      "width": 1280,
+      "height": 720
+    }
+  ],
+  "expectedCaptureCount": 3,
+  "captures": [
+    {
+      "route": "stewardship",
+      "path": "/stewardship",
+      "viewport": "1536x1024",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/live-local-stewardship-recheck-2026-05-02/stewardship-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-local-stewardship-recheck-2026-05-02/stewardship-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": false,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": [
+            "Atlas AI Atlas AI is configured for Genie, but GOVAT_GENIE_SPACE_ID is missing."
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8765/governance",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 968,
+          "clientHeight": 968,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center U Unknown Reader Workspace › LocalLive ⌘K UC connected · 50.6% coverage Atlas AI STEWARDSHIP WORKBENCH 0 open work items · SLA evidence unavailable Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available. Filter Bulk assign New work item All 0 P1 critical 0 Overdue 0 Assigned to me 0 Work queue 0 items · sorted by available work-item evidence ID ITEM ASSET ASSIGNED SLA PRIORITY Loading stewardship queue... Select a work item to review evidence, affected asset, suggested actions, and resolution controls.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "U Unknown Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Unknown. Role verification pending."
+          },
+          {
+            "text": "Workspace › LocalLive",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Filter",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Bulk assign",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "New work item",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "P1 critical 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Overdue 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assigned to me 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": true,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "stewardship",
+      "path": "/stewardship",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-local-stewardship-recheck-2026-05-02/stewardship-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-local-stewardship-recheck-2026-05-02/stewardship-1440x900-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": [
+            "Atlas AI Atlas AI is configured for Genie, but GOVAT_GENIE_SPACE_ID is missing."
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8765/governance",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 900,
+          "documentWidth": 1440,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1440,
+          "bottom": 56,
+          "width": 1232,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 900,
+          "width": 208,
+          "height": 900
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1232,
+          "height": 844
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 844,
+          "clientHeight": 844,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center U Unknown Reader Workspace › LocalLive ⌘K UC connected · 50.6% coverage Atlas AI NO ACTOR IDENTITY No forwarded Databricks actor identity was detected. The workspace is degraded read-only and any metadata surfaced here is not actor-scoped proof. STEWARDSHIP WORKBENCH 0 open work items · SLA evidence unavailable Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available. Filter Bulk assign New work item All 0 P1 critical 0 Overdue 0 Assigned to me 0 Work queue 0 items · sorted by available work-item evidence ID ITEM ASSET ASSIGNED SLA PRIORITY -- No work items in this filter Workspace scope Assignee unavailable Evidence unavailable -- Select a work item to review evidence, affected asset, suggested actions, and resolution controls.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "U Unknown Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Unknown"
+          },
+          {
+            "text": "Workspace › LocalLive",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Filter",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Bulk assign",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "New work item",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "P1 critical 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Overdue 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assigned to me 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": true,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "stewardship",
+      "path": "/stewardship",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-local-stewardship-recheck-2026-05-02/stewardship-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-local-stewardship-recheck-2026-05-02/stewardship-1280x720-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": [
+            "Atlas AI Atlas AI is configured for Genie, but GOVAT_GENIE_SPACE_ID is missing."
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8765/governance",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1280,
+          "height": 720,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 720,
+          "documentWidth": 1280,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1280,
+          "bottom": 56,
+          "width": 1072,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 720,
+          "width": 208,
+          "height": 720
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1072,
+          "height": 664
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 664,
+          "clientHeight": 664,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center U Unknown Reader Workspace › LocalLive ⌘K UC connected · 50.6% coverage Atlas AI NO ACTOR IDENTITY No forwarded Databricks actor identity was detected. The workspace is degraded read-only and any metadata surfaced here is not actor-scoped proof. STEWARDSHIP WORKBENCH 0 open work items · SLA evidence unavailable Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available. Filter Bulk assign New work item All 0 P1 critical 0 Overdue 0 Assigned to me 0 Work queue 0 items · sorted by available work-item evidence ID ITEM ASSET ASSIGNED SLA PRIORITY -- No work items in this filter Workspace scope Assignee unavailable Evidence unavailable -- Select a work item to review evidence, affected asset, suggested actions, and resolution controls.",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "U Unknown Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Unknown"
+          },
+          {
+            "text": "Workspace › LocalLive",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Filter",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Bulk assign",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "New work item",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "P1 critical 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Overdue 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assigned to me 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": true,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [],
+  "console": [],
+  "pageErrors": [],
+  "requestFailures": [],
+  "checks": {
+    "buildMatches": true
+  },
+  "captureCount": 3,
+  "interactionCount": 0,
+  "consoleErrorCount": 0,
+  "pageErrorCount": 0,
+  "requestFailureCount": 0,
+  "passed": false
+}

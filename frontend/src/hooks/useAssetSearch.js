@@ -1,6 +1,7 @@
 import { useDeferredValue, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDiscoverySearch } from "../lib/api";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { atlasQueryClient } from "../lib/queryClient";
 
 export function clearAssetSearchCache() {
@@ -21,6 +22,7 @@ function normalizeSearchText(...values) {
 function buildSearchIndex(seedAssets = []) {
   return (seedAssets || [])
     .filter(Boolean)
+    .filter((asset) => !isNonAuthoritativeMockEvidence(asset, asset?.meta, asset?.provenance, asset?.warnings))
     .map((asset) => ({
       asset,
       haystack: normalizeSearchText(

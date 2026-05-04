@@ -11,6 +11,7 @@ import { useGovernanceGlossaryTerm } from "../hooks/useGovernanceGlossaryTerm";
 import { clearAssetSearchCache, useAssetSearch } from "../hooks/useAssetSearch";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import {
   createGovernanceRequest,
   fetchGovernanceRequestDetail,
@@ -561,10 +562,11 @@ function textValue(value, fallback = "") {
 }
 
 function normalizeCurrentUser(value = {}) {
-  /** @type {{ email?: string, userEmail?: string, actorEmail?: string, name?: string, userName?: string, actorName?: string, displayName?: string }} */
+  /** @type {{ email?: string, userEmail?: string, actorEmail?: string, name?: string, userName?: string, actorName?: string, displayName?: string, role?: string, actorRole?: string }} */
   const user = value && typeof value === "object" ? value : {};
   const email = textValue(user.email || user.userEmail || user.actorEmail).toLowerCase();
   const name = textValue(user.name || user.userName || user.actorName || user.displayName).toLowerCase();
+  const role = textValue(user.role || user.actorRole);
   const aliases = new Set();
   if (email) {
     aliases.add(email);
@@ -574,7 +576,21 @@ function normalizeCurrentUser(value = {}) {
     aliases.add(name);
     name.split(/\s+/).filter(Boolean).forEach((part) => aliases.add(part));
   }
-  return { email, name, aliases: [...aliases].filter((item) => item.length >= 3) };
+  return { email, name, role, aliases: [...aliases].filter((item) => item.length >= 3) };
+}
+
+function governanceMutationRole(currentUser = {}, bootstrap = {}) {
+  return textValue(
+    currentUser?.role ||
+      currentUser?.actorRole ||
+      bootstrap?.shell?.role ||
+      bootstrap?.shell?.actorRole ||
+      "",
+  );
+}
+
+function canMutateGovernanceRequests(currentUser = {}, bootstrap = {}) {
+  return /\b(?:admin|steward)\b/i.test(governanceMutationRole(currentUser, bootstrap));
 }
 
 function assetNameFromFqn(value = "") {
@@ -658,16 +674,30 @@ function hasSlaEvidence(request = {}) {
   );
 }
 
+function hasNonAuthoritativeWorkItemMarker(...values) {
+  const haystack = values.map((value) => {
+    if (value == null) return "";
+    if (typeof value === "object") {
+      try {
+        return JSON.stringify(value);
+      } catch (_error) {
+        return "";
+      }
+    }
+    return String(value);
+  }).join(" ").toLowerCase();
+  return /prototype|mock|fixture|validation[_\s-]*seed|validation sample|home[_\s-]*northstar[_\s-]*seed|home[_\s-]*evidence[_\s-]*plane|ga[_\s-]*home[_\s-]*seed/.test(haystack);
+}
+
 function openingEvidenceFacts(request = {}) {
   if (!request) return [];
-  const source = textValue(
-    request.source ||
+  const source = customerSafeEvidenceSource(textValue(
+      request.source ||
       request.evidenceSource ||
       request.provenance?.source ||
-      request.meta?.source ||
-      (isValidationWorkItem(request) ? "Validation sample" : ""),
+      request.meta?.source,
     "Unavailable",
-  );
+  ));
   const observedAt = textValue(
     request.observedAt ||
       request.evidenceObservedAt ||
@@ -695,14 +725,23 @@ function isValidationWorkItem(request = {}) {
   if (!request || typeof request !== "object") return false;
   const requestId = textValue(request.requestId || request.id).toLowerCase();
   const source = textValue(request.source || request.provenance?.source || request.meta?.source).toLowerCase();
-  return request.validationSample === true || /^ga-home-seed-/.test(requestId) || source.includes("validation");
+  return request.validationSample === true || hasNonAuthoritativeWorkItemMarker(requestId, source, request);
 }
 
 function workItemDisplayId(request = {}) {
   const requestId = textValue(request.requestId || request.id, "—");
-  const seedMatch = requestId.match(/^ga-home-seed-request-(\d+)$/i);
-  if (seedMatch) return `VAL-${seedMatch[1]}`;
+  const evidenceMatch = requestId.match(/^(?:ga-home-evidence|GOV-HOME-EVIDENCE)-request-(\d+)$/i);
+  if (evidenceMatch) return `GOV-${evidenceMatch[1]}`;
   return requestId.length > 14 ? `${requestId.slice(0, 11)}…` : requestId;
+}
+
+function customerSafeEvidenceSource(source = "") {
+  const text = textValue(source, "Unavailable");
+  if (/home-evidence-plane|home-northstar-seed|seed|fixture|prototype|mock/i.test(text)) {
+    return "Evidence source unavailable";
+  }
+  if (/metadata_audit|metadata audit/i.test(text)) return "Governance audit log";
+  return text;
 }
 
 function isP1WorkItem(request = {}) {
@@ -738,35 +777,9 @@ function queueFilterCounts(requests = [], currentUser = {}) {
   };
 }
 
-function fallbackSuggestedActions(request = {}) {
-  const kind = workItemKind(request).toLowerCase();
-  if (kind.includes("owner")) {
-    return [
-      { icon: "user-plus", label: "Assign owner from suggested teams", detail: "Use query, tag, and domain signals when available." },
-      { icon: "archive", label: "Archive sandbox cleanup", detail: "Only if usage and retention evidence support it." },
-    ];
-  }
-  if (kind.includes("description")) {
-    return [
-      { icon: "sparkles", label: "Draft description with Atlas AI", detail: "Grounded by upstream lineage and column metadata." },
-      { icon: "user", label: "Reassign to steward team", detail: workItemAssigned(request) },
-    ];
-  }
-  if (kind.includes("cert")) {
-    return [
-      { icon: "badge", label: "Approve re-certification", detail: "Requires backed owner, lineage, freshness, and quality evidence." },
-      { icon: "alert", label: "Flag for compliance review", detail: "Escalates without changing metadata." },
-    ];
-  }
-  return [
-    { icon: "check", label: "Mark resolved", detail: "Writes a governance request update when supported." },
-    { icon: "user", label: "Reassign", detail: "Route to the accountable domain steward." },
-  ];
-}
-
 function suggestedActionsFor(request = {}) {
   const actions = Array.isArray(request.suggestedActions) ? request.suggestedActions : [];
-  return actions.length ? actions : fallbackSuggestedActions(request);
+  return actions.filter((action) => action && !hasNonAuthoritativeWorkItemMarker(action));
 }
 
 function finiteMetricValue(value, fallback = null) {
@@ -776,21 +789,21 @@ function finiteMetricValue(value, fallback = null) {
 }
 
 function normalizeNorthstarRequest(request = {}, index = 0) {
-  const requestId = textValue(request.requestId || request.id, `request-${index + 1}`);
+  const requestId = textValue(request.requestId || request.id);
   const assetFqn = textValue(request.assetFqn || request.asset);
   const kind = workItemKind(request);
   return {
     ...request,
     requestId,
     id: requestId,
-    title: textValue(request.title || kind, "Governance request"),
-    rawTitle: textValue(request.rawTitle || request.title || kind, "Governance request"),
+    title: textValue(request.title || kind, "Governance work item"),
+    rawTitle: textValue(request.rawTitle || request.title || kind, "Governance work item"),
     kind,
     typeLabel: requestTypeLabel(request),
     detail: textValue(request.detail || request.note || request.newComment),
     priority: requestPriority(request),
-    status: textValue(request.status, "Pending"),
-    requester: textValue(request.requester || request.createdBy, "Unknown requester"),
+    status: textValue(request.status, "Unavailable"),
+    requester: textValue(request.requester || request.createdBy, "Requester unavailable"),
     createdAt: textValue(request.createdAt),
     dueAt: textValue(request.dueAt),
     assetFqn,
@@ -1231,7 +1244,11 @@ export default function GovernanceWorkspace({
         setFocusedAssetSnapshot(null);
       }
       clearAssetSearchCache();
-      const nextGovernance = normalizeGovernancePayload(next?.governance || next);
+      const hasGovernanceEnvelope =
+        next && typeof next === "object" && Object.prototype.hasOwnProperty.call(next, "governance");
+      const nextGovernance = hasGovernanceEnvelope
+        ? (next.governance ? normalizeGovernancePayload(next.governance) : null)
+        : normalizeGovernancePayload(next);
       if (selectedGlossary?.termId) {
         void atlasQueryClient.invalidateQueries({
           queryKey: ["governanceGlossaryTerm", selectedGlossary.termId],
@@ -1243,8 +1260,10 @@ export default function GovernanceWorkspace({
           next.term,
         );
       }
-      setLiveGovernance(nextGovernance);
-      onGovernanceChange?.(nextGovernance);
+      if (nextGovernance) {
+        setLiveGovernance(nextGovernance);
+        onGovernanceChange?.(nextGovernance);
+      }
       setMutationState({ kind, loading: false, error: "", success });
       return next;
     } catch (error) {
@@ -1314,15 +1333,19 @@ export default function GovernanceWorkspace({
   const northstarUseBootstrapFallback = Boolean(
     northstarError && !Array.isArray(northstarWorkbench?.requests),
   );
-  const northstarSource = String(
-    northstarWorkbench?.meta?.source ||
-      northstarWorkbench?.source ||
-      northstarWorkbench?.provenance?.source ||
-      "",
-  ).trim().toLowerCase();
-  const northstarPrototypeEvidence =
-    String(northstarWorkbench?.meta?.state || northstarWorkbench?.state || "").trim().toLowerCase() === "prototype_mock" ||
-    /prototype|mock/.test(northstarSource);
+  const northstarWorkbenchEvidenceEnvelope = northstarWorkbench
+    ? {
+        authoritative: northstarWorkbench.authoritative,
+        evidenceKind: northstarWorkbench.evidenceKind,
+        meta: northstarWorkbench.meta,
+        mockApi: northstarWorkbench.mockApi,
+        provenance: northstarWorkbench.provenance,
+        source: northstarWorkbench.source,
+        state: northstarWorkbench.state,
+        warnings: northstarWorkbench.warnings,
+      }
+    : null;
+  const northstarPrototypeEvidence = isNonAuthoritativeMockEvidence(northstarWorkbenchEvidenceEnvelope);
   const northstarQueueUniverse = useMemo(() => {
     const rawRequests = Array.isArray(northstarWorkbench?.requests)
       ? northstarWorkbench.requests
@@ -1331,7 +1354,7 @@ export default function GovernanceWorkspace({
         : [];
     const normalized = rawRequests.map((item, index) => normalizeNorthstarRequest(item, index));
     const trustworthyRows = northstarPrototypeEvidence
-      ? normalized
+      ? []
       : normalized.filter((item) => !isValidationWorkItem(item));
     return focusedAssetFqn
       ? trustworthyRows.filter((item) => item.assetFqn === focusedAssetFqn)
@@ -1460,7 +1483,7 @@ export default function GovernanceWorkspace({
       eyebrow: "Suggested action review",
       body: action.detail || "Review the work item evidence before making a metadata change.",
       facts: [
-        ["Work item", northstarSelectedDetail?.requestId || "No selected item"],
+        ["Work item", northstarSelectedDetail ? workItemDisplayId(northstarSelectedDetail) : "No selected item"],
         ["Mutation", "Not performed"],
         ["Evidence", northstarSelectedDetail?.evidence ? "Recorded" : "Unavailable"],
       ],
@@ -1477,7 +1500,7 @@ export default function GovernanceWorkspace({
         updateGovernanceRequest(northstarSelectedDetail.requestId, {
           status: status === "commented" ? northstarSelectedDetail.status : status,
           reviewNote,
-        }),
+        }, { fast: true }),
       status === "approved" ? "Request approved." : "Request updated.",
     );
     setNorthstarWorkbench((current) => {
@@ -1496,13 +1519,7 @@ export default function GovernanceWorkspace({
         ),
       };
     });
-    const prototypeAction = northstarPrototypeEvidence
-      ? status === "resolved" ? "Prototype work item marked resolved locally - not live workflow completion." :
-        status === "commented" ? "Prototype comment recorded locally - not live workflow completion." :
-        "Prototype request state updated locally - not live workflow completion."
-      : "";
     setNorthstarActionMessage(
-      prototypeAction ||
       (status === "approved" ? "Request approved." :
         status === "rejected" ? "Request changes requested." :
         status === "resolved" ? "Work item resolved." :
@@ -1524,22 +1541,10 @@ export default function GovernanceWorkspace({
     );
   };
 
-  const openWorkItemCount = finiteMetricValue(
-    northstarPrototypeEvidence
-      ? northstarWorkbench?.summary?.openWorkItems ??
-        northstarWorkbench?.summary?.openItems ??
-        northstarWorkbench?.queue?.openWorkItems
-      : null,
-    northstarQueueUniverse.length,
-  );
-  const prototypeSlaSummaryValue =
-    northstarWorkbench?.summary?.slaBreaches ??
-    northstarWorkbench?.summary?.overdueItems ??
-    northstarWorkbench?.queue?.slaBreaches;
-  const northstarHasPrototypeSlaSummary =
-    northstarPrototypeEvidence && Number.isFinite(Number(prototypeSlaSummaryValue));
+  const openWorkItemCount = finiteMetricValue(null, northstarQueueUniverse.length);
+  const northstarHasPrototypeSlaSummary = false;
   const slaBreachCount = finiteMetricValue(
-    northstarHasPrototypeSlaSummary ? prototypeSlaSummaryValue : null,
+    null,
     northstarQueueCounts.overdue,
   );
   const northstarSlaEvidenceAvailable =
@@ -1547,9 +1552,7 @@ export default function GovernanceWorkspace({
   const northstarSlaSummary = northstarSlaEvidenceAvailable
     ? `${slaBreachCount.toLocaleString()} SLA breaches`
     : "SLA evidence unavailable";
-  const northstarQueueSortLabel = northstarPrototypeEvidence && northstarQueueUniverse.length > 0
-    ? "prototype fixture order"
-    : northstarSlaEvidenceAvailable
+  const northstarQueueSortLabel = northstarSlaEvidenceAvailable
       ? "backed SLA risk"
       : "available work-item evidence";
   const queueTabs = [
@@ -1563,14 +1566,15 @@ export default function GovernanceWorkspace({
     : [];
   const selectedImplementation = northstarSelectedDetail?.implementation ||
     "Items materialize from policy violations and steward-filed requests into the governance control plane. Resolution writes request state and audit evidence when the backend supports the mutation.";
+  const northstarCanMutate = canMutateGovernanceRequests(currentUser || {}, bootstrap || {});
+  const northstarMutationRole = governanceMutationRole(currentUser || {}, bootstrap || {}) || "Reader";
   const northstarMutationUnavailable = Boolean(northstarSelectedDetail) && (
-    northstarPrototypeEvidence ||
-    isValidationWorkItem(northstarSelectedDetail)
+    northstarPrototypeEvidence || !northstarCanMutate
   );
   const northstarMutationUnavailableReason = northstarPrototypeEvidence
-    ? "Prototype work items are visual workflow evidence only; they cannot be mutated as live governance requests."
-    : isValidationWorkItem(northstarSelectedDetail)
-      ? "Validation sample rows are not live governance workflow state."
+    ? "These work items are unavailable until live governance request evidence is loaded."
+    : !northstarCanMutate
+      ? `Comment and resolve require Steward or Admin role. Current actor role: ${northstarMutationRole}.`
       : "";
   if (mode === "stewardship") {
     return (
@@ -1582,10 +1586,8 @@ export default function GovernanceWorkspace({
               {`${openWorkItemCount.toLocaleString()} open work items · ${northstarSlaSummary}`}
             </h1>
             <p>
-              {northstarPrototypeEvidence && northstarQueueUniverse.length > 0
-                ? "Prototype stewardship rows preserve the target queue and detail workflow, but they are not live governance request, assignment, or SLA proof."
-                : northstarPrototypeEvidence
-                  ? "Prototype degraded stewardship evidence preserves the target queue and detail frame, but no live governance request, assignment, or SLA proof was returned."
+              {northstarPrototypeEvidence
+                ? "Non-authoritative stewardship payloads were rejected. Live governance request, assignment, and SLA evidence is unavailable for this route."
                 : "Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available."}
             </p>
           </div>
@@ -1722,14 +1724,13 @@ export default function GovernanceWorkspace({
                     role="row"
                     type="button"
                   >
-                    <span className="is-mono" title={item.requestId}>
+                    <span className="is-mono" title={workItemDisplayId(item)}>
                       {workItemDisplayId(item)}
                     </span>
                     <span>
                       <strong>{workItemKind(item)}</strong>
                       <small>
                         {item.age ? `Age ${item.age}` : item.createdAt ? `Created ${formatShortDate(item.createdAt)}` : "Age unavailable"}
-                        {isValidationWorkItem(item) ? " · Validation sample" : ""}
                       </small>
                     </span>
                     <span className="is-mono">{item.assetFqn || item.assetName}</span>
@@ -1794,12 +1795,9 @@ export default function GovernanceWorkspace({
               <>
                 <div className="gh-governance-ns-detail-head">
                   <div>
-                    <h2 className="gh-governance-ns-detail-id">{northstarSelectedDetail.requestId}</h2>
+                    <h2 className="gh-governance-ns-detail-id">{workItemDisplayId(northstarSelectedDetail)}</h2>
                     <p>{workItemKind(northstarSelectedDetail)}</p>
                     <div className="gh-governance-ns-request-id">
-                      {isValidationWorkItem(northstarSelectedDetail) ? (
-                        <span className="gh-governance-ns-validation-badge">Validation sample</span>
-                      ) : null}
                       <span className={`gh-governance-ns-priority tone-${priorityTone(northstarSelectedDetail.priority)}`}>
                         {priorityShortLabel(northstarSelectedDetail.priority)} · {priorityDisplayLabel(northstarSelectedDetail.priority).replace(" Priority", "")}
                       </span>
@@ -1836,7 +1834,7 @@ export default function GovernanceWorkspace({
 
                 <section className="gh-governance-ns-suggestions">
                   <h3>Suggested actions</h3>
-                  {selectedSuggestedActions.map((action, index) => (
+                  {selectedSuggestedActions.length ? selectedSuggestedActions.map((action, index) => (
                     <button
                       key={`${action.label || "action"}-${index}`}
                       onClick={() => showSuggestedActionPanel(action)}
@@ -1849,10 +1847,17 @@ export default function GovernanceWorkspace({
                       </span>
                       <GovernanceGlyph icon="chevron" />
                     </button>
-                  ))}
+                  )) : (
+                    <p className="gh-governance-ns-empty">No backed suggested actions were returned for this work item.</p>
+                  )}
                 </section>
 
                 <div className="gh-governance-ns-actions">
+                  {northstarMutationUnavailableReason ? (
+                    <span className="gh-governance-ns-mutation-note">
+                      {northstarMutationUnavailableReason}
+                    </span>
+                  ) : null}
                   <button
                     className="tone-comment"
                     disabled={!northstarSelectedDetail.requestId || mutationState.loading || northstarMutationUnavailable}

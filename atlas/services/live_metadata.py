@@ -146,7 +146,7 @@ def lineage_asset_stub(inventory: pd.DataFrame, asset_fqn: str) -> pd.Series:
             "governance_score": 0,
             "pending_requests": 0,
             "owner_count": 0,
-            "governance_status": "Needs Work",
+            "governance_status": "",
             "tags": {},
             "domain": "",
             "tier": "",

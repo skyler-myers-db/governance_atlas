@@ -398,6 +398,30 @@
   height: 18px;
 }
 
+.gh-topbar-search-clear {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(96, 116, 142, 0.22);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.58);
+  color: #60748e;
+  cursor: pointer;
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+.gh-topbar-search-clear:hover {
+  border-color: rgba(91, 67, 238, 0.35);
+  color: #293c58;
+}
+
+.gh-topbar-search-clear:focus-visible {
+  outline: none;
+  box-shadow: var(--gh-focus-ring, 0 0 0 3px rgba(91, 67, 238, 0.22));
+}
+
 .gh-topbar-search-input {
   flex: 1 1 auto;
   min-width: 0;

@@ -1,0 +1,1120 @@
+{
+  "generatedAt": "2026-05-04T02:44:47.744Z",
+  "baseUrl": "http://127.0.0.1:8000",
+  "evidenceKind": "runtime_app_performance",
+  "mockApi": false,
+  "buildId": "frontend-85ea0d874949",
+  "observedBuildIds": [
+    "frontend-85ea0d874949"
+  ],
+  "buildMatches": true,
+  "liveDatabricksCapture": false,
+  "forwardedActorCapture": true,
+  "warning": "Local runtime performance evidence only; not deployed Databricks App proof.",
+  "passed": false,
+  "budgetPassed": false,
+  "apiResults": [
+    {
+      "id": "bootstrap-home",
+      "pass": "first-observed",
+      "path": "/api/bootstrap?surface=home",
+      "status": 200,
+      "ok": true,
+      "durationMs": 17.8,
+      "budgetMs": 500,
+      "withinBudget": true,
+      "bytes": 9307,
+      "serverDurationMs": 1.5,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "runtime-status",
+      "pass": "first-observed",
+      "path": "/api/runtime/status",
+      "status": 200,
+      "ok": true,
+      "durationMs": 2.7,
+      "budgetMs": 1000,
+      "withinBudget": true,
+      "bytes": 39272,
+      "serverDurationMs": 0.7,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "command-center",
+      "pass": "first-observed",
+      "path": "/api/atlas/command-center",
+      "status": 200,
+      "ok": true,
+      "durationMs": 2.3,
+      "budgetMs": 2000,
+      "withinBudget": true,
+      "bytes": 1437,
+      "serverDurationMs": 1.3,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "discovery-search",
+      "pass": "first-observed",
+      "path": "/api/discovery/search?limit=80&sortBy=Best%20match",
+      "status": 200,
+      "ok": true,
+      "durationMs": 3.1,
+      "budgetMs": 2000,
+      "withinBudget": true,
+      "bytes": 1820,
+      "serverDurationMs": 2,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "asset-header",
+      "pass": "first-observed",
+      "path": "/api/assets/finance_prod.curated.revenue_daily?sections=header",
+      "status": 200,
+      "ok": true,
+      "durationMs": 4671.9,
+      "budgetMs": 2000,
+      "withinBudget": false,
+      "bytes": 2743,
+      "serverDurationMs": 4669.2,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "asset-360",
+      "pass": "first-observed",
+      "path": "/api/atlas/assets/finance_prod.curated.revenue_daily/360",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1523.5,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 3356,
+      "serverDurationMs": 1513.8,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "lineage-initial",
+      "pass": "first-observed",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=initial",
+      "status": 200,
+      "ok": true,
+      "durationMs": 3,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 4011,
+      "serverDurationMs": 1.9,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "lineage-full",
+      "pass": "first-observed",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=full",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1753.6,
+      "budgetMs": 8000,
+      "withinBudget": true,
+      "bytes": 4017,
+      "serverDurationMs": 1750.9,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "governance-workbench",
+      "pass": "first-observed",
+      "path": "/api/atlas/governance/workbench",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1347.1,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 2824,
+      "serverDurationMs": 1343.4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "taxonomy-overview",
+      "pass": "first-observed",
+      "path": "/api/atlas/taxonomy/overview",
+      "status": 200,
+      "ok": true,
+      "durationMs": 17.3,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 953,
+      "serverDurationMs": 16,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "cde-dashboard",
+      "pass": "first-observed",
+      "path": "/api/atlas/cde",
+      "status": 200,
+      "ok": true,
+      "durationMs": 18.7,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 997,
+      "serverDurationMs": 16.4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "audit-evidence",
+      "pass": "first-observed",
+      "path": "/api/atlas/audit/evidence?date_range=7d&limit=50",
+      "status": 200,
+      "ok": true,
+      "durationMs": 19.3,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 1065,
+      "serverDurationMs": 13.5,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "admin-control-center",
+      "pass": "first-observed",
+      "path": "/api/atlas/admin/control-center",
+      "status": 200,
+      "ok": true,
+      "durationMs": 17.8,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 4707,
+      "serverDurationMs": 9,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "bootstrap-home",
+      "pass": "warm-repeat",
+      "path": "/api/bootstrap?surface=home",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1.2,
+      "budgetMs": 500,
+      "withinBudget": true,
+      "bytes": 9307,
+      "serverDurationMs": 0.4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "runtime-status",
+      "pass": "warm-repeat",
+      "path": "/api/runtime/status",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1.4,
+      "budgetMs": 1000,
+      "withinBudget": true,
+      "bytes": 39272,
+      "serverDurationMs": 0.6,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "command-center",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/command-center",
+      "status": 200,
+      "ok": true,
+      "durationMs": 0.9,
+      "budgetMs": 2000,
+      "withinBudget": true,
+      "bytes": 1437,
+      "serverDurationMs": 0.4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "discovery-search",
+      "pass": "warm-repeat",
+      "path": "/api/discovery/search?limit=80&sortBy=Best%20match",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1.1,
+      "budgetMs": 2000,
+      "withinBudget": true,
+      "bytes": 1820,
+      "serverDurationMs": 0.4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "asset-header",
+      "pass": "warm-repeat",
+      "path": "/api/assets/finance_prod.curated.revenue_daily?sections=header",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1944,
+      "budgetMs": 2000,
+      "withinBudget": true,
+      "bytes": 2743,
+      "serverDurationMs": 1943.1,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "asset-360",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/assets/finance_prod.curated.revenue_daily/360",
+      "status": 200,
+      "ok": true,
+      "durationMs": 3253,
+      "budgetMs": 3000,
+      "withinBudget": false,
+      "bytes": 3356,
+      "serverDurationMs": 3251.8,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "lineage-initial",
+      "pass": "warm-repeat",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=initial",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1.4,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 4011,
+      "serverDurationMs": 0.5,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "lineage-full",
+      "pass": "warm-repeat",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=full",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1.3,
+      "budgetMs": 8000,
+      "withinBudget": true,
+      "bytes": 4017,
+      "serverDurationMs": 0.6,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "governance-workbench",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/governance/workbench",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 2824,
+      "serverDurationMs": 0.3,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "taxonomy-overview",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/taxonomy/overview",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1.1,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 953,
+      "serverDurationMs": 0.4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "cde-dashboard",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/cde",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1.5,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 78913,
+      "serverDurationMs": 0.7,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "audit-evidence",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/audit/evidence?date_range=7d&limit=50",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1.2,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 1065,
+      "serverDurationMs": 0.5,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "admin-control-center",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/admin/control-center",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1.6,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 4707,
+      "serverDurationMs": 0.9,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    }
+  ],
+  "routeResults": [
+    {
+      "id": "command-center",
+      "pass": "first-observed",
+      "path": "/command-center",
+      "settled": true,
+      "domContentLoadedMs": 103,
+      "settleMs": 213.7,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 3682,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 100.80000001192093,
+        "loadEventEnd": 100.90000003576279,
+        "responseEnd": 41.5,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "discover",
+      "pass": "first-observed",
+      "path": "/discover",
+      "settled": true,
+      "domContentLoadedMs": 16.1,
+      "settleMs": 79.3,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 798,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 1
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 15.300000011920929,
+        "loadEventEnd": 16.899999976158142,
+        "responseEnd": 2.300000011920929,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "stewardship",
+      "pass": "first-observed",
+      "path": "/stewardship",
+      "settled": true,
+      "domContentLoadedMs": 16.1,
+      "settleMs": 81.4,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1625,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 15.300000011920929,
+        "loadEventEnd": 16.80000001192093,
+        "responseEnd": 2,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "glossary",
+      "pass": "first-observed",
+      "path": "/glossary-cdes",
+      "settled": true,
+      "domContentLoadedMs": 21.6,
+      "settleMs": 60.3,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 2003,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 20.599999964237213,
+        "loadEventEnd": 20.599999964237213,
+        "responseEnd": 1.699999988079071,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "cde-registry",
+      "pass": "first-observed",
+      "path": "/glossary-cdes?tab=cdes",
+      "settled": true,
+      "domContentLoadedMs": 32.1,
+      "settleMs": 79.5,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1582,
+      "hasUnavailableText": false,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 31.399999976158142,
+        "loadEventEnd": 32.89999997615814,
+        "responseEnd": 19.899999976158142,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "lineage",
+      "pass": "first-observed",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "settled": true,
+      "domContentLoadedMs": 19.3,
+      "settleMs": 58.8,
+      "budgetMs": 8000,
+      "withinBudget": true,
+      "textLength": 1776,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 18.299999952316284,
+        "loadEventEnd": 18.299999952316284,
+        "responseEnd": 1.699999988079071,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "audit",
+      "pass": "first-observed",
+      "path": "/audit-evidence",
+      "settled": true,
+      "domContentLoadedMs": 20.6,
+      "settleMs": 68.1,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1040,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 18.399999976158142,
+        "loadEventEnd": 18.5,
+        "responseEnd": 1.699999988079071,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "control-center",
+      "pass": "first-observed",
+      "path": "/control-center",
+      "settled": true,
+      "domContentLoadedMs": 14.4,
+      "settleMs": 61.5,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1209,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 13.699999988079071,
+        "loadEventEnd": 15.399999976158142,
+        "responseEnd": 1.800000011920929,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "command-center",
+      "pass": "warm-repeat",
+      "path": "/command-center",
+      "settled": true,
+      "domContentLoadedMs": 20.4,
+      "settleMs": 79.3,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 3682,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 19.19999998807907,
+        "loadEventEnd": 19.19999998807907,
+        "responseEnd": 2,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "discover",
+      "pass": "warm-repeat",
+      "path": "/discover",
+      "settled": true,
+      "domContentLoadedMs": 18.5,
+      "settleMs": 68.6,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 798,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 1
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 17.599999964237213,
+        "loadEventEnd": 17.599999964237213,
+        "responseEnd": 1.7999999523162842,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "stewardship",
+      "pass": "warm-repeat",
+      "path": "/stewardship",
+      "settled": true,
+      "domContentLoadedMs": 14.3,
+      "settleMs": 78.1,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1625,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 13.5,
+        "loadEventEnd": 15,
+        "responseEnd": 1.600000023841858,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "glossary",
+      "pass": "warm-repeat",
+      "path": "/glossary-cdes",
+      "settled": true,
+      "domContentLoadedMs": 14.3,
+      "settleMs": 61.7,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 2003,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 13.799999952316284,
+        "loadEventEnd": 15.399999976158142,
+        "responseEnd": 1.5999999642372131,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "cde-registry",
+      "pass": "warm-repeat",
+      "path": "/glossary-cdes?tab=cdes",
+      "settled": true,
+      "domContentLoadedMs": 65.3,
+      "settleMs": 111.6,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1314,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 64.10000002384186,
+        "loadEventEnd": 64.19999998807907,
+        "responseEnd": 47.89999997615814,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "lineage",
+      "pass": "warm-repeat",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "settled": true,
+      "domContentLoadedMs": 14.6,
+      "settleMs": 73.7,
+      "budgetMs": 8000,
+      "withinBudget": true,
+      "textLength": 2587,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 14,
+        "loadEventEnd": 15.5,
+        "responseEnd": 1.800000011920929,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "audit",
+      "pass": "warm-repeat",
+      "path": "/audit-evidence",
+      "settled": true,
+      "domContentLoadedMs": 15,
+      "settleMs": 78.9,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 2958,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 14.199999988079071,
+        "loadEventEnd": 15.800000011920929,
+        "responseEnd": 1.699999988079071,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "control-center",
+      "pass": "warm-repeat",
+      "path": "/control-center",
+      "settled": true,
+      "domContentLoadedMs": 14.2,
+      "settleMs": 63.4,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1212,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 13.400000035762787,
+        "loadEventEnd": 14.900000035762787,
+        "responseEnd": 1.600000023841858,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    }
+  ],
+  "failed": [
+    {
+      "id": "asset-header",
+      "pass": "first-observed",
+      "path": "/api/assets/finance_prod.curated.revenue_daily?sections=header",
+      "status": 200,
+      "ok": true,
+      "durationMs": 4671.9,
+      "budgetMs": 2000,
+      "withinBudget": false,
+      "bytes": 2743,
+      "serverDurationMs": 4669.2,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "asset-360",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/assets/finance_prod.curated.revenue_daily/360",
+      "status": 200,
+      "ok": true,
+      "durationMs": 3253,
+      "budgetMs": 3000,
+      "withinBudget": false,
+      "bytes": 3356,
+      "serverDurationMs": 3251.8,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    }
+  ],
+  "worst": [
+    {
+      "id": "asset-header",
+      "pass": "first-observed",
+      "path": "/api/assets/finance_prod.curated.revenue_daily?sections=header",
+      "status": 200,
+      "ok": true,
+      "durationMs": 4671.9,
+      "budgetMs": 2000,
+      "withinBudget": false,
+      "bytes": 2743,
+      "serverDurationMs": 4669.2,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "asset-360",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/assets/finance_prod.curated.revenue_daily/360",
+      "status": 200,
+      "ok": true,
+      "durationMs": 3253,
+      "budgetMs": 3000,
+      "withinBudget": false,
+      "bytes": 3356,
+      "serverDurationMs": 3251.8,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "asset-header",
+      "pass": "warm-repeat",
+      "path": "/api/assets/finance_prod.curated.revenue_daily?sections=header",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1944,
+      "budgetMs": 2000,
+      "withinBudget": true,
+      "bytes": 2743,
+      "serverDurationMs": 1943.1,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "lineage-full",
+      "pass": "first-observed",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=full",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1753.6,
+      "budgetMs": 8000,
+      "withinBudget": true,
+      "bytes": 4017,
+      "serverDurationMs": 1750.9,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "asset-360",
+      "pass": "first-observed",
+      "path": "/api/atlas/assets/finance_prod.curated.revenue_daily/360",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1523.5,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 3356,
+      "serverDurationMs": 1513.8,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "governance-workbench",
+      "pass": "first-observed",
+      "path": "/api/atlas/governance/workbench",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1347.1,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 2824,
+      "serverDurationMs": 1343.4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "command-center",
+      "pass": "first-observed",
+      "path": "/command-center",
+      "settled": true,
+      "domContentLoadedMs": 103,
+      "settleMs": 213.7,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 3682,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 100.80000001192093,
+        "loadEventEnd": 100.90000003576279,
+        "responseEnd": 41.5,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "cde-registry",
+      "pass": "warm-repeat",
+      "path": "/glossary-cdes?tab=cdes",
+      "settled": true,
+      "domContentLoadedMs": 65.3,
+      "settleMs": 111.6,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1314,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 64.10000002384186,
+        "loadEventEnd": 64.19999998807907,
+        "responseEnd": 47.89999997615814,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "stewardship",
+      "pass": "first-observed",
+      "path": "/stewardship",
+      "settled": true,
+      "domContentLoadedMs": 16.1,
+      "settleMs": 81.4,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1625,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 15.300000011920929,
+        "loadEventEnd": 16.80000001192093,
+        "responseEnd": 2,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    },
+    {
+      "id": "cde-registry",
+      "pass": "first-observed",
+      "path": "/glossary-cdes?tab=cdes",
+      "settled": true,
+      "domContentLoadedMs": 32.1,
+      "settleMs": 79.5,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1582,
+      "hasUnavailableText": false,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 31.399999976158142,
+        "loadEventEnd": 32.89999997615814,
+        "responseEnd": 19.899999976158142,
+        "transferSize": 19981,
+        "encodedBodySize": 19681
+      },
+      "error": ""
+    }
+  ]
+}

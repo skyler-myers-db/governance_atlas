@@ -128,9 +128,15 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertIn("table_lineage_surface", flag_keys)
         self.assertIn("query_history_surface", flag_keys)
 
-    def test_shell_payload_uses_preloaded_discovery_count_for_live_capabilities(self) -> None:
+    def test_shell_payload_uses_fast_cached_summary_without_discovery_search(self) -> None:
         runtime_app = snapshot_script.runtime_app
         request = SimpleNamespace(headers={})
+        discovery_called = False
+
+        def fail_if_discovery_search_runs(_request, **_kwargs):
+            nonlocal discovery_called
+            discovery_called = True
+            raise AssertionError("bootstrap must not run a blocking discovery search")
 
         with patch.multiple(
             runtime_app,
@@ -140,10 +146,11 @@ class RuntimeApiContractsTests(unittest.TestCase):
                 "query": "",
             },
             _build_id=lambda: "build-123",
-            _discovery_search_payload=lambda _request, **_kwargs: {
-                "assets": [{"fqn": "datapact.atlas.customer_dim"}],
-                "facets": {"catalogs": []},
-                "count": 12,
+            _discovery_search_payload=fail_if_discovery_search_runs,
+            _fast_bootstrap_inventory_summary=lambda _scope, start_background=True: {
+                "visibleAssets": 12,
+                "availableCatalogCount": 3,
+                "observedCatalogCount": 2,
             },
             _config=lambda: SimpleNamespace(
                 build_id="build-123",
@@ -165,7 +172,8 @@ class RuntimeApiContractsTests(unittest.TestCase):
                 runtime_status={"state": "live", "message": ""},
             )
 
-        self.assertEqual(payload["discovery"]["defaultCount"], 12)
+        self.assertFalse(discovery_called)
+        self.assertNotEqual(payload["discovery"].get("defaultCount"), 12)
         self.assertEqual(payload["capabilities"]["systemInventoryRead"]["state"], "available")
         self.assertTrue(payload["capabilities"]["systemInventoryRead"]["available"])
         self.assertEqual(payload["capabilities"]["tableLineage"]["state"], "available")
@@ -362,8 +370,8 @@ class RuntimeApiContractsTests(unittest.TestCase):
                     "hostPresent": True,
                 },
             },
-            _store_status=lambda: {"state": "live", "message": ""},
-            _bootstrap_inventory_summary=lambda _scope: {
+            _store_status_fast=lambda: {"state": "live", "message": ""},
+            _fast_bootstrap_inventory_summary=lambda _scope: {
                 "visibleAssets": 7,
                 "availableCatalogCount": 3,
                 "observedCatalogCount": 0,
@@ -741,6 +749,55 @@ class RuntimeApiContractsTests(unittest.TestCase):
         self.assertEqual(captured["status"], "resolved")
         self.assertEqual(captured["reviewed_by"], "steward@example.com")
         self.assertEqual(captured["review_note"], "Resolved from Stewardship Workbench.")
+
+    def test_governance_request_patch_allows_existing_request_while_asset_visibility_hydrates(self) -> None:
+        runtime_app = snapshot_script.runtime_app
+        request = SimpleNamespace(headers={})
+        captured = {}
+
+        class Store:
+            def get_change_request(self, request_id):
+                return SimpleNamespace(uc_full_name="main.sales.orders")
+
+            def set_request_status(self, **kwargs):
+                captured.update(kwargs)
+                return None
+
+        with (
+            patch.multiple(
+                runtime_app,
+                _ensure_live_runtime=lambda: None,
+                _ensure_can_approve=lambda _request: "steward@example.com",
+                _user_role_slug=lambda _request: "steward",
+                _store=lambda: Store(),
+                _governance_summary=lambda _request: {"backlog": []},
+                _invalidate_asset_caches=lambda _asset_fqn: None,
+                _asset_visibility_record=lambda *_args, **_kwargs: {
+                    "openable": False,
+                    "visible": False,
+                    "exists": False,
+                    "visibilityState": "loading",
+                },
+            ),
+            patch.object(
+                runtime_app,
+                "_asset_detail_payload",
+                side_effect=AssertionError("loading visibility should not force detail hydration"),
+            ),
+        ):
+            response = runtime_app.api_governance_patch_request(
+                "req-1",
+                runtime_app.GovernanceRequestStatusPatch(status="resolved"),
+                request,
+                fast=True,
+            )
+
+        payload = _response_json(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload["ok"])
+        self.assertIsNone(payload["asset"])
+        self.assertTrue(payload["refreshDeferred"])
+        self.assertEqual(captured["status"], "resolved")
 
     def test_approval_guard_rejects_writer_role(self) -> None:
         runtime_app = snapshot_script.runtime_app

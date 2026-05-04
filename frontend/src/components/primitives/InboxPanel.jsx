@@ -89,7 +89,9 @@ export function InboxPanel({
           })}
         </div>
       ) : (
-        <div className="gh-shell-inbox-empty">No inbox items are currently available.</div>
+        <div className="gh-shell-inbox-empty">
+          {inboxState === "loading" ? "Inbox items are loading from the governance control plane." : "No inbox items are currently available."}
+        </div>
       )}
     </section>
   );

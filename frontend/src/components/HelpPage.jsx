@@ -8,7 +8,7 @@ const SECTIONS = [
       {
         heading: "What is Governance Atlas?",
         body:
-          "Governance Atlas is a Databricks-native metadata command center. It discovers Unity Catalog tables, views, columns, and notebook usage in your workspace and surfaces governance context (domain, owner, sensitivity, glossary term, workflow state, lineage) in one place.",
+          "Governance Atlas is a Databricks-native metadata command center. It discovers Unity Catalog tables, views, and columns in your workspace, then surfaces backed governance context such as domain, owner, sensitivity, glossary terms, workflow state, lineage, and quality evidence when those signals are available.",
       },
       {
         heading: "How do I find an asset?",
@@ -18,7 +18,7 @@ const SECTIONS = [
       {
         heading: "What do the coverage badges mean?",
         body:
-          "The coverage score on each asset card reflects how complete the asset's governance record is (description, owner, domain, glossary term, quality rules). High Coverage is at least 75%. Mid Coverage is 50-74%. Low Coverage is below 50%. The chip is hidden when the governance backfill has not run for that asset.",
+          "The coverage score on each asset card reflects visible metadata completeness for fields such as description, owner, domain, sensitivity, tier, criticality, and data product. Quality evidence is shown separately when a backed quality source reports it.",
       },
     ],
   },
@@ -117,7 +117,6 @@ const SECTIONS = [
 ];
 
 export function HelpPage({ bootState = "live", onBack }) {
-  const prototypeEvidence = String(bootState || "").toLowerCase() === "prototype_mock";
   useEffect(() => {
     if (typeof document === "undefined") return;
     const previous = document.title;
@@ -134,9 +133,7 @@ export function HelpPage({ bootState = "live", onBack }) {
           <div className="gh-eyebrow">Help &amp; docs</div>
           <h1 className="gh-help-page-title">How Governance Atlas works</h1>
           <p className="gh-help-page-lede">
-            {prototypeEvidence
-              ? "Prototype QA captures describe intended live Databricks behavior, but this current page evidence is local prototype mock data only."
-              : "A short, task-oriented guide to discovery, governance, and access. For a deeper reference and the full change log, visit the GitHub README."}
+            A short, task-oriented guide to discovery, governance, and access. For a deeper reference and the full change log, visit the GitHub README.
           </p>
         </div>
         {onBack ? (

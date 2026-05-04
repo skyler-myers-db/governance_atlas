@@ -30,6 +30,7 @@ function normalizeOptions(options) {
 function mergeCommandCenter(seedData, queryData) {
   const base = seedData || EMPTY_COMMAND_CENTER;
   const data = queryData || base;
+  const warningSource = queryData || data;
   return {
     ...EMPTY_COMMAND_CENTER,
     ...base,
@@ -58,12 +59,9 @@ function mergeCommandCenter(seedData, queryData) {
       ...EMPTY_COMMAND_CENTER.meta,
       ...(base.meta || {}),
       ...(data.meta || {}),
-      warnings: [
-        ...new Set([
-          ...((base.meta && Array.isArray(base.meta.warnings)) ? base.meta.warnings : []),
-          ...((data.meta && Array.isArray(data.meta.warnings)) ? data.meta.warnings : []),
-        ]),
-      ],
+      warnings: (warningSource.meta && Array.isArray(warningSource.meta.warnings))
+        ? warningSource.meta.warnings
+        : [],
     },
     kpis: Array.isArray(data.kpis) ? data.kpis : [],
     topDomains: Array.isArray(data.topDomains) ? data.topDomains : [],
@@ -72,6 +70,11 @@ function mergeCommandCenter(seedData, queryData) {
     quickActions: Array.isArray(data.quickActions) ? data.quickActions : [],
     aiPrompts: Array.isArray(data.aiPrompts) ? data.aiPrompts : [],
   };
+}
+
+function defaultRefetchInterval(query) {
+  const state = String(query?.state?.data?.meta?.state || "").trim().toLowerCase();
+  return state === "loading" ? 15_000 : false;
 }
 
 export function useCommandCenter(options = {}) {
@@ -88,7 +91,7 @@ export function useCommandCenter(options = {}) {
       }),
     enabled,
     staleTime: resolvedOptions.staleTime ?? 60_000,
-    refetchInterval: resolvedOptions.refetchInterval ?? false,
+    refetchInterval: resolvedOptions.refetchInterval ?? defaultRefetchInterval,
   });
 
   const refreshActorScope = useCallback(() => {

@@ -3,6 +3,7 @@ import { feature } from "topojson-client";
 import land110m from "world-atlas/land-110m.json";
 import { fetchAtlasAiRecommendations } from "../lib/api";
 import { useAtlasAiConversation } from "../hooks/useAtlasAiConversation";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import {
   DegradedBanner,
   EmptyState,
@@ -70,30 +71,20 @@ const TREND_WINDOWS = [
   { key: "52w", label: "52w", points: 52 },
 ];
 
-const DOMAIN_PLACEHOLDER_ROWS = [
-  "Revenue & Sales",
-  "Customer",
-  "Marketing",
-  "Finance",
-  "Operations",
-  "People",
-];
+const UNAVAILABLE_DOMAIN_ROWS = Array.from(
+  { length: 6 },
+  (_, index) => `Unavailable domain signal ${index + 1}`,
+);
 
-const CATALOG_PLACEHOLDER_ROWS = [
-  "finance_prod",
-  "sales_prod",
-  "customer_360",
-  "product_events",
-  "marketing_mart",
-  "hr_secure",
-];
+const UNAVAILABLE_CATALOG_ROWS = Array.from(
+  { length: 6 },
+  (_, index) => `Unavailable catalog signal ${index + 1}`,
+);
 
-const CDE_PLACEHOLDER_ROWS = [
-  "Net Revenue (USD)",
-  "Customer ID",
-  "Lifetime Value (USD)",
-  "Compensation Band",
-];
+const UNAVAILABLE_CDE_ROWS = Array.from(
+  { length: 4 },
+  (_, index) => `Unavailable CDE signal ${index + 1}`,
+);
 
 function Icon({ name }) {
   const paths = {
@@ -367,7 +358,7 @@ function isShellScopeWarning(warning) {
 }
 
 function isPrototypeMockWarning(warning) {
-  return /prototype mock data|not live databricks evidence|local-prototype-mock/i.test(String(warning || ""));
+  return isNonAuthoritativeMockEvidence(String(warning || ""));
 }
 
 function commandCenterWarnings(data, warnings = []) {
@@ -380,7 +371,12 @@ function commandCenterWarnings(data, warnings = []) {
 function commandCenterEvidenceKind(data, warnings = [], state = "ready") {
   const allWarnings = commandCenterWarnings(data, warnings);
   const markers = [
+    data?.state,
+    data?.source,
+    data?.evidenceKind,
+    data?.evidence_kind,
     data?.meta?.state,
+    data?.meta?.source,
     data?.meta?.evidenceKind,
     data?.meta?.evidence_kind,
     data?.meta?.sourceKind,
@@ -388,9 +384,9 @@ function commandCenterEvidenceKind(data, warnings = [], state = "ready") {
   ].map((value) => String(value || "").trim().toLowerCase());
 
   if (markers.some((value) => value.includes("prototype") || value.includes("mock")) || allWarnings.some(isPrototypeMockWarning)) {
-    return "prototype_mock";
+    return "non_authoritative";
   }
-  if (markers.includes("seed") || markers.includes("loading")) return "seed";
+  if (markers.includes("seed") || markers.includes("loading")) return "hydrating";
   if (
     data?.authoritative === false ||
     data?.meta?.authoritative === false ||
@@ -398,26 +394,53 @@ function commandCenterEvidenceKind(data, warnings = [], state = "ready") {
     data?.meta?.liveDatabricksEvidence === false ||
     data?.meta?.live_databricks_evidence === false
   ) {
-    return "non_authoritative";
+    return "degraded";
   }
   if (markers.includes("degraded") || allWarnings.length) return "degraded";
   return "live";
 }
 
 function provenanceSummary(evidenceKind) {
-  if (evidenceKind === "prototype_mock") {
-    return "Prototype mock data, not live Databricks evidence.";
-  }
-  if (evidenceKind === "seed") {
-    return "Seeded shell data while live command-center metadata hydrates.";
+  if (evidenceKind === "hydrating") {
+    return "Command-center metadata is hydrating; unavailable values remain blank until backed evidence arrives.";
   }
   if (evidenceKind === "degraded") {
-    return "Degraded command-center evidence; unavailable signals remain marked unavailable.";
+    return "Databricks-backed command-center evidence is workspace-scoped or partially unavailable; unavailable signals remain marked unavailable.";
   }
   if (evidenceKind === "non_authoritative") {
     return "Non-authoritative command-center evidence; unverified signals remain marked unavailable.";
   }
-  return "Live command-center evidence from the configured metadata plane.";
+  return "Databricks-backed command-center evidence from the configured metadata plane.";
+}
+
+function isDeployedDatabricksAppHost() {
+  if (typeof window === "undefined") return false;
+  const host = String(window.location?.hostname || "").toLowerCase();
+  return host.endsWith(".databricksapps.com");
+}
+
+function isDatabricksBackedCommandCenter(data, evidenceKind) {
+  if (!data || evidenceKind === "non_authoritative" || evidenceKind === "hydrating") {
+    return false;
+  }
+  const markers = [
+    data.source,
+    data.evidenceKind,
+    data.evidence_kind,
+    data.meta?.source,
+    data.meta?.evidenceKind,
+    data.meta?.evidence_kind,
+    data.provenance?.source,
+  ].map((value) => String(value || "").toLowerCase());
+  const sourceIsDatabricks =
+    markers.some((value) => value.includes("unity-catalog") || value.includes("governance-store") || value.includes("databricks"));
+  const hasBackedSignal =
+    Number.isFinite(Number(data.estate?.visibleAssetCount)) ||
+    Number.isFinite(Number(data.estate?.catalogCount)) ||
+    Number.isFinite(Number(data.estate?.coverageScore)) ||
+    (Array.isArray(data.recentAssets) && data.recentAssets.length > 0);
+  if (evidenceKind === "live" && hasBackedSignal) return true;
+  return sourceIsDatabricks && hasBackedSignal;
 }
 
 const FALLBACK_LAND_RINGS = [
@@ -1241,9 +1264,34 @@ export function HomePage({
   const [suggestionPage, setSuggestionPage] = useState(0);
   const [trendWindow, setTrendWindow] = useState("26w");
   const [presentMode, setPresentMode] = useState(false);
-  const data = useMemo(
+  const [exportStatus, setExportStatus] = useState("");
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    const onFullscreenChange = () => {
+      setPresentMode(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+  const normalizedData = useMemo(
     () => normalizeCommandCenter(commandCenter, estate, recentAssets),
     [commandCenter, estate, recentAssets],
+  );
+  const rejectedNonAuthoritativePayload = isNonAuthoritativeMockEvidence(
+    commandCenter,
+    normalizedData.meta,
+    warnings,
+  );
+  const data = useMemo(
+    () =>
+      rejectedNonAuthoritativePayload
+        ? normalizeCommandCenter(null, EMPTY_ESTATE_SNAPSHOT, [])
+        : normalizedData,
+    [normalizedData, rejectedNonAuthoritativePayload],
+  );
+  const evidenceMeta = useMemo(
+    () => (rejectedNonAuthoritativePayload ? normalizedData.meta || {} : data.meta || {}),
+    [data.meta, normalizedData.meta, rejectedNonAuthoritativePayload],
   );
   const statusMessage = useMemo(() => {
     if (hydrating) return "Hydrating live Unity Catalog command center.";
@@ -1256,20 +1304,20 @@ export function HomePage({
     return "";
   }, [hydrating, message, refreshError, refreshing, state, warnings]);
   const statusMeta = statusMetaFor({ state, warnings, refreshError });
-  const evidenceKind = commandCenterEvidenceKind(data, warnings, state);
+  const evidenceKind = rejectedNonAuthoritativePayload
+    ? "non_authoritative"
+    : commandCenterEvidenceKind(data, warnings, state);
   const evidenceWarnings = commandCenterWarnings(data, warnings);
-  const isPrototypeEvidence = evidenceKind === "prototype_mock";
   const isLiveEvidence = evidenceKind === "live";
-  const commandCenterRefreshLabel = isPrototypeEvidence
-    ? `Prototype mock · refreshed ${relativeTimeLabel(data.meta?.generatedAt || data.meta?.updatedAt)} · not live Databricks evidence`
-    : isLiveEvidence && (data.meta?.generatedAt || data.meta?.updatedAt)
+  const databricksBackedMetadata = isDatabricksBackedCommandCenter(data, evidenceKind);
+  const commandCenterRefreshLabel = isLiveEvidence && (data.meta?.generatedAt || data.meta?.updatedAt)
       ? `Live · refreshed ${relativeTimeLabel(data.meta.generatedAt || data.meta.updatedAt)}`
       : isLiveEvidence
         ? "Live"
-        : "Not live verified";
-  const heroDescription = isPrototypeEvidence
-    ? "Live mode reads Unity Catalog directly: permission-aware, lineage-verified when Databricks reports lineage, and traceable to system table evidence. Prototype capture; not live Databricks proof."
-    : isLiveEvidence
+        : databricksBackedMetadata
+          ? "Databricks-backed · workspace scope"
+          : "Not live verified";
+  const heroDescription = isLiveEvidence || databricksBackedMetadata
       ? "Backed values use live Unity Catalog and governance-store signals; unavailable values are labeled instead of inferred."
       : provenanceSummary(evidenceKind);
   const shellAlreadyShowsScopeWarning =
@@ -1348,15 +1396,30 @@ export function HomePage({
     value: null,
     state: "unavailable",
   });
-  const postureValue = postureOverall ?? numericValue(coverageKpi.value);
-  const postureTitle = postureOverall === null && numericValue(coverageKpi.value) !== null
-    ? "Governance coverage"
-    : "Governance posture";
+  const coverageValue = numericValue(coverageKpi.value);
+  const postureValue = postureOverall ?? coverageValue;
+  const postureTitle = postureOverall !== null
+    ? "Governance posture"
+    : coverageValue !== null
+      ? "Metadata coverage"
+      : "Governance posture unavailable";
+  const domainSignalTitle = postureOverall !== null ? "Posture by domain" : "Coverage by domain";
+  const domainSignalName = postureOverall !== null ? "domain posture" : "domain coverage";
+  const domainSignalUnavailableText = postureOverall !== null
+    ? "Domain posture signals unavailable."
+    : "Domain coverage signals unavailable.";
   const domainBarItems = domainBars(topDomains);
   const catalogRows = backedCatalogRows(data, data.recentAssets || recentAssets);
+  const catalogEvidenceAvailable = databricksBackedMetadata && catalogRows.length > 0;
+  const catalogSubtitle = catalogEvidenceAvailable
+    ? "Visible catalog health joined with backed governance state"
+    : "Catalog health unavailable until live metadata coverage is returned";
+  const catalogTooltip = catalogEvidenceAvailable
+    ? "Catalog rows are derived from visible asset inventory and backed metadata coverage fields."
+    : "This panel keeps the catalog-health structure visible, but it does not infer catalog scores without live backed metadata.";
   const displayCatalogRows = [
     ...catalogRows,
-    ...CATALOG_PLACEHOLDER_ROWS
+    ...UNAVAILABLE_CATALOG_ROWS
       .filter((name) => !catalogRows.some((row) => row.name === name))
       .slice(0, Math.max(0, 6 - catalogRows.length))
       .map((name) => ({
@@ -1371,6 +1434,7 @@ export function HomePage({
   const cdeItems = cdeRows(data, data.recentAssets || recentAssets);
   const activityRows = eventRows(data.recentEvents);
   const riskSummary = riskSummaryFromData(data, policyKpi, governedAssetsKpi);
+  const policySignalTitle = riskSummary.severityAvailable ? "Risk breakdown" : "Policy exception signals";
   const cdeTrackedCount = numericValue(data.estate?.cdeCount ?? data.insights?.tiles?.cdeCount ?? data.cdeSummary?.totalCdes);
   const baselineAssetCount = numericValue(data.estate?.baselineAssetCount ?? data.narrative?.baselineAssetCount);
   const primaryCatalogLabel = data.meta?.primaryCatalog
@@ -1381,45 +1445,48 @@ export function HomePage({
     () => trendForWindow(data.posture?.trend || [], trendWindow),
     [data.posture?.trend, trendWindow],
   );
-  const visibleTrendHasHistory = normalizeTrend(visibleTrend).filter((point) =>
-    Number.isFinite(point.overall),
-  ).length >= 2;
   const selectedTrendWindow = TREND_WINDOWS.find((item) => item.key === trendWindow) || TREND_WINDOWS[0];
   const exportCommandCenterBrief = useCallback(() => {
-    if (typeof document === "undefined" || typeof Blob === "undefined") return;
+    if (typeof document === "undefined" || typeof Blob === "undefined") {
+      setExportStatus("Command Center export is unavailable in this browser context.");
+      return;
+    }
     const workspaceLabel =
-      data.meta?.workspace ||
-      data.meta?.workspaceName ||
-      data.meta?.workspaceLabel ||
+      evidenceMeta.workspace ||
+      evidenceMeta.workspaceName ||
+      evidenceMeta.workspaceLabel ||
       data.estate?.workspace ||
       data.estate?.workspaceName ||
       data.estate?.workspaceLabel ||
-      data.meta?.catalog ||
+      evidenceMeta.catalog ||
       null;
-    const liveDatabricksEvidence = evidenceKind === "live";
+    const deployedDatabricksAppEvidence = databricksBackedMetadata && isDeployedDatabricksAppHost();
+    const evidenceBoundary = deployedDatabricksAppEvidence ? "deployed-databricks-app" : "local-runtime";
     const brief = {
       exportedAt: new Date().toISOString(),
       workspace: {
         label: workspaceLabel,
         evidenceKind,
-        liveDatabricksEvidence,
-        source: liveDatabricksEvidence
-          ? "Databricks workspace/runtime metadata"
-          : evidenceKind === "prototype_mock"
-            ? "prototype mock shell/meta workspace label"
-            : "non-authoritative command-center metadata",
-        warning: liveDatabricksEvidence
+        databricksBackedMetadata,
+        liveDatabricksEvidence: deployedDatabricksAppEvidence,
+        evidenceBoundary,
+        source: databricksBackedMetadata
+          ? "Databricks metadata plane"
+          : "non-authoritative command-center metadata",
+        warning: deployedDatabricksAppEvidence
           ? null
-          : "Workspace label is not live Databricks proof.",
+          : "This export was generated from the local runtime boundary and is not deployed Databricks App closure evidence.",
       },
       workspaceLabel,
-      generatedAt: data.meta?.generatedAt || data.meta?.updatedAt || null,
+      generatedAt: evidenceMeta.generatedAt || evidenceMeta.updatedAt || null,
       provenance: {
         evidenceKind,
-        liveDatabricksEvidence,
+        databricksBackedMetadata,
+        liveDatabricksEvidence: deployedDatabricksAppEvidence,
+        evidenceBoundary,
         summary: provenanceSummary(evidenceKind),
         state,
-        metaState: data.meta?.state || null,
+        metaState: evidenceMeta.state || null,
         warnings: evidenceWarnings,
       },
       posture: {
@@ -1427,8 +1494,10 @@ export function HomePage({
         title: postureTitle,
         trendDelta: trendDeltaLabel(data.posture?.trend || []),
         evidenceKind,
-        liveDatabricksEvidence: evidenceKind === "live",
-        source: evidenceKind === "prototype_mock" ? "prototype mock command-center payload" : provenanceSummary(evidenceKind),
+        databricksBackedMetadata,
+        liveDatabricksEvidence: deployedDatabricksAppEvidence,
+        evidenceBoundary,
+        source: provenanceSummary(evidenceKind),
       },
       kpis: kpis.map((kpi) => ({
         key: kpi.key,
@@ -1437,8 +1506,10 @@ export function HomePage({
         delta: shortDelta(kpi, "Unavailable"),
         state: metricState(kpi),
         evidenceKind,
-        liveDatabricksEvidence: evidenceKind === "live",
-        source: evidenceKind === "prototype_mock" ? "prototype mock command-center payload" : provenanceSummary(evidenceKind),
+        databricksBackedMetadata,
+        liveDatabricksEvidence: deployedDatabricksAppEvidence,
+        evidenceBoundary,
+        source: provenanceSummary(evidenceKind),
       })),
       topCatalogs: catalogRows.map((catalog) => ({
         catalog: catalog.name,
@@ -1447,14 +1518,18 @@ export function HomePage({
         classification: catalog.classification,
         risk: catalog.risk,
         evidenceKind,
-        liveDatabricksEvidence: evidenceKind === "live",
-        source: evidenceKind === "prototype_mock" ? "prototype mock command-center payload" : provenanceSummary(evidenceKind),
+        databricksBackedMetadata,
+        liveDatabricksEvidence: deployedDatabricksAppEvidence,
+        evidenceBoundary,
+        source: provenanceSummary(evidenceKind),
       })),
       recentActivity: activityRows.map((activity) => ({
         ...activity,
         evidenceKind,
-        liveDatabricksEvidence: evidenceKind === "live",
-        source: evidenceKind === "prototype_mock" ? "prototype mock command-center payload" : provenanceSummary(evidenceKind),
+        databricksBackedMetadata,
+        liveDatabricksEvidence: deployedDatabricksAppEvidence,
+        evidenceBoundary,
+        source: provenanceSummary(evidenceKind),
       })),
     };
     const blob = new Blob([JSON.stringify(brief, null, 2)], { type: "application/json" });
@@ -1464,7 +1539,10 @@ export function HomePage({
     const revokeUrl = typeof URL !== "undefined" && typeof URL.revokeObjectURL === "function"
       ? URL.revokeObjectURL.bind(URL)
       : null;
-    if (!createUrl) return;
+    if (!createUrl) {
+      setExportStatus("Command Center export is unavailable because this browser cannot create download URLs.");
+      return;
+    }
     const url = createUrl(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -1476,8 +1554,35 @@ export function HomePage({
     if (revokeUrl) {
       window.setTimeout(() => revokeUrl(url), 0);
     }
-  }, [activityRows, catalogRows, data.meta, data.posture?.trend, evidenceKind, evidenceWarnings, kpis, postureTitle, postureValue, state]);
+    setExportStatus("Command Center brief export started.");
+  }, [activityRows, catalogRows, data.estate?.workspace, data.estate?.workspaceLabel, data.estate?.workspaceName, data.posture?.trend, evidenceKind, evidenceMeta, evidenceWarnings, kpis, postureTitle, postureValue, state]);
   const togglePresentMode = useCallback(() => {
+    if (typeof document === "undefined") {
+      setPresentMode((current) => !current);
+      return;
+    }
+    const active = Boolean(document.fullscreenElement);
+    if (active && typeof document.exitFullscreen === "function") {
+      document.exitFullscreen()
+        .then(() => {
+          setPresentMode(false);
+        })
+        .catch(() => {
+          setPresentMode(false);
+        });
+      return;
+    }
+    const root = document.querySelector(".gh-command-center-page") || document.documentElement;
+    if (root && typeof root.requestFullscreen === "function") {
+      root.requestFullscreen()
+        .then(() => {
+          setPresentMode(true);
+        })
+        .catch(() => {
+          setPresentMode(true);
+        });
+      return;
+    }
     setPresentMode((current) => !current);
   }, []);
   const openCommandCenterSurface = useCallback((surfaceKey) => {
@@ -1508,11 +1613,13 @@ export function HomePage({
       tone: data.insights?.qualitySignalAvailable ? "good" : "muted",
     },
     {
-      label: riskSummary.severityAvailable ? "High-risk exposures" : "Open exposures",
+      label: riskSummary.severityAvailable ? "High-risk exposures" : "Policy exception signals",
       value: riskSummary.severityAvailable
         ? (riskSummary.high === null ? "-" : formatCount(riskSummary.high))
         : formatMetricValue(policyKpi),
-      delta: shortDelta(policyKpi, "Exposure signal unavailable"),
+      delta: metricState(policyKpi) === "degraded"
+        ? "Text-derived signal"
+        : shortDelta(policyKpi, "Signal unavailable"),
       previous: policyKpi.previousValue ?? policyKpi.previous ?? null,
       previousFormat: "count",
       tone: metricState(policyKpi) === "unavailable" ? "muted" : "warn",
@@ -1542,35 +1649,35 @@ export function HomePage({
         {" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")}.
       </>
     );
-  const heroCertifiedKpi = isPrototypeEvidence ? governedAssetsKpi : certifiedKpi;
+  const heroCertifiedKpi = certifiedKpi;
   const heroFacts = [
     {
       icon: "shield",
       label: "Certified assets",
       value: formatMetricValue(heroCertifiedKpi),
-      delta: isPrototypeEvidence ? (shortDelta(governedAssetsKpi, "+82 this quarter")) : shortDelta(certifiedKpi, "Signal unavailable"),
+      delta: shortDelta(certifiedKpi, "Signal unavailable"),
       tone: "good",
     },
     {
       icon: "flag",
-      label: "Open exposures",
+      label: riskSummary.severityAvailable ? "Open exposures" : "Policy exception signals",
       value: formatMetricValue(policyKpi),
-      delta: isPrototypeEvidence ? "3 require Compliance review" : shortDelta(policyKpi, "Signal unavailable"),
+      delta: metricState(policyKpi) === "degraded"
+        ? "Text-derived signal"
+        : shortDelta(policyKpi, "Signal unavailable"),
       tone: metricState(policyKpi) === "unavailable" ? "muted" : "bad",
     },
     {
       icon: "key",
       label: "CDEs tracked",
       value: cdeTrackedCount === null ? "-" : formatCount(cdeTrackedCount),
-      delta: isPrototypeEvidence
-        ? "Prototype registry fixture"
-        : data.signalAvailability?.lineage
+      delta: data.signalAvailability?.lineage
           ? "Lineage-backed"
           : "Lineage proof unavailable",
       tone: "info",
     },
   ];
-  const prototypeKpis = [
+  const commandCenterKpis = [
     {
       label: "Governance coverage",
       value: percentLabel(coverageKpi.value),
@@ -1593,11 +1700,13 @@ export function HomePage({
       sparkline: stewardshipKpi.sparkline || [],
     },
     {
-      label: riskSummary.severityAvailable ? "High-risk exposures" : "Open exposures",
+      label: riskSummary.severityAvailable ? "High-risk exposures" : "Policy exception signals",
       value: riskSummary.severityAvailable
         ? (riskSummary.high === null ? "-" : formatCount(riskSummary.high))
         : formatMetricValue(policyKpi),
-      delta: shortDelta(policyKpi, "Signal unavailable"),
+      delta: metricState(policyKpi) === "degraded"
+        ? "Text-derived signal"
+        : shortDelta(policyKpi, "Signal unavailable"),
       tone: metricState(policyKpi) === "unavailable" ? "muted" : "bad",
       sparkline: policyKpi.sparkline || [],
     },
@@ -1620,7 +1729,7 @@ export function HomePage({
                 <em>{commandCenterRefreshLabel}</em>
               </span>
             </div>
-            <h1>Governance posture, at a glance</h1>
+            <h1>{postureOverall !== null ? "Governance posture, at a glance" : "Governance coverage, at a glance"}</h1>
             <p>{heroDescription}</p>
           </div>
           <div className="gh-command-center-actions">
@@ -1629,6 +1738,7 @@ export function HomePage({
               <Icon name="presentation" />
               {presentMode ? "Exit present mode" : "Present mode"}
             </button>
+            {exportStatus ? <span className="gh-command-center-present-note" role="status">{exportStatus}</span> : null}
             {presentMode ? <span className="gh-command-center-present-note" role="status">Local presentation view - no metadata changes.</span> : null}
           </div>
         </header>
@@ -1661,7 +1771,7 @@ export function HomePage({
           </div>
         ) : null}
 
-        <section className="gh-command-center-state-card" aria-label="Current governance posture">
+        <section className="gh-command-center-state-card" aria-label={postureOverall !== null ? "Current governance posture" : "Current metadata coverage"}>
           <div className="gh-command-center-score">
             {postureValue === null ? (
               <>
@@ -1673,8 +1783,9 @@ export function HomePage({
               </>
             ) : (
               <CommandCenterTrustRing
+                label={postureTitle}
                 value={postureValue}
-                trend={isPrototypeEvidence ? "9.0 pts QoQ" : trendDeltaLabel(data.posture?.trend || []).replace(/^\+/, "")}
+                trend={trendDeltaLabel(data.posture?.trend || []).replace(/^\+/, "")}
               />
             )}
           </div>
@@ -1700,7 +1811,7 @@ export function HomePage({
               <div
                 className={`gh-command-center-change tone-${item.tone}`}
                 key={item.label}
-                title={isPrototypeEvidence ? "Prototype mock change row, not live Databricks evidence." : undefined}
+                title={undefined}
               >
                 <span>{item.label}</span>
                 <strong>
@@ -1718,7 +1829,7 @@ export function HomePage({
         </section>
 
         <section className="gh-command-center-kpi-row" aria-label="Governance summary metrics">
-          {prototypeKpis.map((metric) => (
+          {commandCenterKpis.map((metric) => (
             <article className={`gh-command-center-kpi tone-${metric.tone}`} key={metric.label}>
               <span>{metric.label}</span>
               <strong>{metric.value}</strong>
@@ -1772,73 +1883,71 @@ export function HomePage({
           >
             <PostureTrendChart trend={visibleTrend} />
             <div className="gh-command-center-trend-footer">
-              <span><strong>{isPrototypeEvidence ? "+9.0 pts" : trendDeltaLabel(visibleTrend)}</strong> over the last 12 weeks</span>
+              <span><strong>{trendDeltaLabel(visibleTrend)}</strong> over the last 12 weeks</span>
               <span>{`SLA: >=90% by end of Q2`}</span>
-              {isPrototypeEvidence && visibleTrendHasHistory ? (
-                <span>Projected: <strong>91.2% by W30</strong></span>
-              ) : (
-                <span><strong>Projection unavailable</strong></span>
-              )}
+              <span><strong>Projection unavailable</strong></span>
             </div>
           </SectionCard>
 
           <SectionCard
             className="gh-command-center-domain"
-            title="Posture by domain"
-            subtitle={isPrototypeEvidence ? "Coverage x certified asset count" : "Coverage x visible asset count"}
-            tooltip={isPrototypeEvidence
-              ? "Prototype domain scores are visual fixtures, not live certified-count proof."
-              : "Domain scores use backed command-center domain signals when available."}
+            title={domainSignalTitle}
+            subtitle="Coverage x visible asset count"
+            tooltip={postureOverall !== null
+              ? "Domain posture scores use backed command-center domain signals when available."
+              : "Domain coverage scores use backed metadata coverage signals when available."}
           >
             <div className={`gh-command-center-domain-bars ${domainBarItems.length ? "" : "is-unavailable"}`.trim()}>
-              {(domainBarItems.length ? domainBarItems : DOMAIN_PLACEHOLDER_ROWS.map((label) => ({
+              {(domainBarItems.length ? domainBarItems : UNAVAILABLE_DOMAIN_ROWS.map((label) => ({
                 label,
                 score: null,
                 count: null,
               }))).map((domain) => (
                 <button
-                  aria-label={domain.score === null ? `${domain.label} domain signal unavailable` : `Open discovery for ${domain.label} domain posture`}
+                  aria-label={domain.score === null ? `${domain.label} domain signal unavailable` : `Open discovery for ${domain.label} ${domainSignalName}`}
                   className={`gh-command-center-domain-row tone-${domain.tone || "empty"}`}
                   disabled={domain.score === null}
                   key={domain.label}
                   onClick={() => openCommandCenterSurface("discovery")}
-                  title={domain.score === null ? "Domain posture signal unavailable" : `Open discovery for ${domain.label}`}
+                  title={domain.score === null ? `${domainSignalTitle} signal unavailable` : `Open discovery for ${domain.label}`}
                   type="button"
                 >
                   <span>{domain.label}</span>
                   <i aria-hidden="true"><b style={{ width: `${domain.score ?? 0}%` }} /></i>
                   <strong>{domain.score === null ? "-" : `${Math.round(domain.score)}%`}</strong>
-                  {domain.count !== null ? <em>{formatCount(domain.count)} {isPrototypeEvidence ? "cert" : "assets"}</em> : <em>Domain signal unavailable</em>}
+                  {domain.count !== null ? <em>{formatCount(domain.count)} assets</em> : <em>Domain signal unavailable</em>}
                 </button>
               ))}
               {!domainBarItems.length ? (
-                <div className="gh-command-center-inline-unavailable">Domain posture signals unavailable.</div>
+                <div className="gh-command-center-inline-unavailable">{domainSignalUnavailableText}</div>
               ) : null}
               </div>
           </SectionCard>
 
           <SectionCard
             className="gh-command-center-risk"
-            title="Risk breakdown"
-            subtitle="Open exposures by severity"
-            tooltip="Risk distribution renders unavailable unless explicit exposure severity signals are present."
+            title={policySignalTitle}
+            subtitle={riskSummary.severityAvailable ? "Open exposures by severity" : "Policy exception signal availability"}
+            tooltip={riskSummary.severityAvailable
+              ? "Risk distribution renders only from explicit exposure severity signals."
+              : "Policy exception signals render without inferring unavailable severity."}
           >
             <div className="gh-command-center-risk-body">
               <div className={`gh-command-center-risk-ring ${riskSummary.cleanScore === null ? "is-unavailable" : ""}`.trim()}>
                 <strong>{riskSummary.cleanScore === null ? "-" : `${Math.round(riskSummary.cleanScore)}%`}</strong>
-                <span>Risk-clean</span>
+                <span>{riskSummary.severityAvailable ? "Risk-clean" : "Severity unavailable"}</span>
               </div>
               <ul>
                 <li>
                   <button
-                    aria-label={`Open stewardship for ${riskSummary.severityAvailable ? "high-risk exposures" : "open exposures"}`}
+                    aria-label={`Open stewardship for ${riskSummary.severityAvailable ? "high-risk exposures" : "policy exception signals"}`}
                     disabled={!riskSummary.sourceAvailable}
                     onClick={() => openCommandCenterSurface("stewardship")}
-                    title={riskSummary.sourceAvailable ? "Open stewardship queue for exposure review" : "Exposure source unavailable"}
+                    title={riskSummary.sourceAvailable ? "Open stewardship queue for policy exception review" : "Policy exception signal unavailable"}
                     type="button"
                   >
                     <b className="tone-bad" />
-                    <span>{riskSummary.severityAvailable ? "High-risk exposures" : "Open exposures"}</span>
+                    <span>{riskSummary.severityAvailable ? "High-risk exposures" : "Policy exception signals"}</span>
                     <strong>
                       {riskSummary.severityAvailable
                         ? (riskSummary.high === null ? "-" : formatCount(riskSummary.high))
@@ -1848,52 +1957,46 @@ export function HomePage({
                 </li>
                 <li>
                   <button
-                    aria-label="Open audit evidence for medium-risk findings"
+                    aria-label={riskSummary.severityAvailable ? "Open audit evidence for medium-risk findings" : "Medium severity source unavailable"}
                     disabled={!riskSummary.severityAvailable}
                     onClick={() => openCommandCenterSurface("audit")}
                     title={riskSummary.severityAvailable ? "Open audit evidence for risk findings" : "Risk severity source unavailable"}
                     type="button"
                   >
                     <b className="tone-warn" />
-                    <span>Medium-risk findings</span>
+                    <span>{riskSummary.severityAvailable ? "Medium-risk findings" : "Medium severity unavailable"}</span>
                     <strong>{riskSummary.medium === null ? "-" : formatCount(riskSummary.medium)}</strong>
                   </button>
                 </li>
                 <li>
                   <button
-                    aria-label="Open audit evidence for informational risk findings"
+                    aria-label={riskSummary.severityAvailable ? "Open audit evidence for informational risk findings" : "Informational severity source unavailable"}
                     disabled={!riskSummary.severityAvailable}
                     onClick={() => openCommandCenterSurface("audit")}
                     title={riskSummary.severityAvailable ? "Open audit evidence for informational findings" : "Risk severity source unavailable"}
                     type="button"
                   >
                     <b className="tone-info" />
-                    <span>Informational</span>
+                    <span>{riskSummary.severityAvailable ? "Informational" : "Informational severity unavailable"}</span>
                     <strong>{riskSummary.informational === null ? "-" : formatCount(riskSummary.informational)}</strong>
                   </button>
                 </li>
               </ul>
             </div>
             <p>
-              {isPrototypeEvidence
-                ? "Prototype fixture - 3 of 7 high-risk items require Compliance review."
-                : riskSummary.severityAvailable
+              {riskSummary.severityAvailable
                   ? "Risk-clean score is derived from backed exposure counts across governed assets."
                   : riskSummary.openExposure !== null
-                  ? "Open exposure count is backed; severity split is unavailable for this workspace."
-                  : "Exposure severity source unavailable for this workspace."}
+                  ? "Policy exception count is backed; severity split is unavailable for this workspace."
+                  : "Policy exception severity source unavailable for this workspace."}
             </p>
           </SectionCard>
 
           <SectionCard
             className="gh-command-center-catalogs"
             title="Top catalogs · health snapshot"
-            subtitle={isPrototypeEvidence
-              ? "From system.information_schema joined with governance state"
-              : "Visible catalog health joined with backed governance state"}
-            tooltip={isPrototypeEvidence
-              ? "Prototype catalog health rows are visual fixtures, not live catalog diagnostics."
-              : "Catalog rows are derived from visible asset inventory and backed metadata coverage fields."}
+            subtitle={catalogSubtitle}
+            tooltip={catalogTooltip}
           >
             <div className={`gh-command-center-catalog-table ${catalogRows.length ? "" : "is-unavailable"}`.trim()} role="table" aria-label="Top catalog health snapshot">
               <div role="row">
@@ -1935,16 +2038,12 @@ export function HomePage({
           <SectionCard
             className="gh-command-center-cdes"
             title="Critical data elements"
-            subtitle={isPrototypeEvidence
-              ? "Prototype registry fixture - not live lineage proof"
-              : "Backed CDE registry rows with owner and lineage evidence when available"}
-            tooltip={isPrototypeEvidence
-              ? "Prototype CDE rows are visual fixtures until backed by a live CDE registry signal."
-              : "CDE rows require backed CDE registry data or asset-level critical-element metadata."}
+            subtitle="Backed CDE registry rows with owner and lineage evidence when available"
+            tooltip="CDE rows require backed CDE registry data or asset-level critical-element metadata."
             actions={<button type="button" className="ga-link-button" onClick={() => openSurface("cde")}>View all</button>}
           >
             <div className={`gh-command-center-cde-grid ${cdeItems.length ? "" : "is-unavailable"}`.trim()}>
-              {(cdeItems.length ? cdeItems : CDE_PLACEHOLDER_ROWS.map((name) => ({
+              {(cdeItems.length ? cdeItems : UNAVAILABLE_CDE_ROWS.map((name) => ({
                 id: name,
                 name,
                 column: "Source-of-record column unavailable",
@@ -1971,7 +2070,7 @@ export function HomePage({
                     <code>{item.column}</code>
                     <small>
                       <b>{item.owner || "Owner unavailable"}</b>
-                      <i title={isPrototypeEvidence && !isPlaceholder ? "Prototype mock CDE row, not live Databricks evidence." : undefined}>
+                      <i title={undefined}>
                         {item.status || "Unavailable"}
                       </i>
                     </small>
@@ -1987,10 +2086,8 @@ export function HomePage({
           <SectionCard
             className="gh-command-center-activity"
             title="Activity stream"
-            subtitle={isPrototypeEvidence ? "Prototype audit log · permission-filtered" : "Live audit log · permission-filtered"}
-            tooltip={isPrototypeEvidence
-              ? "Prototype activity rows are visual fixtures, not live audit events."
-              : "Recent activity uses audit/governance events returned by the command-center API."}
+            subtitle={isLiveEvidence ? "Live audit log · permission-filtered" : "Audit events unavailable until live evidence is returned"}
+            tooltip="Recent activity uses audit/governance events returned by the command-center API."
           >
             <ul className={`gh-command-center-activity-list ${activityRows.length ? "" : "is-unavailable"}`.trim()}>
               {(activityRows.length ? activityRows : [

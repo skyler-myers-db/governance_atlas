@@ -68,7 +68,8 @@
   font-size: 0.9rem;
 }
 
-.gh-prototype-eyebrow {
+.gh-prototype-eyebrow,
+.gh-admin-control-eyebrow {
   display: block;
   margin-bottom: 8px;
   color: #45b9ee;
@@ -1643,10 +1644,8 @@
   background: rgba(143, 170, 190, 0.48);
 }
 
-.gh-cde-inline-action {
-  border: 0;
-  background: transparent;
-  color: #3dccff;
+.gh-cde-inline-value {
+  color: #9fb4c7;
   font: inherit;
 }
 
@@ -3235,7 +3234,7 @@
   }
 }
 
-.gh-admin-prototype.gh-admin-ns.ga-page {
+.gh-admin-control.gh-admin-ns.ga-page {
   display: block;
   width: 100%;
   min-height: 100%;
@@ -3247,8 +3246,8 @@
   background: transparent;
 }
 
-.gh-admin-prototype-shell.gh-admin-shell,
-.gh-admin-prototype-shell.gh-admin-shell.has-warning {
+.gh-admin-control-shell.gh-admin-shell,
+.gh-admin-control-shell.gh-admin-shell.has-warning {
   width: 100%;
   max-width: 1120px;
   height: auto;
@@ -3260,8 +3259,8 @@
 }
 
 @media (min-width: 2200px) {
-  .gh-admin-prototype-shell.gh-admin-shell,
-  .gh-admin-prototype-shell.gh-admin-shell.has-warning {
+  .gh-admin-control-shell.gh-admin-shell,
+  .gh-admin-control-shell.gh-admin-shell.has-warning {
     width: min(var(--ga-prototype-wide-rail, 1544px), calc(100% - 40px));
     max-width: var(--ga-prototype-wide-rail, 1544px);
     margin-inline: auto;
@@ -3269,14 +3268,14 @@
   }
 }
 
-.gh-admin-prototype-hero {
+.gh-admin-control-hero {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 18px;
 }
 
-.gh-admin-prototype-hero h1 {
+.gh-admin-control-hero h1 {
   margin: 0;
   color: #f3f8ff;
   font-size: 28px;
@@ -3284,7 +3283,7 @@
   letter-spacing: -0.02em;
 }
 
-.gh-admin-prototype-hero p {
+.gh-admin-control-hero p {
   max-width: 720px;
   margin: 8px 0 0;
   color: var(--ga-text-soft);
@@ -3292,7 +3291,7 @@
   line-height: 1.4;
 }
 
-.gh-admin-prototype-hero > span {
+.gh-admin-control-hero > span {
   margin-top: 28px;
   padding: 6px 10px;
   border: 1px solid rgba(74, 156, 206, 0.28);
@@ -3303,19 +3302,19 @@
   white-space: nowrap;
 }
 
-.gh-admin-prototype-layout {
+.gh-admin-control-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.34fr) minmax(320px, 0.86fr);
   gap: 12px;
   align-items: start;
 }
 
-.gh-admin-prototype-side {
+.gh-admin-control-side {
   display: grid;
   gap: 12px;
 }
 
-.gh-admin-prototype-card {
+.gh-admin-control-card {
   min-width: 0;
   overflow: hidden;
   border: 1px solid rgba(54, 145, 200, 0.34);
@@ -3324,7 +3323,7 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
-.gh-admin-prototype-card > header {
+.gh-admin-control-card > header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -3333,28 +3332,28 @@
   padding: 14px 16px 10px;
 }
 
-.gh-admin-prototype-card h2 {
+.gh-admin-control-card h2 {
   margin: 0;
   color: var(--ga-text);
   font-size: 0.88rem;
   line-height: 1.15;
 }
 
-.gh-admin-prototype-card p {
+.gh-admin-control-card p {
   margin: 3px 0 0;
   color: var(--ga-text-muted);
   font-size: 0.66rem;
 }
 
-.gh-admin-prototype-job-head,
-.gh-admin-prototype-job-row {
+.gh-admin-control-job-head,
+.gh-admin-control-job-row {
   display: grid;
   grid-template-columns: minmax(240px, 1.5fr) minmax(132px, 0.56fr) minmax(82px, 0.36fr) minmax(82px, 0.34fr) 18px;
   gap: 12px;
   align-items: center;
 }
 
-.gh-admin-prototype-job-head {
+.gh-admin-control-job-head {
   min-height: 34px;
   padding: 0 16px;
   border-top: 1px solid rgba(74, 156, 206, 0.18);
@@ -3367,8 +3366,8 @@
   text-transform: uppercase;
 }
 
-.gh-admin-prototype-job-row,
-.gh-admin-prototype-integration {
+.gh-admin-control-job-row,
+.gh-admin-control-integration {
   width: 100%;
   border: 0;
   border-radius: 0;
@@ -3379,16 +3378,16 @@
   cursor: pointer;
 }
 
-.gh-admin-prototype-job-row {
+.gh-admin-control-job-row {
   min-height: 52px;
   padding: 0 16px;
   border-bottom: 1px solid rgba(74, 156, 206, 0.13);
 }
 
-.gh-admin-prototype-job-row:hover,
-.gh-admin-prototype-job-row:focus-visible,
-.gh-admin-prototype-integration:hover,
-.gh-admin-prototype-integration:focus-visible {
+.gh-admin-control-job-row:hover,
+.gh-admin-control-job-row:focus-visible,
+.gh-admin-control-integration:hover,
+.gh-admin-control-integration:focus-visible {
   background: rgba(18, 72, 109, 0.82);
   outline: none;
 }
@@ -3419,8 +3418,8 @@
   stroke-width: 1.8;
 }
 
-.gh-admin-prototype-job-row strong,
-.gh-admin-prototype-integration strong {
+.gh-admin-control-job-row strong,
+.gh-admin-control-integration strong {
   min-width: 0;
   overflow: hidden;
   color: var(--ga-text);
@@ -3429,8 +3428,8 @@
   white-space: nowrap;
 }
 
-.gh-admin-prototype-job-row span,
-.gh-admin-prototype-integration small {
+.gh-admin-control-job-row span,
+.gh-admin-control-integration small {
   min-width: 0;
   overflow: hidden;
   color: var(--ga-text-soft);
@@ -3439,18 +3438,18 @@
   white-space: nowrap;
 }
 
-.gh-admin-prototype-job-row .ga-status-pill {
+.gh-admin-control-job-row .ga-status-pill {
   justify-self: end;
 }
 
-.gh-admin-prototype-job-row .ga-status-pill,
-.gh-admin-prototype-integration .ga-status-pill {
+.gh-admin-control-job-row .ga-status-pill,
+.gh-admin-control-integration .ga-status-pill {
   gap: 5px;
   padding-inline: 8px;
 }
 
-.gh-admin-prototype-job-row .ga-status-pill::before,
-.gh-admin-prototype-integration .ga-status-pill::before,
+.gh-admin-control-job-row .ga-status-pill::before,
+.gh-admin-control-integration .ga-status-pill::before,
 .gh-admin-control-detail .ga-status-pill::before {
   content: "";
   width: 6px;
@@ -3460,7 +3459,7 @@
   box-shadow: 0 0 8px currentColor;
 }
 
-.gh-admin-prototype-integration .ga-status-pill {
+.gh-admin-control-integration .ga-status-pill {
   min-width: max-content;
   max-width: none;
   justify-self: end;
@@ -3468,14 +3467,14 @@
   white-space: nowrap;
 }
 
-.gh-admin-prototype-integrations > div,
-.gh-admin-prototype-policy > div {
+.gh-admin-control-integrations > div,
+.gh-admin-control-policy > div {
   display: grid;
   gap: 0;
   padding: 0 14px 14px;
 }
 
-.gh-admin-prototype-integration {
+.gh-admin-control-integration {
   min-height: 59px;
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr) auto 18px;
@@ -3486,21 +3485,21 @@
   border-radius: 7px;
 }
 
-.gh-admin-prototype-integration + .gh-admin-prototype-integration {
+.gh-admin-control-integration + .gh-admin-control-integration {
   margin-top: 10px;
 }
 
-.gh-admin-prototype-integration div {
+.gh-admin-control-integration div {
   min-width: 0;
   display: grid;
   gap: 2px;
 }
 
-.gh-admin-prototype-policy {
+.gh-admin-control-policy {
   padding-bottom: 2px;
 }
 
-.gh-admin-prototype-policy-row {
+.gh-admin-control-policy-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 52px 18px;
   gap: 8px 10px;
@@ -3517,18 +3516,18 @@
   cursor: pointer;
 }
 
-.gh-admin-prototype-policy-row span {
+.gh-admin-control-policy-row span {
   color: var(--ga-text-soft);
   font-size: 0.68rem;
 }
 
-.gh-admin-prototype-policy-row strong {
+.gh-admin-control-policy-row strong {
   justify-self: end;
   color: var(--ga-text);
   font-size: 0.7rem;
 }
 
-.gh-admin-prototype-policy-row i {
+.gh-admin-control-policy-row i {
   grid-column: 1 / -1;
   height: 5px;
   overflow: hidden;
@@ -3553,43 +3552,43 @@
   transform: rotate(45deg);
 }
 
-.gh-admin-prototype-policy-row b {
+.gh-admin-control-policy-row b {
   display: block;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #2fe1a6, #4fc5f3);
 }
 
-.gh-admin-prototype-policy-row:hover,
-.gh-admin-prototype-policy-row:focus-visible {
+.gh-admin-control-policy-row:hover,
+.gh-admin-control-policy-row:focus-visible {
   outline: none;
 }
 
-.gh-admin-prototype-policy-row:not([aria-disabled="true"]):hover span,
-.gh-admin-prototype-policy-row:not([aria-disabled="true"]):focus-visible span {
+.gh-admin-control-policy-row:not([aria-disabled="true"]):hover span,
+.gh-admin-control-policy-row:not([aria-disabled="true"]):focus-visible span {
   color: #f3f8ff;
 }
 
-.gh-admin-prototype-job-row.is-selected,
-.gh-admin-prototype-integration.is-selected,
-.gh-admin-prototype-policy-row.is-selected {
+.gh-admin-control-job-row.is-selected,
+.gh-admin-control-integration.is-selected,
+.gh-admin-control-policy-row.is-selected {
   background: rgba(35, 135, 190, 0.22);
   box-shadow: inset 3px 0 0 #54d4f8;
 }
 
-.gh-admin-prototype-policy-row[aria-disabled="true"] {
+.gh-admin-control-policy-row[aria-disabled="true"] {
   cursor: pointer;
 }
 
-.gh-admin-prototype-policy-row.is-unavailable strong {
+.gh-admin-control-policy-row.is-unavailable strong {
   color: rgba(193, 216, 232, 0.58);
 }
 
-.gh-admin-prototype-policy-row.is-unavailable i {
+.gh-admin-control-policy-row.is-unavailable i {
   background: rgba(60, 133, 177, 0.18);
 }
 
-.gh-admin-prototype-unavailable {
+.gh-admin-control-unavailable {
   display: grid;
   gap: 4px;
   padding: 14px;
@@ -3597,7 +3596,7 @@
   font-size: 0.72rem;
 }
 
-.gh-admin-prototype-unavailable strong {
+.gh-admin-control-unavailable strong {
   color: var(--ga-text);
 }
 
@@ -3702,42 +3701,42 @@
 }
 
 @media (max-width: 1180px) {
-  .gh-admin-prototype-layout {
+  .gh-admin-control-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .gh-admin-prototype-side {
+  .gh-admin-control-side {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
 @media (max-height: 760px) and (min-width: 1181px) {
-  .gh-admin-prototype.gh-admin-ns.ga-page {
+  .gh-admin-control.gh-admin-ns.ga-page {
     padding-top: 14px;
   }
 
-  .gh-admin-prototype-shell.gh-admin-shell {
+  .gh-admin-control-shell.gh-admin-shell {
     gap: 10px;
   }
 
-  .gh-admin-prototype-hero h1 {
+  .gh-admin-control-hero h1 {
     font-size: 1.48rem;
   }
 
-  .gh-admin-prototype-hero p {
+  .gh-admin-control-hero p {
     font-size: 0.74rem;
   }
 
-  .gh-admin-prototype-card > header {
+  .gh-admin-control-card > header {
     min-height: 42px;
     padding: 10px 12px 8px;
   }
 
-  .gh-admin-prototype-job-row {
+  .gh-admin-control-job-row {
     min-height: 42px;
   }
 
-  .gh-admin-prototype-integration {
+  .gh-admin-control-integration {
     min-height: 38px;
   }
 }
@@ -6724,6 +6723,13 @@
   gap: 7px;
   padding: 0 12px;
   font-weight: 700;
+}
+
+.gh-governance-ns-mutation-note {
+  grid-column: 1 / -1;
+  color: var(--ga-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .gh-governance-ns-actions svg {

@@ -6,7 +6,6 @@ const DEFAULT_WORKLOAD_VISIBILITY_UNAVAILABLE_REASON =
   "Operational query and workload visibility is not available in this workspace right now.";
 const DEFAULT_DIAGNOSTICS_UNAVAILABLE_REASON =
   "Workspace setup diagnostics are not available in this workspace right now.";
-const PROTOTYPE_MOCK_STATE = "prototype_mock";
 const OBO_AVAILABLE_MODE = "obo-available";
 const APP_PRINCIPAL_ONLY_MODE = "app-principal-only";
 const NO_IDENTITY_MODE = "no-identity";
@@ -26,7 +25,7 @@ export function tableLineageAvailable(bootstrap) {
   const capability = tableLineageCapability(bootstrap);
   if (!capability) return false;
   if (capability?.available === false) return false;
-  return capability?.state === "available" || capability?.state === PROTOTYPE_MOCK_STATE;
+  return capability?.state === "available";
 }
 
 export function tableLineageReason(
@@ -45,7 +44,9 @@ export function systemInventoryAvailable(bootstrap) {
   const capability = systemInventoryCapability(bootstrap);
   if (!capability) return false;
   if (capability?.available === false) return false;
-  return capability?.state !== "unavailable";
+  const state = String(capability?.state || "").trim().toLowerCase();
+  if (state && state !== "available") return false;
+  return capability?.available === true || state === "available";
 }
 
 export function systemInventoryReason(
@@ -85,7 +86,7 @@ export function runtimeFeatureFlagAvailable(source, key, fallback = false) {
   const flag = runtimeFeatureFlag(source, key);
   if (!flag) return fallback;
   if (flag.enabled === false) return false;
-  if (flag.state) return flag.state === "available" || flag.state === PROTOTYPE_MOCK_STATE;
+  if (flag.state) return flag.state === "available";
   return flag.enabled === true;
 }
 

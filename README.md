@@ -74,19 +74,19 @@ The repo is deployed as a Databricks App through Databricks Asset Bundles.
 
 ```bash
 databricks auth login --host https://<workspace>.cloud.databricks.com
-python scripts/prepare_bundle.py --output /tmp/atlas_bundle
+python scripts/prepare_bundle.py \
+  --output /tmp/atlas_bundle \
+  --target dev \
+  --profile DEFAULT \
+  --var="warehouse_id=<warehouse-id>"
 cd /tmp/atlas_bundle
 databricks bundle deploy --profile DEFAULT -t dev --var="warehouse_id=<warehouse-id>"
+USER_NAME=$(databricks current-user me --profile DEFAULT -o json \
+  | python3 -c 'import json,sys; print(json.load(sys.stdin)["userName"])')
 cat > /tmp/atlas-app-deploy.json <<JSON
 {
-  "source_code_path": "/Workspace/Users/$(databricks current-user me --profile DEFAULT -o json | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"userName\"])')/.bundle/atlas/dev/files",
-  "mode": "SNAPSHOT",
-  "env_vars": [
-    {"name": "DATABRICKS_WAREHOUSE_ID", "value_from": "sql-warehouse"},
-    {"name": "GOVAT_CATALOG", "value": "datapact"},
-    {"name": "GOVAT_SCHEMA", "value": "atlas"},
-    {"name": "GOVAT_ADMIN_EMAILS", "value": ""}
-  ]
+  "source_code_path": "/Workspace/Users/${USER_NAME}/.bundle/atlas/dev/files",
+  "mode": "SNAPSHOT"
 }
 JSON
 databricks apps start atlas --profile DEFAULT --timeout 20m
@@ -95,6 +95,18 @@ databricks apps deploy atlas \
   --json @/tmp/atlas-app-deploy.json \
   --timeout 20m
 ```
+
+`prepare_bundle.py --target <name>` calls `databricks bundle validate -o json
+-t <name>` against the source repository, reads
+`resources.apps.atlas.config.env` from the result, and writes the resolved
+entries into `<output>/app.yaml`. This step is required because the
+`databricks_app` Terraform resource exposes no `config`/`env` attribute, so
+the env vars defined per target in `databricks.yml` would otherwise be
+silently dropped at `databricks bundle deploy` time and the Databricks Apps
+runtime would fall back to the conservative source defaults in `app.yaml`.
+The Apps deploy JSON above intentionally omits `env_vars`: the
+`AppDeployment` schema does not accept it, and env vars are read by the
+runtime from the packaged `app.yaml`.
 
 ### Packaging contract
 

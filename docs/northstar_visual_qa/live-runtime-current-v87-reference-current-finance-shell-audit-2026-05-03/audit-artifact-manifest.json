@@ -1,0 +1,859 @@
+{
+  "generatedAt": "2026-05-03T15:40:00Z",
+  "buildId": "frontend-39bc0b9be33d",
+  "currentCapture": "docs/northstar_visual_qa/live-runtime-current-v84-wide-finance-shell-2026-05-03",
+  "mockApi": false,
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "pairs": [
+    {
+      "key": "command-center-first",
+      "reference": "northstar/screenshots/prototype_home1.png",
+      "current": "docs/northstar_visual_qa/live-runtime-current-v84-wide-finance-shell-2026-05-03/command-center-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/command-center-first-reference-current.png",
+      "diff": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/command-center-first-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCrop": [
+        3037,
+        1269
+      ],
+      "diffBbox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "meanAbsDiff": 9.73,
+      "rmsDiff": 30.57,
+      "changedPixelPctThreshold8": 40.05,
+      "palette": {
+        "left_rail": {
+          "reference": "#08111b",
+          "current": "#09131d",
+          "delta": 3.0,
+          "box": [
+            20,
+            444,
+            190,
+            564
+          ]
+        },
+        "topbar": {
+          "reference": "#0e2036",
+          "current": "#162639",
+          "delta": 10.44,
+          "box": [
+            1062,
+            12,
+            1974,
+            48
+          ]
+        },
+        "main_upper": {
+          "reference": "#0f2033",
+          "current": "#0e1f33",
+          "delta": 1.41,
+          "box": [
+            546,
+            152,
+            1670,
+            304
+          ]
+        },
+        "main_lower": {
+          "reference": "#0d2136",
+          "current": "#0f283f",
+          "delta": 11.58,
+          "box": [
+            546,
+            862,
+            1670,
+            1065
+          ]
+        },
+        "right_rail": {
+          "reference": "#08172a",
+          "current": "#08172a",
+          "delta": 0.0,
+          "box": [
+            2490,
+            317,
+            2976,
+            697
+          ]
+        }
+      }
+    },
+    {
+      "key": "command-center-lower",
+      "reference": "northstar/screenshots/prototype_home2.png",
+      "current": "docs/northstar_visual_qa/live-runtime-current-v85-wide-scroll-finance-shell-2026-05-03/command-center-3037x1269-main-bottom.png",
+      "sideBySide": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/command-center-lower-reference-current.png",
+      "diff": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/command-center-lower-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCrop": [
+        3037,
+        1269
+      ],
+      "diffBbox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "meanAbsDiff": 12.8,
+      "rmsDiff": 30.67,
+      "changedPixelPctThreshold8": 60.36,
+      "palette": {
+        "left_rail": {
+          "reference": "#08111b",
+          "current": "#09131d",
+          "delta": 3.0,
+          "box": [
+            20,
+            444,
+            190,
+            564
+          ]
+        },
+        "topbar": {
+          "reference": "#0e2036",
+          "current": "#162639",
+          "delta": 10.44,
+          "box": [
+            1062,
+            12,
+            1974,
+            48
+          ]
+        },
+        "main_upper": {
+          "reference": "#0f253d",
+          "current": "#0f2e48",
+          "delta": 14.21,
+          "box": [
+            546,
+            152,
+            1670,
+            304
+          ]
+        },
+        "main_lower": {
+          "reference": "#11273f",
+          "current": "#133552",
+          "delta": 23.69,
+          "box": [
+            546,
+            862,
+            1670,
+            1065
+          ]
+        },
+        "right_rail": {
+          "reference": "#0d1d31",
+          "current": "#0e2337",
+          "delta": 8.54,
+          "box": [
+            2490,
+            317,
+            2976,
+            697
+          ]
+        }
+      }
+    },
+    {
+      "key": "discover-first",
+      "reference": "northstar/screenshots/prototype_discover1.png",
+      "current": "docs/northstar_visual_qa/live-runtime-current-v84-wide-finance-shell-2026-05-03/discover-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/discover-first-reference-current.png",
+      "diff": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/discover-first-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCrop": [
+        3037,
+        1269
+      ],
+      "diffBbox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "meanAbsDiff": 10.23,
+      "rmsDiff": 29.51,
+      "changedPixelPctThreshold8": 32.73,
+      "palette": {
+        "left_rail": {
+          "reference": "#08111b",
+          "current": "#09131d",
+          "delta": 3.0,
+          "box": [
+            20,
+            444,
+            190,
+            564
+          ]
+        },
+        "topbar": {
+          "reference": "#0e2036",
+          "current": "#162639",
+          "delta": 10.44,
+          "box": [
+            1062,
+            12,
+            1974,
+            48
+          ]
+        },
+        "main_upper": {
+          "reference": "#0c1c30",
+          "current": "#112438",
+          "delta": 12.37,
+          "box": [
+            546,
+            152,
+            1670,
+            304
+          ]
+        },
+        "main_lower": {
+          "reference": "#0f2135",
+          "current": "#0e253c",
+          "delta": 8.12,
+          "box": [
+            546,
+            862,
+            1670,
+            1065
+          ]
+        },
+        "right_rail": {
+          "reference": "#0d1d31",
+          "current": "#0e2337",
+          "delta": 8.54,
+          "box": [
+            2490,
+            317,
+            2976,
+            697
+          ]
+        }
+      }
+    },
+    {
+      "key": "discover-selected",
+      "reference": "northstar/screenshots/prototype_discover2.png",
+      "current": "docs/northstar_visual_qa/live-runtime-current-v86-wide-selected-finance-shell-2026-05-03/discover-selected-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/discover-selected-reference-current.png",
+      "diff": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/discover-selected-diff-common-crop.png",
+      "referenceSize": [
+        2936,
+        1246
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCrop": [
+        2936,
+        1246
+      ],
+      "diffBbox": [
+        0,
+        0,
+        2936,
+        1246
+      ],
+      "meanAbsDiff": 10.67,
+      "rmsDiff": 25.34,
+      "changedPixelPctThreshold8": 39.48,
+      "palette": {
+        "left_rail": {
+          "reference": "#06121c",
+          "current": "#0a141f",
+          "delta": 5.39,
+          "box": [
+            20,
+            436,
+            190,
+            556
+          ]
+        },
+        "topbar": {
+          "reference": "#081828",
+          "current": "#152639",
+          "delta": 25.57,
+          "box": [
+            1027,
+            12,
+            1908,
+            48
+          ]
+        },
+        "main_upper": {
+          "reference": "#091826",
+          "current": "#071623",
+          "delta": 4.12,
+          "box": [
+            528,
+            149,
+            1614,
+            299
+          ]
+        },
+        "main_lower": {
+          "reference": "#0a1828",
+          "current": "#061725",
+          "delta": 5.1,
+          "box": [
+            528,
+            847,
+            1614,
+            1046
+          ]
+        },
+        "right_rail": {
+          "reference": "#0b1a2d",
+          "current": "#0e2e46",
+          "delta": 32.16,
+          "box": [
+            2407,
+            311,
+            2877,
+            685
+          ]
+        }
+      }
+    },
+    {
+      "key": "stewardship",
+      "reference": "northstar/screenshots/prototype_stewardship1.png",
+      "current": "docs/northstar_visual_qa/live-runtime-current-v84-wide-finance-shell-2026-05-03/stewardship-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/stewardship-reference-current.png",
+      "diff": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/stewardship-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCrop": [
+        3037,
+        1269
+      ],
+      "diffBbox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "meanAbsDiff": 9.09,
+      "rmsDiff": 29.78,
+      "changedPixelPctThreshold8": 26.87,
+      "palette": {
+        "left_rail": {
+          "reference": "#08111b",
+          "current": "#09131d",
+          "delta": 3.0,
+          "box": [
+            20,
+            444,
+            190,
+            564
+          ]
+        },
+        "topbar": {
+          "reference": "#0e2036",
+          "current": "#162639",
+          "delta": 10.44,
+          "box": [
+            1062,
+            12,
+            1974,
+            48
+          ]
+        },
+        "main_upper": {
+          "reference": "#0d1f33",
+          "current": "#10273c",
+          "delta": 12.41,
+          "box": [
+            546,
+            152,
+            1670,
+            304
+          ]
+        },
+        "main_lower": {
+          "reference": "#08172a",
+          "current": "#08172a",
+          "delta": 0.0,
+          "box": [
+            546,
+            862,
+            1670,
+            1065
+          ]
+        },
+        "right_rail": {
+          "reference": "#0d1d31",
+          "current": "#0e2337",
+          "delta": 8.54,
+          "box": [
+            2490,
+            317,
+            2976,
+            697
+          ]
+        }
+      }
+    },
+    {
+      "key": "cde",
+      "reference": "northstar/screenshots/prototype_stewardship2.png",
+      "current": "docs/northstar_visual_qa/live-runtime-current-v84-wide-finance-shell-2026-05-03/cde-registry-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/cde-reference-current.png",
+      "diff": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/cde-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCrop": [
+        3037,
+        1269
+      ],
+      "diffBbox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "meanAbsDiff": 6.71,
+      "rmsDiff": 24.49,
+      "changedPixelPctThreshold8": 26.26,
+      "palette": {
+        "left_rail": {
+          "reference": "#08111b",
+          "current": "#09131d",
+          "delta": 3.0,
+          "box": [
+            20,
+            444,
+            190,
+            564
+          ]
+        },
+        "topbar": {
+          "reference": "#0e2036",
+          "current": "#162639",
+          "delta": 10.44,
+          "box": [
+            1062,
+            12,
+            1974,
+            48
+          ]
+        },
+        "main_upper": {
+          "reference": "#0b1a2d",
+          "current": "#0c1d30",
+          "delta": 4.36,
+          "box": [
+            546,
+            152,
+            1670,
+            304
+          ]
+        },
+        "main_lower": {
+          "reference": "#08172a",
+          "current": "#08172a",
+          "delta": 0.0,
+          "box": [
+            546,
+            862,
+            1670,
+            1065
+          ]
+        },
+        "right_rail": {
+          "reference": "#0d1d31",
+          "current": "#0e2337",
+          "delta": 8.54,
+          "box": [
+            2490,
+            317,
+            2976,
+            697
+          ]
+        }
+      }
+    },
+    {
+      "key": "glossary",
+      "reference": "northstar/screenshots/prototype_glossary1.png",
+      "current": "docs/northstar_visual_qa/live-runtime-current-v84-wide-finance-shell-2026-05-03/glossary-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/glossary-reference-current.png",
+      "diff": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/glossary-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCrop": [
+        3037,
+        1269
+      ],
+      "diffBbox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "meanAbsDiff": 7.9,
+      "rmsDiff": 25.49,
+      "changedPixelPctThreshold8": 32.28,
+      "palette": {
+        "left_rail": {
+          "reference": "#08111b",
+          "current": "#09131d",
+          "delta": 3.0,
+          "box": [
+            20,
+            444,
+            190,
+            564
+          ]
+        },
+        "topbar": {
+          "reference": "#0e2036",
+          "current": "#162639",
+          "delta": 10.44,
+          "box": [
+            1062,
+            12,
+            1974,
+            48
+          ]
+        },
+        "main_upper": {
+          "reference": "#0c1c2f",
+          "current": "#0c1c2f",
+          "delta": 0.0,
+          "box": [
+            546,
+            152,
+            1670,
+            304
+          ]
+        },
+        "main_lower": {
+          "reference": "#08172a",
+          "current": "#08172a",
+          "delta": 0.0,
+          "box": [
+            546,
+            862,
+            1670,
+            1065
+          ]
+        },
+        "right_rail": {
+          "reference": "#0d1d31",
+          "current": "#0e2337",
+          "delta": 8.54,
+          "box": [
+            2490,
+            317,
+            2976,
+            697
+          ]
+        }
+      }
+    },
+    {
+      "key": "lineage",
+      "reference": "northstar/screenshots/prototype_lineage.png",
+      "current": "docs/northstar_visual_qa/live-runtime-current-v84-wide-finance-shell-2026-05-03/lineage-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/lineage-reference-current.png",
+      "diff": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/lineage-diff-common-crop.png",
+      "referenceSize": [
+        2933,
+        1249
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCrop": [
+        2933,
+        1249
+      ],
+      "diffBbox": [
+        0,
+        0,
+        2933,
+        1249
+      ],
+      "meanAbsDiff": 10.08,
+      "rmsDiff": 29.64,
+      "changedPixelPctThreshold8": 38.7,
+      "palette": {
+        "left_rail": {
+          "reference": "#0b151f",
+          "current": "#0a141e",
+          "delta": 1.73,
+          "box": [
+            20,
+            437,
+            190,
+            557
+          ]
+        },
+        "topbar": {
+          "reference": "#102338",
+          "current": "#152639",
+          "delta": 5.92,
+          "box": [
+            1026,
+            12,
+            1906,
+            48
+          ]
+        },
+        "main_upper": {
+          "reference": "#102033",
+          "current": "#0d1f32",
+          "delta": 3.32,
+          "box": [
+            527,
+            149,
+            1613,
+            299
+          ]
+        },
+        "main_lower": {
+          "reference": "#0c1723",
+          "current": "#071929",
+          "delta": 8.06,
+          "box": [
+            527,
+            849,
+            1613,
+            1049
+          ]
+        },
+        "right_rail": {
+          "reference": "#081524",
+          "current": "#081a2d",
+          "delta": 10.3,
+          "box": [
+            2405,
+            312,
+            2874,
+            686
+          ]
+        }
+      }
+    },
+    {
+      "key": "audit",
+      "reference": "northstar/screenshots/prototype_audit1.png",
+      "current": "docs/northstar_visual_qa/live-runtime-current-v84-wide-finance-shell-2026-05-03/audit-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/audit-reference-current.png",
+      "diff": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/audit-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCrop": [
+        3037,
+        1269
+      ],
+      "diffBbox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "meanAbsDiff": 11.92,
+      "rmsDiff": 32.16,
+      "changedPixelPctThreshold8": 39.73,
+      "palette": {
+        "left_rail": {
+          "reference": "#08111b",
+          "current": "#091622",
+          "delta": 8.66,
+          "box": [
+            20,
+            444,
+            190,
+            564
+          ]
+        },
+        "topbar": {
+          "reference": "#0e2036",
+          "current": "#162639",
+          "delta": 10.44,
+          "box": [
+            1062,
+            12,
+            1974,
+            48
+          ]
+        },
+        "main_upper": {
+          "reference": "#0e2034",
+          "current": "#11283c",
+          "delta": 11.7,
+          "box": [
+            546,
+            152,
+            1670,
+            304
+          ]
+        },
+        "main_lower": {
+          "reference": "#0c1e32",
+          "current": "#0c283f",
+          "delta": 16.4,
+          "box": [
+            546,
+            862,
+            1670,
+            1065
+          ]
+        },
+        "right_rail": {
+          "reference": "#0d1d31",
+          "current": "#0e2337",
+          "delta": 8.54,
+          "box": [
+            2490,
+            317,
+            2976,
+            697
+          ]
+        }
+      }
+    },
+    {
+      "key": "control",
+      "reference": "northstar/screenshots/prototype_cc.png",
+      "current": "docs/northstar_visual_qa/live-runtime-current-v84-wide-finance-shell-2026-05-03/control-center-3037x1269.png",
+      "sideBySide": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/control-reference-current.png",
+      "diff": "docs/northstar_visual_qa/live-runtime-current-v87-reference-current-finance-shell-audit-2026-05-03/control-diff-common-crop.png",
+      "referenceSize": [
+        3037,
+        1269
+      ],
+      "currentSize": [
+        3037,
+        1269
+      ],
+      "commonCrop": [
+        3037,
+        1269
+      ],
+      "diffBbox": [
+        0,
+        0,
+        3037,
+        1269
+      ],
+      "meanAbsDiff": 7.7,
+      "rmsDiff": 26.24,
+      "changedPixelPctThreshold8": 30.12,
+      "palette": {
+        "left_rail": {
+          "reference": "#0b1620",
+          "current": "#0b1f2f",
+          "delta": 17.49,
+          "box": [
+            20,
+            444,
+            190,
+            564
+          ]
+        },
+        "topbar": {
+          "reference": "#0e2036",
+          "current": "#162639",
+          "delta": 10.44,
+          "box": [
+            1062,
+            12,
+            1974,
+            48
+          ]
+        },
+        "main_upper": {
+          "reference": "#0c1d31",
+          "current": "#0d2439",
+          "delta": 10.68,
+          "box": [
+            546,
+            152,
+            1670,
+            304
+          ]
+        },
+        "main_lower": {
+          "reference": "#08172a",
+          "current": "#08182b",
+          "delta": 1.41,
+          "box": [
+            546,
+            862,
+            1670,
+            1065
+          ]
+        },
+        "right_rail": {
+          "reference": "#0d1d31",
+          "current": "#0e2337",
+          "delta": 8.54,
+          "box": [
+            2490,
+            317,
+            2976,
+            697
+          ]
+        }
+      }
+    }
+  ]
+}

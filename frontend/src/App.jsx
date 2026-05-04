@@ -12,6 +12,7 @@ import { useRuntimeStatus } from "./hooks/useRuntimeStatus";
 import { normalizeGovernancePayload, updateGovernanceNotification } from "./lib/api";
 import { openAssetRecordSafely } from "./lib/assetRecordNavigation";
 import { diagnosticsRecoveryAvailable, diagnosticsSurfaceAvailable } from "./lib/capabilities";
+import { isNonAuthoritativeMockEvidence } from "./lib/nonAuthoritativeEvidence";
 
 const GovernanceWorkspace = lazy(() => import("./components/GovernanceWorkspace"));
 const DiscoveryWorkspace = lazy(() => import("./components/DiscoveryWorkspace"));
@@ -27,9 +28,14 @@ const AdminWorkspace = lazy(() => import("./components/AdminWorkspace"));
 const CapabilityDashboard = lazy(() => import("./components/CapabilityDashboard"));
 const InsightsWorkspace = lazy(() => import("./components/InsightsWorkspace"));
 
+function seedAssetHasNonAuthoritativeEvidence(asset) {
+  return isNonAuthoritativeMockEvidence(asset, asset?.meta, asset?.provenance, asset?.warnings);
+}
+
 function visibleAssetSetFromGroups(...groups) {
   const visible = new Set();
   groups.flat().forEach((asset) => {
+    if (seedAssetHasNonAuthoritativeEvidence(asset)) return;
     if (asset?.fqn) visible.add(asset.fqn);
   });
   return visible;
@@ -39,6 +45,7 @@ function mergeAssetGroups(...groups) {
   const merged = [];
   const seen = new Set();
   groups.flat().forEach((asset) => {
+    if (seedAssetHasNonAuthoritativeEvidence(asset)) return;
     if (!asset?.fqn || seen.has(asset.fqn)) return;
     seen.add(asset.fqn);
     merged.push(asset);
@@ -264,7 +271,7 @@ export default function App() {
     asset: routeAssetFqn,
   });
   const runtimeStatus = useRuntimeStatus({
-    enabled: Boolean(error) || Boolean(refreshError) || (Boolean(data) && !shellOnly),
+    enabled: Boolean(error) || Boolean(refreshError) || Boolean(data),
     // Poll while the warehouse is still warming. Runtime status returns immediately
     // with "loading" on a cold serverless warehouse; we need to refetch until the
     // real probe resolves so capability / summary data hydrates without forcing
@@ -332,8 +339,15 @@ export default function App() {
             identity: resolvedIdentity,
           }
         : data;
+  const shouldLoadGovernanceSummary =
+    (surface === "inbox" || shellInboxOpen) &&
+    !loading &&
+    !error &&
+    Boolean(data) &&
+    !isNonAuthoritativeMockEvidence(data);
   const governanceSummary = useGovernanceSummary({
-    enabled: !loading && !error && !shellOnly && Boolean(data),
+    enabled: shouldLoadGovernanceSummary,
+    sections: ["inbox"],
   });
   const runtimeRolloutFlags =
     (!runtimeStatusLoading ? runtimeStatus.data?.diagnostics?.featureFlags : null) ||
@@ -494,7 +508,31 @@ export default function App() {
   // summary arrived) felt like a dead button. The InboxPanel already has
   // a graceful empty state — let it render.
 
-  const bootstrapAssets = useMemo(() => data?.assets || [], [data?.assets]);
+  const bootstrapReady = Boolean(data);
+  const bootstrapPending = loading && !data;
+  const bootState = bootstrapReady ? data.bootState || "live" : bootstrapPending ? "loading" : "error";
+  const bootstrapTruthEnvelope = data
+    ? {
+        bootState: data.bootState,
+        state: data.state,
+        status: data.status,
+        source: data.source,
+        meta: data.meta,
+        bootstrapContract: data.bootstrapContract,
+        discovery: data.discovery,
+        assets: data.assets,
+        assetsCount: data.assetsCount,
+      }
+    : null;
+  const bootstrapNonAuthoritative = isNonAuthoritativeMockEvidence(
+    bootState,
+    bootstrapTruthEnvelope,
+  );
+  const rawBootstrapAssets = useMemo(() => data?.assets || [], [data?.assets]);
+  const bootstrapAssets = useMemo(
+    () => (bootstrapNonAuthoritative ? [] : rawBootstrapAssets),
+    [bootstrapNonAuthoritative, rawBootstrapAssets],
+  );
   const bootstrapRefreshFailed = Boolean(refreshError);
   const hasCurrentDiscoveryTruth =
     liveDiscoveryState.authoritative &&
@@ -562,9 +600,6 @@ export default function App() {
     }
   }, [governanceSummary.data, liveGovernanceState]);
 
-  const bootstrapReady = Boolean(data) && !shellOnly;
-  const bootstrapPending = loading || (shellOnly && !refreshError);
-  const bootState = bootstrapReady ? data.bootState || "live" : bootstrapPending ? "loading" : "error";
   const bootMessage = bootstrapReady ? data.bootMessage || "" : refreshError || error || "";
   const liveCatalogVisibleCount =
     hasCurrentDiscoveryTruth && typeof liveDiscoveryState.count === "number"
@@ -580,8 +615,8 @@ export default function App() {
       ? "loading"
       : bootState === "unavailable" || bootState === "error"
       ? bootState
-      : bootState === "prototype_mock"
-        ? "prototype_mock"
+      : bootstrapNonAuthoritative
+        ? "unavailable"
         : bootstrapRefreshFailed || bootState === "degraded"
         ? "degraded"
         : "live";
@@ -590,16 +625,16 @@ export default function App() {
   const atlasAiAvailableStates = new Set(["available", "ready", "enabled", "configured", "live"]);
   const atlasAiProviderState = String(shell?.ai?.state || "").trim().toLowerCase();
   const atlasAiProviderName = String(shell?.ai?.provider || "").trim().toLowerCase();
-  const atlasAiPrototypeMockAvailable =
-    atlasAiProviderState === "prototype_mock" || atlasAiProviderName === "prototype-mock";
+  const atlasAiProviderAuthoritative = !isNonAuthoritativeMockEvidence(shell?.ai, atlasAiProviderName);
   const atlasAiAvailable =
-    (effectiveBootState === "live" && atlasAiAvailableStates.has(atlasAiProviderState)) ||
-    atlasAiPrototypeMockAvailable;
+    effectiveBootState === "live" &&
+    atlasAiProviderAuthoritative &&
+    atlasAiAvailableStates.has(atlasAiProviderState);
   const atlasAiUnavailableReason =
     shell?.ai?.message ||
     "Atlas AI is unavailable until the shell reports a configured Genie endpoint.";
   const commandCenterSeed = useMemo(() => {
-    const discoveryPayload = data?.discovery || {};
+    const discoveryPayload = bootstrapNonAuthoritative ? {} : data?.discovery || {};
     const bootstrapSummary = discoveryPayload.summary || {};
     const visibleAssetCount =
       typeof liveCatalogVisibleCount === "number"
@@ -640,22 +675,25 @@ export default function App() {
         coverageScore,
       },
       recentAssets: [],
+      authoritative: false,
       meta: {
-        state: "seed",
-        warnings: [],
+        state: "loading",
+        authoritative: false,
+        warnings: ["Command-center metrics are hydrating from live metadata; shell preview values are not displayed as evidence."],
       },
     };
   }, [
+    bootstrapNonAuthoritative,
     data?.discovery,
     data?.governance?.summary?.coverageScore,
     data?.inventory?.catalogCount,
     liveCatalogVisibleCount,
     liveDiscoveryState.facets,
-    searchSeedAssets.length,
+    searchSeedAssets,
     shellGovernance?.summary?.coverageScore,
   ]);
   const commandCenter = useCommandCenter({
-    enabled: bootstrapReady && surface === "home",
+    enabled: bootstrapReady,
     seedData: commandCenterSeed,
   });
 
@@ -800,6 +838,7 @@ export default function App() {
         >
           <AuditBrowserWorkspace
             onOpenAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
+            shell={shell}
           />
         </Suspense>
       );
@@ -949,6 +988,7 @@ export default function App() {
             currentUser={{
               email: shell.userEmail || "",
               name: shell.userName || "",
+              role: shell.role || "",
             }}
             initialAssetFqn={surface === "governance" ? routeAssetFqn : ""}
             governance={governanceRouteFallback}
@@ -982,7 +1022,7 @@ export default function App() {
       governanceInbox={shellGovernance.inbox || null}
       inboxOpen={shellInboxOpen}
       liveCatalogVisibleCount={liveCatalogVisibleCount}
-      ucCoverageScore={commandCenter.data?.estate?.coverageScore ?? commandCenterSeed.estate.coverageScore}
+      ucCoverageScore={commandCenter.hasLiveData ? commandCenter.data?.estate?.coverageScore : null}
       navigationState={navigationState}
       onBrowseCatalog={handleBrowseCatalog}
       onModuleChange={handleModuleSurfaceChange}

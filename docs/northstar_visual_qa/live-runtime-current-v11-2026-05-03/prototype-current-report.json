@@ -1,0 +1,1133 @@
+{
+  "generatedAt": "2026-05-03T06:51:28.827Z",
+  "baseUrl": "http://127.0.0.1:8000",
+  "buildId": "frontend-7022200198a1",
+  "deploymentId": "",
+  "assetFqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+  "mockApi": false,
+  "evidenceKind": "runtime_app_capture",
+  "mockEvidenceWarning": "",
+  "liveDatabricksCapture": false,
+  "forwardedActorCapture": true,
+  "forwardedActorEmail": "skyler@entrada.ai",
+  "forwardedActorTokenPresent": true,
+  "routeFilter": [
+    "command-center",
+    "discover",
+    "stewardship",
+    "glossary",
+    "cde-registry",
+    "lineage",
+    "audit",
+    "control-center"
+  ],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "command-center",
+    "discover",
+    "stewardship",
+    "glossary",
+    "cde-registry",
+    "lineage",
+    "audit",
+    "control-center"
+  ],
+  "viewports": [
+    {
+      "name": "3037x1269",
+      "width": 3037,
+      "height": 1269
+    },
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    }
+  ],
+  "expectedCaptureCount": 16,
+  "captures": [
+    {
+      "route": "command-center",
+      "path": "/command-center",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v11-2026-05-03/command-center-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v11-2026-05-03/command-center-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": [],
+          "commandCenterReady": true
+        }
+      },
+      "metrics": {
+        "title": "Home - Governance Atlas",
+        "url": "http://127.0.0.1:8000/home",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797.078125,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 239.921875,
+          "bottom": 1269,
+          "width": 239.921875,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1774,
+          "clientHeight": 1213,
+          "hasOverflow": true
+        },
+        "home": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › datapact.atlas ⌘K UC connected · 64.9% coverage Atlas AI EXECUTIVE COMMAND CENTER Live Governance posture, at a glance Backed values use live Unity Catalog and governance-store signals; unavailable values are labeled instead of inferred. Export brief Present mode POSTURE 64.9% Trend unavailable THE STATE OF DATAPACT 26 governed assets are in scope. Coverage is 65%. CERTIFIED ASSETS 13 Signal unavailable OPEN EXPOSURES 4 +4 vs 30 days ago CDES TRACKED - Lineage proof unavailable WHAT CHANGED TODAY Coverage 65% Coverage signal unavailable Quality SLA - Quality signal unavailable Open exposures 4 +4 vs 30 days ago Lineage coverage - Lineage signal unavailable GOVERNANCE COVERAGE 65% Signal unavailable CERTIFIED ASSETS 13 Signal unavailable OPEN STEWARDSHIP ITEMS 5 +5 vs 30 days ago OPEN EXPOSURES 4 +4 vs 30 days ago Coverage trend · last 12 weeks i Share of productionized assets meeting baseline policy 12w 26w 52w Trend history unavailable Trend unavailable over the last 12 weeks SLA: >=90% by end of Q2 Projection unavailable Posture by domain i Coverage x visible asset count Product 96% 3 assets Customer 92% 3 assets Marketing 88% 3 assets Operations 88% 3 assets Finance 83% 3 assets Risk breakdown i Open exposures by severity - RISK-CLEAN Open exposures 4 Medium-risk findings - Informational - Open exposure count is backed; severity split is unavailable for this workspace. Top catalogs · health sn",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export brief",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Present mode",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Coverage trend · last 12 weeks: Historical posture snapshots are shown only when available."
+          },
+          {
+            "text": "12w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "26w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "52w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Posture by domain: Domain scores use backed command-center domain signals when available."
+          },
+          {
+            "text": "Product 96% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Product domain posture"
+          },
+          {
+            "text": "Customer 92% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Customer domain posture"
+          },
+          {
+            "text": "Marketing 88% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Marketing domain posture"
+          },
+          {
+            "text": "Operations 88% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Operations domain posture"
+          },
+          {
+            "text": "Finance 83% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Finance domain posture"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Risk breakdown: Risk distribution renders unavailable unless explicit exposure severity signals are present."
+          },
+          {
+            "text": "Open exposures 4",
+            "disabled": false,
+            "aria": "Open stewardship for open exposures"
+          },
+          {
+            "text": "Medium-risk findings -",
+            "disabled": true,
+            "aria": "Open audit evidence for medium-risk findings"
+          },
+          {
+            "text": "Informational -",
+            "disabled": true,
+            "aria": "Open audit evidence for informational risk findings"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Top catalogs · health snapshot: Catalog rows are derived from visible asset inventory and backed metadata coverage fields."
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Critical data elements: CDE rows require backed CDE registry data or asset-level critical-element metadata."
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer Identifier datapact.governance_atlas_demo.customer_profile_coverage customer-steward@entrada.ai Certified",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discounts datapact.governance_atlas_demo.finance_lien_risk_summary finance-steward@entrada.ai Certified",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Gross Revenue datapact.governance_atlas_demo.finance_portfolio_exposure finance-steward@entrada.ai Certified",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Billable Amount datapact.governance_atlas_demo.marketing_lien_outreach_signal marketing-steward@entrada.ai Trusted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Activity stream: Recent activity uses audit/governance events returned by the command-center API."
+          },
+          {
+            "text": "Governance Atlas Updated Governance Atlas taxonomy evidence refreshed from persisted control-plane records. 12m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Updated Governance Atlas taxonomy evidence refreshed from persisted control-plane records. 13m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Updated Governance Atlas taxonomy evidence refreshed from persisted control-plane records. 13m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Updated Governance Atlas taxonomy evidence refreshed from persisted control-plane records. 14m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Updated Governance Atlas taxonomy evidence refreshed from persisted control-plane records. 14m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false,
+      "mainBottomAiButtonEnabled": true,
+      "mainBottomAiOpened": true,
+      "mainScrollCapture": {
+        "scrollTop": 561,
+        "scrollHeight": 1774,
+        "clientHeight": 1213,
+        "maxScrollTop": 561
+      },
+      "mainBottomScreenshot": "docs/northstar_visual_qa/live-runtime-current-v11-2026-05-03/command-center-3037x1269-main-bottom.png"
+    }
+  ],
+  "interactions": [
+    {
+      "route": "command-center",
+      "path": "/command-center",
+      "viewport": "3037x1269",
+      "interaction": "primary-controls",
+      "description": "Exercise Command Center exports, present mode, and trend window controls.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v11-2026-05-03/command-center-primary-controls-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v11-2026-05-03/command-center-primary-controls-3037x1269-full.png",
+      "runResult": {
+        "exportBrief": {
+          "ok": true,
+          "suggestedFilename": "governance-atlas-command-center-2026-05-03.json",
+          "path": "docs/northstar_visual_qa/live-runtime-current-v11-2026-05-03/downloads/command-center-brief-governance-atlas-command-center-2026-05-03.json",
+          "size": 6794,
+          "preview": "{\n  \"exportedAt\": \"2026-05-03T06:52:51.174Z\",\n  \"workspace\": {\n    \"label\": null,\n    \"evidenceKind\": \"live\",\n    \"databricksBackedMetadata\": true,\n    \"liveDatabricksEvidence\": false,\n    \"evidenceBoundary\": \"local-runtime\",\n    \"source\": \"Databricks metadata plane\",\n    \"warning\": \"This export was generated from the local runtime boundary and is not deployed Databricks App closure evidence.\"\n  },\n  \"workspaceLabel\": null,\n  \"generatedAt\": null,\n  \"provenance\": {\n    \"evidenceKind\": \"live\",\n    \"databricksBackedMetadata\": true,\n    \"liveDatabricksEvidence\": false,\n    \"evidenceBoundary\": \"local-runtime\",\n    \"summary\": \"Live command-center evidence from the configured metadata plane.\",\n    \"state\": \"ready\",\n    \"metaState\": \"available\",\n    \"warnings\": []\n  },\n  \"posture\": {\n    \"value\": 64.9,\n    \"title\": \"Governance coverage\",\n    \"trendDelta\": \"Trend unavailable\",\n    \"evidenceKind\": \"live\",\n    \"databricksBackedMetadata\": true,\n    \"liveDatabricksEvidence\": false,\n    \"evidenceBoundary\": \"local-runtime\",\n    \"source\": \"Live command-center evidence from the configured metadata plane.\"\n  },\n  \"kpis\": [\n    {\n      \"key\": \"governedAssets\",\n      \"label\": \"Governed Assets\",\n      ",
+          "hasPrototypeWarning": false,
+          "hasJsonEvidence": true
+        },
+        "presentOn": {
+          "exitPresentMode": true
+        },
+        "trendButtons": {
+          "w12": {
+            "text": "12w",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "true",
+            "ariaSelected": "",
+            "rect": {
+              "top": 631,
+              "left": 1720,
+              "width": 48,
+              "height": 26
+            }
+          },
+          "w26": {
+            "text": "26w",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "true",
+            "ariaSelected": "",
+            "rect": {
+              "top": 631,
+              "left": 1772,
+              "width": 48,
+              "height": 26
+            }
+          },
+          "w52": {
+            "text": "52w",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "true",
+            "ariaSelected": "",
+            "rect": {
+              "top": 631,
+              "left": 1823,
+              "width": 48,
+              "height": 26
+            }
+          },
+          "after26": {
+            "snapshots": {
+              "w12": {
+                "text": "12w",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "false",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 631,
+                  "left": 1720,
+                  "width": 48,
+                  "height": 26
+                }
+              },
+              "w26": {
+                "text": "26w",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "true",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 631,
+                  "left": 1772,
+                  "width": 48,
+                  "height": 26
+                }
+              },
+              "w52": {
+                "text": "52w",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "false",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 631,
+                  "left": 1823,
+                  "width": 48,
+                  "height": 26
+                }
+              }
+            },
+            "activeKeys": [
+              "w26"
+            ]
+          },
+          "after52": {
+            "snapshots": {
+              "w12": {
+                "text": "12w",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "false",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 631,
+                  "left": 1720,
+                  "width": 48,
+                  "height": 26
+                }
+              },
+              "w26": {
+                "text": "26w",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "false",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 631,
+                  "left": 1772,
+                  "width": 48,
+                  "height": 26
+                }
+              },
+              "w52": {
+                "text": "52w",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "true",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 631,
+                  "left": 1823,
+                  "width": 48,
+                  "height": 26
+                }
+              }
+            },
+            "activeKeys": [
+              "w52"
+            ]
+          },
+          "after12": {
+            "snapshots": {
+              "w12": {
+                "text": "12w",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "true",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 631,
+                  "left": 1720,
+                  "width": 48,
+                  "height": 26
+                }
+              },
+              "w26": {
+                "text": "26w",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "false",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 631,
+                  "left": 1772,
+                  "width": 48,
+                  "height": 26
+                }
+              },
+              "w52": {
+                "text": "52w",
+                "ariaLabel": "",
+                "title": "",
+                "role": "",
+                "disabled": false,
+                "ariaPressed": "false",
+                "ariaSelected": "",
+                "rect": {
+                  "top": 631,
+                  "left": 1823,
+                  "width": 48,
+                  "height": 26
+                }
+              }
+            },
+            "activeKeys": [
+              "w12"
+            ]
+          }
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "checks": {
+          "commandTitle": true,
+          "coverageTrend": true,
+          "postureByDomain": true
+        },
+        "runResult": {
+          "exportBrief": {
+            "ok": true,
+            "suggestedFilename": "governance-atlas-command-center-2026-05-03.json",
+            "path": "docs/northstar_visual_qa/live-runtime-current-v11-2026-05-03/downloads/command-center-brief-governance-atlas-command-center-2026-05-03.json",
+            "size": 6794,
+            "preview": "{\n  \"exportedAt\": \"2026-05-03T06:52:51.174Z\",\n  \"workspace\": {\n    \"label\": null,\n    \"evidenceKind\": \"live\",\n    \"databricksBackedMetadata\": true,\n    \"liveDatabricksEvidence\": false,\n    \"evidenceBoundary\": \"local-runtime\",\n    \"source\": \"Databricks metadata plane\",\n    \"warning\": \"This export was generated from the local runtime boundary and is not deployed Databricks App closure evidence.\"\n  },\n  \"workspaceLabel\": null,\n  \"generatedAt\": null,\n  \"provenance\": {\n    \"evidenceKind\": \"live\",\n    \"databricksBackedMetadata\": true,\n    \"liveDatabricksEvidence\": false,\n    \"evidenceBoundary\": \"local-runtime\",\n    \"summary\": \"Live command-center evidence from the configured metadata plane.\",\n    \"state\": \"ready\",\n    \"metaState\": \"available\",\n    \"warnings\": []\n  },\n  \"posture\": {\n    \"value\": 64.9,\n    \"title\": \"Governance coverage\",\n    \"trendDelta\": \"Trend unavailable\",\n    \"evidenceKind\": \"live\",\n    \"databricksBackedMetadata\": true,\n    \"liveDatabricksEvidence\": false,\n    \"evidenceBoundary\": \"local-runtime\",\n    \"source\": \"Live command-center evidence from the configured metadata plane.\"\n  },\n  \"kpis\": [\n    {\n      \"key\": \"governedAssets\",\n      \"label\": \"Governed Assets\",\n      ",
+            "hasPrototypeWarning": false,
+            "hasJsonEvidence": true
+          },
+          "presentOn": {
+            "exitPresentMode": true
+          },
+          "trendButtons": {
+            "w12": {
+              "text": "12w",
+              "ariaLabel": "",
+              "title": "",
+              "role": "",
+              "disabled": false,
+              "ariaPressed": "true",
+              "ariaSelected": "",
+              "rect": {
+                "top": 631,
+                "left": 1720,
+                "width": 48,
+                "height": 26
+              }
+            },
+            "w26": {
+              "text": "26w",
+              "ariaLabel": "",
+              "title": "",
+              "role": "",
+              "disabled": false,
+              "ariaPressed": "true",
+              "ariaSelected": "",
+              "rect": {
+                "top": 631,
+                "left": 1772,
+                "width": 48,
+                "height": 26
+              }
+            },
+            "w52": {
+              "text": "52w",
+              "ariaLabel": "",
+              "title": "",
+              "role": "",
+              "disabled": false,
+              "ariaPressed": "true",
+              "ariaSelected": "",
+              "rect": {
+                "top": 631,
+                "left": 1823,
+                "width": 48,
+                "height": 26
+              }
+            },
+            "after26": {
+              "snapshots": {
+                "w12": {
+                  "text": "12w",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "false",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 631,
+                    "left": 1720,
+                    "width": 48,
+                    "height": 26
+                  }
+                },
+                "w26": {
+                  "text": "26w",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "true",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 631,
+                    "left": 1772,
+                    "width": 48,
+                    "height": 26
+                  }
+                },
+                "w52": {
+                  "text": "52w",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "false",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 631,
+                    "left": 1823,
+                    "width": 48,
+                    "height": 26
+                  }
+                }
+              },
+              "activeKeys": [
+                "w26"
+              ]
+            },
+            "after52": {
+              "snapshots": {
+                "w12": {
+                  "text": "12w",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "false",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 631,
+                    "left": 1720,
+                    "width": 48,
+                    "height": 26
+                  }
+                },
+                "w26": {
+                  "text": "26w",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "false",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 631,
+                    "left": 1772,
+                    "width": 48,
+                    "height": 26
+                  }
+                },
+                "w52": {
+                  "text": "52w",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "true",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 631,
+                    "left": 1823,
+                    "width": 48,
+                    "height": 26
+                  }
+                }
+              },
+              "activeKeys": [
+                "w52"
+              ]
+            },
+            "after12": {
+              "snapshots": {
+                "w12": {
+                  "text": "12w",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "true",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 631,
+                    "left": 1720,
+                    "width": 48,
+                    "height": 26
+                  }
+                },
+                "w26": {
+                  "text": "26w",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "false",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 631,
+                    "left": 1772,
+                    "width": 48,
+                    "height": 26
+                  }
+                },
+                "w52": {
+                  "text": "52w",
+                  "ariaLabel": "",
+                  "title": "",
+                  "role": "",
+                  "disabled": false,
+                  "ariaPressed": "false",
+                  "ariaSelected": "",
+                  "rect": {
+                    "top": 631,
+                    "left": 1823,
+                    "width": 48,
+                    "height": 26
+                  }
+                }
+              },
+              "activeKeys": [
+                "w12"
+              ]
+            }
+          }
+        }
+      },
+      "metrics": {
+        "title": "Home - Governance Atlas",
+        "url": "http://127.0.0.1:8000/home",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797.078125,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 239.921875,
+          "bottom": 1269,
+          "width": 239.921875,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1774,
+          "clientHeight": 1213,
+          "hasOverflow": true
+        },
+        "home": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › datapact.atlas ⌘K UC connected · 64.9% coverage Atlas AI EXECUTIVE COMMAND CENTER Live Governance posture, at a glance Backed values use live Unity Catalog and governance-store signals; unavailable values are labeled instead of inferred. Export brief Present mode Command Center brief export started. POSTURE 64.9% Trend unavailable THE STATE OF DATAPACT 26 governed assets are in scope. Coverage is 65%. CERTIFIED ASSETS 13 Signal unavailable OPEN EXPOSURES 4 +4 vs 30 days ago CDES TRACKED - Lineage proof unavailable WHAT CHANGED TODAY Coverage 65% Coverage signal unavailable Quality SLA - Quality signal unavailable Open exposures 4 +4 vs 30 days ago Lineage coverage - Lineage signal unavailable GOVERNANCE COVERAGE 65% Signal unavailable CERTIFIED ASSETS 13 Signal unavailable OPEN STEWARDSHIP ITEMS 5 +5 vs 30 days ago OPEN EXPOSURES 4 +4 vs 30 days ago Coverage trend · last 12 weeks i Share of productionized assets meeting baseline policy 12w 26w 52w Trend history unavailable Trend unavailable over the last 12 weeks SLA: >=90% by end of Q2 Projection unavailable Posture by domain i Coverage x visible asset count Product 96% 3 assets Customer 92% 3 assets Marketing 88% 3 assets Operations 88% 3 assets Finance 83% 3 assets Risk breakdown i Open exposures by severity - RISK-CLEAN Open exposures 4 Medium-risk findings - Informational - Open exposure count is backed; severity split is unavailable for thi",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export brief",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Present mode",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Coverage trend · last 12 weeks: Historical posture snapshots are shown only when available."
+          },
+          {
+            "text": "12w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "26w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "52w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Posture by domain: Domain scores use backed command-center domain signals when available."
+          },
+          {
+            "text": "Product 96% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Product domain posture"
+          },
+          {
+            "text": "Customer 92% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Customer domain posture"
+          },
+          {
+            "text": "Marketing 88% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Marketing domain posture"
+          },
+          {
+            "text": "Operations 88% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Operations domain posture"
+          },
+          {
+            "text": "Finance 83% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Finance domain posture"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Risk breakdown: Risk distribution renders unavailable unless explicit exposure severity signals are present."
+          },
+          {
+            "text": "Open exposures 4",
+            "disabled": false,
+            "aria": "Open stewardship for open exposures"
+          },
+          {
+            "text": "Medium-risk findings -",
+            "disabled": true,
+            "aria": "Open audit evidence for medium-risk findings"
+          },
+          {
+            "text": "Informational -",
+            "disabled": true,
+            "aria": "Open audit evidence for informational risk findings"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Top catalogs · health snapshot: Catalog rows are derived from visible asset inventory and backed metadata coverage fields."
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Critical data elements: CDE rows require backed CDE registry data or asset-level critical-element metadata."
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer Identifier datapact.governance_atlas_demo.customer_profile_coverage customer-steward@entrada.ai Certified",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discounts datapact.governance_atlas_demo.finance_lien_risk_summary finance-steward@entrada.ai Certified",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Gross Revenue datapact.governance_atlas_demo.finance_portfolio_exposure finance-steward@entrada.ai Certified",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Billable Amount datapact.governance_atlas_demo.marketing_lien_outreach_signal marketing-steward@entrada.ai Trusted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Activity stream: Recent activity uses audit/governance events returned by the command-center API."
+          },
+          {
+            "text": "Governance Atlas Updated Governance Atlas taxonomy evidence refreshed from persisted control-plane records. 12m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Updated Governance Atlas taxonomy evidence refreshed from persisted control-plane records. 13m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Updated Governance Atlas taxonomy evidence refreshed from persisted control-plane records. 13m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Updated Governance Atlas taxonomy evidence refreshed from persisted control-plane records. 14m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Updated Governance Atlas taxonomy evidence refreshed from persisted control-plane records. 14m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      }
+    }
+  ],
+  "console": [],
+  "pageErrors": [],
+  "requestFailures": [],
+  "checks": {
+    "buildMatches": false
+  },
+  "captureCount": 1,
+  "interactionCount": 1,
+  "consoleErrorCount": 0,
+  "pageErrorCount": 0,
+  "requestFailureCount": 0,
+  "passed": false,
+  "fatal": "page.screenshot: Target page, context or browser has been closed"
+}

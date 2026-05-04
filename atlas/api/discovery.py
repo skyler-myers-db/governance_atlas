@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from typing import Any, Dict, List, Optional, Sequence
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -13,10 +14,13 @@ from atlas.services.assets import normalize_str as _normalize_str
 
 
 DISCOVERY_STATE_LIVE = "live"
+DISCOVERY_STATE_LOADING = "loading"
 DISCOVERY_STATE_UNAVAILABLE = "unavailable"
 DISCOVERY_STATE_NO_VISIBLE_ASSETS = "no_visible_assets"
 DISCOVERY_STATE_NO_RESULTS = "no_results"
 DISCOVERY_STATE_FILTERS_EXCLUDE_ALL = "filters_exclude_all"
+_DISCOVERY_INVENTORY_WARMING: set[str] = set()
+_DISCOVERY_INVENTORY_WARMING_LOCK = threading.Lock()
 
 
 def _coerce_filter_list(value: Any) -> List[str]:
@@ -148,6 +152,32 @@ def _visible_assets_count_safe(request: Optional[Request]) -> int:
             return 0
 
 
+def _warm_actor_discovery_inventory(request: Request, cache_scope: str) -> None:
+    normalized_scope = _normalize_str(cache_scope) or "shared"
+    with _DISCOVERY_INVENTORY_WARMING_LOCK:
+        if normalized_scope in _DISCOVERY_INVENTORY_WARMING:
+            return
+        _DISCOVERY_INVENTORY_WARMING.add(normalized_scope)
+
+    def run() -> None:
+        try:
+            try:
+                from runtime_app import _visible_assets
+
+                _visible_assets(request)
+            except Exception:
+                pass
+        finally:
+            with _DISCOVERY_INVENTORY_WARMING_LOCK:
+                _DISCOVERY_INVENTORY_WARMING.discard(normalized_scope)
+
+    threading.Thread(
+        target=run,
+        name=f"atlas-discovery-inventory-warm-{normalized_scope}",
+        daemon=True,
+    ).start()
+
+
 def api_discovery_search(
     request: Request,
     query: str = "",
@@ -167,8 +197,11 @@ def api_discovery_search(
     refresh: Optional[str] = Query(default=None),
 ) -> JSONResponse:
     from runtime_app import (
+        _cached_visible_assets,
         _discovery_search_payload,
         _ensure_live_runtime,
+        _fast_bootstrap_inventory_summary,
+        _request_cache_scope,
         _uc_runtime_status,
     )
 
@@ -191,6 +224,63 @@ def api_discovery_search(
             # The refresh hop is best-effort — if the runtime isn't ready,
             # the outer `_ensure_live_runtime()` has already raised.
             pass
+
+    # Cold Databricks inventory hydration must not freeze the Discovery page.
+    # If the actor-scoped inventory is not cached yet, kick the real live
+    # metadata load in the background and return a truthful loading envelope.
+    # The frontend treats this as an unfinished state and refetches until the
+    # runtime cache contains real Unity Catalog rows.
+    cache_scope = _request_cache_scope(request)
+    if _cached_visible_assets(request) is None and not _normalize_str(refresh):
+        _warm_actor_discovery_inventory(request, cache_scope)
+        summary = _fast_bootstrap_inventory_summary(cache_scope, start_background=True)
+        query_state = {
+            "state": DISCOVERY_STATE_LOADING,
+            "message": (
+                "Live Unity Catalog inventory is hydrating for this actor. "
+                "Search results will refresh automatically."
+            ),
+            "syntaxHint": asset_service.DISCOVERY_QUERY_SYNTAX_HINT,
+            "supportedFields": list(asset_service.DISCOVERY_QUERY_SUPPORTED_FIELDS),
+            "clauseChips": [],
+        }
+        payload = {
+            "assets": [],
+            "count": 0,
+            "facets": {
+                "views": [],
+                "assetTypes": [],
+                "catalogs": [],
+                "domains": [],
+                "tiers": [],
+                "certifications": [],
+                "sensitivities": [],
+                "owners": [],
+            },
+            "queryState": query_state,
+            "selection": {"primaryAssetFqn": "", "reason": "inventory_loading"},
+        }
+        envelope = _with_meta(
+            payload,
+            request,
+            source="unity-catalog-inventory",
+            state=DISCOVERY_STATE_LOADING,
+            authoritative=False,
+            capabilities={
+                "workspaceScopedInventory": _request_auth_mode(request)
+                != capability_service.OBO_AVAILABLE_MODE,
+                "inventoryHydrating": True,
+                "visibleAssetsPreloaded": int(summary.get("visibleAssets") or 0),
+            },
+            warnings=[query_state["message"]],
+        )
+        meta = envelope.setdefault("meta", {})
+        meta["discoveryState"] = DISCOVERY_STATE_LOADING
+        meta["discoveryStateReason"] = query_state["message"]
+        meta["visibleAssetCount"] = int(summary.get("visibleAssets") or 0)
+        meta["inventoryHydrating"] = True
+        meta["oboScopeFallback"] = False
+        return JSONResponse(envelope)
 
     # Snapshot the per-request UC client BEFORE the payload build so we
     # can read its `obo_scope_fallback` flag afterwards without racing

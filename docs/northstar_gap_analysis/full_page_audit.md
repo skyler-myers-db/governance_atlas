@@ -1,10 +1,48 @@
 # Full North Star Page Audit
 
-Status: current rows closed with reviewer evidence.
+Status: reopened and blocking after the 2026-05-02 false-signoff review.
 
 This ledger is the materialized source of truth for the current `northstar/*`
 prototype pass. It supersedes any previous claim that route capture success or
 subagent signoff alone proved visual parity.
+
+## 2026-05-02 Supersession
+
+The previous zero-open-row state is invalid. Historical checked rows below remain
+for audit history only until each row is revalidated against the reopened audit
+gaps and current live/runtime evidence.
+
+Current companion blockers:
+
+| Companion audit | Status | Blocking reason |
+| --- | --- | --- |
+| `docs/northstar_gap_analysis/functional_control_audit.md` | Reopened and blocking | Control-level closure is invalid until every visible control has current live/runtime evidence or a truthful disabled/unavailable outcome. |
+| `docs/northstar_gap_analysis/lineage_reopened_visual_audit.md` | Reopened and blocking | Lineage-specific visual, functional, responsive, palette, and process gaps were never superseded row-by-row. |
+| `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md` | Reopened and blocking | All approved North Star routes have newly materialized visual, functional, truth/provenance, loading/degraded, mock-removal, and process gaps. |
+
+No route may use historical `SIGNOFF`, closed rows, or prototype/local evidence as
+current completion proof while either companion audit remains active.
+
+## 2026-05-03 Active Evidence Epoch
+
+The active current capture-health epoch is
+`docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/prototype-current-report.json`
+for build `frontend-33133f44f929`, with `mockApi=false`, `captureCount=32`, and
+`interactionCount=0`. It is route/capture-health evidence only.
+
+The active side-by-side visual blocker is
+`docs/northstar_visual_qa/live-runtime-current-v139-reference-current-audit-2026-05-03/audit-artifact-manifest.json`.
+It reports `10` pairs and `10` blocked pairs. No visual row is closed by this
+artifact.
+
+The active local-runtime functional evidence is
+`docs/northstar_visual_qa/live-runtime-current-v135-full-functional-all-routes-2026-05-03/prototype-current-report.json`,
+with focused supplements at
+`docs/northstar_visual_qa/live-runtime-current-v132-focused-functional-command-lineage-control-2026-05-03/prototype-current-report.json`
+and
+`docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/prototype-current-report.json`.
+These reports do not close deployed proof, performance, or the remaining status-only
+control rows.
 
 ## Rules For This Audit
 
@@ -20,7 +58,8 @@ subagent signoff alone proved visual parity.
 
 ## False Signoff Failure Analysis
 
-Status: resolved for the current tranche; this failure analysis remains the required reopening standard if any row reopens.
+Status: historical failure analysis retained as a blocking reopening standard; it is
+not resolved while reopened rows remain open.
 
 - Compared evidence: `northstar/screenshots/prototype_home1.png` and
   `northstar/screenshots/prototype_home2.png` versus current Command Center evidence
@@ -43,8 +82,8 @@ Status: resolved for the current tranche; this failure analysis remains the requ
 
 ## Lineage False-Signoff Failure Analysis
 
-Status: resolved for the current tranche; this remains the Lineage-specific
-reopening standard if any Lineage row reopens.
+Status: historical failure analysis retained as a blocking reopening standard; it is
+not resolved while reopened Lineage rows remain open.
 
 - Historical compared evidence from the original reopened failure: `northstar/screenshots/prototype_lineage.png` versus
   `docs/northstar_visual_qa/reopened-lineage-current-local/lineage-3037x1269.png`
@@ -77,15 +116,16 @@ reopening standard if any Lineage row reopens.
 
 | Page | Reference | Current Evidence | Open Gaps | Status |
 | --- | --- | --- | ---: | --- |
-| Command Center | `prototype_home1.png`, `prototype_home2.png` | `command-center-3037x1269.png` | 0 | Closed in current ledger |
-| Discover | `prototype_discover1.png`, `prototype_discover2.png` | `discover-3037x1269.png` | 0 | Closed in current ledger |
-| Stewardship | `prototype_stewardship1.png` | `stewardship-3037x1269.png` | 0 | Closed in current ledger |
-| Glossary | `prototype_glossary1.png` | `glossary-3037x1269.png` | 0 | Closed in current ledger |
-| CDE Registry | `prototype_stewardship2.png`, `northstar/pages/extras.jsx` | `cde-registry-3037x1269.png` | 0 | Closed in current ledger |
-| Lineage Atlas | `prototype_lineage.png` | `lineage-3037x1269.png` | 0 | Closed in current ledger |
-| Audit Evidence | `prototype_audit1.png` | `audit-3037x1269.png` | 0 | Closed in current ledger |
-| Control Center | `prototype_cc.png` | `control-center-3037x1269.png` | 0 | Closed in current ledger |
-| Cross-Page Shared | shared shell, AI, workflow, and provenance rules | all routes | 0 | Closed in current ledger |
+| Command Center | `prototype_home1.png`, `prototype_home2.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/command-center-3037x1269.png` | 7 | Blocked |
+| Discover | `prototype_discover1.png`, `prototype_discover2.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/discover-3037x1269.png` | 12 | Blocked |
+| Stewardship | `prototype_stewardship1.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/stewardship-3037x1269.png` | 6 | Blocked |
+| Glossary | `prototype_glossary1.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/glossary-3037x1269.png` | 5 | Blocked |
+| CDE Registry | `prototype_stewardship2.png`, `northstar/pages/extras.jsx` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/cde-registry-3037x1269.png` | 6 | Blocked |
+| Lineage Atlas | `prototype_lineage.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/lineage-3037x1269.png` | 24 | Blocked |
+| Audit Evidence | `prototype_audit1.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/audit-3037x1269.png` | 5 | Blocked |
+| Control Center | `prototype_cc.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/control-center-3037x1269.png` | 6 | Blocked |
+| Cross-Page Shared | shared shell, AI, workflow, and provenance rules | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/prototype-current-report.json` | 10 | Blocked |
+| Mock And Fixture Removal | product truth/provenance rules | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/prototype-current-report.json` | 9 | Blocked |
 
 ## Command Center Gaps
 
@@ -99,6 +139,17 @@ Current:
 - `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/command-center-3037x1269.png`
 
 Open gaps:
+
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] visual: header/topbar copy diverges from `prototype_home1.png` through prototype/non-live text and the changed UC status treatment.
+- [ ] visual: page main region is brighter/bluer than the reference sample.
+- [ ] visual: lower-scroll capture does not align to `prototype_home2.png`; the current lower capture begins with the coverage chart title clipped under the topbar.
+- [ ] visual: lower-scroll content frame is substantially wider/left-shifted than the reference, changing chart, risk, catalog, CDE, and activity rhythm.
+- [ ] visual: lower AI rail copy and prompt set differ from the reference Atlas AI panel.
+- [ ] functional: export fallback must show visible failure feedback if browser blob export support is unavailable.
+- [ ] functional: current Command Center evidence is local prototype evidence and does not prove current deployed/live controls.
+<!-- reopened-2026-05-02-active-rows:end -->
 
 - [x] visual: current shell/page canvas now matches the prototype's darker restrained navy at sampled page and rail coordinates. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/command-center-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
 - [x] visual: current page canvas now uses the reference-proportional side rail and the Command Center content frame begins at the same centered product-frame offset as the reference. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/command-center-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-05-01; Type: local prototype_mock.
@@ -166,6 +217,22 @@ Current:
 - `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/discover-3037x1269.png`
 
 Open gaps:
+
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] process: `prototype_discover2.png` is a selected-preview state, but the manifest must explicitly map it to `discover-selected-{viewport}.png`.
+- [ ] visual: `discover-3037x1269.png` is left-shifted and wider than `prototype_discover1.png`; filter rail and results no longer sit in the same centered frame.
+- [ ] visual: page subcopy uses prototype-fixture wording instead of the reference permission-aware/trust-signal wording.
+- [ ] visual: result cards are taller/brighter and the final visible row clips at the first viewport bottom.
+- [ ] visual: AI panel copy and prompts differ from the reference.
+- [ ] visual: `discover-selected-3037x1269.png` has an open AI panel inside the drawer, obscuring Tags/Glossary and Buildability regions.
+- [ ] visual: selected drawer header, metadata density, tab spacing, and sticky actions differ from `prototype_discover2.png`.
+- [ ] visual: selected drawer adds `Review cert` and extra prototype-connected-assets content not present in the reference.
+- [ ] visual: Discover degraded state introduces a large pale banner/card that breaks the dark palette and row-list rhythm.
+- [ ] functional: Saved searches are local/hardcoded rather than persisted or clearly unavailable.
+- [ ] functional: Recommended Assets `View all` selects a recommendation instead of opening a complete recommendations view.
+- [ ] functional: selected-preview and lineage warm-up latency need measured evidence from click to useful state.
+<!-- reopened-2026-05-02-active-rows:end -->
 
 - [x] process: Discover full-page evidence now includes both first-viewport and internal `.gh-main` bottom-state captures for the taller route content. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/prototype-current-report.json`, viewport `3037x1269`, interaction `mainBottomScreenshot`; Reviewer: Process; Date: 2026-04-30; Type: local prototype_mock.
 - [x] process: selected-asset state from `prototype_discover2.png` has fresh current screenshot evidence in the active, hash-pinned current evidence directory. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/prototype-current-report.json`, viewport `1536x1024`; Reviewer: Process; Date: 2026-04-30; Type: local prototype_mock.
@@ -245,6 +312,16 @@ Current:
 
 Open gaps:
 
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] visual: page content is left-shifted and wider than `prototype_stewardship1.png`.
+- [ ] visual: header subcopy uses prototype/non-live wording instead of the reference workbench description.
+- [ ] visual: selected work-item detail adds trigger/source/observed grid content not present in the reference.
+- [ ] visual: work-item hierarchy and density differ in the selected side panel.
+- [ ] visual: table columns truncate at `1440x900` and `1280x720`, especially asset names and assigned owner cells.
+- [ ] functional: governance mutation controls need disposable live proof or disabled unavailable states; current live QA skips mutation clicks.
+<!-- reopened-2026-05-02-active-rows:end -->
+
 - [x] visual: Stewardship header metrics now match the prototype `184 open work items` and `7 SLA breaches` rhythm in current local prototype-mock evidence. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/stewardship-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
 - [x] visual: left-nav Stewardship badge `184` from prototype is present in the current Stewardship shell. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/stewardship-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
 - [x] visual: Stewardship's route background no longer renders the brighter decorative line-art wash; sampled page-canvas and rail pixels match the prototype's darker navy system. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/stewardship-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
@@ -302,6 +379,15 @@ Current:
 
 Open gaps:
 
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] visual: page content is left-shifted and wider than `prototype_glossary1.png`.
+- [ ] visual: current adds a hierarchy strip and `4 visible terms` count not present in the reference screenshot.
+- [ ] visual: glossary cards are taller and include Source/Associations/Review blocks, while the reference uses compact term cards with assets and lineage links.
+- [ ] visual: AI panel copy/prompts differ from the reference.
+- [ ] functional: `TaxonomyWorkspace` is forced into prototype behavior, so reviewer, hierarchy, version, and association workflows cannot be treated as backed live workflows.
+<!-- reopened-2026-05-02-active-rows:end -->
+
 - [x] process: current Glossary wide screenshot no longer shows lower content cut/hidden, and the manifest-pinned capture report records no `.gh-main` overflow for this route at `3037x1269`. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/prototype-current-report.json`, viewport `3037x1269`; Reviewer: Process; Date: 2026-04-30; Type: local prototype_mock.
 - [x] process: live tab click validation is performed against deployed evidence; current evidence clicks Glossary, CDE Registry, and back to Glossary with live content visible in each tab. Evidence: `docs/northstar_visual_qa/glossary-live-v310-databricks/prototype-current-report.json`, interaction `deployed-glossary-tab-click-validation`, report-recorded screenshots `glossary-live-1536x1024.png`, `glossary-live-tabs-returned-1536x1024.png`, viewport `1536x1024`; Reviewer: Functional workflow + Process; Date: 2026-05-01; Type: live_databricks.
 - [x] visual: workspace breadcrumb, UC chip sizing, notification/help icons, Atlas AI button, active sidebar item, and bottom profile rhythm now match the prototype shell closely enough on the Glossary route; the UC text remains truthfully labeled as prototype-mock evidence instead of false live coverage. Evidence: `docs/northstar_visual_qa/shared-topbar-v364-local/glossary-3037x1269.png`, `docs/northstar_visual_qa/shared-topbar-v364-local/glossary-1536x1024.png`, `docs/northstar_visual_qa/shared-ai-panel-v360-local/glossary-3037x1269.png`, viewports `3037x1269`, `1536x1024`; Reviewer: Visual fidelity + Truth/provenance; Date: 2026-05-01; Type: local prototype_mock.
@@ -356,6 +442,16 @@ Current:
 - `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/cde-registry-3037x1269.png`
 
 Open gaps:
+
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] visual: page content is left-shifted and wider than `prototype_stewardship2.png`.
+- [ ] visual: CDE table copy differs: current uses `Future`/`Fixture` recert/status treatments where the reference uses compact `90d`, `180d`, `Healthy`, and `Recert due`.
+- [ ] visual: CDE iconography differs from the reference small key/link glyphs.
+- [ ] process: `cde-registry-cde-detail-state-*` has no explicit screenshot-reference mapping and must be tracked as a separate selected-detail state if reviewed.
+- [ ] visual: at `1280x720`, CDE Registry changes from table structure to stacked cards without a recorded responsive reference or deferral.
+- [ ] functional: CDE owner/recertification workflows require live proof or truthful disabled unavailable states.
+<!-- reopened-2026-05-02-active-rows:end -->
 
 - [x] visual: current CDE Registry renders the prototype's five-row CDE set. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/cde-registry-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
 - [x] visual: current CDE names match the prototype set: Net Revenue (USD), Customer ID, Lifetime Value (USD), Compensation Band, and Order Total (USD). Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/cde-registry-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
@@ -412,6 +508,34 @@ Current:
 
 Open gaps:
 
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] visual: current first viewport is vertically compressed versus `prototype_lineage.png`; lower Impact/Column panels begin too early.
+- [ ] visual: current and reference screenshots are not the same dimensions.
+- [ ] visual: graph topology differs in node positions, graph scale, edge curves, arrowhead landings, glow, and convergence around notebook/downstream paths.
+- [ ] visual: downstream boundary card is visible as `4 downstream assets` with prototype permission copy; the reference has a subtler continuation shape.
+- [ ] visual: header action buttons sit differently against the right edge.
+- [ ] visual: header chip styling is flatter/smaller than the reference icon-chip treatment.
+- [ ] visual: current graph canvas and right inspector palette still differ from sampled reference regions.
+- [ ] visual: canvas toolbar is shorter and more cramped than the reference toolbar.
+- [ ] visual: reference graph scroll affordances are not reproduced in the same form.
+- [ ] visual: hop/depth controls and visible topology-depth scaffolding do not match the reference graph operating model.
+- [ ] visual: left source cards crop/truncate differently from the reference.
+- [ ] visual: node cards differ in title baselines, icon boxes, footer spacing, row density, and schema truncation.
+- [ ] visual: current inspector includes prototype/non-live proof copy absent from the reference.
+- [ ] visual: inspector stats differ: `11 min ago` wrapping/dot treatment and row/owner density do not match.
+- [ ] visual: source/consumer/activity rows differ in wrapping, separators, dots, and copy spacing.
+- [ ] visual: node-type strip adds `Prototype topology shape; system.access.table_lineage not verified`; reference is quieter and says `via system.access.table_lineage`.
+- [ ] visual: `LINEAGE AS OF` strip differs: current says `Prototype fixture`, `not live`, and `Reset preview`; reference says `Today`, `live`, and `Now`.
+- [ ] visual: at `1536x1024` and `1440x900`, graph content is cropped/truncated.
+- [ ] visual: at `1280x720`, toolbar, graph cards, and inspector crowd the first viewport and text becomes hard to use.
+- [ ] functional: custom North Star graph canvas did not support drag/pan.
+- [ ] functional: `Now`/as-of action changes status text only unless wired to a backed refresh/time-selection workflow or disabled.
+- [ ] functional: Search toggle announces opened even when closing and needs full open/search/clear/no-results/live-backed coverage.
+- [ ] functional: Lineage export, graph search, pan/drag, zoom, reset, selected-node, restricted-boundary, notify-owner, and column-row workflows need current live/runtime evidence or explicit unavailable states.
+- [ ] functional: Lineage edge selection, edge-detail affordances, and keyboard graph navigation have no current control-level evidence.
+<!-- reopened-2026-05-02-active-rows:end -->
+
 - [x] visual: long Lineage FQN header is verified across the required current local prototype-mock viewports without the prior wide-header regression. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/lineage-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/lineage-1536x1024.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/lineage-1440x900.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/lineage-1280x720.png`, viewports `3037x1269`, `1536x1024`, `1440x900`, `1280x720`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
 - [x] visual: deployed live Lineage FQN typography now uses a contained thin-live header scale so the long underscore-heavy asset name no longer renders as an oversized headline or consumes excessive first-viewport space. Evidence: `docs/northstar_visual_qa/lineage-live-v336-databricks/lineage-live-1536x1024.png`, `docs/northstar_visual_qa/lineage-live-v336-databricks/lineage-live-1440x900.png`, `docs/northstar_visual_qa/lineage-live-v336-databricks/lineage-live-1280x720.png`, viewports `1536x1024`, `1440x900`, `1280x720`; Reviewer: Visual fidelity; Date: 2026-05-01; Type: live_databricks.
 - [x] visual: header chips now use the prototype's compact production-label rhythm (`Certified`, freshness SLA, `5 CDEs`, owner, `5 upstream · 23 downstream`, and revenue-impact values) instead of expanded `Prototype`/`Preview` labels. Evidence: `docs/northstar_visual_qa/lineage-layout-v361-local/lineage-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-05-01; Type: local prototype_mock.
@@ -442,7 +566,7 @@ Open gaps:
 - [x] functional: Column lineage mode now focuses the lower column-lineage panel and exposes the system-access source/provenance footer, rather than only toggling hidden graph state. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `lineage-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.
 - [x] functional: current deployed Lineage evidence exercises every visible live graph node class and logs consumer, impact, restricted, and column-detail rows as covered or truthfully unavailable when absent from the sampled live graph. Evidence: `docs/northstar_visual_qa/lineage-restricted-live-v399-databricks/lineage-live-report.json`, interaction `deployed-lineage-all-node-detail-classes`, viewports `1536x1024`, `1440x900`, `1280x720`; Reviewer: Functional workflow; Date: 2026-05-02; Type: live_databricks.
 - [x] functional: current live restricted-boundary graph consumer/detail navigation is explicitly validated as covered or truthfully unavailable without introducing synthetic consumer rows. Evidence: `docs/northstar_visual_qa/lineage-restricted-live-v399-databricks/lineage-live-report.json`, interaction `deployed-lineage-all-node-detail-classes`, validation check `consumerRowsCoveredOrUnavailable`; Reviewer: Functional workflow + Truth/provenance; Date: 2026-05-02; Type: live_databricks.
-- [x] functional: Notify owners no longer routes as a fake workflow in prototype-mock evidence; it is disabled with the explicit backed-impact requirement. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `notify-owners`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
+- [x] Historical only: the former Notify owners action no longer routed as a fake workflow in prototype-mock evidence; it was disabled with the explicit backed-impact requirement. It is not current closure proof; the current product control is renamed to Review owners unless a real notification mutation exists. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `notify-owners`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] functional: authoritative-only Compare/Table/Search/Export controls and the former selected-strip Open asset action are absent from the non-authoritative prototype Lineage view, so no unsupported route action is exposed there. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interactions `lineage-controls`, `asset-navigation`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] functional: AI prompt submission/evidence routing is page-level validated in local prototype evidence. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `atlas-ai`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] functional: deployed/live `Refocus graph` now records visible refocus feedback from rich and sparse live Lineage routes and routes sampled unverified references to truthful unavailable lineage states without introducing synthetic edges; v335/v336 do not prove a successful backed refocus graph. Evidence: `docs/northstar_visual_qa/lineage-rich-live-v335-databricks/lineage-live-report.json`, `docs/northstar_visual_qa/lineage-live-v336-databricks/lineage-live-report.json`, interaction `deployed-lineage-refocus-graph`, viewports `1536x1024`, `1440x900`, `1280x720`; Reviewer: Functional workflow; Date: 2026-05-01; Type: live_databricks.
@@ -499,6 +623,15 @@ Current:
 
 Open gaps:
 
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] visual: page content is left-shifted and wider than `prototype_audit1.png`.
+- [ ] visual: metric cards and event table have different column proportions; target and evidence cells wrap differently.
+- [ ] visual: current Evidence cells include repeated `Prototype fixture` subtext not visible in the reference table.
+- [ ] visual: Audit degraded state has no reference screenshot; current unavailable metrics and large empty table panel alter first-viewport rhythm.
+- [ ] functional: date-range evidence must prove backed query scope changes, not only local labels and download names.
+<!-- reopened-2026-05-02-active-rows:end -->
+
 - [x] visual: Audit header copy now uses the prototype exportable SOC2/SOX evidence framing while the topbar keeps the screenshot labeled as non-authoritative prototype-mock evidence. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/audit-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity + Truth/provenance; Date: 2026-05-01; Type: local prototype_mock.
 - [x] visual: Audit header action buttons now include prototype-style icons and spacing in current local prototype-mock evidence. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/audit-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
 - [x] visual: Audit date-range action no longer shows the stale inline `24h` treatment and now matches the prototype control label shape. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/audit-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
@@ -553,6 +686,16 @@ Current:
 
 Open gaps:
 
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] visual: page content is left-shifted and wider than `prototype_cc.png`.
+- [ ] visual: header subcopy uses prototype diagnostic/non-live wording instead of the reference runtime/configuration copy.
+- [ ] visual: Scheduled Jobs status chips all read as fixture-style rows with chevrons; reference uses `Healthy`/`Slow` readiness treatments.
+- [ ] visual: Integrations panel changes `OK` connection chips to fixture chips and adds row chevrons, changing the control/readiness model.
+- [ ] visual: Policy coverage panel is lower and denser than the reference because the upper grid dimensions changed.
+- [ ] functional: row actions can end in local status text instead of opening a real resource or disabled unavailable detail.
+<!-- reopened-2026-05-02-active-rows:end -->
+
 - [x] visual: Control Center route background now matches the prototype's darker navy page-canvas and left-rail colors at sampled coordinates. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/control-center-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
 - [x] visual: Control Center page composition is now centered on the prototype frame with the main runtime stack and right Atlas AI rail occupying the same wide-layout rhythm. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/control-center-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-05-01; Type: local prototype_mock.
 - [x] visual: Scheduled jobs card now preserves the prototype's populated six-row table rhythm in local prototype-mock evidence. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/control-center-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
@@ -591,11 +734,49 @@ Open gaps:
 - [x] visual: scheduled-job and integration rows now have stronger icon/status rhythm and selected-row affordance coverage in current visual and interaction evidence, rather than the prior flat static-diagnostic presentation. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/control-center-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/control-center-1280x720.png`, viewports `3037x1269`, `1280x720`; Reviewer: Visual fidelity; Date: 2026-05-01; Type: local prototype_mock.
 - [x] visual: Control Center rows now expose stronger row-level affordances with visible chevrons across scheduled jobs, integrations, and policy coverage while retaining truthful fixture/prototype state instead of fake configuration controls. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/control-center-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/control-center-1280x720.png`, viewports `3037x1269`, `1280x720`; Reviewer: Visual fidelity + Product structure; Date: 2026-05-01; Type: local prototype_mock.
 
+## Mock And Fixture Removal Gaps
+
+Reference:
+
+- product truth/provenance rules
+
+Current:
+
+- production UI/runtime and dev-workspace data
+
+Open gaps:
+
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] truth/provenance: `frontend/scripts/atlas_prototype_current_capture.mjs` intercepts app APIs and serves prototype payloads; it must not be a closure path for product rows.
+- [ ] truth/provenance: `northstar/data/mock.js` remains a reference/prototype data source and must not feed customer-facing runtime behavior.
+- [ ] truth/provenance: production frontend files render `prototype_mock`, `Prototype mock`, `Prototype fixture`, and `local-prototype-mock` copy in multiple app surfaces.
+- [ ] truth/provenance: `TaxonomyWorkspace` has forced prototype behavior and must be converted to live/backed glossary and CDE workflows or truthful unavailable states.
+- [ ] truth/provenance: a representative enterprise development workspace must be built from real UC tables/jobs/pipelines/quality runs/permissions/lineage-producing flows rather than UI mock values.
+- [ ] process: `full_page_audit.md`, `functional_control_audit.md`, and `signoff_matrix.md` still preserve historical zero-open or closure language that can mislead reviewers unless every active summary row is visibly reopened.
+- [ ] process: future visual, truth, functional, and reviewer matrix closure must name one current build/deployment evidence epoch instead of mixing local and deployed artifacts from different builds.
+- [ ] process: every route needs explicit mappings for first viewport, lower scroll, responsive, selected/detail, loading, and degraded states before those states can be reviewed or deferred.
+- [ ] process: Lineage visual, functional, truth/provenance, and reviewer evidence may not mix epochs unless an audit row explicitly records the mismatch and rationale.
+<!-- reopened-2026-05-02-active-rows:end -->
+
 ## Cross-Page Shared Gaps
 
 These shared items block any page-level signoff even if an individual page's content
 is later corrected.
 
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] process: v415 has no loading-state screenshots, so shared loading-state structure, palette, overlays, and topbar behavior remain unreviewed.
+- [ ] process: degraded-state screenshots exist only for Discover and Audit. Command Center, Stewardship, Glossary, CDE Registry, Lineage, and Control Center degraded states remain unmapped.
+- [ ] visual: shared topbar UC chip differs on every route. Reference shows `UC connected · 87.4% coverage`; current shows `Prototype mock · UC not verified`.
+- [ ] truth/provenance: mock/local/prototype copy is rendered in current product screenshots and changes visible product semantics.
+- [ ] visual: Discover, Stewardship, Glossary, CDE Registry, Audit, and Control Center content frames are wider and more left-shifted than the references.
+- [ ] visual: route AI panels use route-specific prototype copy/prompts instead of the shared reference prompt set.
+- [ ] visual: Lineage lacks the reference bottom-right AI launcher in the first viewport.
+- [ ] visual: responsive FAB states can overlap lower-right actions, including Discover selected-state `Review cert` at `1280x720`.
+- [ ] process: full-page and lower-scroll screenshots are not consistently mapped to the corresponding reference state by route.
+- [ ] functional: local prototype functional evidence has been used to close route controls that need current live/runtime proof or truthful disabled states.
+<!-- reopened-2026-05-02-active-rows:end -->
 - [x] visual: global shell/page palette now matches the prototype's darker, restrained navy system at sampled route and rail coordinates; remaining topbar/icon/spacing differences stay open separately. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/command-center-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/discover-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/stewardship-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/glossary-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/audit-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/control-center-3037x1269.png`, viewport `3037x1269`, interaction `pixel-sample-audit`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
 - [x] visual: right-side Atlas AI rail now uses the prototype wide-route dock width and placement across the reviewed shared pages, remains absent from the Lineage first viewport where the lineage-detail rail is the reference, and drops out at `1536x1024` without covering primary content. Evidence: `docs/northstar_visual_qa/shared-ai-panel-v360-local/discover-3037x1269.png`, `docs/northstar_visual_qa/shared-ai-panel-v360-local/stewardship-3037x1269.png`, `docs/northstar_visual_qa/shared-ai-panel-v360-local/glossary-3037x1269.png`, `docs/northstar_visual_qa/shared-ai-panel-v360-local/cde-registry-3037x1269.png`, `docs/northstar_visual_qa/shared-ai-panel-v360-local/audit-3037x1269.png`, `docs/northstar_visual_qa/shared-ai-panel-v360-local/control-center-3037x1269.png`, `docs/northstar_visual_qa/shared-ai-panel-v360-local/lineage-3037x1269.png`, `docs/northstar_visual_qa/shared-ai-panel-v360-local/glossary-1536x1024.png`, viewport `3037x1269` plus `1536x1024`; Reviewer: Visual fidelity; Date: 2026-05-01; Type: local prototype_mock.
 - [x] visual: right-side AI rail is present in the current wide prototype-mock captures for pages where the approved references show it open; Lineage uses the separate lineage details rail rather than an Atlas AI rail in the reference. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/command-center-3037x1269-main-bottom.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/discover-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/stewardship-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/glossary-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/cde-registry-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/audit-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/control-center-3037x1269.png`, viewport `3037x1269`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.
@@ -614,9 +795,9 @@ is later corrected.
 - [x] truth/provenance: live thin data preserves the prototype page shape with honest unavailable/degraded states instead of deleting regions; the v416 live Databricks derived report confirms all route captures loaded, Reader 403s were expected only, and Command Center, Stewardship, Glossary, CDE, Lineage, Audit, and Control Center unavailable/admin-only shapes remained present. Evidence: `docs/northstar_visual_qa/live-thin-state-v416-databricks/live-thin-state-report.json`, validation checks `allCapturesLoaded`, `routeCoverageComplete`, `expectedForbiddenOnly`, `commandCenterLabelsUnavailable`, `stewardshipNoSyntheticRows`, `glossaryUnavailableShape`, `cdeUnavailableShape`, `lineageUnavailableLabels`, `auditUnavailableShape`, `controlCenterAdminOnlyShape`, viewports `3037x1269`, `1536x1024`, `1440x900`, `1280x720`; Reviewer: Truth/provenance + Feedback coverage; Date: 2026-05-02; Type: live_databricks.
 - [x] truth/provenance: synthetic development data remains excluded from authoritative UI claims; current live thin-state evidence labels unavailable values rather than inferring fake counts, tasks, lineage, quality, governance state, policy coverage, or integration success. Evidence: `docs/northstar_visual_qa/live-thin-state-v416-databricks/live-thin-state-report.json`, validation checks `commandCenterLabelsUnavailable`, `stewardshipNoSyntheticRows`, `glossaryUnavailableShape`, `cdeUnavailableShape`, `lineageUnavailableLabels`, `auditUnavailableShape`, `controlCenterAdminOnlyShape`, viewports `3037x1269`, `1536x1024`, `1440x900`, `1280x720`; Reviewer: Truth/provenance + Feedback coverage; Date: 2026-05-02; Type: live_databricks.
 - [x] process: every standalone North Star page now has current first-viewport, document-full, responsive, and internal lower-scroll evidence where `.gh-main` overflows; required interaction-state evidence remains tracked in `functional_control_audit.md`. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/prototype-current-report.json`, `docs/northstar_gap_analysis/functional_control_audit.md`, viewports `3037x1269`, `1536x1024`, `1440x900`, `1280x720`, interaction `mainBottomScreenshot`; Reviewer: Process; Date: 2026-04-30; Type: local prototype_mock.
-- [x] process: final reviewer matrix records visual fidelity, product structure, truth/provenance, functional workflow, process, and feedback-coverage lanes with exact reference/current artifacts, inspected rows, viewport/state, and zero route/shared open rows. Evidence: `docs/northstar_gap_analysis/signoff_matrix.md`, `docs/northstar_gap_analysis/full_page_audit.md`, `docs/northstar_gap_analysis/functional_control_audit.md`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/prototype-current-report.json`, `docs/northstar_visual_qa/live-thin-state-v416-databricks/live-thin-state-report.json`, `docs/northstar_visual_qa/lineage-truth-v419-databricks/lineage-truth-report.json`, validation checks `routeCoverageComplete`, `restrictedDownstreamBoundaryBacked`, viewports `3037x1269`, `1536x1024`, `1440x900`, `1280x720`, `api`; Reviewer: Process; Date: 2026-05-02; Type: mixed local prototype_mock and live_databricks.
+- [x] process: superseded historical reviewer-matrix closure record retained only to document the false-closure process failure; the reopened rows above override this record and it is not current closure evidence. Evidence: `docs/northstar_gap_analysis/signoff_matrix.md`, `docs/northstar_gap_analysis/full_page_audit.md`, `docs/northstar_gap_analysis/functional_control_audit.md`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/prototype-current-report.json`, `docs/northstar_visual_qa/live-thin-state-v416-databricks/live-thin-state-report.json`, `docs/northstar_visual_qa/lineage-truth-v419-databricks/lineage-truth-report.json`, validation checks `routeCoverageComplete`, `restrictedDownstreamBoundaryBacked`, viewports `3037x1269`, `1536x1024`, `1440x900`, `1280x720`, `api`; Reviewer: Process; Date: 2026-05-02; Type: mixed local prototype_mock and live_databricks.
 - [x] process: .claude skills were resolved with find -L; the Databricks Apps skill was loaded for the current app validation contract. Evidence: `docs/northstar_gap_analysis/skill_resolution_evidence.md`, interaction `resolve-claude-skills`, viewport `repository`; Reviewer: Process; Date: 2026-04-30; Type: repo process.
-- [x] process: `functional_control_audit.md` is synchronized with the current visible-control report, scoped no-PATCH shared mutation evidence, responsive FAB evidence, and live Lineage control evidence; it records `0` open controls while page/shared visual and truth rows are closed in this ledger. Evidence: `docs/northstar_gap_analysis/functional_control_audit.md`, `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, `docs/northstar_visual_qa/shared-mutation-functional-v342-local/prototype-current-report.json`, `docs/northstar_visual_qa/responsive-ai-fab-v412-local/prototype-current-report.json`, `docs/northstar_visual_qa/lineage-restricted-live-v399-databricks/lineage-live-report.json`, interactions `cross-page-control-contract`, viewport `1536x1024`; Reviewer: Process; Date: 2026-05-02; Type: mixed local prototype_mock and live_databricks.
+- [x] process: superseded historical functional-ledger closure record retained only to document the false-closure process failure; active reopened functional rows above override this record and it is not current closure evidence. Evidence: `docs/northstar_gap_analysis/functional_control_audit.md`, `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, `docs/northstar_visual_qa/shared-mutation-functional-v342-local/prototype-current-report.json`, `docs/northstar_visual_qa/responsive-ai-fab-v412-local/prototype-current-report.json`, `docs/northstar_visual_qa/lineage-restricted-live-v399-databricks/lineage-live-report.json`, interactions `cross-page-control-contract`, viewport `1536x1024`; Reviewer: Process; Date: 2026-05-02; Type: mixed local prototype_mock and live_databricks.
 - [x] process: Current captures include `mainBottomScreenshot` entries for every overflowing internal `.gh-main` route, so lower-scroll-state parity is now evidenced separately from document `*-full.png` captures. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/prototype-current-report.json`, viewports `3037x1269`, `1536x1024`, `1440x900`, `1280x720`, interaction `mainBottomScreenshot`; Reviewer: Process; Date: 2026-04-30; Type: local prototype_mock.
 - [x] process: current local Lineage visual and functional reports remain explicitly `mockApi=true` / `evidenceKind=prototype_mock`, carry non-live Databricks warnings, and are manifest-pinned as non-authoritative capture/functional evidence rather than live proof. Evidence: `docs/northstar_visual_qa/lineage-workflows-v372-local/prototype-current-report.json`, `docs/northstar_visual_qa/lineage-functional-v373-local/prototype-current-report.json`, interaction `lineage-selection`, viewports `3037x1269`, `1536x1024`, `1280x720`; Reviewer: Process + Truth/provenance; Date: 2026-05-01; Type: local prototype_mock.
 - [x] visual: global page canvas pixels now match the prototype's darker, quieter navy system across the current route sample set, with page canvas `#08172a` and left rail `#050e18` matching the corresponding references. Evidence: `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/command-center-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/discover-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/stewardship-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/glossary-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/audit-3037x1269.png`, `docs/northstar_visual_qa/all-routes-shared-layout-v415-local/control-center-3037x1269.png`, viewport `3037x1269`, interaction `pixel-sample-audit`; Reviewer: Visual fidelity; Date: 2026-04-30; Type: local prototype_mock.

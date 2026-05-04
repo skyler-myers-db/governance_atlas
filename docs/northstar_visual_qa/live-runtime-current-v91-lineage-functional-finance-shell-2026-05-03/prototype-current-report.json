@@ -1,0 +1,1086 @@
+{
+  "generatedAt": "2026-05-03T15:57:38.239Z",
+  "baseUrl": "http://127.0.0.1:8000",
+  "buildId": "frontend-a9fae05546f7",
+  "deploymentId": "",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": false,
+  "evidenceKind": "runtime_app_capture",
+  "mockEvidenceWarning": "",
+  "liveDatabricksCapture": false,
+  "forwardedActorCapture": true,
+  "forwardedActorEmail": "skyler@entrada.ai",
+  "forwardedActorTokenPresent": false,
+  "routeFilter": [
+    "lineage"
+  ],
+  "interactionFilter": [
+    "lineage-controls"
+  ],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "lineage"
+  ],
+  "viewports": [
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    }
+  ],
+  "expectedCaptureCount": 1,
+  "captures": [
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v91-lineage-functional-finance-shell-2026-05-03/lineage-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v91-lineage-functional-finance-shell-2026-05-03/lineage-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1831,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1886.796875,
+          "width": 1328,
+          "height": 1830.796875
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 208,
+            "right": 1536,
+            "bottom": 1886.796875,
+            "width": 1328,
+            "height": 1830.796875
+          },
+          "hero": {
+            "top": 78,
+            "left": 230,
+            "right": 1516,
+            "bottom": 202.4375,
+            "width": 1286,
+            "height": 124.4375
+          },
+          "workbench": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 1816.796875,
+            "width": 1286,
+            "height": 1578.359375
+          },
+          "graph": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 1400.4375,
+            "width": 1286,
+            "height": 1162
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 100% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Certified Freshness unavailable 12 CDEs Owner: finance-steward@entrada.ai 4 upstream · 14 downstream Revenue impact unavailable Column lineage Run impact analysis + - 19 nodes · 18 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-03 15:55:58 UTC Partial lineage Limited to 50 table edges. Column lineage may be partial or unavailable in this workspace. Table lineage Column lineage Search Export 2 HOPS UPSTREAM invoices_raw orders_raw 1 HOP UPSTREAM revenue_recognition finance_prod / gold PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold revenue_anomaly_monitor finance_prod / gold LINEAGE DETAILS customer_revenue_ltv customer_360 / gold LAST REFRESH 2026-05-03 ROWS Unavailable OWNER finance-steward@entrada.ai SOURCES 1 revenue_recognition finance_prod / gold CONSUMERS 2 customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold RECENT ACTIVITY No recent lineage activity returned. ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv customer_360 / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_anomaly_monitor finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv customer_360 / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Review owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv Owner unavailable · customer_360 / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_anomaly_monitor Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_close_control Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1536x1024",
+      "interaction": "lineage-controls",
+      "description": "Exercise visible Lineage impact, column, zoom, refocus, and time controls.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v91-lineage-functional-finance-shell-2026-05-03/lineage-lineage-controls-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v91-lineage-functional-finance-shell-2026-05-03/lineage-lineage-controls-1536x1024-full.png",
+      "runResult": {
+        "impact": {
+          "impactStatus": true
+        },
+        "column": {
+          "columnStatus": true
+        },
+        "columnButton": {
+          "text": "Column lineage",
+          "ariaLabel": "",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 78,
+            "left": 1218,
+            "width": 133,
+            "height": 32
+          }
+        },
+        "columnClicked": true,
+        "columnModeClass": true,
+        "columnPanelFocused": true,
+        "columnPanelProof": {
+          "proofOnly": true
+        },
+        "authoritativeToolbarState": {
+          "compareAvailableOrUnavailable": false,
+          "tableAvailable": true,
+          "searchAvailable": true,
+          "exportAvailable": true,
+          "graphToolbarVisible": true
+        },
+        "zoomIn": {
+          "text": "+",
+          "ariaLabel": "Zoom in",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 377,
+            "left": 253,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "initialZoom": 1,
+        "zoomInLevel": 1.08,
+        "zoomInStatus": {
+          "ready": true
+        },
+        "zoomOut": {
+          "text": "-",
+          "ariaLabel": "Zoom out",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 377,
+            "left": 283,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "zoomOutLevel": 1,
+        "zoomOutStatus": {
+          "ready": true
+        },
+        "fitGraph": {
+          "text": "Fit graph",
+          "ariaLabel": "Fit graph",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 377,
+            "left": 312,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "fitGraphLevel": 1,
+        "fitGraphStatus": {
+          "ready": true
+        },
+        "wheelZoomLevel": 1.05,
+        "wheelZoomStatus": {
+          "ready": true
+        },
+        "graphPan": {
+          "x": 0,
+          "y": 0,
+          "centerX": 873,
+          "centerY": 939
+        },
+        "graphPanAfter": {
+          "x": 48,
+          "y": 22
+        },
+        "graphPanStatus": {
+          "ready": true
+        },
+        "graphHistory": {
+          "text": "Graph history",
+          "ariaLabel": "Graph history",
+          "title": "Graph history requires persisted lineage snapshots.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 377,
+            "left": 342,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "graphHistoryStatus": {
+          "ready": true,
+          "title": "Graph history requires persisted lineage snapshots."
+        },
+        "refocusButton": {
+          "text": "Refocus graph",
+          "ariaLabel": "",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1827,
+            "left": 366,
+            "width": 94,
+            "height": 26
+          }
+        },
+        "refocus": {
+          "ready": true
+        },
+        "timeResetState": {
+          "text": "Now",
+          "ariaLabel": "",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 562,
+            "left": 1426,
+            "width": 75,
+            "height": 32
+          }
+        },
+        "now": {
+          "ready": true
+        },
+        "zoomControls": [
+          "+ Zoom in",
+          "- Zoom out"
+        ]
+      },
+      "validation": {
+        "loaded": true,
+        "checks": {
+          "lineage": true
+        },
+        "runResult": {
+          "impact": {
+            "impactStatus": true
+          },
+          "column": {
+            "columnStatus": true
+          },
+          "columnButton": {
+            "text": "Column lineage",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 78,
+              "left": 1218,
+              "width": 133,
+              "height": 32
+            }
+          },
+          "columnClicked": true,
+          "columnModeClass": true,
+          "columnPanelFocused": true,
+          "columnPanelProof": {
+            "proofOnly": true
+          },
+          "authoritativeToolbarState": {
+            "compareAvailableOrUnavailable": false,
+            "tableAvailable": true,
+            "searchAvailable": true,
+            "exportAvailable": true,
+            "graphToolbarVisible": true
+          },
+          "zoomIn": {
+            "text": "+",
+            "ariaLabel": "Zoom in",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 377,
+              "left": 253,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "initialZoom": 1,
+          "zoomInLevel": 1.08,
+          "zoomInStatus": {
+            "ready": true
+          },
+          "zoomOut": {
+            "text": "-",
+            "ariaLabel": "Zoom out",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 377,
+              "left": 283,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "zoomOutLevel": 1,
+          "zoomOutStatus": {
+            "ready": true
+          },
+          "fitGraph": {
+            "text": "Fit graph",
+            "ariaLabel": "Fit graph",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 377,
+              "left": 312,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "fitGraphLevel": 1,
+          "fitGraphStatus": {
+            "ready": true
+          },
+          "wheelZoomLevel": 1.05,
+          "wheelZoomStatus": {
+            "ready": true
+          },
+          "graphPan": {
+            "x": 0,
+            "y": 0,
+            "centerX": 873,
+            "centerY": 939
+          },
+          "graphPanAfter": {
+            "x": 48,
+            "y": 22
+          },
+          "graphPanStatus": {
+            "ready": true
+          },
+          "graphHistory": {
+            "text": "Graph history",
+            "ariaLabel": "Graph history",
+            "title": "Graph history requires persisted lineage snapshots.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 377,
+              "left": 342,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "graphHistoryStatus": {
+            "ready": true,
+            "title": "Graph history requires persisted lineage snapshots."
+          },
+          "refocusButton": {
+            "text": "Refocus graph",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1827,
+              "left": 366,
+              "width": 94,
+              "height": 26
+            }
+          },
+          "refocus": {
+            "ready": true
+          },
+          "timeResetState": {
+            "text": "Now",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 562,
+              "left": 1426,
+              "width": 75,
+              "height": 32
+            }
+          },
+          "now": {
+            "ready": true
+          },
+          "zoomControls": [
+            "+ Zoom in",
+            "- Zoom out"
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 863,
+          "scrollHeight": 1831,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": -807,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1023.796875,
+          "width": 1328,
+          "height": 1830.796875
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": -807,
+            "left": 208,
+            "right": 1536,
+            "bottom": 1023.796875,
+            "width": 1328,
+            "height": 1830.796875
+          },
+          "hero": {
+            "top": -785,
+            "left": 230,
+            "right": 1516,
+            "bottom": -660.5625,
+            "width": 1286,
+            "height": 124.4375
+          },
+          "workbench": {
+            "top": -624.5625,
+            "left": 230,
+            "right": 1516,
+            "bottom": 953.796875,
+            "width": 1286,
+            "height": 1578.359375
+          },
+          "graph": {
+            "top": -624.5625,
+            "left": 230,
+            "right": 1516,
+            "bottom": 537.4375,
+            "width": 1286,
+            "height": 1162
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 100% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Certified Freshness unavailable 12 CDEs Owner: finance-steward@entrada.ai 4 upstream · 14 downstream Revenue impact unavailable Column lineage Run impact analysis + - 19 nodes · 18 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-03 15:55:58 UTC Partial lineage Limited to 50 table edges. Column lineage may be partial or unavailable in this workspace. Table lineage Column lineage Search Export 2 HOPS UPSTREAM invoices_raw orders_raw 1 HOP UPSTREAM revenue_recognition finance_prod / gold PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold revenue_anomaly_monitor finance_prod / gold LINEAGE DETAILS customer_revenue_ltv customer_360 / gold LAST REFRESH 2026-05-03 ROWS Unavailable OWNER finance-steward@entrada.ai SOURCES 1 revenue_recognition finance_prod / gold CONSUMERS 2 customer_revenue_ltv customer_360 / gold cfo_revenue_board_pack finance_prod / gold RECENT ACTIVITY No recent lineage activity returned. ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "invoices_raw",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "orders_raw",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv customer_360 / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_anomaly_monitor finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv customer_360 / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Review owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "customer_revenue_ltv Owner unavailable · customer_360 / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "cfo_revenue_board_pack Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_anomaly_monitor Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_close_control Owner unavailable · finance_prod / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    }
+  ],
+  "console": [],
+  "pageErrors": [],
+  "requestFailures": [],
+  "checks": {
+    "buildMatches": true
+  },
+  "runtimeStatus": {
+    "url": "http://127.0.0.1:8000/api/runtime/status",
+    "status": 200,
+    "ok": true,
+    "buildId": "frontend-a9fae05546f7",
+    "state": "live",
+    "actorRole": "Reader",
+    "govCatalog": "datapact",
+    "govSchema": "atlas"
+  },
+  "captureCount": 1,
+  "interactionCount": 1,
+  "consoleErrorCount": 0,
+  "pageErrorCount": 0,
+  "requestFailureCount": 0,
+  "expectedRequestFailureCount": 0,
+  "passed": true
+}

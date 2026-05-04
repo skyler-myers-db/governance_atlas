@@ -1,11 +1,22 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAdminControlCenter } from "../lib/api";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { EmptyState, StatusPill } from "./northstar";
 import "../styles/operations-pages.css";
 
+const EMPTY_DASHBOARD = Object.freeze({});
+
 function envelopeData(payload) {
   return payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
+}
+
+function envelopeHydrating(payload) {
+  const meta = payload && typeof payload === "object" ? payload.meta || {} : {};
+  const capabilities = meta.capabilities && typeof meta.capabilities === "object"
+    ? meta.capabilities
+    : {};
+  return text(meta.state || payload?.state).toLowerCase() === "loading" || capabilities.hydrating === true;
 }
 
 function text(value) {
@@ -36,7 +47,6 @@ function percentValue(value) {
 
 function statusTone(state) {
   const value = text(state).toLowerCase();
-  if (value === "prototype") return "warn";
   if (["ok", "connected", "available", "healthy", "active", "enabled", "live"].includes(value)) return "good";
   if (["slow", "degraded", "warning", "unavailable"].includes(value)) return "warn";
   if (["failed", "error"].includes(value)) return "bad";
@@ -45,12 +55,7 @@ function statusTone(state) {
 
 function stateText(state) {
   const value = text(state);
-  if (value.toLowerCase() === "prototype") return "Prototype";
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : "Unavailable";
-}
-
-function displayStateText(state, prototypeMockEvidence = false) {
-  return prototypeMockEvidence ? "Fixture" : stateText(state);
 }
 
 function controlIconName(value = "") {
@@ -92,31 +97,24 @@ function responseStatus(error) {
   );
 }
 
-function isPrototypeMockWarning(warning) {
-  return /prototype mock data|not live databricks evidence|local-prototype-mock/i.test(String(warning || ""));
+function roleSlug(value) {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
 }
 
-function prototypeDiagnosticSubtitle(value, subject = "diagnostic") {
-  const cleanValue = label(value, "fixture reported");
-  const scrubbed = cleanValue
-    .replace(/\bConnected live\b/gi, "fixture says connected")
-    .replace(/\blive\b/gi, "reported");
-  return `Prototype ${subject} fixture - not live proof (${scrubbed}).`;
+function adminRoleAllowed(shell) {
+  if (!shell) return true;
+  const email = roleSlug(shell.userEmail || shell.actorEmail);
+  if (!email || email === "unknown") return false;
+  const role = roleSlug(shell.role || shell.actorRole);
+  if (!role) return Boolean(shell.roleProvisional);
+  return role.includes("admin");
 }
 
-function prototypeRowSubtitle(value, fallback = "Reported") {
-  const cleanValue = label(value, fallback)
-    .replace(/\bEndpoint healthy\b/gi, "Fixture endpoint state")
-    .replace(/\bConnected live\b/gi, "Fixture connection state")
-    .replace(/\bConnected\b/gi, "Fixture connection state")
-    .replace(/\bHealthy\b/gi, "Fixture health state")
-    .replace(/\bOk\b/gi, "Fixture state")
-    .replace(/\bSlow\b/gi, "Fixture latency state")
-    .replace(/\blive\b/gi, "reported");
-  return `${cleanValue} · prototype fixture, not live proof`;
+function isNonAuthoritativeWarning(warning) {
+  return isNonAuthoritativeMockEvidence(String(warning || ""));
 }
 
-function normalizeJobs(dashboard, prototypeMockEvidence = false) {
+function normalizeJobs(dashboard) {
   const candidates =
     dashboard.scheduledJobs ||
     dashboard.jobs ||
@@ -129,49 +127,29 @@ function normalizeJobs(dashboard, prototypeMockEvidence = false) {
     name: label(job.name || job.label || job.job),
     schedule: label(job.schedule || job.cron || job.frequency),
     lastRun: label(job.lastRun || job.last_run || job.relativeTime || job.updatedAt),
-    status: prototypeMockEvidence ? label(job.status || job.state, "prototype") : label(job.status || job.state, "unavailable"),
+    status: label(job.status || job.state, "unavailable"),
     url: text(job.url || job.runUrl || job.jobUrl),
-    prototypeMockEvidence,
   }));
-  if (rows.length) return rows;
-  return [
-    ["UC metadata sweeper", "Schedule unavailable"],
-    ["Lineage collector", "Schedule unavailable"],
-    ["Quality + freshness check", "Schedule unavailable"],
-    ["Policy engine evaluator", "Schedule unavailable"],
-    ["PII classifier", "Schedule unavailable"],
-    ["Trust score recompute", "Schedule unavailable"],
-  ].map(([name, schedule], index) => ({
-    id: `unavailable-job-${index}`,
-    name,
-    schedule,
-    lastRun: "Unavailable",
-    status: "unavailable",
-    url: "",
-    unavailable: true,
-  }));
+  return rows;
 }
 
-function normalizeIntegrations(dashboard, prototypeMockEvidence = false) {
+function normalizeIntegrations(dashboard) {
   const candidates = Array.isArray(dashboard.integrations) ? dashboard.integrations : [];
   const rows = candidates.map((item, index) => ({
     id: label(item.key || item.id || item.label, `integration-${index}`),
     label: label(item.label || item.name),
-    subtitle: prototypeMockEvidence
-      ? prototypeRowSubtitle(item.subtitle || item.description || item.reason, "Reported")
-      : label(item.subtitle || item.description || item.reason, "Runtime signal"),
-    status: prototypeMockEvidence ? label(item.status || item.state, "prototype") : label(item.status || item.state, "unavailable"),
+    subtitle: label(item.subtitle || item.description || item.reason, "Runtime signal"),
+    status: label(item.status || item.state, "unavailable"),
     url: text(item.url || item.configUrl || item.workspaceUrl),
-    prototypeMockEvidence,
   }));
   const byLabel = new Map(rows.map((row) => [row.label.toLowerCase(), row]));
   return [
     { id: "unity-catalog", label: "Unity Catalog", subtitle: "Runtime signal unavailable" },
     { id: "sql-warehouse", label: "Databricks SQL Warehouse", subtitle: "Runtime signal unavailable" },
     { id: "lakeflow-jobs", label: "Lakeflow Jobs", subtitle: "Runtime signal unavailable" },
-    { id: "model-serving", label: "Model Serving · classifier-v2", subtitle: "Endpoint signal unavailable" },
-    { id: "slack-alerts", label: "Slack · #governance-alerts", subtitle: "Integration not reported" },
-    { id: "pagerduty", label: "PagerDuty · P1 stewardship", subtitle: "Integration not reported" },
+    { id: "model-serving", label: "Model Serving", subtitle: "Endpoint signal unavailable" },
+    { id: "notification-integration", label: "Notification integration", subtitle: "Integration not reported" },
+    { id: "incident-management", label: "Incident management", subtitle: "Integration not reported" },
   ].map((fallback) => {
     const existing = rows.find((row) =>
       row.label.toLowerCase() === fallback.label.toLowerCase() ||
@@ -180,8 +158,8 @@ function normalizeIntegrations(dashboard, prototypeMockEvidence = false) {
       (fallback.label.toLowerCase().includes("lakeflow") && /job|lakeflow/i.test(row.label)) ||
       (fallback.label.toLowerCase().includes("unity catalog") && /unity|catalog/i.test(row.label)) ||
       (fallback.label.toLowerCase().includes("model serving") && /model|serving|classifier/i.test(row.label)) ||
-      (fallback.label.toLowerCase().includes("slack") && /slack/i.test(row.label)) ||
-      (fallback.label.toLowerCase().includes("pagerduty") && /pagerduty|pager/i.test(row.label))
+      (fallback.label.toLowerCase().includes("notification") && /slack|teams|notification|alert/i.test(row.label)) ||
+      (fallback.label.toLowerCase().includes("incident") && /pagerduty|incident|pager/i.test(row.label))
     );
     return existing || { ...fallback, status: "unavailable", url: "", unavailable: true };
   }).filter((row, index, allRows) => {
@@ -190,7 +168,7 @@ function normalizeIntegrations(dashboard, prototypeMockEvidence = false) {
   });
 }
 
-function normalizePolicies(dashboard, prototypeMockEvidence = false) {
+function normalizePolicies(dashboard) {
   const policy = dashboard.policyCoverage || dashboard.policy || dashboard.policyRequirements || {};
   const candidates = policy.rules || policy.coverage || policy.rows || [];
   if (Array.isArray(candidates) && candidates.length) {
@@ -198,8 +176,7 @@ function normalizePolicies(dashboard, prototypeMockEvidence = false) {
       id: label(item.key || item.id || item.label || item.name, `policy-${index}`),
       label: label(item.label || item.name || item.domain),
       value: item.value ?? item.coverage ?? item.score,
-      status: prototypeMockEvidence ? label(item.status || item.state, "prototype") : label(item.status || item.state, "unavailable"),
-      prototypeMockEvidence,
+      status: label(item.status || item.state, "unavailable"),
     }));
   }
   const byDomain = Array.isArray(policy.byDomain) ? policy.byDomain : [];
@@ -207,64 +184,53 @@ function normalizePolicies(dashboard, prototypeMockEvidence = false) {
     id: label(item.domain || item.label, `domain-policy-${index}`),
     label: `${label(item.domain || item.label)} policy coverage`,
     value: item.coverage,
-    status: prototypeMockEvidence ? label(item.status || item.state, "prototype") : item.coverage === null || item.coverage === undefined ? "unavailable" : "available",
-    prototypeMockEvidence,
+    status: item.coverage === null || item.coverage === undefined ? "unavailable" : "available",
   }));
   if (rows.length) return rows;
-  return [
-    "Owner required on production",
-    "CDEs must have description",
-    "PII columns require tag",
-    "90-day re-certification",
-    "Restricted catalogs require justified grant",
-  ].map((name, index) => ({
-    id: `unavailable-policy-${index}`,
-    label: name,
-    value: null,
-    status: "unavailable",
-    unavailable: true,
-  }));
+  return [];
 }
 
 function UnavailableRow({ message }) {
   return (
-    <div className="gh-admin-prototype-unavailable">
+    <div className="gh-admin-control-unavailable">
       <strong>Unavailable</strong>
       <span>{message}</span>
     </div>
   );
 }
 
-function JobTable({ activeId = "", jobs, onSelect, prototypeMockEvidence = false }) {
+function JobTable({ activeId = "", jobs, onSelect }) {
   return (
-    <section className="gh-admin-prototype-card gh-admin-prototype-jobs" aria-label="Scheduled jobs">
-          <header>
-            <div>
-              <h2>Scheduled jobs</h2>
-              <p>Lakeflow Jobs powering Atlas</p>
-            </div>
-          </header>
-      <div className="gh-admin-prototype-job-head" role="row">
+    <section className="gh-admin-control-card gh-admin-control-jobs" aria-label="Scheduled jobs">
+      <header>
+        <div>
+          <h2>Scheduled jobs</h2>
+          <p>{jobs.some((job) => !job.unavailable) ? "Backed scheduled-job inventory" : "Scheduled-job inventory unavailable"}</p>
+        </div>
+      </header>
+      <div className="gh-admin-control-job-head" role="row">
         <span>Job</span>
         <span>Schedule</span>
         <span>Last run</span>
         <span>Status</span>
         <span aria-hidden="true" />
       </div>
-      <div className="gh-admin-prototype-job-body">
+      <div className="gh-admin-control-job-body">
         {jobs.length ? jobs.map((job) => (
           <button
+            aria-disabled={job.unavailable || undefined}
             aria-current={activeId === job.id ? "true" : undefined}
-            className={`${job.unavailable ? "gh-admin-prototype-job-row is-unavailable" : "gh-admin-prototype-job-row"} ${activeId === job.id ? "is-selected" : ""}`.trim()}
+            className={`${job.unavailable ? "gh-admin-control-job-row is-unavailable" : "gh-admin-control-job-row"} ${activeId === job.id ? "is-selected" : ""}`.trim()}
             key={job.id}
             onClick={() => onSelect(job)}
+            title={job.unavailable ? "Open unavailable scheduled-job diagnostics" : undefined}
             type="button"
           >
             <span className="gh-admin-job-name"><ControlIcon name={controlIconName(job.name)} /><strong>{job.name}</strong></span>
             <span>{job.schedule}</span>
             <span>{job.lastRun}</span>
-            <StatusPill tone={statusTone(prototypeMockEvidence ? "prototype" : job.status)}>
-              {displayStateText(job.status, prototypeMockEvidence)}
+            <StatusPill tone={statusTone(job.status)}>
+              {stateText(job.status)}
             </StatusPill>
             <span aria-hidden="true" className="gh-admin-row-chevron" />
           </button>
@@ -276,9 +242,9 @@ function JobTable({ activeId = "", jobs, onSelect, prototypeMockEvidence = false
   );
 }
 
-function IntegrationList({ activeId = "", integrations, onSelect, prototypeMockEvidence = false }) {
+function IntegrationList({ activeId = "", integrations, onSelect }) {
   return (
-    <section className="gh-admin-prototype-card gh-admin-prototype-integrations" aria-label="Integrations">
+    <section className="gh-admin-control-card gh-admin-control-integrations" aria-label="Integrations">
       <header>
         <h2>Integrations</h2>
       </header>
@@ -286,9 +252,11 @@ function IntegrationList({ activeId = "", integrations, onSelect, prototypeMockE
         {integrations.length ? integrations.map((item) => (
           <button
             aria-current={activeId === item.id ? "true" : undefined}
-            className={`${item.unavailable ? "gh-admin-prototype-integration is-unavailable" : "gh-admin-prototype-integration"} ${activeId === item.id ? "is-selected" : ""}`.trim()}
+            className={`${item.unavailable ? "gh-admin-control-integration is-unavailable" : "gh-admin-control-integration"} ${activeId === item.id ? "is-selected" : ""}`.trim()}
+            disabled={item.unavailable}
             key={item.id}
             onClick={() => onSelect(item)}
+            title={item.unavailable ? "Integration state is unavailable because diagnostics did not report this row." : undefined}
             type="button"
           >
             <ControlIcon name={controlIconName(`${item.id} ${item.label}`)} />
@@ -296,8 +264,8 @@ function IntegrationList({ activeId = "", integrations, onSelect, prototypeMockE
               <strong>{item.label}</strong>
               <small>{item.subtitle}</small>
             </div>
-            <StatusPill tone={statusTone(prototypeMockEvidence ? "prototype" : item.status)}>
-              {displayStateText(item.status, prototypeMockEvidence)}
+            <StatusPill tone={statusTone(item.status)}>
+              {stateText(item.status)}
             </StatusPill>
             <span aria-hidden="true" className="gh-admin-row-chevron" />
           </button>
@@ -309,12 +277,12 @@ function IntegrationList({ activeId = "", integrations, onSelect, prototypeMockE
   );
 }
 
-function PolicyCoverage({ activeId = "", onSelect, policies, prototypeMockEvidence = false }) {
+function PolicyCoverage({ activeId = "", onSelect, policies }) {
   return (
-    <section className="gh-admin-prototype-card gh-admin-prototype-policy" aria-label="Policy coverage">
+    <section className="gh-admin-control-card gh-admin-control-policy" aria-label="Policy coverage">
       <header>
         <h2>Policy coverage</h2>
-        <p>Active policies auto-evaluated</p>
+        <p>{policies.some((policy) => !policy.unavailable && numberOrNull(policy.value) !== null) ? "Coverage reported by diagnostics" : "Policy coverage unavailable"}</p>
       </header>
       <div>
         {policies.length ? policies.map((policy) => {
@@ -330,14 +298,11 @@ function PolicyCoverage({ activeId = "", onSelect, policies, prototypeMockEviden
               aria-label={`${displayLabel} ${displayValue}`}
               aria-disabled={unavailable}
               aria-current={activeId === policy.id ? "true" : undefined}
-              className={`${unavailable ? "gh-admin-prototype-policy-row is-unavailable" : "gh-admin-prototype-policy-row"} ${activeId === policy.id ? "is-selected" : ""}`.trim()}
+              className={`${unavailable ? "gh-admin-control-policy-row is-unavailable" : "gh-admin-control-policy-row"} ${activeId === policy.id ? "is-selected" : ""}`.trim()}
+              disabled={unavailable}
               key={policy.id}
               onClick={() => onSelect(policy)}
-              title={
-                policy.prototypeMockEvidence
-                  ? "Prototype diagnostic fixture, not live policy coverage proof."
-                  : unavailable ? "Policy coverage is unavailable because diagnostics did not report this check." : undefined
-              }
+              title={unavailable ? "Policy coverage is unavailable because diagnostics did not report this check." : undefined}
               type="button"
             >
               <span>{displayLabel}</span>
@@ -359,7 +324,7 @@ function ControlDetail({ detail, onOpen }) {
     return (
       <aside className="gh-admin-control-detail is-empty" aria-label="Selected control detail">
         <strong>Select a control row to inspect diagnostics</strong>
-        <span>Job, integration, and policy rows open backed details here. Missing URLs stay unavailable instead of linking to fake configuration.</span>
+        <span>Job, integration, and policy rows open backed details here. Missing URLs stay unavailable instead of linking to unsupported configuration.</span>
       </aside>
     );
   }
@@ -371,8 +336,8 @@ function ControlDetail({ detail, onOpen }) {
           <h2>{detail.title}</h2>
           <p>{detail.subtitle}</p>
         </div>
-        <StatusPill tone={statusTone(detail.prototypeMockEvidence ? "prototype" : detail.status)}>
-          {displayStateText(detail.status, detail.prototypeMockEvidence)}
+        <StatusPill tone={statusTone(detail.status)}>
+          {stateText(detail.status)}
         </StatusPill>
       </header>
       <dl>
@@ -386,12 +351,12 @@ function ControlDetail({ detail, onOpen }) {
       <div className="gh-admin-control-actions">
         <button
           disabled={!detail.url}
-          onClick={() => onOpen(detail)}
           title={
-            detail.prototypeUrl
-              ? "Prototype URL was reported by fixture data, but it is not opened as live Databricks proof."
-              : undefined
+            detail.url
+              ? "Open the backed Databricks resource URL reported by diagnostics."
+              : "No backed Databricks resource URL was reported for this row."
           }
+          onClick={() => onOpen(detail)}
           type="button"
         >
           Open linked resource
@@ -399,9 +364,7 @@ function ControlDetail({ detail, onOpen }) {
         <span>
           {detail.url
             ? "Backed URL reported by diagnostics."
-            : detail.prototypeUrl
-              ? "Prototype URL withheld; not live Databricks resource proof."
-              : "No backed URL reported by diagnostics."}
+            : "No backed URL reported by diagnostics."}
         </span>
       </div>
     </aside>
@@ -414,47 +377,56 @@ function ControlDetail({ detail, onOpen }) {
 export default function AdminWorkspace({ shell = null } = {}) {
   const [status, setStatus] = useState("");
   const [selectedControl, setSelectedControl] = useState(null);
+  const canReadAdmin = adminRoleAllowed(shell);
   const query = useQuery({
     queryKey: ["atlas", "admin-control-center"],
     queryFn: ({ signal }) => fetchAdminControlCenter({ signal }),
+    enabled: canReadAdmin,
     retry: false,
     staleTime: 60_000,
+    refetchInterval: (currentQuery) => envelopeHydrating(currentQuery?.state?.data) ? 3_000 : false,
   });
 
   const dashboard = envelopeData(query.data) || {};
-  const rawWarnings = query.data?.meta?.warnings || dashboard.meta?.warnings || [];
-  const prototypeMockEvidence =
-    String(query.data?.meta?.state || dashboard.meta?.state || dashboard.state || "").trim().toLowerCase() === "prototype_mock" ||
-    (Array.isArray(rawWarnings) && rawWarnings.some(isPrototypeMockWarning));
-  const jobs = useMemo(() => normalizeJobs(dashboard, prototypeMockEvidence), [dashboard, prototypeMockEvidence]);
-  const integrations = useMemo(() => normalizeIntegrations(dashboard, prototypeMockEvidence), [dashboard, prototypeMockEvidence]);
-  const policies = useMemo(() => normalizePolicies(dashboard, prototypeMockEvidence), [dashboard, prototypeMockEvidence]);
+  const rawWarnings = [
+    ...(Array.isArray(query.data?.warnings) ? query.data.warnings : []),
+    ...(Array.isArray(query.data?.meta?.warnings) ? query.data.meta.warnings : []),
+    ...(Array.isArray(dashboard.warnings) ? dashboard.warnings : []),
+    ...(Array.isArray(dashboard.meta?.warnings) ? dashboard.meta.warnings : []),
+  ];
+  const nonAuthoritativeDiagnosticPayload = isNonAuthoritativeMockEvidence(
+    query.data,
+    query.data?.meta,
+    dashboard,
+    dashboard.meta,
+    rawWarnings,
+  );
+  const safeDashboard = nonAuthoritativeDiagnosticPayload ? EMPTY_DASHBOARD : dashboard;
+  const jobs = useMemo(() => normalizeJobs(safeDashboard), [safeDashboard]);
+  const integrations = useMemo(() => normalizeIntegrations(safeDashboard), [safeDashboard]);
+  const policies = useMemo(() => normalizePolicies(safeDashboard), [safeDashboard]);
   const warnings = Array.isArray(rawWarnings)
-    ? rawWarnings.filter((warning) => !isPrototypeMockWarning(warning))
+    ? [
+        ...rawWarnings.filter((warning) => !isNonAuthoritativeWarning(warning)),
+        ...(nonAuthoritativeDiagnosticPayload ? ["Non-authoritative Control Center diagnostics were rejected. Live diagnostics are required for populated runtime, integration, and policy rows."] : []),
+      ]
     : [];
-  const loading = query.isLoading;
-  const queryError = query.error?.message || "";
-  const forbidden = responseStatus(query.error) === 403;
+  const loading = canReadAdmin && query.isLoading;
+  const queryError = canReadAdmin ? query.error?.message || "" : "Control Center requires platform admin permissions.";
+  const forbidden = !canReadAdmin || responseStatus(query.error) === 403;
   const handleJobSelect = (job) => {
     setSelectedControl({
       kind: "Scheduled job",
       id: job.id,
       title: job.name,
-      subtitle: prototypeMockEvidence
-        ? "Prototype diagnostic fixture - not live job/run proof."
-        : job.unavailable ? "Runtime job inventory has not reported this job." : "Runtime job diagnostics",
+      subtitle: job.unavailable ? "Runtime job inventory has not reported this job." : "Runtime job diagnostics",
       status: job.status,
-      url: prototypeMockEvidence ? "" : job.url,
-      prototypeUrl: prototypeMockEvidence ? job.url : "",
-      prototypeMockEvidence,
+      url: job.url,
       rows: [
         { label: "Schedule", value: job.schedule },
         { label: "Last run", value: job.lastRun },
-        { label: "Status", value: displayStateText(job.status, prototypeMockEvidence) },
-        { label: "Evidence", value: prototypeMockEvidence ? "Prototype diagnostic fixture, not live Databricks proof" : job.unavailable ? "Unavailable fallback row" : "Admin diagnostics payload" },
-        ...(prototypeMockEvidence && job.url
-          ? [{ label: "Linked resource", value: "Prototype URL withheld; not live Databricks resource proof" }]
-          : []),
+        { label: "Status", value: stateText(job.status) },
+        { label: "Evidence", value: job.unavailable ? "No backed scheduled-job row was reported by diagnostics." : "Admin diagnostics payload" },
       ],
     });
     setStatus(`${job.name} diagnostics selected.`);
@@ -464,18 +436,13 @@ export default function AdminWorkspace({ shell = null } = {}) {
       kind: "Integration",
       id: item.id,
       title: item.label,
-      subtitle: prototypeMockEvidence ? "Prototype integration fixture - not live connection proof." : item.subtitle,
+      subtitle: item.subtitle,
       status: item.status,
-      url: prototypeMockEvidence ? "" : item.url,
-      prototypeUrl: prototypeMockEvidence ? item.url : "",
-      prototypeMockEvidence,
+      url: item.url,
       rows: [
-        { label: "Connection state", value: displayStateText(item.status, prototypeMockEvidence) },
+        { label: "Connection state", value: stateText(item.status) },
         { label: "Signal", value: item.subtitle },
-        { label: "Evidence", value: prototypeMockEvidence ? "Prototype diagnostic fixture, not live integration proof" : item.unavailable ? "Integration not reported by diagnostics" : "Admin diagnostics payload" },
-        ...(prototypeMockEvidence && item.url
-          ? [{ label: "Linked resource", value: "Prototype URL withheld; not live Databricks resource proof" }]
-          : []),
+        { label: "Evidence", value: item.unavailable ? "Integration not reported by diagnostics" : "Admin diagnostics payload" },
       ],
     });
     setStatus(`${item.label} integration diagnostics selected.`);
@@ -486,22 +453,17 @@ export default function AdminWorkspace({ shell = null } = {}) {
       kind: "Policy coverage",
       id: policy.id,
       title: policy.label,
-      subtitle: prototypeMockEvidence
-        ? "Prototype policy fixture - not live coverage proof."
-        : coverage === "Unavailable" ? "Coverage is unavailable in diagnostics." : `${coverage} coverage from diagnostics.`,
+      subtitle: coverage === "Unavailable" ? "Coverage is unavailable in diagnostics." : `${coverage} coverage from diagnostics.`,
       status: policy.status,
-      prototypeMockEvidence,
       url: policy.url || "",
       rows: [
         { label: "Coverage", value: coverage },
-        { label: "State", value: displayStateText(policy.status, prototypeMockEvidence) },
-        { label: "Evidence", value: prototypeMockEvidence ? "Prototype diagnostic fixture, not live policy proof" : policy.unavailable ? "Policy coverage not reported" : "Policy diagnostics payload" },
+        { label: "State", value: stateText(policy.status) },
+        { label: "Evidence", value: policy.unavailable ? "Policy coverage not reported" : "Policy diagnostics payload" },
       ],
     });
     setStatus(
-      prototypeMockEvidence
-        ? `${policy.label}: prototype fixture selected - not live policy coverage proof.`
-        : `${policy.label}: ${coverage === "Unavailable" ? "coverage unavailable" : `${coverage} coverage`} from policy diagnostics.`,
+      `${policy.label}: ${coverage === "Unavailable" ? "coverage unavailable" : `${coverage} coverage`} from policy diagnostics.`,
     );
   };
   const openSelectedControl = (detail) => {
@@ -510,23 +472,17 @@ export default function AdminWorkspace({ shell = null } = {}) {
       setStatus(`${detail.title} linked resource opened.`);
       return;
     }
-    if (detail.prototypeUrl) {
-      setStatus(`${detail.title}: prototype URL withheld because it is not live Databricks proof.`);
-      return;
-    }
     setStatus(`${detail.title}: no backed URL was reported by diagnostics.`);
   };
   return (
-    <section className="ga-page gh-admin-ns gh-admin-prototype" data-testid="admin-northstar">
-      <div className={`gh-admin-shell gh-admin-prototype-shell ${warnings.length ? "has-warning" : ""}`}>
-        <header className="gh-admin-prototype-hero">
+    <section className="ga-page gh-admin-ns gh-admin-control" data-testid="admin-northstar">
+      <div className={`gh-admin-shell gh-admin-control-shell ${warnings.length ? "has-warning" : ""}`}>
+        <header className="gh-admin-control-hero">
           <div>
-            <span className="gh-prototype-eyebrow">Control Center</span>
+            <span className="gh-admin-control-eyebrow">Control Center</span>
             <h1>Atlas runtime, integrations, and policy</h1>
             <p>
-              {prototypeMockEvidence
-                ? "Prototype diagnostic rows preserve the Control Center structure but are not live Databricks runtime, connection, or policy proof."
-                : "Review runtime diagnostics for jobs, integrations, and policy coverage reported by the app. Unsupported controls stay marked unavailable."}
+              Review runtime diagnostics for jobs, integrations, and policy coverage reported by the app. Unsupported controls stay marked unavailable.
             </p>
           </div>
         </header>
@@ -545,25 +501,22 @@ export default function AdminWorkspace({ shell = null } = {}) {
           <div className="gh-admin-warning">{warnings[0]}</div>
         ) : null}
 
-        <div className="gh-admin-prototype-layout">
+        <div className="gh-admin-control-layout">
           <JobTable
             activeId={selectedControl?.kind === "Scheduled job" ? selectedControl.id : ""}
             jobs={jobs}
             onSelect={handleJobSelect}
-            prototypeMockEvidence={prototypeMockEvidence}
           />
-          <div className="gh-admin-prototype-side">
+          <div className="gh-admin-control-side">
             <IntegrationList
               activeId={selectedControl?.kind === "Integration" ? selectedControl.id : ""}
               integrations={integrations}
               onSelect={handleIntegrationSelect}
-              prototypeMockEvidence={prototypeMockEvidence}
             />
             <PolicyCoverage
               activeId={selectedControl?.kind === "Policy coverage" ? selectedControl.id : ""}
               policies={policies}
               onSelect={handlePolicySelect}
-              prototypeMockEvidence={prototypeMockEvidence}
             />
           </div>
         </div>

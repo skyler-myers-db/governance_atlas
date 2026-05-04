@@ -272,6 +272,61 @@ class LineageCacheTests(unittest.TestCase):
         self.assertFalse(node["details"]["isOpenable"])
         self.assertEqual(node["details"]["resolutionState"], "lineage-only")
         self.assertIn("Metadata record unavailable", node["foot"])
+        self.assertEqual(node["details"]["governanceStatus"], "Unavailable")
+        self.assertEqual(node["details"]["domain"], "Unavailable")
+
+    def test_table_lineage_graph_walks_real_second_hop_branch(self) -> None:
+        class LineageUC(FakeUC):
+            upstream_map = {
+                "main.gold.revenue": ["main.silver.payments"],
+                "main.silver.payments": ["main.bronze.charges", "main.bronze.orders"],
+            }
+
+            def get_table_lineage_upstream(self, catalog: str, schema: str, table: str, limit: int = 50) -> pd.DataFrame:
+                fqn = f"{catalog}.{schema}.{table}"
+                return pd.DataFrame(
+                    {"source_table_full_name": self.upstream_map.get(fqn, [])}
+                )
+
+        def fake_node(_uc, _store, asset_fqn, role, _x, _y, **kwargs):
+            return {
+                "id": f"{role}-{asset_fqn}",
+                "assetFqn": asset_fqn,
+                "role": role,
+                "depth": kwargs.get("depth", 1),
+                "label": asset_fqn.rsplit(".", 1)[-1],
+                "kind": "Table",
+            }
+
+        with patch("atlas.services.lineage.graph_node_for_asset", side_effect=fake_node):
+            branch = lineage_service._recursive_branch_graph(
+                LineageUC(),
+                object(),
+                "main.gold.revenue",
+                direction="upstream",
+                depth_limit=2,
+                node_limit=12,
+                per_hop_limit=6,
+            )
+
+        node_fqns = {node["assetFqn"] for node in branch["nodes"]}
+        self.assertEqual(
+            node_fqns,
+            {"main.silver.payments", "main.bronze.charges", "main.bronze.orders"},
+        )
+        self.assertEqual(len(branch["edges"]), 3)
+        self.assertEqual(branch["depthLimit"], 2)
+
+        data_graph = {
+            "nodes": [
+                {"id": "focus-main.gold.revenue", "assetFqn": "main.gold.revenue", "role": "focus"},
+                *branch["nodes"],
+            ],
+            "edges": branch["edges"],
+        }
+        counts = lineage_service._lineage_graph_direction_counts(data_graph)
+        self.assertEqual(counts["directUpstream"], 1)
+        self.assertEqual(counts["upstream"], 3)
 
 
 if __name__ == "__main__":

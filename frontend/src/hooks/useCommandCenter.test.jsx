@@ -135,6 +135,31 @@ describe("useCommandCenter", () => {
     expect(result.current.data.estate.visibleAssetCount).toBe(11);
   });
 
+  it("drops preview warnings once live command-center data is available", async () => {
+    fetchCommandCenterMock.mockResolvedValue({
+      estate: { visibleAssetCount: 11 },
+      meta: { state: "available", warnings: [] },
+    });
+    const seedData = {
+      estate: { visibleAssetCount: 7 },
+      meta: {
+        state: "loading",
+        warnings: ["Command-center metrics are hydrating from live metadata."],
+      },
+    };
+
+    const { result } = renderHook(
+      () => useCommandCenter({ enabled: true, seedData }),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(result.current.hasLiveData).toBe(true);
+    });
+    expect(result.current.warnings).toEqual([]);
+    expect(result.current.degraded).toBe(false);
+  });
+
   it("refreshActorScope sends refresh flag on next fetch", async () => {
     fetchCommandCenterMock.mockResolvedValue({
       estate: { visibleAssetCount: 1 },

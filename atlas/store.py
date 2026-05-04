@@ -569,16 +569,14 @@ LIMIT {int(limit)}"""
     def get_role(self, email: str, admin_emails: List[str] | None = None) -> str:
         admin_emails = admin_emails or []
         e = email.strip().lower()
+        if e and any(e == a.strip().lower() for a in admin_emails):
+            return "admin"
         df = self.uc.query_df(
             f"SELECT role FROM {self._fq('user_roles')} "
             f"WHERE lower(email) = {sql_literal(e)} LIMIT 1"
         )
         if not df.empty and df.iloc[0].get("role"):
             return str(df.iloc[0]["role"]).lower()
-
-        if e and any(e == a.strip().lower() for a in admin_emails):
-            self.upsert_role(email=e, role="admin", updated_by=e)
-            return "admin"
         return "reader"
 
     def list_roles(self) -> pd.DataFrame:
@@ -1950,14 +1948,30 @@ WHEN NOT MATCHED THEN INSERT (
         reviewed_by: str,
         review_note: str | None = None,
         actor_role: str = "reader",
+        refresh_projection: bool = True,
     ) -> None:
         workflow_df = self._list_workflow_task_rows(task_id=task_id, limit=1)
         if workflow_df is None or workflow_df.empty:
             raise ValueError("task_id was not found.")
         row = workflow_df.iloc[0]
+        fast_mode = not refresh_projection
         task_status, resolution_code = _task_status_from_request_status(status)
         thread_status = _thread_status_from_task_status(task_status)
-        reviewer_entry = self._ensure_actor_identity_entry(reviewed_by, actor_role=actor_role)
+        reviewer_entry = None
+        if fast_mode:
+            normalized_reviewed_by = str(reviewed_by or "").strip().lower()
+            for entry_id_key, email_key in (
+                ("reviewer_entry_id", "reviewer_email"),
+                ("assignee_entry_id", "assignee_email"),
+                ("created_by_entry_id", "created_by_email"),
+            ):
+                entry_id = str(row.get(entry_id_key) or "").strip()
+                email = str(row.get(email_key) or "").strip().lower()
+                if entry_id and email and email == normalized_reviewed_by:
+                    reviewer_entry = {"entryId": entry_id, "email": email}
+                    break
+        if reviewer_entry is None:
+            reviewer_entry = self._ensure_actor_identity_entry(reviewed_by, actor_role=actor_role)
         ts = _utc_now_ts()
         resolved_payload = {
             "reviewNote": str(review_note or "").strip(),
@@ -1966,8 +1980,16 @@ WHEN NOT MATCHED THEN INSERT (
         request_status = _request_status_from_task(task_status, resolution_code)
         request_status_label = _request_status_label(request_status)
         requested_payload = _json_load(row.get("requested_payload_json")) or {}
-        self.uc.execute(
-            f"""UPDATE {self._fq("tasks")}
+        current_task_status = str(row.get("task_status") or "").strip().lower()
+        current_resolution_code = str(row.get("resolution_code") or "").strip().lower()
+        next_resolution_code = str(resolution_code or "").strip().lower()
+        status_changed = (
+            current_task_status != str(task_status or "").strip().lower()
+            or current_resolution_code != next_resolution_code
+        )
+        if status_changed or not fast_mode:
+            self.uc.execute(
+                f"""UPDATE {self._fq("tasks")}
 SET status = {sql_literal(task_status)},
     resolution_code = {sql_literal(resolution_code)},
     reviewer_entry_id = {sql_literal(reviewer_entry.get("entryId"))},
@@ -1975,13 +1997,13 @@ SET status = {sql_literal(task_status)},
     expected_version = COALESCE(expected_version, 0) + 1,
     updated_at = timestamp({sql_literal(ts)})
 WHERE task_id = {sql_literal(task_id)}"""
-        )
-        self.uc.execute(
-            f"""UPDATE {self._fq("threads")}
+            )
+            self.uc.execute(
+                f"""UPDATE {self._fq("threads")}
 SET status = {sql_literal(thread_status)},
     updated_at = timestamp({sql_literal(ts)})
 WHERE thread_id = {sql_literal(str(row.get("thread_id") or ""))}"""
-        )
+            )
         if review_note:
             comment_event_id = None
             self.uc.execute(
@@ -2007,18 +2029,18 @@ WHERE thread_id = {sql_literal(str(row.get("thread_id") or ""))}"""
                 task_id=task_id,
                 payload={"body": review_note},
             )
-            comment_recipients = self._workflow_notification_recipients(
-                entity_fqn=str(row.get("entity_fqn_snapshot") or ""),
-                thread_id=str(row.get("thread_id") or ""),
-                actor_email=reviewed_by,
-                actor_role=actor_role,
-                task_row=row,
-                include_owners=False,
-                include_thread_participants=True,
-                include_assignee=True,
-                include_reviewer=True,
-            )
-            if comment_event_id:
+            if comment_event_id and not fast_mode:
+                comment_recipients = self._workflow_notification_recipients(
+                    entity_fqn=str(row.get("entity_fqn_snapshot") or ""),
+                    thread_id=str(row.get("thread_id") or ""),
+                    actor_email=reviewed_by,
+                    actor_role=actor_role,
+                    task_row=row,
+                    include_owners=False,
+                    include_thread_participants=True,
+                    include_assignee=True,
+                    include_reviewer=True,
+                )
                 self._fanout_in_app_notification(
                     event_id=comment_event_id,
                     event_type="comment_created",
@@ -2032,51 +2054,54 @@ WHERE thread_id = {sql_literal(str(row.get("thread_id") or ""))}"""
                     status=request_status_label,
                     recipients=comment_recipients,
                 )
-        task_event_id = self._append_activity_event(
-            event_type="task_state_changed",
-            actor_entry_id=str(reviewer_entry.get("entryId") or ""),
-            entity_id=str(row.get("entity_id") or ""),
-            entity_fqn_snapshot=str(row.get("entity_fqn_snapshot") or ""),
-            column_name=str(row.get("column_name") or "") or None,
-            thread_id=str(row.get("thread_id") or ""),
-            task_id=task_id,
-            payload={"status": task_status, "resolutionCode": resolution_code, "reviewNote": review_note or ""},
-        )
-        state_recipients = self._workflow_notification_recipients(
-            entity_fqn=str(row.get("entity_fqn_snapshot") or ""),
-            thread_id=str(row.get("thread_id") or ""),
-            actor_email=reviewed_by,
-            actor_role=actor_role,
-            task_row=row,
-            include_owners=True,
-            include_thread_participants=True,
-            include_assignee=True,
-            include_reviewer=True,
-        )
-        self._fanout_in_app_notification(
-            event_id=task_event_id,
-            event_type="task_state_changed",
-            entity_id=str(row.get("entity_id") or ""),
-            entity_fqn_snapshot=str(row.get("entity_fqn_snapshot") or ""),
-            thread_id=str(row.get("thread_id") or ""),
-            task_id=task_id,
-            actor_email=reviewed_by,
-            title="Task updated",
-            detail=(
-                str(review_note or "").strip()
-                or str(requested_payload.get("title") or "").strip()
-                or request_status_label
-            ),
-            status=request_status_label,
-            recipients=state_recipients,
-        )
+        task_event_id = None
+        if status_changed or not fast_mode:
+            task_event_id = self._append_activity_event(
+                event_type="task_state_changed",
+                actor_entry_id=str(reviewer_entry.get("entryId") or ""),
+                entity_id=str(row.get("entity_id") or ""),
+                entity_fqn_snapshot=str(row.get("entity_fqn_snapshot") or ""),
+                column_name=str(row.get("column_name") or "") or None,
+                thread_id=str(row.get("thread_id") or ""),
+                task_id=task_id,
+                payload={"status": task_status, "resolutionCode": resolution_code, "reviewNote": review_note or ""},
+            )
+        if task_event_id and not fast_mode:
+            state_recipients = self._workflow_notification_recipients(
+                entity_fqn=str(row.get("entity_fqn_snapshot") or ""),
+                thread_id=str(row.get("thread_id") or ""),
+                actor_email=reviewed_by,
+                actor_role=actor_role,
+                task_row=row,
+                include_owners=True,
+                include_thread_participants=True,
+                include_assignee=True,
+                include_reviewer=True,
+            )
+            self._fanout_in_app_notification(
+                event_id=task_event_id,
+                event_type="task_state_changed",
+                entity_id=str(row.get("entity_id") or ""),
+                entity_fqn_snapshot=str(row.get("entity_fqn_snapshot") or ""),
+                thread_id=str(row.get("thread_id") or ""),
+                task_id=task_id,
+                actor_email=reviewed_by,
+                title="Task updated",
+                detail=(
+                    str(review_note or "").strip()
+                    or str(requested_payload.get("title") or "").strip()
+                    or request_status_label
+                ),
+                status=request_status_label,
+                recipients=state_recipients,
+            )
         self.append_metadata_audit(
             entity_type="task",
             entity_id=task_id,
             entity_fqn=str(row.get("entity_fqn_snapshot") or ""),
             column_name=str(row.get("column_name") or "") or None,
             request_id=task_id,
-            action="task-status-updated",
+            action="task-status-updated" if status_changed else "task-comment-added",
             actor_email=reviewed_by,
             actor_role=actor_role,
             before=self._workflow_rows_to_legacy_requests(workflow_df).iloc[0].to_dict(),
@@ -2088,7 +2113,8 @@ WHERE thread_id = {sql_literal(str(row.get("thread_id") or ""))}"""
             },
             detail=review_note,
         )
-        self.refresh_governance_queue_projection(updated_by=reviewed_by)
+        if refresh_projection:
+            self.refresh_governance_queue_projection(updated_by=reviewed_by)
 
     # ── Glossary (UC-native) ────────────────────────────────
 
@@ -2236,6 +2262,7 @@ ORDER BY l.subject_type, l.subject_fqn, COALESCE(l.column_name, ''), l.is_primar
         updated_by: str,
         column_name: str | None = None,
         source: str = "manual",
+        refresh_projection: bool = True,
     ) -> List[Dict[str, Any]]:
         normalized_subject_type = str(subject_type or "").strip().lower()
         normalized_subject_fqn = str(subject_fqn or "").strip()
@@ -2335,8 +2362,9 @@ WHERE lower(subject_type) = {sql_literal(normalized_subject_type)}
                 and not str(entry.get("termId") or "").strip().startswith("unresolved:")
             }
         )
-        for affected_term_id in sorted(affected_term_ids):
-            self.refresh_glossary_summary_projection(term_id=affected_term_id, updated_by=updated_by)
+        if refresh_projection:
+            for affected_term_id in sorted(affected_term_ids):
+                self.refresh_glossary_summary_projection(term_id=affected_term_id, updated_by=updated_by)
         return normalized_links
 
     def subject_glossary_term_links(
@@ -2512,6 +2540,7 @@ WHERE lower(subject_type) = {sql_literal(normalized_subject_type)}
         reviewers: List[Dict[str, Any]] | None = None,
         change_note: str | None = None,
         actor_role: str = "reader",
+        refresh_projection: bool = True,
     ) -> Dict[str, Any]:
         ts = _utc_now_ts()
         existing = self.get_glossary_term(term_id)
@@ -2571,7 +2600,8 @@ WHEN NOT MATCHED THEN INSERT (
             },
             detail=change_note,
         )
-        self.refresh_glossary_summary_projection(term_id=term_id, updated_by=updated_by)
+        if refresh_projection:
+            self.refresh_glossary_summary_projection(term_id=term_id, updated_by=updated_by)
         return version
 
     def search_glossary(self, query: str, limit: int = 25) -> pd.DataFrame:
@@ -2780,6 +2810,7 @@ WHEN NOT MATCHED THEN INSERT * """)
         reviewed_by: str,
         review_note: str | None = None,
         actor_role: str = "reader",
+        refresh_projection: bool = True,
     ) -> None:
         workflow_df = self._list_workflow_task_rows(task_id=request_id, limit=1)
         if workflow_df is not None and not workflow_df.empty:
@@ -2789,6 +2820,7 @@ WHEN NOT MATCHED THEN INSERT * """)
                 reviewed_by=reviewed_by,
                 review_note=review_note,
                 actor_role=actor_role,
+                refresh_projection=refresh_projection,
             )
             return
         before = self.get_change_request(request_id)
@@ -2812,7 +2844,8 @@ WHERE request_id = {sql_literal(request_id)}""")
             after=None if after is None else after.__dict__,
             detail=review_note,
         )
-        self.refresh_governance_queue_projection(updated_by=reviewed_by)
+        if refresh_projection:
+            self.refresh_governance_queue_projection(updated_by=reviewed_by)
 
     # ------------------------------------------------------------------
     # Phase 8 — custom properties

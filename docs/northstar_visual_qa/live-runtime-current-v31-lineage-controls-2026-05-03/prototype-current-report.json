@@ -1,0 +1,2005 @@
+{
+  "generatedAt": "2026-05-03T10:14:06.144Z",
+  "baseUrl": "http://127.0.0.1:8000",
+  "buildId": "frontend-23802fa26c48",
+  "deploymentId": "",
+  "assetFqn": "datapact.enterprise_metadata_ops.customer_stewardship_queue",
+  "mockApi": false,
+  "evidenceKind": "runtime_app_capture",
+  "mockEvidenceWarning": "",
+  "liveDatabricksCapture": false,
+  "forwardedActorCapture": true,
+  "forwardedActorEmail": "skyler@entrada.ai",
+  "forwardedActorTokenPresent": false,
+  "routeFilter": [
+    "lineage"
+  ],
+  "interactionFilter": [
+    "lineage-controls"
+  ],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "lineage"
+  ],
+  "viewports": [
+    {
+      "name": "3037x1269",
+      "width": 3037,
+      "height": 1269
+    },
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    }
+  ],
+  "expectedCaptureCount": 2,
+  "captures": [
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/datapact.enterprise_metadata_ops.customer_stewardship_queue",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v31-lineage-controls-2026-05-03/lineage-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v31-lineage-controls-2026-05-03/lineage-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/lineage/datapact.enterprise_metadata_ops.customer_stewardship_queue",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 298,
+          "right": 3037,
+          "bottom": 70,
+          "width": 2739,
+          "height": 70
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 298,
+          "bottom": 1269,
+          "width": 298,
+          "height": 1269
+        },
+        "main": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2739,
+          "height": 1199
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1859,
+          "clientHeight": 1199,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1928.90625,
+          "width": 2739,
+          "height": 1858.90625
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 70,
+            "left": 298,
+            "right": 3037,
+            "bottom": 1928.90625,
+            "width": 2739,
+            "height": 1858.90625
+          },
+          "hero": {
+            "top": 92,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 250.796875,
+            "width": 1930,
+            "height": 158.796875
+          },
+          "workbench": {
+            "top": 286.796875,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 1858.90625,
+            "width": 1930,
+            "height": 1572.109375
+          },
+          "graph": {
+            "top": 286.796875,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 1448.796875,
+            "width": 1930,
+            "height": 1162
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS datapact.enterprise_metadata_ops.customer_stewardship_queue Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Trusted Freshness unavailable 5 CDEs Owner: Unavailable 1 upstream · 3 downstream Revenue impact unavailable Column lineage Run impact analysis + - 5 nodes · 4 edges 2 HOPS UPSTREAM No outer upstream hop observed Unity Catalog has not reported a second upstream hop for this asset. 1 HOP UPSTREAM entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in current live route. 1 HOP DOWNSTREAM customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops customer_stewardship_remediation_portfolio_table datapact / enterprise_metadata_ops LINEAGE DETAILS customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops LAST REFRESH No live topology ROWS Unavailable OWNER Unavailable Live lineage inspector unavailable for this route. SOURCES 1 entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic CONSUMERS 2 customer_stewardship_p",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_remediation_portfolio_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Unavailable",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Review owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table Owner unavailable · datapact / enterprise_metadata_ops Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table Owner unavailable · datapact / enterprise_metadata_ops Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_remediation_portfolio_table Owner unavailable · datapact / enterprise_metadata_ops Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "asset_key source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "data_product source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "governance_domain source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "refreshed_at source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "source_record_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": true,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/datapact.enterprise_metadata_ops.customer_stewardship_queue",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v31-lineage-controls-2026-05-03/lineage-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v31-lineage-controls-2026-05-03/lineage-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/lineage/datapact.enterprise_metadata_ops.customer_stewardship_queue",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1810,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1865.796875,
+          "width": 1328,
+          "height": 1809.796875
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 208,
+            "right": 1536,
+            "bottom": 1865.796875,
+            "width": 1328,
+            "height": 1809.796875
+          },
+          "hero": {
+            "top": 78,
+            "left": 230,
+            "right": 1516,
+            "bottom": 202.4375,
+            "width": 1286,
+            "height": 124.4375
+          },
+          "workbench": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 1795.796875,
+            "width": 1286,
+            "height": 1557.359375
+          },
+          "graph": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 1400.4375,
+            "width": 1286,
+            "height": 1162
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS datapact.enterprise_metadata_ops.customer_stewardship_queue Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Trusted Freshness unavailable 5 CDEs Owner: Unavailable 1 upstream · 3 downstream Revenue impact unavailable Column lineage Run impact analysis + - 5 nodes · 4 edges 2 HOPS UPSTREAM No outer upstream hop observed Unity Catalog has not reported a second upstream hop for this asset. 1 HOP UPSTREAM entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in current live route. 1 HOP DOWNSTREAM customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops customer_stewardship_remediation_portfolio_table datapact / enterprise_metadata_ops LINEAGE DETAILS customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops LAST REFRESH No live topology ROWS Unavailable OWNER Unavailable Live lineage inspector unavailable for this route. SOURCES 1 entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic CONSUMERS 2 customer_stewardship_p",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_remediation_portfolio_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Unavailable",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Review owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table Owner unavailable · datapact / enterprise_metadata_ops Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table Owner unavailable · datapact / enterprise_metadata_ops Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_remediation_portfolio_table Owner unavailable · datapact / enterprise_metadata_ops Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "asset_key source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "data_product source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "governance_domain source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "refreshed_at source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "source_record_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": true,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/datapact.enterprise_metadata_ops.customer_stewardship_queue",
+      "viewport": "3037x1269",
+      "interaction": "lineage-controls",
+      "description": "Exercise visible Lineage impact, column, zoom, refocus, and time controls.",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v31-lineage-controls-2026-05-03/lineage-lineage-controls-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v31-lineage-controls-2026-05-03/lineage-lineage-controls-3037x1269-full.png",
+      "runResult": {
+        "impact": {
+          "impactStatus": true
+        },
+        "column": {
+          "columnStatus": true
+        },
+        "columnButton": {
+          "text": "Column lineage",
+          "ariaLabel": "",
+          "title": "Column lineage requires backed live column proof for this asset.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": -445,
+            "left": 2257,
+            "width": 143,
+            "height": 32
+          }
+        },
+        "columnClicked": false,
+        "columnModeClass": false,
+        "columnPanelFocused": false,
+        "columnPanelProof": {
+          "proofOnly": true
+        },
+        "authoritativeToolbarState": {
+          "compareAvailableOrUnavailable": false,
+          "tableAvailable": false,
+          "searchAvailable": false,
+          "exportAvailable": false,
+          "graphToolbarVisible": false
+        },
+        "zoomIn": {
+          "text": "+",
+          "ariaLabel": "Zoom in",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 425,
+            "left": 672,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "initialZoom": 1,
+        "zoomInLevel": 1.08,
+        "zoomInStatus": {
+          "ready": true
+        },
+        "zoomOut": {
+          "text": "-",
+          "ariaLabel": "Zoom out",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 425,
+            "left": 702,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "zoomOutLevel": 1,
+        "zoomOutStatus": {
+          "ready": true
+        },
+        "fitGraph": {
+          "text": "Fit graph",
+          "ariaLabel": "Fit graph",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 425,
+            "left": 732,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "fitGraphLevel": 1,
+        "fitGraphStatus": {
+          "ready": true
+        },
+        "wheelZoomLevel": 1,
+        "wheelZoomStatus": {
+          "ready": false
+        },
+        "graphPan": {
+          "x": 0,
+          "y": 0,
+          "centerX": 1614,
+          "centerY": 988
+        },
+        "graphPanAfter": {
+          "x": 48,
+          "y": 22
+        },
+        "graphPanStatus": {
+          "ready": true
+        },
+        "graphHistory": {
+          "text": "Graph history",
+          "ariaLabel": "Graph history",
+          "title": "Graph history requires persisted lineage snapshots.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 425,
+            "left": 762,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "graphHistoryStatus": {
+          "ready": true,
+          "title": "Graph history requires persisted lineage snapshots."
+        },
+        "refocusButton": {
+          "text": "Refocus graph",
+          "ariaLabel": "",
+          "title": "Refocus requires backed live lineage evidence for this route.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1869,
+            "left": 799,
+            "width": 102,
+            "height": 26
+          }
+        },
+        "refocus": {
+          "ready": true,
+          "unavailable": true,
+          "title": "Refocus requires backed live lineage evidence for this route."
+        },
+        "timeResetState": {
+          "text": "Unavailable",
+          "ariaLabel": "",
+          "title": "Lineage time selection requires backed live lineage evidence.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1474,
+            "left": 2439,
+            "width": 124,
+            "height": 32
+          }
+        },
+        "now": {
+          "ready": true,
+          "unavailable": true,
+          "title": "Lineage time selection requires backed live lineage evidence."
+        },
+        "zoomControls": [
+          "+ Zoom in",
+          "- Zoom out"
+        ]
+      },
+      "validation": {
+        "loaded": false,
+        "checks": {
+          "lineage": true
+        },
+        "runResult": {
+          "impact": {
+            "impactStatus": true
+          },
+          "column": {
+            "columnStatus": true
+          },
+          "columnButton": {
+            "text": "Column lineage",
+            "ariaLabel": "",
+            "title": "Column lineage requires backed live column proof for this asset.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": -445,
+              "left": 2257,
+              "width": 143,
+              "height": 32
+            }
+          },
+          "columnClicked": false,
+          "columnModeClass": false,
+          "columnPanelFocused": false,
+          "columnPanelProof": {
+            "proofOnly": true
+          },
+          "authoritativeToolbarState": {
+            "compareAvailableOrUnavailable": false,
+            "tableAvailable": false,
+            "searchAvailable": false,
+            "exportAvailable": false,
+            "graphToolbarVisible": false
+          },
+          "zoomIn": {
+            "text": "+",
+            "ariaLabel": "Zoom in",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 425,
+              "left": 672,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "initialZoom": 1,
+          "zoomInLevel": 1.08,
+          "zoomInStatus": {
+            "ready": true
+          },
+          "zoomOut": {
+            "text": "-",
+            "ariaLabel": "Zoom out",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 425,
+              "left": 702,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "zoomOutLevel": 1,
+          "zoomOutStatus": {
+            "ready": true
+          },
+          "fitGraph": {
+            "text": "Fit graph",
+            "ariaLabel": "Fit graph",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 425,
+              "left": 732,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "fitGraphLevel": 1,
+          "fitGraphStatus": {
+            "ready": true
+          },
+          "wheelZoomLevel": 1,
+          "wheelZoomStatus": {
+            "ready": false
+          },
+          "graphPan": {
+            "x": 0,
+            "y": 0,
+            "centerX": 1614,
+            "centerY": 988
+          },
+          "graphPanAfter": {
+            "x": 48,
+            "y": 22
+          },
+          "graphPanStatus": {
+            "ready": true
+          },
+          "graphHistory": {
+            "text": "Graph history",
+            "ariaLabel": "Graph history",
+            "title": "Graph history requires persisted lineage snapshots.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 425,
+              "left": 762,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "graphHistoryStatus": {
+            "ready": true,
+            "title": "Graph history requires persisted lineage snapshots."
+          },
+          "refocusButton": {
+            "text": "Refocus graph",
+            "ariaLabel": "",
+            "title": "Refocus requires backed live lineage evidence for this route.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1869,
+              "left": 799,
+              "width": 102,
+              "height": 26
+            }
+          },
+          "refocus": {
+            "ready": true,
+            "unavailable": true,
+            "title": "Refocus requires backed live lineage evidence for this route."
+          },
+          "timeResetState": {
+            "text": "Unavailable",
+            "ariaLabel": "",
+            "title": "Lineage time selection requires backed live lineage evidence.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1474,
+              "left": 2439,
+              "width": 124,
+              "height": 32
+            }
+          },
+          "now": {
+            "ready": true,
+            "unavailable": true,
+            "title": "Lineage time selection requires backed live lineage evidence."
+          },
+          "zoomControls": [
+            "+ Zoom in",
+            "- Zoom out"
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/lineage/datapact.enterprise_metadata_ops.customer_stewardship_queue",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 298,
+          "right": 3037,
+          "bottom": 70,
+          "width": 2739,
+          "height": 70
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 298,
+          "bottom": 1269,
+          "width": 298,
+          "height": 1269
+        },
+        "main": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2739,
+          "height": 1199
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1859,
+          "clientHeight": 1199,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1928.90625,
+          "width": 2739,
+          "height": 1858.90625
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 70,
+            "left": 298,
+            "right": 3037,
+            "bottom": 1928.90625,
+            "width": 2739,
+            "height": 1858.90625
+          },
+          "hero": {
+            "top": 92,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 250.796875,
+            "width": 1930,
+            "height": 158.796875
+          },
+          "workbench": {
+            "top": 286.796875,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 1858.90625,
+            "width": 1930,
+            "height": 1572.109375
+          },
+          "graph": {
+            "top": 286.796875,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 1448.796875,
+            "width": 1930,
+            "height": 1162
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS datapact.enterprise_metadata_ops.customer_stewardship_queue Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Trusted Freshness unavailable 5 CDEs Owner: Unavailable 1 upstream · 3 downstream Revenue impact unavailable Column lineage Run impact analysis + - 5 nodes · 4 edges 2 HOPS UPSTREAM No outer upstream hop observed Unity Catalog has not reported a second upstream hop for this asset. 1 HOP UPSTREAM entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in current live route. 1 HOP DOWNSTREAM customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops customer_stewardship_remediation_portfolio_table datapact / enterprise_metadata_ops LINEAGE DETAILS customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops LAST REFRESH No live topology ROWS Unavailable OWNER Unavailable Live lineage inspector unavailable for this route. SOURCES 1 entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic CONSUMERS 2 customer_stewardship_p",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_remediation_portfolio_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Unavailable",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Review owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table Owner unavailable · datapact / enterprise_metadata_ops Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table Owner unavailable · datapact / enterprise_metadata_ops Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_remediation_portfolio_table Owner unavailable · datapact / enterprise_metadata_ops Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "asset_key source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "data_product source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "governance_domain source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "refreshed_at source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "source_record_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": true,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/datapact.enterprise_metadata_ops.customer_stewardship_queue",
+      "viewport": "1536x1024",
+      "interaction": "lineage-controls",
+      "description": "Exercise visible Lineage impact, column, zoom, refocus, and time controls.",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v31-lineage-controls-2026-05-03/lineage-lineage-controls-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v31-lineage-controls-2026-05-03/lineage-lineage-controls-1536x1024-full.png",
+      "runResult": {
+        "impact": {
+          "impactStatus": true
+        },
+        "column": {
+          "columnStatus": true
+        },
+        "columnButton": {
+          "text": "Column lineage",
+          "ariaLabel": "",
+          "title": "Column lineage requires backed live column proof for this asset.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": -608,
+            "left": 1218,
+            "width": 133,
+            "height": 32
+          }
+        },
+        "columnClicked": false,
+        "columnModeClass": false,
+        "columnPanelFocused": false,
+        "columnPanelProof": {
+          "proofOnly": true
+        },
+        "authoritativeToolbarState": {
+          "compareAvailableOrUnavailable": false,
+          "tableAvailable": false,
+          "searchAvailable": false,
+          "exportAvailable": false,
+          "graphToolbarVisible": false
+        },
+        "zoomIn": {
+          "text": "+",
+          "ariaLabel": "Zoom in",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 377,
+            "left": 253,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "initialZoom": 1,
+        "zoomInLevel": 1.08,
+        "zoomInStatus": {
+          "ready": true
+        },
+        "zoomOut": {
+          "text": "-",
+          "ariaLabel": "Zoom out",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 377,
+            "left": 283,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "zoomOutLevel": 1,
+        "zoomOutStatus": {
+          "ready": true
+        },
+        "fitGraph": {
+          "text": "Fit graph",
+          "ariaLabel": "Fit graph",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 377,
+            "left": 313,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "fitGraphLevel": 1,
+        "fitGraphStatus": {
+          "ready": true
+        },
+        "wheelZoomLevel": 1,
+        "wheelZoomStatus": {
+          "ready": false
+        },
+        "graphPan": {
+          "x": 0,
+          "y": 0,
+          "centerX": 873,
+          "centerY": 939
+        },
+        "graphPanAfter": {
+          "x": 48,
+          "y": 22
+        },
+        "graphPanStatus": {
+          "ready": true
+        },
+        "graphHistory": {
+          "text": "Graph history",
+          "ariaLabel": "Graph history",
+          "title": "Graph history requires persisted lineage snapshots.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 377,
+            "left": 343,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "graphHistoryStatus": {
+          "ready": true,
+          "title": "Graph history requires persisted lineage snapshots."
+        },
+        "refocusButton": {
+          "text": "Refocus graph",
+          "ariaLabel": "",
+          "title": "Refocus requires backed live lineage evidence for this route.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1806,
+            "left": 366,
+            "width": 94,
+            "height": 26
+          }
+        },
+        "refocus": {
+          "ready": true,
+          "unavailable": true,
+          "title": "Refocus requires backed live lineage evidence for this route."
+        },
+        "timeResetState": {
+          "text": "Unavailable",
+          "ariaLabel": "",
+          "title": "Lineage time selection requires backed live lineage evidence.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1425,
+            "left": 1384,
+            "width": 117,
+            "height": 32
+          }
+        },
+        "now": {
+          "ready": true,
+          "unavailable": true,
+          "title": "Lineage time selection requires backed live lineage evidence."
+        },
+        "zoomControls": [
+          "+ Zoom in",
+          "- Zoom out"
+        ]
+      },
+      "validation": {
+        "loaded": false,
+        "checks": {
+          "lineage": true
+        },
+        "runResult": {
+          "impact": {
+            "impactStatus": true
+          },
+          "column": {
+            "columnStatus": true
+          },
+          "columnButton": {
+            "text": "Column lineage",
+            "ariaLabel": "",
+            "title": "Column lineage requires backed live column proof for this asset.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": -608,
+              "left": 1218,
+              "width": 133,
+              "height": 32
+            }
+          },
+          "columnClicked": false,
+          "columnModeClass": false,
+          "columnPanelFocused": false,
+          "columnPanelProof": {
+            "proofOnly": true
+          },
+          "authoritativeToolbarState": {
+            "compareAvailableOrUnavailable": false,
+            "tableAvailable": false,
+            "searchAvailable": false,
+            "exportAvailable": false,
+            "graphToolbarVisible": false
+          },
+          "zoomIn": {
+            "text": "+",
+            "ariaLabel": "Zoom in",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 377,
+              "left": 253,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "initialZoom": 1,
+          "zoomInLevel": 1.08,
+          "zoomInStatus": {
+            "ready": true
+          },
+          "zoomOut": {
+            "text": "-",
+            "ariaLabel": "Zoom out",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 377,
+              "left": 283,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "zoomOutLevel": 1,
+          "zoomOutStatus": {
+            "ready": true
+          },
+          "fitGraph": {
+            "text": "Fit graph",
+            "ariaLabel": "Fit graph",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 377,
+              "left": 313,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "fitGraphLevel": 1,
+          "fitGraphStatus": {
+            "ready": true
+          },
+          "wheelZoomLevel": 1,
+          "wheelZoomStatus": {
+            "ready": false
+          },
+          "graphPan": {
+            "x": 0,
+            "y": 0,
+            "centerX": 873,
+            "centerY": 939
+          },
+          "graphPanAfter": {
+            "x": 48,
+            "y": 22
+          },
+          "graphPanStatus": {
+            "ready": true
+          },
+          "graphHistory": {
+            "text": "Graph history",
+            "ariaLabel": "Graph history",
+            "title": "Graph history requires persisted lineage snapshots.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 377,
+              "left": 343,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "graphHistoryStatus": {
+            "ready": true,
+            "title": "Graph history requires persisted lineage snapshots."
+          },
+          "refocusButton": {
+            "text": "Refocus graph",
+            "ariaLabel": "",
+            "title": "Refocus requires backed live lineage evidence for this route.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1806,
+              "left": 366,
+              "width": 94,
+              "height": 26
+            }
+          },
+          "refocus": {
+            "ready": true,
+            "unavailable": true,
+            "title": "Refocus requires backed live lineage evidence for this route."
+          },
+          "timeResetState": {
+            "text": "Unavailable",
+            "ariaLabel": "",
+            "title": "Lineage time selection requires backed live lineage evidence.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1425,
+              "left": 1384,
+              "width": 117,
+              "height": 32
+            }
+          },
+          "now": {
+            "ready": true,
+            "unavailable": true,
+            "title": "Lineage time selection requires backed live lineage evidence."
+          },
+          "zoomControls": [
+            "+ Zoom in",
+            "- Zoom out"
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/lineage/datapact.enterprise_metadata_ops.customer_stewardship_queue",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1810,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1865.796875,
+          "width": 1328,
+          "height": 1809.796875
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 208,
+            "right": 1536,
+            "bottom": 1865.796875,
+            "width": 1328,
+            "height": 1809.796875
+          },
+          "hero": {
+            "top": 78,
+            "left": 230,
+            "right": 1516,
+            "bottom": 202.4375,
+            "width": 1286,
+            "height": 124.4375
+          },
+          "workbench": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 1795.796875,
+            "width": 1286,
+            "height": 1557.359375
+          },
+          "graph": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 1400.4375,
+            "width": 1286,
+            "height": 1162
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS datapact.enterprise_metadata_ops.customer_stewardship_queue Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Trusted Freshness unavailable 5 CDEs Owner: Unavailable 1 upstream · 3 downstream Revenue impact unavailable Column lineage Run impact analysis + - 5 nodes · 4 edges 2 HOPS UPSTREAM No outer upstream hop observed Unity Catalog has not reported a second upstream hop for this asset. 1 HOP UPSTREAM entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in current live route. 1 HOP DOWNSTREAM customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops customer_stewardship_remediation_portfolio_table datapact / enterprise_metadata_ops LINEAGE DETAILS customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops LAST REFRESH No live topology ROWS Unavailable OWNER Unavailable Live lineage inspector unavailable for this route. SOURCES 1 entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic CONSUMERS 2 customer_stewardship_p",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_remediation_portfolio_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Unavailable",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Review owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table Owner unavailable · datapact / enterprise_metadata_ops Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table Owner unavailable · datapact / enterprise_metadata_ops Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_remediation_portfolio_table Owner unavailable · datapact / enterprise_metadata_ops Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "asset_key source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "data_product source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "governance_domain source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "refreshed_at source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "source_record_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": true,
+            "aria": ""
+          }
+        ]
+      }
+    }
+  ],
+  "console": [
+    {
+      "type": "error",
+      "text": "Unable to preventDefault inside passive event listener invocation.",
+      "url": "http://127.0.0.1:8000/lineage/datapact.enterprise_metadata_ops.customer_stewardship_queue"
+    },
+    {
+      "type": "error",
+      "text": "Unable to preventDefault inside passive event listener invocation.",
+      "url": "http://127.0.0.1:8000/lineage/datapact.enterprise_metadata_ops.customer_stewardship_queue"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [],
+  "checks": {
+    "buildMatches": true
+  },
+  "runtimeStatus": {
+    "url": "http://127.0.0.1:8000/api/runtime/status",
+    "status": 200,
+    "ok": true,
+    "buildId": "frontend-23802fa26c48",
+    "state": "live",
+    "actorRole": "Reader",
+    "govCatalog": "datapact",
+    "govSchema": "atlas"
+  },
+  "captureCount": 2,
+  "interactionCount": 2,
+  "consoleErrorCount": 2,
+  "pageErrorCount": 0,
+  "requestFailureCount": 0,
+  "expectedRequestFailureCount": 0,
+  "passed": false
+}

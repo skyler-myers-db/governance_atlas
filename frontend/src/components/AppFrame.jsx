@@ -3,6 +3,7 @@ import { useAssetSearch } from "../hooks/useAssetSearch";
 import { useAtlasAiConversation } from "../hooks/useAtlasAiConversation";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
 import { workspaceAccessBanner } from "../lib/capabilities";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { InlineStatusBanner } from "./ShellStatePrimitives";
 import { PRODUCT } from "../config/product";
 import { GlobalHeader } from "./primitives/GlobalHeader";
@@ -16,35 +17,31 @@ import { MarkdownBlock } from "./primitives/MarkdownBlock";
 
 const AI_CHAT_SIZE = { width: 360, height: 432 };
 const AI_CHAT_WIDE_SIZE = { width: 440, height: 640 };
-const AI_CHAT_DISMISSED_KEY = "governance-atlas:atlas-ai-dismissed";
 const AI_AUTO_OPEN_WIDE_MODULES = new Set(["discovery", "governance", "taxonomy", "audit", "admin"]);
 
 const AI_ROUTE_COPY = {
   home: {
     emptyLive: "Ask about executive-facing dashboards, owner risk, freshness, and certification using governed metadata. I never read raw row values.",
-    emptyPrototype: "Ask about prototype dashboard, owner, freshness, and certification examples. I use prototype mock governance metadata, not live Unity Catalog evidence.",
     placeholder: "Ask about a dashboard, owner, or risk signal...",
     prompts: [
-      "What's powering the CFO Quarterly Dashboard, and is anything at risk this week?",
+      "What's powering a selected executive dashboard, and is anything at risk this week?",
       "Which uncertified tables are queried by executives?",
-      "Summarize PII coverage in customer_360.",
-      "Who owns net_revenue_usd and when was it last certified?",
+      "Summarize PII coverage for a selected customer domain.",
+      "Who owns the selected critical metric and when was it last certified?",
     ],
   },
   discovery: {
     emptyLive: "Ask about search results, asset trust signals, owners, glossary coverage, or inaccessible records using governed metadata. I never read raw row values.",
-    emptyPrototype: "Ask about prototype discovery results, trust fixtures, owners, and glossary coverage. I use prototype mock governance metadata, not live Unity Catalog evidence.",
     placeholder: "Ask about search results, owners, or glossary coverage...",
     prompts: [
       "Which visible assets have the strongest trust signal?",
       "Show customer assets without a certified owner.",
       "Explain why a deleted or inaccessible result appears.",
-      "Which tables should I inspect before using revenue_daily?",
+      "Which upstream tables should I inspect before using the selected asset?",
     ],
   },
   governance: {
     emptyLive: "Ask about stewardship queues, review work, SLA risk, owners, and request evidence using governed metadata. I never read raw row values.",
-    emptyPrototype: "Ask about prototype stewardship queues, review work, and SLA examples. I use prototype mock governance metadata, not live Unity Catalog evidence.",
     placeholder: "Ask about queue risk, owners, or review evidence...",
     prompts: [
       "Which stewardship items need attention first?",
@@ -55,18 +52,16 @@ const AI_ROUTE_COPY = {
   },
   taxonomy: {
     emptyLive: "Ask about glossary terms, CDEs, reviewers, version history, and asset associations using governed metadata. I never read raw row values.",
-    emptyPrototype: "Ask about prototype glossary terms, CDE reviewers, version history, and linked assets. I use prototype mock governance metadata, not live Unity Catalog evidence.",
     placeholder: "Ask about a term, CDE, reviewer, or linked asset...",
     prompts: [
       "Which CDEs are due for review?",
-      "What assets are linked to Net Revenue?",
+      "What assets are linked to the selected glossary term?",
       "Summarize reviewer status for critical CDEs.",
       "Which glossary term has the most asset coverage?",
     ],
   },
   lineage: {
     emptyLive: "Ask about lineage hops, impact, provenance, and column completeness using governed metadata. I never read raw row values.",
-    emptyPrototype: "Ask about prototype lineage hops, impact, provenance, and column completeness. I use prototype mock governance metadata, not live Unity Catalog evidence.",
     placeholder: "Ask about upstream, downstream, or impact...",
     prompts: [
       "Which upstream assets feed the selected table?",
@@ -77,7 +72,6 @@ const AI_ROUTE_COPY = {
   },
   audit: {
     emptyLive: "Ask about audit events, control evidence, grants, notebook activity, and export context using governed metadata. I never read raw row values.",
-    emptyPrototype: "Ask about prototype audit events, control evidence, grants, and export examples. I use prototype mock governance metadata, not live Unity Catalog evidence.",
     placeholder: "Ask about audit evidence, grants, or exports...",
     prompts: [
       "Summarize audit evidence for the selected window.",
@@ -88,7 +82,6 @@ const AI_ROUTE_COPY = {
   },
   admin: {
     emptyLive: "Ask about runtime health, integrations, policy coverage, setup diagnostics, and control evidence using governed metadata. I never read raw row values.",
-    emptyPrototype: "Ask about prototype runtime health, integrations, policy coverage, and setup examples. I use prototype mock governance metadata, not live Unity Catalog evidence.",
     placeholder: "Ask about runtime jobs, integrations, or policies...",
     prompts: [
       "Which runtime job or integration needs attention?",
@@ -99,7 +92,6 @@ const AI_ROUTE_COPY = {
   },
   entity: {
     emptyLive: "Ask about the selected asset's ownership, schema, usage, quality, and governance evidence. I never read raw row values.",
-    emptyPrototype: "Ask about prototype asset ownership, schema, usage, quality, and governance examples. I use prototype mock governance metadata, not live Unity Catalog evidence.",
     placeholder: "Ask about this asset's owner, schema, or evidence...",
     prompts: [
       "Summarize this asset's governance evidence.",
@@ -127,25 +119,6 @@ function defaultAiChatPosition() {
   };
 }
 
-function atlasAiDismissedPreference() {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage?.getItem(AI_CHAT_DISMISSED_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function setAtlasAiDismissedPreference(value) {
-  if (typeof window === "undefined") return;
-  try {
-    if (value) window.localStorage?.setItem(AI_CHAT_DISMISSED_KEY, "true");
-    else window.localStorage?.removeItem(AI_CHAT_DISMISSED_KEY);
-  } catch {
-    // Ignore storage failures; the in-memory open state is still authoritative.
-  }
-}
-
 function shouldAutoOpenAtlasAi(activeModule = "") {
   if (!AI_AUTO_OPEN_WIDE_MODULES.has(activeModule)) return false;
   if (typeof window === "undefined") return false;
@@ -167,25 +140,54 @@ function clampAiChatPosition(position) {
   };
 }
 
+function compactEvidenceValue(value) {
+  if (value == null || value === "") return "Unavailable";
+  if (Array.isArray(value)) return value.map((item) => compactEvidenceValue(item)).join(", ");
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function evidenceRowsFor(item) {
+  if (Array.isArray(item?.resultRows)) return item.resultRows;
+  if (Array.isArray(item?.rows)) return item.rows;
+  if (Array.isArray(item?.results)) return item.results;
+  return [];
+}
+
+function evidenceColumnsFor(item, rows = []) {
+  const explicit = Array.isArray(item?.resultColumns) ? item.resultColumns : [];
+  if (explicit.length) return explicit.map((column) => String(column || "").trim()).filter(Boolean);
+  return Array.from(new Set(rows.flatMap((row) => Object.keys(row || {})))).slice(0, 8);
+}
+
 function normalizeAiEvidenceItem(item, index) {
   if (!item || typeof item !== "object" || Array.isArray(item)) return null;
   const rawType = String(item.type || item.kind || item.metric || "").trim().toLowerCase();
+  const rawMetric = String(item.metric || "").trim().toLowerCase();
   const assetFqn = String(item.assetFqn || item.asset_fqn || item.fqn || "").trim();
   const rawLabel = String(item.label || item.title || item.name || item.id || item.statementId || assetFqn || "").trim();
-  const label = rawLabel || `Evidence ${index + 1}`;
-  const sourceText = [
-    item.source,
-    item.state,
-    item.warning,
-    ...(Array.isArray(item.warnings) ? item.warnings : []),
-  ].filter(Boolean).join(" ").toLowerCase();
-  const prototypeEvidence = /prototype|mock|not live/.test(sourceText);
+  const isQueryEvidence =
+    rawType.includes("genie") ||
+    rawType.includes("query") ||
+    rawMetric === "generatedsql" ||
+    Boolean(item.sql || item.statementId || item.statement_id);
+  const label = isQueryEvidence
+    ? String(item.title || item.label || "Generated SQL evidence").trim()
+    : rawLabel || `Evidence ${index + 1}`;
   if (!label) return null;
+  if (isQueryEvidence) {
+    return {
+      key: `${label}-${item.statementId || item.statement_id || index}`,
+      label,
+      routeLabel: "Open query evidence",
+      target: { kind: "query-evidence", evidence: item },
+    };
+  }
   if (assetFqn || rawType === "asset" || /\w+\.\w+\.\w+/.test(label)) {
     return {
       key: `${label}-${index}`,
       label,
-      routeLabel: prototypeEvidence ? "Open prototype asset" : "Open asset",
+      routeLabel: "Open asset",
       target: { kind: "asset", assetFqn: assetFqn || label },
     };
   }
@@ -193,7 +195,7 @@ function normalizeAiEvidenceItem(item, index) {
     return {
       key: `${label}-${index}`,
       label,
-      routeLabel: prototypeEvidence ? "Open prototype stewardship context" : "Open Stewardship",
+      routeLabel: "Open Stewardship",
       target: { kind: "surface", surface: "governance" },
     };
   }
@@ -219,6 +221,55 @@ function normalizeAiEvidenceItem(item, index) {
     routeLabel: "",
     target: null,
   };
+}
+
+function AtlasAiEvidenceDetail({ evidence, onClose }) {
+  if (!evidence) return null;
+  const rows = evidenceRowsFor(evidence);
+  const columns = evidenceColumnsFor(evidence, rows);
+  const visibleRows = rows.slice(0, 4);
+  const rowCount = Number.isFinite(Number(evidence.rowCount ?? evidence.totalRowCount))
+    ? Number(evidence.rowCount ?? evidence.totalRowCount)
+    : rows.length;
+  const sql = String(evidence.sql || evidence.generatedSql || "").trim();
+  const statementId = String(evidence.statementId || evidence.statement_id || evidence.id || "").trim();
+  return (
+    <section className="gh-floating-ai-evidence-detail" aria-label="Atlas AI query evidence">
+      <header>
+        <div>
+          <span>Query Evidence</span>
+          <strong>{rowCount.toLocaleString()} metadata row{rowCount === 1 ? "" : "s"} returned</strong>
+        </div>
+        <button aria-label="Close Atlas AI query evidence" onClick={onClose} type="button">
+          x
+        </button>
+      </header>
+      {statementId ? <p className="gh-floating-ai-evidence-statement">Statement {statementId}</p> : null}
+      {sql ? (
+        <pre className="gh-floating-ai-evidence-sql" data-testid="atlas-ai-query-evidence-sql">
+          <code>{sql}</code>
+        </pre>
+      ) : (
+        <p className="gh-floating-ai-evidence-empty">Generated SQL was not returned for this evidence record.</p>
+      )}
+      {visibleRows.length && columns.length ? (
+        <div className="gh-floating-ai-evidence-table" role="table" aria-label="Atlas AI query evidence rows">
+          <div role="row">
+            {columns.map((column) => (
+              <span key={column} role="columnheader">{column}</span>
+            ))}
+          </div>
+          {visibleRows.map((row, rowIndex) => (
+            <div key={`evidence-row-${rowIndex}`} role="row">
+              {columns.map((column) => (
+                <span key={`${column}-${rowIndex}`} role="cell">{compactEvidenceValue(row?.[column])}</span>
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
 function AtlasAiEvidenceList({ evidence = [], onOpenEvidence }) {
@@ -253,7 +304,6 @@ function AtlasAiEvidenceList({ evidence = [], onOpenEvidence }) {
 function AtlasAiMessageList({
   messages = [],
   onOpenEvidence,
-  prototypeEvidence = false,
   emptyMessage,
 }) {
   if (!messages.length) {
@@ -261,9 +311,7 @@ function AtlasAiMessageList({
       <div className="gh-floating-ai-message tone-assistant is-empty" role="status">
         <span>Atlas AI</span>
         <strong>
-          {emptyMessage || (prototypeEvidence
-            ? "I answer using prototype mock governance metadata, not live Unity Catalog evidence. I never read raw row values."
-            : "I answer questions about your governed data using Unity Catalog metadata. I never read raw row values.")}
+          {emptyMessage || "I answer questions about your governed data using Unity Catalog metadata. I never read raw row values."}
         </strong>
       </div>
     );
@@ -324,9 +372,10 @@ export default function AppFrame({
   const [shellHeaderHeight, setShellHeaderHeight] = useState(0);
   const [commandOpen, setCommandOpen] = useState(false);
   const railCollapsed = false;
-  const [aiChatOpen, setAiChatOpen] = useState(() => !atlasAiDismissedPreference() && shouldAutoOpenAtlasAi(activeModule));
+  const [aiChatOpen, setAiChatOpen] = useState(() => shouldAutoOpenAtlasAi(activeModule));
   const [aiChatPosition, setAiChatPosition] = useState(() => defaultAiChatPosition());
   const [aiInfoOpen, setAiInfoOpen] = useState(false);
+  const [aiEvidenceDetail, setAiEvidenceDetail] = useState(null);
   const shellHeaderRef = useRef(null);
   const searchRootRef = useRef(null);
   const aiChatRef = useRef(null);
@@ -488,11 +537,15 @@ export default function AppFrame({
   // attention-required while the app itself is live; those details stay in the
   // diagnostics/capability surfaces instead of turning the global chrome into
   // a setup-readiness warning.
+  const shellTruthEnvelope = shell && typeof shell === "object"
+    ? Object.fromEntries(Object.entries(shell).filter(([key]) => key !== "ai"))
+    : {};
+  const shellNonAuthoritative = isNonAuthoritativeMockEvidence(bootState, shellTruthEnvelope);
   const shellHealthState =
     bootState === "live" && !shellDisabled
       ? "live"
-      : bootState === "prototype_mock"
-        ? "prototype_mock"
+      : shellNonAuthoritative
+        ? "unavailable"
       : bootState === "error" || bootState === "unavailable"
         ? "unavailable"
         : bootState === "degraded"
@@ -502,11 +555,9 @@ export default function AppFrame({
             : "";
   const hasUcCoverage = Number.isFinite(Number(ucCoverageScore));
   const footerStatusTone =
-    shellHealthState === "prototype_mock"
+    goodHealthStates.includes(shellHealthState) && hasUcCoverage
       ? "good"
-      : goodHealthStates.includes(shellHealthState) && hasUcCoverage
-      ? "good"
-      : goodHealthStates.includes(shellHealthState) || ["attention_required", "degraded", "prototype_mock", "warning", "loading", "pending"].includes(shellHealthState)
+      : goodHealthStates.includes(shellHealthState) || ["attention_required", "degraded", "warning", "loading", "pending"].includes(shellHealthState)
         ? "warn"
         : ["error", "failed", "unavailable"].includes(shellHealthState)
           ? "bad"
@@ -518,23 +569,27 @@ export default function AppFrame({
   const aiProviderState = String(shell?.ai?.state || "").trim().toLowerCase();
   const aiProviderName = String(shell?.ai?.provider || "").trim().toLowerCase();
   const aiAvailableStates = new Set(["available", "ready", "enabled", "configured", "live"]);
-  const aiPrototypeMockAvailable = aiProviderState === "prototype_mock" || aiProviderName === "prototype-mock";
+  const aiProviderAuthoritative = !isNonAuthoritativeMockEvidence(shell?.ai, aiProviderName);
   const aiCopilotAvailable =
-    (shellHealthState === "live" && aiAvailableStates.has(aiProviderState)) ||
-    aiPrototypeMockAvailable;
-  const aiDockVisible = aiCopilotAvailable && aiChatOpen;
-  const aiGroundingLine =
-    aiPrototypeMockAvailable
-      ? "Prototype mock evidence - not live Databricks"
-      : aiProviderName.includes("genie")
-        ? "Grounded in Databricks Genie evidence - no raw rows read"
-        : "Grounded in governed metadata evidence - no raw rows read";
-  const aiEmptyMessage = aiPrototypeMockAvailable ? aiRouteCopy.emptyPrototype : aiRouteCopy.emptyLive;
+    shellHealthState === "live" &&
+    aiProviderAuthoritative &&
+    aiAvailableStates.has(aiProviderState);
+  const aiUnavailableReason =
+    typeof shell?.ai?.message === "string" && shell.ai.message.trim()
+      ? shell.ai.message.trim()
+      : shellHealthState !== "live"
+        ? "Atlas AI is waiting for the live metadata runtime before it can answer questions."
+        : "Atlas AI requires a configured evidence-backed endpoint before it can answer questions.";
+  const aiDockVisible = aiChatOpen;
+  const aiGroundingLine = aiCopilotAvailable
+    ? "Grounded in available governance metadata - no raw rows read"
+    : "Unavailable until an evidence-backed Atlas AI endpoint is configured";
+  const aiEmptyMessage = aiRouteCopy.emptyLive;
   const aiPlaceholder = aiRouteCopy.placeholder || DEFAULT_AI_ROUTE_COPY.placeholder;
   const closeAiCopilot = useCallback(() => {
-    setAtlasAiDismissedPreference(true);
     setAiChatOpen(false);
     setAiInfoOpen(false);
+    setAiEvidenceDetail(null);
     if (typeof window === "undefined") return;
     window.setTimeout?.(() => {
       const trigger = document.querySelector(".ga-ai-chip");
@@ -544,7 +599,6 @@ export default function AppFrame({
     }, 0);
   }, []);
   const openAiCopilot = () => {
-    setAtlasAiDismissedPreference(false);
     setCommandOpen(false);
     setAiInfoOpen(false);
     setAiChatPosition((current) => clampAiChatPosition(current.left ? current : defaultAiChatPosition()));
@@ -564,6 +618,10 @@ export default function AppFrame({
 
   const openAiEvidence = useCallback((target) => {
     if (!target) return;
+    if (target.kind === "query-evidence") {
+      setAiEvidenceDetail(target.evidence || {});
+      return;
+    }
     if (target.kind === "asset" && target.assetFqn) {
       closeAiCopilot();
       onSearchResultSelect?.(target.assetFqn);
@@ -576,15 +634,14 @@ export default function AppFrame({
   }, [closeAiCopilot, onModuleChange, onSearchResultSelect]);
 
   useEffect(() => {
-    if (
-      activeModule === "lineage" ||
-      activeModule === "home" ||
-      !aiCopilotAvailable ||
-      atlasAiDismissedPreference() ||
-      !shouldAutoOpenAtlasAi(activeModule)
-    ) return;
-    setAiChatOpen(true);
-  }, [activeModule, aiCopilotAvailable]);
+    if (activeModule === "lineage") {
+      setAiChatOpen(false);
+      return;
+    }
+    if (shouldAutoOpenAtlasAi(activeModule)) {
+      setAiChatOpen(true);
+    }
+  }, [activeModule]);
 
   useEffect(() => {
     setSearchPanelOpen(false);
@@ -886,18 +943,11 @@ export default function AppFrame({
       </div>
 
       <button
-        aria-label={aiDockVisible ? "Atlas AI is open" : "Open Atlas AI"}
+        aria-label={aiDockVisible ? "Atlas AI is open" : aiCopilotAvailable ? "Open Atlas AI" : `Open Atlas AI unavailable state: ${aiUnavailableReason}`}
         aria-pressed={aiDockVisible}
         className="gh-atlas-ai-fab"
-        disabled={!aiCopilotAvailable}
         onClick={openAiCopilot}
-        title={
-          aiCopilotAvailable
-            ? "Open Atlas AI"
-            : typeof shell?.ai?.message === "string" && shell.ai.message.trim()
-              ? shell.ai.message.trim()
-              : "Atlas AI requires an evidence-backed endpoint before activation."
-        }
+        title={aiCopilotAvailable ? "Open Atlas AI" : aiUnavailableReason}
         type="button"
       >
         <AtlasAiMark />
@@ -945,10 +995,13 @@ export default function AppFrame({
           <div className="gh-floating-ai-body">
             <div className="gh-floating-ai-transcript" aria-live="polite">
               <AtlasAiMessageList
-                emptyMessage={aiEmptyMessage}
+                emptyMessage={aiCopilotAvailable ? aiEmptyMessage : aiUnavailableReason}
                 messages={aiChat.messages}
                 onOpenEvidence={openAiEvidence}
-                prototypeEvidence={aiPrototypeMockAvailable}
+              />
+              <AtlasAiEvidenceDetail
+                evidence={aiEvidenceDetail}
+                onClose={() => setAiEvidenceDetail(null)}
               />
             </div>
             <div className="gh-floating-ai-prompt-group">
@@ -956,10 +1009,20 @@ export default function AppFrame({
               <div className="gh-floating-ai-prompts" aria-label="Atlas AI suggested prompts">
                 {aiPrompts.slice(0, aiChat.messages.length ? 1 : aiPrompts.length).map((prompt) => (
                   <button
-                    disabled={aiChat.loading}
+                    disabled={!aiCopilotAvailable || aiChat.loading}
                     key={prompt}
-                    onClick={() => void aiChat.ask(prompt)}
-                    title={aiChat.loading ? "Atlas AI is answering the current question." : undefined}
+                    onClick={() => {
+                      if (!aiCopilotAvailable) return;
+                      setAiEvidenceDetail(null);
+                      void aiChat.ask(prompt);
+                    }}
+                    title={
+                      !aiCopilotAvailable
+                        ? aiUnavailableReason
+                        : aiChat.loading
+                          ? "Atlas AI is answering the current question."
+                          : undefined
+                    }
                     type="button"
                   >
                     <span aria-hidden="true" className="gh-floating-ai-prompt-icon">?</span>
@@ -975,22 +1038,26 @@ export default function AppFrame({
             className="gh-floating-ai-input"
             onSubmit={(event) => {
               event.preventDefault();
+              if (!aiCopilotAvailable) return;
+              setAiEvidenceDetail(null);
               void aiChat.ask(aiChat.draft);
             }}
           >
             <input
-              disabled={aiChat.loading}
+              disabled={!aiCopilotAvailable || aiChat.loading}
               onChange={(event) => aiChat.setDraft(event.target.value)}
-              placeholder={aiPlaceholder}
+              placeholder={aiCopilotAvailable ? aiPlaceholder : aiUnavailableReason}
               ref={aiChatInputRef}
               type="text"
               value={aiChat.draft}
             />
             <button
               aria-label={aiChat.loading ? "Atlas AI is responding" : "Ask Atlas AI"}
-              disabled={aiChat.loading || !aiChat.draft.trim()}
+              disabled={!aiCopilotAvailable || aiChat.loading || !aiChat.draft.trim()}
               title={
-                aiChat.loading
+                !aiCopilotAvailable
+                  ? aiUnavailableReason
+                  : aiChat.loading
                   ? "Atlas AI is answering the current question."
                   : !aiChat.draft.trim()
                     ? "Enter a prompt to ask Atlas AI."
@@ -1014,9 +1081,7 @@ export default function AppFrame({
               aria-label="Atlas AI accuracy notice"
               onClick={() => setAiInfoOpen((current) => !current)}
               title={
-                aiPrototypeMockAvailable
-                  ? "Atlas AI prototype answers use mock governance metadata and are not live Databricks evidence."
-                  : "Atlas AI answers are grounded in available governance metadata and should be reviewed for accuracy."
+                "Atlas AI answers are grounded in available governance metadata and should be reviewed for accuracy."
               }
               type="button"
             >
@@ -1025,9 +1090,7 @@ export default function AppFrame({
           </p>
           {aiInfoOpen ? (
             <p className="gh-floating-ai-info" role="status">
-              {aiPrototypeMockAvailable
-                ? "Atlas AI prototype answers use mock governance metadata and are not live Databricks evidence. Review before action."
-                : "Atlas AI answers are grounded in available governance metadata and should be reviewed before action."}
+              Atlas AI answers are grounded in available governance metadata and should be reviewed before action.
             </p>
           ) : null}
         </section>

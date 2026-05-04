@@ -1,16 +1,58 @@
 # Functional Control Audit
 
-Status: current functional ledger has `0` open control rows; visual/product/truth/process signoff is recorded in `full_page_audit.md` and `signoff_matrix.md` against the active evidence set.
+Status: reopened and blocking after the 2026-05-02 false-signoff review.
+
+The previous `0` open control state is invalid. Current local prototype reports may
+remain as reproduction/capture-health artifacts, but they cannot close
+customer-facing product readiness rows. Each visible control now needs current
+live/runtime evidence with `mockApi=false`, or a truthful disabled/unavailable
+state recorded in the reopened audit.
 
 This ledger is the control-level companion to `full_page_audit.md`. It tracks
 visible controls that must be exercised, backed, truthfully unavailable, or disabled
 before any `northstar/*` page can receive functional signoff.
 
-Current evidence:
+Authoritative reading rule: unchecked reopened rows at the top of each page section
+are the current blockers. Historical checked rows below those reopened blocks are
+retained only as prior evidence history; they do not close the reopened controls and
+must not be read as current functional completion proof.
 
-- Current screenshots: see `global_current_evidence_dir` in
-  `docs/northstar_gap_analysis/reference_manifest.json`.
-- Current all-route functional evidence:
+Current closure evidence required:
+
+- None of the reopened customer-facing control rows currently has closure-grade
+  evidence unless that row cites current live/runtime evidence with `mockApi=false`
+  from the active reopened epoch, or records a truthful disabled/unavailable outcome.
+- Historical prototype, mock, fixture, local-only, or intercepted reports below are
+  retained only for reproduction, capture health, or prior-state debugging. They do
+  not close product-readiness controls, even when an older bullet says `passed`.
+- Older live Databricks reports below prove only the build, deployment, and
+  interaction IDs named in their own bullet. They must be rerun for the active epoch
+  before they can close reopened controls.
+
+Active current control evidence:
+
+- `docs/northstar_visual_qa/live-runtime-current-v135-full-functional-all-routes-2026-05-03/prototype-current-report.json`
+  is the active all-route local-runtime control report for build
+  `frontend-33133f44f929`; it has `mockApi=false`, `interactionCount=48`, and two
+  expected invalid structured-search `400` checks. It is not deployed Databricks App
+  proof.
+- `docs/northstar_visual_qa/live-runtime-current-v132-focused-functional-command-lineage-control-2026-05-03/prototype-current-report.json`
+  is a focused same-build supplement for Command Center, Lineage, and Control Center;
+  it proves the current Lineage drag/pan behavior but does not close the remaining
+  graph/search/export/selection rows.
+- `docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/prototype-current-report.json`
+  is a focused same-build CDE supplement proving the current CDE `Open lineage`
+  handoff.
+- Functional reviewer recheck on v135/v132/v134 remains BLOCKED for status-only
+  controls, drawer-context actions, mutation contradictions, unavailable-state
+  precision, responsive control exercise, deployed proof, and performance telemetry.
+
+Historical reproduction and non-closing evidence inventory:
+
+- Historical comparison screenshots: see `global_current_evidence_dir` in
+  `docs/northstar_gap_analysis/reference_manifest.json`; as of this reopened audit it
+  points to local prototype-mock comparison evidence and cannot close rows.
+- Historical all-route functional evidence:
   `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`
   passed at `1536x1024`, `1440x900`, and `1280x720` with `24` route captures and
   `132` interaction records. Its cross-page shared-control interaction inventories
@@ -170,17 +212,23 @@ Current evidence:
 
 | Page | Open Controls | Status |
 | --- | ---: | --- |
-| Command Center | 0 | Local covered |
-| Discover | 0 | Local covered |
-| Stewardship | 0 | Local covered |
-| Glossary | 0 | Local covered |
-| CDE Registry | 0 | Local covered |
-| Lineage Atlas | 0 | Live covered |
-| Audit Evidence | 0 | Local covered |
-| Control Center | 0 | Local covered |
-| Cross-Page Shared | 0 | Covered |
+| Command Center | 2 | Blocked |
+| Discover | 3 | Blocked |
+| Stewardship | 1 | Blocked |
+| Glossary | 1 | Blocked |
+| CDE Registry | 1 | Blocked |
+| Lineage Atlas | 5 | Blocked |
+| Audit Evidence | 1 | Blocked |
+| Control Center | 1 | Blocked |
+| Cross-Page Shared | 1 | Blocked |
 
 ## Command Center Controls
+
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] functional: export fallback must show visible failure feedback if browser blob export support is unavailable.
+- [ ] functional: current Command Center evidence is local prototype evidence and does not prove current deployed/live controls.
+<!-- reopened-2026-05-02-active-rows:end -->
 
 - [x] topbar search routes typed queries to Discover and preserves query text. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `shared-shell-search`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] workspace breadcrumb opens/navigates to Command Center without breaking active state. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `shared-shell-chrome`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
@@ -201,6 +249,13 @@ Current evidence:
 - [x] lower-scroll `prototype_home2` regions are captured and functionally exercised. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `domain-risk-activity-lower`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 
 ## Discover Controls
+
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] functional: Saved searches are local/hardcoded rather than persisted or clearly unavailable.
+- [ ] functional: Recommended Assets `View all` selects a recommendation instead of opening a complete recommendations view.
+- [ ] functional: selected-preview and lineage warm-up latency need measured evidence from click to useful state.
+<!-- reopened-2026-05-02-active-rows:end -->
 
 - [x] topbar search routes to Discover and preloads entered query. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `topbar-search-preload`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] Discover search handles valid, invalid, loading, and empty queries. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `filters-layout`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
@@ -229,6 +284,11 @@ Current evidence:
 
 ## Stewardship Controls
 
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] functional: governance mutation controls need disposable live proof or disabled unavailable states; current live QA skips mutation clicks.
+<!-- reopened-2026-05-02-active-rows:end -->
+
 - [x] Filter opens the local prototype filter menu and records selected filter state. Evidence: `docs/northstar_visual_qa/stewardship-functional-v301-local/prototype-current-report.json`, interaction `workbench-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.
 - [x] `All`, `P1 critical`, `Overdue`, and `Assigned to me` pills are exercised and record visible selected/pressed-state evidence. Evidence: `docs/northstar_visual_qa/stewardship-functional-v301-local/prototype-current-report.json`, interaction `workbench-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.
 - [x] row selection updates the detail pane. Evidence: `docs/northstar_visual_qa/stewardship-functional-v301-local/prototype-current-report.json`, interaction `workbench-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.
@@ -245,6 +305,11 @@ Current evidence:
 
 ## Glossary Controls
 
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] functional: `TaxonomyWorkspace` is forced into prototype behavior, so reviewer, hierarchy, version, and association workflows cannot be treated as backed live workflows.
+<!-- reopened-2026-05-02-active-rows:end -->
+
 - [x] Glossary/CDE tabs update URL state and active content. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `glossary-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] `+ New term` opens a creation/review workflow or truthful unavailable modal. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `glossary-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] glossary cards open a full term detail drawer/page. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `glossary-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
@@ -260,6 +325,11 @@ Current evidence:
 
 ## CDE Registry Controls
 
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] functional: CDE owner/recertification workflows require live proof or truthful disabled unavailable states.
+<!-- reopened-2026-05-02-active-rows:end -->
+
 - [x] Glossary/CDE tabs update URL state and active content. Evidence: `docs/northstar_visual_qa/cde-functional-v225-local/prototype-current-report.json`, interaction `cde-tab-request-no-extra-tools`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.
 - [x] CDE row click opens a column/source detail workflow. Evidence: `docs/northstar_visual_qa/cde-functional-v225-local/prototype-current-report.json`, interaction `cde-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.
 - [x] CDE asset association opens an association browser or source asset. Evidence: `docs/northstar_visual_qa/cde-functional-v225-local/prototype-current-report.json`, interaction `cde-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.
@@ -273,6 +343,15 @@ Current evidence:
 
 ## Lineage Atlas Controls
 
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] functional: custom North Star graph canvas did not support drag/pan.
+- [ ] functional: `Now`/as-of action changes status text only unless wired to a backed refresh/time-selection workflow or disabled.
+- [ ] functional: Search toggle announces opened even when closing and needs full open/search/clear/no-results/live-backed coverage.
+- [ ] functional: Lineage export, graph search, pan/drag, zoom, reset, selected-node, restricted-boundary, notify-owner, and column-row workflows need current live/runtime evidence or explicit unavailable states.
+- [ ] functional: Lineage edge selection, edge-detail affordances, and keyboard graph navigation have no current control-level evidence.
+<!-- reopened-2026-05-02-active-rows:end -->
+
 - [x] authoritative-only Compare/Table/Search/Export toolbar controls are absent from the non-authoritative prototype Lineage view. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `lineage-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.
 - [x] header Run impact analysis focuses the impact panel and preserves non-live/backed-impact wording. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `lineage-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.
 - [x] header Column lineage activates column-lineage status and graph state. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `lineage-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.
@@ -284,13 +363,18 @@ Current evidence:
 - [x] all `4` visible column-lineage lower rows are exercised and select local row state or render truthful unavailable shape. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `lineage-selection`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] both visible Lineage details-panel source/consumer rows are exercised and select local detail without creating a fake route workflow. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `lineage-selection`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] former selected-strip `Open asset` is absent in the non-authoritative prototype topology, so no hidden/unsupported asset route action is exposed. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `asset-navigation`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
-- [x] Notify owners is disabled with backed-impact rationale. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `notify-owners`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
+- [x] Historical only: the former Notify owners action was disabled with backed-impact rationale in local prototype evidence. It is not current closure proof; the current product control is renamed to Review owners unless a real notification mutation exists. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `notify-owners`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] Atlas AI suggestions/input/evidence routing, disabled-submit rationale, accuracy notice, and close control work from Lineage Atlas. Evidence: `docs/northstar_visual_qa/lineage-functional-v261-local/prototype-current-report.json`, interaction `atlas-ai`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] authoritative live graph toolbar `Table lineage`, toolbar `Column lineage`, `Search`, and `Export` controls are exercised against the current deployed Lineage build, with search result selection and export artifact contents recorded. Evidence: `docs/northstar_visual_qa/lineage-restricted-live-v399-databricks/lineage-live-report.json`, interaction `deployed-lineage-toolbar-search-export`, downloaded artifact `lineage-evidence-customer_stewardship_queue.json`, validation checks `exportDownloaded`, `exportHasEvidenceKind`, `exportMatchesLiveAsset`; Reviewer: Functional workflow; Date: 2026-05-02; Type: live_databricks.
 - [x] current live Lineage unavailable-state controls `Retry`, `Clear focus`, and selected-strip `Open asset` are clicked after a missing-asset route and recorded as truthfully unavailable or disabled with reason. Evidence: `docs/northstar_visual_qa/lineage-restricted-live-v399-databricks/lineage-live-report.json`, interaction `deployed-lineage-unavailable-controls`, validation checks `retryTruthful`, `openAssetHandled`, `clearFocusShowsSearchState`, `noSyntheticUnavailableGraph`; Reviewer: Functional workflow + Truth/provenance; Date: 2026-05-02; Type: live_databricks.
 - [x] current live Lineage graph/detail interactions cover every visible graph node class and explicitly log consumer, restricted/permission-boundary, impact, and column-detail rows as covered or unavailable for the sampled live graph, including hidden `system.*` lineage-only upstream nodes and live downstream consumers. Evidence: `docs/northstar_visual_qa/lineage-restricted-live-v399-databricks/lineage-live-report.json`, interaction `deployed-lineage-all-node-detail-classes`, validation checks `everyVisibleNodeClassClicked`, `consumerRowsCoveredOrUnavailable`, `restrictedCoveredOrAbsent`, `columnRowsCoveredOrUnavailable`; Reviewer: Functional workflow; Date: 2026-05-02; Type: live_databricks.
 
 ## Audit Evidence Controls
+
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] functional: date-range evidence must prove backed query scope changes, not only local labels and download names.
+<!-- reopened-2026-05-02-active-rows:end -->
 
 - [x] Date range menu changes query scope in the local prototype report; a full calendar workflow is not evidenced here. Evidence: `docs/northstar_visual_qa/audit-functional-v199-local/prototype-current-report.json`, interaction `audit-controls`, viewports `1536x1024`, `1280x720`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.
 - [x] Generate report creates a backed artifact or clearly labeled local/mock artifact with top-level, summary, and event-level provenance. Evidence: `docs/northstar_visual_qa/audit-functional-v199-local/prototype-current-report.json`, interaction `audit-controls`, downloaded artifact `audit-report-governance-audit-report-7d.json`, viewports `1536x1024`, `1280x720`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.
@@ -304,6 +388,11 @@ Current evidence:
 
 ## Control Center Controls
 
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] functional: row actions can end in local status text instead of opening a real resource or disabled unavailable detail.
+<!-- reopened-2026-05-02-active-rows:end -->
+
 - [x] scheduled job rows open backed Databricks job/run detail only outside prototype-mock evidence; prototype fixture URLs are disabled and withheld with a non-live rationale. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `control-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] scheduled job rows show truthful unavailable detail when no URL exists. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `control-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] integration rows expose connection detail/configuration state. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `control-controls`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
@@ -315,6 +404,11 @@ Current evidence:
 - [x] responsive layout keeps job, integration, and policy controls visible. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `responsive-control-layout`, viewport `1536x1024, 1440x900, 1280x720`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 
 ## Cross-Page Shared Controls
+
+<!-- reopened-2026-05-02-active-rows:start -->
+Reopened active rows from `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`:
+- [ ] functional: local prototype functional evidence has been used to close route controls that need current live/runtime proof or truthful disabled states.
+<!-- reopened-2026-05-02-active-rows:end -->
 
 - [x] every visible button/link/menu/tab/pill/search/input is included in this ledger or page ledger. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `cross-page-control-contract`, `322` visible controls and `0` uncovered controls at each reviewed viewport, viewports `1536x1024`, `1440x900`, `1280x720`; Reviewer: Functional workflow; Date: 2026-04-30; Type: local prototype_mock.
 - [x] visible no-op handler candidates are inventoried and non-mutation closures are either routed, disabled, or shown with a truthful unavailable panel; scoped shared mutation evidence now records no-PATCH disabled Stewardship Comment/Resolve dispositions. Evidence: `docs/northstar_visual_qa/all-functional-v122-local/prototype-current-report.json`, interaction `cross-page-control-contract`, `0` uncovered controls, viewports `1536x1024`, `1440x900`, `1280x720`; supplemental evidence `docs/northstar_visual_qa/shared-mutation-functional-v342-local/prototype-current-report.json`, interaction `cross-page-control-contract`, viewport `1536x1024`; Reviewer: Functional workflow; Date: 2026-05-01; Type: local prototype_mock.

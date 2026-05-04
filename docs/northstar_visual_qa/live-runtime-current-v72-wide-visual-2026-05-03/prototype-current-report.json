@@ -1,0 +1,3727 @@
+{
+  "generatedAt": "2026-05-03T13:51:40.323Z",
+  "baseUrl": "http://127.0.0.1:8000",
+  "buildId": "frontend-2ce767ae3986",
+  "deploymentId": "",
+  "assetFqn": "datapact.enterprise_metadata_ops.customer_stewardship_queue",
+  "mockApi": false,
+  "evidenceKind": "runtime_app_capture",
+  "mockEvidenceWarning": "",
+  "liveDatabricksCapture": false,
+  "forwardedActorCapture": true,
+  "forwardedActorEmail": "skyler@entrada.ai",
+  "forwardedActorTokenPresent": false,
+  "routeFilter": [],
+  "interactionFilter": [
+    "domain-risk-activity-lower",
+    "selected"
+  ],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "command-center",
+    "discover",
+    "stewardship",
+    "glossary",
+    "cde-registry",
+    "lineage",
+    "audit",
+    "control-center"
+  ],
+  "viewports": [
+    {
+      "name": "3037x1269",
+      "width": 3037,
+      "height": 1269
+    }
+  ],
+  "expectedCaptureCount": 8,
+  "captures": [
+    {
+      "route": "command-center",
+      "path": "/command-center",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/command-center-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/command-center-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": [],
+          "commandCenterReady": true
+        }
+      },
+      "metrics": {
+        "title": "Home - Governance Atlas",
+        "url": "http://127.0.0.1:8000/home",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797.078125,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 239.921875,
+          "bottom": 1269,
+          "width": 239.921875,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1774,
+          "clientHeight": 1213,
+          "hasOverflow": true
+        },
+        "home": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. EXECUTIVE COMMAND CENTER Databricks-backed · workspace scope Governance posture, at a glance Backed values use live Unity Catalog and governance-store signals; unavailable values are labeled instead of inferred. Export brief Present mode POSTURE 74.4% Trend unavailable THE STATE OF DATAPACT 22 governed assets are in scope. Coverage is 74%. CERTIFIED ASSETS 13 Signal unavailable OPEN EXPOSURES 4 +4 vs 30 days ago CDES TRACKED - Lineage proof unavailable WHAT CHANGED TODAY Coverage 74% Coverage signal unavailable Quality SLA - Quality signal unavailable Open exposures 4 +4 vs 30 days ago Lineage coverage - Lineage signal unavailable GOVERNANCE COVERAGE 74% Signal unavailable CERTIFIED ASSETS 13 Signal unavailable OPEN STEWARDSHIP ITEMS 3 +3 vs 30 days ago OPEN EXPOSURES 4 +4 vs 30 days ago Coverage trend · last 12 weeks i Share of productionized assets meeting baseline policy 12w 26w 52w Trend history unavailable Trend unavailable over the last 12 weeks SLA: >=90% by end of Q2 Projection unavailable Posture by domain i Coverage x visible asset count Product 96% 3 assets Customer 92% 3 assets Marketing 88% 3 assets Operations 88% 3 assets Finance 83% 3 assets Risk breakdown i Open exposures by severity - RISK-CLEAN Open exposures 4 Medium-risk",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export brief",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Present mode",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Coverage trend · last 12 weeks: Historical posture snapshots are shown only when available."
+          },
+          {
+            "text": "12w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "26w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "52w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Posture by domain: Domain scores use backed command-center domain signals when available."
+          },
+          {
+            "text": "Product 96% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Product domain posture"
+          },
+          {
+            "text": "Customer 92% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Customer domain posture"
+          },
+          {
+            "text": "Marketing 88% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Marketing domain posture"
+          },
+          {
+            "text": "Operations 88% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Operations domain posture"
+          },
+          {
+            "text": "Finance 83% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Finance domain posture"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Risk breakdown: Risk distribution renders unavailable unless explicit exposure severity signals are present."
+          },
+          {
+            "text": "Open exposures 4",
+            "disabled": false,
+            "aria": "Open stewardship for open exposures"
+          },
+          {
+            "text": "Medium-risk findings -",
+            "disabled": true,
+            "aria": "Open audit evidence for medium-risk findings"
+          },
+          {
+            "text": "Informational -",
+            "disabled": true,
+            "aria": "Open audit evidence for informational risk findings"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Top catalogs · health snapshot: Catalog rows are derived from visible asset inventory and backed metadata coverage fields."
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Critical data elements: CDE rows require backed CDE registry data or asset-level critical-element metadata."
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer Identifier datapact.enterprise_metadata_ops.customer_profile_coverage customer-steward@entrada.ai Certified",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discounts datapact.enterprise_metadata_ops.finance_lien_risk_summary finance-steward@entrada.ai Certified",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Gross Revenue datapact.enterprise_metadata_ops.finance_portfolio_exposure finance-steward@entrada.ai Certified",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Billable Amount datapact.enterprise_metadata_ops.marketing_lien_outreach_signal marketing-steward@entrada.ai Trusted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Activity stream: Recent activity uses audit/governance events returned by the command-center API."
+          },
+          {
+            "text": "Governance Atlas Identity Directory Upserted skyler@entrada.ai 1m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Identity Directory Upserted skyler@entrada.ai 1m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Identity Directory Upserted skyler@entrada.ai 6m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Identity Directory Upserted skyler@entrada.ai 6m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Change Request Status Updated Resolved from Stewardship Workbench. 6m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "discover",
+      "path": "/discover",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/discover-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/discover-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/discovery",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797.078125,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 239.921875,
+          "bottom": 1269,
+          "width": 239.921875,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 3178,
+          "clientHeight": 1213,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": {
+          "top": 56,
+          "left": 518.453125,
+          "right": 2278.453125,
+          "bottom": 3233.953125,
+          "width": 1760,
+          "height": 3177.953125
+        },
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. CERTIFICATION 22 results Certified 10 In Review 0 Uncertified 0 Trusted 3 DOMAIN Customer 3 Finance 3 Marketing 3 Operations 3 Product 3 Risk 3 CLASSIFICATION Confidential 10 Restricted 4 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Workspace-scoped results use Unity Catalog and governance store signals; actor-scoped protected reads remain restricted. Saved searches Advanced Showing 22 of 22 assets Sort: Relevance risk_critical_asset_monitor datapact.enterprise_metadata_ops.risk_critical_asset_monitor Certified 100% 100% Restricted 2 terms Aggregated critical-asset monitor derived from Cotality mortgage records. Risk Steward ⋮ Open Record Open lineage Certified product_mortgage_signal datapact.enterprise_metadata_ops.product_mortgage_signal Certified 100% 100% Confidential 2 terms Aggregated mortgage-product signal derived from Cotality mortgage records. Product Steward ⋮ Open Record Open lineage Certified product_market_fit_signal datapact.enterprise_metadata_ops.product_market_fit_signal Trusted 100% 100% Confidential 2 terms Aggregated market-fit signal derived from Cotality market analytics records. Metadata Platfor",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified 10",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "In Review 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Uncertified 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trusted 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Finance 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Marketing 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Operations 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Product 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Risk 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Confidential 10",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Restricted 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Critical Data Element",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contains PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "No PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Saved searches",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Advanced",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Relevance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Grid view",
+            "disabled": false,
+            "aria": "Grid view"
+          },
+          {
+            "text": "List view",
+            "disabled": false,
+            "aria": "List view"
+          },
+          {
+            "text": "risk_critical_asset_monitor",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "product_mortgage_signal",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "product_market_fit_signal",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "marketing_market_analytics",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "marketing_lien_outreach_signal",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "⋮",
+            "disabled": false,
+            "aria": "Open asset actions"
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "finance_portfolio_exposure",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "finance_lien_risk_summary",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "customer_profile_coverage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "risk_policy_exception_register",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "product_property_feature_health",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "operations_transfer_activity",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "operations_pipeline_readiness",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "customer_stewardship_queue",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "customer_identity_quality",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "operations_certification_backlog",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "marketing_segment_signal",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "stewardship",
+      "path": "/stewardship",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/stewardship-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/stewardship-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/governance",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797.078125,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 239.921875,
+          "bottom": 1269,
+          "width": 239.921875,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1213,
+          "clientHeight": 1213,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. STEWARDSHIP WORKBENCH 3 open work items · SLA evidence unavailable Auto-generated and human-filed governance work. Items are routed to teams by domain ownership; SLA timers use backed due-date and queue signals when available. Filter Bulk assign New work item All 3 P1 critical 0 Overdue 0 Assigned to me 3 Work queue 3 items · sorted by available work-item evidence ID ITEM ASSET ASSIGNED SLA PRIORITY GOV-HOME-EV… Review certification renewal Created May 3, 6:18 AM datapact.enterprise_metadata_ops.operations_certification_backlog skyler@entrada.ai Due not set Unassigned GOV-HOME-EV… Access review Created May 3, 5:18 AM datapact.enterprise_metadata_ops.risk_policy_exception_register skyler@entrada.ai Due not set Unassigned GOV-HOME-EV… Review data quality exception Created May 3, 4:18 AM datapact.enterprise_metadata_ops.risk_data_quality_review skyler@entrada.ai Due not set Unassigned GOV-HOME-EVIDENCE-request-03 Review certification renewal — · Priority unassigned Due not set skyler@entrada.ai AFFECTED ASSET datapact.enterprise_metadata_ops.operations_certification_backlog Why this is open No opening evidence was recorded for this work item. TRIGGER Review certification renewal SOURCE governance-store OBSERVED May 3, 6:18 AM AFFECTED ASSET da",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Filter",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Bulk assign",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "New work item",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "P1 critical 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Overdue 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Assigned to me 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "GOV-HOME-EV… Review certification renewal Created May 3, 6:18 AM datapact.enterprise_metadata_ops.operations_certificati",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "GOV-HOME-EV… Access review Created May 3, 5:18 AM datapact.enterprise_metadata_ops.risk_policy_exception_register skyler",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "GOV-HOME-EV… Review data quality exception Created May 3, 4:18 AM datapact.enterprise_metadata_ops.risk_data_quality_rev",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "datapact.enterprise_metadata_ops.operations_certification_backlog",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Approve re-certification Requires backed owner, lineage, freshness, and quality evidence.",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Flag for compliance review Escalates without changing metadata.",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Comment",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Resolve",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "? Which stewardship items need attention first? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? Summarize overdue owner or certification work. →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? What evidence supports the selected request? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? Which lineage gaps should a steward review? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Atlas AI accuracy notice"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "glossary",
+      "path": "/glossary-cdes",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/glossary-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/glossary-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/taxonomy",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797.078125,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 239.921875,
+          "bottom": 1269,
+          "width": 239.921875,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1213,
+          "clientHeight": 1213,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 17 Showing 4 of 20 governed glossary terms HIERARCHY 4 visible terms ga-taxonomy-node-revenue Average Revenue No child terms recorded ga-taxonomy-node-revenue Billable Amount No child terms recorded ga-taxonomy-node-revenue Contracted Revenue No child terms recorded ga-taxonomy-node-customer Customer Identifier No child terms recorded Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfolio analysis. SOURCE live ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or transaction rules are applied. SOURCE live ASSOCIATIONS 1 linked asset - actor visibility not verified REVIEW Reviewed May 3, 2026 1 assets Preview lineage -> Contracted Revenue Finance · sarah.johnson@entrada.ai Approved Revenue governed by signed customer agreements and committed service terms. SOURCE ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 20",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 17",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Average Revenue Finance · sarah.johnson@entrada.ai Proposed Average revenue measure used for segment, market, and portfo",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Billable Amount Finance · sarah.johnson@entrada.ai Approved Amount eligible for invoicing after service, product, or tra",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contracted Revenue Finance · sarah.johnson@entrada.ai Approved Revenue governed by signed customer agreements and commit",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "1 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer Identifier Customer · customer-steward@entrada.ai Approved Business-approved identifier used to recognize and j",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "2 assets",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Preview lineage ->",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "? Which CDEs are due for review? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? What assets are linked to the selected glossary term? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? Summarize reviewer status for critical CDEs. →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? Which glossary term has the most asset coverage? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Atlas AI accuracy notice"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "cde-registry",
+      "path": "/glossary-cdes?tab=cdes",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/cde-registry-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/cde-registry-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/taxonomy?tab=cdes",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797.078125,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 239.921875,
+          "bottom": 1269,
+          "width": 239.921875,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1213,
+          "clientHeight": 1213,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Reader Workspace › datapact.atlas ⌘K UC connected · 0% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. GLOSSARY & CDE REGISTRY Shared business meaning, anchored to data Glossary terms link to source-of-record assets. Critical Data Elements have stricter ownership, certification, and lineage requirements. + New term Glossary 20 CDE Registry 17 Showing 5 of 17 CDE registry rows CDE SOURCE-OF-RECORD COLUMN OWNER RECERT STATUS Customer Identity Quality Source column unavailable customer-steward@entrada.ai 90d Recert Due Customer Profile Coverage Source column unavailable customer-steward@entrada.ai 90d Healthy Customer Stewardship Queue Source column unavailable customer-steward@entrada.ai 90d Healthy Finance Exception Review Source column unavailable Unassigned 90d Recert Due Finance Lien Risk Summary Source column unavailable finance-steward@entrada.ai 90d Healthy Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned. Atlas AI Grounded in Databricks Genie evidence - no raw rows read x Ask about glossary terms, CDEs, reviewers, version history, and asset associations using governed metadata. I never read raw row values. TRY ASKING ? Which CDEs are due for review? → ? What assets are linked to the selected glossary term? → ? Summarize reviewer statu",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+ New term",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary 20",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "CDE Registry 17",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "? Which CDEs are due for review? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? What assets are linked to the selected glossary term? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? Summarize reviewer status for critical CDEs. →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? Which glossary term has the most asset coverage? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Atlas AI accuracy notice"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/datapact.enterprise_metadata_ops.customer_stewardship_queue",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/lineage-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/lineage-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/lineage/datapact.enterprise_metadata_ops.customer_stewardship_queue",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 298,
+          "right": 3037,
+          "bottom": 70,
+          "width": 2739,
+          "height": 70
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 298,
+          "bottom": 1269,
+          "width": 298,
+          "height": 1269
+        },
+        "main": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2739,
+          "height": 1199
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1859,
+          "clientHeight": 1199,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1928.90625,
+          "width": 2739,
+          "height": 1858.90625
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 70,
+            "left": 298,
+            "right": 3037,
+            "bottom": 1928.90625,
+            "width": 2739,
+            "height": 1858.90625
+          },
+          "hero": {
+            "top": 92,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 250.796875,
+            "width": 1930,
+            "height": 158.796875
+          },
+          "workbench": {
+            "top": 286.796875,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 1858.90625,
+            "width": 1930,
+            "height": 1572.109375
+          },
+          "graph": {
+            "top": 286.796875,
+            "left": 648.5,
+            "right": 2578.5,
+            "bottom": 1448.796875,
+            "width": 1930,
+            "height": 1162
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. LINEAGE ATLAS datapact.enterprise_metadata_ops.customer_stewardship_queue Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Trusted Freshness unavailable 5 CDEs Owner: Unavailable 1 upstream · 3 downstream Revenue impact unavailable Column lineage Run impact analysis + - 5 nodes · 4 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-03 13:52:57 UTC Table lineage Column lineage Search Export 2 HOPS UPSTREAM No outer upstream hop observed Unity Catalog has not reported a second upstream hop for this asset. 1 HOP UPSTREAM entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic PROCESSING CONTEXT No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops customer_stewardship_remediation_portfolio_table datapact / enterprise_metadata_ops LINEAGE DETAILS customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops LAST REFRESH 2026-05-03 ROWS Unavailable OWNER Unavailable SOURCES 1 entrada_eval_owner_transfer_domain_v1 cotal",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_remediation_portfolio_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "entrada_eval_owner_transfer_domain_v1 cotality_mortgage_data / corelogic",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table datapact / enterprise_metadata_ops",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Review owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_priority_workbench_table Owner unavailable · datapact / enterprise_metadata_ops Severity unavailabl",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_executive_feed_table Owner unavailable · datapact / enterprise_metadata_ops Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_stewardship_remediation_portfolio_table Owner unavailable · datapact / enterprise_metadata_ops Severity unavail",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "asset_key source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "data_product source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "governance_domain source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "refreshed_at source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "source_record_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "audit",
+      "path": "/audit-evidence",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/audit-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/audit-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/audit",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797.078125,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 239.921875,
+          "bottom": 1269,
+          "width": 239.921875,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1216,
+          "clientHeight": 1213,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": {
+            "top": 56,
+            "left": 239.921875,
+            "right": 2557,
+            "bottom": 1269,
+            "width": 2317.078125,
+            "height": 1213
+          },
+          "shell": {
+            "top": 86,
+            "left": 519.453125,
+            "right": 2279.453125,
+            "bottom": 1271.953125,
+            "width": 1760,
+            "height": 1185.953125
+          },
+          "main": {
+            "top": 86,
+            "left": 519.453125,
+            "right": 2279.453125,
+            "bottom": 1271.953125,
+            "width": 1760,
+            "height": 1185.953125
+          },
+          "table": {
+            "top": 362.953125,
+            "left": 519.453125,
+            "right": 2279.453125,
+            "bottom": 914.953125,
+            "width": 1760,
+            "height": 552
+          },
+          "mainStyle": {
+            "width": "1760px",
+            "justify-self": "auto",
+            "align-self": "auto",
+            "grid-column": "auto",
+            "display": "grid"
+          },
+          "shellStyle": {
+            "width": "1760px",
+            "grid-template-columns": "1760px",
+            "justify-items": "normal",
+            "display": "grid"
+          }
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. AUDIT EVIDENCE Immutable governance event log Every governance action by humans or services is appended to a Delta audit log. Events are searchable, time-ordered, and exportable for SOC 2 / SOX evidence. Date range Generate report Export CSV EVENTS · LOADED 200 governance audit log POLICY VIOLATIONS 1 governance audit log ACCESS REVIEWS · OPEN 0 governance audit log RETENTION Unavailable Retention policy not reported All events By users By services Violations Time (UTC) Actor Event Target Evidence 2026-05-03 13:50:09 skyler@entrada.ai Identity directory upserted No detail recorded skyler@entrada.ai Governance store 2026-05-03 13:50:03 skyler@entrada.ai Identity directory upserted No detail recorded skyler@entrada.ai Governance store 2026-05-03 13:45:06 skyler@entrada.ai Identity directory upserted No detail recorded skyler@entrada.ai Governance store 2026-05-03 13:45:00 skyler@entrada.ai Identity directory upserted No detail recorded skyler@entrada.ai Governance store 2026-05-03 13:44:46 skyler@entrada.ai Change request status updated Resolved from Stewardship Workbench. datapact.enterprise_metadata_ops.finance_exception_review Request GOV-HOME-EVIDENCE-request-02 · Governance store 2026-05-03 13:44:32 skyler@entrada.ai Change request statu",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Date range",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Generate report",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export CSV",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "All events",
+            "disabled": false,
+            "aria": "All events, 200 events"
+          },
+          {
+            "text": "By users",
+            "disabled": false,
+            "aria": "By users, 200 events"
+          },
+          {
+            "text": "By services",
+            "disabled": false,
+            "aria": "By services, 0 events"
+          },
+          {
+            "text": "Violations",
+            "disabled": false,
+            "aria": "Violations, 2 events"
+          },
+          {
+            "text": "2026-05-03 13:50:09 skyler@entrada.ai Identity directory upserted No detail recorded skyler@entrada.ai Governance store",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open evidence target for skyler@entrada.ai",
+            "disabled": true,
+            "aria": "Open evidence target for skyler@entrada.ai"
+          },
+          {
+            "text": "2026-05-03 13:50:03 skyler@entrada.ai Identity directory upserted No detail recorded skyler@entrada.ai Governance store",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open evidence target for skyler@entrada.ai",
+            "disabled": true,
+            "aria": "Open evidence target for skyler@entrada.ai"
+          },
+          {
+            "text": "2026-05-03 13:45:06 skyler@entrada.ai Identity directory upserted No detail recorded skyler@entrada.ai Governance store",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open evidence target for skyler@entrada.ai",
+            "disabled": true,
+            "aria": "Open evidence target for skyler@entrada.ai"
+          },
+          {
+            "text": "2026-05-03 13:45:00 skyler@entrada.ai Identity directory upserted No detail recorded skyler@entrada.ai Governance store",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open evidence target for skyler@entrada.ai",
+            "disabled": true,
+            "aria": "Open evidence target for skyler@entrada.ai"
+          },
+          {
+            "text": "2026-05-03 13:44:46 skyler@entrada.ai Change request status updated Resolved from Stewardship Workbench. datapact.enterp",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open evidence target for datapact.enterprise_metadata_ops.finance_exception_review",
+            "disabled": false,
+            "aria": "Open evidence target for datapact.enterprise_metadata_ops.finance_exception_review"
+          },
+          {
+            "text": "2026-05-03 13:44:32 skyler@entrada.ai Change request status updated Comment recorded from Stewardship Workbench. datapac",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open evidence target for datapact.enterprise_metadata_ops.finance_exception_review",
+            "disabled": false,
+            "aria": "Open evidence target for datapact.enterprise_metadata_ops.finance_exception_review"
+          },
+          {
+            "text": "2026-05-03 13:42:55 skyler@entrada.ai Identity directory upserted No detail recorded skyler@entrada.ai Governance store",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open evidence target for skyler@entrada.ai",
+            "disabled": true,
+            "aria": "Open evidence target for skyler@entrada.ai"
+          },
+          {
+            "text": "2026-05-03 13:42:49 skyler@entrada.ai Identity directory upserted No detail recorded skyler@entrada.ai Governance store",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open evidence target for skyler@entrada.ai",
+            "disabled": true,
+            "aria": "Open evidence target for skyler@entrada.ai"
+          },
+          {
+            "text": "Open asset",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Copy request ID",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "? Summarize audit evidence for the selected window. →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? Which high-severity events need review? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? What provenance backs the audit export? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? Show recent permission or grant activity. →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Atlas AI accuracy notice"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "control-center",
+      "path": "/control-center",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/control-center-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/control-center-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": []
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/admin",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797.078125,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 239.921875,
+          "bottom": 1269,
+          "width": 239.921875,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1213,
+          "clientHeight": 1213,
+          "hasOverflow": false
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": {
+            "top": 56,
+            "left": 239.921875,
+            "right": 2557,
+            "bottom": 1269,
+            "width": 2317.078125,
+            "height": 1213
+          },
+          "shell": {
+            "top": 82,
+            "left": 519.453125,
+            "right": 2279.453125,
+            "bottom": 1029.375,
+            "width": 1760,
+            "height": 947.375
+          },
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. CONTROL CENTER Atlas runtime, integrations, and policy Review runtime diagnostics for jobs, integrations, and policy coverage reported by the app. Unsupported controls stay marked unavailable. Scheduled jobs Lakeflow Jobs powering Atlas JOB SCHEDULE LAST RUN STATUS Unavailable No backed scheduled-job inventory is available yet. Integrations Unity Catalog Workspace inventory Connected Databricks SQL Warehouse Runtime signal unavailable Unavailable Lakeflow Jobs Runtime signal unavailable Unavailable Model Serving Endpoint signal unavailable Unavailable Notifications In-app delivery Unavailable Incident management Integration not reported Unavailable Policy coverage Active policies auto-evaluated Product policy coverage Unavailable Customer policy coverage Unavailable Marketing policy coverage Unavailable Operations policy coverage Unavailable Finance policy coverage Unavailable Atlas AI Grounded in Databricks Genie evidence - no raw rows read x Ask about runtime health, integrations, policy coverage, setup diagnostics, and control evidence using governed metadata. I never read raw row values. TRY ASKING ? Which runtime job or integration needs attention? → ? Summarize control coverage gaps. → ? What setup diagnostic should an admin inspect f",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Unity Catalog Workspace inventory Connected",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Databricks SQL Warehouse Runtime signal unavailable Unavailable",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Lakeflow Jobs Runtime signal unavailable Unavailable",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Model Serving Endpoint signal unavailable Unavailable",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Notifications In-app delivery Unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Incident management Integration not reported Unavailable",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Product policy coverage Unavailable",
+            "disabled": true,
+            "aria": "Product policy coverage Unavailable"
+          },
+          {
+            "text": "Customer policy coverage Unavailable",
+            "disabled": true,
+            "aria": "Customer policy coverage Unavailable"
+          },
+          {
+            "text": "Marketing policy coverage Unavailable",
+            "disabled": true,
+            "aria": "Marketing policy coverage Unavailable"
+          },
+          {
+            "text": "Operations policy coverage Unavailable",
+            "disabled": true,
+            "aria": "Operations policy coverage Unavailable"
+          },
+          {
+            "text": "Finance policy coverage Unavailable",
+            "disabled": true,
+            "aria": "Finance policy coverage Unavailable"
+          },
+          {
+            "text": "Atlas AI is open",
+            "disabled": false,
+            "aria": "Atlas AI is open"
+          },
+          {
+            "text": "x",
+            "disabled": false,
+            "aria": "Close Atlas AI"
+          },
+          {
+            "text": "? Which runtime job or integration needs attention? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? Summarize control coverage gaps. →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? What setup diagnostic should an admin inspect first? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "? Which policies are stale or missing evidence? →",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Ask Atlas AI",
+            "disabled": true,
+            "aria": "Ask Atlas AI"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Atlas AI accuracy notice"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "command-center",
+      "path": "/command-center",
+      "viewport": "3037x1269",
+      "interaction": "domain-risk-activity-lower",
+      "description": "Validate Command Center info affordances, domain/risk/activity routing, and lower-scroll regions.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/command-center-domain-risk-activity-lower-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/command-center-domain-risk-activity-lower-3037x1269-full.png",
+      "runResult": {
+        "infoControls": [
+          {
+            "text": "i",
+            "ariaLabel": "Coverage trend · last 12 weeks: Historical posture snapshots are shown only when available.",
+            "title": "Historical posture snapshots are shown only when available.",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 625,
+              "left": 1152,
+              "width": 15,
+              "height": 15
+            }
+          },
+          {
+            "text": "i",
+            "ariaLabel": "Posture by domain: Domain scores use backed command-center domain signals when available.",
+            "title": "Domain scores use backed command-center domain signals when available.",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 625,
+              "left": 2090,
+              "width": 15,
+              "height": 15
+            }
+          },
+          {
+            "text": "i",
+            "ariaLabel": "Risk breakdown: Risk distribution renders unavailable unless explicit exposure severity signals are present.",
+            "title": "Risk distribution renders unavailable unless explicit exposure severity signals are present.",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 963,
+              "left": 1028,
+              "width": 15,
+              "height": 15
+            }
+          },
+          {
+            "text": "i",
+            "ariaLabel": "Top catalogs · health snapshot: Catalog rows are derived from visible asset inventory and backed metadata coverage fields.",
+            "title": "Catalog rows are derived from visible asset inventory and backed metadata coverage fields.",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 963,
+              "left": 1672,
+              "width": 15,
+              "height": 15
+            }
+          },
+          {
+            "text": "i",
+            "ariaLabel": "Critical data elements: CDE rows require backed CDE registry data or asset-level critical-element metadata.",
+            "title": "CDE rows require backed CDE registry data or asset-level critical-element metadata.",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1342,
+              "left": 1076,
+              "width": 15,
+              "height": 15
+            }
+          },
+          {
+            "text": "i",
+            "ariaLabel": "Activity stream: Recent activity uses audit/governance events returned by the command-center API.",
+            "title": "Recent activity uses audit/governance events returned by the command-center API.",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1342,
+              "left": 1927,
+              "width": 15,
+              "height": 15
+            }
+          }
+        ],
+        "domainBefore": {
+          "text": "Product96%3 assets",
+          "ariaLabel": "Open discovery for Product domain posture",
+          "title": "Open discovery for Product",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 679,
+            "left": 1922,
+            "width": 471,
+            "height": 32
+          }
+        },
+        "pathAfterDomain": "/discovery",
+        "riskBefore": {
+          "text": "Open exposures4",
+          "ariaLabel": "Open stewardship for open exposures",
+          "title": "Open stewardship queue for exposure review",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1041,
+            "left": 1013,
+            "width": 157,
+            "height": 16
+          }
+        },
+        "pathAfterRisk": "/governance",
+        "activityBefore": {
+          "text": "Governance Atlas Identity Directory Upsertedskyler@entrada.ai1m ago",
+          "ariaLabel": "",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 1396,
+            "left": 1792,
+            "width": 601,
+            "height": 62
+          }
+        },
+        "pathAfterActivity": "/audit",
+        "lowerScroll": {
+          "scrollTop": 561,
+          "maxScrollTop": 561,
+          "hasCdes": true,
+          "hasActivity": true,
+          "hasCatalogs": true
+        }
+      },
+      "validation": {
+        "loaded": true,
+        "runResult": {
+          "infoControls": [
+            {
+              "text": "i",
+              "ariaLabel": "Coverage trend · last 12 weeks: Historical posture snapshots are shown only when available.",
+              "title": "Historical posture snapshots are shown only when available.",
+              "role": "",
+              "disabled": false,
+              "ariaPressed": "",
+              "ariaSelected": "",
+              "rect": {
+                "top": 625,
+                "left": 1152,
+                "width": 15,
+                "height": 15
+              }
+            },
+            {
+              "text": "i",
+              "ariaLabel": "Posture by domain: Domain scores use backed command-center domain signals when available.",
+              "title": "Domain scores use backed command-center domain signals when available.",
+              "role": "",
+              "disabled": false,
+              "ariaPressed": "",
+              "ariaSelected": "",
+              "rect": {
+                "top": 625,
+                "left": 2090,
+                "width": 15,
+                "height": 15
+              }
+            },
+            {
+              "text": "i",
+              "ariaLabel": "Risk breakdown: Risk distribution renders unavailable unless explicit exposure severity signals are present.",
+              "title": "Risk distribution renders unavailable unless explicit exposure severity signals are present.",
+              "role": "",
+              "disabled": false,
+              "ariaPressed": "",
+              "ariaSelected": "",
+              "rect": {
+                "top": 963,
+                "left": 1028,
+                "width": 15,
+                "height": 15
+              }
+            },
+            {
+              "text": "i",
+              "ariaLabel": "Top catalogs · health snapshot: Catalog rows are derived from visible asset inventory and backed metadata coverage fields.",
+              "title": "Catalog rows are derived from visible asset inventory and backed metadata coverage fields.",
+              "role": "",
+              "disabled": false,
+              "ariaPressed": "",
+              "ariaSelected": "",
+              "rect": {
+                "top": 963,
+                "left": 1672,
+                "width": 15,
+                "height": 15
+              }
+            },
+            {
+              "text": "i",
+              "ariaLabel": "Critical data elements: CDE rows require backed CDE registry data or asset-level critical-element metadata.",
+              "title": "CDE rows require backed CDE registry data or asset-level critical-element metadata.",
+              "role": "",
+              "disabled": false,
+              "ariaPressed": "",
+              "ariaSelected": "",
+              "rect": {
+                "top": 1342,
+                "left": 1076,
+                "width": 15,
+                "height": 15
+              }
+            },
+            {
+              "text": "i",
+              "ariaLabel": "Activity stream: Recent activity uses audit/governance events returned by the command-center API.",
+              "title": "Recent activity uses audit/governance events returned by the command-center API.",
+              "role": "",
+              "disabled": false,
+              "ariaPressed": "",
+              "ariaSelected": "",
+              "rect": {
+                "top": 1342,
+                "left": 1927,
+                "width": 15,
+                "height": 15
+              }
+            }
+          ],
+          "domainBefore": {
+            "text": "Product96%3 assets",
+            "ariaLabel": "Open discovery for Product domain posture",
+            "title": "Open discovery for Product",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 679,
+              "left": 1922,
+              "width": 471,
+              "height": 32
+            }
+          },
+          "pathAfterDomain": "/discovery",
+          "riskBefore": {
+            "text": "Open exposures4",
+            "ariaLabel": "Open stewardship for open exposures",
+            "title": "Open stewardship queue for exposure review",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1041,
+              "left": 1013,
+              "width": 157,
+              "height": 16
+            }
+          },
+          "pathAfterRisk": "/governance",
+          "activityBefore": {
+            "text": "Governance Atlas Identity Directory Upsertedskyler@entrada.ai1m ago",
+            "ariaLabel": "",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 1396,
+              "left": 1792,
+              "width": 601,
+              "height": 62
+            }
+          },
+          "pathAfterActivity": "/audit",
+          "lowerScroll": {
+            "scrollTop": 561,
+            "maxScrollTop": 561,
+            "hasCdes": true,
+            "hasActivity": true,
+            "hasCatalogs": true
+          }
+        }
+      },
+      "metrics": {
+        "title": "Home - Governance Atlas",
+        "url": "http://127.0.0.1:8000/home",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797.078125,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 239.921875,
+          "bottom": 1269,
+          "width": 239.921875,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 561,
+          "scrollHeight": 1774,
+          "clientHeight": 1213,
+          "hasOverflow": true
+        },
+        "home": {
+          "top": -505,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 708,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. EXECUTIVE COMMAND CENTER Databricks-backed · workspace scope Governance posture, at a glance Backed values use live Unity Catalog and governance-store signals; unavailable values are labeled instead of inferred. Export brief Present mode POSTURE 74.4% Trend unavailable THE STATE OF DATAPACT 22 governed assets are in scope. Coverage is 74%. CERTIFIED ASSETS 13 Signal unavailable OPEN EXPOSURES 4 +4 vs 30 days ago CDES TRACKED - Lineage proof unavailable WHAT CHANGED TODAY Coverage 74% Coverage signal unavailable Quality SLA - Quality signal unavailable Open exposures 4 +4 vs 30 days ago Lineage coverage - Lineage signal unavailable GOVERNANCE COVERAGE 74% Signal unavailable CERTIFIED ASSETS 13 Signal unavailable OPEN STEWARDSHIP ITEMS 3 +3 vs 30 days ago OPEN EXPOSURES 4 +4 vs 30 days ago Coverage trend · last 12 weeks i Share of productionized assets meeting baseline policy 12w 26w 52w Trend history unavailable Trend unavailable over the last 12 weeks SLA: >=90% by end of Q2 Projection unavailable Posture by domain i Coverage x visible asset count Product 96% 3 assets Customer 92% 3 assets Marketing 88% 3 assets Operations 88% 3 assets Finance 83% 3 assets Risk breakdown i Open exposures by severity - RISK-CLEAN Open exposures 4 Medium-risk",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export brief",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Present mode",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Coverage trend · last 12 weeks: Historical posture snapshots are shown only when available."
+          },
+          {
+            "text": "12w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "26w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "52w",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Posture by domain: Domain scores use backed command-center domain signals when available."
+          },
+          {
+            "text": "Product 96% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Product domain posture"
+          },
+          {
+            "text": "Customer 92% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Customer domain posture"
+          },
+          {
+            "text": "Marketing 88% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Marketing domain posture"
+          },
+          {
+            "text": "Operations 88% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Operations domain posture"
+          },
+          {
+            "text": "Finance 83% 3 assets",
+            "disabled": false,
+            "aria": "Open discovery for Finance domain posture"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Risk breakdown: Risk distribution renders unavailable unless explicit exposure severity signals are present."
+          },
+          {
+            "text": "Open exposures 4",
+            "disabled": false,
+            "aria": "Open stewardship for open exposures"
+          },
+          {
+            "text": "Medium-risk findings -",
+            "disabled": true,
+            "aria": "Open audit evidence for medium-risk findings"
+          },
+          {
+            "text": "Informational -",
+            "disabled": true,
+            "aria": "Open audit evidence for informational risk findings"
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Top catalogs · health snapshot: Catalog rows are derived from visible asset inventory and backed metadata coverage fields."
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Critical data elements: CDE rows require backed CDE registry data or asset-level critical-element metadata."
+          },
+          {
+            "text": "View all",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer Identifier datapact.enterprise_metadata_ops.customer_profile_coverage customer-steward@entrada.ai Certified",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discounts datapact.enterprise_metadata_ops.finance_lien_risk_summary finance-steward@entrada.ai Certified",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Gross Revenue datapact.enterprise_metadata_ops.finance_portfolio_exposure finance-steward@entrada.ai Certified",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Billable Amount datapact.enterprise_metadata_ops.marketing_lien_outreach_signal marketing-steward@entrada.ai Trusted",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "i",
+            "disabled": false,
+            "aria": "Activity stream: Recent activity uses audit/governance events returned by the command-center API."
+          },
+          {
+            "text": "Governance Atlas Identity Directory Upserted skyler@entrada.ai 1m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Identity Directory Upserted skyler@entrada.ai 1m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Identity Directory Upserted skyler@entrada.ai 6m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Identity Directory Upserted skyler@entrada.ai 6m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Governance Atlas Change Request Status Updated Resolved from Stewardship Workbench. 7m ago",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Atlas AI",
+            "disabled": false,
+            "aria": "Open Atlas AI"
+          }
+        ]
+      }
+    },
+    {
+      "route": "discover",
+      "path": "/discover",
+      "viewport": "3037x1269",
+      "interaction": "selected",
+      "description": "Select the first Discover result and show the asset preview pane.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/discover-selected-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v72-wide-visual-2026-05-03/discover-selected-3037x1269-full.png",
+      "runResult": {
+        "selectedAssetFqn": "datapact.enterprise_metadata_ops.risk_critical_asset_monitor"
+      },
+      "validation": {
+        "loaded": true,
+        "previewOpen": true,
+        "previewVisible": true,
+        "selectedAssetFqn": "datapact.enterprise_metadata_ops.risk_critical_asset_monitor",
+        "previewText": "risk_critical_asset_monitorCertifiedRestrictedView · datapact.enterprise_metadata_ops.risk_critical_asset_monitor×Open Asset 360Open LineageGovernanceLive rows unavailableAsset preview and sample data require per-user authorization / OBO; app-principal fallback does not widen user-visible data.Certified100% Metadata CoverageRestrictedOverviewColumns · 0LineageQualityAccessAggregated critical-asset monitor derived from Cotality mortgage records.MetadataOwnerRisk StewardSteward teamUnavailableFreshnessUnavailableQuality scoreUnavailableRowsUnavailableUsage · 30dUnavailableConnected AssetsNo live upstream lineage edges are surfaced for this asset yet.Tags & Glossary2 termscertification=Certifiedcriticality=Criticaldata_product=Risk Controlsdomain=Risksensitivity=RestrictedNet RevenueRecognized Revenue+1 moreBuildability NoteThis read-only preview uses available Discover and Asset 360 fields; it is not workflow mutation evidence. Unsupported workflow actions remain unavailable here.Comment",
+        "nonAuthoritativeNotice": false,
+        "honestPreviewState": true,
+        "livePreviewOverclaim": false,
+        "controls": [
+          {
+            "text": "×",
+            "disabled": false
+          },
+          {
+            "text": "Open Asset 360",
+            "disabled": false
+          },
+          {
+            "text": "Open Lineage",
+            "disabled": false
+          },
+          {
+            "text": "Governance",
+            "disabled": false
+          },
+          {
+            "text": "Overview",
+            "disabled": false
+          },
+          {
+            "text": "Columns · 0",
+            "disabled": false
+          },
+          {
+            "text": "Lineage",
+            "disabled": false
+          },
+          {
+            "text": "Quality",
+            "disabled": false
+          },
+          {
+            "text": "Access",
+            "disabled": false
+          },
+          {
+            "text": "Comment",
+            "disabled": true
+          },
+          {
+            "text": "Request access",
+            "disabled": true
+          },
+          {
+            "text": "Certify",
+            "disabled": false
+          }
+        ]
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/discovery?preview=datapact.enterprise_metadata_ops.risk_critical_asset_monitor",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 56,
+          "width": 2797.078125,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 239.921875,
+          "bottom": 1269,
+          "width": 239.921875,
+          "height": 1269
+        },
+        "main": {
+          "top": 56,
+          "left": 239.921875,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2797.078125,
+          "height": 1213
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 3177,
+          "clientHeight": 1213,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": {
+          "top": 56,
+          "left": 259.921875,
+          "right": 2537,
+          "bottom": 3232.953125,
+          "width": 2277.078125,
+          "height": 3176.953125
+        },
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center S Skyler Admin Workspace › datapact.atlas ⌘K UC connected · 74.4% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. CERTIFICATION 22 results Certified 10 In Review 0 Uncertified 0 Trusted 3 DOMAIN Customer 3 Finance 3 Marketing 3 Operations 3 Product 3 Risk 3 CLASSIFICATION Confidential 10 Restricted 4 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Workspace-scoped results use Unity Catalog and governance store signals; actor-scoped protected reads remain restricted. Saved searches Advanced Showing 22 of 22 assets Sort: Relevance risk_critical_asset_monitor datapact.enterprise_metadata_ops.risk_critical_asset_monitor Certified 100% 100% Restricted 2 terms Aggregated critical-asset monitor derived from Cotality mortgage records. Risk Steward ⋮ Open Record Open lineage Certified product_mortgage_signal datapact.enterprise_metadata_ops.product_mortgage_signal Certified 100% 100% Confidential 2 terms Aggregated mortgage-product signal derived from Cotality mortgage records. Product Steward ⋮ Open Record Open lineage Certified product_market_fit_signal datapact.enterprise_metadata_ops.product_market_fit_signal Trusted 100% 100% Confidential 2 terms Aggregated market-fit signal derived from Cotality market analytics records. Metadata Platfor",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "S Skyler Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler"
+          },
+          {
+            "text": "Workspace › datapact.atlas",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Certified 10",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "In Review 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Uncertified 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Trusted 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Customer 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Finance 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Marketing 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Operations 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Product 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Risk 3",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Confidential 10",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Restricted 4",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Critical Data Element",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contains PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "No PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Saved searches",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Advanced",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Relevance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Grid view",
+            "disabled": false,
+            "aria": "Grid view"
+          },
+          {
+            "text": "List view",
+            "disabled": false,
+            "aria": "List view"
+          },
+          {
+            "text": "risk_critical_asset_monitor",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "product_mortgage_signal",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "product_market_fit_signal",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "marketing_market_analytics",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "marketing_lien_outreach_signal",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "finance_portfolio_exposure",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "finance_lien_risk_summary",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "customer_profile_coverage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "risk_policy_exception_register",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "product_property_feature_health",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "operations_transfer_activity",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "operations_pipeline_readiness",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "customer_stewardship_queue",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "customer_identity_quality",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "operations_certification_backlog",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "marketing_segment_signal",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          }
+        ]
+      }
+    }
+  ],
+  "console": [],
+  "pageErrors": [],
+  "requestFailures": [],
+  "checks": {
+    "buildMatches": true
+  },
+  "runtimeStatus": {
+    "url": "http://127.0.0.1:8000/api/runtime/status",
+    "status": 200,
+    "ok": true,
+    "buildId": "frontend-2ce767ae3986",
+    "state": "live",
+    "actorRole": "Reader",
+    "govCatalog": "datapact",
+    "govSchema": "atlas"
+  },
+  "captureCount": 8,
+  "interactionCount": 2,
+  "consoleErrorCount": 0,
+  "pageErrorCount": 0,
+  "requestFailureCount": 0,
+  "expectedRequestFailureCount": 0,
+  "passed": true
+}

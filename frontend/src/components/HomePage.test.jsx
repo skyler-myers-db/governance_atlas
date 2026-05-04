@@ -172,7 +172,7 @@ describe("HomePage", () => {
 
     expect(screen.getByText("Trend history unavailable")).not.toBeNull();
     expect(screen.getByText("Projection unavailable")).not.toBeNull();
-    expect(screen.getByText("Domain posture signals unavailable.")).not.toBeNull();
+    expect(screen.getByText("Domain coverage signals unavailable.")).not.toBeNull();
     expect(screen.getByText("Catalog health rows unavailable until visible asset inventory hydrates.")).not.toBeNull();
     expect(screen.getByText("Critical data element registry signals are unavailable in this command-center snapshot.")).not.toBeNull();
     expect(screen.getByText("No recent governance activity available.")).not.toBeNull();
@@ -206,7 +206,26 @@ describe("HomePage", () => {
 
     expect(screen.queryByText("Data availability is limited")).toBeNull();
     expect(screen.queryByText("Prototype mock data, not live Databricks evidence.")).toBeNull();
-    expect(screen.getByLabelText("Current governance posture")).not.toBeNull();
+    expect(screen.getByLabelText("Current metadata coverage")).not.toBeNull();
+  });
+
+  it("rejects non-authoritative command-center payload values before rendering metrics", () => {
+    render(
+      <HomePage
+        commandCenter={{
+          ...commandCenter,
+          meta: {
+            source: "prototype-mock",
+            warnings: ["not live Databricks evidence"],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText(/Non-authoritative command-center evidence/i)).not.toBeNull();
+    expect(screen.queryByText("Marisol Reyes")).toBeNull();
+    expect(screen.getByText("Audit events unavailable until live evidence is returned")).not.toBeNull();
+    expect(screen.getByText("No recent governance activity available.")).not.toBeNull();
   });
 
   it("still shows non-prototype degraded warnings in the command-center layout", () => {
@@ -255,13 +274,17 @@ describe("HomePage", () => {
       fireEvent.click(screen.getByRole("button", { name: "Export brief" }));
       expect(createObjectURL).toHaveBeenCalledTimes(1);
       expect(clickSpy).toHaveBeenCalledTimes(1);
+      expect(screen.getByText("Command Center brief export started.")).not.toBeNull();
       expect(createObjectURL.mock.calls[0][0]).toBeInstanceOf(TestBlob);
       const payload = JSON.parse(blobCalls[0].parts[0]);
       expect(payload.posture.value).toBe(87.4);
       expect(payload.workspace.label).toBe("entrada-prod");
-      expect(payload.workspace.liveDatabricksEvidence).toBe(true);
+      expect(payload.workspace.databricksBackedMetadata).toBe(true);
+      expect(payload.workspace.evidenceBoundary).toBe("local-runtime");
+      expect(payload.workspace.liveDatabricksEvidence).toBe(false);
+      expect(payload.workspace.warning).toMatch(/local runtime boundary/i);
       expect(payload.provenance.evidenceKind).toBe("live");
-      expect(payload.provenance.liveDatabricksEvidence).toBe(true);
+      expect(payload.provenance.liveDatabricksEvidence).toBe(false);
       expect(payload.kpis.find((kpi) => kpi.key === "governedAssets").delta).toBe("+82 this quarter");
       expect(payload.topCatalogs[0].catalog).toBe("finance_prod");
 
@@ -276,6 +299,19 @@ describe("HomePage", () => {
       Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: originalRevokeObjectURL });
       vi.stubGlobal("Blob", OriginalBlob);
       clickSpy.mockRestore();
+    }
+  });
+
+  it("shows a visible export unavailable state when download URLs are unsupported", () => {
+    const originalCreateObjectURL = URL.createObjectURL;
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: undefined });
+
+    try {
+      render(<HomePage commandCenter={commandCenter} />);
+      fireEvent.click(screen.getByRole("button", { name: "Export brief" }));
+      expect(screen.getByText("Command Center export is unavailable because this browser cannot create download URLs.")).not.toBeNull();
+    } finally {
+      Object.defineProperty(URL, "createObjectURL", { configurable: true, value: originalCreateObjectURL });
     }
   });
 
@@ -314,7 +350,7 @@ describe("HomePage", () => {
     expect(onNavigate).toHaveBeenCalledWith("audit");
   });
 
-  it("labels prototype evidence in page copy and exported briefs", () => {
+  it("treats prototype-marked evidence as non-authoritative in page copy and exported briefs", () => {
     const createObjectURL = vi.fn(() => "blob:prototype-command-center");
     const revokeObjectURL = vi.fn();
     const blobCalls = [];
@@ -345,13 +381,13 @@ describe("HomePage", () => {
         />,
       );
 
-      expect(screen.getByText(/Prototype capture; not live Databricks proof/i)).not.toBeNull();
+      expect(screen.getByText(/Non-authoritative command-center evidence/i)).not.toBeNull();
       fireEvent.click(screen.getByRole("button", { name: "Export brief" }));
       const payload = JSON.parse(blobCalls[0].parts[0]);
-      expect(payload.workspace.evidenceKind).toBe("prototype_mock");
+      expect(payload.workspace.evidenceKind).toBe("non_authoritative");
       expect(payload.workspace.liveDatabricksEvidence).toBe(false);
-      expect(payload.workspace.warning).toMatch(/not live Databricks proof/i);
-      expect(payload.provenance.evidenceKind).toBe("prototype_mock");
+      expect(payload.workspace.warning).toMatch(/local runtime boundary/i);
+      expect(payload.provenance.evidenceKind).toBe("non_authoritative");
       expect(payload.provenance.liveDatabricksEvidence).toBe(false);
       expect(payload.provenance.warnings).toContain("Prototype mock data, not live Databricks evidence.");
     } finally {
@@ -402,7 +438,7 @@ describe("HomePage", () => {
       expect(payload.workspace.label).toBe("entrada-prod");
       expect(payload.workspace.evidenceKind).toBe("non_authoritative");
       expect(payload.workspace.liveDatabricksEvidence).toBe(false);
-      expect(payload.workspace.warning).toMatch(/not live Databricks proof/i);
+      expect(payload.workspace.warning).toMatch(/local runtime boundary/i);
       expect(payload.workspaceLabel).toBe("entrada-prod");
       expect(payload.provenance.evidenceKind).toBe("non_authoritative");
       expect(payload.provenance.liveDatabricksEvidence).toBe(false);
@@ -419,8 +455,8 @@ describe("HomePage", () => {
     const { riskBreakdown, ...policyOnlyCommandCenter } = commandCenter;
     render(<HomePage commandCenter={policyOnlyCommandCenter} />);
 
-    expect(screen.getAllByText("Open exposures").length).toBeGreaterThan(0);
-    expect(screen.getByText("Open exposure count is backed; severity split is unavailable for this workspace.")).not.toBeNull();
+    expect(screen.getAllByText("Policy exception signals").length).toBeGreaterThan(0);
+    expect(screen.getByText("Policy exception count is backed; severity split is unavailable for this workspace.")).not.toBeNull();
     expect(screen.queryByText("High-risk exposures")).toBeNull();
   });
 

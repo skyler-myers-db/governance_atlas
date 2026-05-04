@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 import unittest
 from dataclasses import dataclass
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -173,7 +175,60 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertIsNone(payload["posture"]["overall"])
         self.assertEqual(payload["posture"]["state"], "unavailable")
         self.assertEqual(payload["topDomains"][0]["domain"], "Customer")
+        self.assertEqual(payload["catalogHealth"][0]["catalog"], "main")
+        self.assertEqual(payload["catalogHealth"][0]["assetCount"], 2)
+        self.assertEqual(payload["meta"]["primaryCatalog"], "main")
         self.assertEqual(payload["recentEvents"][0]["priority"], "")
+
+    @patch.dict(os.environ, {"GOVAT_CATALOG": "datapact"})
+    def test_command_center_catalog_health_uses_full_inventory_not_recent_slice(self) -> None:
+        visible_assets = pd.DataFrame(
+            [
+                {
+                    "fqn": "datapact.enterprise_metadata_ops.customer_profile_coverage",
+                    "table_catalog": "datapact",
+                    "domain": "Customer",
+                    "certification": "Certified",
+                    "sensitivity": "Confidential",
+                    "criticality": "Critical",
+                    "business_owner": "customer-steward@entrada.ai",
+                },
+                {
+                    "fqn": "customer_360.gold.customer_profile",
+                    "table_catalog": "customer_360",
+                    "domain": "Customer",
+                    "certification": "Certified",
+                    "sensitivity": "Confidential",
+                    "criticality": "Critical",
+                    "business_owner": "customer-steward@entrada.ai",
+                },
+                *[
+                    {
+                        "fqn": f"finance_prod.gold.revenue_{idx}",
+                        "table_catalog": "finance_prod",
+                        "domain": "Finance",
+                        "certification": "Certified",
+                        "sensitivity": "Confidential",
+                        "criticality": "Critical",
+                        "business_owner": "finance-steward@entrada.ai",
+                    }
+                    for idx in range(3)
+                ],
+            ]
+        )
+
+        payload = atlas_metrics.command_center_payload(
+            visible_assets=visible_assets,
+            store=FakeStore(),
+        )
+
+        self.assertEqual(payload["catalogHealth"][0]["catalog"], "finance_prod")
+        self.assertEqual(payload["catalogHealth"][0]["assetCount"], 3)
+        self.assertEqual(payload["meta"]["primaryCatalog"], "finance_prod")
+        self.assertEqual(
+            [row["catalog"] for row in payload["catalogHealth"]],
+            ["finance_prod", "customer_360", "datapact"],
+        )
 
     def test_recent_events_derive_high_priority_from_audit_evidence(self) -> None:
         class PriorityStore(FakeStore):
@@ -201,6 +256,55 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(payload["recentEvents"][0]["severity"], "high")
         self.assertEqual(payload["recentEvents"][0]["tone"], "bad")
         self.assertEqual(payload["recentEvents"][0]["title"], "Policy Exception Detected")
+
+    def test_command_center_payload_masks_internal_seed_ids(self) -> None:
+        class SeededStore(FakeStore):
+            def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
+                rows = pd.DataFrame(
+                    [
+                        {
+                            "request_id": "GOV-HOME-EVIDENCE-request-01",
+                            "created_at": "2026-04-24 01:00:00",
+                            "created_by": "skyler@entrada.ai",
+                            "status": "pending",
+                            "uc_full_name": "main.customer.customer_dim",
+                            "new_comment": "Policy exception review: Review ga-taxonomy-term-customer-segment.",
+                        }
+                    ]
+                )
+                if status:
+                    return rows[rows["status"].eq(status)].copy()
+                return rows
+
+            def list_metadata_audit(self, **_: object) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "audit_id": "GOV-HOME-EVIDENCE-audit-01",
+                            "entity_fqn": "main.customer.customer_dim",
+                            "action": "policy-exception-detected",
+                            "source": "home-evidence-plane",
+                            "status": "failed",
+                            "detail": "Review GOV-HOME-EVIDENCE-request-01 for ga-taxonomy-term-customer-segment.",
+                            "request_id": "GOV-HOME-EVIDENCE-request-01",
+                            "created_at": "2026-04-24 01:05:00",
+                            "actor_email": "skyler@entrada.ai",
+                        }
+                    ]
+                )
+
+        payload = atlas_metrics.command_center_payload(
+            visible_assets=_assets_df(),
+            store=SeededStore(),
+        )
+        serialized = json.dumps(payload)
+
+        self.assertEqual(payload["governance"]["pendingRequests"][0]["request_id"], "GOV-01")
+        self.assertEqual(payload["recentEvents"][0]["id"], "AUD-01")
+        self.assertIn("Customer Segment", serialized)
+        self.assertNotIn("GOV-HOME-EVIDENCE", serialized)
+        self.assertNotIn("ga-taxonomy-term", serialized)
+        self.assertNotIn("home-evidence-plane", serialized)
 
     def test_command_center_marks_audit_readiness_unavailable_without_audit(self) -> None:
         class NoAuditStore(FakeStore):
@@ -383,7 +487,7 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(payload["summary"]["policyChanges"], 1)
         self.assertEqual(payload["summary"]["failedActions"], 1)
         self.assertEqual(payload["summary"]["approvals"], 0)
-        self.assertEqual(payload["summary"]["rowScope"], "metadata-audit rows")
+        self.assertEqual(payload["summary"]["rowScope"], "governance audit log")
         self.assertEqual(payload["summary"]["hiddenRowsExcluded"], 0)
         self.assertEqual(payload["selectedEvent"]["audit_id"], "AUD-2")
         self.assertEqual(len(payload["events"]), 2)
@@ -403,7 +507,50 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(scoped["summary"]["hiddenRowsExcluded"], 1)
         self.assertIsNone(scoped["selectedEvent"])
         self.assertIn("after", payload["evidence"])
-        self.assertIn("linkedRequest", payload["evidence"])
+
+    def test_audit_evidence_payload_rejects_internal_seed_and_identity_rows(self) -> None:
+        class AuditStore(FakeStore):
+            def list_metadata_audit(self, **_: object) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "audit_id": "INTERNAL-1",
+                            "entity_type": "identity_directory_entry",
+                            "entity_id": "skyler@entrada.ai",
+                            "action": "identity-directory-upserted",
+                            "source": "store",
+                            "status": "success",
+                            "after_json": "{\"entryId\":\"abc\"}",
+                            "created_at": "2026-04-24 01:00:00",
+                            "actor_email": "skyler@entrada.ai",
+                        },
+                        {
+                            "audit_id": "GOV-HOME-EVIDENCE-audit-01",
+                            "entity_fqn": "main.customer.customer_dim",
+                            "entity_type": "asset",
+                            "action": "policy-exception-detected",
+                            "source": "home-evidence-plane",
+                            "status": "failed",
+                            "detail": "Review GOV-HOME-EVIDENCE-request-01",
+                            "request_id": "GOV-HOME-EVIDENCE-request-01",
+                            "before_json": "{\"request_id\":\"GOV-HOME-EVIDENCE-request-01\"}",
+                            "after_json": "{\"audit_id\":\"GOV-HOME-EVIDENCE-audit-01\"}",
+                            "created_at": "2026-04-24 01:05:00",
+                            "actor_email": "skyler@entrada.ai",
+                        },
+                    ]
+                )
+
+        payload = atlas_metrics.audit_evidence_payload(store=AuditStore(), limit=25)
+        serialized = json.dumps(payload)
+
+        self.assertEqual(payload["summary"]["totalChanges"], 0)
+        self.assertEqual(payload["summary"]["hiddenRowsExcluded"], 2)
+        self.assertEqual(payload["events"], [])
+        self.assertIsNone(payload["selectedEvent"])
+        self.assertNotIn("GOV-HOME-EVIDENCE", serialized)
+        self.assertNotIn("identity-directory-upserted", serialized)
+        self.assertIsNone(payload["evidence"])
 
     def test_admin_control_center_preserves_unbacked_admin_values_as_unavailable(self) -> None:
         payload = atlas_metrics.admin_control_center_payload(
@@ -498,6 +645,86 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(pending_kpi["value"], 1)
         self.assertEqual(policy_kpi["value"], 0)
 
+    def test_governance_workbench_rejects_seed_and_prototype_request_rows(self) -> None:
+        class SeededRequestStore(FakeStore):
+            def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
+                rows = pd.DataFrame(
+                    [
+                        {
+                            "request_id": "ga-home-seed-request-1",
+                            "created_at": "2026-04-24 01:00:00",
+                            "created_by": "skyler@entrada.ai",
+                            "status": "pending",
+                            "uc_full_name": "main.customer.customer_dim",
+                            "source": "home-evidence-plane",
+                            "new_comment": "Validation sample owner check",
+                        },
+                        {
+                            "request_id": "REQ-LIVE",
+                            "created_at": "2026-04-24 02:00:00",
+                            "created_by": "skyler@entrada.ai",
+                            "status": "pending",
+                            "uc_full_name": "main.customer.customer_dim",
+                            "source": "governance-store",
+                            "new_comment": "Assign owner: needs review",
+                        },
+                    ]
+                )
+                if status:
+                    return rows[rows["status"].eq(status)].copy()
+                return rows
+
+        payload = atlas_metrics.governance_workbench_payload(store=SeededRequestStore())
+        serialized = json.dumps(payload)
+
+        self.assertEqual([row["requestId"] for row in payload["requests"]], ["REQ-LIVE"])
+        self.assertEqual(payload["meta"]["nonAuthoritativeRowsExcluded"], 1)
+        self.assertNotIn("ga-home-seed", serialized)
+        self.assertNotIn("home-evidence-plane", serialized)
+
+    def test_governance_request_detail_resolves_customer_safe_request_id(self) -> None:
+        class SeededDetailStore(FakeStore):
+            def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
+                rows = pd.DataFrame(
+                    [
+                        {
+                            "request_id": "GOV-HOME-EVIDENCE-request-01",
+                            "created_at": "2026-04-24 01:00:00",
+                            "created_by": "skyler@entrada.ai",
+                            "status": "pending",
+                            "uc_full_name": "main.customer.customer_dim",
+                            "new_comment": "Assign owner: needs review",
+                        }
+                    ]
+                )
+                if status:
+                    return rows[rows["status"].eq(status)].copy()
+                return rows
+
+            def get_change_request(self, request_id: str) -> ChangeRequest | None:
+                if request_id != "GOV-HOME-EVIDENCE-request-01":
+                    return None
+                return ChangeRequest(
+                    request_id="GOV-HOME-EVIDENCE-request-01",
+                    created_at="2026-04-24 01:00:00",
+                    created_by="skyler@entrada.ai",
+                    status="pending",
+                    uc_full_name="main.customer.customer_dim",
+                    new_comment="Assign owner: needs review",
+                    new_uc_tags={"domain": "Customer"},
+                )
+
+        payload = atlas_metrics.governance_request_detail_payload(
+            store=SeededDetailStore(),
+            request_id="GOV-01",
+        )
+        serialized = json.dumps(payload)
+
+        self.assertIsNotNone(payload)
+        self.assertEqual(payload["requestId"], "GOV-01")
+        self.assertEqual(payload["id"], "GOV-01")
+        self.assertNotIn("GOV-HOME-EVIDENCE", serialized)
+
     def test_cde_payload_uses_visible_metadata_and_marks_controls_unavailable(self) -> None:
         payload = atlas_metrics.cde_dashboard_payload(visible_assets=_assets_df())
 
@@ -507,6 +734,9 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(payload["groups"][0]["domain"], "Customer")
         self.assertIsNone(payload["groups"][0]["items"][0]["controlCoverage"])
         self.assertEqual(payload["groups"][0]["items"][0]["controlState"], "unavailable")
+        self.assertEqual(payload["groups"][0]["items"][0]["status"], "Control evidence unavailable")
+        self.assertIsNone(payload["groups"][0]["items"][0]["linkedPolicies"])
+        self.assertEqual(payload["groups"][0]["items"][0]["linkedPolicyState"], "unavailable")
 
     def test_cde_detail_preserves_unavailable_control_and_lineage_contract(self) -> None:
         payload = atlas_metrics.cde_detail_payload(

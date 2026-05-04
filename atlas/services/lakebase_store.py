@@ -721,15 +721,25 @@ class DualWriteGovernanceStore:
         self._mirror.mirror_workflow(task_id)
         return result
 
-    def set_request_status(self, request_id: str, status: str, reviewed_by: str, review_note: str | None = None, actor_role: str = "reader") -> Any:
+    def set_request_status(
+        self,
+        request_id: str,
+        status: str,
+        reviewed_by: str,
+        review_note: str | None = None,
+        actor_role: str = "reader",
+        refresh_projection: bool = True,
+    ) -> Any:
         result = self._delta_store.set_request_status(
             request_id=request_id,
             status=status,
             reviewed_by=reviewed_by,
             review_note=review_note,
             actor_role=actor_role,
+            refresh_projection=refresh_projection,
         )
-        self._mirror.mirror_workflow(request_id)
+        if refresh_projection:
+            self._mirror.mirror_workflow(request_id)
         return result
 
     def update_notification_receipt(self, **kwargs: Any) -> Dict[str, Any]:

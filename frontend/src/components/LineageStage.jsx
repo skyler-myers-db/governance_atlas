@@ -7,6 +7,51 @@ import { EmptyStateBlock, InlineStatusBanner } from "./ShellStatePrimitives";
 /** @type {(...args: any[]) => void} */
 const NOOP = () => {};
 
+function LineageLoadingGraphShell({
+  title = "Loading lineage graph",
+  message = "Refreshing live lineage evidence...",
+}) {
+  const bands = [
+    { label: "Upstream", nodes: 2 },
+    { label: "Transform", nodes: 2 },
+    { label: "Current asset", nodes: 1, focus: true },
+    { label: "Downstream", nodes: 2 },
+  ];
+  return (
+    <div
+      aria-label={title}
+      className="ga-lineage-loading-shell"
+      data-testid="lineage-loading-graph"
+      role="status"
+    >
+      <div className="ga-lineage-loading-header">
+        <span>{title}</span>
+        <small>{message}</small>
+      </div>
+      <div className="ga-lineage-loading-canvas" aria-hidden="true">
+        <svg className="ga-lineage-loading-edges" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path d="M15 42 C 30 18, 38 18, 50 48" />
+          <path d="M15 68 C 30 76, 38 76, 50 52" />
+          <path d="M50 50 C 64 26, 72 24, 86 36" />
+          <path d="M50 54 C 64 70, 74 74, 87 68" />
+        </svg>
+        {bands.map((band) => (
+          <section className={band.focus ? "is-focus" : ""} key={band.label}>
+            <h3>{band.label}</h3>
+            {Array.from({ length: band.nodes }, (_, index) => (
+              <div className={band.focus ? "ga-lineage-loading-node is-focus" : "ga-lineage-loading-node"} key={`${band.label}-${index}`}>
+                <span />
+                <strong />
+                <small />
+              </div>
+            ))}
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function selectGraph(graphBundle, context, modeFlags) {
   if (!graphBundle) return null;
   // Round 18 defect #7: Data + Operational are independent on/off flags
@@ -18,7 +63,7 @@ function selectGraph(graphBundle, context, modeFlags) {
   const operationalOn = Boolean(modeFlags?.operational);
 
   // Fallback to the legacy `context` string when explicit flags aren't
-  // passed yet (older callers, older test fixtures).
+  // passed yet (older callers and focused tests).
   const legacyOperational = context === "Operational Context";
 
   if (!modeFlags) {
@@ -119,6 +164,14 @@ function lineageAsOfDate(value) {
     // Fall through to string cleanup.
   }
   return String(value).replace(/^Topology refreshed\s+/i, "").slice(0, 10) || "Live query";
+}
+
+function compactFreshnessLabel(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const asOf = lineageAsOfDate(raw);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(asOf)) return asOf;
+  return raw.length > 18 ? `${raw.slice(0, 18)}...` : raw;
 }
 
 function Stepper({ label, value, min = 0, max = 99, onChange, "data-testid": testId = "" }) {
@@ -227,7 +280,7 @@ function ContextSegmented({ activeKey, onChange }) {
  *  lineage. Both default to available; the operator can view either in
  *  isolation or both overlaid on the same canvas. */
 function LineageModeChecks({ modeFlags, onModeChange }) {
-  const flags = modeFlags || { data: true, operational: false };
+  const flags = modeFlags || { data: true, operational: true };
   const toggle = (key) => () => {
     const next = { ...flags, [key]: !flags[key] };
     // Refuse to turn BOTH off — the user would see an empty canvas with
@@ -454,6 +507,19 @@ function asArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function ownerEvidenceLabel(...ownerSources) {
+  for (const source of ownerSources) {
+    if (!Array.isArray(source)) continue;
+    for (const owner of source) {
+      const label = typeof owner === "string"
+        ? owner
+        : textValue(owner?.displayName, owner?.name, owner?.email, owner?.principal, owner?.team);
+      if (label) return label;
+    }
+  }
+  return "";
+}
+
 function numericValue(...values) {
   for (const value of values) {
     const number = Number(value);
@@ -499,6 +565,84 @@ function downloadLineageEvidence(filename, payload) {
   return true;
 }
 
+const TOPOLOGY_EDGE_SLOTS = [
+  { key: "upstream-outer", inX: 32, outX: 145, y: [348, 448, 548] },
+  { key: "upstream-inner", inX: 240, outX: 423, y: [190, 532, 342] },
+  { key: "transform", inX: 496, outX: 683, y: [590, 690, 500, 760] },
+  { key: "focus", inX: 610, outX: 690, y: [590] },
+  { key: "downstream", inX: 760, outX: 856, y: [168, 456, 728, 602] },
+];
+
+function topologySlotAnchor(bandIndex, nodeIndex) {
+  const slot = TOPOLOGY_EDGE_SLOTS[bandIndex] || TOPOLOGY_EDGE_SLOTS.at(-1);
+  const yValues = slot?.y || [430];
+  const y = yValues[Math.min(nodeIndex, yValues.length - 1)] || yValues[0] || 430;
+  return {
+    bandIndex,
+    inX: slot.inX,
+    outX: slot.outX,
+    y,
+  };
+}
+
+function edgeEndpointPair(sourceAnchor, targetAnchor) {
+  if (!sourceAnchor || !targetAnchor) return null;
+  const forward = sourceAnchor.outX <= targetAnchor.inX;
+  return {
+    source: {
+      x: forward ? sourceAnchor.outX : sourceAnchor.inX,
+      y: sourceAnchor.y,
+    },
+    target: {
+      x: forward ? targetAnchor.inX : targetAnchor.outX,
+      y: targetAnchor.y,
+    },
+  };
+}
+
+function edgeEndpointLabel(node, fallback = "") {
+  const title = nodeTitle(node) || fallback || "lineage node";
+  const fqn = nodeFqn(node);
+  if (!fqn || fqn === title) return title;
+  return `${title} (${compactPath(fqn)})`;
+}
+
+function buildTopologyEdgePaths(graphBands, edges) {
+  const anchors = new Map();
+  const nodesByKey = new Map();
+  graphBands.forEach((band, bandIndex) => {
+    asArray(band?.nodes).forEach((node, nodeIndex) => {
+      const key = node?.id || nodeFqn(node);
+      if (!key || anchors.has(key)) return;
+      anchors.set(key, topologySlotAnchor(bandIndex, nodeIndex));
+      nodesByKey.set(key, node);
+    });
+  });
+
+  return asArray(edges)
+    .map((edge, index) => {
+      const sourceAnchor = anchors.get(edge?.source);
+      const targetAnchor = anchors.get(edge?.target);
+      const endpoints = edgeEndpointPair(sourceAnchor, targetAnchor);
+      if (!endpoints) return null;
+      const midX = endpoints.source.x + (endpoints.target.x - endpoints.source.x) * 0.5;
+      const edgeText = `${edge?.kind || ""} ${edge?.type || ""} ${edge?.resolutionState || ""}`.toLowerCase();
+      return {
+        key: edge?.id || edge?.key || `${edge?.source || "source"}-${edge?.target || "target"}-${index}`,
+        source: edge?.source || "",
+        sourceTitle: edgeEndpointLabel(nodesByKey.get(edge?.source), edge?.source || "source"),
+        target: edge?.target || "",
+        targetTitle: edgeEndpointLabel(nodesByKey.get(edge?.target), edge?.target || "target"),
+        sourceNode: nodesByKey.get(edge?.source) || null,
+        targetNode: nodesByKey.get(edge?.target) || null,
+        edge,
+        className: /restricted|permission|hidden|boundary/.test(edgeText) ? "is-muted is-boundary" : "",
+        d: `M${endpoints.source.x} ${endpoints.source.y} C${midX} ${endpoints.source.y} ${midX} ${endpoints.target.y} ${endpoints.target.x} ${endpoints.target.y}`,
+      };
+    })
+    .filter(Boolean);
+}
+
 function selectedNodeSeed(graph, asset) {
   const nodes = asArray(graph?.nodes);
   const assetFqn = asset?.fqn || "";
@@ -525,8 +669,8 @@ function buildLineageViewModel(graph, asset, lineagePayload, context) {
   const focusId = focus?.id || nodeFqn(focus);
   const byId = new Map(nodes.map((node) => [node?.id || nodeFqn(node), node]));
   const sortByHop = (left, right) => {
-    const leftOrder = numericValue(left?.hop, left?.order, left?.sequence, 0) ?? 0;
-    const rightOrder = numericValue(right?.hop, right?.order, right?.sequence, 0) ?? 0;
+    const leftOrder = numericValue(left?.depth, left?.hop, left?.order, left?.sequence, 0) ?? 0;
+    const rightOrder = numericValue(right?.depth, right?.hop, right?.order, right?.sequence, 0) ?? 0;
     return leftOrder - rightOrder;
   };
   const forward = new Map();
@@ -555,6 +699,18 @@ function buildLineageViewModel(graph, asset, lineagePayload, context) {
   };
   const upstreamReachable = focusId ? traverse(focusId, reverse) : new Set();
   const downstreamReachable = focusId ? traverse(focusId, forward) : new Set();
+  const isProcessNode = (node) => {
+    const text = [
+      nodeType(node),
+      node?.kind,
+      node?.type,
+      node?.role,
+      node?.stage,
+      node?.lineageStage,
+      node?.entityType,
+    ].join(" ").toLowerCase();
+    return /view|pipeline|job|notebook|query|task|workflow|transform|process/.test(text);
+  };
   const stageFor = (node) => {
     const explicit = String(node?.stage || node?.lineageStage || node?.band || "").toLowerCase();
     if (/upstream|source|input/.test(explicit)) return "upstream";
@@ -563,6 +719,7 @@ function buildLineageViewModel(graph, asset, lineagePayload, context) {
     if (/focus|current/.test(explicit) || node?.role === "focus") return "focus";
     const id = node?.id || nodeFqn(node);
     const kind = String(nodeType(node)).toLowerCase();
+    if (isProcessNode(node)) return "transformation";
     if (id && downstreamReachable.has(id)) return "downstream";
     if (id && upstreamReachable.has(id)) {
       return /view|pipeline|job|notebook|query|task|workflow|transform/.test(kind)
@@ -597,6 +754,7 @@ function buildLineageViewModel(graph, asset, lineagePayload, context) {
   return {
     nodes,
     edges,
+    meta: graph?.meta || {},
     focus,
     upstream,
     downstream,
@@ -612,6 +770,33 @@ function buildLineageViewModel(graph, asset, lineagePayload, context) {
     generatedAt,
     modeLabel: context === "Operational Context" ? "Operational" : "Table",
   };
+}
+
+function lineageEvidenceSourceLabel(sources) {
+  const normalized = asArray(sources)
+    .map((source) => String(source || "").trim())
+    .filter(Boolean);
+  if (!normalized.length) return "system.access.table_lineage";
+  const unique = [...new Set(normalized)];
+  if (unique.length === 1) return unique[0];
+  return unique.join(" + ");
+}
+
+function isWorkspaceScopedLineageEvidence(lineagePayload, graphMeta = {}) {
+  const payloadMeta = lineagePayload?.meta && typeof lineagePayload.meta === "object" ? lineagePayload.meta : {};
+  const meta = { ...payloadMeta, ...(graphMeta || {}) };
+  const source = String(meta.source || lineagePayload?.source || "").trim().toLowerCase();
+  const visibilityScope = String(meta.visibilityScope || meta.readScope || "").trim().toLowerCase();
+  const authMode = String(meta.authMode || meta.productMode || "").trim().toLowerCase();
+  return (
+    source.includes("unity-catalog-lineage") &&
+    (
+      visibilityScope === "workspace-app-principal" ||
+      visibilityScope === "workspace_app_principal" ||
+      authMode === "app-principal-only" ||
+      authMode === "app_principal_only"
+    )
+  );
 }
 
 function columnPreviewRows(node) {
@@ -654,9 +839,6 @@ function NodeButton({ node, active = false, asset = null, role = "peer", authori
   if (!node) return null;
   const title = nodeDisplayTitle(node, asset?.name || compactName(asset?.fqn));
   const subtitle = nodeSubtitle(node, compactPath(asset?.fqn));
-  const displaySubtitle = !authoritative && /permission-limited/i.test(subtitle)
-    ? "PROTOTYPE PERMISSION BOUNDARY"
-    : subtitle;
   const type = nodeType(node, asset);
   const columns = columnPreviewRows(node);
   const totalColumns = asArray(node?.columns).length;
@@ -672,7 +854,7 @@ function NodeButton({ node, active = false, asset = null, role = "peer", authori
       <span className="ga-lineage-node-icon" aria-hidden="true" />
       <span className="ga-lineage-node-copy">
         <strong>{title}</strong>
-        {displaySubtitle ? <span>{displaySubtitle}</span> : null}
+        {subtitle ? <span>{subtitle}</span> : null}
       </span>
       <span className="ga-lineage-node-type">{type}</span>
       {columns.length ? (
@@ -705,32 +887,6 @@ function NodeButton({ node, active = false, asset = null, role = "peer", authori
   );
 }
 
-function prototypeLineageText(value, fallback) {
-  const text = String(value || "").trim();
-  if (!text) return fallback;
-  if (/system\.access/i.test(text)) return fallback;
-  return text
-    .replace(/^prototype\s+/i, "")
-    .replace(/\b(\d+(?:\.\d+)?[KMB]?)\s+prototype rows\b/gi, "$1 rows");
-}
-
-function prototypeRelativeTime(value, fallback = "11 min ago") {
-  const text = String(value || "").trim();
-  if (!text) return fallback;
-  const compact = text.match(/^(\d+)\s*m$/i);
-  if (compact) return `${compact[1]} min ago`;
-  if (/^\d+\s*min/i.test(text) || /\bago\b/i.test(text)) return text;
-  return text.replace(/^prototype\s+/i, "");
-}
-
-function prototypeActivityTitle(value) {
-  const text = String(value || "").trim();
-  if (!text) return "Notebook payments_clean succeeded · 13.5M rows";
-  return text
-    .replace(/^prototype\s+/i, "")
-    .replace(/\b(\d+(?:\.\d+)?[KMB]?)\s+prototype rows\b/gi, "$1 rows");
-}
-
 function impactKind(item) {
   const text = `${item?.kind || ""} ${item?.type || ""} ${item?.title || ""} ${nodeType(item?.node || {})}`.toLowerCase();
   if (/restricted|permission|hidden/.test(text)) return "restricted";
@@ -747,11 +903,9 @@ function impactIconName(kind) {
   return "table";
 }
 
-function splitImpactDetail(item, prototypeMode) {
+function splitImpactDetail(item) {
   const rawDetail = textValue(item?.detail, item?.subtitle, item?.meta);
-  const detail = prototypeMode
-    ? prototypeLineageText(rawDetail, "Downstream consumer")
-    : rawDetail || "No backed downstream impact evidence returned.";
+  const detail = rawDetail || "No backed downstream impact evidence returned.";
   const explicitOwner = textValue(item?.owner, item?.ownerName, item?.team);
   const explicitMeta = textValue(item?.usage, item?.usageLabel, item?.meta);
   if (explicitOwner || explicitMeta) {
@@ -770,11 +924,8 @@ function splitImpactDetail(item, prototypeMode) {
   };
 }
 
-function impactDisplayTitle(item, prototypeMode) {
+function impactDisplayTitle(item) {
   const title = textValue(item?.title, item?.label, nodeTitle(item?.node || {}), "Downstream consumer");
-  if (prototypeMode) {
-    return title.replace("Board Pack - Revenue", "Board Pack — Revenue");
-  }
   return title;
 }
 
@@ -786,48 +937,22 @@ function LineageDetailsPanel({
   downstreamNodes,
   events,
   authoritative = false,
-  prototypeMode = false,
   onSelect = NOOP,
 }) {
   const title = nodeDisplayTitle(selectedNode);
   const subtitle = nodeSubtitle(selectedNode);
   const rowCount = compactCount(selectedNode?.rowCount || selectedNode?.rows || selectedNode?.details?.rows);
   const recentEvents = asArray(events).slice(0, 2);
-  const displayFreshness = authoritative
-    ? (freshness || "Unavailable")
-    : prototypeMode
-      ? prototypeRelativeTime(freshness)
-      : (freshness || "Unavailable");
+  const rawFreshness = freshness || "";
+  const displayFreshness = compactFreshnessLabel(rawFreshness) || "Unavailable";
   const displayRows = authoritative
     ? rowCount
-    : prototypeMode
-      ? rowCount !== "Unavailable"
-        ? `${rowCount} rows`
-        : "13.5M rows"
-      : rowCount;
-  const ownerInitials = String(owner || "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 3)
-    .toUpperCase();
-  const displayOwner = authoritative
-    ? owner || "Unavailable"
-    : prototypeMode
-      ? ownerInitials || owner || "MR"
-      : owner || "Unavailable";
-  const visibleSources = sourceNodes.slice(0, authoritative ? 3 : prototypeMode ? 1 : 3);
+    : rowCount;
+  const displayOwner = owner || "Unavailable";
+  const visibleSources = sourceNodes.slice(0, 3);
   const visibleConsumers = authoritative
     ? downstreamNodes.slice(0, 2)
-    : prototypeMode
-      ? [{
-          id: "finance_prod.revenue_recognition",
-          label: "finance_prod · revenue_recognition...",
-          subtitle: "",
-          freshness: "",
-        }]
-      : downstreamNodes.slice(0, 2);
+    : downstreamNodes.slice(0, 2);
 
   return (
     <aside className="ga-lineage-details-panel" aria-label="Lineage details">
@@ -843,7 +968,7 @@ function LineageDetailsPanel({
         <div>
           <dt>Last refresh</dt>
           <dd>
-            <span>{displayFreshness}</span>
+            <span title={rawFreshness || undefined}>{displayFreshness}</span>
           </dd>
         </div>
         <div>
@@ -859,13 +984,9 @@ function LineageDetailsPanel({
           </dd>
         </div>
       </dl>
-      {prototypeMode ? (
+      {!authoritative ? (
         <p className="ga-lineage-details-proof">
-          Prototype inspector - not live row, owner, source, consumer, or activity proof.
-        </p>
-      ) : !authoritative ? (
-        <p className="ga-lineage-details-proof">
-          Live lineage inspector unavailable for this route; unavailable values are not prototype evidence.
+          Live lineage inspector unavailable for this route.
         </p>
       ) : null}
       <section>
@@ -873,7 +994,7 @@ function LineageDetailsPanel({
         {visibleSources.length ? visibleSources.map((node) => (
           <button key={node?.id || nodeFqn(node)} onClick={() => onSelect(node)} type="button">
             <span>{nodeTitle(node)}</span>
-            <small>{authoritative ? nodeSubtitle(node) : prototypeMode ? textValue(node?.freshness, "14m") : nodeSubtitle(node)}</small>
+            <small>{nodeSubtitle(node)}</small>
           </button>
         )) : <p>No source-system details returned.</p>}
       </section>
@@ -890,12 +1011,8 @@ function LineageDetailsPanel({
         <h3><span>Recent Activity</span></h3>
         {recentEvents.length ? recentEvents.map((event) => (
           <div key={event.id || event.title}>
-            <span>{authoritative || !prototypeMode ? event.title : prototypeActivityTitle(event.title)}</span>
-            <small>
-              {authoritative || !prototypeMode
-                ? event.detail
-                : prototypeLineageText(event.detail, "svc-job-runner · 11m ago")}
-            </small>
+            <span>{event.title}</span>
+            <small>{event.detail}</small>
           </div>
         )) : <p>No recent lineage activity returned.</p>}
       </section>
@@ -913,13 +1030,15 @@ function EmptyGraphSlot({ message, role = "", title }) {
   );
 }
 
-function PillButton({ children, active = false, onClick = NOOP, testId = "" }) {
+function PillButton({ children, active = false, disabled = false, onClick = NOOP, testId = "", title = "" }) {
   return (
     <button
       aria-pressed={active}
       className={`ga-lineage-pill-button ${active ? "is-active" : ""}`.trim()}
       data-testid={testId || undefined}
+      disabled={disabled}
       onClick={onClick}
+      title={title || undefined}
       type="button"
     >
       {children}
@@ -1015,6 +1134,7 @@ function NorthStarLineageExplorer({
   onIncludeColumnsChange,
   onOpenGovernance,
   onOpenAsset,
+  onRefreshLineage,
   onSelectAsset,
 }) {
   const [lineageMode, setLineageMode] = useState(includeColumns ? "column" : "table");
@@ -1026,12 +1146,21 @@ function NorthStarLineageExplorer({
   const [impactActive, setImpactActive] = useState(false);
   const [workflowPanel, setWorkflowPanel] = useState(null);
   const [graphZoom, setGraphZoom] = useState(1);
+  const [graphPan, setGraphPan] = useState({ x: 0, y: 0 });
+  const [refreshingAsOf, setRefreshingAsOf] = useState(false);
+  const [loadingColumnLineage, setLoadingColumnLineage] = useState(false);
+  const [selectedEdgeKey, setSelectedEdgeKey] = useState("");
+  const graphPanDragRef = useRef(null);
+  const suppressNextGraphClickRef = useRef(false);
+  const pointerEventsAvailable = typeof window !== "undefined" && "PointerEvent" in window;
   const impactRef = useRef(null);
   const columnRef = useRef(null);
   const viewModel = useMemo(
     () => buildLineageViewModel(graph, asset, lineagePayload, context),
     [asset, context, graph, lineagePayload],
   );
+  const workspaceScopedLineage = isWorkspaceScopedLineageEvidence(lineagePayload, viewModel.meta);
+  const actorVisibleLineage = authoritative && !workspaceScopedLineage;
   const selectedNode =
     asArray(graph?.nodes).find((node) => (node?.id || nodeFqn(node)) === selectedNodeId) ||
     viewModel.focus;
@@ -1046,8 +1175,17 @@ function NorthStarLineageExplorer({
   const selectedNodeBlocked = selectedNode?.details?.isOpenable === false && selectedOpenabilityState !== "unverified";
   const selectedNodeOpenable = Boolean(selectedFqn) && !selectedNodeBlocked && selectedNode?.details?.resolutionState !== "lineage-only-blocked";
   const selectedNodeOpenabilityUnverified = Boolean(selectedFqn) && selectedOpenabilityState === "unverified";
-  const hasGraphEvidence = Boolean(viewModel.nodes.length || selectedNode);
+  const hasGraphEvidence = Boolean(asArray(graph?.nodes).length || asArray(graph?.edges).length);
   const hasColumnLineage = viewModel.columnTraceCount > 0;
+  const hasBackedColumnLineage = Boolean((authoritative || workspaceScopedLineage) && hasColumnLineage);
+  const progressiveState = viewModel.stats?.progressive || {};
+  const fullLineageProfileAvailable = Boolean(
+    progressiveState.fullProfileAvailable ||
+      lineagePayload?.profile === "initial" ||
+      lineagePayload?.profile === "fast" ||
+      lineagePayload?.profile === "first-pass" ||
+      lineagePayload?.profile === "first_pass",
+  );
   const selectedTitle = nodeDisplayTitle(selectedNode, asset?.name || compactName(asset?.fqn));
   const focusFqn = asset?.fqn || selectedFqn || selectedTitle;
   const limits = viewModel.stats?.limits || {};
@@ -1075,14 +1213,43 @@ function NorthStarLineageExplorer({
     onIncludeColumnsChange?.(false);
     setStatus("Table lineage view active.");
   };
-  const activateColumn = () => {
+  const activateColumn = async () => {
+    if (!hasBackedColumnLineage) {
+      if (fullLineageProfileAvailable && typeof onRefreshLineage === "function") {
+        setLoadingColumnLineage(true);
+        setStatus("Loading backed column lineage from Databricks...");
+        try {
+          const refreshed = await onRefreshLineage();
+          const columnLineage = refreshed?.columnLineage || {};
+          const refreshedColumnCount =
+            asArray(columnLineage.upstream).length + asArray(columnLineage.downstream).length;
+          if (refreshedColumnCount > 0) {
+            setLineageMode("column");
+            onIncludeColumnsChange?.(true);
+            setStatus("Column lineage view active.");
+            columnRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+          } else {
+            setStatus("Column lineage is unavailable because Databricks returned no backed column proof for this asset.");
+          }
+        } catch (caught) {
+          const message = caught?.message || "Backed column lineage refresh failed.";
+          setStatus(`Column lineage refresh failed: ${message}`);
+        } finally {
+          setLoadingColumnLineage(false);
+        }
+        return;
+      }
+      setStatus("Column lineage is unavailable until backed column proof is returned for this asset.");
+      return;
+    }
     setLineageMode("column");
     onIncludeColumnsChange?.(true);
-    setStatus(hasColumnLineage ? "Column lineage view active." : "Column lineage is not observed for this asset yet.");
+    setStatus("Column lineage view active.");
     columnRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   };
   const selectNode = (node) => {
     const title = nodeTitle(node);
+    setSelectedEdgeKey("");
     setSelectedNodeId(node?.id || nodeFqn(node));
     if (isPermissionBoundaryNode(node)) {
       setWorkflowPanel(makePermissionWorkflow(node));
@@ -1090,6 +1257,28 @@ function NorthStarLineageExplorer({
       return;
     }
     setStatus(`${title} selected.`);
+  };
+  const selectEdge = (edgePath) => {
+    if (!edgePath) return;
+    setSelectedEdgeKey(edgePath.key);
+    setWorkflowPanel({
+      kind: "lineage-edge",
+      eyebrow: "Lineage Edge",
+      title: `${edgePath.sourceTitle} to ${edgePath.targetTitle}`,
+      state: authoritative ? "Backed edge evidence" : "Unavailable workflow",
+      source: authoritative ? "lineage graph edge payload" : "live lineage unavailable",
+      detail: authoritative
+        ? "This edge was returned by the current lineage graph payload and can be inspected from the visible topology."
+        : "Edge detail requires live lineage evidence for this route.",
+      result: "No lineage mutation was submitted; the edge selection opened backed provenance detail.",
+    });
+    setStatus(`Lineage edge from ${edgePath.sourceTitle} to ${edgePath.targetTitle} selected.`);
+  };
+  const handleEdgeKeyDown = (event, edgePath) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    event.stopPropagation();
+    selectEdge(edgePath);
   };
   const copyShareLink = () => {
     const href = typeof window !== "undefined" ? window.location.href : "";
@@ -1105,6 +1294,7 @@ function NorthStarLineageExplorer({
   const owner = textValue(
     asset?.ownerName,
     typeof asset?.owner === "string" ? asset.owner : asset?.owner?.name,
+    ownerEvidenceLabel(asset?.owners, asset?.stewards, selectedNode?.owners, selectedNode?.stewards),
     selectedNode?.ownerName,
     typeof selectedNode?.owner === "string" ? selectedNode.owner : selectedNode?.owner?.name,
     viewModel.stats?.ownerName,
@@ -1135,14 +1325,6 @@ function NorthStarLineageExplorer({
     asset?.freshness,
     asset?.freshnessLabel,
   );
-  const lineageMeta = lineagePayload?.meta && typeof lineagePayload.meta === "object" ? lineagePayload.meta : {};
-  const lineageSourceText = [
-    lineageMeta.state,
-    lineageMeta.source,
-    lineagePayload?.state,
-    lineagePayload?.source,
-  ].filter(Boolean).join(" ").toLowerCase();
-  const prototypeMode = !authoritative && /prototype|mock|local-prototype-mock/.test(lineageSourceText);
   const impactItems = asArray(lineagePayload?.impactAnalysis || lineagePayload?.impacts);
   const hasBackedImpact = authoritative && impactItems.length > 0;
   const downstreamLookup = new Map();
@@ -1164,25 +1346,12 @@ function NorthStarLineageExplorer({
     const lookupKeys = [item?.id, item?.assetFqn, item?.fqn, item?.title].filter(Boolean);
     const node = item?.node || lookupKeys.map((key) => downstreamLookup.get(String(key).toLowerCase())).find(Boolean);
     if (authoritative) return { ...item, node };
-    if (!prototypeMode) {
-      return {
-        ...item,
-        node,
-        detail: node ? nodeSubtitle(node, nodeFqn(node)) : item?.detail || item?.subtitle || "No backed downstream impact evidence returned.",
-        proof: "Live impact proof unavailable for this route.",
-        tone: "Unavailable",
-      };
-    }
     return {
       ...item,
       node,
-      detail: textValue(item?.detail, item?.subtitle, item?.meta)
-        ? prototypeLineageText(textValue(item?.detail, item?.subtitle, item?.meta), "Downstream consumer")
-        : node
-          ? nodeSubtitle(node, nodeFqn(node))
-          : "Downstream consumer",
-      proof: "Prototype impact fixture - not live usage or backed impact proof.",
-      tone: item?.restricted ? "Restricted" : item?.tone || "Medium",
+      detail: node ? nodeSubtitle(node, nodeFqn(node)) : item?.detail || item?.subtitle || "No backed downstream impact evidence returned.",
+      proof: "Live impact proof unavailable for this route.",
+      tone: "Unavailable",
     };
   });
   if (hiddenDownstream && !impactRows.some((item) => item?.restricted)) {
@@ -1191,9 +1360,7 @@ function NorthStarLineageExplorer({
       title: `${hiddenDownstream} downstream assets`,
       detail: authoritative
         ? "Hidden by Unity Catalog permissions"
-        : prototypeMode
-          ? "Prototype permission boundary - live UC hidden-downstream proof not verified."
-          : "Hidden-downstream proof unavailable for this route.",
+        : "Hidden-downstream proof unavailable for this route.",
       tone: "Restricted",
       restricted: true,
     });
@@ -1224,37 +1391,63 @@ function NorthStarLineageExplorer({
       nodeType(node),
     ].some((value) => String(value || "").toLowerCase().includes(query));
   }).slice(0, 6);
-  const sourceNodes = viewModel.upstream.filter((node) => /source/.test(String(nodeType(node)).toLowerCase()) || /source/.test(String(node?.stage || ""))).slice(0, 3);
-  const upstreamTableOrder = ["charges", "invoices", "orders"];
-  const upstreamTables = viewModel.upstream
-    .filter((node) => !sourceNodes.includes(node))
+  const upstreamDepth = (node) => numericValue(node?.depth, node?.hop, 1) ?? 1;
+  const upstreamOuterNodes = viewModel.upstream
+    .filter((node) => upstreamDepth(node) >= 2 || /source/.test(String(nodeType(node)).toLowerCase()) || /source/.test(String(node?.stage || "")))
     .sort((left, right) => {
-      const leftText = `${nodeTitle(left)} ${nodeFqn(left)}`.toLowerCase();
-      const rightText = `${nodeTitle(right)} ${nodeFqn(right)}`.toLowerCase();
-      const leftIndex = upstreamTableOrder.findIndex((item) => leftText.includes(item));
-      const rightIndex = upstreamTableOrder.findIndex((item) => rightText.includes(item));
-      return (leftIndex < 0 ? 99 : leftIndex) - (rightIndex < 0 ? 99 : rightIndex);
+      const depthDelta = upstreamDepth(right) - upstreamDepth(left);
+      if (depthDelta) return depthDelta;
+      return nodeTitle(left).localeCompare(nodeTitle(right));
     })
+    .slice(0, 3);
+  const upstreamTables = viewModel.upstream
+    .filter((node) => !upstreamOuterNodes.includes(node))
+    .sort((left, right) => upstreamDepth(left) - upstreamDepth(right) || nodeTitle(left).localeCompare(nodeTitle(right)))
     .slice(0, 3);
   const transformNodes = viewModel.transformation.slice(0, 4);
   const downstreamNodes = viewModel.downstream.slice(0, 4);
   const inspectorSourceNodes = /payments/i.test(`${nodeTitle(inspectorNode)} ${nodeFqn(inspectorNode)}`)
     ? transformNodes.slice(0, 2)
-    : sourceNodes;
+    : upstreamTables.length ? upstreamTables : upstreamOuterNodes;
   const hasBackedEdges = asArray(viewModel.edges).length > 0;
-  const thinLiveLineage = authoritative && !hasBackedEdges;
-  const lineageEvidenceKind = authoritative
-    ? "live_databricks_lineage"
-    : prototypeMode
-      ? "prototype_mock"
-      : "live_lineage_unavailable";
+  const lineageEvidenceSources = asArray(viewModel.meta?.lineageEvidenceSources);
+  const lineageEvidenceLabel = lineageEvidenceSourceLabel(lineageEvidenceSources);
+  const lineageEvidenceSourceText = lineageEvidenceSources.join(" ").toLowerCase();
+  const nativeLineageSourceVisible =
+    !lineageEvidenceSources.length || /system\.access|table_lineage/.test(lineageEvidenceSourceText);
+  const governedTagEvidenceVisible =
+    /table_tags|governed|tag/.test(lineageEvidenceSourceText) ||
+    transformNodes.some((node) => /table_tags|governed tag|system\.information_schema/i.test(`${nodeSubtitle(node)} ${node?.details?.source || ""}`));
+  const lineageProvenanceSummary = [
+    nativeLineageSourceVisible
+      ? `${asArray(viewModel.edges).length || 0} native UC lineage edges`
+      : "Native UC lineage not returned",
+    governedTagEvidenceVisible
+      ? "Governed tag context shown separately"
+      : "No governed tag context returned",
+    workspaceScopedLineage
+      ? "Workspace-scoped response; actor-visible proof unavailable"
+      : "Actor-visible lineage response",
+    hasBackedColumnLineage
+      ? `${viewModel.columnTraceCount} backed column traces`
+      : "Column proof unavailable or partial",
+  ];
+  const graphControlUnavailableReason = "Lineage graph controls require returned lineage edges for this asset.";
+  const backedLineageGraph = Boolean(hasGraphEvidence && (authoritative || workspaceScopedLineage));
+  const thinLiveLineage = backedLineageGraph && !hasBackedEdges;
+  const lineageEvidenceKind = backedLineageGraph
+    ? (actorVisibleLineage ? "live_databricks_lineage" : "workspace_scoped_databricks_lineage")
+    : "live_lineage_unavailable";
   const isPermissionBoundaryNode = (node) => {
     const text = `${nodeTitle(node)} ${nodeSubtitle(node)} ${nodeType(node)} ${node?.stage || ""} ${node?.details?.resolutionState || ""}`;
     return /restricted|permission|hidden|downstream assets/i.test(text);
   };
   const makeUnavailableReason = (workflowLabel) => {
-    if (authoritative) return `${workflowLabel} requires returned backing evidence for this actor and asset.`;
-    if (prototypeMode) return `${workflowLabel} is represented by prototype topology only; live Databricks backing proof is not verified.`;
+    if (authoritative) {
+      return workspaceScopedLineage
+        ? `${workflowLabel} requires returned per-user backing evidence for this asset.`
+        : `${workflowLabel} requires returned backing evidence for this actor and asset.`;
+    }
     return `${workflowLabel} is unavailable because no live lineage evidence was returned for this route.`;
   };
   const makePermissionWorkflow = (node) => ({
@@ -1262,9 +1455,9 @@ function NorthStarLineageExplorer({
     eyebrow: "Permission Boundary",
     title: `${nodeTitle(node)} detail`,
     state: authoritative ? "Backing evidence required" : "Unavailable workflow",
-    source: authoritative ? "Unity Catalog visibility policy" : prototypeMode ? "prototype_mock permission boundary" : "live lineage unavailable",
+    source: actorVisibleLineage ? "Unity Catalog visibility policy" : "workspace-scoped Databricks lineage",
     detail: makeUnavailableReason("Permission-boundary detail workflow"),
-    result: "No request, grant, or access-review mutation was submitted from this prototype state.",
+    result: "No request, grant, or access-review mutation was submitted from this unavailable state.",
   });
   const openImpactWorkflow = (item) => {
     const title = item?.title || item?.label || "Downstream consumer";
@@ -1276,7 +1469,7 @@ function NorthStarLineageExplorer({
       eyebrow: "Consumer Impact",
       title: `${title} workflow`,
       state: backed ? "Backed workflow" : "Unavailable workflow",
-      source: backed ? "lineage impactAnalysis payload" : prototypeMode ? "prototype_mock impact fixture" : "live lineage unavailable",
+      source: backed ? "lineage impactAnalysis payload" : "live lineage unavailable",
       detail: backed
         ? "Backed downstream impact evidence is available for this consumer."
         : makeUnavailableReason("Consumer-impact workflow"),
@@ -1288,19 +1481,21 @@ function NorthStarLineageExplorer({
   };
   const openColumnWorkflow = (row) => {
     const column = row?.column || row?.targetColumn || "Column";
-    const backed = Boolean(authoritative && columnRows.length);
+    const backed = Boolean(hasBackedColumnLineage && columnRows.length);
     setWorkflowPanel({
       kind: "column",
       eyebrow: "Column Lineage",
       title: `${column} workflow`,
       state: backed ? "Backed workflow" : "Unavailable workflow",
-      source: authoritative
-        ? (columnSource || "lineage API column evidence")
-        : prototypeMode
-          ? "prototype_mock column lineage"
-          : "live column lineage unavailable",
+      source: hasBackedColumnLineage
+        ? (actorVisibleLineage
+          ? (columnSource || "lineage API column evidence")
+          : "workspace-scoped Databricks column lineage")
+        : "live column lineage unavailable",
       detail: backed
-        ? `Source column ${row?.sourceColumn || row?.targetColumn || "unavailable"} is visible for this actor.`
+        ? (workspaceScopedLineage
+          ? `Source column ${row?.sourceColumn || row?.targetColumn || "unavailable"} is visible in the workspace-scoped lineage response.`
+          : `Source column ${row?.sourceColumn || row?.targetColumn || "unavailable"} is visible for this actor.`)
         : makeUnavailableReason("Column-lineage detail workflow"),
       result: backed
         ? "Column trace can be reviewed from the returned lineage payload."
@@ -1308,36 +1503,38 @@ function NorthStarLineageExplorer({
     });
     setStatus(`${column} column lineage row selected. ${backed ? "Column lineage detail workflow opened." : "Column lineage detail workflow unavailable without backed column proof."}`);
   };
-  const lineageSourceLabel = authoritative
-    ? "live graph"
-    : prototypeMode
-      ? "prototype topology"
-      : "current live route";
-  const asOfValue = authoritative
+  const lineageSourceLabel = backedLineageGraph
+    ? (actorVisibleLineage ? "live graph" : "workspace-scoped live graph")
+    : "current live route";
+  const asOfValue = backedLineageGraph
     ? lineageAsOfDate(viewModel.generatedAt)
-    : prototypeMode
-      ? "2026-04-27"
-      : "Unavailable";
-  const asOfState = prototypeMode ? "Prototype fixture" : thinLiveLineage ? "No visible edges" : authoritative ? "Live query" : "No live graph";
-  const asOfMode = prototypeMode ? "not live" : thinLiveLineage ? "queried" : authoritative ? "live" : "unavailable";
-  const asOfAction = prototypeMode ? "Reset preview" : thinLiveLineage ? "Refresh graph" : authoritative ? "Now" : "Retry";
+    : "Unavailable";
+  const asOfState = thinLiveLineage
+    ? "No visible edges"
+    : backedLineageGraph
+      ? (actorVisibleLineage ? "Live query" : "Workspace-scoped")
+      : "No live graph";
+  const asOfMode = thinLiveLineage ? "queried" : backedLineageGraph ? "live" : "unavailable";
+  const backedRefreshAvailable = authoritative && !thinLiveLineage && typeof onRefreshLineage === "function";
+  const asOfActionAvailable = backedRefreshAvailable;
+  const asOfAction = asOfActionAvailable ? "Now" : "Unavailable";
   const graphBands = [
     {
-      label: "4 Hops Upstream",
-      emptyTitle: "No source systems observed",
-      emptyMessage: "Unity Catalog has not reported a source-system edge for this asset.",
-      nodes: sourceNodes,
+      label: "2 Hops Upstream",
+      emptyTitle: "No outer upstream hop observed",
+      emptyMessage: "Unity Catalog has not reported a second upstream hop for this asset.",
+      nodes: upstreamOuterNodes,
       role: "upstream",
     },
     {
-      label: "3 Hops Upstream",
+      label: "1 Hop Upstream",
       emptyTitle: "No upstream tables observed",
       emptyMessage: "No permitted upstream table hop is visible.",
       nodes: upstreamTables,
       role: "upstream",
     },
     {
-      label: "2 Hops Upstream",
+      label: "Processing Context",
       emptyTitle: "No job or pipeline observed",
       emptyMessage: `No intermediate job, notebook, or view hop is present in ${lineageSourceLabel}.`,
       nodes: transformNodes,
@@ -1356,13 +1553,13 @@ function NorthStarLineageExplorer({
       role: "downstream",
     },
   ];
-  const generatedAt = authoritative
+  const topologyEdgePaths = buildTopologyEdgePaths(graphBands, viewModel.edges);
+  const selectedEdgePath = topologyEdgePaths.find((edgePath) => edgePath.key === selectedEdgeKey) || null;
+  const generatedAt = backedLineageGraph
     ? viewModel.generatedAt
       ? `Topology refreshed ${viewModel.generatedAt}`
       : "Topology source reported by lineage API"
-    : prototypeMode
-      ? "19 nodes · 19 edges"
-      : "No live topology";
+    : "No live topology";
   const freshnessChip = authoritative
     ? (freshness || "Freshness unavailable")
     : (freshness || "Freshness unavailable");
@@ -1376,21 +1573,21 @@ function NorthStarLineageExplorer({
     ? (revenueImpact || "Revenue impact unavailable")
     : (revenueImpact || "Revenue impact unavailable");
   const columnSourceLabel = columnRows.length
-    ? authoritative
+    ? backedLineageGraph
       ? (columnSource ? `From ${columnSource}` : "From lineage API column evidence")
-      : prototypeMode
-        ? "Prototype column-lineage shape; system.access.column_lineage not verified"
-        : "Column lineage is unavailable for this live route"
+      : "Column lineage is unavailable for this live route"
     : "No column-lineage rows returned for this asset";
-  const lineageHeroCopy = prototypeMode
-    ? "Permission-aware end-to-end lineage from operational sources through to consumer dashboards. Hidden segments mean a node exists, but you don't have UC permission to view it."
-    : hasBackedEdges
-      ? "Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers."
-      : authoritative
-        ? "Permission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges."
+  const lineageHeroCopy = hasBackedEdges
+      ? (actorVisibleLineage
+        ? "Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers."
+        : "Workspace-scoped lineage from backed Databricks metadata through permitted app-visible downstream consumers.")
+      : backedLineageGraph
+        ? (actorVisibleLineage
+          ? "Permission-aware lineage for the selected asset. Upstream and downstream hops appear when Unity Catalog reports actor-visible edges."
+          : "Workspace-scoped lineage for the selected asset. Upstream and downstream hops appear when backed Databricks metadata reports app-visible edges.")
         : "Lineage is unavailable for this asset in the current workspace scope. Search for an openable asset to continue.";
   const hiddenLineageCopy = hiddenDownstream
-    ? authoritative
+    ? actorVisibleLineage
       ? " Hidden segments indicate limited Unity Catalog visibility."
       : ""
     : "";
@@ -1408,33 +1605,29 @@ function NorthStarLineageExplorer({
     : ownerChip;
   const topologyDisplayChip = authoritative
     ? `${upstreamCount} upstream · ${downstreamCount} downstream`
-    : prototypeMode
-      ? "5 upstream · 23 downstream"
-      : `${upstreamCount} upstream · ${downstreamCount} downstream`;
+    : `${upstreamCount} upstream · ${downstreamCount} downstream`;
   const impactActionLabel = "Run impact analysis";
   const graphCounterLabel = authoritative
     ? `${viewModel.nodes.length || 0} nodes · ${asArray(viewModel.edges).length || 0} edges`
-    : prototypeMode
-      ? "19 nodes · 19 edges"
-      : `${viewModel.nodes.length || 0} nodes · ${asArray(viewModel.edges).length || 0} edges`;
-  const prototypeChipTitle = prototypeMode
-    ? "Prototype mock value - not live Databricks proof."
-    : !authoritative
+    : `${viewModel.nodes.length || 0} nodes · ${asArray(viewModel.edges).length || 0} edges`;
+  const unavailableChipTitle = !backedLineageGraph
       ? "Value unavailable; no live lineage proof returned for this route."
+      : !actorVisibleLineage
+        ? "Backed by workspace-scoped Databricks metadata; per-user authorization proof is unavailable."
       : undefined;
   const exportEvidence = () => {
     const evidenceKind = lineageEvidenceKind;
-    const mockEvidenceWarning = authoritative
+    const evidenceWarning = actorVisibleLineage
       ? ""
-      : prototypeMode
-        ? "Prototype mock data, not live Databricks evidence."
+      : backedLineageGraph
+        ? "Lineage graph is backed by workspace-scoped Databricks metadata; per-user authorization proof is unavailable."
         : "Live lineage unavailable; export contains no authoritative graph proof.";
     const payload = {
       meta: {
         generatedAt: new Date().toISOString(),
         evidenceKind,
-        mockEvidenceWarning,
-        source: authoritative ? "lineage-api" : prototypeMode ? "prototype-mock" : "lineage-unavailable",
+        evidenceWarning,
+        source: backedLineageGraph ? lineageEvidenceLabel : "lineage-unavailable",
       },
       exportedAt: new Date().toISOString(),
       asset: focusFqn,
@@ -1462,22 +1655,51 @@ function NorthStarLineageExplorer({
       ? "Version comparison opened from persisted lineage snapshots."
       : "No persisted lineage snapshots were returned for this asset.");
   };
-  const openImpactAnalysis = () => {
+  const openImpactAnalysis = async () => {
+    if (!authoritative && fullLineageProfileAvailable && typeof onRefreshLineage === "function") {
+      setStatus("Loading backed downstream impact evidence from Databricks...");
+      try {
+        await onRefreshLineage();
+      } catch (caught) {
+        const message = caught?.message || "Backed impact refresh failed.";
+        setStatus(`Impact analysis refresh failed: ${message}`);
+        return;
+      }
+    } else if (!authoritative) {
+      setImpactActive(true);
+      setStatus("Impact analysis opened with an honest unavailable state because backed downstream impact evidence is not available yet.");
+      impactRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+      return;
+    }
     setImpactActive(true);
-    setStatus(authoritative
-      ? impactRows.length
-        ? "Impact analysis focused on downstream lineage consumers."
-        : "Impact analysis has no downstream evidence for this asset yet."
-      : impactRows.length
-        ? "Impact analysis focused on downstream lineage consumers."
-        : "Impact analysis has no downstream evidence for this asset yet.");
+    setStatus(hasBackedImpact
+      ? "Impact analysis focused on downstream lineage consumers."
+      : "Impact analysis opened with no backed downstream impact evidence for this asset.");
     impactRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
   };
   const refocusGraph = () => {
-    if (!selectedFqn) return;
+    if (!selectedFqn || !authoritative) return;
     setStatus(`Lineage graph refocused on ${compactName(selectedFqn)}.`);
-    if (authoritative) {
-      onSelectAsset?.(selectedFqn);
+    onSelectAsset?.(selectedFqn);
+  };
+  const refreshLineageToNow = async () => {
+    if (!asOfActionAvailable) return;
+    if (typeof onRefreshLineage !== "function") {
+      setStatus("Lineage time selection requires a backed live lineage refresh endpoint.");
+      return;
+    }
+    setRefreshingAsOf(true);
+    setStatus("Refreshing current live lineage...");
+    try {
+      const refreshed = await onRefreshLineage();
+      setStatus(refreshed
+        ? "Lineage refreshed to current live graph."
+        : "Live lineage refresh completed without a returned graph payload.");
+    } catch (caught) {
+      const message = caught?.message || "Live lineage refresh failed.";
+      setStatus(`Lineage refresh failed: ${message}`);
+    } finally {
+      setRefreshingAsOf(false);
     }
   };
   const setZoomLevel = (nextZoom) => {
@@ -1485,10 +1707,107 @@ function NorthStarLineageExplorer({
     setGraphZoom(bounded);
     setStatus(`Lineage graph zoom set to ${Math.round(bounded * 100)}%.`);
   };
-  const fitGraphToView = () => {
-    setGraphZoom(1);
-    setStatus("Lineage graph fit to view.");
+  const zoomGraphWithWheel = (event) => {
+    if (event.target?.closest?.("a, button, input, textarea, select, .ga-lineage-details-panel, .ga-lineage-graph-search")) return;
+    const native = event?.nativeEvent || {};
+    const deltaY = Number(event?.deltaY ?? native.deltaY);
+    if (!Number.isFinite(deltaY) || deltaY === 0) return;
+    setGraphZoom((current) => {
+      const nextZoom = Math.min(1.25, Math.max(0.85, current + (deltaY < 0 ? 0.05 : -0.05)));
+      setStatus(`Lineage graph zoom set to ${Math.round(nextZoom * 100)}%.`);
+      return nextZoom;
+    });
   };
+	  const fitGraphToView = () => {
+	    setGraphZoom(1);
+	    setGraphPan({ x: 0, y: 0 });
+	    setStatus("Lineage graph fit to view.");
+	  };
+	  const toggleGraphSearch = () => {
+	    setGraphSearchOpen((current) => {
+	      const next = !current;
+	      if (!next) {
+	        setGraphSearchQuery("");
+	      }
+	      setStatus(next ? "Graph search opened for the current lineage nodes." : "Graph search closed.");
+	      return next;
+	    });
+	  };
+	  const clearGraphSearch = () => {
+	    setGraphSearchQuery("");
+	    setStatus("Graph search cleared.");
+	  };
+  const graphDragPoint = (event) => {
+    const native = event?.nativeEvent || {};
+    const x = Number(event?.clientX ?? native.clientX);
+    const y = Number(event?.clientY ?? native.clientY);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return { x, y };
+  };
+  const graphDragId = (event) => event?.pointerId ?? event?.nativeEvent?.pointerId ?? "mouse";
+  const startGraphPan = (event) => {
+    if (event.button != null && event.button !== 0) return;
+    if (event.target?.closest?.("a[href], input, textarea, select, .ga-lineage-details-panel, .ga-lineage-graph-search")) return;
+    const point = graphDragPoint(event);
+    if (!point) return;
+    const pointerId = graphDragId(event);
+    graphPanDragRef.current = {
+      pointerId,
+      startX: point.x,
+      startY: point.y,
+      originX: graphPan.x,
+      originY: graphPan.y,
+      moved: false,
+    };
+    if (pointerId !== "mouse") {
+      event.currentTarget?.setPointerCapture?.(pointerId);
+    }
+  };
+  const moveGraphPan = (event) => {
+    const drag = graphPanDragRef.current;
+    if (!drag || drag.pointerId !== graphDragId(event)) return;
+    const point = graphDragPoint(event);
+    if (!point) return;
+    const nextX = Math.max(-360, Math.min(360, drag.originX + point.x - drag.startX));
+    const nextY = Math.max(-260, Math.min(260, drag.originY + point.y - drag.startY));
+    drag.moved = drag.moved || Math.abs(nextX - drag.originX) > 2 || Math.abs(nextY - drag.originY) > 2;
+    setGraphPan({ x: nextX, y: nextY });
+  };
+	  const endGraphPan = (event) => {
+	    const drag = graphPanDragRef.current;
+	    if (!drag || drag.pointerId !== graphDragId(event)) return;
+	    graphPanDragRef.current = null;
+    if (drag.pointerId !== "mouse") {
+      event.currentTarget?.releasePointerCapture?.(drag.pointerId);
+    }
+    if (drag.moved) {
+      suppressNextGraphClickRef.current = true;
+      if (typeof window !== "undefined" && typeof window.setTimeout === "function") {
+        window.setTimeout(() => {
+          suppressNextGraphClickRef.current = false;
+        }, 250);
+      }
+	      setStatus("Lineage graph panned.");
+	    }
+	  };
+  const suppressGraphClickAfterPan = (event) => {
+    if (!suppressNextGraphClickRef.current) return;
+    suppressNextGraphClickRef.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+	  const startGraphPanFromMouse = (event) => {
+	    if (pointerEventsAvailable) return;
+	    startGraphPan(event);
+	  };
+	  const moveGraphPanFromMouse = (event) => {
+	    if (pointerEventsAvailable) return;
+	    moveGraphPan(event);
+	  };
+	  const endGraphPanFromMouse = (event) => {
+	    if (pointerEventsAvailable) return;
+	    endGraphPan(event);
+	  };
 
   return (
     <section className={`ga-lineage-explorer ${thinLiveLineage ? "is-thin-live-lineage" : ""}`.trim()} data-testid="lineage-northstar-explorer">
@@ -1501,20 +1820,36 @@ function NorthStarLineageExplorer({
             {hiddenLineageCopy}
           </p>
           <div className="ga-lineage-chip-row" aria-label="Lineage evidence chips">
-            <span title={prototypeChipTitle} className={/certified/i.test(certification) ? "tone-good" : "tone-muted"}>{certificationChip}</span>
-            <span title={prototypeChipTitle} className={freshness ? "" : "tone-muted"}>{freshnessDisplayChip}</span>
-            <span title={prototypeChipTitle} className={cdeCount ? "tone-good" : "tone-muted"}>{cdeDisplayChip}</span>
-            <span title={prototypeChipTitle} className={owner ? "" : "tone-muted"}>{ownerDisplayChip}</span>
-            <span title={prototypeChipTitle}>{topologyDisplayChip}</span>
-            <span title={prototypeChipTitle} className={revenueImpact ? "" : "tone-muted"}>{impactChip}</span>
+            <span title={unavailableChipTitle} className={/certified/i.test(certification) ? "tone-good" : "tone-muted"}>{certificationChip}</span>
+            <span title={unavailableChipTitle} className={freshness ? "" : "tone-muted"}>{freshnessDisplayChip}</span>
+            <span title={unavailableChipTitle} className={cdeCount ? "tone-good" : "tone-muted"}>{cdeDisplayChip}</span>
+            <span title={unavailableChipTitle} className={owner ? "" : "tone-muted"}>{ownerDisplayChip}</span>
+            <span title={unavailableChipTitle}>{topologyDisplayChip}</span>
+            <span title={unavailableChipTitle} className={revenueImpact ? "" : "tone-muted"}>{impactChip}</span>
           </div>
         </div>
         <div className="ga-lineage-hero-actions">
-          <button onClick={activateColumn} type="button">
+          <button
+            disabled={loadingColumnLineage || (!hasBackedColumnLineage && !fullLineageProfileAvailable)}
+            onClick={activateColumn}
+            title={!hasBackedColumnLineage && !fullLineageProfileAvailable ? "Column lineage requires backed live column proof for this asset." : undefined}
+            type="button"
+          >
             <LineageIcon name="columns" />
             <span>Column lineage</span>
           </button>
-          <button className="is-primary" onClick={openImpactAnalysis} type="button">
+          <button
+            className="is-primary"
+            onClick={openImpactAnalysis}
+            title={!authoritative && !fullLineageProfileAvailable
+              ? "Open impact analysis with an honest unavailable state until backed downstream impact evidence is returned."
+              : !authoritative
+                ? "Impact analysis will load backed downstream impact evidence before opening."
+              : !hasBackedImpact
+                ? "Open impact analysis with an honest unavailable state because no backed downstream consumers were returned."
+                : undefined}
+            type="button"
+          >
             <LineageIcon name="impact" />
             <span>{impactActionLabel}</span>
           </button>
@@ -1559,9 +1894,35 @@ function NorthStarLineageExplorer({
           <main className="ga-lineage-graph-card">
             <div className="ga-lineage-graph-card-toolbar">
               <div className="ga-lineage-canvas-tools" aria-label="Lineage canvas tools">
-                <button aria-label="Zoom in" type="button" onClick={() => setZoomLevel(graphZoom + 0.08)}>+</button>
-                <button aria-label="Zoom out" type="button" onClick={() => setZoomLevel(graphZoom - 0.08)}>-</button>
-                <button aria-label="Fit graph" type="button" onClick={fitGraphToView}>
+                <button
+                  aria-label="Zoom in"
+                  disabled={!hasBackedEdges}
+                  onClick={() => {
+                    if (hasBackedEdges) setZoomLevel(graphZoom + 0.08);
+                  }}
+                  title={!hasBackedEdges ? graphControlUnavailableReason : undefined}
+                  type="button"
+                >
+                  +
+                </button>
+                <button
+                  aria-label="Zoom out"
+                  disabled={!hasBackedEdges}
+                  onClick={() => {
+                    if (hasBackedEdges) setZoomLevel(graphZoom - 0.08);
+                  }}
+                  title={!hasBackedEdges ? graphControlUnavailableReason : undefined}
+                  type="button"
+                >
+                  -
+                </button>
+                <button
+                  aria-label="Fit graph"
+                  disabled={!hasBackedEdges}
+                  onClick={fitGraphToView}
+                  title={!hasBackedEdges ? graphControlUnavailableReason : undefined}
+                  type="button"
+                >
                   <LineageIcon name="fit" />
                 </button>
                 <button
@@ -1578,7 +1939,7 @@ function NorthStarLineageExplorer({
                   {graphCounterLabel}
                 </span>
               </div>
-              {authoritative && hasBackedEdges ? (
+              {backedLineageGraph ? (
                 <div className="ga-lineage-legend" aria-label="Lineage legend">
                   <span className="tone-good">Certified</span>
                   <span className="tone-source">Source</span>
@@ -1596,23 +1957,34 @@ function NorthStarLineageExplorer({
                   ) : null}
                 </div>
               ) : null}
-              {authoritative && hasBackedEdges ? (
+              {backedLineageGraph ? (
                 <div className="ga-lineage-graph-toolbar" aria-label="Lineage graph tools">
                   <PillButton active={lineageMode === "table"} onClick={activateTable} testId="lineage-table-mode">
                     Table lineage
                   </PillButton>
-                  <PillButton active={lineageMode === "column"} onClick={activateColumn} testId="lineage-column-mode">
-                    Column lineage
-                  </PillButton>
-                  <button
-                    aria-expanded={graphSearchOpen}
-                    onClick={() => {
-                      setGraphSearchOpen((current) => !current);
-                      setStatus("Graph search opened for the current lineage nodes.");
-                    }}
-                    type="button"
+                  <PillButton
+                    active={lineageMode === "column"}
+                    disabled={loadingColumnLineage || (!hasBackedColumnLineage && !fullLineageProfileAvailable)}
+                    onClick={activateColumn}
+                    testId="lineage-column-mode"
+                    title={
+                      loadingColumnLineage
+                        ? "Loading backed column lineage from Databricks."
+                        : !hasBackedColumnLineage && fullLineageProfileAvailable
+                          ? "Load backed column lineage from Databricks."
+                          : !hasBackedColumnLineage
+                            ? "Column lineage requires backed live column proof for this asset."
+                            : ""
+                    }
                   >
-                    Search
+                    {loadingColumnLineage ? "Loading column lineage" : "Column lineage"}
+                  </PillButton>
+	                  <button
+	                    aria-expanded={graphSearchOpen}
+	                    onClick={toggleGraphSearch}
+	                    type="button"
+	                  >
+	                    Search
                   </button>
                   <button onClick={exportEvidence} type="button">Export</button>
                 </div>
@@ -1622,14 +1994,37 @@ function NorthStarLineageExplorer({
               <div className="ga-lineage-graph-search" role="search">
                 <label>
                   <span>Search graph</span>
-                  <input
-                    autoFocus
-                    onChange={(event) => setGraphSearchQuery(event.target.value)}
-                    placeholder="Find node or column"
-                    type="search"
-                    value={graphSearchQuery}
-                  />
-                </label>
+	                  <input
+	                    autoFocus
+	                    onChange={(event) => setGraphSearchQuery(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          setGraphSearchOpen(false);
+                          setGraphSearchQuery("");
+                          setStatus("Graph search closed.");
+                          return;
+                        }
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          const firstMatch = graphSearchMatches[0];
+                          if (firstMatch) {
+                            selectNode(firstMatch);
+                          } else {
+                            setStatus(`No visible graph nodes match "${graphSearchQuery.trim()}".`);
+                          }
+                        }
+                      }}
+	                    placeholder="Find node or column"
+	                    type="search"
+	                    value={graphSearchQuery}
+	                  />
+	                  {graphSearchQuery ? (
+	                    <button aria-label="Clear graph search" onClick={clearGraphSearch} type="button">
+	                      Clear
+	                    </button>
+	                  ) : null}
+	                </label>
                 <div>
                   {graphSearchMatches.length ? graphSearchMatches.map((node) => (
                     <button key={node?.id || nodeFqn(node)} onClick={() => selectNode(node)} type="button">
@@ -1641,23 +2036,39 @@ function NorthStarLineageExplorer({
               </div>
             ) : null}
             {loading && !hasGraphEvidence ? (
-              <EmptyStateBlock message="Refreshing live lineage evidence..." title="Loading lineage graph" />
+              <LineageLoadingGraphShell message="Refreshing live lineage evidence..." title="Loading lineage graph" />
             ) : overlay && !viewModel.nodes.length ? (
               <div className="ga-lineage-overlay-slot">{overlay}</div>
             ) : (
               <div
-                className={`ga-lineage-graph-body is-prototype-topology ${authoritative ? "is-authoritative" : prototypeMode ? "is-prototype-mock" : "is-live-unavailable"} ${
+                className={`ga-lineage-graph-body is-lineage-topology ${authoritative ? "is-authoritative" : "is-live-unavailable"} ${
                   thinLiveLineage ? "is-thin-live-lineage" : ""
-                }`.trim()}
+	                }`.trim()}
+	                data-testid="lineage-graph-body"
+	                onClickCapture={suppressGraphClickAfterPan}
+	                onMouseDown={startGraphPanFromMouse}
+	                onMouseLeave={endGraphPanFromMouse}
+	                onMouseMove={moveGraphPanFromMouse}
+	                onMouseUp={endGraphPanFromMouse}
+	                onPointerCancel={endGraphPan}
+	                onPointerDown={startGraphPan}
+	                onPointerLeave={endGraphPan}
+	                onPointerMove={moveGraphPan}
+	                onPointerUp={endGraphPan}
+	                onWheel={zoomGraphWithWheel}
+                style={{
+                  "--ga-lineage-pan-x": `${graphPan.x}px`,
+                  "--ga-lineage-pan-y": `${graphPan.y}px`,
+                  "--ga-lineage-zoom": graphZoom,
+                }}
               >
                 <div
                   className={`ga-lineage-graph-bands ${lineageMode === "column" ? "is-column-mode" : ""}`.trim()}
                   data-zoom-level={graphZoom.toFixed(2)}
-                  style={{ "--ga-lineage-zoom": graphZoom }}
                 >
-                  {hasBackedEdges ? (
+                  {topologyEdgePaths.length ? (
                     <svg
-                      aria-hidden="true"
+                      aria-label="Lineage edge paths"
                       className="ga-lineage-edge-overlay"
                       focusable="false"
                       preserveAspectRatio="none"
@@ -1676,15 +2087,31 @@ function NorthStarLineageExplorer({
                           <path d="M0 0 7 3.5 0 7z" />
                         </marker>
                       </defs>
-                      <path d="M145 348 C188 348 198 192 240 190" />
-                      <path d="M145 448 C188 448 198 532 240 532" />
-                      <path d="M423 190 C474 190 454 560 496 590" />
-                      <path d="M423 532 C462 532 462 582 496 590" />
-                      <path d="M683 590 C725 590 714 168 760 168" />
-                      <path d="M683 590 C724 590 718 458 760 456" />
-                      <path d="M683 590 C726 590 719 724 760 728" />
-                      <path className="is-muted is-boundary" d="M856 168 C944 174 950 788 978 816" />
-                      <path className="is-muted" d="M856 728 C905 752 927 802 978 816" />
+                      {topologyEdgePaths.map((edgePath) => (
+                        <g key={edgePath.key}>
+                          <path
+                            className={`${edgePath.className || ""} ${selectedEdgeKey === edgePath.key ? "is-selected" : ""}`.trim() || undefined}
+                            d={edgePath.d}
+                            data-edge-source={edgePath.source || undefined}
+                            data-edge-target={edgePath.target || undefined}
+                            data-testid="lineage-topology-edge"
+                          />
+                          <path
+                            aria-label={`Select lineage edge from ${edgePath.sourceTitle} to ${edgePath.targetTitle}`}
+                            className={`ga-lineage-edge-hit ${selectedEdgeKey === edgePath.key ? "is-selected" : ""}`.trim()}
+                            d={edgePath.d}
+                            data-testid="lineage-topology-edge-hit"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              selectEdge(edgePath);
+                            }}
+                            onKeyDown={(event) => handleEdgeKeyDown(event, edgePath)}
+                            role="button"
+                            tabIndex={0}
+                          />
+                        </g>
+                      ))}
                     </svg>
                   ) : null}
                   {graphBands.map((band) => (
@@ -1720,7 +2147,6 @@ function NorthStarLineageExplorer({
                   downstreamNodes={downstreamNodes}
                   events={lineagePayload?.events}
                   authoritative={authoritative}
-                  prototypeMode={prototypeMode}
                   onSelect={selectNode}
                 />
               </div>
@@ -1742,12 +2168,17 @@ function NorthStarLineageExplorer({
                 <span data-node-type={type} key={type}>{label}</span>
               ))}
               <em>
-                {authoritative
-                  ? "via system.access.table_lineage"
-                  : prototypeMode
-                    ? "Prototype topology shape; system.access.table_lineage not verified"
-                    : "No live topology returned; system.access.table_lineage not verified for this route"}
+                {backedLineageGraph
+                  ? actorVisibleLineage
+                    ? `via ${lineageEvidenceLabel}`
+                    : "Workspace-scoped Databricks lineage; actor-visible proof unavailable"
+                  : "No live topology returned; system.access.table_lineage not verified for this route"}
               </em>
+              <div className="ga-lineage-provenance-summary" aria-label="Lineage provenance summary">
+                {lineageProvenanceSummary.map((item) => (
+                  <span key={item}>{item}</span>
+                ))}
+              </div>
             </div>
             <div className="ga-lineage-card-foot">
               <span>{selectedTitle} selected</span>
@@ -1775,16 +2206,14 @@ function NorthStarLineageExplorer({
             </div>
             <div className="ga-lineage-asof-actions">
               <small>{asOfMode}</small>
-              <button
+	              <button
+                disabled={!asOfActionAvailable || refreshingAsOf}
                 type="button"
-                onClick={() => setStatus(authoritative
-                  ? thinLiveLineage
-                    ? "Lineage graph refreshed; no actor-visible edges were returned."
-                    : "Lineage time selection reset to now."
-                  : "Lineage view reset.")}
+                title={!asOfActionAvailable ? "Lineage time selection requires backed live lineage evidence." : undefined}
+                onClick={refreshLineageToNow}
               >
                 <LineageIcon name="history" />
-                <span>{asOfAction}</span>
+                <span>{refreshingAsOf ? "Refreshing" : asOfAction}</span>
               </button>
             </div>
           </section>
@@ -1809,6 +2238,13 @@ function NorthStarLineageExplorer({
                 </div>
               </dl>
               <p>{workflowPanel.detail}</p>
+              {selectedEdgePath ? (
+                <div className="ga-lineage-edge-detail" aria-label="Selected edge detail">
+                  <span>{selectedEdgePath.sourceTitle}</span>
+                  <span aria-hidden="true">→</span>
+                  <span>{selectedEdgePath.targetTitle}</span>
+                </div>
+              ) : null}
             </section>
           ) : null}
 
@@ -1826,17 +2262,17 @@ function NorthStarLineageExplorer({
                 <button
                   disabled={!authoritative || !hasBackedImpact}
                   onClick={() => selectedFqn && onOpenGovernance?.(selectedFqn)}
-                  title={!authoritative || !hasBackedImpact ? "Owner notification requires backed impact evidence." : undefined}
+                  title={!authoritative || !hasBackedImpact ? "Owner review requires backed impact evidence." : undefined}
                   type="button"
                 >
-                  Notify owners
+                  Review owners
                 </button>
               </header>
               <div className="ga-lineage-impact-list">
                 {impactRows.length ? impactRows.map((item, index) => {
-                  const kind = impactKind(item);
-                  const detail = splitImpactDetail(item, prototypeMode);
-                  const title = impactDisplayTitle(item, prototypeMode);
+	                  const kind = impactKind(item);
+	                  const detail = splitImpactDetail(item);
+	                  const title = impactDisplayTitle(item);
                   const tone = item.tone || (hasBackedImpact ? "Medium" : "Severity unavailable");
                   const toneKey = String(tone).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
                   return (
@@ -1862,11 +2298,9 @@ function NorthStarLineageExplorer({
                 <footer className="ga-lineage-impact-provenance">
                   <span>{impactRows.length ? `${impactRows.length} consumer paths visible` : "0 consumer paths visible"}</span>
                   <span>
-                    {authoritative
-                      ? (hasBackedImpact ? "lineage impactAnalysis payload" : "no backed impact rows returned")
-                      : prototypeMode
-                        ? "prototype impact fixture - not live usage proof"
-                        : "live impact workflow unavailable"}
+	                    {authoritative
+	                      ? (hasBackedImpact ? "lineage impactAnalysis payload" : "no backed impact rows returned")
+	                      : "live impact workflow unavailable"}
                   </span>
                 </footer>
 	            </section>
@@ -1899,11 +2333,9 @@ function NorthStarLineageExplorer({
                   <footer className="ga-lineage-column-provenance">
                     <span>{columnRows.length ? `${columnRows.length} column paths visible` : "0 column paths visible"}</span>
                     <span>
-                      {authoritative
-                        ? (columnSource || "lineage API")
-                        : prototypeMode
-                          ? "system.access.column_lineage not verified"
-                          : "live column lineage unavailable"}
+	                      {hasBackedColumnLineage
+	                        ? (actorVisibleLineage ? (columnSource || "lineage API") : "workspace-scoped column lineage")
+	                        : "live column lineage unavailable"}
                     </span>
                   </footer>
 	            </section>
@@ -1914,20 +2346,24 @@ function NorthStarLineageExplorer({
       <div className="ga-lineage-status" aria-live="polite">
         {status || (refreshNote
           ? `${refreshNote.label} - current ${viewModel.modeLabel.toLowerCase()} topology remains visible.`
-          : authoritative
+          : backedLineageGraph
             ? thinLiveLineage
-              ? `Live ${viewModel.modeLabel.toLowerCase()} lineage query returned no actor-visible edges.`
-              : `Authoritative ${viewModel.modeLabel.toLowerCase()} lineage ready.`
-            : `${viewModel.modeLabel} lineage ready`)}
+              ? `${actorVisibleLineage ? "Live" : "Workspace-scoped"} ${viewModel.modeLabel.toLowerCase()} lineage query returned no visible edges.`
+              : `${actorVisibleLineage ? "Authoritative" : "Workspace-scoped"} ${viewModel.modeLabel.toLowerCase()} lineage ready.`
+            : `${viewModel.modeLabel} lineage unavailable`)}
         {selectedFqn ? (
           <button
-            disabled={!selectedNodeOpenable}
+            disabled={!selectedNodeOpenable || !authoritative}
             onClick={refocusGraph}
-            title={!selectedNodeOpenable
-              ? "This lineage node is not openable with the current permissions."
-              : selectedNodeOpenabilityUnverified
-                ? "Refocus this lineage reference. If the graph is not visible for the current actor, the page will show an unavailable state."
-                : undefined}
+            title={!authoritative
+              ? workspaceScopedLineage
+                ? "Refocus requires actor-visible lineage proof for this route."
+                : "Refocus requires backed live lineage evidence for this route."
+              : !selectedNodeOpenable
+                ? "This lineage node is not openable with the current permissions."
+                : selectedNodeOpenabilityUnverified
+                  ? "Refocus this lineage reference. If the graph is not visible for the current actor, the page will show an unavailable state."
+                  : undefined}
             type="button"
           >
             Refocus graph
@@ -1966,6 +2402,7 @@ export default function LineageStage({
   onOpenGovernance = NOOP,
   onSelectAsset = NOOP,
   onOpenAsset = NOOP,
+  onRefreshLineage,
   assetSearchQuery,
   onAssetSearchQueryChange = NOOP,
   assetSearchResults,
@@ -2028,6 +2465,7 @@ export default function LineageStage({
         onIncludeColumnsChange={onIncludeColumnsChange}
         onOpenGovernance={onOpenGovernance}
         onOpenAsset={onOpenAsset}
+        onRefreshLineage={onRefreshLineage}
         onSelectAsset={onSelectAsset}
       />
     );
@@ -2071,7 +2509,7 @@ export default function LineageStage({
                 ? "Showing cached live lineage while the graph refresh completes."
                 : "Showing provisional lineage context until the authoritative graph resolves."
             }
-            title={authoritative ? "Live lineage still loading" : prototypeMode ? "Prototype lineage pending authority check" : "Lineage authority unavailable"}
+            title={authoritative ? "Live lineage still loading" : "Lineage authority unavailable"}
           />
         ) : null}
         {truncationNotice ? (
@@ -2083,7 +2521,7 @@ export default function LineageStage({
         ) : null}
         <div className="gh-lineage-stage-canvas">
           {loading && !hasGraph ? (
-            <EmptyStateBlock message="Loading lineage graph…" title="Refreshing graph" />
+            <LineageLoadingGraphShell message="Loading lineage graph..." title="Refreshing graph" />
           ) : hasGraph || overlay ? (
             <>
               {error ? (

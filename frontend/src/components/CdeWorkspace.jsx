@@ -16,6 +16,14 @@ function envelopeMeta(payload) {
   return payload && typeof payload === "object" ? payload.meta || {} : {};
 }
 
+function envelopeHydrating(payload) {
+  const meta = envelopeMeta(payload);
+  const capabilities = meta.capabilities && typeof meta.capabilities === "object"
+    ? meta.capabilities
+    : {};
+  return text(meta.state || payload?.state).toLowerCase() === "loading" || capabilities.hydrating === true;
+}
+
 function arrayValue(value) {
   return Array.isArray(value) ? value : [];
 }
@@ -207,6 +215,7 @@ export default function CdeWorkspace({
     queryKey: ["atlas", "cde-dashboard"],
     queryFn: ({ signal }) => fetchCdeDashboard({ signal }),
     staleTime: 60_000,
+    refetchInterval: (currentQuery) => envelopeHydrating(currentQuery?.state?.data) ? 3_000 : false,
   });
 
   const dashboard = useMemo(() => envelopeData(query.data) || {}, [query.data]);
@@ -500,9 +509,12 @@ function RegistryTable({ density, expandedGroups, groups, onOpenAsset, onSelect,
                       </span>
                       <span>
                         {item.linkedPolicies == null ? "Unavailable" : (
-                          <button className="gh-cde-inline-action" onClick={(event) => event.stopPropagation()} type="button">
+                          <span
+                            className="gh-cde-inline-value"
+                            title="Linked policy detail is unavailable unless policy records are returned by the CDE API."
+                          >
                             {item.linkedPolicies}
-                          </button>
+                          </span>
                         )}
                       </span>
                       <span className="gh-cde-impact">

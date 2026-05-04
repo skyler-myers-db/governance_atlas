@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+import time
 from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
@@ -95,6 +97,22 @@ def visible_assets(
     return result
 
 
+def cached_visible_assets(
+    request: Optional[Request] = None,
+    *,
+    cache_scope: str = "",
+    ttl_s: int = 300,
+) -> pd.DataFrame | None:
+    _, request_cache_scope, _, _ = _runtime_deps()
+    scope = cache_scope or request_cache_scope(request)
+    normalized_scope = _normalize_str(scope) or "shared"
+    cache_key = f"runtime_inventory:{normalized_scope}"
+    cached = _TTL_CACHE.get(cache_key)
+    if cached and time.time() - cached[0] < ttl_s:
+        return cached[1]
+    return None
+
+
 def inventory_catalogs(request: Optional[Request] = None) -> List[str]:
     hidden_catalogs, _, _, uc_for_request = _runtime_deps()
     return asset_service.inventory_catalogs(
@@ -178,6 +196,82 @@ def inventory_option_values(
         if value and value != "Unassigned":
             values.add(value)
     return sorted(values)
+
+
+_BOOTSTRAP_SUMMARY_WARMING: set[str] = set()
+
+
+def _bootstrap_inventory_summary_key(cache_scope: str) -> str:
+    normalized_scope = _normalize_str(cache_scope) or "shared"
+    return f"runtime_bootstrap_inventory_summary:{normalized_scope}"
+
+
+def cached_bootstrap_inventory_summary(cache_scope: str, ttl_s: int = 60) -> Dict[str, Any] | None:
+    cache_key = _bootstrap_inventory_summary_key(cache_scope)
+    cached = _TTL_CACHE.get(cache_key)
+    if cached and time.time() - cached[0] < ttl_s:
+        return cached[1]
+    return None
+
+
+def warm_bootstrap_inventory_summary(cache_scope: str) -> None:
+    normalized_scope = _normalize_str(cache_scope) or "shared"
+    cache_key = _bootstrap_inventory_summary_key(normalized_scope)
+    with _CACHE_LOCK:
+        if cache_key in _BOOTSTRAP_SUMMARY_WARMING:
+            return
+        _BOOTSTRAP_SUMMARY_WARMING.add(cache_key)
+
+    def run() -> None:
+        try:
+            bootstrap_inventory_summary(normalized_scope)
+        except Exception:
+            pass
+        finally:
+            with _CACHE_LOCK:
+                _BOOTSTRAP_SUMMARY_WARMING.discard(cache_key)
+
+    thread = threading.Thread(
+        target=run,
+        name=f"atlas-bootstrap-inventory-{normalized_scope}",
+        daemon=True,
+    )
+    thread.start()
+
+
+def fast_bootstrap_inventory_summary(
+    cache_scope: str,
+    *,
+    start_background: bool = True,
+) -> Dict[str, Any]:
+    cached = cached_bootstrap_inventory_summary(cache_scope)
+    if cached is not None:
+        return cached
+    if start_background:
+        warm_bootstrap_inventory_summary(cache_scope)
+    return {
+        "summaryState": "loading",
+        "visibleAssets": 0,
+        "catalogCount": 0,
+        "availableCatalogCount": 0,
+        "observedCatalogCount": 0,
+        "catalogs": [],
+        "assetTypes": [],
+        "domains": [],
+        "tiers": [],
+        "certifications": [],
+        "sensitivities": [],
+        "assetTypeCounts": {},
+        "catalogCounts": {},
+        "catalogSnapshot": [],
+        "governanceGaps": 0,
+        "certifiedAssets": 0,
+        "ownedAssets": 0,
+        "ownershipGaps": 0,
+        "policyGaps": 0,
+        "freshnessGaps": 0,
+        "qualityIncidents": 0,
+    }
 
 
 def bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
@@ -278,8 +372,4 @@ def bootstrap_inventory_summary(cache_scope: str) -> Dict[str, Any]:
             "qualityIncidents": int(gap_tiles.get("qualityIncidents", 0)),
         }
 
-    return _ttl_value(
-        f"runtime_bootstrap_inventory_summary:{normalized_scope}",
-        60,
-        load,
-    )
+    return _ttl_value(_bootstrap_inventory_summary_key(normalized_scope), 60, load)

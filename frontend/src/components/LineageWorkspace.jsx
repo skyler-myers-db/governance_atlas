@@ -61,12 +61,14 @@ export default function LineageWorkspace({
       peekWorkspaceIntent("lineageContext", initialAssetFqn || "", "Data Lineage"),
     )
   );
-  // Round 18 defect #7: Data / Operational are independent on/off flags.
-  // Default to data-only so the first paint matches the previous contract;
-  // the operator enables operational overlay when needed.
-  const [modeFlags, setModeFlags] = useState({ data: true, operational: false });
+  // Data / Operational remain independent controls, but the default full
+  // workspace should show backed job/pipeline context whenever Databricks
+  // returns it. Hiding operational context by default made a populated graph
+  // look falsely empty.
+  const [modeFlags, setModeFlags] = useState({ data: true, operational: true });
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
   const [linkFeedback, setLinkFeedback] = useState("");
+  const [lineageEmptyStatus, setLineageEmptyStatus] = useState("");
   // Lineage-wide filter knobs — separate upstream/downstream caps, a
   // max-depth clamp, a per-layer node budget, and the include-columns
   // toggle. Today the backend returns a fully-materialised graph so we
@@ -121,7 +123,9 @@ export default function LineageWorkspace({
     lineageCapabilityCanHydrate(lineageUnavailableReason) &&
     (!workspaceAccessResolved || workspaceLineageAvailable);
   const lineageFetchEnabled = lineageSurfaceAvailable || lineageHydrationAvailable;
-  const lineage = useLineage(focusAssetFqn || "", lineageFetchEnabled);
+  const lineage = useLineage(focusAssetFqn || "", lineageFetchEnabled, {
+    fullProfile: true,
+  });
   const asset =
     assetDetail.detail ||
     (focusAssetFqn && assetDetail.loading ? seeded.summary : null);
@@ -145,6 +149,7 @@ export default function LineageWorkspace({
 
   useEffect(() => {
     setLinkFeedback("");
+    setLineageEmptyStatus("");
     setLinkedRecordUnavailableOverrides({});
   }, [focusAssetFqn, localContext]);
 
@@ -183,6 +188,12 @@ export default function LineageWorkspace({
     workspaceAccessResolved,
   ]);
 
+  const clearLineageFocus = () => {
+    setAssetSearchQuery("");
+    setLineageEmptyStatus("");
+    onRouteAssetChange?.("", localContext);
+  };
+
   const searchOverlay = (
     <div className="gh-lineage-overlay-card">
       <div className="gh-panel-title">{localContext}</div>
@@ -192,6 +203,7 @@ export default function LineageWorkspace({
             "No live lineage graph is available for this asset right now. Search for another asset to continue."
           : "Search for an asset and open the graph directly from there."}
       </div>
+      {lineageEmptyStatus ? <div className="gh-support-copy">{lineageEmptyStatus}</div> : null}
       <div className="gh-lineage-launch-search">
         <input
           className="gh-input"
@@ -239,10 +251,37 @@ export default function LineageWorkspace({
         <div className="gh-action-grid">
           <button
             className="gh-secondary-button"
-            onClick={() => {
-              setAssetSearchQuery("");
-              onRouteAssetChange?.("", localContext);
+            onClick={async () => {
+              setLineageEmptyStatus("Refreshing lineage from live Databricks evidence...");
+              try {
+                const refreshed = await lineage.refresh?.();
+                setLineageEmptyStatus(refreshed
+                  ? "Lineage view reset from live Databricks evidence."
+                  : "Lineage view reset; no live graph is available for this asset.");
+              } catch (caught) {
+                const message = caught?.message || "No live lineage graph is available for this asset.";
+                setLineageEmptyStatus(`Lineage view reset failed: ${message}`);
+              }
             }}
+            type="button"
+          >
+            Retry
+          </button>
+          <button
+            className="gh-secondary-button"
+            disabled={!asset}
+            onClick={() => {
+              onNavigationStateChange?.(true, "Opening metadata record...");
+              onOpenAsset?.(focusAssetFqn, "Overview");
+            }}
+            title={!asset ? "This asset metadata record is not openable with the current permissions." : undefined}
+            type="button"
+          >
+            Open asset
+          </button>
+          <button
+            className="gh-secondary-button"
+            onClick={clearLineageFocus}
             type="button"
           >
             Clear focus
@@ -345,6 +384,7 @@ export default function LineageWorkspace({
           onContextChange={setLocalContext}
           onOpenGovernance={onOpenGovernance}
           onOpenAsset={openLineageAsset}
+          onRefreshLineage={lineage.refresh}
           onSelectAsset={(assetFqn) => {
             onNavigationStateChange?.(true, "Refocusing lineage…");
             setLinkFeedback("");
@@ -439,6 +479,7 @@ export default function LineageWorkspace({
         }}
         onOpenGovernance={onOpenGovernance}
         onOpenAsset={openLineageAsset}
+        onRefreshLineage={lineage.refresh}
         onSelectAsset={(assetFqn) => {
           onNavigationStateChange?.(true, "Refocusing lineage…");
           setLinkFeedback("");

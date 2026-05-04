@@ -1,0 +1,3384 @@
+{
+  "generatedAt": "2026-05-02T06:37:15.284Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "buildId": "",
+  "deploymentId": "",
+  "assetFqn": "finance_prod.curated.revenue_daily",
+  "mockApi": false,
+  "evidenceKind": "live_databricks",
+  "mockEvidenceWarning": "",
+  "liveDatabricksCapture": true,
+  "routeFilter": [
+    "lineage"
+  ],
+  "interactionFilter": [
+    "lineage-controls",
+    "lineage-selection"
+  ],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "lineage"
+  ],
+  "viewports": [
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "1280x720",
+      "width": 1280,
+      "height": 720
+    }
+  ],
+  "expectedCaptureCount": 3,
+  "captures": [
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1536x1024",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": [
+            "Atlas AI Atlas AI is using the local evidence engine until a Genie space is configured."
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1510,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1565.796875,
+          "width": 1328,
+          "height": 1509.796875
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 208,
+            "right": 1536,
+            "bottom": 1565.796875,
+            "width": 1328,
+            "height": 1509.796875
+          },
+          "hero": {
+            "top": 78,
+            "left": 230,
+            "right": 1516,
+            "bottom": 202.4375,
+            "width": 1286,
+            "height": 124.4375
+          },
+          "workbench": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 1495.796875,
+            "width": 1286,
+            "height": 1257.359375
+          },
+          "graph": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 1100.4375,
+            "width": 1286,
+            "height": 862
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Unassigned Freshness unavailable 9 CDEs Owner: Unavailable 1 upstream · 1 downstream Revenue impact unavailable Column lineage Run impact analysis + - 3 nodes · 2 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 06:37:34 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM revenue_recognition finance_prod / gold 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM attribution_daily marketing_mart / gold LINEAGE DETAILS attribution_daily marketing_mart / gold LAST REFRESH Topology refreshed 2026-05-02 06:37:34 UTC ROWS Unavailable OWNER Unavailable SOURCES 0 No source-system details returned. CONSUMERS 1 attribution_daily marketing_mart / gold RECENT ACTIVITY No recent lineage activity returned. NODE TYPES Table Pipeline Job Notebook Saved query Dashboard Model UDF Volume Restricted via system.access.table_lineage LINEAGE AS OF: 2026-05-02 Live query live Now Impact analysis Downstream lineage consumers affected by upstream changes Notify owners attribution_daily Owner unavai",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › Direct",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily Owner unavailable · marketing_mart / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1440x900",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-1440x900-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": [
+            "Atlas AI Atlas AI is using the local evidence engine until a Genie space is configured."
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 900,
+          "documentWidth": 1440,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1440,
+          "bottom": 56,
+          "width": 1232,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 900,
+          "width": 208,
+          "height": 900
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1232,
+          "height": 844
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1506,
+          "clientHeight": 844,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 208,
+          "right": 1440,
+          "bottom": 1562.234375,
+          "width": 1232,
+          "height": 1506.234375
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 208,
+            "right": 1440,
+            "bottom": 1562.234375,
+            "width": 1232,
+            "height": 1506.234375
+          },
+          "hero": {
+            "top": 78,
+            "left": 230,
+            "right": 1420,
+            "bottom": 199.0625,
+            "width": 1190,
+            "height": 121.0625
+          },
+          "workbench": {
+            "top": 235.0625,
+            "left": 230,
+            "right": 1420,
+            "bottom": 1492.234375,
+            "width": 1190,
+            "height": 1257.171875
+          },
+          "graph": {
+            "top": 235.0625,
+            "left": 230,
+            "right": 1420,
+            "bottom": 1097.0625,
+            "width": 1190,
+            "height": 862
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Unassigned Freshness unavailable 9 CDEs Owner: Unavailable 1 upstream · 1 downstream Revenue impact unavailable Column lineage Run impact analysis + - 3 nodes · 2 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 06:37:34 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM revenue_recognition finance_prod / gold 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM attribution_daily marketing_mart / gold LINEAGE DETAILS attribution_daily marketing_mart / gold LAST REFRESH Topology refreshed 2026-05-02 06:37:34 UTC ROWS Unavailable OWNER Unavailable SOURCES 0 No source-system details returned. CONSUMERS 1 attribution_daily marketing_mart / gold RECENT ACTIVITY No recent lineage activity returned. NODE TYPES Table Pipeline Job Notebook Saved query Dashboard Model UDF Volume Restricted via system.access.table_lineage LINEAGE AS OF: 2026-05-02 Live query live Now Impact analysis Downstream lineage consumers affected by upstream changes Notify owners attribution_daily Owner unavai",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › Direct",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily Owner unavailable · marketing_mart / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1280x720",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-1280x720-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": [
+            "Atlas AI Atlas AI is using the local evidence engine until a Genie space is configured."
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1280,
+          "height": 720,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 720,
+          "documentWidth": 1280,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1280,
+          "bottom": 56,
+          "width": 1072,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 720,
+          "width": 208,
+          "height": 720
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1072,
+          "height": 664
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1186,
+          "clientHeight": 664,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 208,
+          "right": 1280,
+          "bottom": 1242.234375,
+          "width": 1072,
+          "height": 1186.234375
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 208,
+            "right": 1280,
+            "bottom": 1242.234375,
+            "width": 1072,
+            "height": 1186.234375
+          },
+          "hero": {
+            "top": 68,
+            "left": 224,
+            "right": 1266,
+            "bottom": 176.546875,
+            "width": 1042,
+            "height": 108.546875
+          },
+          "workbench": {
+            "top": 198.546875,
+            "left": 224,
+            "right": 1266,
+            "bottom": 1182.234375,
+            "width": 1042,
+            "height": 983.6875
+          },
+          "graph": {
+            "top": 198.546875,
+            "left": 224,
+            "right": 1266,
+            "bottom": 662.546875,
+            "width": 1042,
+            "height": 464
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Unassigned Freshness unavailable 9 CDEs Owner: Unavailable 1 upstream · 1 downstream Revenue impact unavailable Column lineage Run impact analysis + - 3 nodes · 2 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 06:37:34 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM revenue_recognition finance_prod / gold 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM attribution_daily marketing_mart / gold LINEAGE DETAILS attribution_daily marketing_mart / gold LAST REFRESH Topology refreshed 2026-05-02 06:37:34 UTC ROWS Unavailable OWNER Unavailable SOURCES 0 No source-system details returned. CONSUMERS 1 attribution_daily marketing_mart / gold NODE TYPES Table Pipeline Job Notebook Saved query Dashboard Model UDF Volume Restricted via system.access.table_lineage LINEAGE AS OF: 2026-05-02 Live query live Now Impact analysis Downstream lineage consumers affected by upstream changes Notify owners attribution_daily Owner unavailable · marketing_mart / gold Severity unavailable 1 ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › Direct",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily Owner unavailable · marketing_mart / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1536x1024",
+      "interaction": "lineage-controls",
+      "description": "Exercise visible Lineage impact, column, zoom, refocus, and time controls.",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-lineage-controls-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-lineage-controls-1536x1024-full.png",
+      "runResult": {
+        "impact": {
+          "impactStatus": true
+        },
+        "column": {
+          "columnStatus": true
+        },
+        "columnModeClass": true,
+        "columnPanelFocused": true,
+        "columnPanelProof": {
+          "proofOnly": true
+        },
+        "hiddenAuthoritativeToolbar": {
+          "compareAbsent": true,
+          "tableAbsent": false,
+          "searchAbsent": false,
+          "exportAbsent": false,
+          "graphToolbarAbsent": false
+        },
+        "zoomIn": {
+          "text": "+",
+          "ariaLabel": "Zoom in",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 261,
+            "left": 257,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "initialZoom": 1,
+        "zoomInLevel": 1.08,
+        "zoomInStatus": {
+          "ready": true
+        },
+        "zoomOut": {
+          "text": "-",
+          "ariaLabel": "Zoom out",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 261,
+            "left": 287,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "zoomOutLevel": 1,
+        "zoomOutStatus": {
+          "ready": true
+        },
+        "fitGraph": {
+          "text": "Fit graph",
+          "ariaLabel": "Fit graph",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 261,
+            "left": 317,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "fitGraphLevel": 1,
+        "fitGraphStatus": {
+          "ready": true
+        },
+        "graphHistory": {
+          "text": "Graph history",
+          "ariaLabel": "Graph history",
+          "title": "Graph history requires persisted lineage snapshots.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 261,
+            "left": 347,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "graphHistoryStatus": {
+          "ready": true,
+          "title": "Graph history requires persisted lineage snapshots."
+        },
+        "refocus": {
+          "ready": true
+        },
+        "now": {
+          "ready": true
+        },
+        "zoomControls": [
+          "+ Zoom in",
+          "- Zoom out"
+        ]
+      },
+      "validation": {
+        "loaded": false,
+        "checks": {
+          "lineage": true
+        },
+        "runResult": {
+          "impact": {
+            "impactStatus": true
+          },
+          "column": {
+            "columnStatus": true
+          },
+          "columnModeClass": true,
+          "columnPanelFocused": true,
+          "columnPanelProof": {
+            "proofOnly": true
+          },
+          "hiddenAuthoritativeToolbar": {
+            "compareAbsent": true,
+            "tableAbsent": false,
+            "searchAbsent": false,
+            "exportAbsent": false,
+            "graphToolbarAbsent": false
+          },
+          "zoomIn": {
+            "text": "+",
+            "ariaLabel": "Zoom in",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 261,
+              "left": 257,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "initialZoom": 1,
+          "zoomInLevel": 1.08,
+          "zoomInStatus": {
+            "ready": true
+          },
+          "zoomOut": {
+            "text": "-",
+            "ariaLabel": "Zoom out",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 261,
+              "left": 287,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "zoomOutLevel": 1,
+          "zoomOutStatus": {
+            "ready": true
+          },
+          "fitGraph": {
+            "text": "Fit graph",
+            "ariaLabel": "Fit graph",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 261,
+              "left": 317,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "fitGraphLevel": 1,
+          "fitGraphStatus": {
+            "ready": true
+          },
+          "graphHistory": {
+            "text": "Graph history",
+            "ariaLabel": "Graph history",
+            "title": "Graph history requires persisted lineage snapshots.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 261,
+              "left": 347,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "graphHistoryStatus": {
+            "ready": true,
+            "title": "Graph history requires persisted lineage snapshots."
+          },
+          "refocus": {
+            "ready": true
+          },
+          "now": {
+            "ready": true
+          },
+          "zoomControls": [
+            "+ Zoom in",
+            "- Zoom out"
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 542,
+          "scrollHeight": 1510,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": -486,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1023.796875,
+          "width": 1328,
+          "height": 1509.796875
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": -486,
+            "left": 208,
+            "right": 1536,
+            "bottom": 1023.796875,
+            "width": 1328,
+            "height": 1509.796875
+          },
+          "hero": {
+            "top": -464,
+            "left": 230,
+            "right": 1516,
+            "bottom": -339.5625,
+            "width": 1286,
+            "height": 124.4375
+          },
+          "workbench": {
+            "top": -303.5625,
+            "left": 230,
+            "right": 1516,
+            "bottom": 953.796875,
+            "width": 1286,
+            "height": 1257.359375
+          },
+          "graph": {
+            "top": -303.5625,
+            "left": 230,
+            "right": 1516,
+            "bottom": 558.4375,
+            "width": 1286,
+            "height": 862
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Unassigned Freshness unavailable 9 CDEs Owner: Unavailable 1 upstream · 1 downstream Revenue impact unavailable Column lineage Run impact analysis + - 3 nodes · 2 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 06:37:34 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM revenue_recognition finance_prod / gold 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM attribution_daily marketing_mart / gold LINEAGE DETAILS attribution_daily marketing_mart / gold LAST REFRESH Topology refreshed 2026-05-02 06:37:34 UTC ROWS Unavailable OWNER Unavailable SOURCES 0 No source-system details returned. CONSUMERS 1 attribution_daily marketing_mart / gold RECENT ACTIVITY No recent lineage activity returned. NODE TYPES Table Pipeline Job Notebook Saved query Dashboard Model UDF Volume Restricted via system.access.table_lineage LINEAGE AS OF: 2026-05-02 Live query live Now Impact analysis Downstream lineage consumers affected by upstream changes Notify owners attribution_daily Owner unavai",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › Direct",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily Owner unavailable · marketing_mart / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1536x1024",
+      "interaction": "lineage-selection",
+      "description": "Exercise every visible graph node, details-panel row, impact row, and column lineage row.",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-lineage-selection-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-lineage-selection-1536x1024-full.png",
+      "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.ga-lineage-graph-bands').getByRole('button', { name: /4 downstream assets|Restricted|Prototype permission boundary/i }).first().first() to be visible\u001b[22m\n",
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1536,
+          "bottom": 56,
+          "width": 1328,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 1024,
+          "width": 208,
+          "height": 1024
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1024,
+          "width": 1328,
+          "height": 968
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1510,
+          "clientHeight": 968,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 208,
+          "right": 1536,
+          "bottom": 1565.796875,
+          "width": 1328,
+          "height": 1509.796875
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 208,
+            "right": 1536,
+            "bottom": 1565.796875,
+            "width": 1328,
+            "height": 1509.796875
+          },
+          "hero": {
+            "top": 78,
+            "left": 230,
+            "right": 1516,
+            "bottom": 202.4375,
+            "width": 1286,
+            "height": 124.4375
+          },
+          "workbench": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 1495.796875,
+            "width": 1286,
+            "height": 1257.359375
+          },
+          "graph": {
+            "top": 238.4375,
+            "left": 230,
+            "right": 1516,
+            "bottom": 1100.4375,
+            "width": 1286,
+            "height": 862
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Unassigned Freshness unavailable 9 CDEs Owner: Unavailable 1 upstream · 1 downstream Revenue impact unavailable Column lineage Run impact analysis + - 3 nodes · 2 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 06:37:34 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM revenue_recognition finance_prod / gold 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM attribution_daily marketing_mart / gold LINEAGE DETAILS attribution_daily marketing_mart / gold LAST REFRESH Topology refreshed 2026-05-02 06:37:34 UTC ROWS Unavailable OWNER Unavailable SOURCES 0 No source-system details returned. CONSUMERS 1 attribution_daily marketing_mart / gold RECENT ACTIVITY No recent lineage activity returned. NODE TYPES Table Pipeline Job Notebook Saved query Dashboard Model UDF Volume Restricted via system.access.table_lineage LINEAGE AS OF: 2026-05-02 Live query live Now Impact analysis Downstream lineage consumers affected by upstream changes Notify owners attribution_daily Owner unavai",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › Direct",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily Owner unavailable · marketing_mart / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1440x900",
+      "interaction": "lineage-controls",
+      "description": "Exercise visible Lineage impact, column, zoom, refocus, and time controls.",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-lineage-controls-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-lineage-controls-1440x900-full.png",
+      "runResult": {
+        "impact": {
+          "impactStatus": true
+        },
+        "column": {
+          "columnStatus": true
+        },
+        "columnModeClass": true,
+        "columnPanelFocused": true,
+        "columnPanelProof": {
+          "proofOnly": true
+        },
+        "hiddenAuthoritativeToolbar": {
+          "compareAbsent": true,
+          "tableAbsent": false,
+          "searchAbsent": false,
+          "exportAbsent": false,
+          "graphToolbarAbsent": false
+        },
+        "zoomIn": {
+          "text": "+",
+          "ariaLabel": "Zoom in",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 266,
+            "left": 257,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "initialZoom": 1,
+        "zoomInLevel": 1.08,
+        "zoomInStatus": {
+          "ready": true
+        },
+        "zoomOut": {
+          "text": "-",
+          "ariaLabel": "Zoom out",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 266,
+            "left": 287,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "zoomOutLevel": 1,
+        "zoomOutStatus": {
+          "ready": true
+        },
+        "fitGraph": {
+          "text": "Fit graph",
+          "ariaLabel": "Fit graph",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 266,
+            "left": 317,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "fitGraphLevel": 1,
+        "fitGraphStatus": {
+          "ready": true
+        },
+        "graphHistory": {
+          "text": "Graph history",
+          "ariaLabel": "Graph history",
+          "title": "Graph history requires persisted lineage snapshots.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 266,
+            "left": 347,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "graphHistoryStatus": {
+          "ready": true,
+          "title": "Graph history requires persisted lineage snapshots."
+        },
+        "refocus": {
+          "ready": true
+        },
+        "now": {
+          "ready": true
+        },
+        "zoomControls": [
+          "+ Zoom in",
+          "- Zoom out"
+        ]
+      },
+      "validation": {
+        "loaded": false,
+        "checks": {
+          "lineage": true
+        },
+        "runResult": {
+          "impact": {
+            "impactStatus": true
+          },
+          "column": {
+            "columnStatus": true
+          },
+          "columnModeClass": true,
+          "columnPanelFocused": true,
+          "columnPanelProof": {
+            "proofOnly": true
+          },
+          "hiddenAuthoritativeToolbar": {
+            "compareAbsent": true,
+            "tableAbsent": false,
+            "searchAbsent": false,
+            "exportAbsent": false,
+            "graphToolbarAbsent": false
+          },
+          "zoomIn": {
+            "text": "+",
+            "ariaLabel": "Zoom in",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 266,
+              "left": 257,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "initialZoom": 1,
+          "zoomInLevel": 1.08,
+          "zoomInStatus": {
+            "ready": true
+          },
+          "zoomOut": {
+            "text": "-",
+            "ariaLabel": "Zoom out",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 266,
+              "left": 287,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "zoomOutLevel": 1,
+          "zoomOutStatus": {
+            "ready": true
+          },
+          "fitGraph": {
+            "text": "Fit graph",
+            "ariaLabel": "Fit graph",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 266,
+              "left": 317,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "fitGraphLevel": 1,
+          "fitGraphStatus": {
+            "ready": true
+          },
+          "graphHistory": {
+            "text": "Graph history",
+            "ariaLabel": "Graph history",
+            "title": "Graph history requires persisted lineage snapshots.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 266,
+              "left": 347,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "graphHistoryStatus": {
+            "ready": true,
+            "title": "Graph history requires persisted lineage snapshots."
+          },
+          "refocus": {
+            "ready": true
+          },
+          "now": {
+            "ready": true
+          },
+          "zoomControls": [
+            "+ Zoom in",
+            "- Zoom out"
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 900,
+          "documentWidth": 1440,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1440,
+          "bottom": 56,
+          "width": 1232,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 900,
+          "width": 208,
+          "height": 900
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1232,
+          "height": 844
+        },
+        "mainScroll": {
+          "scrollTop": 662,
+          "scrollHeight": 1506,
+          "clientHeight": 844,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": -606,
+          "left": 208,
+          "right": 1440,
+          "bottom": 900.234375,
+          "width": 1232,
+          "height": 1506.234375
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": -606,
+            "left": 208,
+            "right": 1440,
+            "bottom": 900.234375,
+            "width": 1232,
+            "height": 1506.234375
+          },
+          "hero": {
+            "top": -584,
+            "left": 230,
+            "right": 1420,
+            "bottom": -462.9375,
+            "width": 1190,
+            "height": 121.0625
+          },
+          "workbench": {
+            "top": -426.9375,
+            "left": 230,
+            "right": 1420,
+            "bottom": 830.234375,
+            "width": 1190,
+            "height": 1257.171875
+          },
+          "graph": {
+            "top": -426.9375,
+            "left": 230,
+            "right": 1420,
+            "bottom": 435.0625,
+            "width": 1190,
+            "height": 862
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Unassigned Freshness unavailable 9 CDEs Owner: Unavailable 1 upstream · 1 downstream Revenue impact unavailable Column lineage Run impact analysis + - 3 nodes · 2 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 06:37:34 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM revenue_recognition finance_prod / gold 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM attribution_daily marketing_mart / gold LINEAGE DETAILS attribution_daily marketing_mart / gold LAST REFRESH Topology refreshed 2026-05-02 06:37:34 UTC ROWS Unavailable OWNER Unavailable SOURCES 0 No source-system details returned. CONSUMERS 1 attribution_daily marketing_mart / gold RECENT ACTIVITY No recent lineage activity returned. NODE TYPES Table Pipeline Job Notebook Saved query Dashboard Model UDF Volume Restricted via system.access.table_lineage LINEAGE AS OF: 2026-05-02 Live query live Now Impact analysis Downstream lineage consumers affected by upstream changes Notify owners attribution_daily Owner unavai",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › Direct",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily Owner unavailable · marketing_mart / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1440x900",
+      "interaction": "lineage-selection",
+      "description": "Exercise every visible graph node, details-panel row, impact row, and column lineage row.",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-lineage-selection-1440x900.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-lineage-selection-1440x900-full.png",
+      "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.ga-lineage-graph-bands').getByRole('button', { name: /4 downstream assets|Restricted|Prototype permission boundary/i }).first().first() to be visible\u001b[22m\n",
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1440,
+          "height": 900,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 900,
+          "documentWidth": 1440,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1440,
+          "bottom": 56,
+          "width": 1232,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 900,
+          "width": 208,
+          "height": 900
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1440,
+          "bottom": 900,
+          "width": 1232,
+          "height": 844
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1506,
+          "clientHeight": 844,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 208,
+          "right": 1440,
+          "bottom": 1562.234375,
+          "width": 1232,
+          "height": 1506.234375
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 208,
+            "right": 1440,
+            "bottom": 1562.234375,
+            "width": 1232,
+            "height": 1506.234375
+          },
+          "hero": {
+            "top": 78,
+            "left": 230,
+            "right": 1420,
+            "bottom": 199.0625,
+            "width": 1190,
+            "height": 121.0625
+          },
+          "workbench": {
+            "top": 235.0625,
+            "left": 230,
+            "right": 1420,
+            "bottom": 1492.234375,
+            "width": 1190,
+            "height": 1257.171875
+          },
+          "graph": {
+            "top": 235.0625,
+            "left": 230,
+            "right": 1420,
+            "bottom": 1097.0625,
+            "width": 1190,
+            "height": 862
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Unassigned Freshness unavailable 9 CDEs Owner: Unavailable 1 upstream · 1 downstream Revenue impact unavailable Column lineage Run impact analysis + - 3 nodes · 2 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 06:37:34 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM revenue_recognition finance_prod / gold 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM attribution_daily marketing_mart / gold LINEAGE DETAILS attribution_daily marketing_mart / gold LAST REFRESH Topology refreshed 2026-05-02 06:37:34 UTC ROWS Unavailable OWNER Unavailable SOURCES 0 No source-system details returned. CONSUMERS 1 attribution_daily marketing_mart / gold RECENT ACTIVITY No recent lineage activity returned. NODE TYPES Table Pipeline Job Notebook Saved query Dashboard Model UDF Volume Restricted via system.access.table_lineage LINEAGE AS OF: 2026-05-02 Live query live Now Impact analysis Downstream lineage consumers affected by upstream changes Notify owners attribution_daily Owner unavai",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › Direct",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily Owner unavailable · marketing_mart / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1280x720",
+      "interaction": "lineage-controls",
+      "description": "Exercise visible Lineage impact, column, zoom, refocus, and time controls.",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-lineage-controls-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-lineage-controls-1280x720-full.png",
+      "runResult": {
+        "impact": {
+          "impactStatus": true
+        },
+        "column": {
+          "columnStatus": true
+        },
+        "columnModeClass": true,
+        "columnPanelFocused": true,
+        "columnPanelProof": {
+          "proofOnly": true
+        },
+        "hiddenAuthoritativeToolbar": {
+          "compareAbsent": true,
+          "tableAbsent": false,
+          "searchAbsent": false,
+          "exportAbsent": false,
+          "graphToolbarAbsent": false
+        },
+        "zoomIn": {
+          "text": "+",
+          "ariaLabel": "Zoom in",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 229,
+            "left": 251,
+            "width": 21,
+            "height": 24
+          }
+        },
+        "initialZoom": 1,
+        "zoomInLevel": 1.08,
+        "zoomInStatus": {
+          "ready": true
+        },
+        "zoomOut": {
+          "text": "-",
+          "ariaLabel": "Zoom out",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 229,
+            "left": 278,
+            "width": 21,
+            "height": 24
+          }
+        },
+        "zoomOutLevel": 1,
+        "zoomOutStatus": {
+          "ready": true
+        },
+        "fitGraph": {
+          "text": "Fit graph",
+          "ariaLabel": "Fit graph",
+          "title": "",
+          "role": "",
+          "disabled": false,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 229,
+            "left": 306,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "fitGraphLevel": 1,
+        "fitGraphStatus": {
+          "ready": true
+        },
+        "graphHistory": {
+          "text": "Graph history",
+          "ariaLabel": "Graph history",
+          "title": "Graph history requires persisted lineage snapshots.",
+          "role": "",
+          "disabled": true,
+          "ariaPressed": "",
+          "ariaSelected": "",
+          "rect": {
+            "top": 229,
+            "left": 336,
+            "width": 24,
+            "height": 24
+          }
+        },
+        "graphHistoryStatus": {
+          "ready": true,
+          "title": "Graph history requires persisted lineage snapshots."
+        },
+        "refocus": {
+          "ready": true
+        },
+        "now": {
+          "ready": true
+        },
+        "zoomControls": [
+          "+ Zoom in",
+          "- Zoom out"
+        ]
+      },
+      "validation": {
+        "loaded": false,
+        "checks": {
+          "lineage": true
+        },
+        "runResult": {
+          "impact": {
+            "impactStatus": true
+          },
+          "column": {
+            "columnStatus": true
+          },
+          "columnModeClass": true,
+          "columnPanelFocused": true,
+          "columnPanelProof": {
+            "proofOnly": true
+          },
+          "hiddenAuthoritativeToolbar": {
+            "compareAbsent": true,
+            "tableAbsent": false,
+            "searchAbsent": false,
+            "exportAbsent": false,
+            "graphToolbarAbsent": false
+          },
+          "zoomIn": {
+            "text": "+",
+            "ariaLabel": "Zoom in",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 229,
+              "left": 251,
+              "width": 21,
+              "height": 24
+            }
+          },
+          "initialZoom": 1,
+          "zoomInLevel": 1.08,
+          "zoomInStatus": {
+            "ready": true
+          },
+          "zoomOut": {
+            "text": "-",
+            "ariaLabel": "Zoom out",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 229,
+              "left": 278,
+              "width": 21,
+              "height": 24
+            }
+          },
+          "zoomOutLevel": 1,
+          "zoomOutStatus": {
+            "ready": true
+          },
+          "fitGraph": {
+            "text": "Fit graph",
+            "ariaLabel": "Fit graph",
+            "title": "",
+            "role": "",
+            "disabled": false,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 229,
+              "left": 306,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "fitGraphLevel": 1,
+          "fitGraphStatus": {
+            "ready": true
+          },
+          "graphHistory": {
+            "text": "Graph history",
+            "ariaLabel": "Graph history",
+            "title": "Graph history requires persisted lineage snapshots.",
+            "role": "",
+            "disabled": true,
+            "ariaPressed": "",
+            "ariaSelected": "",
+            "rect": {
+              "top": 229,
+              "left": 336,
+              "width": 24,
+              "height": 24
+            }
+          },
+          "graphHistoryStatus": {
+            "ready": true,
+            "title": "Graph history requires persisted lineage snapshots."
+          },
+          "refocus": {
+            "ready": true
+          },
+          "now": {
+            "ready": true
+          },
+          "zoomControls": [
+            "+ Zoom in",
+            "- Zoom out"
+          ]
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1280,
+          "height": 720,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 720,
+          "documentWidth": 1280,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1280,
+          "bottom": 56,
+          "width": 1072,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 720,
+          "width": 208,
+          "height": 720
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1072,
+          "height": 664
+        },
+        "mainScroll": {
+          "scrollTop": 522,
+          "scrollHeight": 1186,
+          "clientHeight": 664,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": -466,
+          "left": 208,
+          "right": 1280,
+          "bottom": 720.234375,
+          "width": 1072,
+          "height": 1186.234375
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": -466,
+            "left": 208,
+            "right": 1280,
+            "bottom": 720.234375,
+            "width": 1072,
+            "height": 1186.234375
+          },
+          "hero": {
+            "top": -454,
+            "left": 224,
+            "right": 1266,
+            "bottom": -345.453125,
+            "width": 1042,
+            "height": 108.546875
+          },
+          "workbench": {
+            "top": -323.453125,
+            "left": 224,
+            "right": 1266,
+            "bottom": 660.234375,
+            "width": 1042,
+            "height": 983.6875
+          },
+          "graph": {
+            "top": -323.453125,
+            "left": 224,
+            "right": 1266,
+            "bottom": 140.546875,
+            "width": 1042,
+            "height": 464
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Unassigned Freshness unavailable 9 CDEs Owner: Unavailable 1 upstream · 1 downstream Revenue impact unavailable Column lineage Run impact analysis + - 3 nodes · 2 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 06:37:34 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM revenue_recognition finance_prod / gold 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM attribution_daily marketing_mart / gold LINEAGE DETAILS attribution_daily marketing_mart / gold LAST REFRESH Topology refreshed 2026-05-02 06:37:34 UTC ROWS Unavailable OWNER Unavailable SOURCES 0 No source-system details returned. CONSUMERS 1 attribution_daily marketing_mart / gold NODE TYPES Table Pipeline Job Notebook Saved query Dashboard Model UDF Volume Restricted via system.access.table_lineage LINEAGE AS OF: 2026-05-02 Live query live Now Impact analysis Downstream lineage consumers affected by upstream changes Notify owners attribution_daily Owner unavailable · marketing_mart / gold Severity unavailable 1 ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › Direct",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily Owner unavailable · marketing_mart / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    },
+    {
+      "route": "lineage",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "viewport": "1280x720",
+      "interaction": "lineage-selection",
+      "description": "Exercise every visible graph node, details-panel row, impact row, and column lineage row.",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-lineage-selection-1280x720.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/lineage-live-revenue-2026-05-02/lineage-lineage-selection-1280x720-full.png",
+      "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.ga-lineage-graph-bands').getByRole('button', { name: /4 downstream assets|Restricted|Prototype permission boundary/i }).first().first() to be visible\u001b[22m\n",
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/finance_prod.curated.revenue_daily",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1280,
+          "height": 720,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 720,
+          "documentWidth": 1280,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 208,
+          "right": 1280,
+          "bottom": 56,
+          "width": 1072,
+          "height": 56
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 208,
+          "bottom": 720,
+          "width": 208,
+          "height": 720
+        },
+        "main": {
+          "top": 56,
+          "left": 208,
+          "right": 1280,
+          "bottom": 720,
+          "width": 1072,
+          "height": 664
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 1186,
+          "clientHeight": 664,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": {
+          "top": 56,
+          "left": 208,
+          "right": 1280,
+          "bottom": 1242.234375,
+          "width": 1072,
+          "height": 1186.234375
+        },
+        "lineagePrototype": {
+          "page": {
+            "top": 56,
+            "left": 208,
+            "right": 1280,
+            "bottom": 1242.234375,
+            "width": 1072,
+            "height": 1186.234375
+          },
+          "hero": {
+            "top": 68,
+            "left": 224,
+            "right": 1266,
+            "bottom": 176.546875,
+            "width": 1042,
+            "height": 108.546875
+          },
+          "workbench": {
+            "top": 198.546875,
+            "left": 224,
+            "right": 1266,
+            "bottom": 1182.234375,
+            "width": 1042,
+            "height": 983.6875
+          },
+          "graph": {
+            "top": 198.546875,
+            "left": 224,
+            "right": 1266,
+            "bottom": 662.546875,
+            "width": 1042,
+            "height": 464
+          }
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Reader Workspace › Direct ⌘K UC connected · 42.8% coverage Atlas AI LINEAGE ATLAS finance_prod.curated.revenue_daily Permission-aware lineage from actor-visible upstream assets through to permitted downstream consumers. Unassigned Freshness unavailable 9 CDEs Owner: Unavailable 1 upstream · 1 downstream Revenue impact unavailable Column lineage Run impact analysis + - 3 nodes · 2 edges Certified Source Job / Pipeline Restricted Topology refreshed 2026-05-02 06:37:34 UTC Table lineage Column lineage Search Export 4 HOPS UPSTREAM No source systems observed Unity Catalog has not reported a source-system edge for this asset. 3 HOPS UPSTREAM revenue_recognition finance_prod / gold 2 HOPS UPSTREAM No job or pipeline observed No intermediate job, notebook, or view hop is present in live graph. 1 HOP DOWNSTREAM attribution_daily marketing_mart / gold LINEAGE DETAILS attribution_daily marketing_mart / gold LAST REFRESH Topology refreshed 2026-05-02 06:37:34 UTC ROWS Unavailable OWNER Unavailable SOURCES 0 No source-system details returned. CONSUMERS 1 attribution_daily marketing_mart / gold NODE TYPES Table Pipeline Job Notebook Saved query Dashboard Model UDF Volume Restricted via system.access.table_lineage LINEAGE AS OF: 2026-05-02 Live query live Now Impact analysis Downstream lineage consumers affected by upstream changes Notify owners attribution_daily Owner unavailable · marketing_mart / gold Severity unavailable 1 ",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Reader",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › Direct",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search",
+            "disabled": true,
+            "aria": "Submit global search"
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Run impact analysis",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "+",
+            "disabled": false,
+            "aria": "Zoom in"
+          },
+          {
+            "text": "-",
+            "disabled": false,
+            "aria": "Zoom out"
+          },
+          {
+            "text": "Fit graph",
+            "disabled": false,
+            "aria": "Fit graph"
+          },
+          {
+            "text": "Graph history",
+            "disabled": true,
+            "aria": "Graph history"
+          },
+          {
+            "text": "Table lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Column lineage",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Search",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Export",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "revenue_recognition finance_prod / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily marketing_mart / gold",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Now",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Notify owners",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "attribution_daily Owner unavailable · marketing_mart / gold Severity unavailable",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "customer_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "gross_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "net_revenue_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "order_count source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "processing_fee_usd source column · this table",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Refocus graph",
+            "disabled": false,
+            "aria": ""
+          }
+        ]
+      }
+    }
+  ],
+  "console": [],
+  "pageErrors": [],
+  "requestFailures": [],
+  "checks": {
+    "buildMatches": true
+  },
+  "runtimeStatus": {
+    "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/runtime/status",
+    "status": 200,
+    "ok": true,
+    "buildId": "frontend-3ff1094cfbf2",
+    "state": "live",
+    "actorRole": "Reader",
+    "govCatalog": "main",
+    "govSchema": "atlas"
+  },
+  "captureCount": 3,
+  "interactionCount": 6,
+  "consoleErrorCount": 0,
+  "pageErrorCount": 0,
+  "requestFailureCount": 0,
+  "passed": false
+}

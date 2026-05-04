@@ -38,6 +38,7 @@ import {
   workspaceAccessReason,
 } from "../lib/capabilities";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from "../lib/workspaceIntent";
 import LineageStage from "./LineageStage";
 import { SurfacePanelSection, SurfaceTabs } from "./ShellLayoutPrimitives";
@@ -669,14 +670,14 @@ function Asset360CardRow({ asset, asset360Data, recordFacts, prototypeEvidence =
     asset?.updatedAt || (freshnessState && normalizedFreshnessState !== "unavailable"),
   );
   const freshnessDetail = prototypeEvidence
-    ? "Prototype only - no live freshness proof"
+    ? "No live freshness proof"
     : asset?.updatedAt
     || (normalizedFreshnessState === "unavailable"
       ? "No live freshness signal"
       : asset360Data?.freshness?.message || "Freshness evidence unavailable");
-  const rowsValue = prototypeEvidence ? "Prototype only" : compactNumber(asset?.rows || usage.rows);
+  const rowsValue = prototypeEvidence ? "Unavailable" : compactNumber(asset?.rows || usage.rows);
   const rowsDetail = prototypeEvidence ? "No live row-count proof" : usage.rowDeltaLabel || "";
-  const sizeValue = prototypeEvidence ? "Prototype only" : asset?.size || recordFacts.find((item) => item.label === "Size")?.value || "—";
+  const sizeValue = prototypeEvidence ? "Unavailable" : asset?.size || recordFacts.find((item) => item.label === "Size")?.value || "—";
   const sizeDetail = prototypeEvidence ? "No live storage-size proof" : "";
 
   return (
@@ -730,7 +731,7 @@ function Asset360Overview({
     .filter(Boolean)
     .slice(0, 5);
   const operationalUnavailable = prototypeEvidence || (!usage.queryCount && !usage.downstreamConsumerCount && !usage.downstreamAssetCount);
-  const descriptionText = prototypeSafeAsset360Text(
+  const descriptionText = asset360DisplayText(
     asset?.description || "No business description has been captured for this asset yet.",
   );
 
@@ -742,7 +743,7 @@ function Asset360Overview({
             <h2>Business Description</h2>
             <p>{descriptionText}</p>
             {prototypeEvidence ? (
-              <p className="gh-support-copy">Prototype-mock description only; not live Databricks catalog proof.</p>
+              <p className="gh-support-copy">Live Databricks catalog proof is unavailable for this description.</p>
             ) : null}
             {primaryUses.length ? (
               <>
@@ -768,7 +769,7 @@ function Asset360Overview({
             {operationalUnavailable ? (
               <p className="gh-support-copy">
                 {prototypeEvidence
-                  ? "Usage evidence is prototype-only; live query and downstream-user counts are unavailable."
+                  ? "Live query and downstream-user counts are unavailable."
                   : "Usage evidence is unavailable for this actor/workspace."}
               </p>
             ) : null}
@@ -814,13 +815,13 @@ function Asset360Overview({
             <div className="ga-asset360-rail-list">
               {activity.length ? activity.slice(0, 5).map((item, index) => (
                 <button key={item.id || `${item.title}-${index}`} onClick={() => onOpenGovernance(asset.fqn)} type="button">
-                  <span>{prototypeSafeAsset360Text(item.title || item.action || "Governance activity")}</span>
-                  <small>{prototypeSafeAsset360Text(item.createdAt || item.actorEmail || item.detail || "")}</small>
+                  <span>{asset360DisplayText(item.title || item.action || "Governance activity")}</span>
+                  <small>{asset360DisplayText(item.createdAt || item.actorEmail || item.detail || "")}</small>
                 </button>
               )) : (
                 <div className="gh-empty-state">
                   {prototypeEvidence
-                    ? "No live activity proof is available in prototype evidence."
+                    ? "No live activity proof is available for this asset."
                     : "No recent activity is recorded for this asset."}
                 </div>
               )}
@@ -859,7 +860,7 @@ function Asset360Overview({
               )) : (
                 <div className="gh-empty-state">
                   {prototypeEvidence
-                    ? "No live downstream-dashboard proof is available in prototype evidence."
+                    ? "No live downstream-dashboard proof is available for this asset."
                     : "No downstream dashboards are surfaced yet."}
                 </div>
               )}
@@ -1326,24 +1327,22 @@ function statusText(value, fallback = "Unavailable") {
   return text.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function prototypeSafeAsset360Text(value = "") {
+function asset360DisplayText(value = "") {
   return String(value || "")
-    .replace(/\bAuthoritative\b/gi, "Prototype")
-    .replace(/\bSource-of-record\b/gi, "Prototype reference")
-    .replace(/system\.access\.column_lineage/gi, "prototype column-lineage shape")
-    .replace(/system\.access\.table_lineage/gi, "prototype table-lineage shape");
+    .replace(/system\.access\.column_lineage/gi, "column-lineage evidence")
+    .replace(/system\.access\.table_lineage/gi, "table-lineage evidence");
 }
 
 function Asset360Panel({ data, loading = false, refreshing = false, error = "", evidenceKind = "live" }) {
-  const prototypeEvidence = evidenceKind === "prototype_mock";
+  const prototypeEvidence = evidenceKind === "unavailable";
   const asset360Description = prototypeEvidence
-    ? "Composite prototype-mock context for the selected record; this is not live Databricks proof."
+    ? "Composite live context is unavailable for the selected record."
     : "Composite live context returned by the Atlas Asset 360 endpoint for the selected record.";
   if (loading && !data) {
     return (
       <EntityRecordSection
         className="gh-entity-record-asset360-section"
-        description={prototypeEvidence ? "Loading prototype-mock Asset 360 context for this record." : "Loading the composite Asset 360 payload for this record."}
+        description={prototypeEvidence ? "Waiting for live Asset 360 context for this record." : "Loading the composite Asset 360 payload for this record."}
         title="Asset 360"
       >
         <SkeletonBlock lines={4} message="Loading Asset 360…" />
@@ -1442,7 +1441,14 @@ export default function EntityWorkspace({
   const lineageUnavailableReason = tableLineageReason(bootstrap);
   const workloadAvailable = workloadVisibilityAvailable(bootstrap);
   const workloadUnavailableReason = workloadVisibilityReason(bootstrap);
-  const prototypeEvidence = effectiveBootState === "prototype_mock" || bootstrap?.bootState === "prototype_mock";
+  const bootstrapNonAuthoritative = isNonAuthoritativeMockEvidence(
+    effectiveBootState,
+    bootstrap,
+    bootstrap?.meta,
+    bootstrap?.bootstrapContract,
+    bootstrap?.shell?.ai,
+  );
+  const prototypeEvidence = bootstrapNonAuthoritative;
   const workspacePreviewAvailable = workspaceAccessAvailable(workspaceAccess, "canUseAssetPreview", false);
   const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", false);
   const workspaceWorkloadAvailable = workspaceAccessAvailable(workspaceAccess, "canUseQueryHistory", false);
@@ -1533,8 +1539,8 @@ export default function EntityWorkspace({
   const [linkNotice, setLinkNotice] = useState("");
   const [linkedRecordUnavailableOverrides, setLinkedRecordUnavailableOverrides] = useState({});
   const seedAssets = useMemo(
-    () => (contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || []),
-    [bootstrap?.assets, contextSeedAssets],
+    () => (bootstrapNonAuthoritative ? [] : (contextSeedAssets?.length ? contextSeedAssets : bootstrap?.assets || [])),
+    [bootstrap?.assets, bootstrapNonAuthoritative, contextSeedAssets],
   );
   const launchAssets = seedAssets.slice(0, 6);
   const tabs = useMemo(
@@ -2343,7 +2349,7 @@ export default function EntityWorkspace({
         />
         {prototypeEvidence ? (
           <div className="gh-inline-alert tone-warn ga-asset360-prototype-alert">
-            Prototype mock - not live Databricks evidence. Mutating governance actions are disabled until this record is backed by live metadata.
+            Non-authoritative entity context was rejected. Mutating governance actions are disabled until this record is backed by live metadata.
           </div>
         ) : null}
         {detailUnavailable || linkNotice ? (
@@ -2423,7 +2429,7 @@ export default function EntityWorkspace({
               <EntityRecordSection
                 description={
                   prototypeEvidence
-                    ? "Storage shape and connected-record context from prototype-mock evidence, not live Databricks proof."
+                    ? "Storage shape and connected-record context are unavailable until live metadata is returned."
                     : workloadSurfaceAvailable
                       ? "Storage shape, workload usage, and connected-record context."
                       : "Storage shape and connected-record context."
@@ -2436,7 +2442,7 @@ export default function EntityWorkspace({
             <aside className="gh-entity-record-secondary">
               <Asset360Panel
                 data={asset360Data}
-                evidenceKind={prototypeEvidence ? "prototype_mock" : "live"}
+                evidenceKind={prototypeEvidence ? "unavailable" : "live"}
                 error={asset360.error}
                 loading={asset360.loading}
                 refreshing={asset360.refreshing}

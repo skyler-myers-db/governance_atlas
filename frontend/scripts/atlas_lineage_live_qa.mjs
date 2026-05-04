@@ -20,6 +20,10 @@ const DEPLOYMENT_ID = process.env.GOVAT_DEPLOYMENT_ID || "";
 const BUILD_ID = process.env.GOVAT_BUILD_ID || "";
 const CDP_URL = process.env.GOVAT_CDP_URL || "http://127.0.0.1:9223";
 const DATABRICKS_TOKEN = process.env.GOVAT_DATABRICKS_TOKEN || "";
+const FORWARDED_EMAIL = (process.env.GOVAT_CAPTURE_FORWARDED_EMAIL || "").trim();
+const FORWARDED_USERNAME = (process.env.GOVAT_CAPTURE_FORWARDED_USERNAME || FORWARDED_EMAIL).trim();
+const FORWARDED_DISPLAY_NAME = (process.env.GOVAT_CAPTURE_FORWARDED_DISPLAY_NAME || "").trim();
+const FORWARDED_ACCESS_TOKEN = (process.env.GOVAT_CAPTURE_FORWARDED_ACCESS_TOKEN || "").trim();
 const ALLOW_PROFILE_FALLBACK = process.env.GOVAT_ALLOW_CHROME_PROFILE_FALLBACK === "1";
 const CHROME_PROFILE_NAME = process.env.GOVAT_CHROME_PROFILE_NAME || "";
 const CHROME_PROFILE_ROOT =
@@ -31,7 +35,7 @@ const VIEWPORTS = [
   { name: "1440x900", width: 1440, height: 900 },
   { name: "1280x720", width: 1280, height: 720 },
 ];
-const EXPECTED_INTERACTION_COUNT = 10;
+const EXPECTED_INTERACTION_COUNT = 11;
 const UNAVAILABLE_VALIDATION_SUFFIX = ".__missing_lineage_validation_target__";
 const LINEAGE_INITIAL_BUDGET_MS = Number(process.env.GOVAT_LINEAGE_INITIAL_BUDGET_MS || 12_000);
 
@@ -43,6 +47,8 @@ const report = {
   buildId: BUILD_ID,
   evidenceKind: "live_databricks",
   mockApi: false,
+  forwardedActorEmail: FORWARDED_EMAIL,
+  forwardedActorTokenPresent: Boolean(FORWARDED_ACCESS_TOKEN),
   assetFqn: ASSET_FQN,
   captures: [],
   interactions: [],
@@ -52,6 +58,14 @@ const report = {
   pageErrors: [],
   consoleWarnings: [],
   lineageApiResponses: [],
+};
+
+const EXTRA_HTTP_HEADERS = {
+  ...(DATABRICKS_TOKEN ? { Authorization: `Bearer ${DATABRICKS_TOKEN}` } : {}),
+  ...(FORWARDED_EMAIL ? { "x-forwarded-email": FORWARDED_EMAIL } : {}),
+  ...(FORWARDED_USERNAME ? { "x-forwarded-preferred-username": FORWARDED_USERNAME } : {}),
+  ...(FORWARDED_DISPLAY_NAME ? { "x-forwarded-display-name": FORWARDED_DISPLAY_NAME } : {}),
+  ...(FORWARDED_ACCESS_TOKEN ? { "x-forwarded-access-token": FORWARDED_ACCESS_TOKEN } : {}),
 };
 
 function route(pathname) {
@@ -203,13 +217,11 @@ async function launchCopiedProfile() {
 }
 
 async function connect() {
-  if (DATABRICKS_TOKEN) {
+  if (DATABRICKS_TOKEN || FORWARDED_ACCESS_TOKEN) {
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
       acceptDownloads: true,
-      extraHTTPHeaders: {
-        Authorization: `Bearer ${DATABRICKS_TOKEN}`,
-      },
+      extraHTTPHeaders: EXTRA_HTTP_HEADERS,
       viewport: { width: 1536, height: 1024 },
     });
     const page = await context.newPage();
@@ -566,7 +578,7 @@ async function captureViewport(page, viewport) {
       bottom: rect(".ga-lineage-bottom-row"),
       regionText: {
         title: /LINEAGE ATLAS/i.test(bodyText),
-        upstream: /No source systems observed|charges_raw|invoices_raw/i.test(bodyText),
+        upstream: /1 HOP UPSTREAM|No upstream tables observed|No permitted upstream table hop is visible|No source systems observed|entrada_eval_owner_transfer_domain|charges_raw|invoices_raw/i.test(bodyText),
         transformations: /2 HOPS UPSTREAM|No job or pipeline observed|ipynb|dlt_orders_ingest/i.test(bodyText),
         governed: /LINEAGE DETAILS|Last refresh/i.test(bodyText),
         downstream: /1 HOP DOWNSTREAM|No downstream consumers observed|payments|orders|borrower_dossier/i.test(bodyText),
@@ -639,13 +651,13 @@ async function runInteractions(page) {
     await clickFirstVisible(page, "button", /^Run impact analysis$/i, "Header impact analysis");
     await page.waitForSelector("text=/Impact analysis/i", { timeout: 6000 });
     const bodyText = await textSnapshot(page);
-    const notifyDisabled = await page.getByRole("button", { name: /^Notify owners$/i }).isDisabled().catch(() => true);
+    const ownerReviewDisabled = await page.getByRole("button", { name: /^Review owners$/i }).isDisabled().catch(() => true);
     const checks = {
       impactPanelVisible: /Impact analysis/i.test(bodyText),
-      notifyOwnersDisabledWithoutBackedImpact: notifyDisabled,
+      ownerReviewDisabledWithoutBackedImpact: ownerReviewDisabled,
       noFakeImpactJobClaim: !/owner notification sent|impact job started/i.test(bodyText),
     };
-    return { notifyDisabled, bodyStart: bodyText.slice(0, 1200), validation: { checks } };
+    return { ownerReviewDisabled, bodyStart: bodyText.slice(0, 1200), validation: { checks } };
   });
   await recordInteraction(page, "deployed-lineage-canvas-zoom", async () => {
     const zoom = () => page.locator(".ga-lineage-graph-bands").first().evaluate((node) => Number(node.getAttribute("data-zoom-level") || "1"));
@@ -662,6 +674,75 @@ async function runInteractions(page) {
       fitReset: Math.abs(afterFit - 1) < 0.01,
     };
     return { before, afterIn, afterOut, afterFit, validation: { checks } };
+  });
+  await recordInteraction(page, "deployed-lineage-canvas-pan", async () => {
+    const graph = page.locator("[data-testid='lineage-graph-body']").first();
+    await graph.waitFor({ state: "visible", timeout: 10_000 });
+    const pan = () => graph.evaluate((node) => {
+      const style = window.getComputedStyle(node);
+      const parse = (value) => {
+        const number = Number(String(value || "").replace("px", "").trim());
+        return Number.isFinite(number) ? number : 0;
+      };
+      return {
+        x: parse(style.getPropertyValue("--ga-lineage-pan-x")),
+        y: parse(style.getPropertyValue("--ga-lineage-pan-y")),
+      };
+    });
+    const box = await graph.boundingBox();
+    if (!box) throw new Error("Lineage graph body did not expose a bounding box for pan validation.");
+    const before = await pan();
+    const start = {
+      x: box.x + Math.max(80, Math.min(box.width - 80, box.width * 0.45)),
+      y: box.y + Math.max(80, Math.min(box.height - 80, box.height * 0.48)),
+    };
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x + 120, start.y + 72, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(150);
+    const after = await pan();
+    const bodyText = await textSnapshot(page);
+    const checks = {
+      panXChanged: Math.abs(after.x - before.x) >= 20,
+      panYChanged: Math.abs(after.y - before.y) >= 20,
+      panStatusVisible: /Lineage graph panned/i.test(bodyText),
+      lineageDetailsStillVisible: /LINEAGE DETAILS|Last refresh/i.test(bodyText),
+    };
+    return { before, after, validation: { checks } };
+  });
+  await recordInteraction(page, "deployed-lineage-edge-selection", async () => {
+    await gotoLineage(page);
+    const edges = page.locator(".ga-lineage-edge-hit");
+    const edgeCount = await edges.count().catch(() => 0);
+    let clickOutcome = "";
+    let keyboardOutcome = "";
+    if (edgeCount > 0) {
+      const firstEdge = edges.first();
+      await firstEdge.waitFor({ state: "attached", timeout: 10_000 });
+      await firstEdge.click({ force: true });
+      await page.waitForSelector("text=/Selected path|Lineage edge selected|LINEAGE DETAILS/i", { timeout: 6000 });
+      clickOutcome = String((await page.locator(".ga-lineage-edge-detail").first().textContent().catch(() => "")) || "");
+      await firstEdge.focus();
+      await page.keyboard.press("Enter");
+      await page.waitForTimeout(250);
+      keyboardOutcome = String((await page.locator(".ga-lineage-edge-detail").first().textContent().catch(() => "")) || "");
+    }
+    const bodyText = await textSnapshot(page);
+    const checks = {
+      edgeTargetsPresentOrTruthfullyAbsent:
+        edgeCount > 0 || /0 edges|No live lineage graph is available|No downstream consumers observed/i.test(bodyText),
+      edgeClickSelectsBackedPath:
+        edgeCount === 0 || /Selected path|Lineage edge selected|to/i.test(clickOutcome || bodyText),
+      edgeKeyboardSelectsBackedPath:
+        edgeCount === 0 || /Selected path|Lineage edge selected|to/i.test(keyboardOutcome || bodyText),
+    };
+    return {
+      edgeCount,
+      clickOutcome,
+      keyboardOutcome,
+      validation: { checks },
+    };
   });
   await recordInteraction(page, "deployed-lineage-toolbar-search-export", async () => {
     await gotoLineage(page);

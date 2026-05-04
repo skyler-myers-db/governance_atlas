@@ -1,0 +1,241 @@
+{
+  "generatedAt": "2026-05-02T18:41:27.845Z",
+  "baseUrl": "http://127.0.0.1:8765",
+  "buildId": "",
+  "deploymentId": "",
+  "assetFqn": "datapact.governance_atlas_demo.customer_stewardship_queue",
+  "mockApi": false,
+  "evidenceKind": "runtime_app_capture",
+  "mockEvidenceWarning": "",
+  "liveDatabricksCapture": false,
+  "forwardedActorCapture": true,
+  "forwardedActorEmail": "skyler@entrada.ai",
+  "forwardedActorTokenPresent": true,
+  "routeFilter": [
+    "command-center"
+  ],
+  "interactionFilter": [
+    "shared-shell-ai",
+    "cross-page-control-contract"
+  ],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "command-center"
+  ],
+  "viewports": [
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    },
+    {
+      "name": "1440x900",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "name": "1280x720",
+      "width": 1280,
+      "height": 720
+    }
+  ],
+  "expectedCaptureCount": 3,
+  "captures": [
+    {
+      "route": "command-center",
+      "path": "/command-center",
+      "viewport": "1536x1024",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/live-local-functional-admin-command-v3-2026-05-02/command-center-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-local-functional-admin-command-v3-2026-05-02/command-center-1536x1024-full.png",
+      "wait": {
+        "settleSelectorMatched": false,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": [],
+          "commandCenterReady": false
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8765/command-center",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": null,
+        "sideRail": null,
+        "main": null,
+        "mainScroll": null,
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "GA Governance Atlas Metadata Workspace MODULES Discovery Lineage Governance PREPARING WORKSPACE Confirming route and shell access GLOBAL SEARCH Search visible assets by name, schema, domain, or tag Browse WORKSPACE Opening the requested view Holding the selected module and asset while the live workspace loads. ACCESS Confirming your workspace scope Loading the workspace for your role and visible data scope. LIVE DATA Loading sections progressively Discovery, entity, lineage, and governance details continue after the shell is visible.",
+        "controls": []
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "command-center",
+      "path": "/command-center",
+      "viewport": "1536x1024",
+      "interaction": "shared-shell-ai",
+      "description": "Open the floating Atlas AI chat from the shell and validate suggestions, loading, answer, evidence, and error states.",
+      "loaded": false,
+      "screenshot": "docs/northstar_visual_qa/live-local-functional-admin-command-v3-2026-05-02/command-center-shared-shell-ai-1536x1024.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-local-functional-admin-command-v3-2026-05-02/command-center-shared-shell-ai-1536x1024-full.png",
+      "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /Atlas AI/i }).first().first() to be visible\u001b[22m\n",
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8765/command-center",
+        "readyState": "complete",
+        "viewport": {
+          "width": 1536,
+          "height": 1024,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1024,
+          "documentWidth": 1536,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": null,
+        "sideRail": null,
+        "main": null,
+        "mainScroll": null,
+        "home": null,
+        "discovery": null,
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "GA Governance Atlas Metadata Workspace MODULES Discovery Lineage Governance PREPARING WORKSPACE Confirming route and shell access GLOBAL SEARCH Search visible assets by name, schema, domain, or tag Browse WORKSPACE Opening the requested view Holding the selected module and asset while the live workspace loads. ACCESS Confirming your workspace scope Loading the workspace for your role and visible data scope. LIVE DATA Loading sections progressively Discovery, entity, lineage, and governance details continue after the shell is visible.",
+        "controls": []
+      }
+    }
+  ],
+  "console": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:8765/command-center"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:8765/command-center"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:8765/command-center"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:8765/command-center"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:8765/command-center"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://127.0.0.1:8765/command-center"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:8765/assets/index-CRpvR5Us.css",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:8765/assets/index-DYdlgXBf.js",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:8765/assets/index-DYdlgXBf.js",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:8765/assets/index-CRpvR5Us.css",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:8765/assets/index-CRpvR5Us.css",
+      "status": 404
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:8765/assets/index-DYdlgXBf.js",
+      "status": 404
+    }
+  ],
+  "checks": {
+    "buildMatches": true
+  },
+  "captureCount": 1,
+  "interactionCount": 1,
+  "consoleErrorCount": 6,
+  "pageErrorCount": 0,
+  "requestFailureCount": 6,
+  "passed": false,
+  "fatal": "page.screenshot: Target page, context or browser has been closed"
+}
