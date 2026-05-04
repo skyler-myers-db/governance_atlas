@@ -1,0 +1,239 @@
+/* ==========================================================================
+   Lineage Atlas — V2 canvas styles (rebuilt from scratch)
+   Scoped to .ga-lineage-v2-* selectors so the legacy lineage chrome stays
+   intact while the v2 canvas is feature-flagged behind ?canvas=v2.
+   ========================================================================== */
+
+/* ---------- Node card ---------- */
+.ga-lineage-v2-card {
+  display: grid;
+  gap: 8px;
+  width: 220px;
+  padding: 12px 14px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(61, 132, 173, 0.32);
+  background: linear-gradient(180deg, rgba(17, 44, 72, 0.96), rgba(8, 23, 42, 0.96));
+  color: var(--ga-text, #dce6ed);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  font-size: 12px;
+  line-height: 1.32;
+  cursor: default;
+  position: relative;
+  transition:
+    border-color 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 160ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ga-lineage-v2-card[data-navigable="true"] {
+  cursor: pointer;
+}
+
+.ga-lineage-v2-card[data-navigable="true"]:hover,
+.ga-lineage-v2-card[data-navigable="true"]:focus-visible {
+  border-color: rgba(102, 197, 255, 0.55);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.45),
+    0 0 0 3px rgba(102, 197, 255, 0.15);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.ga-lineage-v2-card.is-focus {
+  border-color: rgba(102, 197, 255, 0.65);
+  box-shadow:
+    0 0 0 1px rgba(102, 197, 255, 0.45) inset,
+    0 16px 40px rgba(2, 80, 128, 0.45),
+    0 0 24px rgba(102, 197, 255, 0.18);
+}
+
+.ga-lineage-v2-card.is-focus::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 16px;
+  border: 1px solid rgba(102, 197, 255, 0.55);
+  box-shadow: 0 0 22px rgba(102, 197, 255, 0.35);
+  pointer-events: none;
+  animation: ga-lineage-v2-focus-pulse 3.2s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+@keyframes ga-lineage-v2-focus-pulse {
+  0%, 100% { box-shadow: 0 0 18px rgba(102, 197, 255, 0.32); border-color: rgba(102, 197, 255, 0.55); }
+  50%       { box-shadow: 0 0 32px rgba(102, 197, 255, 0.58); border-color: rgba(102, 197, 255, 0.85); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ga-lineage-v2-card.is-focus::before { animation: none; }
+}
+
+.ga-lineage-v2-card.is-untraced {
+  opacity: 0.22;
+  filter: saturate(0.4);
+}
+.ga-lineage-v2-card.is-dimmed {
+  opacity: 0.5;
+  filter: saturate(0.6);
+}
+
+/* ---------- Card head ---------- */
+.ga-lineage-v2-card-head {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.ga-lineage-v2-card-glyph {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  background: rgba(102, 197, 255, 0.10);
+}
+.ga-lineage-v2-card-glyph svg {
+  display: block;
+  color: inherit;
+}
+
+.ga-lineage-v2-card-title-wrap {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+.ga-lineage-v2-card-title {
+  font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ga-text-strong, #ffffff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.01em;
+}
+.ga-lineage-v2-card-path {
+  font-size: 10.5px;
+  color: var(--ga-text-subtle, #7e8c97);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Cert + chips ---------- */
+.ga-lineage-v2-card-cert {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+
+.ga-lineage-v2-card-pii {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(244, 113, 116, 0.16);
+  border: 1px solid rgba(244, 113, 116, 0.4);
+  color: #f47174;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.ga-lineage-v2-card-class {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ga-lineage-v2-card-class.tone-crit { background: rgba(244, 113, 116, 0.16); color: #f47174; border: 1px solid rgba(244, 113, 116, 0.40); }
+.ga-lineage-v2-card-class.tone-warn { background: rgba(244, 183, 64, 0.16); color: #f4b740; border: 1px solid rgba(244, 183, 64, 0.40); }
+.ga-lineage-v2-card-class.tone-info { background: rgba(102, 197, 255, 0.12); color: #a8d3e8; border: 1px solid rgba(102, 197, 255, 0.32); }
+.ga-lineage-v2-card-class.tone-neutral { background: rgba(178, 189, 194, 0.12); color: #b2bdc2; border: 1px solid rgba(178, 189, 194, 0.32); }
+
+.ga-lineage-v2-card-chiprow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ---------- Columns preview ---------- */
+.ga-lineage-v2-card-cols {
+  display: grid;
+  gap: 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(20, 44, 70, 0.7);
+}
+.ga-lineage-v2-card-col {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 11px;
+}
+.ga-lineage-v2-card-col-name {
+  font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
+  color: var(--ga-text, #dce6ed);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ga-lineage-v2-card-col-type {
+  font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #66c5ff;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.ga-lineage-v2-card-col-more {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--ga-text-subtle, #7e8c97);
+  font-style: italic;
+}
+
+/* ---------- Foot ---------- */
+.ga-lineage-v2-card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(20, 44, 70, 0.7);
+  font-size: 10.5px;
+  color: var(--ga-text-muted, #b2bdc2);
+}
+.ga-lineage-v2-card-footstat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  color: var(--ga-text-muted, #b2bdc2);
+}
+.ga-lineage-v2-card-footstat svg {
+  display: block;
+  color: var(--ga-text-subtle, #7e8c97);
+}
+.ga-lineage-v2-card-footstat.is-empty {
+  color: var(--ga-text-subtle, #7e8c97);
+  font-style: italic;
+}
+
+/* ---------- Compact variant size override ---------- */
+.ga-lineage-v2-card-compact {
+  width: 210px;
+  gap: 6px;
+  padding: 10px 12px 8px;
+}
+.ga-lineage-v2-card-compact .ga-lineage-v2-card-foot {
+  border-top: 0;
+  padding-top: 2px;
+}
