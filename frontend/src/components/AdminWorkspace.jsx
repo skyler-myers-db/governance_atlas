@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAdminControlCenter } from "../lib/api";
+import { fetchAdminControlCenter, fetchAdminTruthCheck } from "../lib/api";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { EmptyState, StatusPill } from "./northstar";
 import "../styles/operations-pages.css";
@@ -372,11 +372,250 @@ function ControlDetail({ detail, onOpen }) {
 }
 
 /**
+ * TruthCheckPanel — Metastore truth check tab.
+ *
+ * Calls /api/admin/truth-check and renders a side-by-side comparison of
+ * what `system.information_schema` reports (catalog/schema/table counts
+ * per discovery catalog) versus what the inventory + visible-asset
+ * pipelines that drive the UI actually surfaced. Drift columns highlight
+ * gaps so admins can act on stale caches, missing scopes, or
+ * overly-aggressive visibility filters without reaching for a notebook.
+ */
+function deltaTone(delta) {
+  if (delta === 0 || delta === null || delta === undefined) return "muted";
+  if (Math.abs(delta) <= 2) return "warn";
+  return "bad";
+}
+
+function deltaLabel(delta) {
+  if (delta === null || delta === undefined) return "Unavailable";
+  const numeric = Number(delta);
+  if (!Number.isFinite(numeric)) return "Unavailable";
+  if (numeric === 0) return "0";
+  return numeric > 0 ? `+${numeric.toLocaleString()}` : numeric.toLocaleString();
+}
+
+function TruthCheckPanel({ canReadAdmin }) {
+  const [showSql, setShowSql] = useState(false);
+  const query = useQuery({
+    queryKey: ["atlas", "admin-truth-check"],
+    queryFn: ({ signal }) => fetchAdminTruthCheck({ signal }),
+    enabled: canReadAdmin,
+    retry: false,
+    staleTime: 60_000,
+  });
+  const payload = query.data || null;
+  const data = envelopeData(payload) || {};
+  const meta = payload?.meta || {};
+  const loading = canReadAdmin && query.isLoading;
+  const queryError = canReadAdmin
+    ? query.error?.message || ""
+    : "Metastore truth check requires platform admin permissions.";
+  const forbidden = !canReadAdmin || responseStatus(query.error) === 403;
+
+  if (loading) {
+    return (
+      <EmptyState
+        title="Running metastore truth check"
+        message="Counting catalogs, schemas, and tables in system.information_schema and comparing against the visible-asset pipeline."
+      />
+    );
+  }
+  if (queryError) {
+    return (
+      <EmptyState
+        tone={forbidden ? "warn" : "bad"}
+        title={forbidden ? "Metastore truth check is admin-only" : "Truth check unavailable"}
+        message={forbidden ? "Ask a workspace admin to grant administration access." : queryError}
+      />
+    );
+  }
+
+  const metastore = data.metastore || {};
+  const ui = data.ui || {};
+  const drift = data.drift || {};
+  const perCatalog = Array.isArray(metastore.perCatalog) ? metastore.perCatalog : [];
+  const queries = Array.isArray(data.queries) ? data.queries : [];
+  const warnings = Array.isArray(drift.warnings) ? drift.warnings : [];
+  const observedAt = label(data.observedAt, "Unavailable");
+  const discoveryCatalogs = Array.isArray(data.discoveryCatalogs) ? data.discoveryCatalogs : [];
+
+  return (
+    <div className="gh-admin-truth-check">
+      <header className="gh-admin-truth-check-hero">
+        <div>
+          <span className="gh-admin-control-eyebrow">Metastore truth check</span>
+          <h2>Unity Catalog ground truth vs. surfaced inventory</h2>
+          <p>
+            Authoritative <code>SELECT COUNT(*)</code> against{" "}
+            <code>system.information_schema.&#123;catalogs, schemata, tables&#125;</code>{" "}
+            compared to what Atlas&rsquo;s inventory and visibility pipeline reports.
+            Use this to detect drift between the metastore and the surfaced product.
+          </p>
+        </div>
+        <div className="gh-admin-truth-check-totals" role="group" aria-label="Totals">
+          <div>
+            <small>Catalogs</small>
+            <strong>{numberValue(metastore.catalogTotal)}</strong>
+            <span>in metastore (excl. hidden)</span>
+          </div>
+          <div>
+            <small>Schemas</small>
+            <strong>{numberValue(metastore.schemaTotalForDiscovery)}</strong>
+            <span>across discovery catalogs</span>
+          </div>
+          <div>
+            <small>Tables</small>
+            <strong>{numberValue(metastore.tableTotalForDiscovery)}</strong>
+            <span>across discovery catalogs</span>
+          </div>
+          <div>
+            <small>UI inventory</small>
+            <strong>{numberValue(ui.inventoryTotal)}</strong>
+            <span>before visibility filters</span>
+          </div>
+          <div>
+            <small>UI visible</small>
+            <strong>{numberValue(ui.visibleTotal)}</strong>
+            <span>after visibility filters</span>
+          </div>
+          <div>
+            <small>Drift</small>
+            <strong className={`gh-admin-truth-check-delta tone-${deltaTone(drift.inventoryDelta)}`}>
+              {deltaLabel(drift.inventoryDelta)}
+            </strong>
+            <span>metastore − inventory</span>
+          </div>
+        </div>
+      </header>
+
+      {warnings.length ? (
+        <div className="gh-admin-warning">{warnings[0]}</div>
+      ) : null}
+
+      <div className="gh-admin-truth-check-meta">
+        <span>
+          Observed <strong>{observedAt}</strong>
+        </span>
+        <span>
+          Discovery catalogs:{" "}
+          {discoveryCatalogs.length ? (
+            discoveryCatalogs.map((catalog) => <code key={catalog}>{catalog}</code>)
+          ) : (
+            <em>none configured</em>
+          )}
+        </span>
+        <button
+          className="gh-tertiary-button"
+          onClick={() => query.refetch({ throwOnError: false })}
+          type="button"
+        >
+          Re-run truth check
+        </button>
+      </div>
+
+      <div className="gh-admin-truth-check-table-wrap">
+        <table className="gh-admin-truth-check-table">
+          <thead>
+            <tr>
+              <th scope="col">Catalog</th>
+              <th scope="col">Configured</th>
+              <th scope="col">Metastore schemas</th>
+              <th scope="col">Metastore tables</th>
+              <th scope="col">UI inventory</th>
+              <th scope="col">UI visible</th>
+              <th scope="col">Inventory drift</th>
+              <th scope="col">Hidden by visibility</th>
+            </tr>
+          </thead>
+          <tbody>
+            {perCatalog.length ? (
+              perCatalog.map((row) => {
+                const meta_ = row.metastore || {};
+                const ui_ = row.ui || {};
+                const drift_ = row.drift || {};
+                return (
+                  <tr key={row.catalog}>
+                    <th scope="row">
+                      <code>{row.catalog}</code>
+                    </th>
+                    <td>
+                      <StatusPill tone={row.configured ? "good" : "muted"}>
+                        {row.configured ? "Configured" : "Not configured"}
+                      </StatusPill>
+                    </td>
+                    <td>{numberValue(meta_.schemaCount)}</td>
+                    <td>{numberValue(meta_.tableCount)}</td>
+                    <td>{numberValue(ui_.inventoryAssetCount)}</td>
+                    <td>{numberValue(ui_.visibleAssetCount)}</td>
+                    <td>
+                      <span className={`gh-admin-truth-check-delta tone-${deltaTone(drift_.inventoryDelta)}`}>
+                        {deltaLabel(drift_.inventoryDelta)}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`gh-admin-truth-check-delta tone-${deltaTone(drift_.hiddenByVisibility)}`}>
+                        {deltaLabel(drift_.hiddenByVisibility)}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={8}>
+                  <EmptyState
+                    tone="muted"
+                    title="No catalog rows reported"
+                    message="The truth-check returned an empty per-catalog breakdown. Configure GOVAT_DISCOVERY_CATALOGS or grant the app principal access to system.information_schema."
+                  />
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <details className="gh-admin-truth-check-queries" open={showSql} onToggle={(event) => setShowSql(event.currentTarget.open)}>
+        <summary>SQL probes ({queries.length})</summary>
+        <ul>
+          {queries.map((entry, index) => (
+            <li key={`${entry.label || "query"}-${index}`}>
+              <header>
+                <strong>{label(entry.label, "Query")}</strong>
+                <span>
+                  {entry.elapsedMs ? `${entry.elapsedMs} ms` : "elapsed unavailable"} ·{" "}
+                  rowCount {numberValue(entry.rowCount)}
+                </span>
+              </header>
+              <pre>{entry.sql || ""}</pre>
+              {entry.error ? <p className="gh-admin-truth-check-query-error">{entry.error}</p> : null}
+            </li>
+          ))}
+        </ul>
+      </details>
+
+      <p className="gh-admin-truth-check-note" data-state={text(meta.state)}>
+        Truth-check state:{" "}
+        <strong>{stateText(meta.state || "available")}</strong>
+        {meta.reason ? <span> · {meta.reason}</span> : null}
+      </p>
+    </div>
+  );
+}
+
+const ADMIN_TABS = [
+  { id: "operations", label: "Operations" },
+  { id: "truth-check", label: "Metastore truth check" },
+];
+
+/**
  * @param {{ onNavigate?: (surfaceKey: string) => void, shell?: Record<string, any> | null }} props
  */
 export default function AdminWorkspace({ shell = null } = {}) {
   const [status, setStatus] = useState("");
   const [selectedControl, setSelectedControl] = useState(null);
+  const [activeTab, setActiveTab] = useState("operations");
   const canReadAdmin = adminRoleAllowed(shell);
   const query = useQuery({
     queryKey: ["atlas", "admin-control-center"],
@@ -487,40 +726,66 @@ export default function AdminWorkspace({ shell = null } = {}) {
           </div>
         </header>
 
-        {loading ? (
-          <EmptyState title="Loading control center" message="Reading runtime diagnostics, jobs, integrations, and policy coverage." />
-        ) : queryError ? (
-          <EmptyState
-            tone={forbidden ? "warn" : "bad"}
-            title={forbidden ? "Control Center is admin-only" : "Control Center unavailable"}
-            message={forbidden ? "Ask a workspace admin to grant administration access." : (queryError || "Runtime diagnostics could not be loaded.")}
-          />
-        ) : null}
-
-        {warnings.length ? (
-          <div className="gh-admin-warning">{warnings[0]}</div>
-        ) : null}
-
-        <div className="gh-admin-control-layout">
-          <JobTable
-            activeId={selectedControl?.kind === "Scheduled job" ? selectedControl.id : ""}
-            jobs={jobs}
-            onSelect={handleJobSelect}
-          />
-          <div className="gh-admin-control-side">
-            <IntegrationList
-              activeId={selectedControl?.kind === "Integration" ? selectedControl.id : ""}
-              integrations={integrations}
-              onSelect={handleIntegrationSelect}
-            />
-            <PolicyCoverage
-              activeId={selectedControl?.kind === "Policy coverage" ? selectedControl.id : ""}
-              policies={policies}
-              onSelect={handlePolicySelect}
-            />
-          </div>
+        <div className="gh-admin-tabstrip" role="tablist" aria-label="Control Center sections">
+          {ADMIN_TABS.map((tab) => (
+            <button
+              aria-controls={`admin-tab-${tab.id}`}
+              aria-selected={activeTab === tab.id}
+              className={`gh-admin-tabstrip-tab ${activeTab === tab.id ? "is-active" : ""}`}
+              data-testid={`admin-tab-${tab.id}`}
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              role="tab"
+              type="button"
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-        {selectedControl ? <ControlDetail detail={selectedControl} onOpen={openSelectedControl} /> : null}
+
+        {activeTab === "operations" ? (
+          <div id="admin-tab-operations" role="tabpanel">
+            {loading ? (
+              <EmptyState title="Loading control center" message="Reading runtime diagnostics, jobs, integrations, and policy coverage." />
+            ) : queryError ? (
+              <EmptyState
+                tone={forbidden ? "warn" : "bad"}
+                title={forbidden ? "Control Center is admin-only" : "Control Center unavailable"}
+                message={forbidden ? "Ask a workspace admin to grant administration access." : (queryError || "Runtime diagnostics could not be loaded.")}
+              />
+            ) : null}
+
+            {warnings.length ? (
+              <div className="gh-admin-warning">{warnings[0]}</div>
+            ) : null}
+
+            <div className="gh-admin-control-layout">
+              <JobTable
+                activeId={selectedControl?.kind === "Scheduled job" ? selectedControl.id : ""}
+                jobs={jobs}
+                onSelect={handleJobSelect}
+              />
+              <div className="gh-admin-control-side">
+                <IntegrationList
+                  activeId={selectedControl?.kind === "Integration" ? selectedControl.id : ""}
+                  integrations={integrations}
+                  onSelect={handleIntegrationSelect}
+                />
+                <PolicyCoverage
+                  activeId={selectedControl?.kind === "Policy coverage" ? selectedControl.id : ""}
+                  policies={policies}
+                  onSelect={handlePolicySelect}
+                />
+              </div>
+            </div>
+            {selectedControl ? <ControlDetail detail={selectedControl} onOpen={openSelectedControl} /> : null}
+          </div>
+        ) : (
+          <div id="admin-tab-truth-check" role="tabpanel">
+            <TruthCheckPanel canReadAdmin={canReadAdmin} />
+          </div>
+        )}
+
         <div className="gh-admin-status-line" aria-live="polite">{status}</div>
       </div>
     </section>

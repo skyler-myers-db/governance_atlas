@@ -89,6 +89,25 @@ def _ignore(_directory: str, names: list[str]) -> set[str]:
             result.add(name)
         else:
             directory = Path(_directory).resolve()
+            # The packager writes its output directory under <ROOT>/build/.
+            # Excluding the entire `build/` tree at the source root prevents
+            # copytree from recursing into a destination that's actively
+            # being written, which would otherwise spin into an unbounded
+            # build/atlas-app/build/atlas-app/... loop.
+            if directory == ROOT and name == "build":
+                result.add(name)
+                continue
+            # Visual-QA captures sometimes leave behind a live Chrome user
+            # data dir under docs/northstar_visual_qa/.../chrome-profile-*.
+            # Those folders contain Unix sockets and lock files that
+            # shutil.copytree cannot copy ("Operation not supported on
+            # socket"), which fails the entire packaging step. Skip them
+            # — the QA captures themselves (HTML, screenshots, metadata)
+            # are intentionally bundled in docs/, but the live profile
+            # state is not part of the deployable artifact.
+            if name.startswith("chrome-profile"):
+                result.add(name)
+                continue
             if directory == ROOT and Path(name).suffix.lower() in {
                 ".png",
                 ".jpg",

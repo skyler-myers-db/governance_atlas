@@ -2,11 +2,47 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AdminWorkspace from "./AdminWorkspace";
-import { fetchAdminControlCenter } from "../lib/api";
+import { fetchAdminControlCenter, fetchAdminTruthCheck } from "../lib/api";
 
 vi.mock("../lib/api", () => ({
   fetchAdminControlCenter: vi.fn(),
+  fetchAdminTruthCheck: vi.fn(),
 }));
+
+const truthCheckPayload = {
+  meta: { source: "system.information_schema", state: "available" },
+  data: {
+    discoveryCatalogs: ["datapact", "finance_prod"],
+    hiddenCatalogs: ["system", "samples"],
+    metastore: {
+      catalogTotal: 12,
+      schemaTotalForDiscovery: 8,
+      tableTotalForDiscovery: 240,
+      perCatalog: [
+        {
+          catalog: "datapact",
+          configured: true,
+          metastore: { schemaCount: 5, tableCount: 200 },
+          ui: { inventoryAssetCount: 198, visibleAssetCount: 195 },
+          drift: { inventoryDelta: 2, hiddenByVisibility: 3 },
+        },
+        {
+          catalog: "finance_prod",
+          configured: true,
+          metastore: { schemaCount: 3, tableCount: 40 },
+          ui: { inventoryAssetCount: 40, visibleAssetCount: 40 },
+          drift: { inventoryDelta: 0, hiddenByVisibility: 0 },
+        },
+      ],
+    },
+    ui: { inventoryTotal: 238, visibleTotal: 235 },
+    drift: { inventoryDelta: 2, hiddenByVisibility: 3, warnings: [] },
+    queries: [
+      { label: "system.information_schema.catalogs", sql: "SELECT 1", rowCount: 12, elapsedMs: 312, error: null },
+    ],
+    observedAt: "2026-05-04T07:50:00Z",
+  },
+};
 
 const controlCenterPayload = {
   meta: {
@@ -64,6 +100,8 @@ describe("AdminWorkspace", () => {
   beforeEach(() => {
     fetchAdminControlCenter.mockReset();
     fetchAdminControlCenter.mockResolvedValue(controlCenterPayload);
+    fetchAdminTruthCheck.mockReset();
+    fetchAdminTruthCheck.mockResolvedValue(truthCheckPayload);
   });
 
   it("renders the Control Center surface", async () => {
@@ -203,5 +241,32 @@ describe("AdminWorkspace", () => {
     expect(screen.queryByText("Connected live")).toBeNull();
     expect(screen.getByText("No backed scheduled-job inventory is available yet.")).toBeDefined();
     expect(screen.getAllByText("Runtime signal unavailable").length).toBeGreaterThan(0);
+  });
+
+  it("renders the Metastore truth check tab when selected", async () => {
+    renderAdmin();
+    // Wait for the Operations tab to mount, then switch tabs.
+    await screen.findByText("Atlas runtime, integrations, and policy");
+    fireEvent.click(screen.getByTestId("admin-tab-truth-check"));
+    expect(await screen.findByText("Unity Catalog ground truth vs. surfaced inventory")).toBeDefined();
+    expect(screen.getByText("Re-run truth check")).toBeDefined();
+    expect(screen.getAllByText("datapact").length).toBeGreaterThan(0);
+    expect(screen.getByText("system.information_schema.catalogs")).toBeDefined();
+    // Drift cells render the +/- formatted delta.
+    expect(screen.getAllByText("+2").length).toBeGreaterThan(0);
+    expect(fetchAdminTruthCheck).toHaveBeenCalled();
+  });
+
+  it("does NOT call /admin/truth-check until the truth-check tab is opened", async () => {
+    renderAdmin();
+    await screen.findByText("Atlas runtime, integrations, and policy");
+    expect(fetchAdminTruthCheck).not.toHaveBeenCalled();
+  });
+
+  it("blocks the Metastore truth check tab for non-admin shells", async () => {
+    renderAdmin({ shell: { role: "Reader", userEmail: "reader@example.com" } });
+    fireEvent.click(screen.getByTestId("admin-tab-truth-check"));
+    expect(await screen.findByText("Metastore truth check is admin-only")).toBeDefined();
+    expect(fetchAdminTruthCheck).not.toHaveBeenCalled();
   });
 });
