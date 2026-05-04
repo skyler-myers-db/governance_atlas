@@ -5944,32 +5944,46 @@ button[class*="back-to-discovery"] {
   gap: 24px;
   align-items: flex-start;
   justify-content: space-between;
-  background: #fbf6e9;
-  border: 1px solid var(--gh-line, #c9bf9e);
+  background: linear-gradient(180deg, rgba(17, 44, 72, 0.92), rgba(8, 23, 42, 0.92));
+  border: 1px solid rgba(20, 44, 70, 0.85);
   border-radius: 16px;
   padding: 24px 28px;
-  box-shadow: 0 10px 22px rgba(18, 35, 58, 0.04);
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
-/* The InboxPanel used inside /inbox also gets a cream tint. The
-   panel renders via the governance shell InboxPanel component
-   (.gh-shell-inbox-panel). */
+/* The InboxPanel used inside /inbox renders via the governance shell
+   InboxPanel component (.gh-shell-inbox-panel). Match the dark theme
+   override applied at the global panel layer. */
 .gh-inbox-page .gh-shell-inbox-panel {
-  background: #fbf6e9 !important;
-  border: 1px solid var(--gh-line, #c9bf9e) !important;
+  background: linear-gradient(180deg, rgba(17, 44, 72, 0.92), rgba(8, 23, 42, 0.92)) !important;
+  border: 1px solid rgba(20, 44, 70, 0.85) !important;
 }
 .gh-inbox-page-title {
   margin: 6px 0 8px;
+  font-family: var(--ga-font-heading, "Hanken Grotesk", sans-serif);
   font-size: 1.6rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: var(--gh-ink, #1a2236);
+  color: var(--ga-text-strong, #ffffff);
 }
 .gh-inbox-page-lede {
   margin: 0;
-  color: var(--gh-ink-soft, #525e74);
+  color: var(--ga-text-muted, #b2bdc2);
   font-size: 0.98rem;
   line-height: 1.5;
   max-width: 68ch;
+}
+/* Eyebrow label "Governance" needs the brand-cyan look that other pages
+   use, not the legacy quiet grey it inherits from the page-head's
+   default text color. */
+.gh-inbox-page-head > div > .ga-eyebrow,
+.gh-inbox-page-head > div > span:first-child {
+  color: var(--ga-bright-blue, #66c5ff) !important;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 .gh-inbox-page-back {
   white-space: nowrap;
