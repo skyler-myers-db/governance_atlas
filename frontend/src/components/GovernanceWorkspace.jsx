@@ -1472,22 +1472,15 @@ export default function GovernanceWorkspace({
   const showNewWorkItemPanel = () => {
     showNorthstarActionPanel({
       kind: "new",
-      title: "Stage a new stewardship work item",
+      title: "New work item creation is unavailable",
       eyebrow: "New work item",
-      body: "Capture intent for a stewardship action. We'll route this to the governance request API once the create-flow ships; until then your draft is staged locally and visible on this page so you can iterate.",
+      body: "Work item creation requires a backed governance request mutation. No local draft or synthetic task was created.",
       facts: [
         ["Focused asset", focusedAssetFqn || "No asset selected"],
-        ["Submit target", "Governance request API (staged)"],
-        ["Write state", "Staged — backed write lands with the create tranche"],
+        ["Submit target", "Governance request API"],
+        ["Write state", "Unavailable"],
       ],
-      // Enabled action that confirms the stage; the title in the on-screen
-      // panel was misleading the user into thinking the button was broken.
-      // Now we stage and surface a confirmation so the click is visibly
-      // responsive — same pattern used for Comment / Request access.
-      stagedAction: "Stage work item",
-      stagedConfirmation: focusedAssetFqn
-        ? `Work item draft staged for ${focusedAssetFqn}. The governance-request write will land with the create-flow tranche.`
-        : "Work item draft staged. Pick a focus asset to attach it once the create-flow ships.",
+      disabledAction: "Create work item unavailable",
     });
   };
 

@@ -5,7 +5,7 @@ import {
   useAssetAvailability,
   useAssetDetail,
 } from "../hooks/useAssetDetail";
-import { useLineage } from "../hooks/useLineage";
+import { prefetchLineage, useLineage } from "../hooks/useLineage";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 import { fetchAtlasAiRecommendations } from "../lib/api";
 import { displayObjectType } from "../lib/assetPresentation";
@@ -263,7 +263,15 @@ function clearFilter(filters, chip, onDiscoveryStateChange) {
     tiers: "All tiers",
     certifications: "All certifications",
     sensitivities: "All sensitivities",
+    businessCriticalities: "All criticalities",
   };
+  if (chip.key === "cdeOnly") {
+    onDiscoveryStateChange((current) => ({
+      ...current,
+      cdeOnly: false,
+    }));
+    return;
+  }
   const allLabel = allLabelByKey[chip.key];
   const next = (filters[chip.key] || []).filter((value) => value !== chip.label && value !== allLabel);
   onDiscoveryStateChange((current) => ({
@@ -306,9 +314,19 @@ function activeFilters(filters, queryState = null) {
   }
   (filters.views || []).forEach((value) => chips.push({ label: value, key: "views" }));
   (filters.types || []).forEach((value) => chips.push({ label: value, key: "types" }));
-  ["catalogs", "domains", "tiers", "certifications", "sensitivities"].forEach((key) => {
+  [
+    "catalogs",
+    "domains",
+    "tiers",
+    "certifications",
+    "sensitivities",
+    "businessCriticalities",
+  ].forEach((key) => {
     (filters[key] || []).forEach((value) => chips.push({ label: value, key }));
   });
+  if (filters.cdeOnly) {
+    chips.push({ label: "CDE only", key: "cdeOnly" });
+  }
   return chips;
 }
 
@@ -912,6 +930,50 @@ function FiltersPopover({
           options={facetValues(facets, "sensitivities", [], filters.sensitivities)}
           selected={filters.sensitivities}
         />
+        <FilterSection
+          allLabel="All criticalities"
+          counts={facetCounts(facets, "businessCriticalities")}
+          emptyMessage="Business criticality filters populate once assets carry the tag."
+          label="Business Criticality"
+          onToggle={(value, allLabel) =>
+            toggleMulti(
+              filters,
+              "businessCriticalities",
+              value,
+              allLabel,
+              onDiscoveryStateChange,
+            )
+          }
+          options={facetValues(
+            facets,
+            "businessCriticalities",
+            [
+              "Mission Critical",
+              "Business Critical",
+              "Operational",
+              "Low Impact",
+              "Not Assessed",
+            ],
+            filters.businessCriticalities,
+          )}
+          selected={filters.businessCriticalities}
+        />
+        <div className="gh-filter-section">
+          <div className="gh-filter-section-label">Critical Data Elements</div>
+          <label className="gh-filter-section-toggle">
+            <input
+              checked={Boolean(filters.cdeOnly)}
+              onChange={(event) =>
+                onDiscoveryStateChange((current) => ({
+                  ...current,
+                  cdeOnly: event.target.checked,
+                }))
+              }
+              type="checkbox"
+            />
+            <span>Only show CDE-flagged assets</span>
+          </label>
+        </div>
       </div>
     </div>
   );
@@ -1905,7 +1967,7 @@ function previewMetricItems({ asset, primaryOwner, stewardOwner, coverage, quali
     },
     {
       label: "Steward team",
-      value: stewardOwner ? prettyOwnerName(stewardOwner) : "Unavailable",
+      value: stewardOwner ? prettyOwnerName(stewardOwner) : "Unassigned",
       unavailable: !stewardOwner,
     },
     {
@@ -3870,33 +3932,25 @@ function SelectionPreview({
           </div>
         ) : (
           <div className="gh-support-copy gh-discovery-preview-workflow-note">
-            Comment threads and access-request creation surface staged
-            requests until the backed governance workflow is wired.
+            Comment and access-request creation are disabled here until a
+            backed governance workflow is configured.
           </div>
         )}
         <footer className="gh-discovery-preview-footer" aria-label="Preview workflow actions">
           <button
-            aria-label="Stage a comment for this asset"
+            aria-label="Comment unavailable: comment threads require a backed workflow before they can be created from Discover."
             className="gh-secondary-button"
-            onClick={() =>
-              setActionNotice(
-                "Comment staged locally — composer + governance-store write will land with the comment workflow tranche.",
-              )
-            }
-            title="Stage a comment thread for this asset (composer + persistence land with the comment workflow tranche)."
+            disabled
+            title="Comment threads require a backed workflow before they can be created from Discover."
             type="button"
           >
             Comment
           </button>
           <button
-            aria-label="Request access to this asset"
+            aria-label="Request access unavailable: access requests require a backed workflow before they can be created from Discover."
             className="gh-secondary-button"
-            onClick={() =>
-              setActionNotice(
-                `Access request staged for ${asset?.name || asset?.fqn || "this asset"} — routing to the asset owner will land with the access workflow tranche.`,
-              )
-            }
-            title="Stage an access request for this asset (routing to the asset owner lands with the access workflow tranche)."
+            disabled
+            title="Access requests require a backed workflow before they can be created from Discover."
             type="button"
           >
             Request access
@@ -4314,6 +4368,14 @@ export default function DiscoveryWorkspace({
     hoverPreviewTimerRef.current = setTimeout(() => {
       setPreviewDismissed(false);
       setSelectedAssetFqn((current) => (current === fqn ? current : fqn));
+      // While the preview pane loads, silently warm the lineage cache too.
+      // The /api/lineage query is a 20–60s serverless warehouse call on
+      // cold start; 300ms of dwell is a strong "I might click Lineage"
+      // signal and starts the request early so the click feels instant.
+      // Debounced through the existing preview timer — one hover ≠ one
+      // stampede. React Query dedupes if the user hovers the same row
+      // twice within TTL.
+      void prefetchLineage(fqn).catch(() => null);
     }, 300);
   };
   const handleHoverEnd = () => {
@@ -4998,6 +5060,7 @@ export default function DiscoveryWorkspace({
       tiers: [],
       certifications: [],
       sensitivities: [],
+      businessCriticalities: [],
     };
     onRouteQueryChange?.("", {
       views: [],
@@ -5011,6 +5074,8 @@ export default function DiscoveryWorkspace({
       tiers: [],
       certifications: [],
       sensitivities: [],
+      businessCriticalities: [],
+      cdeOnly: false,
       views: [],
       query: "",
     }));
@@ -5173,6 +5238,7 @@ export default function DiscoveryWorkspace({
       tiers: [],
       certifications: [],
       sensitivities: [],
+      businessCriticalities: [],
     };
     onRouteQueryChange?.("", {
       sortBy: nextSort,
@@ -5186,6 +5252,7 @@ export default function DiscoveryWorkspace({
       sortBy: nextSort,
       views: [],
       ...emptyFilterGroups,
+      cdeOnly: false,
     });
   };
 

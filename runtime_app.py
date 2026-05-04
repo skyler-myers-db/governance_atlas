@@ -28,6 +28,7 @@ from atlas.api import (
     build_atlas_router,
     build_assets_router,
     build_catalog_router,
+    build_cde_router,
     build_classification_router,
     build_discovery_router,
     build_export_router,
@@ -65,6 +66,7 @@ from atlas.api.response import (
 )
 from atlas.config import AppConfig
 from atlas.runtime_contract import validate_frontend_bundle
+from atlas.services import approvals as approval_service
 from atlas.services import assets as asset_service
 from atlas.services import capabilities as capability_service
 from atlas.services import genie as genie_service
@@ -203,6 +205,12 @@ SHELL_API_CONTRACT = {
     "adminControlCenter": "/api/atlas/admin/control-center",
     "atlasAiRecommendations": "/api/atlas-ai/recommendations",
     "atlasAiChat": "/api/atlas-ai/chat",
+    "cdeRegistry": "/api/cde",
+    "bulkImportDryRun": "/api/admin/bulk-import/dry-run",
+    "bulkImportCommit": "/api/admin/bulk-import/commit",
+    "adminCoverage": "/api/admin/coverage",
+    "adminCoverageDrilldown": "/api/admin/coverage/drilldown",
+    "adminBranding": "/api/admin/branding",
 }
 
 
@@ -381,6 +389,11 @@ class _NullGovernanceStore:
         normalized = str(email or "").strip().lower()
         configured_admins = {str(item or "").strip().lower() for item in (admin_emails or []) if str(item or "").strip()}
         if normalized and normalized in configured_admins:
+            LOGGER.warning(
+                "admin_emails_fallback_promotion store=null email=%s "
+                "(honoring GOVAT_ADMIN_EMAILS while governance store is unreachable)",
+                normalized,
+            )
             return "admin"
         return "reader"
 
@@ -712,9 +725,16 @@ def _user_role_slug(request: Optional[Request]) -> str:
 
     def load_role() -> str:
         store = _store_for_read()
+        admin_emails = _config().admin_emails
         try:
-            role = store.get_role(email, admin_emails=_config().admin_emails)
+            role = store.get_role(email, admin_emails=admin_emails)
         except Exception:
+            normalized = email.strip().lower()
+            if normalized and any(
+                normalized == (admin_email or "").strip().lower()
+                for admin_email in admin_emails
+            ):
+                return "admin"
             return "reader"
         return (role or "reader").strip().lower() or "reader"
 
@@ -1210,6 +1230,8 @@ def _discovery_search_payload(
     tiers: Optional[List[str]] = None,
     certifications: Optional[List[str]] = None,
     sensitivities: Optional[List[str]] = None,
+    business_criticalities: Optional[List[str]] = None,
+    cde_only: bool = False,
     sort_by: str = "Best match",
     limit: int = 60,
     offset: int = 0,
@@ -1225,6 +1247,8 @@ def _discovery_search_payload(
         tiers=tiers,
         certifications=certifications,
         sensitivities=sensitivities,
+        business_criticalities=business_criticalities,
+        cde_only=cde_only,
         sort_by=sort_by,
         limit=limit,
         offset=offset,
@@ -1597,7 +1621,41 @@ def _apply_asset_metadata(
     payload: AssetMetadataPatch,
     *,
     request: Optional[Request] = None,
+    bypass_approval: bool = False,
 ) -> Tuple[Dict[str, Any], str]:
+    # Approval gate: writer-role users propose; stewards/admins bypass.
+    # A queued write writes NOTHING to Unity Catalog — the payload is
+    # stashed on a pending change_request and returned as an envelope
+    # so the frontend can show "pending approval" without pretending
+    # the change took effect. See atlas/services/approvals.py.
+    if not bypass_approval and request is not None:
+        actor_email = _user_email(request)
+        actor_role = _user_role_slug(request)
+        if not approval_service.role_bypasses_gate(actor_role):
+            gate = approval_service.gate_asset_metadata_patch(
+                _store(),
+                actor_email=actor_email,
+                actor_role=actor_role,
+                asset_fqn=asset_fqn,
+                payload=payload.model_dump(exclude_none=True),
+            )
+            if gate.get("kind") == "queued":
+                return (
+                    {
+                        "fqn": asset_fqn,
+                        "approval": {
+                            "status": "pending",
+                            "requestId": gate.get("requestId", ""),
+                            "message": (
+                                "Saved as a pending metadata change request. A "
+                                "steward or admin needs to approve before it "
+                                "applies to Unity Catalog."
+                            ),
+                        },
+                    },
+                    "",
+                )
+
     catalog, schema, table = _split_uc_name(asset_fqn)
     table_type = _asset_table_type(asset_fqn, request=request)
     uc = _uc_for_request(request)
@@ -1616,6 +1674,7 @@ def _apply_asset_metadata(
         "certification": payload.certification,
         "sensitivity": payload.sensitivity,
         "criticality": payload.criticality,
+        "business_criticality": payload.businessCriticality,
         "data_product": payload.dataProduct,
     }
     for key, raw_value in structured.items():
@@ -1626,8 +1685,23 @@ def _apply_asset_metadata(
             next_tags[key] = value
         else:
             next_tags.pop(key, None)
+    # CDE is a scalar boolean-ish tag round-tripped as the string "true".
+    # Absent tag means "not a CDE" so False removes the tag rather than
+    # writing "false". cdeRationale is a free-form sidecar string.
+    cde_keys = {"cde", "cde_rationale"}
+    if payload.isCde is not None:
+        if payload.isCde:
+            next_tags["cde"] = "true"
+            rationale = _normalize_str(payload.cdeRationale or "")
+            if rationale:
+                next_tags["cde_rationale"] = rationale
+            elif payload.cdeRationale == "":
+                next_tags.pop("cde_rationale", None)
+        else:
+            next_tags.pop("cde", None)
+            next_tags.pop("cde_rationale", None)
     if payload.freeformTags is not None:
-        structured_keys = set(structured)
+        structured_keys = set(structured) | cde_keys
         normalized_freeform_tags = {
             _normalize_str(key): _normalize_str(value)
             for key, value in (payload.freeformTags or {}).items()
@@ -1913,6 +1987,25 @@ def _shell_feature_flags_payload(
     ]
 
 
+def _shell_branding_payload() -> Dict[str, Any]:
+    """Return the tenant branding dict for the shell payload. Silently
+    yields an empty dict when the store is unavailable so bootstrap
+    never fails on branding absence — the frontend falls back to
+    hard-coded defaults."""
+    try:
+        store = _store()
+    except Exception:
+        return {}
+    if store is None:
+        return {}
+    try:
+        from atlas.services import branding as branding_service
+
+        return branding_service.get_branding(store)
+    except Exception:
+        return {}
+
+
 def _shell_payload(
     request: Optional[Request],
     *,
@@ -2042,6 +2135,7 @@ def _shell_payload(
                 "shortName": "Atlas",
                 "aiName": "Atlas AI",
             },
+            "branding": _shell_branding_payload(),
         },
         "identity": {
             "actorEmail": _user_email(request),
@@ -2284,6 +2378,7 @@ app.include_router(build_admin_router())
 app.include_router(build_insights_router())
 app.include_router(build_atlas_router())
 app.include_router(build_atlas_ai_router())
+app.include_router(build_cde_router())
 
 
 @app.get("/{client_path:path}", response_class=HTMLResponse, include_in_schema=False)

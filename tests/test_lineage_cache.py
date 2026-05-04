@@ -55,6 +55,8 @@ class LineageCacheTests(unittest.TestCase):
         self.assertEqual(alice_second["sequence"], 1)
         self.assertEqual(bob_first["sequence"], 2)
         self.assertEqual(len(load_calls), 2)
+        # Cache keys include the request scope so actor-visible payloads
+        # cannot bleed across users.
         self.assertIn(
             "lineage:warehouse-1:alice@example.com:main.sales.orders",
             lineage_service._TTL_CACHE,
@@ -203,6 +205,39 @@ class LineageCacheTests(unittest.TestCase):
         self.assertEqual(payload["graphs"]["data"]["edges"], [])
         self.assertTrue(payload["graphs"]["data"]["meta"]["tableLineageDeferred"])
         self.assertTrue(payload["stats"]["progressive"]["tableLineageDeferred"])
+
+    def test_invalidate_lineage_caches_does_not_match_superstring_fqns(
+        self,
+    ) -> None:
+        """Invalidating `main.sales.ap` must NOT evict
+        `main.sales.ap_invoices` from the cache. The old
+        `endswith(":main.sales.ap")` logic was safe; the new
+        middle-substring match `:main.sales.ap:` must be too.
+        """
+        lineage_service._TTL_CACHE.clear()
+        uc = FakeUC()
+        store = object()
+
+        def fake_build(_uc, _store, asset_fqn: str, **_kwargs):
+            return {"fqn": asset_fqn}
+
+        with patch("atlas.services.lineage._build_lineage_payload", side_effect=fake_build):
+            lineage_service.lineage_payload(
+                uc, store, "main.sales.ap", cache_scope="alice@example.com"
+            )
+            lineage_service.lineage_payload(
+                uc,
+                store,
+                "main.sales.ap_invoices",
+                cache_scope="alice@example.com",
+            )
+
+        self.assertEqual(len(lineage_service._TTL_CACHE), 2)
+        lineage_service.invalidate_lineage_caches("main.sales.ap")
+        # The prefix-sharing asset should survive.
+        surviving_keys = list(lineage_service._TTL_CACHE)
+        self.assertEqual(len(surviving_keys), 1)
+        self.assertIn("main.sales.ap_invoices", surviving_keys[0])
 
     def test_runtime_app_lineage_helper_threads_request_cache_scope(self) -> None:
         source = Path("runtime_app.py").read_text(encoding="utf-8")

@@ -1,3 +1,5 @@
+import { isNonAuthoritativeMockEvidence } from "./nonAuthoritativeEvidence";
+
 const DEFAULT_TABLE_LINEAGE_UNAVAILABLE_REASON =
   "Live table lineage is not available in this workspace right now.";
 const DEFAULT_SYSTEM_INVENTORY_UNAVAILABLE_REASON =
@@ -51,6 +53,7 @@ export function systemInventoryAvailable(bootstrap) {
   // unavailable capability.
   const capability = systemInventoryCapability(bootstrap);
   if (!capability) return false;
+  if (isNonAuthoritativeMockEvidence(capability)) return false;
   if (capability?.available === false) return false;
   const state = String(capability?.state || "").trim().toLowerCase();
   if (state === "unavailable" || state === "unknown") return false;

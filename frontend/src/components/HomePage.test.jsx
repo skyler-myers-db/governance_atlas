@@ -337,7 +337,7 @@ describe("HomePage", () => {
     expect(screen.getByRole("button", { name: "12w" }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.queryByText("W5")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /Open discovery for Revenue & Sales domain posture/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Open discovery filtered to Revenue & Sales domain/i }));
     expect(onNavigate).toHaveBeenCalledWith("discovery");
     fireEvent.click(screen.getByRole("button", { name: /Open stewardship for high-risk exposures/i }));
     expect(onNavigate).toHaveBeenCalledWith("stewardship");

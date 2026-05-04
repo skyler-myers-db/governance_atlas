@@ -807,6 +807,28 @@ DEFAULT_MIGRATIONS: tuple[Migration, ...] = (
             ) USING DELTA""",
         ),
     ),
+    Migration(
+        version=16,
+        name="tenant_branding_settings",
+        statements=(
+            # F7 — tenant white-label. Single-row table (singleton_id
+            # always "default"). Admins edit via /api/admin/branding
+            # PUT; the shell reads via bootstrap. Convention-enforced
+            # singleton — Delta has no uniqueness constraint but the
+            # store layer always writes singleton_id='default'.
+            """CREATE TABLE IF NOT EXISTS {tenant_branding_table} (
+                singleton_id     STRING NOT NULL COMMENT 'always "default"',
+                primary_color    STRING,
+                accent_color     STRING,
+                logo_url         STRING,
+                org_display_name STRING,
+                created_at       TIMESTAMP,
+                created_by       STRING,
+                updated_at       TIMESTAMP,
+                updated_by       STRING
+            ) USING DELTA""",
+        ),
+    ),
 )
 
 
@@ -916,6 +938,7 @@ def apply_migrations(
                 classification_recommendations_table=_fq_table(
                     catalog, schema, "classification_recommendations"
                 ),
+                tenant_branding_table=_fq_table(catalog, schema, "tenant_branding"),
             ).strip()
             if sql:
                 uc.execute(sql)

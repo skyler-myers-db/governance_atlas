@@ -50,6 +50,8 @@ DISCOVERY_QUERY_SUPPORTED_FIELDS = (
     "certification",
     "sensitivity",
     "criticality",
+    "business_criticality",
+    "cde",
     "glossary",
     "tag",
     "owner",
@@ -68,6 +70,13 @@ DISCOVERY_QUERY_FIELD_ALIASES = {
     "certification": "certification",
     "sensitivity": "sensitivity",
     "criticality": "criticality",
+    "business_criticality": "business_criticality",
+    "businesscriticality": "business_criticality",
+    "biz_criticality": "business_criticality",
+    "bizcriticality": "business_criticality",
+    "cde": "cde",
+    "is_cde": "cde",
+    "critical_data_element": "cde",
     "glossary": "glossary",
     "glossary_term": "glossary",
     "glossaryterm": "glossary",
@@ -92,6 +101,8 @@ DISCOVERY_QUERY_FIELD_WEIGHTS = {
     "certification": 2,
     "sensitivity": 2,
     "criticality": 2,
+    "business_criticality": 3,
+    "cde": 3,
     "glossary": 2,
     "tag": 2,
     "owner": 2,
@@ -962,6 +973,24 @@ def asset_badges(row: pd.Series) -> List[str]:
     return [badge for badge in badges if badge]
 
 
+def _coerce_bool(value: Any) -> bool:
+    if value is True:
+        return True
+    if value is False or value is None:
+        return False
+    text = normalize_str(value).lower()
+    return text in ("true", "1", "yes", "y", "t")
+
+
+def _asset_is_cde(asset: Dict[str, Any]) -> bool:
+    if _coerce_bool(asset.get("isCde")):
+        return True
+    if _coerce_bool(asset.get("cde")):
+        return True
+    tags = asset.get("tags") if isinstance(asset.get("tags"), dict) else {}
+    return _coerce_bool(tags.get("cde") or tags.get("is_cde"))
+
+
 def raw_tag_map(row: pd.Series) -> Dict[str, str]:
     tags = row.get("tags")
     if not isinstance(tags, dict):
@@ -1013,6 +1042,16 @@ def base_asset_payload(row: pd.Series) -> Dict[str, Any]:
         "certification": normalize_str(row.get("certification")) or "Unassigned",
         "sensitivity": normalize_str(row.get("sensitivity")) or "Unassigned",
         "criticality": normalize_str(row.get("criticality")) or "Unassigned",
+        "businessCriticality": normalize_str(
+            row.get("business_criticality") or row.get("businessCriticality")
+        ) or "Unassigned",
+        "business_criticality": normalize_str(
+            row.get("business_criticality") or row.get("businessCriticality")
+        ) or "Unassigned",
+        "isCde": _coerce_bool(row.get("cde")),
+        "cdeRationale": normalize_str(
+            row.get("cde_rationale") or row.get("cdeRationale")
+        ),
         "glossaryTerm": (
             normalized_glossary_terms[0]
             if normalized_glossary_terms
@@ -1428,6 +1467,10 @@ def discovery_search_fields(asset: Dict[str, Any]) -> Dict[str, str]:
         "certification": normalized_search_text(asset.get("certification")),
         "sensitivity": normalized_search_text(asset.get("sensitivity")),
         "criticality": normalized_search_text(asset.get("criticality")),
+        "business_criticality": normalized_search_text(
+            asset.get("businessCriticality"), asset.get("business_criticality")
+        ),
+        "cde": "true" if _asset_is_cde(asset) else "",
         "glossary": normalized_search_text(
             asset.get("glossaryTerm"), " ".join(glossary_terms)
         ),
@@ -2230,6 +2273,8 @@ def discovery_search_payload(
     tiers: Optional[List[str]] = None,
     certifications: Optional[List[str]] = None,
     sensitivities: Optional[List[str]] = None,
+    business_criticalities: Optional[List[str]] = None,
+    cde_only: bool = False,
     sort_by: str = "Best match",
     limit: int = 60,
     offset: int = 0,
@@ -2261,6 +2306,10 @@ def discovery_search_payload(
         certifications, "All certifications"
     )
     selected_sensitivities = normalize_filter_values(sensitivities, "All sensitivities")
+    selected_business_criticalities = normalize_filter_values(
+        business_criticalities, "All criticalities"
+    )
+    require_cde = bool(cde_only)
     selected_types = normalize_filter_values(asset_types, "All types")
 
     matched_assets: List[Dict[str, Any]] = []
@@ -2320,6 +2369,18 @@ def discovery_search_payload(
             and asset.get("sensitivity") not in selected_sensitivities
         ):
             if "sensitivities" not in excluded:
+                return False
+        if (
+            selected_business_criticalities
+            and "businessCriticalities" not in excluded
+        ):
+            asset_bc = normalize_str(
+                asset.get("businessCriticality") or asset.get("business_criticality")
+            )
+            if not asset_bc or asset_bc not in selected_business_criticalities:
+                return False
+        if require_cde and "cde" not in excluded:
+            if not _asset_is_cde(asset):
                 return False
         return True
 
@@ -2398,6 +2459,15 @@ def discovery_search_payload(
             "sensitivity",
             all_label="All sensitivities",
         ),
+        "businessCriticalities": facet_payload(
+            [
+                asset
+                for asset in matched_assets
+                if in_scope(asset, exclude={"businessCriticalities"})
+            ],
+            "businessCriticality",
+            all_label="All criticalities",
+        ),
         "owners": owners_facet_payload(
             [asset for asset in matched_assets if in_scope(asset, exclude={"owners"})],
             all_label="All owners",
@@ -2422,6 +2492,97 @@ def discovery_search_payload(
         "selection": {
             "primaryAssetFqn": window[0]["fqn"] if window else "",
             "reason": "top_result" if window else "none",
+        },
+    }
+
+
+def cde_registry_payload(
+    inventory_or_uc,
+    store=None,
+    *,
+    domains: Optional[List[str]] = None,
+    hidden_catalogs: Sequence[str] = HIDDEN_CATALOGS,
+) -> Dict[str, Any]:
+    """Return Critical Data Element assets grouped by owning domain.
+
+    Reads the discovery index (same source discovery search uses) and
+    keeps only entries whose `cde` tag resolves truthy. The payload
+    powers the CDE registry workspace.
+    """
+    index_entries = cached_discovery_index(
+        inventory_or_uc,
+        store,
+        hidden_catalogs=hidden_catalogs,
+    )
+    requested_domains = normalize_filter_values(domains, "All domains")
+
+    cde_assets: List[Dict[str, Any]] = []
+    for entry in index_entries:
+        asset = entry.get("asset") if isinstance(entry, dict) else None
+        if not isinstance(asset, dict):
+            continue
+        if not _asset_is_cde(asset):
+            continue
+        if requested_domains:
+            asset_domain = normalize_str(asset.get("domain"))
+            if asset_domain not in requested_domains:
+                continue
+        cde_assets.append(asset)
+
+    by_domain: Dict[str, List[Dict[str, Any]]] = {}
+    for asset in cde_assets:
+        domain = normalize_str(asset.get("domain")) or "Unassigned"
+        by_domain.setdefault(domain, []).append(asset)
+
+    domain_groups: List[Dict[str, Any]] = []
+    for domain in sorted(by_domain.keys()):
+        group_assets = sorted(
+            by_domain[domain],
+            key=lambda item: (
+                normalize_str(item.get("name")).lower(),
+                normalize_str(item.get("fqn")).lower(),
+            ),
+        )
+        domain_groups.append(
+            {
+                "domain": domain,
+                "count": len(group_assets),
+                "assets": [
+                    {
+                        "fqn": normalize_str(asset.get("fqn")),
+                        "name": normalize_str(asset.get("name")),
+                        "catalog": normalize_str(asset.get("catalog")),
+                        "schema": normalize_str(asset.get("schema")),
+                        "domain": normalize_str(asset.get("domain")) or "Unassigned",
+                        "tier": normalize_str(asset.get("tier")) or "Unassigned",
+                        "businessCriticality": normalize_str(
+                            asset.get("businessCriticality")
+                            or asset.get("business_criticality")
+                        )
+                        or "Unassigned",
+                        "cdeRationale": normalize_str(
+                            asset.get("cdeRationale") or asset.get("cde_rationale")
+                        ),
+                        "coverageScore": asset.get("coverageScore"),
+                        "governanceStatus": normalize_str(
+                            asset.get("governanceStatus")
+                        )
+                        or "Needs Work",
+                        "owners": asset.get("owners") or [],
+                        "glossaryTerm": normalize_str(asset.get("glossaryTerm")),
+                        "description": normalize_str(asset.get("description")),
+                    }
+                    for asset in group_assets
+                ],
+            }
+        )
+
+    return {
+        "total": len(cde_assets),
+        "domainGroups": domain_groups,
+        "domainFilter": {
+            "options": sorted({group["domain"] for group in domain_groups}),
+            "selected": requested_domains,
         },
     }
 

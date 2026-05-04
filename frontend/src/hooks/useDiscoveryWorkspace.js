@@ -10,6 +10,7 @@ const DISCOVERY_GROUPED_FILTER_KEYS = [
   "tiers",
   "certifications",
   "sensitivities",
+  "businessCriticalities",
 ];
 const GROUPED_FILTER_ALL_LABELS = {
   types: "All types",
@@ -18,6 +19,7 @@ const GROUPED_FILTER_ALL_LABELS = {
   tiers: "All tiers",
   certifications: "All certifications",
   sensitivities: "All sensitivities",
+  businessCriticalities: "All criticalities",
 };
 /** @typedef {{
  *   types: string[],
@@ -45,6 +47,8 @@ function defaultDiscoveryState(bootstrap, query = "", sortBy = "") {
     tiers: [],
     certifications: [],
     sensitivities: [],
+    businessCriticalities: [],
+    cdeOnly: false,
   };
 }
 
@@ -77,6 +81,7 @@ function normalizeDiscoveryFilterGroups(groups = {}) {
     tiers: [],
     certifications: [],
     sensitivities: [],
+    businessCriticalities: [],
   }));
 }
 
@@ -176,6 +181,10 @@ function normalizeDiscoveryState(
     sensitivities: normalizedRouteFilterGroups
       ? normalizedRouteFilterGroups.sensitivities
       : normalizeMulti(state.sensitivities, { disallow: ["All sensitivities"] }),
+    businessCriticalities: normalizedRouteFilterGroups
+      ? normalizedRouteFilterGroups.businessCriticalities
+      : normalizeMulti(state.businessCriticalities, { disallow: ["All criticalities"] }),
+    cdeOnly: Boolean(state.cdeOnly),
   };
 }
 
@@ -338,12 +347,14 @@ export function useDiscoveryWorkspace({
       tiers: filters.tiers,
       certifications: filters.certifications,
       sensitivities: filters.sensitivities,
+      businessCriticalities: filters.businessCriticalities,
     };
     const nextFilterGroupsKey = discoveryFilterGroupsKey(nextFilterGroups);
     if (nextFilterGroupsKey === lastSyncedRouteFilterGroupsRef.current) return;
     onRouteFilterGroupsChange?.(nextFilterGroups);
     lastSyncedRouteFilterGroupsRef.current = nextFilterGroupsKey;
   }, [
+    filters.businessCriticalities,
     filters.catalogs,
     filters.certifications,
     filters.domains,

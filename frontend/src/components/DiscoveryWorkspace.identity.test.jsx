@@ -10,7 +10,7 @@
  *
  * These tests fail the moment we regress to any of those sins.
  */
-import { render, within, fireEvent } from "@testing-library/react";
+import { render, within, fireEvent, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DiscoveryWorkspace from "./DiscoveryWorkspace";
 
@@ -108,7 +108,7 @@ function filters(overrides = {}) {
   };
 }
 
-function renderWith(assets) {
+function renderWith(assets, options = {}) {
   useDiscoveryWorkspaceMock.mockReturnValue({
     filters: filters(),
     setFilters: vi.fn(),
@@ -134,7 +134,7 @@ function renderWith(assets) {
       initialQuery=""
       initialSort=""
       initialViews={[]}
-      initialSelectedAssetFqn=""
+      initialSelectedAssetFqn={options.initialSelectedAssetFqn || ""}
       onDiscoveryStateChange={vi.fn()}
       onNavigationStateChange={() => {}}
       onOpenAsset={() => {}}
@@ -156,10 +156,10 @@ function renderWith(assets) {
   );
 }
 
-function previewMetadataValue(container, label) {
-  const rows = Array.from(container.querySelectorAll(".gh-asset-preview-metadata-row"));
-  const row = rows.find((candidate) => candidate.querySelector("dt")?.textContent === label);
-  return row?.querySelector("dd")?.textContent || "";
+function previewMetricValue(container, label) {
+  const rows = Array.from(container.querySelectorAll(".gh-discovery-preview-metric"));
+  const row = rows.find((candidate) => candidate.querySelector("span")?.textContent === label);
+  return row?.querySelector("strong")?.textContent || "";
 }
 
 beforeEach(() => {
@@ -209,7 +209,7 @@ describe("DiscoveryWorkspace — honest card rendering (Tranche C)", () => {
     expect(cardText).not.toContain("PUBLISHED");
   });
 
-  it("preview steward is role-backed and not inferred from owner ordering", () => {
+  it("preview steward is role-backed and not inferred from owner ordering", async () => {
     const orderedOwnersAsset = {
       ...richAsset,
       fqn: "prod.silver.customer_dim",
@@ -220,14 +220,18 @@ describe("DiscoveryWorkspace — honest card rendering (Tranche C)", () => {
         { name: "James Wilson", email: "james@entrada.ai", title: "Steward" },
       ],
     };
-    const { container } = renderWith([orderedOwnersAsset]);
+    const { container } = renderWith([orderedOwnersAsset], {
+      initialSelectedAssetFqn: orderedOwnersAsset.fqn,
+    });
 
-    const stewardValue = previewMetadataValue(container, "Steward");
-    expect(stewardValue).toContain("James Wilson");
-    expect(stewardValue).not.toContain("David Lin");
+    await waitFor(() => {
+      const stewardValue = previewMetricValue(container, "Steward team");
+      expect(stewardValue).toContain("James Wilson");
+      expect(stewardValue).not.toContain("David Lin");
+    });
   });
 
-  it("preview steward degrades to Unassigned when no explicit steward role is present", () => {
+  it("preview steward degrades to Unassigned when no explicit steward role is present", async () => {
     const noStewardAsset = {
       ...richAsset,
       fqn: "prod.silver.order_fact",
@@ -237,11 +241,15 @@ describe("DiscoveryWorkspace — honest card rendering (Tranche C)", () => {
         { name: "David Lin", email: "david@entrada.ai", title: "Technical Owner" },
       ],
     };
-    const { container } = renderWith([noStewardAsset]);
+    const { container } = renderWith([noStewardAsset], {
+      initialSelectedAssetFqn: noStewardAsset.fqn,
+    });
 
-    const stewardValue = previewMetadataValue(container, "Steward");
-    expect(stewardValue).toContain("Unassigned");
-    expect(stewardValue).not.toContain("David Lin");
+    await waitFor(() => {
+      const stewardValue = previewMetricValue(container, "Steward team");
+      expect(stewardValue).toContain("Unassigned");
+      expect(stewardValue).not.toContain("David Lin");
+    });
   });
 });
 
@@ -335,7 +343,8 @@ describe("DiscoveryWorkspace — sort dropdown (Tranche E, defect 12)", () => {
 describe("DiscoveryWorkspace — mockup parity lock (2026-04-19 audit)", () => {
   it("renders the North Star hero/table surface without the retired Discovery/Navigation tabs", () => {
     const { container } = renderWith([richAsset]);
-    expect(container.querySelector('[role="tab"]')).toBeNull();
+    expect(within(container).queryByRole("tab", { name: "Discovery" })).toBeNull();
+    expect(within(container).queryByRole("tab", { name: "Navigation" })).toBeNull();
     expect(within(container).getByRole("heading", { name: "Find trusted, governed data" })).not.toBeNull();
     expect(within(container).getByRole("table")).not.toBeNull();
     expect(within(container).getByRole("columnheader", { name: "Asset Name" })).not.toBeNull();

@@ -2,6 +2,7 @@ from .admin import build_admin_router
 from .atlas import build_atlas_ai_router, build_atlas_router
 from .assets import build_assets_router
 from .catalog import build_catalog_router
+from .cde import build_cde_router
 from .classification import build_classification_router
 from .discovery import build_discovery_router
 from .export import build_export_router
@@ -16,6 +17,7 @@ __all__ = [
     "build_atlas_router",
     "build_assets_router",
     "build_catalog_router",
+    "build_cde_router",
     "build_classification_router",
     "build_discovery_router",
     "build_export_router",
