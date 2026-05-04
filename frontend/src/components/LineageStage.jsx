@@ -1262,6 +1262,27 @@ function NorthStarLineageExplorer({
       return;
     }
     setStatus(`${title} selected.`);
+    // Re-anchor the lineage focus on the selected node when the user clicks
+    // an upstream/downstream/peer node. onSelectAsset stays inside the
+    // lineage workspace and reloads the graph for the chosen asset, instead
+    // of navigating away to the entity workspace. Skip when the node is
+    // explicitly not openable (lineage-only references, permission
+    // boundaries, operational placeholders) — those cases are handled by
+    // the right-side detail panel's Refocus / Open buttons, which gate
+    // on the same openability flag and remain disabled with a tooltip.
+    const nodeAssetFqn = nodeFqn(node);
+    const focusAssetFqn = asset?.fqn || "";
+    const nodeIsOpenable =
+      node?.details?.isOpenable !== false && !isPermissionBoundaryNode(node);
+    if (
+      typeof onSelectAsset === "function" &&
+      nodeAssetFqn &&
+      nodeAssetFqn !== focusAssetFqn &&
+      node?.role !== "focus" &&
+      nodeIsOpenable
+    ) {
+      onSelectAsset(nodeAssetFqn);
+    }
   };
   const selectEdge = (edgePath) => {
     if (!edgePath) return;
@@ -1857,6 +1878,55 @@ function NorthStarLineageExplorer({
 	    endGraphPan(event);
 	  };
 
+  // No-asset empty state. Replaces the prior layout where a giant
+  // "Unknown asset" headline + a row of "X unavailable" chips + an empty
+  // graph canvas all rendered against a left-aligned search card. The
+  // design's lineage-empty pattern is a clean centered call-to-action;
+  // we mirror that here with the brand-aligned search input and the
+  // node-type legend pinned to the bottom.
+  //
+  // Skip when an explicit error/notice is set OR when the caller passed
+  // an asset (even one without lineage data) — those cases need the full
+  // explorer chrome so the user can see the failure context, retry, etc.
+  if (!asset && !error && !notice && (!focusFqn || focusFqn === "Unknown asset")) {
+    return (
+      <section
+        className="ga-lineage-explorer ga-lineage-explorer-empty"
+        data-testid="lineage-northstar-explorer"
+      >
+        <div className="ga-lineage-empty-hero">
+          <div className="ga-lineage-empty-card">
+            <span className="ga-lineage-eyebrow">Lineage Atlas</span>
+            <h1>Trace the path of any governed asset</h1>
+            <p>
+              Search for a Unity Catalog asset to open its lineage graph. Atlas
+              walks {`system.access.table_lineage`} outward from the focus node and
+              renders every actor-visible upstream and downstream hop.
+            </p>
+            <div className="ga-lineage-empty-search">{overlay}</div>
+            <div className="ga-lineage-empty-legend" aria-label="Node types">
+              <strong>Node types</strong>
+              {[
+                ["table", "Table"],
+                ["pipeline", "Pipeline"],
+                ["job", "Job"],
+                ["notebook", "Notebook"],
+                ["saved-query", "Saved query"],
+                ["dashboard", "Dashboard"],
+                ["model", "Model"],
+                ["udf", "UDF"],
+                ["volume", "Volume"],
+                ["restricted", "Restricted"],
+              ].map(([type, label]) => (
+                <span data-node-type={type} key={type}>{label}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className={`ga-lineage-explorer ${thinLiveLineage ? "is-thin-live-lineage" : ""}`.trim()} data-testid="lineage-northstar-explorer">
       <header className="ga-lineage-hero">
@@ -2227,6 +2297,17 @@ function NorthStarLineageExplorer({
                             </div>
                           );
                         })
+                      ) : lineageIsHydrating ? (
+                        // While the lineage payload is hydrating, render a
+                        // pulsing skeleton in place of the "No X observed"
+                        // empty-state copy. The empty-state copy implies the
+                        // backend has resolved and returned no edges, which
+                        // is misleading during the initial-profile window.
+                        <div
+                          aria-hidden="true"
+                          className="ga-lineage-band-skeleton"
+                          data-band-role={band.role || ""}
+                        />
                       ) : (
                         <EmptyGraphSlot title={band.emptyTitle} message={band.emptyMessage} role={band.role} />
                       )}

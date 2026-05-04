@@ -21,7 +21,7 @@ const AI_AUTO_OPEN_WIDE_MODULES = new Set(["discovery", "governance", "taxonomy"
 
 const AI_ROUTE_COPY = {
   home: {
-    emptyLive: "Ask about executive-facing dashboards, owner risk, freshness, and certification using governed metadata. I never read raw row values.",
+    emptyLive: "Ask about executive-facing dashboards, owner risk, freshness, and certification using governed metadata. I read Unity Catalog metadata only — no customer or PII row content.",
     placeholder: "Ask about a dashboard, owner, or risk signal...",
     prompts: [
       "What's powering a selected executive dashboard, and is anything at risk this week?",
@@ -31,7 +31,7 @@ const AI_ROUTE_COPY = {
     ],
   },
   discovery: {
-    emptyLive: "Ask about search results, asset trust signals, owners, glossary coverage, or inaccessible records using governed metadata. I never read raw row values.",
+    emptyLive: "Ask about search results, asset trust signals, owners, glossary coverage, or inaccessible records using governed metadata. I read Unity Catalog metadata only — no customer or PII row content.",
     placeholder: "Ask about search results, owners, or glossary coverage...",
     prompts: [
       "Which visible assets have the strongest trust signal?",
@@ -41,7 +41,7 @@ const AI_ROUTE_COPY = {
     ],
   },
   governance: {
-    emptyLive: "Ask about stewardship queues, review work, SLA risk, owners, and request evidence using governed metadata. I never read raw row values.",
+    emptyLive: "Ask about stewardship queues, review work, SLA risk, owners, and request evidence using governed metadata. I read Unity Catalog metadata only — no customer or PII row content.",
     placeholder: "Ask about queue risk, owners, or review evidence...",
     prompts: [
       "Which stewardship items need attention first?",
@@ -51,7 +51,7 @@ const AI_ROUTE_COPY = {
     ],
   },
   taxonomy: {
-    emptyLive: "Ask about glossary terms, CDEs, reviewers, version history, and asset associations using governed metadata. I never read raw row values.",
+    emptyLive: "Ask about glossary terms, CDEs, reviewers, version history, and asset associations using governed metadata. I read Unity Catalog metadata only — no customer or PII row content.",
     placeholder: "Ask about a term, CDE, reviewer, or linked asset...",
     prompts: [
       "Which CDEs are due for review?",
@@ -61,7 +61,7 @@ const AI_ROUTE_COPY = {
     ],
   },
   lineage: {
-    emptyLive: "Ask about lineage hops, impact, provenance, and column completeness using governed metadata. I never read raw row values.",
+    emptyLive: "Ask about lineage hops, impact, provenance, and column completeness using governed metadata. I read Unity Catalog metadata only — no customer or PII row content.",
     placeholder: "Ask about upstream, downstream, or impact...",
     prompts: [
       "Which upstream assets feed the selected table?",
@@ -71,7 +71,7 @@ const AI_ROUTE_COPY = {
     ],
   },
   audit: {
-    emptyLive: "Ask about audit events, control evidence, grants, notebook activity, and export context using governed metadata. I never read raw row values.",
+    emptyLive: "Ask about audit events, control evidence, grants, notebook activity, and export context using governed metadata. I read Unity Catalog metadata only — no customer or PII row content.",
     placeholder: "Ask about audit evidence, grants, or exports...",
     prompts: [
       "Summarize audit evidence for the selected window.",
@@ -81,7 +81,7 @@ const AI_ROUTE_COPY = {
     ],
   },
   admin: {
-    emptyLive: "Ask about runtime health, integrations, policy coverage, setup diagnostics, and control evidence using governed metadata. I never read raw row values.",
+    emptyLive: "Ask about runtime health, integrations, policy coverage, setup diagnostics, and control evidence using governed metadata. I read Unity Catalog metadata only — no customer or PII row content.",
     placeholder: "Ask about runtime jobs, integrations, or policies...",
     prompts: [
       "Which runtime job or integration needs attention?",
@@ -91,7 +91,7 @@ const AI_ROUTE_COPY = {
     ],
   },
   entity: {
-    emptyLive: "Ask about the selected asset's ownership, schema, usage, quality, and governance evidence. I never read raw row values.",
+    emptyLive: "Ask about the selected asset's ownership, schema, usage, quality, and governance evidence. I read Unity Catalog metadata only — no customer or PII row content.",
     placeholder: "Ask about this asset's owner, schema, or evidence...",
     prompts: [
       "Summarize this asset's governance evidence.",
@@ -357,7 +357,7 @@ function AtlasAiMessageList({
       <div className="gh-floating-ai-message tone-assistant is-empty" role="status">
         <span>Atlas AI</span>
         <strong>
-          {emptyMessage || "I answer questions about your governed data using Unity Catalog metadata. I never read raw row values."}
+          {emptyMessage || "I answer questions about your governed data using Unity Catalog metadata. I read Unity Catalog metadata only — no customer or PII row content."}
         </strong>
       </div>
     );
@@ -632,7 +632,7 @@ export default function AppFrame({
         : "Atlas AI requires a configured evidence-backed endpoint before it can answer questions.";
   const aiDockVisible = aiChatOpen;
   const aiGroundingLine = aiCopilotAvailable
-    ? "Grounded in available governance metadata - no raw rows read"
+    ? "Grounded in Unity Catalog metadata only - no customer or PII row content"
     : "Unavailable until an evidence-backed Atlas AI endpoint is configured";
   const aiEmptyMessage = aiRouteCopy.emptyLive;
   const aiPlaceholder = aiRouteCopy.placeholder || DEFAULT_AI_ROUTE_COPY.placeholder;

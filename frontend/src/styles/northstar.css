@@ -1854,36 +1854,43 @@ body {
 .gh-command-center-trust-center {
   position: absolute;
   z-index: 2;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  justify-items: center;
+  /* Inset by ~26% so the inner content stays well clear of the gauge
+     stroke. The previous inset:0 + place-content:center pushed the
+     trend caption (em) onto the bottom arc of the gauge stroke at
+     larger value sizes. */
+  inset: 26%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   color: var(--ga-text);
   text-align: center;
+  pointer-events: none;
 }
 
 .gh-command-center-trust-center > span {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   color: var(--ga-bright-blue);
-  font-size: 0.63rem;
+  font-size: 0.58rem;
   font-weight: 800;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .gh-command-center-trust-center strong {
   color: var(--ga-text);
   font-family: var(--ga-font-heading);
-  font-size: 3.15rem;
+  font-size: 2.4rem;
   font-weight: 800;
-  line-height: 0.98;
-  letter-spacing: 0;
+  line-height: 1;
+  letter-spacing: -0.01em;
 }
 
 .gh-command-center-trust-center small {
   margin-left: 2px;
   color: var(--ga-text-muted);
-  font-size: 1.05rem;
+  font-size: 0.85rem;
   font-weight: 700;
 }
 
@@ -1891,11 +1898,15 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  margin-top: 7px;
+  margin-top: 4px;
   color: var(--ga-success);
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 700;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .gh-command-center-trust-center em::before {

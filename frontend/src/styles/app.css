@@ -2465,17 +2465,38 @@ button:focus-visible,
 .gh-preview-owner-row,
 .gh-preview-column-row {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   padding: 10px 12px;
-  border: 1px solid rgba(214, 224, 236, 0.92);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(20, 44, 70, 0.85);
+  border-radius: 8px;
+  background: rgba(8, 23, 42, 0.78);
 }
 
-.gh-preview-owner-row span,
-.gh-preview-column-row div span {
-  color: var(--gh-ink-soft);
+.gh-preview-owner-row span {
+  color: var(--ga-text-muted, #b2bdc2);
   font-size: 0.82rem;
+}
+
+.gh-preview-column-row strong {
+  color: var(--ga-text-strong, #ffffff);
+  font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.gh-preview-column-row div span {
+  color: var(--ga-bright-blue, #66c5ff);
+  font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: rgba(102, 197, 255, 0.10);
+  border: 1px solid rgba(102, 197, 255, 0.22);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .gh-preview-column-row div {
@@ -2487,8 +2508,8 @@ button:focus-visible,
 
 .gh-preview-column-row p {
   margin: 0;
-  color: var(--gh-ink-soft);
-  font-size: 0.82rem;
+  color: var(--ga-text-muted, #b2bdc2);
+  font-size: 0.78rem;
   line-height: 1.48;
   overflow-wrap: anywhere;
 }
