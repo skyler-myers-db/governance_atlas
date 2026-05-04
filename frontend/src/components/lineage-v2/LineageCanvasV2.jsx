@@ -105,9 +105,11 @@ const LineageFlowNode = memo(function LineageFlowNode({ data }) {
         type="target"
       />
       <LineageNodeCard
+        header={data.header}
         isDimmed={data.isDimmed}
         isFocus={data.isFocus}
         isHovered={data.isHovered}
+        isSelected={data.isSelected}
         isTraced={data.isTraced}
         node={data.node}
         onClick={data.onSelect}
@@ -156,37 +158,84 @@ function CanvasInner({
   error,
   onFocusChange,
   focusId,
+  nodeHeaders,
+  selectedNodeFqn,
 }) {
   const reactFlow = useReactFlow();
   const [hoveredNodeId, setHoveredNodeId] = useState("");
-  // Retain the previously rendered nodes/edges across focus switches so
-  // the canvas doesn't blank-flash while the new query is in flight. The
-  // moment the new graph arrives with nodes, we adopt it; until then we
-  // continue rendering the prior topology with a subtle "Switching focus"
-  // banner instead of the full hydrating state.
-  const [stickyGraph, setStickyGraph] = useState({ nodes: graph.nodes, edges: graph.edges });
+  // Accumulated graph: the merged superset of nodes/edges seen across
+  // all lineage payloads received THIS focus session. Two regimes:
+  //   • EXPAND: the new payload's focus node is already in the merged
+  //     set (because the user clicked it from the canvas, which fired
+  //     onFocusChange → URL change → refetch). Merge new neighbors in
+  //     additively so the canvas extends outward — the seamless UX.
+  //   • RESET: the new payload's focus node is NOT in the merged set
+  //     (external navigation: the user typed a new URL, used the
+  //     hero search, or routed in from another page). Discard the
+  //     accumulated state and start fresh — the merged set from the
+  //     previous focus is irrelevant to this asset and would just
+  //     confuse the dagre layout (and previously left the canvas
+  //     blank when the new focus had nothing in common with the old).
+  const [accumulatedGraph, setAccumulatedGraph] = useState(() => ({
+    nodes: graph.nodes,
+    edges: graph.edges,
+    nodeMap: new Map(graph.nodes.map((n) => [n.id, n])),
+    edgeMap: new Map(graph.edges.map((e) => [e.id, e])),
+  }));
   useEffect(() => {
-    if (graph.nodes.length) {
-      setStickyGraph({ nodes: graph.nodes, edges: graph.edges });
-    }
-  }, [graph.nodes, graph.edges]);
+    if (!graph.nodes.length && !graph.edges.length) return;
+    setAccumulatedGraph((current) => {
+      const incomingFocusId = graph.focus?.id || null;
+      // EXPAND vs RESET decision: we're expanding only when the new
+      // focus is already part of the existing merged set (meaning the
+      // user clicked through to it from a visible neighbor). Otherwise
+      // this is external navigation — discard the previous session's
+      // graph and rebuild from scratch.
+      const isExpand =
+        incomingFocusId && current.nodeMap.has(incomingFocusId);
+      const baseNodeMap = isExpand ? new Map(current.nodeMap) : new Map();
+      const baseEdgeMap = isExpand ? new Map(current.edgeMap) : new Map();
+      graph.nodes.forEach((node) => {
+        if (!node?.id) return;
+        baseNodeMap.set(node.id, node);
+      });
+      graph.edges.forEach((edge) => {
+        if (!edge?.id) return;
+        baseEdgeMap.set(edge.id, edge);
+      });
+      return {
+        nodes: Array.from(baseNodeMap.values()),
+        edges: Array.from(baseEdgeMap.values()),
+        nodeMap: baseNodeMap,
+        edgeMap: baseEdgeMap,
+      };
+    });
+  }, [graph.nodes, graph.edges, graph.focus?.id]);
 
-  const useSticky = !graph.nodes.length && stickyGraph.nodes.length > 0;
-  const nodesArray = useSticky ? stickyGraph.nodes : graph.nodes;
-  const edgesArray = useSticky ? stickyGraph.edges : graph.edges;
+  // Render from the accumulated set so the canvas never blanks while a
+  // refetch is in flight. The accumulated set always contains at least
+  // the current graph after the effect above runs.
+  const nodesArray = accumulatedGraph.nodes.length ? accumulatedGraph.nodes : graph.nodes;
+  const edgesArray = accumulatedGraph.edges.length ? accumulatedGraph.edges : graph.edges;
+  const useSticky = !graph.nodes.length && accumulatedGraph.nodes.length > 0;
   const adjacency = useMemo(() => buildAdjacency(edgesArray), [edgesArray]);
   const tracedNodeIds = useMemo(() => tracedSubgraph(adjacency, hoveredNodeId), [adjacency, hoveredNodeId]);
 
   const handleNodeClick = useCallback(
     (node) => {
       if (!node) return;
-      // Permission-honest: refuse to navigate to lineage-only / unverified
-      // references (the card already disables hover state for them, but a
-      // double-check here makes the parent contract clear).
+      // Permission-honest: refuse to "select" a lineage-only / unverified
+      // reference. The card already disables hover state for those.
       if (node.isOpenable === false) return;
-      if (node.fqn && node.fqn !== focusId) onFocusChange?.(node.fqn);
+      // Click triggers the parent's selection handler — the parent
+      // updates BOTH the rail subject AND the URL (so a fresh
+      // /api/lineage/<fqn> fires in the background). When that payload
+      // arrives the canvas MERGES new neighbors into the accumulated
+      // graph (above) instead of replacing — so the user sees the
+      // graph extend outward toward the clicked node, never blanks.
+      if (node.fqn) onFocusChange?.(node.fqn);
     },
-    [focusId, onFocusChange],
+    [onFocusChange],
   );
 
   const positions = useMemo(
@@ -205,16 +254,29 @@ function CanvasInner({
       const isHovered = hoveredNodeId === node.id;
       const isTraced = !hoveredNodeId || tracedNodeIds.has(node.id);
       const isDimmed = false;
+      // The clicked / actively-selected node — distinct from the URL focus.
+      // The card renders an extra "selected" outline so the user can see
+      // exactly which card the rail is currently describing, separate from
+      // the deep "FOCUS" highlight on the URL-anchored node.
+      const isSelected = Boolean(selectedNodeFqn) && node.fqn === selectedNodeFqn;
+      // Look up the per-node header batch-fetched by useLineageNodeHeaders.
+      // This is what carries the UC-grade size / freshness / type / owner
+      // detail that the lineage system tables don't expose. May be undefined
+      // until the header request resolves; the card renders its API-foot
+      // strings as a fallback.
+      const header = nodeHeaders?.get?.(node.fqn) || null;
       return {
         id: node.id,
         type: "lineage",
         position,
         data: {
           node,
+          header,
           isFocus,
           isHovered,
           isTraced,
           isDimmed,
+          isSelected,
           onSelect: handleNodeClick,
         },
         // Disable React Flow's selection / drag — node identity is the
@@ -223,7 +285,15 @@ function CanvasInner({
         draggable: false,
       };
     });
-  }, [nodesArray, positions, hoveredNodeId, tracedNodeIds, handleNodeClick]);
+  }, [
+    nodesArray,
+    positions,
+    hoveredNodeId,
+    tracedNodeIds,
+    handleNodeClick,
+    nodeHeaders,
+    selectedNodeFqn,
+  ]);
 
   const focusReactFlowId = graph.focus?.id;
   // Pull edge colors from CSS custom properties so design-token updates
@@ -341,7 +411,15 @@ function CanvasInner({
   );
 }
 
-export function LineageCanvasV2({ graph, hydrating, error, focusId, onFocusChange }) {
+export function LineageCanvasV2({
+  graph,
+  hydrating,
+  error,
+  focusId,
+  onFocusChange,
+  nodeHeaders,
+  selectedNodeFqn,
+}) {
   // ReactFlowProvider is mounted at the application root in main.jsx, so we
   // don't need to wrap the canvas here. CanvasInner consumes the provider
   // via useReactFlow().
@@ -351,7 +429,9 @@ export function LineageCanvasV2({ graph, hydrating, error, focusId, onFocusChang
       focusId={focusId}
       graph={graph}
       hydrating={hydrating}
+      nodeHeaders={nodeHeaders}
       onFocusChange={onFocusChange}
+      selectedNodeFqn={selectedNodeFqn}
     />
   );
 }

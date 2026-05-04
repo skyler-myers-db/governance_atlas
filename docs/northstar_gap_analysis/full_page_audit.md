@@ -23,26 +23,25 @@ Current companion blockers:
 No route may use historical `SIGNOFF`, closed rows, or prototype/local evidence as
 current completion proof while either companion audit remains active.
 
-## 2026-05-03 Active Evidence Epoch
+## 2026-05-04 Active Evidence Epoch - datapact-test
 
 The active current capture-health epoch is
-`docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/prototype-current-report.json`
-for build `frontend-33133f44f929`, with `mockApi=false`, `captureCount=32`, and
-`interactionCount=0`. It is route/capture-health evidence only.
+`docs/northstar_visual_qa/live-runtime-current-v221-all-viewports-datapact-test-2026-05-04/prototype-current-report.json`
+for build `frontend-39d0070a8f87`, with `mockApi=false`, `captureCount=32`,
+`interactionCount=0`, and `evidenceKind=runtime_app_capture`. It is route/capture-health evidence only.
 
 The active side-by-side visual blocker is
-`docs/northstar_visual_qa/live-runtime-current-v139-reference-current-audit-2026-05-03/audit-artifact-manifest.json`.
+`docs/northstar_visual_qa/live-runtime-current-v220-reference-current-datapact-test-audit-2026-05-04/audit-artifact-manifest.json`.
 It reports `10` pairs and `10` blocked pairs. No visual row is closed by this
-artifact.
+artifact. Max changed-pixel percentage above threshold `8` is `39.74`, and max
+sampled palette delta is `28.6`.
 
 The active local-runtime functional evidence is
-`docs/northstar_visual_qa/live-runtime-current-v135-full-functional-all-routes-2026-05-03/prototype-current-report.json`,
-with focused supplements at
-`docs/northstar_visual_qa/live-runtime-current-v132-focused-functional-command-lineage-control-2026-05-03/prototype-current-report.json`
-and
-`docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/prototype-current-report.json`.
-These reports do not close deployed proof, performance, or the remaining status-only
-control rows.
+`docs/northstar_visual_qa/live-runtime-current-v215-full-functional-datapact-test-2026-05-04/prototype-current-report.json`,
+with local runtime performance evidence at
+`docs/northstar_visual_qa/live-runtime-current-v216-performance-datapact-test-2026-05-04/performance-report.json`.
+These reports do not close deployed Databricks App proof or the remaining open
+visual, functional, truth/provenance, and process rows.
 
 ## Rules For This Audit
 
@@ -116,16 +115,16 @@ not resolved while reopened Lineage rows remain open.
 
 | Page | Reference | Current Evidence | Open Gaps | Status |
 | --- | --- | --- | ---: | --- |
-| Command Center | `prototype_home1.png`, `prototype_home2.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/command-center-3037x1269.png` | 7 | Blocked |
-| Discover | `prototype_discover1.png`, `prototype_discover2.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/discover-3037x1269.png` | 12 | Blocked |
-| Stewardship | `prototype_stewardship1.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/stewardship-3037x1269.png` | 6 | Blocked |
-| Glossary | `prototype_glossary1.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/glossary-3037x1269.png` | 5 | Blocked |
-| CDE Registry | `prototype_stewardship2.png`, `northstar/pages/extras.jsx` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/cde-registry-3037x1269.png` | 6 | Blocked |
-| Lineage Atlas | `prototype_lineage.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/lineage-3037x1269.png` | 24 | Blocked |
-| Audit Evidence | `prototype_audit1.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/audit-3037x1269.png` | 5 | Blocked |
-| Control Center | `prototype_cc.png` | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/control-center-3037x1269.png` | 6 | Blocked |
-| Cross-Page Shared | shared shell, AI, workflow, and provenance rules | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/prototype-current-report.json` | 10 | Blocked |
-| Mock And Fixture Removal | product truth/provenance rules | `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/prototype-current-report.json` | 9 | Blocked |
+| Command Center | `prototype_home1.png`, `prototype_home2.png` | `docs/northstar_visual_qa/live-runtime-current-v221-all-viewports-datapact-test-2026-05-04/command-center-3037x1269.png` | 7 | Blocked |
+| Discover | `prototype_discover1.png`, `prototype_discover2.png` | `docs/northstar_visual_qa/live-runtime-current-v221-all-viewports-datapact-test-2026-05-04/discover-3037x1269.png` | 12 | Blocked |
+| Stewardship | `prototype_stewardship1.png` | `docs/northstar_visual_qa/live-runtime-current-v221-all-viewports-datapact-test-2026-05-04/stewardship-3037x1269.png` | 6 | Blocked |
+| Glossary | `prototype_glossary1.png` | `docs/northstar_visual_qa/live-runtime-current-v221-all-viewports-datapact-test-2026-05-04/glossary-3037x1269.png` | 5 | Blocked |
+| CDE Registry | `prototype_stewardship2.png`, `northstar/pages/extras.jsx` | `docs/northstar_visual_qa/live-runtime-current-v221-all-viewports-datapact-test-2026-05-04/cde-registry-3037x1269.png` | 6 | Blocked |
+| Lineage Atlas | `prototype_lineage.png` | `docs/northstar_visual_qa/live-runtime-current-v221-all-viewports-datapact-test-2026-05-04/lineage-3037x1269.png` | 24 | Blocked |
+| Audit Evidence | `prototype_audit1.png` | `docs/northstar_visual_qa/live-runtime-current-v221-all-viewports-datapact-test-2026-05-04/audit-3037x1269.png` | 5 | Blocked |
+| Control Center | `prototype_cc.png` | `docs/northstar_visual_qa/live-runtime-current-v221-all-viewports-datapact-test-2026-05-04/control-center-3037x1269.png` | 6 | Blocked |
+| Cross-Page Shared | shared shell, AI, workflow, and provenance rules | `docs/northstar_visual_qa/live-runtime-current-v221-all-viewports-datapact-test-2026-05-04/prototype-current-report.json` | 10 | Blocked |
+| Mock And Fixture Removal | product truth/provenance rules | `docs/northstar_visual_qa/live-runtime-current-v221-all-viewports-datapact-test-2026-05-04/prototype-current-report.json` | 9 | Blocked |
 
 ## Command Center Gaps
 

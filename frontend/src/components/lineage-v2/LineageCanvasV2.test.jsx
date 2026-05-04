@@ -158,7 +158,12 @@ describe("LineageCanvasV2", () => {
     expect(onFocusChange).not.toHaveBeenCalled();
   });
 
-  it("does NOT call onFocusChange when clicking the focus node itself", () => {
+  it("DOES call onFocusChange when clicking the focus node — selection state, not refetch", () => {
+    // Click is now a client-side selection event. The handler can fire
+    // even on the URL-focus node so the user can re-select it after
+    // visiting a different card. The parent decides whether to refetch
+    // (it does NOT — focus-change is rail/highlight only; URL change is
+    // gated behind an explicit "Re-anchor" button).
     const onFocusChange = vi.fn();
     render(
       <LineageCanvasV2
@@ -170,6 +175,6 @@ describe("LineageCanvasV2", () => {
       />,
     );
     fireEvent.click(screen.getByTestId("card-focus-a"));
-    expect(onFocusChange).not.toHaveBeenCalled();
+    expect(onFocusChange).toHaveBeenCalledWith("datapact.x.focus");
   });
 });

@@ -257,7 +257,7 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertEqual(payload["recentEvents"][0]["tone"], "bad")
         self.assertEqual(payload["recentEvents"][0]["title"], "Policy Exception Detected")
 
-    def test_command_center_payload_masks_internal_seed_ids(self) -> None:
+    def test_command_center_payload_rejects_internal_seed_rows(self) -> None:
         class SeededStore(FakeStore):
             def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
                 rows = pd.DataFrame(
@@ -299,9 +299,9 @@ class AtlasMetricsTests(unittest.TestCase):
         )
         serialized = json.dumps(payload)
 
-        self.assertEqual(payload["governance"]["pendingRequests"][0]["request_id"], "GOV-01")
-        self.assertEqual(payload["recentEvents"][0]["id"], "AUD-01")
-        self.assertIn("Customer Segment", serialized)
+        self.assertEqual(payload["governance"]["pendingRequests"], [])
+        self.assertEqual(payload["recentEvents"], [])
+        self.assertEqual(payload["dataQuality"]["nonAuthoritativeRowsExcluded"], 2)
         self.assertNotIn("GOV-HOME-EVIDENCE", serialized)
         self.assertNotIn("ga-taxonomy-term", serialized)
         self.assertNotIn("home-evidence-plane", serialized)
@@ -682,7 +682,7 @@ class AtlasMetricsTests(unittest.TestCase):
         self.assertNotIn("ga-home-seed", serialized)
         self.assertNotIn("home-evidence-plane", serialized)
 
-    def test_governance_request_detail_resolves_customer_safe_request_id(self) -> None:
+    def test_governance_request_detail_rejects_customer_safe_seed_request(self) -> None:
         class SeededDetailStore(FakeStore):
             def list_change_requests(self, status: str | None = None, limit: int = 200) -> pd.DataFrame:
                 rows = pd.DataFrame(
@@ -720,10 +720,8 @@ class AtlasMetricsTests(unittest.TestCase):
         )
         serialized = json.dumps(payload)
 
-        self.assertIsNotNone(payload)
-        self.assertEqual(payload["requestId"], "GOV-01")
-        self.assertEqual(payload["id"], "GOV-01")
-        self.assertNotIn("GOV-HOME-EVIDENCE", serialized)
+        self.assertIsNone(payload)
+        self.assertEqual(serialized, "null")
 
     def test_cde_payload_uses_visible_metadata_and_marks_controls_unavailable(self) -> None:
         payload = atlas_metrics.cde_dashboard_payload(visible_assets=_assets_df())

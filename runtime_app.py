@@ -1239,7 +1239,19 @@ def _asset_detail_payload(
     sections: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     requested_sections = asset_service.normalize_asset_detail_sections(sections)
-    if set(requested_sections).issubset({"header", "activity"}):
+    # Fast-path: when the caller only wants `activity` (no header), serve from
+    # cached inventory to avoid the DESCRIBE DETAIL / DESCRIBE HISTORY round
+    # trips. We DO NOT take the fast-path when "header" is in the requested
+    # sections — that path returns rows="—" / size="—" / no updatedAt and
+    # never invokes the live UC enrichment that the full asset_detail_payload
+    # adds (Delta history → updatedAt, DESCRIBE DETAIL → rows/size/files,
+    # information_schema.tables → UC owner). Taking the fast-path for header
+    # was the root cause of "everything Unavailable" for assets the user
+    # could see populated in UC Catalog Explorer.
+    if (
+        set(requested_sections).issubset({"header", "activity"})
+        and "header" not in requested_sections
+    ):
         cached_inventory = _cached_visible_assets(request)
         fast_header = None
         if cached_inventory is not None:

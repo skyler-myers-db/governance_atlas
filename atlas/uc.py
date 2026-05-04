@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import time
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple
 
 import pandas as pd
 
@@ -825,6 +825,66 @@ ORDER BY tag_name""",
         except Exception:
             return pd.DataFrame(columns=["key", "value"])
 
+    def get_table_history(
+        self,
+        catalog: str,
+        schema: str,
+        table: str,
+        limit: int = 20,
+    ) -> pd.DataFrame:
+        """Return DESCRIBE HISTORY rows for a Delta table.
+
+        UC's Catalog Explorer derives the "Last updated" timestamp on a
+        table card by scanning Delta history and picking the most recent
+        DATA-CHANGING operation (WRITE / UPDATE / DELETE / MERGE /
+        STREAMING UPDATE). Maintenance ops (OPTIMIZE / VACUUM /
+        UPGRADE_SCHEMA) are intentionally ignored — they aren't meaningful
+        proof of data freshness.
+
+        Returns an empty DataFrame for non-Delta tables, views, or any
+        case where DESCRIBE HISTORY isn't permitted by UC. Caller is
+        responsible for filtering by operation.
+        """
+        full = quote_uc_3part(catalog, schema, table)
+        try:
+            return self.query_df(f"DESCRIBE HISTORY {full} LIMIT {int(limit)}")
+        except Exception:
+            return pd.DataFrame()
+
+    def get_information_schema_table_metadata(
+        self, catalog: str, schema: str, table: str
+    ) -> pd.DataFrame:
+        """Return UC information_schema.tables row for the asset.
+
+        Surfaces the authoritative `created`, `created_by`, `last_altered`,
+        `last_altered_by`, and `table_owner` fields from UC. We use these
+        to populate the asset header's Owner / Last updated when the
+        local governance store has nothing assigned (which is the common
+        case — most tables in a workspace are NOT explicitly owner-tagged
+        through Atlas's stewardship workflow yet, but UC always knows
+        who created them).
+        """
+        ident_cols = (
+            "table_catalog, table_schema, table_name, table_type, "
+            "table_owner, comment, created, created_by, last_altered, last_altered_by"
+        )
+        q = (
+            f"SELECT {ident_cols} FROM {quote_ident(catalog)}.information_schema.tables "
+            f"WHERE table_catalog = '{catalog}' AND table_schema = '{schema}' AND table_name = '{table}'"
+        )
+        try:
+            return self.query_df(q)
+        except Exception:
+            # Some workspaces only expose this through system.* — try that.
+            try:
+                fallback_q = (
+                    f"SELECT {ident_cols} FROM system.information_schema.tables "
+                    f"WHERE table_catalog = '{catalog}' AND table_schema = '{schema}' AND table_name = '{table}'"
+                )
+                return self.query_df(fallback_q)
+            except Exception:
+                return pd.DataFrame()
+
     def get_table_constraints(
         self, catalog: str, schema: str, table: str
     ) -> pd.DataFrame:
@@ -1037,6 +1097,106 @@ ORDER BY target_table_full_name
 LIMIT {int(limit)}
 """
         return self.query_df(q)
+
+    def get_table_lineage_edges_batch(
+        self,
+        fqns: List[str],
+        *,
+        directions: Tuple[str, ...] = ("upstream", "downstream"),
+        per_seed_limit: int = 50,
+    ) -> pd.DataFrame:
+        """Fetch ALL lineage edges for a batch of seed FQNs in ONE query.
+
+        This is the performance backbone of the lineage graph build. The
+        previous per-node loop fired one query per (asset, direction)
+        pair — 30+ round trips for a typical 8-neighbor graph at depth=1.
+        This batched version collapses an entire BFS level into a single
+        warehouse query by using IN-lists for both source_table_full_name
+        and target_table_full_name.
+
+        Returns a frame with columns:
+          source_table_full_name, source_table_catalog, source_table_schema,
+          source_table_name, source_type,
+          target_table_full_name, target_table_catalog, target_table_schema,
+          target_table_name, target_type
+
+        `per_seed_limit` is the per-seed truncation cap that mirrors the
+        old per-call LIMIT 50 — it's enforced via ROW_NUMBER() in the
+        SQL so a single hot seed can't crowd out the whole result set.
+
+        Returns an empty DataFrame on any error (so callers can render
+        an honest empty-state instead of a 500).
+        """
+        if not fqns:
+            return pd.DataFrame()
+        cleaned = [str(fqn).strip() for fqn in fqns if str(fqn or "").strip()]
+        if not cleaned:
+            return pd.DataFrame()
+        # Two parallel WHERE branches: rows where any seed is the source
+        # (those are downstream edges of the seeds), and rows where any
+        # seed is the target (those are upstream edges of the seeds).
+        # Per-seed truncation via ROW_NUMBER() keeps a popular target
+        # from monopolizing the result.
+        seed_list_sql = ", ".join(sql_literal(value) for value in cleaned)
+        clauses: List[str] = []
+        if "downstream" in directions:
+            # source IN (seeds): seed → target = downstream of seed
+            clauses.append(
+                f"source_table_full_name IN ({seed_list_sql}) "
+                f"AND target_table_name IS NOT NULL"
+            )
+        if "upstream" in directions:
+            # target IN (seeds): source → seed = upstream of seed
+            clauses.append(
+                f"target_table_full_name IN ({seed_list_sql}) "
+                f"AND source_table_name IS NOT NULL"
+            )
+        if not clauses:
+            return pd.DataFrame()
+        where_clause = " OR ".join(f"({clause})" for clause in clauses)
+        q = f"""
+WITH edges AS (
+    SELECT
+        source_table_full_name,
+        source_table_catalog,
+        source_table_schema,
+        source_table_name,
+        source_type,
+        target_table_full_name,
+        target_table_catalog,
+        target_table_schema,
+        target_table_name,
+        target_type,
+        ROW_NUMBER() OVER (
+            PARTITION BY
+                CASE WHEN source_table_full_name IN ({seed_list_sql})
+                     THEN source_table_full_name
+                     ELSE target_table_full_name
+                END
+            ORDER BY source_table_full_name, target_table_full_name
+        ) AS seed_rank
+    FROM system.access.table_lineage
+    WHERE {where_clause}
+    GROUP BY ALL
+)
+SELECT
+    source_table_full_name,
+    source_table_catalog,
+    source_table_schema,
+    source_table_name,
+    source_type,
+    target_table_full_name,
+    target_table_catalog,
+    target_table_schema,
+    target_table_name,
+    target_type
+FROM edges
+WHERE seed_rank <= {int(per_seed_limit)}
+"""
+        try:
+            return self.query_df(q)
+        except Exception:
+            return pd.DataFrame()
 
     def get_column_lineage_upstream(
         self, catalog: str, schema: str, table: str, limit: int = 500

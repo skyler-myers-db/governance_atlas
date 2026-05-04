@@ -115,6 +115,68 @@ class GovernanceWorkflowTests(unittest.TestCase):
         self.assertTrue(any("task-created" in sql for sql in uc.executed))
         self.assertFalse(any("INSERT INTO `main`.`atlas`.`change_requests`" in sql for sql in uc.executed))
 
+    def test_workflow_identity_ensure_reuses_existing_actor_without_noop_write(self) -> None:
+        uc = FakeUC(
+            responses=[
+                (
+                    "FROM `main`.`atlas`.`identity_directory_entries`",
+                    pd.DataFrame(
+                        [
+                            {
+                                "entry_id": "entry-1",
+                                "external_key": "writer@example.com",
+                                "principal_type": "user",
+                                "display_name": "Writer Example",
+                                "email": "writer@example.com",
+                                "is_active": True,
+                                "source": "runtime_actor",
+                                "attributes_json": None,
+                                "synced_at": "2026-05-04T00:00:00Z",
+                            }
+                        ]
+                    ),
+                )
+            ]
+        )
+        store = GovernanceStore(uc, "main", "atlas")
+
+        actor = store._ensure_actor_identity_entry("writer@example.com", actor_role="writer")
+
+        self.assertEqual(actor["entryId"], "entry-1")
+        self.assertEqual(uc.executed, [])
+
+    def test_workflow_entity_reference_reuses_existing_registry_and_alias_without_noop_write(self) -> None:
+        uc = FakeUC(
+            responses=[
+                (
+                    "FROM `main`.`atlas`.`entity_registry`",
+                    pd.DataFrame(
+                        [
+                            {
+                                "entity_id": "entity-1",
+                                "entity_kind": "asset",
+                                "entity_fqn": "main.sales.orders",
+                            }
+                        ]
+                    ),
+                ),
+                (
+                    "FROM `main`.`atlas`.`entity_aliases`",
+                    pd.DataFrame([{"alias_id": "alias-1"}]),
+                ),
+            ]
+        )
+        store = GovernanceStore(uc, "main", "atlas")
+
+        entity = store._ensure_entity_registry_reference(
+            "main.sales.orders",
+            updated_by="writer@example.com",
+            actor_role="writer",
+        )
+
+        self.assertEqual(entity["entityId"], "entity-1")
+        self.assertEqual(uc.executed, [])
+
     def test_list_change_requests_reads_task_backed_workflow_rows(self) -> None:
         workflow_rows = pd.DataFrame(
             [

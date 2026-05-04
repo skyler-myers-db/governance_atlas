@@ -31,21 +31,18 @@ Current closure evidence required:
 
 Active current control evidence:
 
-- `docs/northstar_visual_qa/live-runtime-current-v135-full-functional-all-routes-2026-05-03/prototype-current-report.json`
+- `docs/northstar_visual_qa/live-runtime-current-v215-full-functional-datapact-test-2026-05-04/prototype-current-report.json`
   is the active all-route local-runtime control report for build
-  `frontend-33133f44f929`; it has `mockApi=false`, `interactionCount=48`, and two
+  `frontend-39d0070a8f87`; it has `mockApi=false`, `interactionCount=48`, and two
   expected invalid structured-search `400` checks. It is not deployed Databricks App
   proof.
-- `docs/northstar_visual_qa/live-runtime-current-v132-focused-functional-command-lineage-control-2026-05-03/prototype-current-report.json`
-  is a focused same-build supplement for Command Center, Lineage, and Control Center;
-  it proves the current Lineage drag/pan behavior but does not close the remaining
-  graph/search/export/selection rows.
-- `docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/prototype-current-report.json`
-  is a focused same-build CDE supplement proving the current CDE `Open lineage`
-  handoff.
-- Functional reviewer recheck on v135/v132/v134 remains BLOCKED for status-only
-  controls, drawer-context actions, mutation contradictions, unavailable-state
-  precision, responsive control exercise, deployed proof, and performance telemetry.
+- `docs/northstar_visual_qa/live-runtime-current-v216-performance-datapact-test-2026-05-04/performance-report.json`
+  is local runtime performance evidence for build `frontend-39d0070a8f87`; it has
+  `budgetPassed=true` and explicitly warns that it is not deployed Databricks App
+  proof.
+- Functional reviewer recheck on v215 remains BLOCKED for any row not explicitly
+  closed with current control-level evidence, deployed proof, or a truthful
+  disabled/unavailable outcome.
 
 Historical reproduction and non-closing evidence inventory:
 

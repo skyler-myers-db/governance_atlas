@@ -288,6 +288,34 @@ class LineageCacheTests(unittest.TestCase):
                     {"source_table_full_name": self.upstream_map.get(fqn, [])}
                 )
 
+            def get_table_lineage_edges_batch(
+                self,
+                fqns,
+                *,
+                directions=("upstream", "downstream"),
+                per_seed_limit: int = 50,
+            ) -> pd.DataFrame:
+                # Batched implementation that mirrors the per-node
+                # upstream_map for the directions the test exercises.
+                # Returns one row per (source_fqn, target_fqn) pair.
+                rows = []
+                if "upstream" in directions:
+                    for target_fqn in fqns:
+                        for source_fqn in self.upstream_map.get(target_fqn, []):
+                            rows.append({
+                                "source_table_full_name": source_fqn,
+                                "source_table_catalog": source_fqn.split(".")[0],
+                                "source_table_schema": source_fqn.split(".")[1],
+                                "source_table_name": source_fqn.split(".")[2],
+                                "source_type": "TABLE",
+                                "target_table_full_name": target_fqn,
+                                "target_table_catalog": target_fqn.split(".")[0],
+                                "target_table_schema": target_fqn.split(".")[1],
+                                "target_table_name": target_fqn.split(".")[2],
+                                "target_type": "TABLE",
+                            })
+                return pd.DataFrame(rows)
+
         def fake_node(_uc, _store, asset_fqn, role, _x, _y, **kwargs):
             return {
                 "id": f"{role}-{asset_fqn}",

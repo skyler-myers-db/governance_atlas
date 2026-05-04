@@ -220,7 +220,7 @@ describe("TaxonomyWorkspace", () => {
     expect(screen.queryByRole("complementary", { name: "Net Revenue detail" })).toBeNull();
   });
 
-  it("keeps zero-asset glossary controls disabled with explicit rationale", () => {
+  it("opens zero-asset glossary association detail and keeps lineage disabled with explicit rationale", () => {
     const payload = {
       data: {
         glossaryTerms: [
@@ -244,15 +244,17 @@ describe("TaxonomyWorkspace", () => {
     const glossaryCards = screen.getByLabelText("Glossary cards");
     const emptyCard = within(glossaryCards).getByRole("heading", { name: "Unmapped Term" }).closest("article");
     const assetCount = within(emptyCard).getByRole("button", { name: "0 assets" });
-    expect(assetCount.disabled).toBe(true);
-    expect(assetCount.getAttribute("title")).toBe("No associated asset FQN is available for this term");
+    expect(assetCount.disabled).toBe(false);
+    expect(assetCount.getAttribute("title")).toBe("Open association detail; no linked assets are recorded for this term");
     expect(within(emptyCard).getByRole("button", { name: "Preview lineage ->" }).disabled).toBe(true);
 
-    fireEvent.click(emptyCard);
+    fireEvent.click(assetCount);
     const detail = screen.getByRole("complementary", { name: "Unmapped Term detail" });
+    expect(within(detail).getByRole("heading", { name: "Associated assets" })).toBeDefined();
+    expect(within(detail).getByText("No linked assets are recorded for this term.")).toBeDefined();
     expect(within(detail).getByRole("button", { name: "Open first asset" }).disabled).toBe(true);
     expect(within(detail).getByRole("button", { name: "Open lineage" }).disabled).toBe(true);
-    expect(within(detail).getByRole("button", { name: "Browse all associations" }).disabled).toBe(true);
+    expect(within(detail).getByRole("button", { name: "Hide associations" }).disabled).toBe(false);
   });
 
   it("opens CDE detail actions using the source-of-record column table FQN", () => {
@@ -303,10 +305,19 @@ describe("TaxonomyWorkspace", () => {
 
     expect(screen.getAllByText("Glossary term unavailable")).toHaveLength(4);
     expect(screen.getAllByText("Hierarchy unavailable")).toHaveLength(4);
+    fireEvent.click(screen.getAllByRole("button", { name: "0 assets" })[0]);
+    const unavailableTermDetail = screen.getByRole("complementary", { name: "Glossary term unavailable detail" });
+    expect(within(unavailableTermDetail).getByRole("heading", { name: "Associated assets" })).toBeDefined();
+    expect(within(unavailableTermDetail).getByRole("button", { name: "Open lineage" }).disabled).toBe(true);
+    fireEvent.click(within(unavailableTermDetail).getByRole("button", { name: "Close Glossary term unavailable detail" }));
     fireEvent.click(screen.getByRole("tab", { name: "CDE Registry 0" }));
     expect(screen.getAllByText("CDE evidence unavailable")).toHaveLength(5);
     expect(screen.getAllByTitle("Recertification workflow evidence unavailable").length).toBeGreaterThan(0);
     expect(screen.getAllByTitle("Quality/test-run evidence unavailable").length).toBeGreaterThan(0);
+    const cdeTable = screen.getByRole("table", { name: "CDE registry table" });
+    fireEvent.click(within(cdeTable).getAllByText("CDE evidence unavailable")[0].closest("[role='row']"));
+    const unavailableCdeDetail = screen.getByRole("complementary", { name: "CDE evidence unavailable detail" });
+    expect(within(unavailableCdeDetail).getByRole("button", { name: /Request recertification unavailable/i }).disabled).toBe(true);
   });
 
   it("rejects non-authoritative taxonomy and CDE payload rows", async () => {

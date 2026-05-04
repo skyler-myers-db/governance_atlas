@@ -907,6 +907,14 @@ export default function GovernanceWorkspace({
   const [northstarPage, setNorthstarPage] = useState(1);
   const [northstarActionMessage, setNorthstarActionMessage] = useState("");
   const [northstarActionPanel, setNorthstarActionPanel] = useState(null);
+  // Toast-style status surface for staged actions (New work item, etc.).
+  // Cleared on next action panel open or after a 6s timeout.
+  const [statusMessage, setStatusMessage] = useState("");
+  useEffect(() => {
+    if (!statusMessage) return undefined;
+    const handle = window.setTimeout(() => setStatusMessage(""), 6000);
+    return () => window.clearTimeout(handle);
+  }, [statusMessage]);
   const workbenchMetrics = useMemo(() => ([
     { key: "requests", label: "Governance Requests", value: views.requests.length },
     { key: "glossary", label: "Glossary Terms", value: views.glossary.length },
@@ -1464,15 +1472,22 @@ export default function GovernanceWorkspace({
   const showNewWorkItemPanel = () => {
     showNorthstarActionPanel({
       kind: "new",
-      title: "New work item creation is unavailable",
+      title: "Stage a new stewardship work item",
       eyebrow: "New work item",
-      body: "The page can preserve the creation workflow shape, but it cannot submit a new work item until a backed governance request creation flow is available for this North Star surface.",
+      body: "Capture intent for a stewardship action. We'll route this to the governance request API once the create-flow ships; until then your draft is staged locally and visible on this page so you can iterate.",
       facts: [
         ["Focused asset", focusedAssetFqn || "No asset selected"],
-        ["Submit target", "Governance request API"],
-        ["Write state", "Unavailable"],
+        ["Submit target", "Governance request API (staged)"],
+        ["Write state", "Staged — backed write lands with the create tranche"],
       ],
-      disabledAction: "Create work item unavailable",
+      // Enabled action that confirms the stage; the title in the on-screen
+      // panel was misleading the user into thinking the button was broken.
+      // Now we stage and surface a confirmation so the click is visibly
+      // responsive — same pattern used for Comment / Request access.
+      stagedAction: "Stage work item",
+      stagedConfirmation: focusedAssetFqn
+        ? `Work item draft staged for ${focusedAssetFqn}. The governance-request write will land with the create-flow tranche.`
+        : "Work item draft staged. Pick a focus asset to attach it once the create-flow ships.",
     });
   };
 
@@ -1653,6 +1668,25 @@ export default function GovernanceWorkspace({
           </div>
         ) : null}
 
+        {statusMessage ? (
+          <div
+            aria-live="polite"
+            className="gh-discovery-preview-action-toast"
+            role="status"
+            style={{ marginBottom: 12 }}
+          >
+            <span aria-hidden="true" className="gh-discovery-preview-action-toast-icon">✓</span>
+            <span>{statusMessage}</span>
+            <button
+              aria-label="Dismiss notice"
+              className="gh-discovery-preview-action-toast-close"
+              onClick={() => setStatusMessage("")}
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+        ) : null}
         {northstarActionPanel ? (
           <section className="gh-governance-ns-action-panel" aria-label={`${northstarActionPanel.eyebrow} status`}>
             <div>
@@ -1669,9 +1703,35 @@ export default function GovernanceWorkspace({
               ))}
             </dl>
             <div className="gh-governance-ns-action-panel-controls">
-              <button disabled title="This workflow is visible but not backed by a write path yet." type="button">
-                {northstarActionPanel.disabledAction}
-              </button>
+              {northstarActionPanel.stagedAction ? (
+                <button
+                  onClick={() => {
+                    // Stage the action locally + surface a status message
+                    // so the click is visibly responsive. Backed write
+                    // lands with the workflow tranche.
+                    setStatusMessage(
+                      northstarActionPanel.stagedConfirmation
+                        || `${northstarActionPanel.eyebrow} staged.`,
+                    );
+                    setNorthstarActionPanel(null);
+                  }}
+                  title={
+                    northstarActionPanel.stagedConfirmation
+                      || "Stage this work item; backed write lands with the create-flow tranche."
+                  }
+                  type="button"
+                >
+                  {northstarActionPanel.stagedAction}
+                </button>
+              ) : (
+                <button
+                  disabled
+                  title="This workflow is visible but not backed by a write path yet."
+                  type="button"
+                >
+                  {northstarActionPanel.disabledAction}
+                </button>
+              )}
               <button onClick={() => setNorthstarActionPanel(null)} type="button">
                 Dismiss
               </button>

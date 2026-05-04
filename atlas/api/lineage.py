@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import threading
 from datetime import datetime, timezone
 from typing import Optional
@@ -18,6 +19,15 @@ from atlas.services import lineage as lineage_service
 
 _LINEAGE_FULL_WARMING: set[str] = set()
 _LINEAGE_FULL_WARMING_LOCK = threading.Lock()
+
+# Surface failures from the background lineage-warming thread. Previously
+# the warmer caught and dropped every exception silently, which meant a
+# slow/flaky system.access.table_lineage warehouse query would never
+# populate the cache, and the next user request would see "0 edges"
+# without any signal of why. We now log warm-thread exceptions at
+# WARNING so they show up in app logs and can be correlated with
+# warehouse incidents.
+_LINEAGE_LOGGER = logging.getLogger("atlas.lineage")
 
 
 def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
@@ -182,7 +192,14 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
                             profile=lineage_service.LINEAGE_PROFILE_FULL,
                         )
                     except Exception:
-                        pass
+                        # Log instead of swallowing — silent failures
+                        # here were the root cause of "0 edges" for
+                        # assets the user could see populated in UC.
+                        _LINEAGE_LOGGER.warning(
+                            "lineage warmer failed for %s",
+                            asset_fqn,
+                            exc_info=True,
+                        )
                 finally:
                     with _LINEAGE_FULL_WARMING_LOCK:
                         _LINEAGE_FULL_WARMING.discard(warm_key)

@@ -35,14 +35,14 @@
      single source of alignment. */
   padding-left: 0;
   /* Sticky header — stays pinned while the main content scrolls so
-     the search bar and profile chip are always reachable. Solid cream
+     the search bar and profile chip are always reachable. Solid dark
      background + z-index above the card grid prevents text bleed
      from rows below (operator 2026-04-19 round 5: "it shouldn't
      combine with other text"). */
   position: sticky;
   top: 0;
   z-index: 60;
-  background: linear-gradient(180deg, #faf6ec 0%, #faf6ec 92%, rgba(250, 246, 236, 0.92) 100%);
+  background: linear-gradient(180deg, rgba(9, 43, 68, 0.98) 0%, rgba(9, 43, 68, 0.98) 92%, rgba(6, 28, 48, 0.98) 100%);
   /* Round 8: remove the border under the title bar — the darker
      horizontal rule above the Discovery / Navigation subtabs (and
      +Quick action row) is the only separator. Two stacked lines
@@ -354,15 +354,15 @@
 }
 
 .gh-topbar-search-field:hover {
-  border-color: rgba(91, 67, 238, 0.35);
-  background: #fff;
+  border-color: rgba(102, 197, 255, 0.35);
+  background: rgba(12, 33, 56, 0.96);
 }
 
 .gh-topbar-search-field:focus-within,
 .gh-topbar-search-field.is-open {
-  border-color: rgba(91, 67, 238, 0.55);
-  background: #fff;
-  box-shadow: var(--gh-focus-ring, 0 0 0 3px rgba(91, 67, 238, 0.22));
+  border-color: rgba(102, 197, 255, 0.55);
+  background: rgba(12, 33, 56, 0.96);
+  box-shadow: var(--gh-focus-ring, 0 0 0 3px rgba(102, 197, 255, 0.22));
 }
 
 .gh-topbar-search-icon {
@@ -637,7 +637,7 @@
 }
 
 .gh-user-chip-bell:hover {
-  background: #fff;
+  background: rgba(12, 33, 56, 0.96);
   border-color: rgba(91, 67, 238, 0.35);
   color: #2a2f6b;
 }
@@ -678,7 +678,7 @@
   top: calc(100% + 6px);
   right: 0;
   min-width: 220px;
-  background: #fff;
+  background: rgba(12, 33, 56, 0.96);
   border: 1px solid rgba(182, 198, 216, 0.85);
   border-radius: 10px;
   box-shadow: 0 12px 32px rgba(13, 31, 71, 0.14);
@@ -800,7 +800,7 @@
 }
 
 .gh-header-action-button-ghost:hover:not(:disabled) {
-  background: #fff;
+  background: rgba(12, 33, 56, 0.96);
   border-color: rgba(91, 67, 238, 0.35);
   color: #2a2f6b;
 }
@@ -1063,7 +1063,7 @@
   padding: 14px 16px;
   border: 1px solid rgba(182, 198, 216, 0.72);
   border-radius: 12px;
-  background: #fff;
+  background: rgba(12, 33, 56, 0.96);
   box-shadow: 0 10px 22px rgba(18, 35, 58, 0.05);
 }
 
@@ -1111,7 +1111,7 @@
 }
 
 .gh-navigation-schema-card:hover {
-  background: #fff;
+  background: rgba(12, 33, 56, 0.96);
   border-color: rgba(91, 67, 238, 0.32);
   color: #2a2f6b;
 }
@@ -1466,7 +1466,7 @@
   padding: 8px 12px;
   font-size: 0.86rem;
   color: var(--gh-ink, #14213d);
-  background: #fff;
+  background: rgba(12, 33, 56, 0.96);
   border: 1px solid rgba(182, 198, 216, 0.9);
   border-radius: 10px;
   transition: border-color 120ms ease, box-shadow 120ms ease;
@@ -1711,7 +1711,7 @@
      to be darker". */
   border-color: var(--gh-indigo-2, #2d1f93) !important;
   border-width: 2px !important;
-  background: #ffffff !important;
+  background: rgba(12, 33, 56, 0.96) !important;
   box-shadow: 0 0 0 2px rgba(45, 31, 147, 0.55), 0 10px 26px -18px rgba(20, 33, 61, 0.4) !important;
 }
 
@@ -2071,7 +2071,7 @@ h3.gh-asset-preview-header-name {
   padding: 6px 10px;
   border-radius: 8px;
   border: 1px solid rgba(15, 23, 42, 0.1);
-  background: #fff;
+  background: rgba(12, 33, 56, 0.96);
 }
 
 .gh-lineage-mini-node-label {
@@ -2191,7 +2191,7 @@ h3.gh-asset-preview-header-name {
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  background: #fff;
+  background: rgba(12, 33, 56, 0.96);
   border: 1px solid var(--gh-line, #e2e4ec);
   border-radius: 6px;
   font-size: 0.82rem;

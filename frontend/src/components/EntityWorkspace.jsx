@@ -51,6 +51,7 @@ import { OwnerAvatar } from "./primitives/OwnerAvatar";
 import { TabIcon } from "./primitives/TabIcon";
 import { AccessExplainerBanner } from "./primitives/AccessExplainerBanner";
 import { CustomPropertiesPanel } from "./primitives/CustomPropertiesPanel";
+import { InlineEditableDescription } from "./primitives/InlineEditableDescription";
 import { ProfilePanel } from "./primitives/ProfilePanel";
 import { QualityPanel } from "./primitives/QualityPanel";
 
@@ -726,6 +727,7 @@ function Asset360Overview({
   onOpenGovernance,
   onOpenSchema,
   setSchemaColumnFilter,
+  onAssetMutated,
 }) {
   const usage = asset360Data?.usage || asset?.usage || {};
   const rawActivity = Array.isArray(asset360Data?.activity) && asset360Data.activity.length ? asset360Data.activity : asset?.activity || [];
@@ -754,7 +756,19 @@ function Asset360Overview({
         <div className="ga-asset360-primary">
           <section className="ga-asset360-panel ga-asset360-description-card">
             <h2>Business Description</h2>
-            <p>{descriptionText}</p>
+            {/*
+              Inline-editable: hover the description card to reveal the
+              pencil affordance. Click to edit; Cmd/Ctrl+Enter to save,
+              Esc to cancel. Submits to PATCH /api/assets/<fqn>/description
+              which writes through to UC via `COMMENT ON TABLE`. If the
+              user lacks MODIFY privilege the API returns 403 and the
+              edit panel surfaces a permission-honest message.
+            */}
+            <InlineEditableDescription
+              assetFqn={asset?.fqn}
+              description={asset?.description || ""}
+              onSaved={(nextDescription) => onAssetMutated?.({ description: nextDescription })}
+            />
             {prototypeEvidence ? (
               <p className="gh-support-copy">Live Databricks catalog proof is unavailable for this description.</p>
             ) : null}

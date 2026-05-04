@@ -2789,12 +2789,12 @@ button:focus-visible,
   display: grid;
   gap: 14px;
   padding: 16px;
-  border: 1px solid rgba(201, 212, 232, 0.92);
+  border: 1px solid rgba(102, 197, 255, 0.20);
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.985);
+  background: var(--ga-surface-strong, rgba(12, 33, 56, 0.98));
   box-shadow:
     0 28px 60px rgba(20, 35, 64, 0.18),
-    0 1px 0 rgba(255, 255, 255, 0.92) inset;
+    0 1px 0 rgba(102, 197, 255, 0.08) inset;
   max-height: min(74vh, 860px);
   overflow: auto;
 }
@@ -2817,9 +2817,9 @@ button:focus-visible,
   display: grid;
   gap: 8px;
   padding: 12px;
-  border: 1px solid rgba(214, 224, 236, 0.86);
+  border: 1px solid rgba(102, 197, 255, 0.15);
   border-radius: 16px;
-  background: rgba(252, 253, 255, 0.92);
+  background: rgba(12, 33, 56, 0.92);
 }
 
 .gh-query-builder-grid {
@@ -4223,7 +4223,8 @@ and single-line
   height: 36px !important;
   padding: 0 12px !important;
   border-radius: 6px !important;
-  background: #ffffff !important;
+  background: rgba(12, 33, 56, 0.96) !important;
+  border: 1px solid rgba(102, 197, 255, 0.15) !important;
 }
 
 /* ---- Discovery three-column layout, properly bounded ----
@@ -4266,8 +4267,8 @@ and single-line
   padding: 10px 14px !important;
   border-radius: 8px !important;
   box-shadow: none !important;
-  background: #ffffff !important;
-  border: 1px solid var(--gh-border, #d8dee9) !important;
+  background: var(--ga-surface, rgba(12, 33, 56, 0.96)) !important;
+  border: 1px solid rgba(102, 197, 255, 0.15) !important;
   transition: border-color 120ms ease, background 120ms ease !important;
 }
 .gh-discovery-result-row::before { display: none !important; }
@@ -4289,14 +4290,14 @@ and single-line
   min-height: 0 !important;
   border-radius: 0 !important;
   border: 0 !important;
-  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
-  background: #ffffff !important;
+  border-bottom: 1px solid rgba(102, 197, 255, 0.15) !important;
+  background: var(--ga-surface, rgba(12, 33, 56, 0.96)) !important;
   box-shadow: none !important;
 }
 .gh-entity-record-tabs {
   padding: 0 20px !important;
-  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
-  background: #ffffff !important;
+  border-bottom: 1px solid rgba(102, 197, 255, 0.15) !important;
+  background: var(--ga-surface, rgba(12, 33, 56, 0.96)) !important;
   gap: 0 !important;
 }
 
@@ -5559,7 +5560,7 @@ button[class*="back-to-discovery"] {
   border: 1px solid var(--gh-border, #d8dee9);
   border-bottom-width: 2px;
   border-radius: 3px;
-  background: var(--gh-surface, #fff);
+  background: var(--gh-surface, rgba(12, 33, 56, 0.96));
   font-family: ui-monospace, SFMono-Regular, monospace;
   font-size: 10px;
   min-width: 16px;
@@ -5587,7 +5588,7 @@ button[class*="back-to-discovery"] {
   padding: 6px 10px;
   border: 1px solid var(--gh-border, #d8dee9);
   border-radius: 20px;
-  background: var(--gh-surface, #fff);
+  background: var(--gh-surface, rgba(12, 33, 56, 0.96));
   font-size: 11px;
   color: var(--gh-text-muted, #5c6b82);
   cursor: pointer;
@@ -5614,7 +5615,7 @@ button[class*="back-to-discovery"] {
   height: 40px;
   border-radius: 50%;
   border: 1px solid var(--gh-line-strong, #b6c6d8);
-  background: var(--gh-surface, #fff);
+  background: var(--gh-surface, rgba(12, 33, 56, 0.96));
   color: var(--gh-ink, #14213d);
   font-size: 20px;
   cursor: pointer;
@@ -5644,8 +5645,8 @@ button[class*="back-to-discovery"] {
   right: 24px;
   width: 340px;
   max-width: calc(100vw - 48px);
-  background: #fff;
-  border: 1px solid var(--gh-line, #d6e0ec);
+  background: var(--ga-surface-strong, rgba(12, 33, 56, 0.98));
+  border: 1px solid rgba(102, 197, 255, 0.15);
   border-radius: 12px;
   box-shadow: 0 16px 40px rgba(20, 33, 61, 0.16);
   z-index: 240;

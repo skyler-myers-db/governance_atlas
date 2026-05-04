@@ -686,9 +686,9 @@
 .gh-discovery-table {
   padding: 0 !important;
   border-radius: 0 0 6px 6px;
-  border: 1px solid var(--gh-border, #d8dee9);
+  border: 1px solid rgba(102, 197, 255, 0.15);
   border-top: 0;
-  background: #ffffff;
+  background: var(--ga-surface, rgba(12, 33, 56, 0.96));
   overflow: hidden;
 }
 .gh-discovery-row {
@@ -708,8 +708,8 @@
   align-items: center;
   padding: 0 12px;
   min-height: 48px;
-  border-bottom: 1px solid var(--gh-border, #d8dee9);
-  background: #ffffff;
+  border-bottom: 1px solid rgba(102, 197, 255, 0.08);
+  background: var(--ga-surface, rgba(12, 33, 56, 0.96));
   cursor: pointer;
   transition: background 120ms ease;
 }
@@ -837,7 +837,7 @@
   flex: 1 1 auto;
   min-width: 0;
 }
-.gh-labeled-pill-unassigned { background: #ffffff; color: var(--gh-text-muted, #5c6b82); }
+.gh-labeled-pill-unassigned { background: rgba(102, 197, 255, 0.08); color: var(--ga-text-muted, #8fa8b6); }
 .gh-labeled-pill-unassigned .gh-labeled-pill-value { color: var(--gh-text-muted, #5c6b82); }
 .gh-labeled-pill-warn {
   background: #fdf4e5 !important;
@@ -896,12 +896,12 @@
 .gh-icon-button {
   width: 26px;
   height: 26px;
-  border: 1px solid var(--gh-border, #d8dee9);
-  background: #ffffff;
+  border: 1px solid rgba(102, 197, 255, 0.15);
+  background: rgba(12, 33, 56, 0.96);
   border-radius: 4px;
   padding: 0;
   font-size: 13px;
-  color: var(--gh-text-muted, #5c6b82);
+  color: var(--ga-text-muted, #8fa8b6);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -955,9 +955,9 @@
   padding: 0 12px !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  background: #ffffff !important;
+  background: var(--ga-surface, rgba(12, 33, 56, 0.96)) !important;
   border: 0 !important;
-  border-bottom: 1px solid var(--gh-border, #d8dee9) !important;
+  border-bottom: 1px solid rgba(102, 197, 255, 0.08) !important;
 }
 .gh-discovery-result-row.gh-discovery-row.is-selected {
   background: var(--gh-accent-soft, #eef0ff) !important;
@@ -1157,12 +1157,12 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: #ffffff;
-  border: 1px solid var(--gh-border, #d8dee9);
+  background: rgba(12, 33, 56, 0.96);
+  border: 1px solid rgba(102, 197, 255, 0.15);
   border-radius: 6px;
   padding: 7px 14px;
   font-size: 15px;
-  color: var(--gh-text, #14213d);
+  color: var(--ga-text, #f5fbff);
   cursor: pointer;
   max-width: 280px;
 }
@@ -1285,7 +1285,7 @@
   max-height: 320px;
   overflow: auto;
   padding: 14px;
-  background: var(--gh-surface, #fff);
+  background: var(--gh-surface, rgba(12, 33, 56, 0.96));
   border: 1px solid var(--gh-border, #d8dee9);
   border-radius: 8px;
   box-shadow: 0 18px 42px rgba(20, 33, 61, 0.18);
@@ -1420,7 +1420,7 @@
   flex-direction: column;
   gap: 8px;
   padding: 12px 14px;
-  background: var(--gh-surface, #fff);
+  background: var(--gh-surface, rgba(12, 33, 56, 0.96));
   border: 1px solid rgba(182, 198, 216, 0.7);
   border-radius: 10px;
   cursor: pointer;
@@ -1680,8 +1680,8 @@
   top: calc(100% + 6px);
   right: 0;
   min-width: 200px;
-  background: #fff;
-  border: 1px solid var(--gh-border, #d8dee9);
+  background: var(--ga-surface-strong, rgba(12, 33, 56, 0.98));
+  border: 1px solid rgba(102, 197, 255, 0.15);
   border-radius: 8px;
   box-shadow: 0 12px 32px rgba(13, 31, 71, 0.14);
   padding: 6px;
@@ -1901,7 +1901,7 @@
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  background: var(--gh-surface, #fff);
+  background: var(--gh-surface, rgba(12, 33, 56, 0.96));
   border: 1px solid var(--gh-border, #d8dee9);
   flex: 0 0 auto;
 }
@@ -1938,7 +1938,7 @@ h3.gh-asset-preview-header-name {
   padding: 0;
 }
 .gh-asset-preview-header-close:hover {
-  background: var(--gh-surface, #fff);
+  background: var(--gh-surface, rgba(12, 33, 56, 0.96));
   border-color: var(--gh-border, #d8dee9);
   color: var(--gh-text, #1a2332);
 }
@@ -2030,7 +2030,7 @@ h3.gh-asset-preview-header-name {
 .gh-asset-preview-action-grid > .gh-secondary-button:hover:not(:disabled) {
   border-color: var(--gh-indigo, #3d2bc4);
   color: var(--gh-indigo, #3d2bc4);
-  background: #fff;
+  background: rgba(12, 33, 56, 0.96);
 }
 .gh-asset-preview-action-grid > button.is-favorite {
   /* Favorited state uses the amber star convention, consistent with the
@@ -2135,7 +2135,7 @@ h3.gh-asset-preview-header-name {
   padding: 4px 10px;
   border-radius: 6px;
   border: 1px solid var(--gh-border, #d8dee9);
-  background: var(--gh-surface, #fff);
+  background: var(--gh-surface, rgba(12, 33, 56, 0.96));
   font-size: 0.8rem;
   max-width: 42%;
   overflow: hidden;
@@ -2165,7 +2165,7 @@ h3.gh-asset-preview-header-name {
   padding: 8px 10px;
   border: 1px solid var(--gh-border, #d8dee9);
   border-radius: 8px;
-  background: var(--gh-surface, #fff);
+  background: var(--gh-surface, rgba(12, 33, 56, 0.96));
 }
 .gh-asset-preview-usage-number {
   font-size: 1.25rem;

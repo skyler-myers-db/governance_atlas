@@ -911,6 +911,27 @@ WHERE entity_id = {sql_literal(normalized_entity_id)}
         normalized_email = str(actor_email or "").strip().lower()
         if not normalized_email:
             raise ValueError("actor_email is required.")
+        existing_df = self.uc.query_df(
+            f"""SELECT entry_id, external_key, principal_type, display_name, email, is_active,
+       source, attributes_json, synced_at
+FROM {self._fq('identity_directory_entries')}
+WHERE lower(external_key) = {sql_literal(normalized_email)}
+  AND lower(COALESCE(source, '')) = 'runtime_actor'
+LIMIT 1"""
+        )
+        if existing_df is not None and not existing_df.empty:
+            row = existing_df.iloc[0]
+            return {
+                "entryId": str(row.get("entry_id") or "").strip(),
+                "externalKey": str(row.get("external_key") or normalized_email).strip(),
+                "principalType": str(row.get("principal_type") or "user").strip() or "user",
+                "displayName": str(row.get("display_name") or normalized_email).strip(),
+                "email": str(row.get("email") or normalized_email).strip(),
+                "isActive": bool(row.get("is_active", True)),
+                "source": str(row.get("source") or "runtime_actor").strip(),
+                "attributes": _json_load(row.get("attributes_json")),
+                "syncedAt": str(row.get("synced_at") or "").strip(),
+            }
         return self.upsert_identity_directory_entry(
             external_key=normalized_email,
             principal_type="user",
@@ -961,11 +982,30 @@ FROM {self._fq('entity_registry')}
 WHERE lower(COALESCE(entity_fqn, '')) = {sql_literal(normalized_fqn.lower())}
 LIMIT 1"""
         )
-        entity_id = (
-            str(existing_df.iloc[0].get("entity_id") or "").strip()
-            if existing_df is not None and not existing_df.empty
-            else uuid.uuid4().hex
-        )
+        if existing_df is not None and not existing_df.empty:
+            row = existing_df.iloc[0]
+            entity_id = str(row.get("entity_id") or "").strip()
+            alias_df = self.uc.query_df(
+                f"""SELECT alias_id
+FROM {self._fq('entity_aliases')}
+WHERE entity_id = {sql_literal(entity_id)}
+  AND lower(alias_type) = 'fqn'
+  AND lower(alias_value) = {sql_literal(normalized_fqn.lower())}
+LIMIT 1"""
+            )
+            if alias_df is not None and not alias_df.empty:
+                return {
+                    "entityId": entity_id,
+                    "entityKind": str(row.get("entity_kind") or entity_kind).strip() or entity_kind,
+                    "entityFqn": str(row.get("entity_fqn") or normalized_fqn).strip(),
+                    "sourceSystem": "uc",
+                    "sourceEntityId": "",
+                    "reconciliationState": "matched",
+                    "reconciliationConfidence": 1.0,
+                    "observedAt": "",
+                }
+        else:
+            entity_id = uuid.uuid4().hex
         record = self.upsert_entity_registry(
             entity_id=entity_id,
             entity_kind=entity_kind,
