@@ -111,10 +111,20 @@ function normalizeNode(rawNode, focusFqn) {
   const role = String(rawNode.role || "").toLowerCase();
   const isFocus = role === "focus" || (focusFqn && fqn === focusFqn);
   const details = rawNode.details && typeof rawNode.details === "object" ? rawNode.details : {};
-  const isOpenable =
-    details.isOpenable !== false &&
-    String(details.resolutionState || "").toLowerCase() !== "lineage-only" &&
-    String(details.openabilityState || "").toLowerCase() !== "unverified";
+  // Allow click navigation for ANY node that has a real FQN. The backend's
+  // isOpenable / openabilityState / resolutionState fields are conservative
+  // (they assume per-actor verification not present today and over-flag
+  // nodes as "lineage-only" / "unverified" — including the user's own
+  // focus node when bootstrap visibility hasn't fully hydrated). For
+  // admins who have full UC access, those flags hide working drill paths.
+  // Clicking "lineage-only" node either reveals new actual lineage at
+  // /lineage/<fqn>, or surfaces an honest empty state — both better than
+  // silently doing nothing. The card still shows a small "Lineage only"
+  // chip so the user knows the node may be sparse before clicking.
+  const lineageOnly =
+    String(details.resolutionState || "").toLowerCase() === "lineage-only" ||
+    String(details.openabilityState || "").toLowerCase() === "unverified";
+  const isOpenable = Boolean(fqn);
   const owners = Array.isArray(rawNode.owners) ? rawNode.owners : [];
   const recentActivity = Array.isArray(rawNode.recentActivity) ? rawNode.recentActivity : [];
   const columns = Array.isArray(rawNode.columns) ? rawNode.columns.slice(0, 5) : [];
@@ -155,6 +165,7 @@ function normalizeNode(rawNode, focusFqn) {
       ? Number(rawNode.depth ?? rawNode.hop ?? rawNode.distance)
       : null,
     isOpenable,
+    lineageOnly,
     isFocus,
     isCertified:
       String(details.certification || rawNode.certification || "").toLowerCase().includes("certified"),

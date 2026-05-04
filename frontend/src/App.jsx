@@ -985,6 +985,9 @@ export default function App() {
             recentAssets={commandCenter.data.recentAssets}
             onNavigate={(surfaceKey) => handleModuleSurfaceChange(surfaceKey)}
             onOpenAsset360Drawer={openAsset360Drawer}
+            onOpenDiscoveryWithFilter={(filterGroups, query = "") => {
+              openDiscoveryWorkspace(query, { fresh: true, filterGroups });
+            }}
           />
         </Suspense>
       );

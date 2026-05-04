@@ -41,12 +41,20 @@ export function systemInventoryCapability(bootstrap) {
 }
 
 export function systemInventoryAvailable(bootstrap) {
+  // The backend reports "degraded" when its bootstrap-time visible-asset
+  // count is 0 but the runtime is otherwise live and OBO is working.
+  // Per-asset detail / lineage / search requests still succeed in that
+  // state — only the workspace-wide count is lagging. Treating
+  // "degraded" as unavailable was hiding live data behind a misleading
+  // "LIVE ROWS UNAVAILABLE" banner for admins with full access whose
+  // individual asset reads were fine. We now accept any non-explicitly-
+  // unavailable capability.
   const capability = systemInventoryCapability(bootstrap);
   if (!capability) return false;
   if (capability?.available === false) return false;
   const state = String(capability?.state || "").trim().toLowerCase();
-  if (state && state !== "available") return false;
-  return capability?.available === true || state === "available";
+  if (state === "unavailable" || state === "unknown") return false;
+  return capability?.available === true || state === "available" || state === "degraded";
 }
 
 export function systemInventoryReason(

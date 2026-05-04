@@ -1854,11 +1854,11 @@ body {
 .gh-command-center-trust-center {
   position: absolute;
   z-index: 2;
-  /* Inset by ~26% so the inner content stays well clear of the gauge
-     stroke. The previous inset:0 + place-content:center pushed the
-     trend caption (em) onto the bottom arc of the gauge stroke at
-     larger value sizes. */
-  inset: 26%;
+  /* Inset by ~18% — gives the trend caption (em) enough horizontal room
+     for "Trend unavailable" without clipping while still keeping the
+     content clear of the gauge stroke. Previously inset:26% truncated
+     the right edge of "Trend unavailab…". */
+  inset: 18%;
   display: flex;
   flex-direction: column;
   align-items: center;
