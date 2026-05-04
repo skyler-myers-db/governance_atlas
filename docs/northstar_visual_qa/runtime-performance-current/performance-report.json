@@ -1,0 +1,1159 @@
+{
+  "generatedAt": "2026-05-04T04:04:11.774Z",
+  "baseUrl": "http://127.0.0.1:8000",
+  "evidenceKind": "runtime_app_performance",
+  "mockApi": false,
+  "buildId": "frontend-85ea0d874949",
+  "observedBuildIds": [
+    "frontend-85ea0d874949"
+  ],
+  "buildMatches": true,
+  "liveDatabricksCapture": false,
+  "forwardedActorCapture": true,
+  "warning": "Local runtime performance evidence only; not deployed Databricks App proof.",
+  "passed": false,
+  "budgetPassed": false,
+  "apiResults": [
+    {
+      "id": "bootstrap-home",
+      "pass": "first-observed",
+      "path": "/api/bootstrap?surface=home",
+      "status": 200,
+      "ok": true,
+      "durationMs": 46.2,
+      "budgetMs": 500,
+      "withinBudget": true,
+      "bytes": 9212,
+      "serverDurationMs": 2.5,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "runtime-status",
+      "pass": "first-observed",
+      "path": "/api/runtime/status",
+      "status": 200,
+      "ok": true,
+      "durationMs": 7.3,
+      "budgetMs": 1000,
+      "withinBudget": true,
+      "bytes": 39269,
+      "serverDurationMs": 2.2,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "command-center",
+      "pass": "first-observed",
+      "path": "/api/atlas/command-center",
+      "status": 200,
+      "ok": true,
+      "durationMs": 6.9,
+      "budgetMs": 2000,
+      "withinBudget": true,
+      "bytes": 1437,
+      "serverDurationMs": 3.6,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "discovery-search",
+      "pass": "first-observed",
+      "path": "/api/discovery/search?limit=80&sortBy=Best%20match",
+      "status": 200,
+      "ok": true,
+      "durationMs": 16.2,
+      "budgetMs": 2000,
+      "withinBudget": true,
+      "bytes": 1820,
+      "serverDurationMs": 13.2,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "asset-header",
+      "pass": "first-observed",
+      "path": "/api/assets/finance_prod.curated.revenue_daily?sections=header",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2245.8,
+      "budgetMs": 2000,
+      "withinBudget": false,
+      "bytes": 996,
+      "serverDurationMs": 2242.1,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"958f7404c8204af18112439ac7e79b87\",\"httpRequestId\":\"958f7404c8204af18112439ac7e79b87\",\"meta\":{\"requestId\":\"958f7404c8204af18112439ac7e79b87\",\"httpRequestId\":"
+    },
+    {
+      "id": "asset-360",
+      "pass": "first-observed",
+      "path": "/api/atlas/assets/finance_prod.curated.revenue_daily/360",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2279.7,
+      "budgetMs": 3000,
+      "withinBudget": false,
+      "bytes": 1036,
+      "serverDurationMs": 2273.9,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"dbf82f7ecddb4b16867169d81fc53355\",\"httpRequestId\":\"dbf82f7ecddb4b16867169d81fc53355\",\"meta\":{\"requestId\":\"dbf82f7ecddb4b16867169d81fc53355\",\"httpRequestId\":"
+    },
+    {
+      "id": "lineage-initial",
+      "pass": "first-observed",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=initial",
+      "status": 200,
+      "ok": true,
+      "durationMs": 19,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 4011,
+      "serverDurationMs": 8.7,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "lineage-full",
+      "pass": "first-observed",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=full",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2377.5,
+      "budgetMs": 8000,
+      "withinBudget": false,
+      "bytes": 997,
+      "serverDurationMs": 2371.9,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"1f77f8c9d53345e3aabf1ee97948a1fb\",\"httpRequestId\":\"1f77f8c9d53345e3aabf1ee97948a1fb\",\"meta\":{\"requestId\":\"1f77f8c9d53345e3aabf1ee97948a1fb\",\"httpRequestId\":"
+    },
+    {
+      "id": "governance-workbench",
+      "pass": "first-observed",
+      "path": "/api/atlas/governance/workbench",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1655.5,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 2952,
+      "serverDurationMs": 1651.4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "taxonomy-overview",
+      "pass": "first-observed",
+      "path": "/api/atlas/taxonomy/overview",
+      "status": 200,
+      "ok": true,
+      "durationMs": 6.8,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 953,
+      "serverDurationMs": 3.4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "cde-dashboard",
+      "pass": "first-observed",
+      "path": "/api/atlas/cde",
+      "status": 200,
+      "ok": true,
+      "durationMs": 22.1,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 1011,
+      "serverDurationMs": 19.7,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "audit-evidence",
+      "pass": "first-observed",
+      "path": "/api/atlas/audit/evidence?date_range=7d&limit=50",
+      "status": 200,
+      "ok": true,
+      "durationMs": 9.7,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 1065,
+      "serverDurationMs": 7.1,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "admin-control-center",
+      "pass": "first-observed",
+      "path": "/api/atlas/admin/control-center",
+      "status": 200,
+      "ok": true,
+      "durationMs": 8.6,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 4664,
+      "serverDurationMs": 5.2,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "bootstrap-home",
+      "pass": "warm-repeat",
+      "path": "/api/bootstrap?surface=home",
+      "status": 200,
+      "ok": true,
+      "durationMs": 4.6,
+      "budgetMs": 500,
+      "withinBudget": true,
+      "bytes": 9212,
+      "serverDurationMs": 1.4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "runtime-status",
+      "pass": "warm-repeat",
+      "path": "/api/runtime/status",
+      "status": 200,
+      "ok": true,
+      "durationMs": 3.9,
+      "budgetMs": 1000,
+      "withinBudget": true,
+      "bytes": 39269,
+      "serverDurationMs": 1.6,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "command-center",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/command-center",
+      "status": 200,
+      "ok": true,
+      "durationMs": 33.6,
+      "budgetMs": 2000,
+      "withinBudget": true,
+      "bytes": 1454,
+      "serverDurationMs": 25.6,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "discovery-search",
+      "pass": "warm-repeat",
+      "path": "/api/discovery/search?limit=80&sortBy=Best%20match",
+      "status": 200,
+      "ok": true,
+      "durationMs": 154.2,
+      "budgetMs": 2000,
+      "withinBudget": true,
+      "bytes": 93079,
+      "serverDurationMs": 133,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "asset-header",
+      "pass": "warm-repeat",
+      "path": "/api/assets/finance_prod.curated.revenue_daily?sections=header",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2248.4,
+      "budgetMs": 2000,
+      "withinBudget": false,
+      "bytes": 996,
+      "serverDurationMs": 2245.8,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"84ba63661530455081fdeabc5714716e\",\"httpRequestId\":\"84ba63661530455081fdeabc5714716e\",\"meta\":{\"requestId\":\"84ba63661530455081fdeabc5714716e\",\"httpRequestId\":"
+    },
+    {
+      "id": "asset-360",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/assets/finance_prod.curated.revenue_daily/360",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2186.9,
+      "budgetMs": 3000,
+      "withinBudget": false,
+      "bytes": 1036,
+      "serverDurationMs": 2181.8,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"be516188fa7b43ba899bb224d885ee6c\",\"httpRequestId\":\"be516188fa7b43ba899bb224d885ee6c\",\"meta\":{\"requestId\":\"be516188fa7b43ba899bb224d885ee6c\",\"httpRequestId\":"
+    },
+    {
+      "id": "lineage-initial",
+      "pass": "warm-repeat",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=initial",
+      "status": 200,
+      "ok": true,
+      "durationMs": 14.6,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 4011,
+      "serverDurationMs": 6.6,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "lineage-full",
+      "pass": "warm-repeat",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=full",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2428.9,
+      "budgetMs": 8000,
+      "withinBudget": false,
+      "bytes": 997,
+      "serverDurationMs": 2412.6,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"5e91fc8bb0c9477b84d4fe434b6a3b3c\",\"httpRequestId\":\"5e91fc8bb0c9477b84d4fe434b6a3b3c\",\"meta\":{\"requestId\":\"5e91fc8bb0c9477b84d4fe434b6a3b3c\",\"httpRequestId\":"
+    },
+    {
+      "id": "governance-workbench",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/governance/workbench",
+      "status": 200,
+      "ok": true,
+      "durationMs": 17.9,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 2952,
+      "serverDurationMs": 4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "taxonomy-overview",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/taxonomy/overview",
+      "status": 200,
+      "ok": true,
+      "durationMs": 49.3,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 850,
+      "serverDurationMs": 20.1,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "cde-dashboard",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/cde",
+      "status": 200,
+      "ok": true,
+      "durationMs": 16.3,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 1011,
+      "serverDurationMs": 10.9,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "audit-evidence",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/audit/evidence?date_range=7d&limit=50",
+      "status": 200,
+      "ok": true,
+      "durationMs": 22.1,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 4488,
+      "serverDurationMs": 15.4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "admin-control-center",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/admin/control-center",
+      "status": 200,
+      "ok": true,
+      "durationMs": 10.6,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 10753,
+      "serverDurationMs": 6.5,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    }
+  ],
+  "routeResults": [
+    {
+      "id": "command-center",
+      "pass": "first-observed",
+      "path": "/command-center",
+      "settled": true,
+      "domContentLoadedMs": 334.8,
+      "settleMs": 570.8,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 3535,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 306.5,
+        "loadEventEnd": 306.9000000357628,
+        "responseEnd": 141.10000002384186,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "discover",
+      "pass": "first-observed",
+      "path": "/discover",
+      "settled": true,
+      "domContentLoadedMs": 46.4,
+      "settleMs": 216.6,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 802,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 1
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 43.30000001192093,
+        "loadEventEnd": 46.90000003576279,
+        "responseEnd": 9.300000011920929,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "stewardship",
+      "pass": "first-observed",
+      "path": "/stewardship",
+      "settled": true,
+      "domContentLoadedMs": 113.2,
+      "settleMs": 279.5,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1623,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 69,
+        "loadEventEnd": 69.30000001192093,
+        "responseEnd": 20.5,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "glossary",
+      "pass": "first-observed",
+      "path": "/glossary-cdes",
+      "settled": true,
+      "domContentLoadedMs": 82,
+      "settleMs": 263,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1892,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 0
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 51,
+        "loadEventEnd": 51.19999998807907,
+        "responseEnd": 5.699999988079071,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "cde-registry",
+      "pass": "first-observed",
+      "path": "/glossary-cdes?tab=cdes",
+      "settled": true,
+      "domContentLoadedMs": 94.5,
+      "settleMs": 229.8,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1289,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 0
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 74.30000001192093,
+        "loadEventEnd": 74.30000001192093,
+        "responseEnd": 27.80000001192093,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "lineage",
+      "pass": "first-observed",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "settled": true,
+      "domContentLoadedMs": 85,
+      "settleMs": 236.1,
+      "budgetMs": 8000,
+      "withinBudget": true,
+      "textLength": 2574,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 74.39999997615814,
+        "loadEventEnd": 74.60000002384186,
+        "responseEnd": 37.80000001192093,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "audit",
+      "pass": "first-observed",
+      "path": "/audit-evidence",
+      "settled": true,
+      "domContentLoadedMs": 39.3,
+      "settleMs": 188.8,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1044,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 37.59999996423721,
+        "loadEventEnd": 41.39999997615814,
+        "responseEnd": 4.299999952316284,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "control-center",
+      "pass": "first-observed",
+      "path": "/control-center",
+      "settled": true,
+      "domContentLoadedMs": 109.6,
+      "settleMs": 222.1,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1644,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 0
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 50.09999996423721,
+        "loadEventEnd": 50.09999996423721,
+        "responseEnd": 5.699999988079071,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "command-center",
+      "pass": "warm-repeat",
+      "path": "/command-center",
+      "settled": true,
+      "domContentLoadedMs": 105.5,
+      "settleMs": 289.8,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 3535,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 79.89999997615814,
+        "loadEventEnd": 80,
+        "responseEnd": 35.10000002384186,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "discover",
+      "pass": "warm-repeat",
+      "path": "/discover",
+      "settled": true,
+      "domContentLoadedMs": 73.4,
+      "settleMs": 250.8,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 802,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 1
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 63,
+        "loadEventEnd": 63,
+        "responseEnd": 12.599999964237213,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "stewardship",
+      "pass": "warm-repeat",
+      "path": "/stewardship",
+      "settled": true,
+      "domContentLoadedMs": 95,
+      "settleMs": 240.8,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1513,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 80.70000004768372,
+        "loadEventEnd": 80.90000003576279,
+        "responseEnd": 38.5,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "glossary",
+      "pass": "warm-repeat",
+      "path": "/glossary-cdes",
+      "settled": true,
+      "domContentLoadedMs": 113.6,
+      "settleMs": 211.7,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1892,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 0
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 66,
+        "loadEventEnd": 66.19999998807907,
+        "responseEnd": 21.5,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "cde-registry",
+      "pass": "warm-repeat",
+      "path": "/glossary-cdes?tab=cdes",
+      "settled": true,
+      "domContentLoadedMs": 110.2,
+      "settleMs": 195.5,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1289,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 0
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 64.19999998807907,
+        "loadEventEnd": 64.19999998807907,
+        "responseEnd": 22.69999998807907,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "lineage",
+      "pass": "warm-repeat",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "settled": true,
+      "domContentLoadedMs": 38.8,
+      "settleMs": 306.8,
+      "budgetMs": 8000,
+      "withinBudget": true,
+      "textLength": 2574,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 0
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 34.60000002384186,
+        "loadEventEnd": 38.30000001192093,
+        "responseEnd": 4.5,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "audit",
+      "pass": "warm-repeat",
+      "path": "/audit-evidence",
+      "settled": true,
+      "domContentLoadedMs": 118.1,
+      "settleMs": 220.5,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1736,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 81.59999996423721,
+        "loadEventEnd": 81.69999998807907,
+        "responseEnd": 39.69999998807907,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "control-center",
+      "pass": "warm-repeat",
+      "path": "/control-center",
+      "settled": true,
+      "domContentLoadedMs": 39,
+      "settleMs": 167.2,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 1644,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 35.299999952316284,
+        "loadEventEnd": 39,
+        "responseEnd": 4,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    }
+  ],
+  "failed": [
+    {
+      "id": "asset-header",
+      "pass": "first-observed",
+      "path": "/api/assets/finance_prod.curated.revenue_daily?sections=header",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2245.8,
+      "budgetMs": 2000,
+      "withinBudget": false,
+      "bytes": 996,
+      "serverDurationMs": 2242.1,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"958f7404c8204af18112439ac7e79b87\",\"httpRequestId\":\"958f7404c8204af18112439ac7e79b87\",\"meta\":{\"requestId\":\"958f7404c8204af18112439ac7e79b87\",\"httpRequestId\":"
+    },
+    {
+      "id": "asset-360",
+      "pass": "first-observed",
+      "path": "/api/atlas/assets/finance_prod.curated.revenue_daily/360",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2279.7,
+      "budgetMs": 3000,
+      "withinBudget": false,
+      "bytes": 1036,
+      "serverDurationMs": 2273.9,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"dbf82f7ecddb4b16867169d81fc53355\",\"httpRequestId\":\"dbf82f7ecddb4b16867169d81fc53355\",\"meta\":{\"requestId\":\"dbf82f7ecddb4b16867169d81fc53355\",\"httpRequestId\":"
+    },
+    {
+      "id": "lineage-full",
+      "pass": "first-observed",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=full",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2377.5,
+      "budgetMs": 8000,
+      "withinBudget": false,
+      "bytes": 997,
+      "serverDurationMs": 2371.9,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"1f77f8c9d53345e3aabf1ee97948a1fb\",\"httpRequestId\":\"1f77f8c9d53345e3aabf1ee97948a1fb\",\"meta\":{\"requestId\":\"1f77f8c9d53345e3aabf1ee97948a1fb\",\"httpRequestId\":"
+    },
+    {
+      "id": "asset-header",
+      "pass": "warm-repeat",
+      "path": "/api/assets/finance_prod.curated.revenue_daily?sections=header",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2248.4,
+      "budgetMs": 2000,
+      "withinBudget": false,
+      "bytes": 996,
+      "serverDurationMs": 2245.8,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"84ba63661530455081fdeabc5714716e\",\"httpRequestId\":\"84ba63661530455081fdeabc5714716e\",\"meta\":{\"requestId\":\"84ba63661530455081fdeabc5714716e\",\"httpRequestId\":"
+    },
+    {
+      "id": "asset-360",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/assets/finance_prod.curated.revenue_daily/360",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2186.9,
+      "budgetMs": 3000,
+      "withinBudget": false,
+      "bytes": 1036,
+      "serverDurationMs": 2181.8,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"be516188fa7b43ba899bb224d885ee6c\",\"httpRequestId\":\"be516188fa7b43ba899bb224d885ee6c\",\"meta\":{\"requestId\":\"be516188fa7b43ba899bb224d885ee6c\",\"httpRequestId\":"
+    },
+    {
+      "id": "lineage-full",
+      "pass": "warm-repeat",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=full",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2428.9,
+      "budgetMs": 8000,
+      "withinBudget": false,
+      "bytes": 997,
+      "serverDurationMs": 2412.6,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"5e91fc8bb0c9477b84d4fe434b6a3b3c\",\"httpRequestId\":\"5e91fc8bb0c9477b84d4fe434b6a3b3c\",\"meta\":{\"requestId\":\"5e91fc8bb0c9477b84d4fe434b6a3b3c\",\"httpRequestId\":"
+    }
+  ],
+  "worst": [
+    {
+      "id": "lineage-full",
+      "pass": "warm-repeat",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=full",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2428.9,
+      "budgetMs": 8000,
+      "withinBudget": false,
+      "bytes": 997,
+      "serverDurationMs": 2412.6,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"5e91fc8bb0c9477b84d4fe434b6a3b3c\",\"httpRequestId\":\"5e91fc8bb0c9477b84d4fe434b6a3b3c\",\"meta\":{\"requestId\":\"5e91fc8bb0c9477b84d4fe434b6a3b3c\",\"httpRequestId\":"
+    },
+    {
+      "id": "lineage-full",
+      "pass": "first-observed",
+      "path": "/api/lineage/finance_prod.curated.revenue_daily?profile=full",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2377.5,
+      "budgetMs": 8000,
+      "withinBudget": false,
+      "bytes": 997,
+      "serverDurationMs": 2371.9,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"1f77f8c9d53345e3aabf1ee97948a1fb\",\"httpRequestId\":\"1f77f8c9d53345e3aabf1ee97948a1fb\",\"meta\":{\"requestId\":\"1f77f8c9d53345e3aabf1ee97948a1fb\",\"httpRequestId\":"
+    },
+    {
+      "id": "asset-360",
+      "pass": "first-observed",
+      "path": "/api/atlas/assets/finance_prod.curated.revenue_daily/360",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2279.7,
+      "budgetMs": 3000,
+      "withinBudget": false,
+      "bytes": 1036,
+      "serverDurationMs": 2273.9,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"dbf82f7ecddb4b16867169d81fc53355\",\"httpRequestId\":\"dbf82f7ecddb4b16867169d81fc53355\",\"meta\":{\"requestId\":\"dbf82f7ecddb4b16867169d81fc53355\",\"httpRequestId\":"
+    },
+    {
+      "id": "asset-header",
+      "pass": "warm-repeat",
+      "path": "/api/assets/finance_prod.curated.revenue_daily?sections=header",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2248.4,
+      "budgetMs": 2000,
+      "withinBudget": false,
+      "bytes": 996,
+      "serverDurationMs": 2245.8,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"84ba63661530455081fdeabc5714716e\",\"httpRequestId\":\"84ba63661530455081fdeabc5714716e\",\"meta\":{\"requestId\":\"84ba63661530455081fdeabc5714716e\",\"httpRequestId\":"
+    },
+    {
+      "id": "asset-header",
+      "pass": "first-observed",
+      "path": "/api/assets/finance_prod.curated.revenue_daily?sections=header",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2245.8,
+      "budgetMs": 2000,
+      "withinBudget": false,
+      "bytes": 996,
+      "serverDurationMs": 2242.1,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"958f7404c8204af18112439ac7e79b87\",\"httpRequestId\":\"958f7404c8204af18112439ac7e79b87\",\"meta\":{\"requestId\":\"958f7404c8204af18112439ac7e79b87\",\"httpRequestId\":"
+    },
+    {
+      "id": "asset-360",
+      "pass": "warm-repeat",
+      "path": "/api/atlas/assets/finance_prod.curated.revenue_daily/360",
+      "status": 404,
+      "ok": false,
+      "durationMs": 2186.9,
+      "budgetMs": 3000,
+      "withinBudget": false,
+      "bytes": 1036,
+      "serverDurationMs": 2181.8,
+      "buildId": "frontend-85ea0d874949",
+      "error": "{\"detail\":\"Asset not found.\",\"errors\":[{\"message\":\"Asset not found.\"}],\"requestId\":\"be516188fa7b43ba899bb224d885ee6c\",\"httpRequestId\":\"be516188fa7b43ba899bb224d885ee6c\",\"meta\":{\"requestId\":\"be516188fa7b43ba899bb224d885ee6c\",\"httpRequestId\":"
+    },
+    {
+      "id": "governance-workbench",
+      "pass": "first-observed",
+      "path": "/api/atlas/governance/workbench",
+      "status": 200,
+      "ok": true,
+      "durationMs": 1655.5,
+      "budgetMs": 3000,
+      "withinBudget": true,
+      "bytes": 2952,
+      "serverDurationMs": 1651.4,
+      "buildId": "frontend-85ea0d874949",
+      "error": ""
+    },
+    {
+      "id": "command-center",
+      "pass": "first-observed",
+      "path": "/command-center",
+      "settled": true,
+      "domContentLoadedMs": 334.8,
+      "settleMs": 570.8,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 3535,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 306.5,
+        "loadEventEnd": 306.9000000357628,
+        "responseEnd": 141.10000002384186,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "lineage",
+      "pass": "warm-repeat",
+      "path": "/lineage-atlas/finance_prod.curated.revenue_daily",
+      "settled": true,
+      "domContentLoadedMs": 38.8,
+      "settleMs": 306.8,
+      "budgetMs": 8000,
+      "withinBudget": true,
+      "textLength": 2574,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 0
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 34.60000002384186,
+        "loadEventEnd": 38.30000001192093,
+        "responseEnd": 4.5,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    },
+    {
+      "id": "command-center",
+      "pass": "warm-repeat",
+      "path": "/command-center",
+      "settled": true,
+      "domContentLoadedMs": 105.5,
+      "settleMs": 289.8,
+      "budgetMs": 6000,
+      "withinBudget": true,
+      "textLength": 3535,
+      "hasUnavailableText": true,
+      "observations": [
+        {
+          "at": "after-domcontentloaded",
+          "loadingIndicators": 1
+        },
+        {
+          "at": "after-settle",
+          "loadingIndicators": 0
+        }
+      ],
+      "requestFailures": [],
+      "navTiming": {
+        "domContentLoadedEventEnd": 79.89999997615814,
+        "loadEventEnd": 80,
+        "responseEnd": 35.10000002384186,
+        "transferSize": 19886,
+        "encodedBodySize": 19586
+      },
+      "error": ""
+    }
+  ]
+}

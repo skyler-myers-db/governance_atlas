@@ -1,0 +1,1110 @@
+{
+  "generatedAt": "2026-05-04T05:46:39.697Z",
+  "baseUrl": "http://127.0.0.1:8000",
+  "buildId": "frontend-39d0070a8f87",
+  "deploymentId": "",
+  "assetFqn": "excess.main.users",
+  "mockApi": false,
+  "evidenceKind": "runtime_app_capture",
+  "mockEvidenceWarning": "",
+  "liveDatabricksCapture": false,
+  "forwardedActorCapture": true,
+  "forwardedActorEmail": "smyers@employers.com",
+  "forwardedActorTokenPresent": false,
+  "routeFilter": [
+    "discover"
+  ],
+  "interactionFilter": [
+    "selected"
+  ],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "discover"
+  ],
+  "viewports": [
+    {
+      "name": "3037x1269",
+      "width": 3037,
+      "height": 1269
+    }
+  ],
+  "expectedCaptureCount": 1,
+  "captures": [
+    {
+      "route": "discover",
+      "path": "/discover",
+      "viewport": "3037x1269",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v219-discover-selected-datapact-test-2026-05-04/discover-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v219-discover-selected-datapact-test-2026-05-04/discover-3037x1269-full.png",
+      "wait": {
+        "settleSelectorMatched": true,
+        "shellReady": true,
+        "readiness": {
+          "blockedText": "",
+          "disabledAtlasLabels": [
+            "Atlas AI Atlas AI recommendations require a configured Databricks Genie space."
+          ],
+          "routeDataReady": true
+        }
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/discovery",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 298,
+          "right": 3037,
+          "bottom": 70,
+          "width": 2739,
+          "height": 70
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 298,
+          "bottom": 1269,
+          "width": 298,
+          "height": 1269
+        },
+        "main": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2739,
+          "height": 1199
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 7287,
+          "clientHeight": 1199,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": {
+          "top": 70,
+          "left": 547.5,
+          "right": 2307.5,
+          "bottom": 7357.203125,
+          "width": 1760,
+          "height": 7287.203125
+        },
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › datapact-test ⌘K UC connected · 11.7% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. CERTIFICATION 142 results Certified 0 In Review 0 Uncertified 0 DOMAIN audit 1 communication 2 contact_management 2 deal_management 1 document_management 2 excess 17 CLASSIFICATION confidential 7 internal 24 low 2 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Workspace-scoped results use Unity Catalog and governance store signals; actor-scoped protected reads remain restricted. Saved searches Advanced Showing 60 of 142 assets Sort: Relevance users excess.main.users — 50% 50% internal PII System users (underwriters, admins). Synced from Okta on login. Used for deal ownership, task assignment, and audit trails. ⋮ Open Record Lineage unavailable tasks excess.main.tasks — 50% 50% internal PII Task/activity tracking for deals and contacts. Includes to-dos, follow-ups, calls, emails, and meetings. Supports SLA tracking and workflow automation. ⋮ Open Record Lineage unavailable sla_trackers excess.main.sla_trackers — 50% 50% internal — Active SLA tracking instances. Monitors deals against SLA configurations. ⋮ Open Record Lineage unavailable sla_configurations excess.main.sla_configurations — 50% 50% internal — SLA rule d",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › datapact-test",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Certified 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "In Review 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Uncertified 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "audit 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "communication 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "contact_management 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "deal_management 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "document_management 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "excess 17",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "confidential 7",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "internal 24",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "low 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Critical Data Element",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contains PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "No PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Saved searches",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Advanced",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Relevance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Grid view",
+            "disabled": false,
+            "aria": "Grid view"
+          },
+          {
+            "text": "List view",
+            "disabled": false,
+            "aria": "List view"
+          },
+          {
+            "text": "users",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "tasks",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "sla_trackers",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "sla_configurations",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "notes",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "intake_documents",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "deals",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "deal_notes",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "deal_contact_associations",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "contacts",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "companies",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "attachments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "activity_log",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "users",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "tasks",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Lineage unavailable",
+            "disabled": true,
+            "aria": "Lineage unavailable"
+          },
+          {
+            "text": "sla_trackers",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          }
+        ]
+      },
+      "shellFallbackUsed": false
+    }
+  ],
+  "interactions": [
+    {
+      "route": "discover",
+      "path": "/discover",
+      "viewport": "3037x1269",
+      "interaction": "selected",
+      "description": "Select the first Discover result and show the asset preview pane.",
+      "loaded": true,
+      "screenshot": "docs/northstar_visual_qa/live-runtime-current-v219-discover-selected-datapact-test-2026-05-04/discover-selected-3037x1269.png",
+      "fullPageScreenshot": "docs/northstar_visual_qa/live-runtime-current-v219-discover-selected-datapact-test-2026-05-04/discover-selected-3037x1269-full.png",
+      "runResult": {
+        "selectedAssetFqn": "excess.main.users"
+      },
+      "validation": {
+        "loaded": true,
+        "previewOpen": true,
+        "previewVisible": true,
+        "selectedAssetFqn": "excess.main.users",
+        "previewText": "usersinternalDelta Table · excess.main.users×Open Asset 360Open LineageGovernanceLive rows unavailableAsset preview and sample data require per-user authorization / OBO; app-principal fallback does not widen user-visible data.50% Metadata CoverageinternalOverviewColumns · 0LineageQualityAccessSystem users (underwriters, admins). Synced from Okta on login. Used for deal ownership, task assignment, and audit trails.MetadataOwnerUnassignedSteward teamUnavailableFreshnessUnavailableQuality scoreUnavailableRowsUnavailableUsage · 30dUnavailableConnected AssetsNo live upstream lineage edges are surfaced for this asset yet.Tags & Glossarydata_class=employee_datadata_quality=golddomain=user_managementlifecycle=certifiedpii=falseWorkflow AvailabilityAvailable metadata is shown for review. Actions that require write permissions, certification authority, or missing lineage evidence remain unavailable here.Comment and access-request creation are disabled here until a backed governance workflow is c",
+        "nonAuthoritativeNotice": false,
+        "honestPreviewState": true,
+        "livePreviewOverclaim": false,
+        "controls": [
+          {
+            "text": "×",
+            "disabled": false
+          },
+          {
+            "text": "Open Asset 360",
+            "disabled": false
+          },
+          {
+            "text": "Open Lineage",
+            "disabled": false
+          },
+          {
+            "text": "Governance",
+            "disabled": false
+          },
+          {
+            "text": "Overview",
+            "disabled": false
+          },
+          {
+            "text": "Columns · 0",
+            "disabled": false
+          },
+          {
+            "text": "Lineage",
+            "disabled": false
+          },
+          {
+            "text": "Quality",
+            "disabled": false
+          },
+          {
+            "text": "Access",
+            "disabled": false
+          },
+          {
+            "text": "Comment",
+            "disabled": true
+          },
+          {
+            "text": "Request access",
+            "disabled": true
+          },
+          {
+            "text": "Certify",
+            "disabled": false
+          }
+        ]
+      },
+      "metrics": {
+        "title": "Governance Atlas",
+        "url": "http://127.0.0.1:8000/discovery?preview=excess.main.users",
+        "readyState": "complete",
+        "viewport": {
+          "width": 3037,
+          "height": 1269,
+          "devicePixelRatio": 1
+        },
+        "scroll": {
+          "documentHeight": 1269,
+          "documentWidth": 3037,
+          "hasVerticalOverflow": false,
+          "hasHorizontalOverflow": false
+        },
+        "shell": {
+          "top": 0,
+          "left": 298,
+          "right": 3037,
+          "bottom": 70,
+          "width": 2739,
+          "height": 70
+        },
+        "sideRail": {
+          "top": 0,
+          "left": 0,
+          "right": 298,
+          "bottom": 1269,
+          "width": 298,
+          "height": 1269
+        },
+        "main": {
+          "top": 70,
+          "left": 298,
+          "right": 3037,
+          "bottom": 1269,
+          "width": 2739,
+          "height": 1199
+        },
+        "mainScroll": {
+          "scrollTop": 0,
+          "scrollHeight": 7250,
+          "clientHeight": 1199,
+          "hasOverflow": true
+        },
+        "home": null,
+        "discovery": {
+          "top": 70,
+          "left": 318,
+          "right": 2537,
+          "bottom": 7319.953125,
+          "width": 2219,
+          "height": 7249.953125
+        },
+        "entity": null,
+        "lineage": null,
+        "lineagePrototype": {
+          "page": null,
+          "hero": null,
+          "workbench": null,
+          "graph": null
+        },
+        "audit": {
+          "page": null,
+          "shell": null,
+          "main": null,
+          "table": null,
+          "mainStyle": null,
+          "shellStyle": null
+        },
+        "admin": {
+          "page": null,
+          "shell": null,
+          "main": null
+        },
+        "textPreview": "Governance Atlas BY ENTRADA GOVERN Command Center Discover Stewardship KNOWLEDGE Glossary & CDEs Lineage Atlas TRUST Audit Evidence Control Center SM Skyler Myers Admin Workspace › datapact-test ⌘K UC connected · 11.7% coverage Atlas AI WORKSPACE-SCOPED METADATA Workspace-scoped app-principal view; actor-scoped protected reads stay restricted. CERTIFICATION 142 results Certified 0 In Review 0 Uncertified 0 DOMAIN audit 1 communication 2 contact_management 2 deal_management 1 document_management 2 excess 17 CLASSIFICATION confidential 7 internal 24 low 2 ATTRIBUTES Critical Data Element Contains PII No PII DISCOVER Find trusted, governed data Search across catalogs, schemas, tables, columns, models, and glossary terms. Workspace-scoped results use Unity Catalog and governance store signals; actor-scoped protected reads remain restricted. Saved searches Advanced Showing 60 of 142 assets Sort: Relevance users excess.main.users — 50% 50% internal PII System users (underwriters, admins). Synced from Okta on login. Used for deal ownership, task assignment, and audit trails. ⋮ Open Record Open lineage tasks excess.main.tasks — 50% 50% internal PII Task/activity tracking for deals and contacts. Includes to-dos, follow-ups, calls, emails, and meetings. Supports SLA tracking and workflow automation. ⋮ Open Record Open lineage sla_trackers excess.main.sla_trackers — 50% 50% internal — Active SLA tracking instances. Monitors deals against SLA configurations. ⋮ Open Record Open lineage sla_configurations excess.main.sla_configurations — 50% 50% internal — SLA rule definitions. Defines t",
+        "controls": [
+          {
+            "text": "Command Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Discover",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Stewardship",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Glossary & CDEs",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Lineage Atlas",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Audit Evidence",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Control Center",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "SM Skyler Myers Admin",
+            "disabled": false,
+            "aria": "Open profile menu for Skyler Myers"
+          },
+          {
+            "text": "Workspace › datapact-test",
+            "disabled": false,
+            "aria": "Open Governance Atlas Command Center"
+          },
+          {
+            "text": "Submit global search unavailable: enter a search term.",
+            "disabled": true,
+            "aria": "Submit global search unavailable: enter a search term."
+          },
+          {
+            "text": "Notifications",
+            "disabled": false,
+            "aria": "Notifications"
+          },
+          {
+            "text": "Help",
+            "disabled": false,
+            "aria": "Help"
+          },
+          {
+            "text": "Atlas AI",
+            "disabled": true,
+            "aria": ""
+          },
+          {
+            "text": "Certified 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "In Review 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Uncertified 0",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "audit 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "communication 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "contact_management 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "deal_management 1",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "document_management 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "excess 17",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "confidential 7",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "internal 24",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "low 2",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Critical Data Element",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Contains PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "No PII",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Saved searches",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Advanced",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Relevance",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Grid view",
+            "disabled": false,
+            "aria": "Grid view"
+          },
+          {
+            "text": "List view",
+            "disabled": false,
+            "aria": "List view"
+          },
+          {
+            "text": "users",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "tasks",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "sla_trackers",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "sla_configurations",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "notes",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "intake_documents",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "deals",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "deal_notes",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "deal_contact_associations",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "contacts",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "companies",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "attachments",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "activity_log",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "users",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "tasks",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          },
+          {
+            "text": "Open lineage",
+            "disabled": false,
+            "aria": "Open Lineage"
+          },
+          {
+            "text": "sla_trackers",
+            "disabled": false,
+            "aria": ""
+          },
+          {
+            "text": "Open Record",
+            "disabled": false,
+            "aria": "Open Record"
+          }
+        ]
+      }
+    }
+  ],
+  "console": [],
+  "pageErrors": [],
+  "requestFailures": [],
+  "checks": {
+    "buildMatches": true
+  },
+  "runtimeStatus": {
+    "url": "http://127.0.0.1:8000/api/runtime/status",
+    "status": 200,
+    "ok": true,
+    "buildId": "frontend-39d0070a8f87",
+    "state": "live",
+    "actorRole": "Reader",
+    "govCatalog": "lab_main",
+    "govSchema": "atlas"
+  },
+  "captureCount": 1,
+  "interactionCount": 1,
+  "consoleErrorCount": 0,
+  "pageErrorCount": 0,
+  "requestFailureCount": 0,
+  "expectedRequestFailureCount": 0,
+  "passed": true
+}

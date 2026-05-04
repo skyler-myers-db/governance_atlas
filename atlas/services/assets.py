@@ -109,6 +109,10 @@ cached_comment = metadata_service.cached_comment
 cached_columns = metadata_service.cached_columns
 cached_table_detail = metadata_service.cached_table_detail
 cached_table_row_count = metadata_service.cached_table_row_count
+cached_table_history = metadata_service.cached_table_history
+cached_information_schema_table_metadata = (
+    metadata_service.cached_information_schema_table_metadata
+)
 cached_sample_rows = metadata_service.cached_sample_rows
 cached_lineage_up = metadata_service.cached_lineage_up
 cached_lineage_down = metadata_service.cached_lineage_down
@@ -3394,6 +3398,113 @@ def asset_detail_payload(
                 if safe_int(detail.get("numfiles"))
                 else "—"
             )
+            # ----------------------------------------------------------
+            # Last-updated freshness: scan Delta history for the most
+            # recent DATA-CHANGING op (matching UC's "Last updated" card
+            # behavior). For non-Delta tables fall back to
+            # information_schema.last_altered. Stored as ISO 8601 string
+            # at base["updatedAt"] so the frontend can render relative
+            # time consistently.
+            # ----------------------------------------------------------
+            base["updatedAt"] = ""
+            try:
+                history_df = cached_table_history(uc, catalog, schema, table)
+            except Exception:
+                history_df = pd.DataFrame()
+            if not history_df.empty and "operation" in history_df.columns:
+                # UC convention: write/update/delete/merge/streaming-update
+                # ops mutate data; optimize/vacuum/upgrade-schema do not.
+                _DATA_OPS = {
+                    "WRITE",
+                    "STREAMING UPDATE",
+                    "MERGE",
+                    "UPDATE",
+                    "DELETE",
+                    "REPLACE TABLE AS SELECT",
+                    "CREATE TABLE",
+                    "CREATE TABLE AS SELECT",
+                    "CREATE OR REPLACE TABLE AS SELECT",
+                    "RESTORE",
+                    "TRUNCATE",
+                }
+                ops_upper = history_df["operation"].astype(str).str.upper()
+                data_rows = history_df[ops_upper.isin(_DATA_OPS)]
+                if not data_rows.empty and "timestamp" in data_rows.columns:
+                    try:
+                        ts_series = pd.to_datetime(
+                            data_rows["timestamp"], utc=True, errors="coerce"
+                        ).dropna()
+                        if not ts_series.empty:
+                            base["updatedAt"] = (
+                                ts_series.max().isoformat().replace("+00:00", "Z")
+                            )
+                    except Exception:
+                        pass
+            # ----------------------------------------------------------
+            # UC information_schema.tables — authoritative `created_by`,
+            # `table_owner`, `last_altered`. Used as a fallback for owner
+            # when the local governance store has nothing assigned, and
+            # as a fallback for updatedAt for non-Delta tables.
+            # ----------------------------------------------------------
+            try:
+                ist_df = cached_information_schema_table_metadata(
+                    uc, catalog, schema, table
+                )
+            except Exception:
+                ist_df = pd.DataFrame()
+            if not ist_df.empty:
+                row0 = ist_df.iloc[0].to_dict()
+                # If Delta history didn't yield a timestamp, take last_altered
+                if not base["updatedAt"]:
+                    altered = row0.get("last_altered")
+                    if altered:
+                        try:
+                            altered_ts = pd.to_datetime(
+                                altered, utc=True, errors="coerce"
+                            )
+                            if pd.notna(altered_ts):
+                                base["updatedAt"] = (
+                                    altered_ts.isoformat().replace("+00:00", "Z")
+                                )
+                        except Exception:
+                            pass
+                # UC table_owner is the SOURCE OF TRUTH for who owns
+                # the asset — it's enforced by Databricks itself. Local
+                # governance-store owner assignments are SUPPLEMENTARY
+                # (typically business stewards layered on top of the
+                # technical UC owner). When both exist, the UC owner
+                # leads and local stewards follow as additional entries.
+                # This avoids the case the user reported where a stale
+                # / fake seed assignment in the local store
+                # (e.g. "finance-steward@entrada.ai") was masking the
+                # real UC owner ("skyler@entrada.ai") on the asset
+                # card and lineage rail.
+                uc_owner_principal = (
+                    normalize_str(row0.get("table_owner"))
+                    or normalize_str(row0.get("created_by"))
+                )
+                if uc_owner_principal:
+                    is_email = "@" in uc_owner_principal
+                    uc_owner_entry = {
+                        "name": uc_owner_principal,
+                        "displayName": uc_owner_principal,
+                        "email": uc_owner_principal if is_email else "",
+                        "title": "Unity Catalog owner",
+                        "source": "uc.information_schema",
+                    }
+                    existing_owners = base.get("owners") or []
+                    # De-dupe: if local store happens to reference the
+                    # same UC owner principal, drop the duplicate so
+                    # the user doesn't see them twice. Match on email
+                    # then name (case-insensitive).
+                    uc_principal_lc = uc_owner_principal.lower()
+                    deduped = [
+                        owner
+                        for owner in existing_owners
+                        if normalize_str(owner.get("email")).lower() != uc_principal_lc
+                        and normalize_str(owner.get("name")).lower() != uc_principal_lc
+                    ]
+                    base["owners"] = [uc_owner_entry] + deduped
             metadata_write_supported = supports_direct_metadata_write(
                 base.get("tableTypeRaw")
             ) and bool(allow_direct_metadata_write)

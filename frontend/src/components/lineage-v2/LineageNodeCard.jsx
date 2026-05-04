@@ -10,10 +10,138 @@ import { useMemo } from "react";
  *    table / view nodes where useLineageGraphV2 surfaces column metadata.
  *
  * The component takes a single `node` from useLineageGraphV2's normalized
- * shape — no payload reading happens here. State classes (focus / hover /
- * traced / dimmed) are passed via props so the parent canvas can drive
- * hover-trace highlight behavior with a single React Flow selector.
+ * shape and an optional `header` from useLineageNodeHeaders' batch fetch
+ * (which carries the UC-grade per-node detail the lineage system tables
+ * don't expose: size, files, freshness, type, owner, state). State classes
+ * (focus / hover / traced / dimmed) are passed via props so the parent
+ * canvas can drive hover-trace highlight behavior with a single React
+ * Flow selector.
  */
+
+// Convert an ISO timestamp to a UC-style relative freshness label
+// ("3h ago", "2d ago", "5mo ago"). Returns "" for invalid input so
+// the card can fall back to the API's pre-formatted foot string.
+function relativeTime(iso) {
+  if (!iso) return "";
+  const ts = Date.parse(iso);
+  if (!Number.isFinite(ts)) return "";
+  const deltaMs = Date.now() - ts;
+  if (deltaMs < 0) return "future";
+  const minutes = Math.round(deltaMs / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.round(days / 30);
+  if (months < 12) return `${months}mo ago`;
+  const years = Math.round(days / 365);
+  return `${years}y ago`;
+}
+
+// Backend ships various dash/placeholder strings when a value is
+// genuinely unknown ("—", "-", "–", "N/A", "Unknown", "Unassigned").
+// These are NOT useful in a lineage card footer — we want to suppress
+// them so the user sees what we actually know vs. an empty hyphen.
+const PLACEHOLDER_TOKENS = new Set([
+  "—",
+  "-",
+  "–",
+  "n/a",
+  "na",
+  "unknown",
+  "unassigned",
+  "unavailable",
+  "none",
+  "null",
+]);
+
+function meaningful(value) {
+  if (value == null) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  if (PLACEHOLDER_TOKENS.has(trimmed.toLowerCase())) return null;
+  return trimmed;
+}
+
+// Pull a UC-equivalent stat bag off the header payload. We prefer the
+// batch-fetched `header` (richer fields) and fall back to whatever
+// useLineageGraphV2 surfaced from the lineage payload. Always returns
+// strings (or null) — the caller renders only non-empty entries.
+function deriveCardStats(node, header) {
+  const h = header || {};
+  // Rows: header has pre-formatted "1.2M" string from the backend
+  // formatter. Lineage payload only has it for the focus node, so prefer
+  // header. Filter out placeholder values to avoid "— rows" footer rows.
+  const rowCount = meaningful(h.rows) || meaningful(node?.rowCount) || null;
+
+  // Size: backend ships pre-formatted "12.4 GiB" / "823 MiB". UC's lineage
+  // panel shows "Size" prominently — this is one of the headline gaps the
+  // user called out vs Databricks.
+  const size = meaningful(h.size) || null;
+
+  // Files: backend ships count/formatted. Falls behind size in importance
+  // but UC shows it on its lineage card, so we mirror that.
+  const files = meaningful(h.files) || null;
+
+  // Freshness: try the relative time of the asset's updatedAt timestamp
+  // first (most UC-equivalent), then fall back to whatever the lineage
+  // adapter surfaced (typically empty). The card renders the relative
+  // string and exposes the raw ISO via title for hover.
+  const updatedAtIso = meaningful(h.updatedAt) || meaningful(h.lastRefresh) || meaningful(h.refreshedAt) || "";
+  const freshnessRel = relativeTime(updatedAtIso);
+  const freshness = freshnessRel || meaningful(node?.freshness) || null;
+  const freshnessTitle = updatedAtIso ? `Last updated: ${updatedAtIso}` : freshness;
+
+  // Type: prefer the human-readable "Managed" / "External" management
+  // type, then fall back to objectType ("Table", "View"), then the raw
+  // tableTypeRaw token. UC shows this on its node card under "Type".
+  const management = meaningful(h.managementType);
+  const objectType = meaningful(h.objectType);
+  const rawType = meaningful(h.tableTypeRaw);
+  const typeLabel =
+    [management, objectType].filter(Boolean).join(" · ") ||
+    (rawType ? rawType.replace(/_/g, " ") : "") ||
+    meaningful(node?.apiKind) ||
+    null;
+
+  // Owner: UC shows the principal owner (user or group) on its node card.
+  // Backend sends owners as [{ displayName, email }] — display the most
+  // human-readable form available.
+  const headerOwners = Array.isArray(h.owners) ? h.owners : [];
+  const nodeOwners = Array.isArray(node?.owners) ? node.owners : [];
+  const owners = headerOwners.length ? headerOwners : nodeOwners;
+  const primaryOwner = owners[0] || null;
+  const ownerLabel = primaryOwner
+    ? primaryOwner.displayName || primaryOwner.email || primaryOwner.name || ""
+    : "";
+  const ownerCount = owners.length;
+  const ownerTitle = owners
+    .map((o) => o?.displayName || o?.email || o?.name)
+    .filter(Boolean)
+    .join(", ");
+
+  // State: UC's lineage card shows certification + classification badges
+  // and a "data is current/stale" pill. We fold those into a single state
+  // chip when non-trivial.
+  const certification = h.certification || (node?.isCertified ? "Certified" : "");
+  const sensitivity = h.sensitivity || node?.classification || "";
+
+  return {
+    rowCount,
+    size,
+    files,
+    freshness,
+    freshnessTitle,
+    typeLabel,
+    ownerLabel,
+    ownerCount,
+    ownerTitle,
+    certification,
+    sensitivity,
+  };
+}
 
 const KIND_ACCENT = {
   table: { color: "#66c5ff", bg: "rgba(102, 197, 255, 0.10)" },
@@ -116,9 +244,11 @@ function FootStat({ glyph, label, title }) {
 
 export function LineageNodeCard({
   node,
+  header = null,
   variant = "compact",
   isFocus = false,
   isHovered = false,
+  isSelected = false,
   isTraced = true,
   isDimmed = false,
   onClick,
@@ -127,16 +257,25 @@ export function LineageNodeCard({
   const visibleColumns = Array.isArray(node?.columns) ? node.columns.slice(0, 5) : [];
   const totalColumns = Number(node?.totalColumns) || visibleColumns.length;
   const hiddenColumns = Math.max(0, totalColumns - visibleColumns.length);
+  // Derive UC-equivalent stat strings from the (optional) batch-fetched
+  // header. This is what fills the "size / freshness / type / owner"
+  // gap vs Databricks UC's native lineage UX.
+  const stats = useMemo(() => deriveCardStats(node, header), [node, header]);
 
   const stateClass = useMemo(() => {
-    if (isDimmed) return "is-dimmed";
-    if (isFocus) return "is-focus";
-    if (isHovered) return "is-hovered";
-    if (!isTraced) return "is-untraced";
-    return "";
-  }, [isDimmed, isFocus, isHovered, isTraced]);
+    const classes = [];
+    if (isDimmed) classes.push("is-dimmed");
+    else if (isFocus) classes.push("is-focus");
+    else if (isHovered) classes.push("is-hovered");
+    else if (!isTraced) classes.push("is-untraced");
+    // is-selected layers ON TOP of focus/hover (it's an outline, not a
+    // background). Both focus and selected can be true at once when the
+    // user has the URL focus selected (the default case).
+    if (isSelected && !isFocus) classes.push("is-selected");
+    return classes.join(" ");
+  }, [isDimmed, isFocus, isHovered, isSelected, isTraced]);
 
-  const navigable = node?.isOpenable !== false && !isFocus;
+  const navigable = node?.isOpenable !== false;
 
   const handleClick = (event) => {
     if (!onClick) return;
@@ -209,26 +348,49 @@ export function LineageNodeCard({
 
       <footer className="ga-lineage-v2-card-foot">
         {/*
-          The lineage payload doesn't carry rows/freshness/owners — those
-          live on the asset-detail endpoint, not on system.access lineage
-          tables. So we render the pre-formatted `foot` strings the API
-          actually returned (e.g. "Table", "Metadata unavailable") and
-          fall through to row/freshness/owner stats only when the v2
-          adapter could derive them from a richer payload (asset 360
-          enrichment).
+          Per-node footer renders UC-grade stats (type · size · rows ·
+          freshness · owner) derived from the batch-fetched asset header.
+          When the header hasn't loaded yet OR the asset is a lineage-only
+          reference with no header detail, we fall back to the API's
+          pre-formatted foot strings ("Table", "Metadata unavailable")
+          instead of showing "Metadata pending".
         */}
-        {node?.rowCount ? (
+        {stats.typeLabel ? (
+          <FootStat
+            glyph={
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="10" height="10">
+                <rect x="3" y="4" width="18" height="16" rx="1" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                <path d="M3 9h18M9 4v16" stroke="currentColor" strokeWidth="1.6" />
+              </svg>
+            }
+            label={stats.typeLabel}
+            title={`Type: ${stats.typeLabel}`}
+          />
+        ) : null}
+        {stats.size ? (
+          <FootStat
+            glyph={
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="10" height="10">
+                <path d="M4 7h16v10H4z" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                <path d="M4 11h16M4 15h16" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+            }
+            label={stats.size}
+            title={`Size on storage: ${stats.size}${stats.files ? ` · ${stats.files} files` : ""}`}
+          />
+        ) : null}
+        {stats.rowCount ? (
           <FootStat
             glyph={
               <svg aria-hidden="true" viewBox="0 0 24 24" width="10" height="10">
                 <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
               </svg>
             }
-            label={`${node.rowCount} rows`}
-            title={`${node.rowCount} rows reported by Unity Catalog`}
+            label={`${stats.rowCount} rows`}
+            title={`${stats.rowCount} rows reported by Unity Catalog`}
           />
         ) : null}
-        {node?.freshness ? (
+        {stats.freshness ? (
           <FootStat
             glyph={
               <svg aria-hidden="true" viewBox="0 0 24 24" width="10" height="10">
@@ -236,11 +398,11 @@ export function LineageNodeCard({
                 <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
               </svg>
             }
-            label={node.freshness}
-            title={`Freshness: ${node.freshnessRaw || node.freshness}`}
+            label={stats.freshness}
+            title={stats.freshnessTitle || `Freshness: ${stats.freshness}`}
           />
         ) : null}
-        {node?.ownerCount ? (
+        {stats.ownerLabel ? (
           <FootStat
             glyph={
               <svg aria-hidden="true" viewBox="0 0 24 24" width="10" height="10">
@@ -248,8 +410,12 @@ export function LineageNodeCard({
                 <path d="M5 21a7 7 0 0 1 14 0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
               </svg>
             }
-            label={node.ownerCount === 1 ? "1 owner" : `${node.ownerCount} owners`}
-            title={node.owners?.map((o) => o?.displayName || o?.email).filter(Boolean).join(", ")}
+            label={
+              stats.ownerCount > 1
+                ? `${stats.ownerLabel} +${stats.ownerCount - 1}`
+                : stats.ownerLabel
+            }
+            title={stats.ownerTitle || stats.ownerLabel}
           />
         ) : null}
         {node?.recentActivityCount ? (
@@ -265,15 +431,16 @@ export function LineageNodeCard({
             title={`${node.recentActivityCount} recent lineage events`}
           />
         ) : null}
-        {!node?.rowCount &&
-        !node?.freshness &&
-        !node?.ownerCount &&
+        {!stats.typeLabel &&
+        !stats.size &&
+        !stats.rowCount &&
+        !stats.freshness &&
+        !stats.ownerLabel &&
         !node?.recentActivityCount ? (
-          // No derived metadata — surface the pre-formatted lineage-payload
-          // foot strings the API gave us. They're already honest copy
-          // ("Table" for visible nodes; "Metadata unavailable" when the
-          // asset is lineage-only). Falls back to the original "Metadata
-          // pending" only when the API gave us literally nothing.
+          // Header not yet loaded AND no derived metadata — surface the
+          // pre-formatted lineage-payload foot strings. They're already
+          // honest ("Table" for visible nodes; "Metadata unavailable"
+          // when the asset is lineage-only).
           (node?.foot || []).length ? (
             (node.foot || []).slice(0, 2).map((line, idx) => (
               <span
@@ -287,7 +454,7 @@ export function LineageNodeCard({
               </span>
             ))
           ) : (
-            <span className="ga-lineage-v2-card-footstat is-empty">Metadata pending</span>
+            <span className="ga-lineage-v2-card-footstat is-empty">Loading header…</span>
           )
         ) : null}
       </footer>

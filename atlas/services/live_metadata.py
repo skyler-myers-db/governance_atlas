@@ -382,6 +382,35 @@ def cached_table_properties(
     )
 
 
+def cached_table_history(
+    uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    """600s-TTL cache around DESCRIBE HISTORY. Used to compute Last
+    Updated for Delta tables in the asset header. The query is cheap
+    (~50ms) but called for every visible lineage card via the per-node
+    header fetch, so caching avoids hammering the warehouse on graph
+    re-render."""
+    return _ttl_value(
+        f"table_history:{_warehouse_key(uc)}:{normalize_str(catalog)}:{normalize_str(schema)}:{normalize_str(table)}",
+        600,
+        lambda: uc.get_table_history(catalog, schema, table),
+    )
+
+
+def cached_information_schema_table_metadata(
+    uc: UCSQLClient, catalog: str, schema: str, table: str
+) -> pd.DataFrame:
+    """600s-TTL cache around the per-table information_schema.tables
+    lookup. Used to source the UC `table_owner` / `created_by` /
+    `last_altered` fields when the local governance store has nothing
+    assigned for the asset."""
+    return _ttl_value(
+        f"info_schema_table:{_warehouse_key(uc)}:{normalize_str(catalog)}:{normalize_str(schema)}:{normalize_str(table)}",
+        600,
+        lambda: uc.get_information_schema_table_metadata(catalog, schema, table),
+    )
+
+
 def cached_table_constraints(
     uc: UCSQLClient, catalog: str, schema: str, table: str
 ) -> pd.DataFrame:

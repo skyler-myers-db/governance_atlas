@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { fetchCdeDashboard, fetchTaxonomyOverview } from "../lib/api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  fetchCdeDashboard,
+  fetchTaxonomyOverview,
+  upsertGovernanceGlossaryTerm,
+} from "../lib/api";
 import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { EmptyStateBlock, LoadingState } from "./ShellStatePrimitives";
 import { DegradedBanner, StatusPill } from "./northstar";
@@ -51,6 +55,37 @@ const CDE_PRIORITY = [
   "order total usd",
   "order total (usd)",
 ];
+const UNAVAILABLE_GLOSSARY_TERMS = Array.from({ length: 4 }, (_, index) => ({
+  termId: `term-evidence-unavailable-${index}`,
+  term: "Glossary term unavailable",
+  definition: "Term, hierarchy, reviewer, and association evidence was not returned for this scope.",
+  domain: "Unavailable",
+  status: "unavailable",
+  ownerEmail: "",
+  stewardEmail: "",
+  reviewedAt: "",
+  reviewers: [],
+  assets: [],
+  assetCount: 0,
+  childCount: 0,
+  currentVersion: "",
+  termHistory: [],
+  associationSource: "",
+  summarySource: "",
+  unavailable: true,
+}));
+const UNAVAILABLE_CDES = Array.from({ length: 5 }, (_, index) => ({
+  id: `cde-evidence-unavailable-${index}`,
+  name: "CDE evidence unavailable",
+  column: "",
+  owner: "Owner unavailable",
+  recert: "Unavailable",
+  status: "Unavailable",
+  recertEvidence: "Recertification workflow evidence unavailable",
+  healthEvidence: "Quality/test-run evidence unavailable",
+  sox: false,
+  unavailable: true,
+}));
 
 function envelopeData(payload) {
   return payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
@@ -848,8 +883,52 @@ function GlossaryCdeRegistry({
   const [selectedTermId, setSelectedTermId] = useState("");
   const [selectedCdeId, setSelectedCdeId] = useState("");
   const [associationBrowserTermId, setAssociationBrowserTermId] = useState("");
-  const selectedTerm = terms.find((term) => term.termId === selectedTermId) || null;
-  const selectedCde = cdes.find((cde) => cde.id === selectedCdeId) || null;
+  // New-term modal state. The glossary backend (POST /governance/glossary)
+  // accepts a draft directly — there's no workflow gate. The previous
+  // "unavailable until configured" placeholder was misleading.
+  const [newTermOpen, setNewTermOpen] = useState(false);
+  const [newTermDraft, setNewTermDraft] = useState({
+    name: "",
+    definition: "",
+    domain: "",
+    ownerEmail: "",
+  });
+  const [newTermSaving, setNewTermSaving] = useState(false);
+  const [newTermError, setNewTermError] = useState("");
+  const queryClient = useQueryClient();
+
+  const handleSubmitNewTerm = async (event) => {
+    event.preventDefault();
+    if (newTermSaving) return;
+    const name = String(newTermDraft.name || "").trim();
+    if (!name) {
+      setNewTermError("Term name is required.");
+      return;
+    }
+    setNewTermSaving(true);
+    setNewTermError("");
+    try {
+      await upsertGovernanceGlossaryTerm({
+        termId: "",
+        name,
+        definition: String(newTermDraft.definition || "").trim(),
+        domain: String(newTermDraft.domain || "").trim(),
+        ownerEmail: String(newTermDraft.ownerEmail || "").trim(),
+        status: "draft",
+      });
+      // Invalidate the taxonomy + glossary queries so the new term appears.
+      queryClient.invalidateQueries({ queryKey: ["taxonomyOverview"] });
+      queryClient.invalidateQueries({ queryKey: ["governance", "glossary"] });
+      onActionMessage(`Glossary term “${name}” created with status Draft.`);
+      setNewTermDraft({ name: "", definition: "", domain: "", ownerEmail: "" });
+      setNewTermOpen(false);
+    } catch (err) {
+      const message = err?.message || "Failed to create term — please try again.";
+      setNewTermError(message);
+    } finally {
+      setNewTermSaving(false);
+    }
+  };
   const filteredCdes = useMemo(
     () => [...cdes].sort((left, right) =>
       cdePriorityRank(left) - cdePriorityRank(right) || text(left.name).localeCompare(text(right.name)),
@@ -857,6 +936,10 @@ function GlossaryCdeRegistry({
     [cdes],
   );
   const visibleCdes = filteredCdes.slice(0, 5);
+  const displayTerms = terms.length ? visibleTerms : UNAVAILABLE_GLOSSARY_TERMS;
+  const displayCdes = visibleCdes.length ? visibleCdes : UNAVAILABLE_CDES;
+  const selectedTerm = (terms.length ? terms : UNAVAILABLE_GLOSSARY_TERMS).find((term) => term.termId === selectedTermId) || null;
+  const selectedCde = (cdes.length ? cdes : UNAVAILABLE_CDES).find((cde) => cde.id === selectedCdeId) || null;
   const termLookup = useMemo(
     () => new Map(terms.map((term) => [term.termId, term])),
     [terms],
@@ -882,7 +965,9 @@ function GlossaryCdeRegistry({
   };
   useEffect(() => {
     if (!terms.length) {
-      if (selectedTermId) setSelectedTermId("");
+      if (selectedTermId && !UNAVAILABLE_GLOSSARY_TERMS.some((term) => term.termId === selectedTermId)) {
+        setSelectedTermId("");
+      }
       return;
     }
     if (selectedTermId && !terms.some((term) => term.termId === selectedTermId)) {
@@ -892,7 +977,9 @@ function GlossaryCdeRegistry({
   }, [selectedTermId, terms]);
   useEffect(() => {
     if (!cdes.length) {
-      if (selectedCdeId) setSelectedCdeId("");
+      if (selectedCdeId && !UNAVAILABLE_CDES.some((cde) => cde.id === selectedCdeId)) {
+        setSelectedCdeId("");
+      }
       return;
     }
     if (selectedCdeId && !cdes.some((cde) => cde.id === selectedCdeId)) {
@@ -910,17 +997,24 @@ function GlossaryCdeRegistry({
           </div>
           <button
             className="gh-taxonomy-prototype-new"
-            onClick={() =>
-              onActionMessage(
-                activeTab === "cdes"
-                  ? "New CDE request is unavailable until a backed CDE registry workflow is configured; no local draft was created."
-                  : "New term request is unavailable until a backed glossary workflow is configured; no local draft was created.",
-              )
+            onClick={() => {
+              if (activeTab === "cdes") {
+                onActionMessage(
+                  "New CDE request is unavailable until a backed CDE registry workflow is configured; no local draft was created.",
+                );
+                return;
+              }
+              setNewTermError("");
+              setNewTermOpen(true);
+            }}
+            title={
+              activeTab === "cdes"
+                ? "Show New CDE unavailable reason"
+                : "Open the New term form"
             }
-            title={activeTab === "cdes" ? "Show New CDE unavailable reason" : "Show New term unavailable reason"}
             type="button"
           >
-            + New term
+            + {activeTab === "cdes" ? "New CDE" : "New term"}
           </button>
         </header>
 
@@ -985,10 +1079,9 @@ function GlossaryCdeRegistry({
             </div>
           </div>
           <div className="gh-taxonomy-prototype-card-grid" aria-label="Glossary cards">
-            {terms.length ? (
-              visibleTerms.map((term) => (
+            {displayTerms.map((term) => (
                 <article
-                  className={`gh-taxonomy-prototype-card ${selectedTerm?.termId === term.termId ? "is-selected" : ""}`}
+                  className={`gh-taxonomy-prototype-card ${term.unavailable ? "is-unavailable" : ""} ${selectedTerm?.termId === term.termId ? "is-selected" : ""}`.trim()}
                   key={term.termId}
                   onClick={() => {
                     openTermDetail(term);
@@ -1005,7 +1098,7 @@ function GlossaryCdeRegistry({
                   <div className="gh-taxonomy-prototype-card-head">
                     <div>
                       <h2>{term.term}</h2>
-                      <span>{term.domain} · {term.stewardEmail || term.ownerEmail || "Unassigned steward"}</span>
+                      <span>{term.unavailable ? "Source and owner unavailable" : `${term.domain} · ${term.stewardEmail || term.ownerEmail || "Unassigned steward"}`}</span>
                     </div>
                     <StatusPill tone={statusTone(term.status)}>
                       {registryLabel(term.status, "Draft")}
@@ -1019,12 +1112,11 @@ function GlossaryCdeRegistry({
                   </dl>
                   <div className="gh-taxonomy-prototype-card-foot">
                     <button
-                      disabled={!term.assets[0]?.fqn}
                       onClick={(event) => {
                         event.stopPropagation();
                         openTermDetail(term, { showAssociations: true });
                       }}
-                      title={term.assets[0]?.fqn ? "Browse associated assets" : "No associated asset FQN is available for this term"}
+                      title={term.assets[0]?.fqn ? "Browse associated assets" : "Open association detail; no linked assets are recorded for this term"}
                       type="button"
                     >
                       {term.assetCount || 0} assets
@@ -1044,26 +1136,7 @@ function GlossaryCdeRegistry({
                     </button>
                   </div>
                 </article>
-              ))
-            ) : (
-              Array.from({ length: 4 }, (_, index) => (
-                <article className="gh-taxonomy-prototype-card is-unavailable" key={`term-unavailable-${index}`}>
-                  <div className="gh-taxonomy-prototype-card-head">
-                    <div>
-                      <h2>Glossary term unavailable</h2>
-                      <span>Source and owner unavailable</span>
-                    </div>
-                    <StatusPill tone="neutral">Unavailable</StatusPill>
-                  </div>
-                  <p>Term, hierarchy, reviewer, and association evidence was not returned for this scope.</p>
-                  <dl className="gh-taxonomy-prototype-card-proof">
-                    <div><dt>Source</dt><dd>Unavailable</dd></div>
-                    <div><dt>Associations</dt><dd>Unavailable</dd></div>
-                    <div><dt>Review</dt><dd>Unavailable</dd></div>
-                  </dl>
-                </article>
-              ))
-            )}
+              ))}
           </div>
           {selectedTerm ? (
             <TermRegistryDetail
@@ -1089,15 +1162,20 @@ function GlossaryCdeRegistry({
               <span role="columnheader">Recert</span>
               <span role="columnheader">Status</span>
             </div>
-            {visibleCdes.length ? (
-              visibleCdes.map((cde) => {
-                const statusLabel = cde.column ? registryEvidenceLabel(cde.status) : "Source unavailable";
-                const statusEvidence = cde.column
+            {displayCdes.map((cde) => {
+                const statusLabel = cde.unavailable
+                  ? registryEvidenceLabel(cde.status)
+                  : cde.column
+                    ? registryEvidenceLabel(cde.status)
+                    : "Source unavailable";
+                const statusEvidence = cde.unavailable
+                  ? cdeHealthEvidenceSummary(cde)
+                  : cde.column
                   ? cdeHealthEvidenceSummary(cde)
                   : "Source-of-record column evidence is unavailable for this CDE.";
                 return (
                   <div
-                    className={`gh-taxonomy-prototype-cde-row ${selectedCde?.id === cde.id ? "is-selected" : ""}`}
+                    className={`gh-taxonomy-prototype-cde-row ${cde.unavailable ? "is-unavailable" : ""} ${selectedCde?.id === cde.id ? "is-selected" : ""}`.trim()}
                     key={cde.id}
                     onClick={() => {
                       openCdeDetail(cde);
@@ -1134,33 +1212,7 @@ function GlossaryCdeRegistry({
                     </span>
                   </div>
                 );
-              })
-            ) : (
-              Array.from({ length: 5 }, (_, index) => (
-                <div className="gh-taxonomy-prototype-cde-row is-unavailable" key={`cde-unavailable-${index}`} role="row">
-                  <span role="cell">
-                    <i aria-hidden="true" className="gh-taxonomy-prototype-key-icon" />
-                    <strong>CDE evidence unavailable</strong>
-                  </span>
-                  <span role="cell" className="is-mono">Source column unavailable</span>
-                  <span role="cell">Owner unavailable</span>
-                  <span
-                    aria-label="Recertification unavailable. Recertification workflow evidence unavailable"
-                    role="cell"
-                    title="Recertification workflow evidence unavailable"
-                  >
-                    <span className="gh-taxonomy-prototype-recert-pill">Unavailable</span>
-                  </span>
-                  <span
-                    aria-label="Status unavailable. Quality/test-run evidence unavailable"
-                    role="cell"
-                    title="Quality/test-run evidence unavailable"
-                  >
-                    <StatusPill tone="neutral">Unavailable</StatusPill>
-                  </span>
-                </div>
-              ))
-            )}
+              })}
           </div>
           <p className="gh-taxonomy-prototype-cde-provenance">
             Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned.
@@ -1177,6 +1229,104 @@ function GlossaryCdeRegistry({
           </div>
         )}
       </div>
+
+      {newTermOpen ? (
+        <div className="gh-taxonomy-newterm-scrim" role="dialog" aria-modal="true" aria-labelledby="gh-newterm-title">
+          <form className="gh-taxonomy-newterm-modal" onSubmit={handleSubmitNewTerm}>
+            <header className="gh-taxonomy-newterm-head">
+              <h2 id="gh-newterm-title">New glossary term</h2>
+              <button
+                aria-label="Close"
+                className="gh-taxonomy-newterm-close"
+                disabled={newTermSaving}
+                onClick={() => setNewTermOpen(false)}
+                type="button"
+              >
+                ×
+              </button>
+            </header>
+            <p className="gh-taxonomy-newterm-help">
+              Drafts are saved with status <strong>Draft</strong>. Stewards can promote them to Proposed or Approved later.
+            </p>
+            <label className="gh-taxonomy-newterm-field">
+              <span>Term name *</span>
+              <input
+                autoFocus
+                className="gh-input"
+                disabled={newTermSaving}
+                onChange={(event) =>
+                  setNewTermDraft((current) => ({ ...current, name: event.target.value }))
+                }
+                placeholder="e.g. Net Revenue (USD)"
+                required
+                type="text"
+                value={newTermDraft.name}
+              />
+            </label>
+            <label className="gh-taxonomy-newterm-field">
+              <span>Definition</span>
+              <textarea
+                className="gh-input"
+                disabled={newTermSaving}
+                onChange={(event) =>
+                  setNewTermDraft((current) => ({ ...current, definition: event.target.value }))
+                }
+                placeholder="Plain-language description used by analysts and stewards…"
+                rows={4}
+                value={newTermDraft.definition}
+              />
+            </label>
+            <div className="gh-taxonomy-newterm-row">
+              <label className="gh-taxonomy-newterm-field">
+                <span>Domain</span>
+                <input
+                  className="gh-input"
+                  disabled={newTermSaving}
+                  onChange={(event) =>
+                    setNewTermDraft((current) => ({ ...current, domain: event.target.value }))
+                  }
+                  placeholder="e.g. Finance"
+                  type="text"
+                  value={newTermDraft.domain}
+                />
+              </label>
+              <label className="gh-taxonomy-newterm-field">
+                <span>Owner email</span>
+                <input
+                  className="gh-input"
+                  disabled={newTermSaving}
+                  onChange={(event) =>
+                    setNewTermDraft((current) => ({ ...current, ownerEmail: event.target.value }))
+                  }
+                  placeholder="steward@your-company.ai"
+                  type="email"
+                  value={newTermDraft.ownerEmail}
+                />
+              </label>
+            </div>
+            {newTermError ? (
+              <p className="gh-taxonomy-newterm-error" role="alert">{newTermError}</p>
+            ) : null}
+            <div className="gh-taxonomy-newterm-actions">
+              <button
+                className="gh-tertiary-button"
+                disabled={newTermSaving}
+                onClick={() => setNewTermOpen(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="gh-primary-button"
+                disabled={newTermSaving || !newTermDraft.name.trim()}
+                type="submit"
+              >
+                {newTermSaving ? "Creating…" : "Create term"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -1291,9 +1441,8 @@ function TermRegistryDetail({ associationBrowserOpen = false, onActionMessage, o
           Open lineage
         </button>
         <button
-          disabled={!term.assets.length}
           onClick={() => setShowAssociations((current) => !current)}
-          title={term.assets.length ? "Browse all linked assets for this term" : "No linked assets are recorded for this term"}
+          title={term.assets.length ? "Browse all linked assets for this term" : "Show association availability; no linked assets are recorded for this term"}
           type="button"
         >
           {showAssociations ? "Hide associations" : "Browse all associations"}

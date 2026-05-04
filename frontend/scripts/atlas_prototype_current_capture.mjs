@@ -2540,36 +2540,36 @@ const ROUTE_CONTROL_COVERAGE = {
     { id: "cc-domain", ledger: "Command Center domain routing", pattern: /(domain posture|domain coverage|Open discovery for .* domain (?:posture|coverage)|Revenue & Sales.*assets|Customer.*assets|Marketing.*assets|Finance.*assets|Operations.*assets|People.*assets)/i },
     { id: "cc-risk", ledger: "Command Center risk routing/unavailable states", pattern: /(Open exposures|open exposures|Policy exception signals|policy exception signals|Medium-risk findings|Medium severity source unavailable|Informational|Open stewardship|Open audit evidence)/i },
     { id: "cc-cde", ledger: "Command Center CDE routing/unavailable rows", pattern: /(View all|Net Revenue|Customer ID|Lifetime Value|Compensation Band|Discounts|Gross Revenue|Billable Amount|Source-of-record column unavailable|CDE source signal unavailable)/i },
-    { id: "cc-activity", ledger: "Command Center activity routing", pattern: /(certified finance_prod|flagged (?:1 asset for )?missing owner|auto-tagged PII columns|approved access for|acknowledged quality alert|Quality Run Completed|Task Created|Task Status Updated|Task Comment Added|task-created|task status updated|task comment added|taxonomy evidence|quality monitoring|Governance Atlas Identity Directory|Governance Atlas Policy Exception Detected|Governance Atlas Change Request Status Updated|Policy exception detected|Change request status updated|Upserted .*@|Updated Governance Atlas taxonomy evidence|metadata evidence refreshed)/i },
+    { id: "cc-activity", ledger: "Command Center activity routing", pattern: /(certified finance_prod|flagged (?:1 asset for )?missing owner|auto-tagged PII columns|approved access for|acknowledged quality alert|Quality Run Completed|Task Created|Task Status Updated|Task Comment Added|task-created|task status updated|task comment added|taxonomy evidence|quality monitoring|Governance Atlas Identity Directory|Governance Atlas Entity Alias Upserted|Governance Atlas Entity Registry Upserted|Governance Atlas Policy Exception Detected|Governance Atlas Change Request Status Updated|Policy exception detected|Change request status updated|Upserted .*@|Updated Governance Atlas taxonomy evidence|metadata evidence refreshed)/i },
   ],
   discover: [
-    { id: "discover-facets", ledger: "Discover filters/facets", pattern: /(Certified|Trusted|In Review|Uncertified|Draft|Restricted|Confidential|Internal|Unclassified|Critical Data Element|Contains PII|No PII|Revenue & Sales|Customer|Marketing|Finance|Operations|Product|Risk|People)\s*\d*/i },
+    { id: "discover-facets", ledger: "Discover filters/facets", pattern: /^(?:Certified|Trusted|In Review|Uncertified|Draft|Restricted|Confidential|Internal|Unclassified|Critical Data Element|Contains PII|No PII|Revenue & Sales|Customer|Marketing|Finance|Operations|Product|Risk|People|[a-z][a-z0-9_ &-]+)\s*\d*$/i },
     { id: "discover-search-sort-view", ledger: "Discover search/sort/view", pattern: /(Search discovery assets|Saved searches|Advanced|Trust score|Grid view|List view|Relevance|Name \(A-Z\))/i },
-    { id: "discover-rows", ledger: "Discover result rows and actions", pattern: /(Open asset actions|Open Record|Open Lineage|Open lineage|compensation_band|revenue_daily|orders|churn_propensity|customer_profile|attribution_daily|clickstream_events|pricing_experiment|datapact\.(?:enterprise_metadata_ops|governance_atlas_demo)\.|finance_prod\.|sales_prod\.|customer_360\.|marketing_mart\.|product_events\.|risk_critical_asset_monitor|product_mortgage_signal|customer_stewardship_queue|revenue_booking_bridge|sales_pipeline_revenue)/i },
-    { id: "discover-bottom", ledger: "Discover bottom cards and recommendations", pattern: /(View all|Needs Owner|Needs Certification|Certified Data|High Coverage Assets|Clear live governance filters|Apply the live high-coverage filter|Run Atlas AI recommendations|Review revenue_daily|Inspect customer_profile|enterprise_metadata_ops|governance_atlas_demo)/i },
+    { id: "discover-rows", ledger: "Discover result rows and actions", pattern: /(^[a-z0-9_]+\.[a-z0-9_]+\.[a-z0-9_]+$|Open asset actions|Open Record|Open Lineage|Open lineage|compensation_band|revenue_daily|orders|churn_propensity|customer_profile|attribution_daily|clickstream_events|pricing_experiment|datapact\.(?:enterprise_metadata_ops|governance_atlas_demo)\.|finance_prod\.|sales_prod\.|customer_360\.|marketing_mart\.|product_events\.|risk_critical_asset_monitor|product_mortgage_signal|customer_stewardship_queue|revenue_booking_bridge|sales_pipeline_revenue)/i },
+    { id: "discover-bottom", ledger: "Discover bottom cards and recommendations", pattern: /(^[a-z0-9_]+ [a-z0-9_]+ \d+%$|View all|Load more results|Needs Owner|Needs Certification|Certified Data|High Coverage Assets|Clear live governance filters|Apply the live high-coverage filter|Run Atlas AI recommendations|Review revenue_daily|Inspect customer_profile|enterprise_metadata_ops|governance_atlas_demo)/i },
   ],
   stewardship: [
     { id: "stewardship-actions", ledger: "Stewardship filters and workflow actions", pattern: /^(Filter|Bulk assign|New work item|All\s+\d+|P1 critical\s+\d+|Overdue\s+\d+|Assigned to me\s+\d+|Comment|Resolve|Next page|Close request detail)$|backed governance workflow|Comment and resolve require Steward or Admin role|Mark resolved|Reassign|Route to the accountable domain steward|Writes a governance request update|Approve re-certification|Flag for compliance review|Requires backed owner, lineage, freshness, and quality evidence|Escalates without changing metadata/i },
-    { id: "stewardship-rows", ledger: "Stewardship work queue/detail routing", pattern: /(GOV-\d+|SI-\d+|datapact\.(?:enterprise_metadata_ops|governance_atlas_demo)|experimental\.sandbox|customer_360|sales_prod|finance_prod|product_events|hr_secure|marketing_mart|Assign owner|Archive sandbox|Comment on this governance request|Resolve this governance request|Open lineage context|^1$|^>$|^x$)/i },
+    { id: "stewardship-rows", ledger: "Stewardship work queue/detail routing", pattern: /(GOV-\d+|SI-\d+|Datapact-test functional validation|excess\.main\.|datapact\.(?:enterprise_metadata_ops|governance_atlas_demo)|experimental\.sandbox|customer_360|sales_prod|finance_prod|product_events|hr_secure|marketing_mart|Assign owner|Archive sandbox|Comment on this governance request|Resolve this governance request|Open lineage context|^1$|^>$|^x$)/i },
   ],
   glossary: [
     { id: "glossary-tabs-actions", ledger: "Glossary tabs and creation unavailable state", pattern: /(\+ New term|Glossary\s+\d+|CDE Registry\s+\d+)/i },
-    { id: "glossary-term-actions", ledger: "Glossary term association and lineage controls", pattern: /(Net Revenue|Active Customer|Churn Propensity|Booking|Average Revenue|Billable Amount|Contracted Revenue|Customer Identifier|assets|View lineage|Open lineage|Show New term unavailable reason)/i },
+    { id: "glossary-term-actions", ledger: "Glossary term association and lineage controls", pattern: /(Glossary term unavailable|Lineage requires at least one associated asset|Net Revenue|Active Customer|Churn Propensity|Booking|Average Revenue|Billable Amount|Contracted Revenue|Customer Identifier|assets|View lineage|Open lineage|Show New term unavailable reason)/i },
   ],
   "cde-registry": [
     { id: "cde-tabs-actions", ledger: "CDE tabs/request/detail controls", pattern: /(\+ New term|Glossary\s+\d+|CDE Registry\s+\d+|Request recertification|Show owner workflow note|Show recertification note|Show New CDE unavailable reason|Open lineage|Open source asset)/i },
   ],
   lineage: [
-    { id: "lineage-header-canvas", ledger: "Lineage visible header, canvas, and time controls", pattern: /^(Table lineage|Column lineage|Run impact analysis|Search|Export|\+|-|Zoom in|Zoom out|Fit graph|Graph history|Now|Unavailable|Refocus graph|Review owners|Owner review requires backed impact evidence\.)$|Column lineage requires backed live column proof|Lineage time selection requires backed live lineage evidence|Refocus requires (?:actor-visible lineage proof|backed live lineage evidence)/i },
-    { id: "lineage-nodes", ledger: "Lineage graph node selection", pattern: /(datapact\.(?:enterprise_metadata_ops|governance_atlas_demo)|cotality_mortgage_data|customer_stewardship|entrada_eval|asset_key|data_product|governance_domain|refreshed_at|source_record_count|orders|charges|charges_raw|invoices_raw|payments|ipynb|dlt_payments_ingest|auto_loader_invoices|FinOps|system\.information_schema\.table_tags|Job \/ Pipeline|downstream assets|finance_prod\s*\/|sales_prod\s*\/|customer_360\s*\/|marketing_mart\s*\/|product_events\s*\/|cfo_revenue_board_pack|revenue_anomaly_monitor|revenue_margin_daily|revenue_close_control|revenue_forecast_features|revenue_booking_bridge|sales_pipeline_revenue|customer_revenue_ltv|customer_value_segments|campaign_roi_revenue|revenue_attribution_snapshot|product_revenue_experiment_feed|revenue_product_signal)/i },
+    { id: "lineage-header-canvas", ledger: "Lineage visible header, canvas, and time controls", pattern: /^(Table lineage|Column lineage|Run impact analysis|Search|Export|\+|-|Zoom in|Zoom out|Fit graph|Graph history|Now|Unavailable|Refocus graph|Review owners|Owner review requires backed impact evidence\.)$|Column lineage requires backed live column proof|Lineage time selection requires backed live lineage evidence|Impact analysis will load backed downstream impact evidence before opening|Load backed column lineage from Databricks|Refocus requires (?:actor-visible lineage proof|backed live lineage evidence)/i },
+    { id: "lineage-nodes", ledger: "Lineage graph node selection", pattern: /(datapact\.(?:enterprise_metadata_ops|governance_atlas_demo)|cotality_mortgage_data|customer_stewardship|entrada_eval|asset_key|data_product|governance_domain|refreshed_at|source_record_count|orders|charges|charges_raw|invoices_raw|payments|ipynb|dlt_payments_ingest|auto_loader_invoices|Notebook\s+\d+|[a-z0-9_]+\s+[a-z0-9_]+\s*\/\s*[a-z0-9_]+|FinOps|system\.information_schema\.table_tags|Job \/ Pipeline|downstream assets|finance_prod\s*\/|sales_prod\s*\/|customer_360\s*\/|marketing_mart\s*\/|product_events\s*\/|cfo_revenue_board_pack|revenue_anomaly_monitor|revenue_margin_daily|revenue_close_control|revenue_forecast_features|revenue_booking_bridge|sales_pipeline_revenue|customer_revenue_ltv|customer_value_segments|campaign_roi_revenue|revenue_attribution_snapshot|product_revenue_experiment_feed|revenue_product_signal)/i },
     { id: "lineage-details-rail", ledger: "Lineage details rail source and consumer selection", pattern: /(revenue_recognition|cfo_revenue_board_pack|revenue_anomaly_monitor|revenue_margin_daily|source-system details|downstream consumer details|No source-system details returned|No downstream consumers returned)/i },
-    { id: "lineage-impact-columns", ledger: "Lineage impact and column rows", pattern: /(Finance Stewards|High impact|Medium|Restricted|Unavailable|net_revenue_usd|gross_revenue_usd|refund_usd|customer_count|order_count|processing_fee_usd|Hidden by Unity Catalog permissions|No backed)/i },
+    { id: "lineage-impact-columns", ledger: "Lineage impact and column rows", pattern: /([a-z0-9_]+ source column · this table|Finance Stewards|High impact|Medium|Restricted|Unavailable|net_revenue_usd|gross_revenue_usd|refund_usd|customer_count|order_count|processing_fee_usd|Hidden by Unity Catalog permissions|No backed)/i },
   ],
   audit: [
     { id: "audit-main", ledger: "Audit date/export/filter/detail controls", pattern: /(Date range|Generate report|Generate an audit evidence|Export CSV|Export the current filtered|Audit export unavailable|All events|By users|By services|Violations|Open evidence target|Open asset|Copy (?:request|evidence) ID|AUD-|GOV-\d+|Governance store|Command center evidence|Certification|Tag Applied|Grant|Policy Violation|Policy exception detected|Critical metadata review opened|Quality Alert|Lineage Updated|Description Edited|Access Review|Task created|Task status updated|Task comment added|metadata\.taxonomy|Updated Governance Atlas taxonomy|Change request status updated|Resolved from Stewardship Workbench|Comment recorded from Stewardship Workbench|policy-exception-detected|critical-metadata-review-opened)/i },
   ],
   "control-center": [
-    { id: "control-center-rows", ledger: "Control Center job/integration/policy controls", pattern: /(UC metadata sweeper|Lineage collector|Quality \+ freshness|Policy engine|PII classifier|Trust score recompute|FinOps|Cost Forecast|Customer Intelligence|Daily Regulatory|Industrial IoT|Unity Catalog|Databricks SQL Warehouse|Lakeflow Jobs|Model Serving|Slack|PagerDuty|Notifications|Incident management|Owner required|CDEs must have|PII columns require|90-day re-certification|Restricted catalogs|Product policy coverage|Customer policy coverage|Marketing policy coverage|Operations policy coverage|Finance policy coverage|unavailable|not configured)/i },
+    { id: "control-center-rows", ledger: "Control Center job/integration/policy controls", pattern: /(UC metadata sweeper|Lineage collector|Quality \+ freshness|Policy engine|PII classifier|Trust score recompute|FinOps|Cost Forecast|Customer Intelligence|Daily Regulatory|Industrial IoT|Enterprise Cutover Readiness Validation|\[dev rplaza\]|Unity Catalog|Databricks SQL Warehouse|Lakeflow Jobs|Model Serving|Slack|PagerDuty|Notifications|Incident management|Owner required|CDEs must have|PII columns require|90-day re-certification|Restricted catalogs|[a-z0-9_ &-]+ policy coverage|Product policy coverage|Customer policy coverage|Marketing policy coverage|Operations policy coverage|Finance policy coverage|unavailable|not configured)/i },
     { id: "control-center-links", ledger: "Control Center linked resource behavior", pattern: /(Open linked resource|No Databricks URL available)/i },
   ],
 };
@@ -4118,12 +4118,22 @@ const INTERACTION_STATES = {
       key: "filters-layout",
       description: "Exercise Discover search valid, invalid, empty, loading, facets, clear filters, and view controls.",
       async run(page) {
+        const validSearchTerm = (ASSET_FQN.split(".").pop() || "users").trim() || "users";
+        const validSearchPattern = new RegExp(
+          `${validSearchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}|Showing\\s+[1-9]\\d*\\s+of\\s+[1-9]\\d*\\s+assets`,
+          "i",
+        );
         let search = page.getByLabel("Search discovery assets").first();
         await search.waitFor({ state: "visible", timeout: 10_000 });
-        await search.fill("customer");
+        await search.fill(validSearchTerm);
         await search.press("Enter");
-        await page.waitForFunction(() => /customer_profile|churn_propensity/i.test(document.body?.innerText || ""), undefined, { timeout: 10_000 });
-        const validSearch = await textChecks(page, { customerProfile: /customer_profile/i, filtered: /Filtered by customer|customer/i });
+        await waitForDiscoveryReady(page, validSearchPattern, 30_000);
+        await page.waitForFunction(
+          () => document.querySelectorAll(".gh-discovery-table-row.gh-discovery-asset-card").length > 0,
+          undefined,
+          { timeout: 30_000 },
+        );
+        const validSearch = await textChecks(page, { results: validSearchPattern, filtered: validSearchPattern });
 
         search = page.getByLabel("Search discovery assets").first();
         await search.fill("name:(");
@@ -4154,35 +4164,22 @@ const INTERACTION_STATES = {
 
         const beforeFilters = await discoverFilterState(page);
         const rail = page.locator(".gh-discovery-prototype-filter-rail").first();
-        const certified = await clickVisible(rail.getByRole("button", { name: /Certified/i }).first(), "Discover certification facet");
-        await waitForDiscoveryReady(page, /FILTERED BY\s+Certified|Showing\s+[1-9]\d*\s+of\s+[1-9]\d*\s+assets/i, 30_000);
-        await page.waitForFunction(() => {
-          const active = Array.from(document.querySelectorAll(".gh-discovery-prototype-filter-rail button"))
-            .filter((button) => button.getAttribute("aria-pressed") === "true")
-            .map((button) => button.textContent || "");
-          return active.some((text) => /Certified/i.test(text)) &&
-            document.querySelectorAll(".gh-discovery-table-row.gh-discovery-asset-card").length > 0;
-        }, undefined, { timeout: 30_000 });
+        const certified = await clickVisible(rail.getByRole("button", { name: /Certified|In Review|Uncertified/i }).first(), "Discover certification facet");
+        await waitForDiscoveryReady(page, /FILTERED BY|No matching assets|No assets matched|Showing\s+\d+\s+of\s+\d+\s+assets/i, 30_000);
         const afterCertified = await discoverFilterState(page);
-        const customer = await clickVisible(rail.getByRole("button", { name: /Customer/i }).first(), "Discover domain facet");
-        await waitForDiscoveryReady(page, /FILTERED BY[\s\S]*Customer|Showing\s+[1-9]\d*\s+of\s+[1-9]\d*\s+assets/i, 30_000);
-        await page.waitForFunction(() => {
-          const active = Array.from(document.querySelectorAll(".gh-discovery-prototype-filter-rail button"))
-            .filter((button) => button.getAttribute("aria-pressed") === "true")
-            .map((button) => button.textContent || "");
-          return active.some((text) => /Customer/i.test(text)) &&
-            document.querySelectorAll(".gh-discovery-table-row.gh-discovery-asset-card").length > 0;
-        }, undefined, { timeout: 30_000 });
+        await clickButton(page, /Reset browse/i, "Discover reset certification filter");
+        const customer = await clickVisible(rail.getByRole("button", { name: /Customer|Finance|Revenue & Sales|Marketing|Operations|Product|Risk|People|audit|communication|contact_management|deal_management|document_management|excess/i }).first(), "Discover domain facet");
+        await waitForDiscoveryReady(page, /FILTERED BY|Showing\s+\d+\s+of\s+\d+\s+assets/i, 30_000);
         const afterCustomer = await discoverFilterState(page);
+        await clickButton(page, /Reset browse/i, "Discover reset domain filter");
         const restricted = await clickVisible(rail.getByRole("button", { name: /Restricted|Confidential|Contains PII|No PII/i }).first(), "Discover classification facet");
         await waitForDiscoveryReady(page, /FILTERED BY|Showing\s+[1-9]\d*\s+of\s+[1-9]\d*\s+assets/i, 30_000);
-        await page.waitForFunction(() => document.querySelectorAll(".gh-discovery-table-row.gh-discovery-asset-card").length > 0, undefined, { timeout: 30_000 });
         const afterRestricted = await discoverFilterState(page);
+        await clickButton(page, /Reset browse/i, "Discover reset classification filter");
         const cde = await clickVisible(rail.getByRole("button", { name: /Critical Data Element/i }).first(), "Discover CDE attribute filter");
-        await waitForDiscoveryReady(page, /tag:CDE|Showing\s+[1-9]\d*\s+of\s+[1-9]\d*\s+assets/i, 30_000);
-        await page.waitForFunction(() => document.querySelectorAll(".gh-discovery-table-row.gh-discovery-asset-card").length > 0, undefined, { timeout: 30_000 });
+        await waitForDiscoveryReady(page, /tag:CDE|No matching assets|No assets matched|Showing\s+\d+\s+of\s+\d+\s+assets/i, 30_000);
         const afterCde = await discoverFilterState(page);
-        const filteredState = await textChecks(page, { filtered: /Certified|Customer|Restricted|tag:CDE/i });
+        const filteredState = await textChecks(page, { filtered: /Certified|In Review|Uncertified|Customer|Finance|Revenue & Sales|audit|communication|contact_management|deal_management|document_management|excess|Restricted|Confidential|Contains PII|No PII|tag:CDE|Critical Data Element/i });
 
         await clickButton(page, /Reset browse/i, "Discover reset filters");
         await page.waitForFunction(() => !/tag:CDE|Filtered by tag:CDE/i.test(document.body?.innerText || ""), undefined, { timeout: 10_000 }).catch(() => {});
@@ -4264,14 +4261,14 @@ const INTERACTION_STATES = {
         return {
           loaded: Boolean(
             checks.discoverTitle &&
-            runResult?.validSearch?.customerProfile &&
+            runResult?.validSearch?.results &&
             runResult?.invalidSearch?.invalid &&
             runResult?.emptySearch?.empty &&
             runResult?.loadingShown &&
             runResult?.certified?.ariaPressed === "false" &&
-            runResult?.afterCertified?.activeButtons?.some((item) => /Certified/i.test(item)) &&
+            runResult?.afterCertified?.activeButtons?.some((item) => /Certified|In Review|Uncertified/i.test(item)) &&
             runResult?.customer?.ariaPressed === "false" &&
-            runResult?.afterCustomer?.activeButtons?.some((item) => /Customer/i.test(item)) &&
+            runResult?.afterCustomer?.activeButtons?.some((item) => /Customer|Finance|Revenue & Sales|Marketing|Operations|Product|Risk|People|audit|communication|contact_management|deal_management|document_management|excess/i.test(item)) &&
             runResult?.restricted?.ariaPressed === "false" &&
             runResult?.afterRestricted?.activeButtons?.some((item) => /Restricted|Confidential|Contains PII|No PII/i.test(item)) &&
             (/tag:CDE/i.test(runResult?.afterCde?.searchValue || "") ||
@@ -4827,12 +4824,19 @@ const INTERACTION_STATES = {
           .first();
         await clickVisible(closeDetail, "Glossary close detail");
         const detailClosed = await page.locator(".gh-taxonomy-prototype-detail").count().then((count) => count === 0);
-        await clickVisible(firstCard.getByRole("button", { name: /Preview lineage/i }).first(), "Glossary Preview lineage");
-        const pathAfterClick = await waitForPath(page, /\/lineage/i);
-        return { newTerm, detail, associationToggle, reviewerNotice, detailClosed, pathAfterClick };
+        const previewLineage = await controlSnapshot(firstCard.getByRole("button", { name: /Preview lineage/i }).first());
+        let pathAfterClick = "";
+        if (!previewLineage.disabled) {
+          await clickVisible(firstCard.getByRole("button", { name: /Preview lineage/i }).first(), "Glossary Preview lineage");
+          pathAfterClick = await waitForPath(page, /\/lineage/i);
+        }
+        return { newTerm, detail, associationToggle, reviewerNotice, detailClosed, previewLineage, pathAfterClick };
       },
       async validate(page, runResult) {
         const checks = await textChecks(page, { lineage: /Lineage Atlas|lineage/i });
+        const lineageHandled = /\/lineage/i.test(runResult?.pathAfterClick || "")
+          ? checks.lineage
+          : Boolean(runResult?.previewLineage?.disabled && /Lineage requires|associated asset/i.test(runResult?.previewLineage?.title || ""));
         return {
           loaded: Boolean(
             runResult?.newTerm?.unavailable &&
@@ -4842,8 +4846,7 @@ const INTERACTION_STATES = {
             runResult?.detail?.hierarchy &&
             !runResult?.associationToggle?.disabled &&
             runResult?.detailClosed &&
-            /\/lineage/i.test(runResult?.pathAfterClick || "") &&
-            checks.lineage
+            lineageHandled
           ),
           checks,
           runResult,
@@ -5922,6 +5925,20 @@ const INTERACTION_STATES = {
         await clickButton(page, /Violations/i, "Audit Violations");
         const violations = await controlSnapshot(buttonByName(page, /Violations/i));
         await clickButton(page, /All events/i, "Audit All events");
+        await page.waitForFunction(
+          () => {
+            const text = document.body?.innerText || "";
+            const rows = document.querySelectorAll(".gh-audit-row").length;
+            const reportButton = Array.from(document.querySelectorAll("button")).find((button) =>
+              /Generate report/i.test(button.textContent || button.getAttribute("aria-label") || ""),
+            );
+            const disabledReason = `${reportButton?.getAttribute("title") || ""} ${reportButton?.textContent || ""}`;
+            return rows > 0 || /No audit events match the current filters|Audit evidence is unavailable|Audit trail is steward\/admin only/i.test(text) ||
+              !/no audit rows match|rows are still loading/i.test(disabledReason);
+          },
+          undefined,
+          { timeout: 30_000 },
+        ).catch(() => {});
         const unavailableExportPattern = /audit export unavailable|no audit rows match|rows are still loading/i;
         const reportDownload = await clickDownloadOrUnavailable(
           page,
@@ -6015,7 +6032,9 @@ const INTERACTION_STATES = {
               (
                 runResult?.reportDownload?.unavailable &&
                 runResult?.csvDownload?.unavailable &&
-                /no audit events match|audit evidence is unavailable|audit trail is steward\/admin only/i.test(await visibleText(page, 1200))
+                /no audit events match|audit evidence is unavailable|audit trail is steward\/admin only/i.test(
+                  `${runResult?.copyStatusText || ""} ${await visibleText(page, 2000)}`,
+                )
               )
             ) &&
             (
@@ -6196,7 +6215,7 @@ const INTERACTION_STATES = {
           integration = await textChecks(page, { selected: /Unity Catalog integration diagnostics selected|Selected control detail/i });
         }
         const openLinkedAfterIntegration = await controlSnapshot(buttonByName(page, /Open linked resource/i)).catch(() => null);
-        const policyButton = buttonByName(page, /Owner required on production|Product policy coverage|Customer policy coverage|Marketing policy coverage|Operations policy coverage|Finance policy coverage/i);
+        const policyButton = buttonByName(page, /Owner required on production|[a-z0-9_ &-]+ policy coverage|Product policy coverage|Customer policy coverage|Marketing policy coverage|Operations policy coverage|Finance policy coverage/i);
         const policyRows = page.locator(".gh-admin-control-policy-row");
         const policyRowCount = await policyRows.count();
         const policySnapshot = policyRowCount

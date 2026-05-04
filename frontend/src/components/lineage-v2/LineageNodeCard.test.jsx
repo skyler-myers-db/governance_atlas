@@ -33,8 +33,31 @@ describe("LineageNodeCard", () => {
     expect(screen.getByText("datapact / curated")).toBeTruthy();
     expect(screen.getByText("1.2M rows")).toBeTruthy();
     expect(screen.getByText("2h ago")).toBeTruthy();
-    expect(screen.getByText("1 owner")).toBeTruthy();
+    // The owner footer now shows the owner's name (UC-equivalent), not
+    // a generic "1 owner" count.
+    expect(screen.getByText("Marisol Reyes")).toBeTruthy();
     expect(screen.getByText("3 recent")).toBeTruthy();
+  });
+
+  it("prefers batch-fetched header values over the node-level fallbacks", () => {
+    // header carries UC-grade per-node detail (size, freshness via
+    // updatedAt, type, owner) — the card should render those.
+    const header = {
+      size: "12.4 GiB",
+      files: "143",
+      rows: "1.2M",
+      managementType: "Managed",
+      objectType: "Table",
+      updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      owners: [{ displayName: "Devon Cho" }],
+    };
+    render(<LineageNodeCard node={baseNode} header={header} variant="compact" />);
+    expect(screen.getByText("Managed · Table")).toBeTruthy();
+    expect(screen.getByText("12.4 GiB")).toBeTruthy();
+    // Header owner overrides node owner
+    expect(screen.getByText("Devon Cho")).toBeTruthy();
+    // Relative-time label derived from updatedAt
+    expect(screen.getByText("2h ago")).toBeTruthy();
   });
 
   it("renders columns + classification chip + PII chip in tall mode", () => {
@@ -67,16 +90,34 @@ describe("LineageNodeCard", () => {
     expect(card?.getAttribute("data-navigable")).toBe("false");
   });
 
-  it("renders a 'Metadata pending' empty state when no metadata is present", () => {
+  it("falls back to the API foot strings when no header is loaded", () => {
     const sparse = {
       ...baseNode,
       rowCount: null,
       freshness: "",
+      owners: [],
       ownerCount: 0,
       recentActivityCount: 0,
+      foot: ["Table", "Metadata unavailable"],
     };
     render(<LineageNodeCard node={sparse} />);
-    expect(screen.getByText("Metadata pending")).toBeTruthy();
+    expect(screen.getByText("Table")).toBeTruthy();
+    expect(screen.getByText("Metadata unavailable")).toBeTruthy();
+  });
+
+  it("shows a 'Loading header…' placeholder when nothing is available yet", () => {
+    const empty = {
+      ...baseNode,
+      rowCount: null,
+      freshness: "",
+      apiKind: "",
+      owners: [],
+      ownerCount: 0,
+      recentActivityCount: 0,
+      foot: [],
+    };
+    render(<LineageNodeCard node={empty} />);
+    expect(screen.getByText("Loading header…")).toBeTruthy();
   });
 
   it("marks the focus card with is-focus and aria-current", () => {

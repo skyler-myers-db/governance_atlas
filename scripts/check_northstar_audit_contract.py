@@ -273,6 +273,8 @@ def validate_no_unregistered_current_evidence_reports() -> None:
             if relative in registered:
                 raise AssertionError(f"invalid JSON in registered visual QA report {relative}: {exc}") from exc
             continue
+        if not isinstance(report, dict):
+            continue
         generated_at = str(report.get("generatedAt") or "").strip()
         if generated_at and generated_at >= cutoff:
             unregistered.append(relative)

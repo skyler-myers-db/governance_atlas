@@ -1,0 +1,73 @@
+{
+  "generatedAt": "2026-05-04T06:20:13.308Z",
+  "baseUrl": "http://127.0.0.1:8000",
+  "buildId": "frontend-d27cb14b5151",
+  "deploymentId": "",
+  "assetFqn": "excess.main.users",
+  "mockApi": false,
+  "evidenceKind": "runtime_app_capture",
+  "mockEvidenceWarning": "",
+  "liveDatabricksCapture": false,
+  "forwardedActorCapture": true,
+  "forwardedActorEmail": "smyers@employers.com",
+  "forwardedActorTokenPresent": false,
+  "routeFilter": [],
+  "interactionFilter": [],
+  "routeFilterUnknown": [],
+  "selectedRoutes": [
+    "command-center",
+    "discover",
+    "stewardship",
+    "glossary",
+    "cde-registry",
+    "lineage",
+    "audit",
+    "control-center"
+  ],
+  "viewports": [
+    {
+      "name": "1536x1024",
+      "width": 1536,
+      "height": 1024
+    }
+  ],
+  "expectedCaptureCount": 8,
+  "captures": [],
+  "interactions": [],
+  "console": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "url": "http://127.0.0.1:8000/command-center"
+    }
+  ],
+  "pageErrors": [],
+  "requestFailures": [
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:8000/command-center",
+      "status": 500
+    }
+  ],
+  "checks": {
+    "buildMatches": true
+  },
+  "runtimeStatus": {
+    "url": "http://127.0.0.1:8000/api/runtime/status",
+    "status": 200,
+    "ok": true,
+    "buildId": "frontend-d27cb14b5151",
+    "state": "live",
+    "actorRole": "Reader",
+    "govCatalog": "lab_main",
+    "govSchema": "atlas"
+  },
+  "captureCount": 0,
+  "interactionCount": 0,
+  "consoleErrorCount": 1,
+  "pageErrorCount": 0,
+  "requestFailureCount": 1,
+  "expectedRequestFailureCount": 0,
+  "passed": false,
+  "fatal": "page.screenshot: Target page, context or browser has been closed"
+}

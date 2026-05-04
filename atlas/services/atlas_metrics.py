@@ -897,9 +897,24 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
         status="pending",
         limit=200,
     )
+    excluded_non_authoritative_keys: set[str] = set()
+
+    def _trusted_command_rows(rows: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+        trusted: List[Dict[str, Any]] = []
+        for row in rows:
+            row_map = dict(row)
+            if _is_non_authoritative_evidence_row(row_map):
+                identity = _text(row_map.get("audit_id") or row_map.get("auditId") or row_map.get("request_id") or row_map.get("requestId"))
+                excluded_non_authoritative_keys.add(identity or json.dumps(row_map, default=str, sort_keys=True))
+                continue
+            trusted.append(row_map)
+        return trusted
+
+    pending_requests = _trusted_command_rows(pending_requests)
     all_requests = pending_requests
     if requests_available and not pending_requests:
         all_requests, requests_available, request_reason = _change_requests_with_state(store, limit=200)
+        all_requests = _trusted_command_rows(all_requests)
     open_requests = (
         len(
             [
@@ -912,6 +927,7 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
         else None
     )
     audit, audit_available, audit_reason = _audit_rows_with_state(store, limit=50)
+    audit = _trusted_command_rows(audit)
     policy_exception_signal = _policy_exception_signal(all_requests, audit)
     policy_exceptions = policy_exception_signal["value"]
     open_request_trend = _open_request_trend(all_requests) if requests_available else {}
@@ -1010,6 +1026,9 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
             "openRequests": open_requests,
             "policyExceptions": policy_exceptions,
             "pendingRequests": pending_requests[:8],
+        },
+        "dataQuality": {
+            "nonAuthoritativeRowsExcluded": len(excluded_non_authoritative_keys),
         },
         "insights": {
             "tiles": {
@@ -1185,7 +1204,8 @@ def _request_record(row: Mapping[str, Any]) -> Dict[str, Any]:
 NON_AUTHORITATIVE_EVIDENCE_RE = re.compile(
     r"prototype|mock|fixture|validation[_\s-]*seed|validation sample|"
     r"home[_\s-]*northstar[_\s-]*seed|home[_\s-]*evidence[_\s-]*plane|"
-    r"ga[_\s-]*home[_\s-]*seed|ga[_\s-]*taxonomy[_\s-]*seed|"
+    r"gov[_\s-]*home[_\s-]*evidence|ga[_\s-]*home[_\s-]*seed|"
+    r"ga[_\s-]*taxonomy[_\s-]*(?:seed|term|node)|"
     r"seed[_\s-]*source|mock[_\s-]*api",
     flags=re.IGNORECASE,
 )
@@ -1317,6 +1337,8 @@ def governance_request_detail_payload(*, store: Any, request_id: str) -> Dict[st
         ]
         row = matches[0] if matches else {}
     if not row:
+        return None
+    if _is_non_authoritative_evidence_row(row):
         return None
     return _governance_request_detail_from_row(row)
 

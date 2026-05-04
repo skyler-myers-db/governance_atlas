@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last updated: 2026-05-03 during reopened `northstar/*` audit continuation
+Last updated: 2026-05-04 during reopened `northstar/*` audit continuation on `datapact-test`
 
 ## Current Authoritative State - Reopened And Blocking
 
@@ -13,9 +13,9 @@ Last updated: 2026-05-03 during reopened `northstar/*` audit continuation
   bare authority-false evidence fail closed before customer-facing render paths. Real
   Databricks degraded envelopes may render only as degraded/provisional state when
   they carry trusted live-source provenance and a degraded/unavailable/error state.
-- Active all-route current screenshot capture-health evidence is `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/prototype-current-report.json` for build `frontend-33133f44f929`. It is local runtime evidence with `mockApi=false`, `captureCount=32`, and `liveDatabricksCapture=false`; it is not visual parity, deployed browser proof, or live Databricks App proof.
-- Active side-by-side/palette blocker evidence is `docs/northstar_visual_qa/live-runtime-current-v139-reference-current-audit-2026-05-03/audit-artifact-manifest.json`. It records `10` route/state pairs and `10` blocked pairs; max changed-pixel percentage above threshold `8` is `39.66`, and max sampled palette delta is `28.6`.
-- Active functional-control evidence is local-runtime only: `docs/northstar_visual_qa/live-runtime-current-v135-full-functional-all-routes-2026-05-03/prototype-current-report.json` plus focused supplements `docs/northstar_visual_qa/live-runtime-current-v132-focused-functional-command-lineage-control-2026-05-03/prototype-current-report.json` and `docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/prototype-current-report.json`. These reports are useful current evidence with `mockApi=false`, but they do not close deployed proof, status-only controls, missing performance telemetry, or remaining control rows.
+- Active all-route current screenshot capture-health evidence is `docs/northstar_visual_qa/live-runtime-current-v221-all-viewports-datapact-test-2026-05-04/prototype-current-report.json` for build `frontend-39d0070a8f87`. It is local runtime evidence with `mockApi=false`, `captureCount=32`, and `liveDatabricksCapture=false`; it is not visual parity, deployed browser proof, or live Databricks App proof.
+- Active side-by-side/palette blocker evidence is `docs/northstar_visual_qa/live-runtime-current-v220-reference-current-datapact-test-audit-2026-05-04/audit-artifact-manifest.json`. It records `10` route/state pairs and `10` blocked pairs; max changed-pixel percentage above threshold `8` is `39.74`, and max sampled palette delta is `28.6`.
+- Active functional-control evidence is local-runtime only: `docs/northstar_visual_qa/live-runtime-current-v215-full-functional-datapact-test-2026-05-04/prototype-current-report.json`. It has `mockApi=false`, `interactionCount=48`, and only the expected invalid structured-search `400` checks. Local runtime performance evidence is `docs/northstar_visual_qa/live-runtime-current-v216-performance-datapact-test-2026-05-04/performance-report.json` with `budgetPassed=true`. These reports do not close deployed proof, visual parity, or remaining open control rows.
 - Older v415/v416/v419 and v88-v93 artifacts are historical comparison, truth, or prior-build evidence only unless a specific open row explicitly cites them as historical context. They are not the active current epoch and cannot close product-readiness rows for this tranche.
 - The failed stricter MIP downstream probe at `docs/northstar_visual_qa/lineage-truth-v418-databricks/lineage-truth-report.json` and the earlier failed v400 probe are not closure evidence. The closed restricted-downstream row uses `main.mdm_schema.mdm_manual_overrides` in the passing v419 report.
 - Capture reports prove route/capture health only. They do not by themselves prove visual parity, functional completion, live Databricks truth, or reviewer signoff.
