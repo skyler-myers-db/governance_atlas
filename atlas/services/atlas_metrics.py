@@ -10,8 +10,11 @@ from __future__ import annotations
 
 from dataclasses import asdict, is_dataclass
 import datetime as dt
+import json
 import math
 from numbers import Integral, Real
+import os
+import re
 from typing import Any, Dict, Iterable, List, Mapping, Sequence
 
 import pandas as pd
@@ -106,6 +109,46 @@ def _row_text(row: Mapping[str, Any], *keys: str) -> str:
     return _text(_row_value(row, *keys))
 
 
+def _mapping_from_json(value: Any) -> Dict[str, Any]:
+    if isinstance(value, Mapping):
+        return dict(value)
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return {}
+        return dict(parsed) if isinstance(parsed, Mapping) else {}
+    return {}
+
+
+def _row_tag_text(row: Mapping[str, Any], *keys: str) -> str:
+    direct = _row_text(row, *keys)
+    if direct:
+        return direct
+    for payload in (
+        row.get("tags"),
+        row.get("ucTags"),
+        row.get("tableTags"),
+        row.get("new_uc_tags"),
+        row.get("new_uc_tags_json"),
+    ):
+        tags = _mapping_from_json(payload)
+        if not tags:
+            continue
+        for key in keys:
+            candidates = {
+                key,
+                key.replace("-", "_"),
+                key.replace("_", "-"),
+                key.replace("_", ""),
+            }
+            for candidate in candidates:
+                value = tags.get(candidate)
+                if _has_value(value):
+                    return _text(value)
+    return ""
+
+
 def _row_dict(row: Any) -> Dict[str, Any]:
     if isinstance(row, pd.Series):
         return row.to_dict()
@@ -175,6 +218,33 @@ def _catalog_count(assets_df: pd.DataFrame) -> int:
         if catalog:
             catalogs.add(catalog)
     return len(catalogs)
+
+
+def _command_center_preferred_catalogs() -> set[str]:
+    raw = os.getenv("GOVAT_COMMAND_CENTER_PRIMARY_CATALOGS", "") or os.getenv("GOVAT_PRIMARY_BUSINESS_CATALOGS", "")
+    return {
+        _text(item).lower()
+        for item in raw.split(",")
+        if _text(item)
+    }
+
+
+def _governance_catalogs() -> set[str]:
+    return {
+        _text(os.getenv("GOVAT_CATALOG")).lower(),
+    } - {""}
+
+
+def _catalog_business_rank(catalog: Any) -> int:
+    normalized = _text(catalog).lower()
+    if not normalized:
+        return 9
+    preferred = _command_center_preferred_catalogs()
+    if normalized in preferred:
+        return 0
+    if normalized in _governance_catalogs():
+        return 2
+    return 1
 
 
 def owner_count_for_row(row: Mapping[str, Any]) -> int:
@@ -277,6 +347,18 @@ def _change_requests(store: Any, *, status: str | None = None, limit: int = 200)
     if status:
         kwargs["status"] = status
     return _records(_call_store(store, "list_change_requests", **kwargs), limit=limit)
+
+
+def _change_requests_source(
+    store: Any,
+    *,
+    status: str | None = None,
+    limit: int = 200,
+) -> tuple[List[Dict[str, Any]], bool, str]:
+    kwargs: Dict[str, Any] = {}
+    if status:
+        kwargs["status"] = status
+    return _store_records(store, "list_change_requests", limit=limit, **kwargs)
 
 
 def _change_requests_with_state(
@@ -536,6 +618,93 @@ def _coverage_heatmap(domain_summary: Sequence[Mapping[str, Any]]) -> List[Dict[
     return cells
 
 
+def _catalog_health_summary(assets_df: pd.DataFrame) -> List[Dict[str, Any]]:
+    catalogs: Dict[str, Dict[str, Any]] = {}
+    severity_rank = {"Unavailable": 0, "Low": 1, "Medium": 2, "High": 3}
+    for _, row in assets_df.iterrows():
+        row_map = row.to_dict()
+        catalog = _row_text(row_map, "table_catalog", "catalog")
+        if not catalog:
+            fqn = _row_text(row_map, "fqn", "full_name", "fullName")
+            catalog = fqn.split(".")[0] if "." in fqn else ""
+        if not catalog:
+            continue
+        current = catalogs.setdefault(
+            catalog,
+            {
+                "name": catalog,
+                "catalog": catalog,
+                "assetCount": 0,
+                "coverageValues": [],
+                "classificationCounts": {},
+                "risk": "Unavailable",
+            },
+        )
+        current["assetCount"] += 1
+        current["coverageValues"].append(metadata_coverage_for_row(row_map))
+        classification = _row_text(
+            row_map,
+            "classification",
+            "sensitivity",
+            "sensitivity_label",
+            "sensitivityLabel",
+        )
+        if classification:
+            counts = current["classificationCounts"]
+            counts[classification] = counts.get(classification, 0) + 1
+        risk = _row_text(row_map, "risk", "risk_level", "riskLevel", "criticality")
+        risk_lower = risk.lower()
+        if risk_lower in {"critical", "high", "restricted"}:
+            risk_label = "High"
+        elif risk_lower in {"medium", "moderate", "confidential"}:
+            risk_label = "Medium"
+        elif risk:
+            risk_label = "Low"
+        else:
+            risk_label = current["risk"]
+        if severity_rank.get(risk_label, 0) > severity_rank.get(current["risk"], 0):
+            current["risk"] = risk_label
+
+    rows: List[Dict[str, Any]] = []
+    for catalog, info in catalogs.items():
+        coverage_values = info.get("coverageValues") or []
+        classification_counts = info.get("classificationCounts") or {}
+        classification = (
+            sorted(
+                classification_counts.items(),
+                key=lambda item: (-int(item[1]), item[0].lower()),
+            )[0][0]
+            if classification_counts
+            else "Unclassified"
+        )
+        coverage = (
+            round(sum(float(value) for value in coverage_values) / len(coverage_values), 1)
+            if coverage_values
+            else None
+        )
+        rows.append(
+            {
+                "name": catalog,
+                "catalog": catalog,
+                "assetCount": int(info["assetCount"]),
+                "tables": int(info["assetCount"]),
+                "coverage": coverage,
+                "metadataCoverage": coverage,
+                "classification": classification,
+                "risk": info.get("risk") or "Unavailable",
+                "state": "available" if coverage is not None else "unavailable",
+            }
+        )
+    rows.sort(
+        key=lambda item: (
+            _catalog_business_rank(item.get("catalog") or item.get("name")),
+            -int(item.get("assetCount") or 0),
+            str(item.get("catalog") or item.get("name") or "").lower(),
+        )
+    )
+    return rows
+
+
 def _tier_label(value: Any) -> str:
     text = _text(value)
     lower = text.lower()
@@ -665,6 +834,32 @@ def _estate_from_assets(
     }
 
 
+def empty_command_center_payload() -> Dict[str, Any]:
+    return {
+        "estate": {
+            "visibleAssetCount": None,
+            "catalogCount": None,
+            "openRequests": None,
+            "coverageScore": None,
+        },
+        "kpis": [],
+        "posture": {"overall": None, "trend": [], "byDomain": [], "heatmap": []},
+        "topDomains": [],
+        "recentEvents": [],
+        "recentAssets": [],
+        "governance": {"pendingRequests": []},
+        "insights": {"tiles": {}},
+        "quickActions": [
+            {"key": "discovery", "label": "Open Discovery", "surface": "discovery"},
+            {"key": "governance", "label": "Review Governance", "surface": "governance"},
+            {"key": "insights", "label": "View Insights", "surface": "insights"},
+            {"key": "audit", "label": "Open Audit Trail", "surface": "audit"},
+        ],
+        "aiPrompts": [],
+        "signalAvailability": {},
+    }
+
+
 def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[str, Any]:
     assets_df = _safe_df(visible_assets)
     total_assets = _safe_count(assets_df)
@@ -727,6 +922,7 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
     )
     audit_readiness = None
     domains = _domain_summary(assets_df)
+    catalog_health = _catalog_health_summary(assets_df)
     posture_overall = None
     certified_critical_state = (
         "available" if certification_signal_present and criticality_signal_present else "unavailable"
@@ -807,6 +1003,7 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
             "heatmap": _coverage_heatmap(domains),
         },
         "topDomains": domains[:5],
+        "catalogHealth": catalog_health[:8],
         "recentEvents": _recent_events(audit),
         "recentAssets": recent_assets,
         "governance": {
@@ -844,9 +1041,10 @@ def command_center_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[
         },
         "meta": {
             "warnings": source_warnings,
+            "primaryCatalog": catalog_health[0]["catalog"] if catalog_health else "",
         },
     }
-    return _json_safe(payload)
+    return _json_safe(_customer_safe_payload(payload))
 
 
 def asset_360_payload(
@@ -957,7 +1155,9 @@ def asset_360_payload(
 
 
 def _request_record(row: Mapping[str, Any]) -> Dict[str, Any]:
-    request_id = _text(row.get("request_id")) or _text(row.get("requestId"))
+    raw_request_id = _text(row.get("request_id")) or _text(row.get("requestId"))
+    request_id = _customer_safe_text(raw_request_id) if raw_request_id else ""
+    request_tags = _mapping_from_json(row.get("new_uc_tags") or row.get("new_uc_tags_json"))
     title = _text(row.get("title")) or _text(row.get("new_comment")) or "Governance request"
     note = _text(row.get("detail")) or _text(row.get("new_comment"))
     status = _text(row.get("status")) or "pending"
@@ -967,26 +1167,67 @@ def _request_record(row: Mapping[str, Any]) -> Dict[str, Any]:
         "title": title.split(":", 1)[0] if ":" in title else title,
         "detail": note,
         "type": _text(row.get("request_type")) or _text(row.get("type")),
-        "priority": _text(row.get("priority")),
+        "priority": _text(row.get("priority")) or _text(request_tags.get("priority")),
         "status": status.title(),
         "requester": _text(row.get("created_by")) or _text(row.get("requester")),
         "createdAt": _text(row.get("created_at")) or _text(row.get("createdAt")),
-        "dueAt": _text(row.get("due_at")) or _text(row.get("dueAt")),
+        "dueAt": _text(row.get("due_at")) or _text(row.get("dueAt")) or _text(request_tags.get("dueAt") or request_tags.get("due_at")),
         "assetFqn": _text(row.get("uc_full_name")) or _text(row.get("assetFqn")),
-        "domain": _text(row.get("domain")),
+        "domain": _text(row.get("domain")) or _text(request_tags.get("domain")),
+        "slaState": _text(row.get("sla_state")) or _text(row.get("slaState")) or _text(request_tags.get("slaState") or request_tags.get("sla_state")),
+        "assignedTo": _text(row.get("assigned_to")) or _text(row.get("assignedTo")) or _text(request_tags.get("assignedTo") or request_tags.get("assigned_to")),
         "reviewedAt": _text(row.get("reviewed_at")),
         "reviewedBy": _text(row.get("reviewed_by")),
         "reviewNote": _text(row.get("review_note")),
     }
 
 
+NON_AUTHORITATIVE_EVIDENCE_RE = re.compile(
+    r"prototype|mock|fixture|validation[_\s-]*seed|validation sample|"
+    r"home[_\s-]*northstar[_\s-]*seed|home[_\s-]*evidence[_\s-]*plane|"
+    r"ga[_\s-]*home[_\s-]*seed|ga[_\s-]*taxonomy[_\s-]*seed|"
+    r"seed[_\s-]*source|mock[_\s-]*api",
+    flags=re.IGNORECASE,
+)
+
+
+def _contains_non_authoritative_evidence_marker(*values: Any) -> bool:
+    parts: List[str] = []
+    for value in values:
+        if value is None:
+            continue
+        if isinstance(value, Mapping):
+            try:
+                parts.append(json.dumps(dict(value), default=str, sort_keys=True))
+            except TypeError:
+                parts.extend(_text(item) for item in value.values())
+            continue
+        if isinstance(value, (list, tuple, set)):
+            try:
+                parts.append(json.dumps(list(value), default=str, sort_keys=True))
+            except TypeError:
+                parts.extend(_text(item) for item in value)
+            continue
+        parts.append(_text(value))
+    haystack = " ".join(part for part in parts if part)
+    return bool(NON_AUTHORITATIVE_EVIDENCE_RE.search(haystack))
+
+
+def _is_non_authoritative_evidence_row(row: Mapping[str, Any]) -> bool:
+    return _contains_non_authoritative_evidence_marker(row)
+
+
 def governance_workbench_payload(*, store: Any, selected_request_id: str | None = None) -> Dict[str, Any]:
-    requests = [_request_record(row) for row in _change_requests(store, limit=200)]
-    open_requests = [
-        row
-        for row in requests
-        if _lower(row.get("status")) in {"", "pending", "open", "new", "in review", "in_review"}
+    source_rows, source_available, source_reason = _change_requests_source(store, limit=200)
+    trusted_rows = [row for row in source_rows if not _is_non_authoritative_evidence_row(row)]
+    excluded_non_authoritative_rows = max(0, len(source_rows) - len(trusted_rows))
+    request_pairs = [(row, _request_record(row)) for row in trusted_rows]
+    open_pairs = [
+        (raw, record)
+        for raw, record in request_pairs
+        if _lower(record.get("status")) in {"", "pending", "open", "new", "in review", "in_review"}
     ]
+    open_requests = [record for _, record in open_pairs]
     policy_exceptions = [
         row
         for row in open_requests
@@ -998,8 +1239,12 @@ def governance_workbench_payload(*, store: Any, selected_request_id: str | None 
         if selected_request_id and selected_request_id in open_request_ids
         else (open_requests[0]["requestId"] if open_requests else "")
     )
-    selected = governance_request_detail_payload(store=store, request_id=selected_id) if selected_id else None
-    return {
+    selected_raw = next(
+        (raw for raw, record in open_pairs if _text(record.get("requestId")) == selected_id),
+        None,
+    )
+    selected = _governance_request_detail_from_row(selected_raw) if selected_raw else None
+    payload = {
         "metrics": [
             {"key": "pendingApprovals", "label": "Pending Approvals", "value": len(open_requests)},
             {"key": "overdueItems", "label": "Overdue Items", "value": None, "state": "unavailable"},
@@ -1008,21 +1253,17 @@ def governance_workbench_payload(*, store: Any, selected_request_id: str | None 
         ],
         "requests": open_requests,
         "selectedRequest": selected,
+        "meta": {
+            "sourceAvailable": source_available,
+            "sourceReason": source_reason,
+            "nonAuthoritativeRowsExcluded": excluded_non_authoritative_rows,
+        },
     }
+    return _json_safe(_customer_safe_payload(payload))
 
 
-def governance_request_detail_payload(*, store: Any, request_id: str) -> Dict[str, Any] | None:
-    if not request_id:
-        return None
-    request = _call_store(store, "get_change_request", request_id)
-    row = _row_dict(request)
-    if not row:
-        matches = [
-            item
-            for item in _change_requests(store, limit=200)
-            if _text(item.get("request_id")) == request_id
-        ]
-        row = matches[0] if matches else {}
+def _governance_request_detail_from_row(row: Mapping[str, Any]) -> Dict[str, Any] | None:
+    row = _row_dict(row)
     if not row:
         return None
     record = _request_record(row)
@@ -1036,7 +1277,7 @@ def governance_request_detail_payload(*, store: Any, request_id: str) -> Dict[st
         for key, value in sorted(after.items())
         if _has_value(value)
     ]
-    return {
+    return _json_safe(_customer_safe_payload({
         **record,
         "diff": {"before": {}, "after": after, "rows": diff_rows},
         "businessContext": _text(row.get("new_comment")),
@@ -1059,7 +1300,25 @@ def governance_request_detail_payload(*, store: Any, request_id: str) -> Dict[st
         "commentsState": "unavailable",
         "evidence": [],
         "evidenceState": "unavailable",
-    }
+    }))
+
+
+def governance_request_detail_payload(*, store: Any, request_id: str) -> Dict[str, Any] | None:
+    if not request_id:
+        return None
+    request_id = resolve_customer_safe_request_id(store, request_id)
+    request = _call_store(store, "get_change_request", request_id)
+    row = _row_dict(request)
+    if not row:
+        matches = [
+            item
+            for item in _change_requests(store, limit=200)
+            if _text(item.get("request_id")) == request_id
+        ]
+        row = matches[0] if matches else {}
+    if not row:
+        return None
+    return _governance_request_detail_from_row(row)
 
 
 def insights_dashboard_payload(*, visible_assets: pd.DataFrame, store: Any) -> Dict[str, Any]:
@@ -1161,31 +1420,181 @@ def taxonomy_overview_payload(
     store: Any,
     glossary_terms: Sequence[Mapping[str, Any]] | None = None,
 ) -> Dict[str, Any]:
+    initial_limit = 160
     glossary = (
-        _records(pd.DataFrame(list(glossary_terms)), limit=500)
+        _records(pd.DataFrame(list(glossary_terms)), limit=initial_limit)
         if glossary_terms is not None
-        else _records(_call_store(store, "list_glossary_terms", limit=500), limit=500)
+        else _records(_call_store(store, "list_glossary_terms", limit=initial_limit), limit=initial_limit)
     )
-    classifications = _records(_call_store(store, "list_classifications"), limit=500)
+    classifications = _records(_call_store(store, "list_classifications"), limit=initial_limit)
     classification_terms: List[Dict[str, Any]] = []
     for classification in classifications:
         classification_id = _row_text(classification, "classification_id", "classificationId", "id")
         if not classification_id:
             continue
         classification_terms.extend(
-            _records(_call_store(store, "list_classification_terms", classification_id), limit=500)
+            _records(_call_store(store, "list_classification_terms", classification_id), limit=initial_limit)
         )
-    return {
+    payload = {
         "classifications": classifications,
-        "classificationTerms": classification_terms[:500],
-        "domains": _records(_call_store(store, "list_domains"), limit=500),
-        "dataProducts": _records(_call_store(store, "list_data_products"), limit=500),
-        "columnGroups": _records(_call_store(store, "list_logical_column_groups"), limit=500),
+        "classificationTerms": classification_terms[:initial_limit],
+        "domains": _records(_call_store(store, "list_domains"), limit=initial_limit),
+        "dataProducts": _records(_call_store(store, "list_data_products"), limit=initial_limit),
+        "columnGroups": _records(_call_store(store, "list_logical_column_groups"), limit=initial_limit),
         "glossaryTerms": glossary,
         "summary": {
             "termCount": len(glossary),
+            "initialLimit": initial_limit,
         },
     }
+    return _customer_safe_payload(payload)
+
+
+def _customer_safe_text(value: Any) -> str:
+    text_value = _text(value)
+    if not text_value:
+        return text_value
+    if _contains_non_authoritative_evidence_marker(text_value):
+        return ""
+    text_value = re.sub(
+        r"\bGOV-HOME-EVIDENCE-request-(\d+)\b",
+        lambda match: f"GOV-{int(match.group(1)):02d}",
+        text_value,
+        flags=re.IGNORECASE,
+    )
+    text_value = re.sub(
+        r"\bGOV-HOME-EVIDENCE-audit-(\d+)\b",
+        lambda match: f"AUD-{int(match.group(1)):02d}",
+        text_value,
+        flags=re.IGNORECASE,
+    )
+    text_value = re.sub(
+        r"\bga-home-evidence-request-(\d+)\b",
+        lambda match: f"GOV-{int(match.group(1)):02d}",
+        text_value,
+        flags=re.IGNORECASE,
+    )
+    text_value = re.sub(
+        r"\bga-home-evidence-audit-(\d+)\b",
+        lambda match: f"AUD-{int(match.group(1)):02d}",
+        text_value,
+        flags=re.IGNORECASE,
+    )
+    text_value = re.sub(
+        r"\bga-taxonomy-term-([a-z0-9-]+)\b",
+        lambda match: match.group(1).replace("-", " ").title(),
+        text_value,
+        flags=re.IGNORECASE,
+    )
+    text_value = re.sub(
+        r"\bga-taxonomy-node-([a-z0-9-]+)\b",
+        lambda match: match.group(1).replace("-", " ").title(),
+        text_value,
+        flags=re.IGNORECASE,
+    )
+    replacements = [
+        ("quality-evidence-runner", "quality-control-plane"),
+        ("home-northstar", "command-center-evidence"),
+        ("metadata-audit rows", "governance audit log"),
+        ("app-owned glossary evidence", "governance glossary evidence"),
+    ]
+    for needle, replacement in replacements:
+        text_value = text_value.replace(needle, replacement)
+    return text_value
+
+
+def resolve_customer_safe_request_id(store: Any, request_id: str) -> str:
+    """Resolve a customer-facing evidence ID back to the backed request ID."""
+    candidate = _text(request_id)
+    if not candidate:
+        return candidate
+    request = _call_store(store, "get_change_request", candidate)
+    if _row_dict(request):
+        return candidate
+    safe_candidate = _customer_safe_text(candidate)
+    candidate_numbers: list[str] = []
+    number_match = re.match(r"^GOV-(\d+)$", safe_candidate, flags=re.IGNORECASE)
+    if number_match:
+        digits = number_match.group(1)
+        candidate_numbers.extend([digits, str(int(digits))])
+    rows = _change_requests(store, limit=500)
+    for row in rows:
+        raw = _text(row.get("request_id") or row.get("requestId"))
+        if not raw:
+            continue
+        if raw == candidate or _customer_safe_text(raw).lower() == safe_candidate.lower():
+            return raw
+        raw_number = re.search(r"(?:request-|GOV-)(\d+)$", raw, flags=re.IGNORECASE)
+        if raw_number and raw_number.group(1).lstrip("0") in {value.lstrip("0") for value in candidate_numbers}:
+            return raw
+    return candidate
+
+
+def _customer_safe_payload(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {key: _customer_safe_payload(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_customer_safe_payload(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_customer_safe_payload(item) for item in value)
+    if isinstance(value, str):
+        return _customer_safe_text(value)
+    return value
+
+
+def _customer_safe_audit_row(row: Mapping[str, Any], index: int = 0) -> Dict[str, Any]:
+    safe = _customer_safe_payload(dict(row))
+    raw_audit_id = _text(row.get("audit_id") or row.get("auditId"))
+    safe["displayAuditId"] = f"AUD-{index + 1:04d}"
+    if raw_audit_id and re.search(r"^AUD[-_]", raw_audit_id, flags=re.IGNORECASE):
+        safe["audit_id"] = _customer_safe_text(raw_audit_id)
+    else:
+        safe["audit_id"] = f"AUD-{index + 1:04d}"
+    raw_request_id = _text(row.get("request_id") or row.get("requestId"))
+    if raw_request_id:
+        safe["displayRequestId"] = _customer_safe_text(raw_request_id)
+        safe["request_id"] = safe["displayRequestId"]
+    # Raw before/after JSON often contains internal store keys and
+    # actor-routing metadata. The customer API exposes event identity and status,
+    # but the raw diff is intentionally redacted until a governed evidence-export
+    # contract can decide which fields are safe to show.
+    for key in ("before_json", "beforeJson", "before", "after_json", "afterJson", "after"):
+        if key in safe:
+            safe[key] = ""
+    safe["diffState"] = "redacted"
+    safe["diffReason"] = "Raw before/after metadata is redacted from the customer API; use the event ID to retrieve governed evidence through an approved export path."
+    entity_fqn = _text(row.get("entity_fqn") or row.get("entityFqn") or row.get("asset_fqn") or row.get("assetFqn"))
+    entity_id = _text(row.get("entity_id") or row.get("entityId"))
+    if entity_fqn:
+        safe["object_label"] = entity_fqn
+    elif entity_id:
+        safe["object_label"] = _customer_safe_text(entity_id)
+    source = _lower(row.get("source"))
+    if source == "store":
+        safe["display_source"] = "Governance store"
+    elif "quality" in source:
+        safe["display_source"] = "Quality operations evidence"
+    elif "home" in source or "command" in source:
+        safe["display_source"] = "Command center evidence"
+    elif "taxonomy" in source or "glossary" in source:
+        safe["display_source"] = "Glossary governance workflow"
+    else:
+        safe["display_source"] = _customer_safe_text(row.get("source")) or "Governance audit log"
+    return safe
+
+
+def _is_customer_visible_audit_row(row: Mapping[str, Any]) -> bool:
+    if _is_non_authoritative_evidence_row(row):
+        return False
+    haystack = " ".join(
+        _text(row.get(key))
+        for key in ("entity_type", "entity_id", "action", "detail", "source")
+    )
+    return not re.search(
+        r"identity[_ -]?directory|identity-directory-upserted|actor_entry_id|assignee_entry_id|reviewer_entry_id",
+        haystack,
+        flags=re.IGNORECASE,
+    )
 
 
 def _is_cde_asset(row: Mapping[str, Any]) -> bool:
@@ -1219,20 +1628,49 @@ def _cde_item(row: Mapping[str, Any]) -> Dict[str, Any]:
     fqn = _row_text(row, "fqn")
     name = _row_text(row, "table_name") or _asset_name(fqn)
     owners = asset_service.owner_entries(pd.Series(row))
+    owner = owners[0]["name"] if owners else ""
+    certification = _row_text(row, "certification") or "Unassigned"
+    sensitivity = _row_text(row, "sensitivity") or "Unassigned"
+    criticality = _row_text(row, "criticality", "business_criticality", "businessCriticality") or "Unassigned"
+    source_column = _row_tag_text(
+        row,
+        "cde_source_column",
+        "source_column",
+        "sourceColumn",
+        "source_of_record_column",
+    )
+    source_column_fqn = f"{fqn}.{source_column}" if fqn and source_column and "." not in source_column else source_column
+    recert_window = _row_tag_text(row, "cde_recert_window", "recert", "reviewWindow")
+    source_backed = bool(source_column_fqn)
     return {
         "id": fqn or name,
         "name": name,
         "assetFqn": fqn,
+        "column": source_column_fqn,
+        "sourceColumn": source_column_fqn,
         "domain": _row_text(row, "domain") or "Unassigned",
-        "owner": owners[0]["name"] if owners else "",
-        "sensitivity": _row_text(row, "sensitivity") or "Unassigned",
-        "criticality": _row_text(row, "criticality", "business_criticality", "businessCriticality") or "Unassigned",
+        "owner": owner,
+        "sensitivity": sensitivity,
+        "criticality": criticality,
         "controlCoverage": None,
         "controlState": "unavailable",
         "linkedPolicies": None,
+        "linkedPolicyState": "unavailable",
         "downstreamImpact": "Unavailable",
-        "certification": _row_text(row, "certification") or "Unassigned",
-        "lastReview": "",
+        "certification": certification,
+        "lastReview": "Unavailable",
+        "recert": recert_window or "Unavailable",
+        "status": "Source backed" if source_backed else "Control evidence unavailable",
+        "recertEvidence": (
+            "Review cadence is backed by Unity Catalog CDE registry tags; mutation workflow evidence is unavailable."
+            if recert_window
+            else "Recertification workflow evidence unavailable."
+        ),
+        "healthEvidence": (
+            "Source-of-record column is backed by Unity Catalog CDE registry tags."
+            if source_backed
+            else "Quality/test-run evidence unavailable."
+        ),
     }
 
 
@@ -1341,12 +1779,23 @@ def audit_evidence_payload(
     visible_asset_fqns: Sequence[str] | None = None,
 ) -> Dict[str, Any]:
     ranged_audit = _filter_audit_rows_by_range(_audit_rows(store, limit=limit), date_range)
-    audit = _filter_audit_rows_by_visible_assets(ranged_audit, visible_asset_fqns)
+    scoped_audit = _filter_audit_rows_by_visible_assets(ranged_audit, visible_asset_fqns)
+    audit = [row for row in scoped_audit if _is_customer_visible_audit_row(row)]
+    safe_audit = [_customer_safe_audit_row(row, index) for index, row in enumerate(audit)]
     selected = None
     if audit_id:
-        selected = next((row for row in audit if _text(row.get("audit_id")) == _text(audit_id)), None)
-    elif audit:
-        selected = audit[0]
+        selected = next(
+            (
+                row
+                for raw, row in zip(audit, safe_audit)
+                if _text(raw.get("audit_id")) == _text(audit_id)
+                or _text(row.get("audit_id")) == _text(audit_id)
+                or _text(row.get("displayAuditId")) == _text(audit_id)
+            ),
+            None,
+        )
+    elif safe_audit:
+        selected = safe_audit[0]
     failed = [row for row in audit if _lower(row.get("status")) == "failed"]
     policy = [row for row in audit if "policy" in _lower(row.get("action")) or "policy" in _lower(row.get("detail"))]
     approvals = [row for row in audit if "approv" in _lower(row.get("action")) or "approv" in _lower(row.get("detail"))]
@@ -1357,15 +1806,17 @@ def audit_evidence_payload(
             "policyChanges": len(policy),
             "approvals": len(approvals),
             "failedActions": len(failed),
-            "summarySource": "metadata-audit rows",
-            "rowScope": "visible-assets" if visible_asset_fqns is not None else "metadata-audit rows",
+            "summarySource": "governance audit log",
+            "rowScope": "visible-assets" if visible_asset_fqns is not None else "governance audit log",
             "hiddenRowsExcluded": max(0, len(ranged_audit) - len(audit)),
         },
-        "events": audit,
+        "events": safe_audit,
         "selectedEvent": selected,
         "evidence": {
-            "before": selected.get("before_json") if selected else "",
-            "after": selected.get("after_json") if selected else "",
+            "before": "",
+            "after": "",
+            "diffState": selected.get("diffState") if selected else "unavailable",
+            "diffReason": selected.get("diffReason") if selected else "No selected audit event.",
             "approvalChain": [],
             "artifacts": [],
             "linkedRequest": selected.get("request_id") if selected else "",
@@ -1534,6 +1985,7 @@ def admin_control_center_payload(
     environment: Mapping[str, Any] | None = None,
     actor_role: str | None = None,
     ai_status: Mapping[str, Any] | None = None,
+    jobs: Sequence[Mapping[str, Any]] | None = None,
 ) -> Dict[str, Any]:
     command = command_center_payload(visible_assets=visible_assets, store=store)
     audit = _audit_rows(store, limit=10)
@@ -1570,6 +2022,9 @@ def admin_control_center_payload(
             "history": [],
             "reportAvailable": False,
         },
+        "jobs": [dict(job) for job in (jobs or [])],
+        "jobsState": "available" if jobs else "unavailable",
+        "jobsReason": "" if jobs else "No Databricks Jobs API rows were returned for this runtime.",
         "integrations": _admin_integrations(
             visible_asset_count=visible_asset_count,
             audit_rows=audit,

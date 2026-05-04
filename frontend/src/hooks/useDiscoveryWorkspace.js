@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { useDiscoveryResults } from "./useDiscoveryResults";
 
 const DISCOVERY_SESSION_KEY = "gh.discovery.session.v1";
@@ -365,19 +366,41 @@ export function useDiscoveryWorkspace({
   // _shell_payload: runs a zero-filter discovery search inside the
   // bootstrap request so the grid paints immediately). Fall back to the
   // legacy top-level `bootstrap.assets` if present.
-  const bootstrapAssets =
+  const bootstrapTruthEnvelope = bootstrap
+    ? {
+        bootState: bootstrap.bootState,
+        state: bootstrap.state,
+        status: bootstrap.status,
+        source: bootstrap.source,
+        meta: bootstrap.meta,
+        bootstrapContract: bootstrap.bootstrapContract,
+        discovery: bootstrap.discovery,
+        assets: bootstrap.assets,
+        assetsCount: bootstrap.assetsCount,
+      }
+    : null;
+  const bootstrapNonAuthoritative = isNonAuthoritativeMockEvidence(
+    bootstrapTruthEnvelope,
+    bootstrap?.discovery?.meta,
+  );
+  const rawBootstrapAssets =
     Array.isArray(bootstrap?.discovery?.defaultResults) && bootstrap.discovery.defaultResults.length
       ? bootstrap.discovery.defaultResults
       : Array.isArray(bootstrap?.assets)
         ? bootstrap.assets
         : [];
-  const bootstrapCount = Number.isFinite(Number(bootstrap?.discovery?.defaultCount))
-    ? Number(bootstrap.discovery.defaultCount)
-    : Number.isFinite(Number(bootstrap?.assetsCount))
-      ? Number(bootstrap.assetsCount)
-      : bootstrapAssets.length;
+  const bootstrapAssets = bootstrapNonAuthoritative ? [] : rawBootstrapAssets;
+  const bootstrapCount = bootstrapNonAuthoritative
+    ? 0
+    : (
+        Number.isFinite(Number(bootstrap?.discovery?.defaultCount))
+          ? Number(bootstrap.discovery.defaultCount)
+          : Number.isFinite(Number(bootstrap?.assetsCount))
+            ? Number(bootstrap.assetsCount)
+            : bootstrapAssets.length
+      );
   const bootstrapFacets =
-    bootstrap?.discovery?.defaultFacets && typeof bootstrap.discovery.defaultFacets === "object"
+    !bootstrapNonAuthoritative && bootstrap?.discovery?.defaultFacets && typeof bootstrap.discovery.defaultFacets === "object"
       ? bootstrap.discovery.defaultFacets
       : null;
   const results = useDiscoveryResults(filters, {

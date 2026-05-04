@@ -335,4 +335,81 @@ describe("useDiscoveryResults", () => {
     expect(result.current.authoritative).toBe(false);
     expect(result.current.assets).toEqual([{ fqn: "main.sales.degraded" }]);
   });
+
+  it("rejects prototype discovery payload rows instead of rendering them as degraded results", async () => {
+    fetchDiscoverySearchMock.mockResolvedValue({
+      assets: [{ fqn: "main.sales.prototype" }],
+      count: 1,
+      facets: { catalogs: [{ value: "main", count: 1 }] },
+      meta: { state: "prototype_mock", source: "local-prototype-mock" },
+    });
+
+    const { result } = renderHook(
+      () =>
+        useDiscoveryResults({
+          query: "",
+          views: [],
+          types: [],
+          catalogs: [],
+          domains: [],
+          tiers: [],
+          certifications: [],
+          sensitivities: [],
+          sortBy: "Best match",
+        }),
+      {
+        wrapper: createWrapper(),
+      },
+    );
+
+    await waitFor(() => {
+      expect(fetchDiscoverySearchMock).toHaveBeenCalledTimes(1);
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.authoritative).toBe(false);
+    expect(result.current.assets).toEqual([]);
+    expect(result.current.count).toBe(0);
+    expect(result.current.facets).toBeNull();
+    expect(result.current.queryState?.state).toBe("unavailable");
+  });
+
+  it("rejects discovery payloads flagged only by warnings or dashed source markers", async () => {
+    fetchDiscoverySearchMock.mockResolvedValue({
+      assets: [{ fqn: "main.sales.flagged" }],
+      count: 1,
+      facets: { catalogs: [{ value: "main", count: 1 }] },
+      meta: {
+        source: "prototype-mock",
+        warnings: ["not live Databricks evidence"],
+      },
+    });
+
+    const { result } = renderHook(
+      () =>
+        useDiscoveryResults({
+          query: "",
+          views: [],
+          types: [],
+          catalogs: [],
+          domains: [],
+          tiers: [],
+          certifications: [],
+          sensitivities: [],
+          sortBy: "Best match",
+        }),
+      {
+        wrapper: createWrapper(),
+      },
+    );
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.assets).toEqual([]);
+    expect(result.current.count).toBe(0);
+    expect(result.current.authoritative).toBe(false);
+    expect(result.current.queryState?.message).toBe("Non-authoritative discovery payload rejected.");
+  });
 });

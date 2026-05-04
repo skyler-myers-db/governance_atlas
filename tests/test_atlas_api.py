@@ -8,6 +8,7 @@ from unittest.mock import patch
 import pandas as pd
 
 from atlas.api import atlas as atlas_api
+from atlas.api.cache import _invalidate_cache_prefix
 
 
 def _request(headers: dict[str, str] | None = None) -> SimpleNamespace:
@@ -132,6 +133,17 @@ class FallbackUc:
 
 
 class AtlasApiTests(unittest.TestCase):
+    def setUp(self) -> None:
+        _invalidate_cache_prefix("atlas_command_center_payload:")
+        _invalidate_cache_prefix("atlas_governance_workbench_payload:")
+        _invalidate_cache_prefix("atlas_governance_request_detail_payload:")
+        _invalidate_cache_prefix("atlas_insights_dashboard_payload:")
+        _invalidate_cache_prefix("atlas_cde_dashboard_payload:")
+        _invalidate_cache_prefix("atlas_cde_detail_payload:")
+        _invalidate_cache_prefix("atlas_audit_evidence_payload:")
+        _invalidate_cache_prefix("atlas_taxonomy_overview:")
+        _invalidate_cache_prefix("atlas_ai_recommendations:")
+
     def test_router_registers_all_phase5_routes(self) -> None:
         router = atlas_api.build_atlas_router()
         paths = {route.path for route in router.routes}
@@ -159,13 +171,14 @@ class AtlasApiTests(unittest.TestCase):
 
         with patch.multiple(
             runtime_app,
-            _ensure_live_runtime=lambda: None,
+            _uc_runtime_status_fast=lambda background=True: {"state": "live", "message": ""},
+            _fast_bootstrap_inventory_summary=lambda _scope, **_kwargs: {"visibleAssets": 1},
             _uc_for_request=lambda request: FallbackUc(),
             _visible_assets=lambda request: _visible_assets(),
             _store_for_read=lambda: FakeStore(),
             _request_cache_scope=lambda request: "test-actor",
         ):
-            response = atlas_api.api_command_center(_request())
+            response = atlas_api.api_command_center(_request(), refresh="1")
 
         self.assertEqual(response.status_code, 200)
         payload = _response_json(response)
@@ -180,13 +193,14 @@ class AtlasApiTests(unittest.TestCase):
 
         with patch.multiple(
             runtime_app,
-            _ensure_live_runtime=lambda: None,
+            _uc_runtime_status_fast=lambda background=True: {"state": "live", "message": ""},
+            _fast_bootstrap_inventory_summary=lambda _scope, **_kwargs: {"visibleAssets": 1},
             _uc_for_request=lambda request: SimpleNamespace(runtime_context=lambda: {}),
             _visible_assets=lambda request: _visible_assets(),
             _store_for_read=lambda: FailingRequestStore(),
             _request_cache_scope=lambda request: "test-actor",
         ):
-            response = atlas_api.api_command_center(_request())
+            response = atlas_api.api_command_center(_request(), refresh="1")
 
         self.assertEqual(response.status_code, 200)
         payload = _response_json(response)
@@ -198,6 +212,25 @@ class AtlasApiTests(unittest.TestCase):
         self.assertTrue(
             any("list_change_requests failed" in warning for warning in payload["meta"]["warnings"])
         )
+
+    def test_command_center_returns_loading_envelope_while_runtime_warms(self) -> None:
+        import runtime_app
+
+        with patch.multiple(
+            runtime_app,
+            _uc_runtime_status_fast=lambda background=True: {
+                "state": "loading",
+                "message": "Warehouse is warming.",
+            },
+        ):
+            response = atlas_api.api_command_center(_request())
+
+        self.assertEqual(response.status_code, 200)
+        payload = _response_json(response)
+        self.assertFalse(payload["authoritative"])
+        self.assertEqual(payload["meta"]["state"], "loading")
+        self.assertEqual(payload["estate"]["visibleAssetCount"], None)
+        self.assertIn("Warehouse is warming", payload["meta"]["warnings"][0])
 
     def test_taxonomy_overview_returns_enriched_wrapped_contract(self) -> None:
         import runtime_app
@@ -222,7 +255,7 @@ class AtlasApiTests(unittest.TestCase):
             "glossary_terms",
             return_value=enriched_terms,
         ):
-            response = atlas_api.api_taxonomy_overview(_request())
+            response = atlas_api.api_taxonomy_overview(_request(), refresh="1")
 
         self.assertEqual(response.status_code, 200)
         payload = _response_json(response)
@@ -239,6 +272,7 @@ class AtlasApiTests(unittest.TestCase):
         with patch.multiple(
             runtime_app,
             _ensure_live_runtime=lambda: None,
+            _cached_visible_assets=lambda request: _visible_assets(),
             _visible_assets=lambda request: _visible_assets(),
             _uc_for_request=lambda request: SimpleNamespace(runtime_context=lambda: {}),
         ):
@@ -337,7 +371,7 @@ class AtlasApiTests(unittest.TestCase):
             _store_for_read=lambda: MixedAuditStore(),
             _visible_assets=lambda request: _visible_assets(),
         ):
-            response = atlas_api.api_audit_evidence(_request(), limit=25)
+            response = atlas_api.api_audit_evidence(_request(), limit=25, refresh="1")
 
         payload = _response_json(response)
         self.assertEqual(response.status_code, 200)
@@ -355,7 +389,7 @@ class AtlasApiTests(unittest.TestCase):
             _store_for_read=lambda: FakeStore(),
             _visible_assets=lambda request: (_ for _ in ()).throw(RuntimeError("inventory unavailable")),
         ):
-            response = atlas_api.api_audit_evidence(_request(), limit=25)
+            response = atlas_api.api_audit_evidence(_request(), limit=25, refresh="1")
 
         payload = _response_json(response)
         self.assertEqual(response.status_code, 503)
@@ -468,13 +502,19 @@ class AtlasApiTests(unittest.TestCase):
                 "visibilityState": "visible",
             },
             _asset_detail_payload=detail_payload,
+            _uc_for_request=lambda request: SimpleNamespace(warehouse_id="test"),
+            _store_for_read=lambda: FakeStore(),
+            _request_cache_scope=lambda request: "test-scope",
+            _direct_uc_metadata_writes_enabled=lambda request: False,
         ):
             response = atlas_api.api_asset_360("main.customer.customer_dim", _request())
 
         self.assertEqual(response.status_code, 200)
         payload = _response_json(response)
-        self.assertNotIn("operational", detail_sections[0])
-        self.assertEqual(payload["meta"]["state"], "degraded")
+        self.assertEqual(detail_sections, [])
+        self.assertNotIn("operational", payload["meta"]["capabilities"]["requestedSections"])
+        self.assertEqual(payload["meta"]["state"], "loading")
+        self.assertTrue(payload["meta"]["capabilities"]["hydrating"])
         self.assertEqual(payload["asset"]["fqn"], "main.customer.customer_dim")
 
     def test_governance_request_detail_404_for_missing_request(self) -> None:
@@ -491,7 +531,7 @@ class AtlasApiTests(unittest.TestCase):
         payload = _response_json(response)
         self.assertEqual(payload["meta"]["source"], "governance-store")
 
-    def test_atlas_ai_unsupported_question_is_degraded_not_mismatched_recommendation(self) -> None:
+    def test_atlas_ai_without_genie_fails_closed_instead_of_local_recommendations(self) -> None:
         import runtime_app
 
         with patch.multiple(
@@ -507,13 +547,63 @@ class AtlasApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         payload = _response_json(response)
-        self.assertEqual(payload["intent"], "unsupported")
+        self.assertEqual(payload["intent"], "unavailable")
+        self.assertEqual(payload["provider"], "unavailable")
         self.assertEqual(payload["evidence"], [])
-        self.assertEqual(payload["confidence"], "low")
-        self.assertEqual(payload["meta"]["state"], "degraded")
-        self.assertTrue(
-            any("Unsupported Home Atlas AI question type" in warning for warning in payload["meta"]["warnings"])
+        self.assertEqual(payload["recommendations"], [])
+        self.assertEqual(payload["confidence"], "unavailable")
+        self.assertEqual(payload["meta"]["state"], "unavailable")
+        self.assertEqual(payload["meta"]["source"], "runtime-configuration+databricks-genie")
+        self.assertFalse(payload["authoritative"])
+        self.assertNotIn("local-evidence", payload["meta"]["source"])
+        self.assertTrue(any("configured Databricks Genie space" in warning for warning in payload["meta"]["warnings"]))
+
+    def test_atlas_ai_without_obo_uses_backed_workspace_metadata_not_mock_values(self) -> None:
+        import runtime_app
+
+        config = SimpleNamespace(
+            atlas_ai_provider="genie",
+            genie_space_id="space-1",
+            genie_space_title="Governance Atlas Metadata Room",
+            atlas_ai_require_benchmark=True,
+            workspace_host="https://example.cloud.databricks.com",
         )
+        visible_assets = pd.DataFrame(
+            [
+                {
+                    "fqn": "main.customer.customer_profile",
+                    "domain": "Customer",
+                    "tier": "Tier 1",
+                    "certification": "Trusted",
+                    "criticality": "Critical",
+                    "owners_summary": "customer-steward@example.com",
+                    "governance_status": "Needs Work",
+                }
+            ]
+        )
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _config=lambda: config,
+            _visible_assets=lambda request: visible_assets,
+        ):
+            response = atlas_api.api_atlas_ai_recommendations(
+                _request({"x-forwarded-email": "skyler@entrada.ai"}),
+                atlas_api.AtlasAiQuestion(question="Which critical assets are not certified?"),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = _response_json(response)
+        self.assertEqual(payload["provider"], "governance-atlas-live-metadata")
+        self.assertEqual(payload["meta"]["source"], "unity-catalog-inventory+governance-store+databricks-genie-status")
+        self.assertEqual(payload["meta"]["state"], "degraded")
+        self.assertFalse(payload["authoritative"])
+        self.assertEqual(payload["evidence"][0]["assetFqn"], "main.customer.customer_profile")
+        self.assertEqual(payload["evidence"][0]["source"], "unity-catalog-inventory+governance-store")
+        self.assertIn("Workspace-scoped governed evidence", payload["answer"])
+        self.assertTrue(payload["meta"]["capabilities"]["evidenceBacked"])
+        self.assertTrue(any("not a Databricks Genie/OBO answer" in warning for warning in payload["meta"]["warnings"]))
 
     def test_atlas_ai_uses_genie_when_configured_with_forwarded_token(self) -> None:
         import runtime_app
@@ -566,6 +656,117 @@ class AtlasApiTests(unittest.TestCase):
         self.assertEqual(payload["meta"]["state"], "available")
         self.assertEqual(payload["meta"]["capabilities"]["spaceId"], "space-1")
         self.assertTrue(payload["authoritative"])
+
+    def test_atlas_ai_derives_actions_from_genie_query_rows(self) -> None:
+        import runtime_app
+
+        config = SimpleNamespace(
+            atlas_ai_provider="genie",
+            genie_space_id="space-1",
+            genie_space_title="Governance Atlas Metadata Room",
+            atlas_ai_require_benchmark=True,
+            workspace_host="https://example.cloud.databricks.com",
+        )
+        genie_payload = {
+            "question": "Recommend priority governance work",
+            "intent": "genie",
+            "answer": "Genie returned governed priority rows.",
+            "recommendations": [],
+            "evidence": [
+                {
+                    "type": "genie_query",
+                    "statementId": "stmt-1",
+                    "resultRows": [
+                        {
+                            "asset_fqn": "datapact.enterprise.customer_stewardship_queue",
+                            "domain": "Customer",
+                            "owner_count": "2",
+                            "open_work_count": "1",
+                        }
+                    ],
+                }
+            ],
+            "confidence": "genie-grounded",
+            "provider": "genie",
+            "providerState": {
+                "provider": "genie",
+                "state": "available",
+                "spaceId": "space-1",
+            },
+            "warnings": [],
+        }
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _config=lambda: config,
+        ), patch.object(atlas_api.genie_service, "ask_genie", return_value=genie_payload):
+            response = atlas_api.api_atlas_ai_recommendations(
+                _request({"x-forwarded-access-token": "obo-token-1"}),
+                atlas_api.AtlasAiQuestion(question="Recommend priority governance work"),
+            )
+
+        payload = _response_json(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["provider"], "genie")
+        self.assertEqual(payload["recommendations"][0]["title"], "Review customer_stewardship_queue")
+        self.assertEqual(payload["recommendations"][0]["evidence"][0]["id"], "datapact.enterprise.customer_stewardship_queue")
+        self.assertTrue(payload["authoritative"])
+        self.assertFalse(any("not substituted" in warning for warning in payload["meta"]["warnings"]))
+
+    def test_atlas_ai_does_not_substitute_local_recommendations_for_empty_genie_answer(self) -> None:
+        import runtime_app
+
+        config = SimpleNamespace(
+            atlas_ai_provider="genie",
+            genie_space_id="space-1",
+            genie_space_title="Governance Atlas Metadata Room",
+            atlas_ai_require_benchmark=True,
+            workspace_host="https://example.cloud.databricks.com",
+        )
+        genie_payload = {
+            "question": "Recommend priority governance work",
+            "intent": "genie",
+            "answer": "",
+            "recommendations": [],
+            "evidence": [],
+            "confidence": "unavailable",
+            "provider": "genie",
+            "providerState": {
+                "provider": "genie",
+                "state": "available",
+                "spaceId": "space-1",
+            },
+            "warnings": [],
+        }
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _config=lambda: config,
+        ), patch.object(
+            atlas_api.genie_service,
+            "ask_genie",
+            return_value=genie_payload,
+        ), patch.object(
+            atlas_api.atlas_metrics,
+            "build_ai_recommendations",
+            return_value={"recommendations": [{"title": "Local fallback"}]},
+        ) as build_local:
+            response = atlas_api.api_atlas_ai_recommendations(
+                _request({"x-forwarded-access-token": "obo-token-1"}),
+                atlas_api.AtlasAiQuestion(question="Recommend priority governance work"),
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = _response_json(response)
+        build_local.assert_not_called()
+        self.assertEqual(payload["provider"], "genie")
+        self.assertEqual(payload["recommendations"], [])
+        self.assertEqual(payload["meta"]["source"], "databricks-genie")
+        self.assertEqual(payload["meta"]["state"], "degraded")
+        self.assertFalse(payload["authoritative"])
+        self.assertTrue(any("not substituted" in warning for warning in payload["meta"]["warnings"]))
 
 
 if __name__ == "__main__":

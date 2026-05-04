@@ -377,6 +377,10 @@ Continuation of the reopened North Star audit. No page is signed off.
   - `python3 -m py_compile scripts/check_northstar_audit_contract.py` passed.
   - `node --check frontend/scripts/atlas_lineage_live_qa.mjs` passed.
   - `node --check frontend/scripts/atlas_prototype_current_capture.mjs` passed.
+  - After the Lineage owner-review rename,
+    `npm --prefix frontend run test -- --run src/components/LineageStage.test.jsx`
+    passed with `17` tests.
+  - `node --check frontend/scripts/atlas_prototype_current_capture.mjs` passed.
   - Scoped local capture
     `GOVAT_BASE_URL=http://127.0.0.1:5173 GOVAT_PROTOTYPE_MOCK_API=1 GOVAT_PROTOTYPE_ROUTES=stewardship,glossary,cde-registry GOVAT_PROTOTYPE_VIEWPORTS=1536x1024,1440x900,1280x720 GOVAT_PROTOTYPE_CAPTURE_OUT=docs/northstar_visual_qa/governance-taxonomy-v343-local node frontend/scripts/atlas_prototype_current_capture.mjs`
     passed with `9` route captures, `0` interactions, `0` request failures, and
@@ -18553,3 +18557,545 @@ Continuation of the reopened North Star audit after the user rejected stopping w
   - `functional_control_audit.md` has `0` open controls.
   - Final guard, source checks, focused frontend tests, production build, and Databricks bundle validation/summary passed after this ledger update.
   - Feedback/process recheck found stale companion wording in `functional_control_audit.md` and this entry; both were corrected before final reviewer recheck.
+
+## 2026-05-02 01:55 EDT - False-signoff reopening, mock-data rejection, and renewed blocker ledger
+
+Continuation after the product owner rejected the prior Lineage and all-route
+visual/functionality signoff. No North Star route is approved in this state.
+
+- Trigger:
+  - The product owner identified that Lineage was visibly different from
+    `northstar/screenshots/prototype_lineage.png`, that prior wording had
+    overclaimed unanimity, and that local mock/prototype values would be unacceptable
+    in a customer-facing trust product.
+  - The owner required a bit-by-bit page audit, a root-cause explanation for the
+    missed signoff, stronger rules of engagement, and fail-closed removal of mock
+    values from product surfaces.
+- Decisions:
+  - Reopen every North Star route and reviewer lane. The prior zero-open and
+    signoff state is historical only.
+  - Treat local/mock/intercepted screenshots as comparison and failure-reproduction
+    artifacts only. They cannot close product-readiness rows.
+  - Reject non-authoritative mock/prototype payloads in product routes instead of
+    rendering populated trust, lineage, stewardship, audit, admin, discovery, CDE, or
+    Asset 360 values from them.
+  - Keep the audit guard failing while companion audit blockers remain active; a
+    passing guard would be an overclaim right now.
+- Changes:
+  - Added `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`
+    with route-by-route visual, functional, truth/provenance, process, and mock-removal
+    gaps; current count is `90` open gaps.
+  - Generated side-by-side/diff artifacts under
+    `docs/northstar_visual_qa/reopened-2026-05-02-reference-current-audit/`.
+  - Updated `AGENTS.md`, `IMPLEMENTATION_STATUS.md`, `full_page_audit.md`,
+    `functional_control_audit.md`, and `signoff_matrix.md` so the active state is
+    reopened/blocking and stale zero-open language is visibly invalidated.
+  - Hardened `scripts/check_northstar_audit_contract.py` so companion audit blockers
+    fail closed and loose “superseded by full_page_audit.md” wording cannot bypass
+    row migration.
+  - Updated frontend fail-closed behavior across App/AppFrame/Atlas AI, Discovery,
+    Stewardship, Taxonomy/CDE, Lineage, Audit, Admin/Control Center, Asset 360, and
+    capability helpers so non-authoritative mock/prototype payloads are rejected or
+    rendered unavailable instead of populated.
+  - Added Lineage graph drag/pan handling and focused interaction coverage, while
+    keeping the broader Lineage visual/functional rows open.
+  - Updated local QA/capture scripts so they no longer require CDE prototype wording
+    and so mock Atlas AI interactions are skipped as non-authoritative rather than
+    treated as closure evidence.
+- Reviewer findings used:
+  - Truth/provenance review found prototype payloads still renderable in Discovery,
+    Stewardship, Audit, Admin, Entity, and Lineage; the implementation now rejects
+    those paths or preserves unavailable states.
+  - Regression review found CDE live rows disabled, Lineage edge pan drift, mock AI
+    capture breakage, and stale ledger zeros; the CDE query was re-enabled, edge
+    double-transform removed, capture behavior updated, and ledgers reopened.
+  - Process review found the companion blocker escape too loose and stale zero-open
+    summaries; the guard and ledgers were tightened.
+  - UI/process review added missing rows for Lineage hop/depth scaffolding, edge and
+    keyboard interaction coverage, build/deployment epoch consistency, route-state
+    mapping, and stale-ledger visibility.
+- Verification:
+  - `npm --prefix frontend run test -- --run src/components/AdminWorkspace.test.jsx src/components/AuditBrowserWorkspace.test.jsx src/components/EntityWorkspace.test.jsx src/components/DiscoveryWorkspace.test.jsx src/components/LineageStage.test.jsx src/components/GovernanceWorkspace.test.jsx src/lib/capabilities.test.js src/hooks/useDiscoveryResults.test.jsx src/hooks/useLineage.test.jsx src/components/TaxonomyWorkspace.test.jsx src/App.test.jsx` passed with `131` tests and `27` skipped.
+  - Earlier focused suite including `AppFrame.test.jsx`, `HomePage.test.jsx`, and
+    `ShellTopbarIdentity.test.jsx` passed with `167` tests and `27` skipped.
+  - `node --check frontend/scripts/atlas_prototype_current_capture.mjs`,
+    `node --check frontend/scripts/atlas_cde_live_qa.mjs`, and
+    `node --check frontend/scripts/atlas_cde_detail_live_qa.mjs` passed.
+  - `npm --prefix frontend run lint` passed with two pre-existing warnings in
+    `App.jsx` and `HomePage.jsx`.
+  - `python3 scripts/check_northstar_audit_contract.py` fails intentionally on active
+    companion blockers:
+    `functional_control_audit.md`, `lineage_reopened_visual_audit.md`, and
+    `reopened_2026_05_02_visual_functional_audit.md`.
+- Remaining blockers:
+  - The reopened audit has `90` open gaps: Command Center `7`, Discover `12`,
+    Stewardship `6`, Glossary `5`, CDE Registry `6`, Lineage Atlas `24`, Audit
+    Evidence `5`, Control Center `6`, Cross-Page Shared `10`, and Mock And Fixture
+    Removal `9`.
+  - Current work has not produced fresh live screenshots, control-level current-build
+    functional reports, or reviewer signoff. Fresh review lanes are running and no
+    route should be described as complete.
+
+## 2026-05-02 02:28 EDT - North Star Signoff Supersession guard repair and materialized blockers
+
+Continuation of the reopened audit after process review of the renewed blocker ledger.
+No North Star route is approved in this state.
+
+- Trigger:
+  - Process review found that the renewed ledgers still used status wording the guard
+    rejected, and that stale uppercase reviewer-row wording after the prior supersession
+    could still defeat the intended reopened state.
+- Decisions:
+  - Keep `full_page_audit.md` and `functional_control_audit.md` as the authoritative
+    active blockers while the reopened rows remain unchecked.
+  - Keep the guard failing on companion blockers until the rows are closed with current
+    evidence, current functional interaction reports, and route-scoped reviewer records.
+- Changes:
+  - Changed the active page-summary statuses in `full_page_audit.md` to `Blocked` for
+    every page/shared group with reopened rows.
+  - Changed the active control-summary statuses in `functional_control_audit.md` to
+    `Blocked` for every page/shared group with reopened controls.
+  - Recorded the current counts in this latest entry so the audit guard can compare the
+    active ledgers against the freshest operational state.
+- Reviewer findings used:
+  - Process review found the status mismatch, stale reviewer-row wording after the older
+    supersession entry, and missing latest-entry count language.
+- Verification:
+  - `full_page_audit.md` has `90` open gaps.
+  - `functional_control_audit.md` has `16` open controls.
+- Remaining blockers:
+  - Current screenshots, current Databricks-backed functional reports, visual parity
+    review, truth/provenance review, functional workflow review, regression review, and
+    process review remain open before any route can be closed.
+
+## 2026-05-02 02:39 EDT - Reopened audit fail-closed provenance hardening
+
+Continuation of the reopened North Star audit after truth/provenance, process,
+regression, and visual/functional reviewer feedback. No North Star route is approved.
+
+- Trigger:
+  - Reviewer lanes found concrete fail-closed gaps in the renewed implementation:
+    warning-only non-live evidence could pass the shared detector, `mockApi=false`
+    could be rejected, classification recommendations and audit timelines could render
+    non-authoritative records, mutation-returned assets could enter the Entity cache,
+    and Discovery Atlas AI recommendations could still render non-authoritative titles.
+- Decisions:
+  - Reject non-authoritative payloads before they reach product surfaces.
+  - Do not close Lineage pan/drag or any visual row from unit tests; browser evidence and
+    route-scoped reviewer inspection are still required.
+  - Treat historical checked rows in `functional_control_audit.md` as prior evidence
+    only while reopened rows remain unchecked.
+- Changes:
+  - Tightened `frontend/src/lib/nonAuthoritativeEvidence.js` so `mockApi=false` is
+    live-compatible, warning-only `not live Databricks evidence` is rejected, and real
+    source table names containing `mock` are not dropped solely because of the FQN.
+  - Added fail-closed filtering for classification recommendation lists, detail,
+    review, and scan responses; governance audit timeline responses; mutation-primed
+    asset detail; and Discovery Atlas AI recommendation responses.
+  - Removed duplicate browser mouse/pointer pan handling from Lineage by using pointer
+    events in browsers with a mouse fallback only when pointer events are unavailable.
+  - Changed Command Center catalog-health copy to render an unavailable provenance
+    boundary when live backed catalog evidence is absent.
+  - Replaced the Admin visible `Fixture`/`Prototype` status fallback with `Unavailable`.
+  - Added regression tests for the detector, classification rejection, audit-timeline
+    rejection, mutation cache rejection, and non-authoritative Discovery AI rejection.
+  - Added an explicit reading rule to `functional_control_audit.md` that historical
+    checked rows below reopened rows cannot close the reopened controls.
+- Reviewer findings used:
+  - Truth/provenance review found renderable bypasses in classification recommendations,
+    governance audit timeline drawers, mutation-primed asset detail, and Discovery AI
+    recommendations.
+  - Regression review found detector false positives/false negatives around
+    `mockApi=false`, warning-only non-live evidence, and source table names.
+  - Visual/functional review kept Lineage pan/drag, loading/search evidence, and
+    historical functional rows blocked pending browser/current evidence.
+  - Process review found the active ledger status/count language and stale reviewer-row
+    wording needed guard-compatible repair before any future closure.
+- Verification:
+  - `npm --prefix frontend run test -- --run src/lib/nonAuthoritativeEvidence.test.js src/lib/api.metadataContract.test.js src/hooks/useAssetDetail.test.jsx src/hooks/useAsset360.test.jsx src/hooks/useDiscoveryResults.test.jsx src/hooks/useLineage.test.jsx src/components/HomePage.test.jsx src/components/AuditBrowserWorkspace.test.jsx src/components/TaxonomyWorkspace.test.jsx src/components/AdminWorkspace.test.jsx src/components/GovernanceWorkspace.test.jsx src/components/DiscoveryWorkspace.test.jsx src/components/AppFrame.test.jsx src/components/primitives/__tests__/ShellTopbarIdentity.test.jsx src/App.test.jsx src/components/EntityWorkspace.test.jsx src/components/LineageStage.test.jsx` passed with `202` tests and `27` skipped.
+  - `npm --prefix frontend run lint` passed.
+  - `python3 scripts/check_northstar_audit_contract.py` fails intentionally on active
+    companion blockers.
+  - `full_page_audit.md` has `90` open gaps.
+  - `functional_control_audit.md` has `16` open controls.
+- Remaining blockers:
+  - Current screenshot capture, current live/runtime functional evidence, route-level
+    visual comparison, loading/search/performance inspection, and browser proof for
+    Lineage pan/drag are still required before rows can be checked off.
+
+## 2026-05-02 03:02 EDT - Boolean provenance hardening and real Lineage expansion
+
+Continuation of the reopened North Star remediation. No North Star route is approved
+in this state.
+
+- Trigger:
+  - Follow-up reviewer lanes found that boolean non-authoritative payloads such as
+    `authoritative: false` could still pass the new detector, while non-authoritative
+    Atlas AI shell metadata could incorrectly mark otherwise live bootstrap or Discovery
+    data unavailable.
+  - Lineage remained too thin against the approved reference because the full graph only
+    exposed first-hop table lineage.
+- Decisions:
+  - Treat `authoritative: false`, `nonAuthoritative: true`, and missing live Databricks
+    evidence booleans as fail-closed provenance markers.
+  - Scope Atlas AI provider authority to Atlas AI only; it must disable Atlas AI, not
+    poison live UC/bootstrap catalog state.
+  - Expand backend Lineage with real Unity Catalog table-lineage hops before attempting
+    another visual pass. Do not substitute local/mock values for missing topology.
+- Changes:
+  - Updated `frontend/src/lib/nonAuthoritativeEvidence.js` to reject boolean
+    non-authoritative evidence forms while preserving explicit live states and real FQNs
+    that happen to contain `mock` in a table name.
+  - Narrowed App, AppFrame, and Discovery bootstrap checks so `shell.ai` is evaluated
+    separately from core bootstrap/discovery truth.
+  - Added tests for authoritative-false rejection across the shared detector, Atlas AI
+    recommendations, classification recommendations, governance audit timelines,
+    asset-detail priming, Discovery bootstrap seeds, App boot state, AppFrame UC state,
+    and Lineage payload caching.
+  - Updated `atlas/services/lineage.py` so the full Lineage profile walks a capped
+    second-hop real UC lineage branch and reports reachable upstream/downstream counts
+    instead of only direct focus-edge counts.
+  - Removed production Lineage prototype/local copy paths and added canvas pan/fit
+    interaction handling. The static edge overlay remains an open Lineage visual gap.
+  - Removed dead prototype-branch logic from the Control Center/Admin runtime path,
+    renamed the Admin structural selector family to product-specific names, and kept
+    non-authoritative diagnostics fail-closed into unavailable rows.
+  - Updated Discovery degraded-state copy so it describes unavailable live result rows
+    rather than prototype row preservation.
+- Reviewer findings used:
+  - Truth/provenance review found the boolean `authoritative: false` bypass across
+    Asset Detail, Atlas AI, classification, governance audit timeline, and Lineage.
+  - Regression review found `shell.ai` was over-scoped into app bootstrap and Discovery
+    seed rejection.
+  - Visual/functional review confirmed Lineage search, as-of, pan/drag, and degraded
+    states are improved but still lack current browser/live evidence.
+  - Process review confirmed the active blocker counts and audit guard state remain
+    consistent with the reopened ledgers.
+- Verification:
+  - `npm --prefix frontend run test -- --run src/lib/nonAuthoritativeEvidence.test.js src/lib/api.metadataContract.test.js src/hooks/useAssetDetail.test.jsx src/hooks/useAsset360.test.jsx src/hooks/useDiscoveryWorkspace.test.jsx src/hooks/useDiscoveryResults.test.jsx src/hooks/useLineage.test.jsx src/components/AppFrame.test.jsx src/components/primitives/__tests__/ShellTopbarIdentity.test.jsx src/App.test.jsx src/components/DiscoveryWorkspace.test.jsx src/components/AdminWorkspace.test.jsx src/components/LineageStage.test.jsx` passed with `181` tests.
+  - `.venv/bin/python -m pytest tests/test_lineage_cache.py tests/test_lineage_api.py`
+    passed with `10` tests.
+  - `npm --prefix frontend run lint` passed.
+  - `npm --prefix frontend run test -- --run src/components/DiscoveryWorkspace.test.jsx src/components/AdminWorkspace.test.jsx` passed with `49` tests.
+  - `node --check frontend/scripts/atlas_prototype_current_capture.mjs` passed after
+    updating Control Center row selectors.
+  - `git diff --check` passed after cleaning trailing whitespace in the Lineage
+    interaction test.
+  - `databricks bundle summary --profile DEFAULT -t dev` passed and reported the
+    `atlas` app resource in target `dev`; the bundle summary shows the app URL as not
+    deployed for this local target.
+  - `python3 scripts/check_northstar_audit_contract.py` fails intentionally on active
+    companion blockers:
+    `functional_control_audit.md`, `lineage_reopened_visual_audit.md`, and
+    `reopened_2026_05_02_visual_functional_audit.md`.
+- Remaining blockers:
+  - `full_page_audit.md` has `90` open gaps.
+  - `functional_control_audit.md` has `16` open controls.
+  - Current deployment, current live screenshots, route-level visual comparison,
+    browser pan/search/as-of/edge evidence, performance evidence, and row-by-row
+    reviewer closure are still required.
+
+## 2026-05-02 03:24 EDT - Boolean provenance rule corrected after split review
+
+Continuation of the reopened North Star remediation. No North Star route is approved
+in this state.
+
+- Trigger:
+  - Fresh truth/provenance and regression review lanes split on the previous boolean
+    detector change. One lane correctly found that bare `authoritative: false` and
+    `local-evidence` payloads could pass to product surfaces; the other correctly
+    found that rejecting every false authority boolean would discard real degraded
+    Databricks envelopes.
+- Decisions:
+  - Supersede the blanket boolean rule from the prior entry. Bare authority-false or
+    missing-live-evidence markers fail closed unless the same payload carries trusted
+    live-source provenance and a degraded/unavailable/error state.
+  - Reject `local-evidence`, `local-prototype`, `mock`, `fixture`, and explicit
+    `nonAuthoritative` markers before they can seed search, shell state, Atlas AI,
+    governance, classification, asset detail, or Lineage.
+  - Preserve real degraded Databricks envelopes as degraded/provisional state rather
+    than treating them as fake data.
+- Changes:
+  - Updated `frontend/src/lib/nonAuthoritativeEvidence.js` with context-aware handling
+    for authority-false markers, trusted degraded live envelopes, and local-evidence
+    provider/source rejection.
+  - Filtered non-authoritative bootstrap/seed assets before constructing shell-visible
+    asset sets, shared search seeds, and local search indexes.
+  - Added regression coverage for bare authority-false rejection, local-evidence
+    rejection, degraded-live acceptance, poisoned bootstrap seed suppression, and
+    search-index seed filtering.
+- Reviewer findings used:
+  - Truth/provenance review found the bare authority-false/local-evidence bypass and
+    the shell/search seed path that could still expose non-authoritative bootstrap
+    assets.
+  - Regression review found the overly broad version of the detector would break
+    degraded live Databricks bootstrap, Discovery, and Lineage state.
+- Verification:
+  - `npm --prefix frontend run test -- --run src/lib/nonAuthoritativeEvidence.test.js src/lib/api.metadataContract.test.js src/hooks/useAssetDetail.test.jsx src/hooks/useAsset360.test.jsx src/hooks/useAssetSearch.test.jsx src/hooks/useDiscoveryWorkspace.test.jsx src/hooks/useDiscoveryResults.test.jsx src/hooks/useLineage.test.jsx src/components/AppFrame.test.jsx src/components/primitives/__tests__/ShellTopbarIdentity.test.jsx src/App.test.jsx src/components/DiscoveryWorkspace.test.jsx src/components/AdminWorkspace.test.jsx src/components/LineageStage.test.jsx` passed with `190` tests.
+  - `.venv/bin/python -m pytest tests/test_lineage_cache.py tests/test_lineage_api.py`
+    passed with `10` tests.
+  - `npm --prefix frontend run lint` passed.
+  - `node --check frontend/scripts/atlas_prototype_current_capture.mjs` passed.
+  - `git diff --check` passed.
+  - `databricks bundle summary --profile DEFAULT -t dev` passed and reported the
+    `atlas` app resource in target `dev`; the bundle summary shows the app URL as not
+    deployed for this local target.
+  - `python3 scripts/check_northstar_audit_contract.py` still fails intentionally on
+    active companion blockers: `functional_control_audit.md`,
+    `lineage_reopened_visual_audit.md`, and
+    `reopened_2026_05_02_visual_functional_audit.md`.
+- Remaining blockers:
+  - `full_page_audit.md` has `90` open gaps.
+  - `functional_control_audit.md` has `16` open controls.
+  - No page has current screenshot parity, current control-level functional evidence,
+    deployed/live browser proof, performance proof, or route-level reviewer closure.
+
+## 2026-05-02 03:31 EDT - Runtime-shell degraded provenance carveout
+
+Continuation of the reopened North Star remediation. No North Star route is approved
+in this state.
+
+- Trigger:
+  - Regression re-review found one remaining false positive: degraded `runtime-shell`
+    bootstrap envelopes are real runtime state but were not part of the trusted
+    degraded-live source set, so they could still be converted to unavailable.
+- Decisions:
+  - Treat `runtime-shell` as trusted only when paired with a degraded/unavailable/error
+    state; this preserves runtime bootstrap fallback without opening a path for bare
+    `authoritative: false`, prototype, mock, fixture, or local-evidence payloads.
+- Changes:
+  - Added `runtime-shell` to the trusted degraded live envelope source set in
+    `frontend/src/lib/nonAuthoritativeEvidence.js`.
+  - Added detector and App coverage proving degraded `runtime-shell` bootstrap keeps
+    seed assets and visible catalog state while explicit prototype/local-evidence still
+    fails closed.
+- Reviewer findings used:
+  - Regression re-review found the runtime-shell false positive and confirmed the
+    follow-up patch has no scoped blockers.
+  - Truth/provenance re-review found no P0/P1 blockers in the corrected
+    provenance/seed patch.
+- Verification:
+  - `npm --prefix frontend run test -- --run src/lib/nonAuthoritativeEvidence.test.js src/App.test.jsx src/hooks/useDiscoveryWorkspace.test.jsx src/hooks/useDiscoveryResults.test.jsx src/hooks/useLineage.test.jsx src/hooks/useAssetSearch.test.jsx` passed with `74` tests.
+  - Reviewer re-run: scoped truth/provenance suite passed with `112` tests; scoped
+    regression suite passed with `35` tests.
+  - Final broader focused suite passed:
+    `npm --prefix frontend run test -- --run src/lib/nonAuthoritativeEvidence.test.js src/lib/api.metadataContract.test.js src/hooks/useAssetDetail.test.jsx src/hooks/useAsset360.test.jsx src/hooks/useAssetSearch.test.jsx src/hooks/useDiscoveryWorkspace.test.jsx src/hooks/useDiscoveryResults.test.jsx src/hooks/useLineage.test.jsx src/components/AppFrame.test.jsx src/components/primitives/__tests__/ShellTopbarIdentity.test.jsx src/App.test.jsx src/components/DiscoveryWorkspace.test.jsx src/components/AdminWorkspace.test.jsx src/components/LineageStage.test.jsx`
+    with `191` tests.
+  - `.venv/bin/python -m pytest tests/test_lineage_cache.py tests/test_lineage_api.py`
+    passed with `10` tests.
+  - `npm --prefix frontend run lint`, `node --check
+    frontend/scripts/atlas_prototype_current_capture.mjs`, `git diff --check`, and
+    `databricks bundle summary --profile DEFAULT -t dev` passed.
+  - `python3 scripts/check_northstar_audit_contract.py` still fails intentionally on
+    active companion blockers: `functional_control_audit.md`,
+    `lineage_reopened_visual_audit.md`, and
+    `reopened_2026_05_02_visual_functional_audit.md`.
+- Remaining blockers:
+  - `full_page_audit.md` has `90` open gaps.
+  - `functional_control_audit.md` has `16` open controls.
+  - Current visual parity, live/runtime functional evidence, deployed browser proof,
+    performance proof, and route-scoped reviewer closure are still open.
+
+## 2026-05-02 03:36 EDT - Atlas AI local-evidence fallback removed
+
+Continuation of the reopened North Star remediation. No North Star route is approved
+in this state.
+
+- Trigger:
+  - The frontend was rejecting `local-evidence`, but the direct Atlas AI API could still
+    return local recommendation rows when Genie was unavailable or OBO was missing.
+- Decisions:
+  - Atlas AI must fail closed when Databricks Genie/OBO is not available. Do not return
+    locally generated recommendation rows as customer-facing AI product truth.
+  - Keep the Genie-configured, OBO-backed path intact; it may return Genie-grounded
+    evidence.
+- Changes:
+  - Updated `atlas/api/atlas.py` so the unavailable Atlas AI path returns
+    `intent: unavailable`, `provider: unavailable`, empty `recommendations` and
+    `evidence`, `source: runtime-configuration+databricks-genie`, and
+    `state: unavailable`.
+  - Updated `atlas/services/genie.py` so non-Genie configuration reports Atlas AI as
+    unavailable instead of saying a local evidence engine is in use.
+  - Replaced a visible Stewardship unavailable-state message that referred to
+    prototype work items with live-governance unavailable wording.
+  - Added API and Genie service tests for the fail-closed unavailable behavior.
+- Reviewer findings used:
+  - Truth/provenance re-review found no backend/API blockers and directly verified the
+    no-OBO path returns the unavailable empty-evidence envelope.
+- Verification:
+  - `.venv/bin/python -m pytest tests/test_genie_service.py tests/test_atlas_api.py`
+    passed with `22` tests.
+  - `.venv/bin/python -m pytest tests/test_atlas_api.py tests/test_lineage_cache.py tests/test_lineage_api.py`
+    passed with `27` tests.
+  - `npm --prefix frontend run test -- --run src/lib/nonAuthoritativeEvidence.test.js src/lib/api.metadataContract.test.js src/components/DiscoveryWorkspace.test.jsx src/App.test.jsx`
+    passed with `92` tests.
+  - `npm --prefix frontend run test -- --run src/components/AppFrame.test.jsx src/App.test.jsx src/components/DiscoveryWorkspace.test.jsx`
+    passed with `91` tests.
+  - `npm --prefix frontend run test -- --run src/components/GovernanceWorkspace.test.jsx src/components/AppFrame.test.jsx src/App.test.jsx src/components/DiscoveryWorkspace.test.jsx`
+    passed with `103` tests.
+  - Final broader focused suite passed:
+    `npm --prefix frontend run test -- --run src/lib/nonAuthoritativeEvidence.test.js src/lib/api.metadataContract.test.js src/hooks/useAssetDetail.test.jsx src/hooks/useAsset360.test.jsx src/hooks/useAssetSearch.test.jsx src/hooks/useDiscoveryWorkspace.test.jsx src/hooks/useDiscoveryResults.test.jsx src/hooks/useLineage.test.jsx src/components/AppFrame.test.jsx src/components/primitives/__tests__/ShellTopbarIdentity.test.jsx src/App.test.jsx src/components/DiscoveryWorkspace.test.jsx src/components/AdminWorkspace.test.jsx src/components/LineageStage.test.jsx`
+    with `191` tests.
+  - `.venv/bin/python -m pytest tests/test_genie_service.py tests/test_atlas_api.py tests/test_lineage_cache.py tests/test_lineage_api.py`
+    passed with `32` tests.
+  - `npm --prefix frontend run lint`, `node --check
+    frontend/scripts/atlas_prototype_current_capture.mjs`, `git diff --check`, and
+    `databricks bundle summary --profile DEFAULT -t dev` passed.
+  - `python3 scripts/check_northstar_audit_contract.py` still fails intentionally on
+    active companion blockers: `functional_control_audit.md`,
+    `lineage_reopened_visual_audit.md`, and
+    `reopened_2026_05_02_visual_functional_audit.md`.
+- Remaining blockers:
+  - `full_page_audit.md` has `90` open gaps.
+  - `functional_control_audit.md` has `16` open controls.
+  - The larger North Star visual/functional/live/performance audit remains open.
+
+## 2026-05-02 15:41 EDT - Reopened audit rules hardened and fake fallback rows removed
+
+Continuation of the reopened North Star audit. No North Star route is approved in
+this state.
+
+- Trigger:
+  - Product-owner escalation that Lineage and other pages were incorrectly described
+    as visually indistinguishable/unanimously signed off while the app visibly differs
+    from the prototype, uses local prototype/mock evidence, and contains buttons or
+    fallbacks that are not backed by useful live behavior.
+- Decisions:
+  - Local prototype, mock, fixture, intercepted, or stale reports cannot close even
+    local customer-facing product-readiness rows. They are reproduction/reference
+    evidence only.
+  - The current signoff matrix must treat the v415 local prototype screenshot folder
+    as non-closing comparison material, not current closure evidence.
+  - Product-visible fallback rows must not invent enterprise-looking catalogs,
+    domains, CDEs, integrations, jobs, or policy checks. If diagnostics do not report
+    a row, the UI must render explicit unavailable rows or backed live rows.
+- Changes:
+  - Tightened `AGENTS.md` to forbid prototype/mock closure evidence for local
+    customer-facing controls and to require runtime/Databricks or unavailable-state
+    closure proof.
+  - Tightened `scripts/check_northstar_audit_contract.py` so checked rows using
+    prototype/mock/fixture/intercepted evidence types fail, route evidence must match
+    its capture route, current evidence cannot use `mockApi=true`, and active
+    companion audits block signoff.
+  - Updated `full_page_audit.md`, `functional_control_audit.md`, and
+    `signoff_matrix.md` so local prototype evidence is historical/non-closing and the
+    false-signoff analysis remains a blocking reopened standard.
+  - Retired three local admin-command functional reports in
+    `reference_manifest.json` so they cannot linger as unregistered current-era
+    reports.
+  - Replaced Command Center named fallback domain/catalog/CDE rows with explicit
+    unavailable rows.
+  - Replaced Control Center named fallback jobs, integrations, and policy rows with
+    explicit unavailable rows and disabled unreported rows instead of letting them open
+    local detail panels.
+  - Removed named sample asset/domain prompts from the shared Atlas AI route prompt
+    set unless they come from real runtime context.
+  - Converted the CDE linked-policy count from a no-op nested button into muted
+    non-interactive unavailable/detail text until backed policy records are returned
+    by the CDE API.
+  - Added visible Command Center export success/unavailable status instead of silently
+    returning when browser download URL support is missing.
+  - Extended the Lineage live QA script with a realistic graph drag/pan interaction
+    that records before/after pan offsets and the visible pan status.
+  - Renamed the Lineage impact action from `Notify owners` to `Review owners` because
+    the backed behavior routes to governance owner review; it does not send a
+    notification mutation.
+- Reviewer findings used:
+  - Lineage visual reviewer blocked signoff on full-frame topology, palette, inspector,
+    header, responsive, provenance, and control-evidence mismatches.
+  - All-route visual reviewer blocked signoff on shared shell/loading/degraded gaps,
+    left-shifted/wider page frames, route copy drift, and local prototype current
+    evidence.
+  - Functional reviewer blocked signoff on Lineage drag/pan evidence, status-only
+    `Now`, graph search/export/refocus/notify-owner gaps, global search proof,
+    mutation-like controls, CDE no-op policy count, and stale/failed QA reports.
+  - Truth/provenance reviewer blocked signoff on mock closure paths, prototype capture
+    harness use, named placeholder rows, and the lack of representative live
+    UC/jobs/pipelines/quality/permissions/lineage data for product closure.
+  - Process reviewer blocked signoff on mock current evidence, mixed evidence epochs,
+    stale allowed reports, missing route equality checks, missing loading/degraded
+    requirements, and unguarded palette drift.
+- Verification:
+  - `npm --prefix frontend run test -- --run src/components/HomePage.test.jsx src/components/AdminWorkspace.test.jsx src/components/AppFrame.test.jsx src/components/CdeWorkspace.test.jsx src/components/LineageStage.test.jsx src/hooks/useLineage.test.jsx`
+    passed with `76` tests.
+  - After the CDE linked-policy and Command Center export follow-ups,
+    `npm --prefix frontend run test -- --run src/components/HomePage.test.jsx src/components/CdeWorkspace.test.jsx`
+    passed with `21` tests.
+  - `python3 -m py_compile scripts/check_northstar_audit_contract.py` passed.
+  - `node --check frontend/scripts/atlas_lineage_live_qa.mjs` passed.
+  - `databricks bundle summary --profile DEFAULT` completed for bundle `atlas`, target
+    `dev`; the bundle summary reports app `atlas` with URL `(not deployed)` for this
+    bundle target.
+  - `python3 scripts/check_northstar_audit_contract.py` fails intentionally before any
+    signoff on active companion blockers:
+    `functional_control_audit.md`, `lineage_reopened_visual_audit.md`, and
+    `reopened_2026_05_02_visual_functional_audit.md`.
+- Remaining blockers:
+  - No route has visual or functional signoff.
+  - Current lineage and all-route parity, control-level live evidence, loading/search
+    performance proof, deployed browser proof, and representative enterprise
+    Databricks data seeding/validation remain open.
+
+## 2026-05-03 17:25 EDT - Current North Star Signoff Supersession And v140 Evidence Refresh
+
+Continuation of the reopened North Star audit. No page is approved.
+`full_page_audit.md` has `90` open gaps and `functional_control_audit.md` has `16`
+open controls.
+
+- Trigger:
+  - Product-owner escalation that the prior response stopped while visual parity,
+    functional proof, performance proof, deployed proof, representative data, and
+    reviewer closure were still open.
+- Decisions:
+  - Treat the latest evidence as a current blocker epoch, not closure.
+  - Use build `frontend-33133f44f929` as the local runtime evidence epoch until a
+    deployed Databricks App epoch replaces it.
+  - Preserve the v139 side-by-side audit as process evidence that blocks visual rows;
+    it must not close visual rows because every pair is blocked.
+- Changes:
+  - Captured the all-route/all-required-viewport runtime evidence:
+    `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/prototype-current-report.json`.
+  - Pinned current local-runtime functional evidence:
+    `docs/northstar_visual_qa/live-runtime-current-v135-full-functional-all-routes-2026-05-03/prototype-current-report.json`,
+    `docs/northstar_visual_qa/live-runtime-current-v132-focused-functional-command-lineage-control-2026-05-03/prototype-current-report.json`,
+    and
+    `docs/northstar_visual_qa/live-runtime-current-v134-cde-functional-recheck-2026-05-03/prototype-current-report.json`.
+  - Pinned blocking process evidence:
+    `docs/northstar_visual_qa/live-runtime-current-v139-reference-current-audit-2026-05-03/audit-artifact-manifest.json`.
+  - Updated `docs/northstar_gap_analysis/reference_manifest.json`,
+    `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`,
+    `docs/northstar_gap_analysis/full_page_audit.md`,
+    `docs/northstar_gap_analysis/functional_control_audit.md`,
+    `docs/northstar_gap_analysis/signoff_matrix.md`, and
+    `IMPLEMENTATION_STATUS.md` to name the current v132-v140 epoch.
+  - Updated `scripts/check_northstar_audit_contract.py` so blocking audit manifests
+    are valid process artifacts only when they report blocked visual pairs.
+- Reviewer findings used:
+  - Visual fidelity reviewer blocked every route from v139; `10` of `10` pairs are
+    blocked, with max changed-pixel percentage `39.66` and max palette delta `28.6`.
+  - Product structure reviewer blocked Command Center, Discover selected, and Lineage;
+    other routes are only defensible with explicit availability/data deferrals.
+  - Functional workflow reviewer blocked local-runtime closure on remaining
+    status-only controls, drawer-context actions, mutation contradictions,
+    unavailable-state precision, responsive control exercise, deployed proof, and
+    missing performance telemetry.
+  - Process reviewer blocked on stale manifest/ledger references and unregistered
+    current-era reports; this pass pins the current epoch and retires superseded
+    same-day reports.
+  - Truth/provenance reviewer blocked on audit export authority boundaries, internal
+    Discover selected-state wording, ambiguous Lineage provenance distinctions,
+    coverage-derived posture/risk labels, unavailable Stewardship opening evidence,
+    degraded CDE/control coverage, and local-runtime-only evidence.
+- Verification:
+  - `docs/northstar_visual_qa/live-runtime-current-v140-all-viewports-current-2026-05-03/prototype-current-report.json`
+    passed capture health with `captureCount=32`, `expectedCaptureCount=32`,
+    `mockApi=false`, `requestFailureCount=0`, and no page errors.
+  - `docs/northstar_visual_qa/live-runtime-current-v135-full-functional-all-routes-2026-05-03/prototype-current-report.json`
+    passed local-runtime control capture with `interactionCount=48`, `mockApi=false`,
+    and only the expected invalid structured-search `400` checks.
+- Remaining blockers:
+  - Visual parity remains blocked by v139.
+  - Functional closure remains blocked by the v135/v132/v134 reviewer findings and
+    missing deployed proof.
+  - Performance telemetry and deployed Databricks App browser evidence remain open.
+  - Truth/provenance remains blocked on the reviewer findings above.

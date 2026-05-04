@@ -70,4 +70,25 @@ describe("useAssetSearch", () => {
     expect(result.current.resolvedQuery).toBe("customers");
     expect(result.current.assets).toEqual([]);
   });
+
+  it("does not index non-authoritative seed assets", async () => {
+    fetchDiscoverySearchMock.mockImplementationOnce(() => new Promise(() => {}));
+
+    const seedAssets = [
+      { fqn: "main.sales.seeded", name: "Seeded Orders" },
+      {
+        fqn: "main.sales.fake_orders",
+        name: "Fake Orders",
+        meta: { state: "prototype-mock", source: "local-prototype-mock", authoritative: false },
+      },
+    ];
+
+    const { result } = renderHook(() => useAssetSearch("orders", true, seedAssets), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.assets.map((asset) => asset.fqn)).toEqual(["main.sales.seeded"]);
+    });
+  });
 });

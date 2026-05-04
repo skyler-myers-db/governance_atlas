@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAuditEvidence } from "../lib/api";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { EmptyState } from "./northstar";
 import "../styles/operations-pages.css";
 
@@ -15,9 +16,70 @@ function envelopeMeta(payload) {
   return payload && typeof payload === "object" ? payload.meta || {} : {};
 }
 
+function envelopeHydrating(payload) {
+  const meta = envelopeMeta(payload);
+  const capabilities = meta.capabilities && typeof meta.capabilities === "object" ? meta.capabilities : {};
+  return text(meta.state || payload?.state).toLowerCase() === "loading" || capabilities.hydrating === true;
+}
+
 function text(value, fallback = "") {
   if (value == null) return fallback;
   return String(value).trim() || fallback;
+}
+
+function safeOrdinal(index = 0) {
+  return String(Number(index) + 1).padStart(2, "0");
+}
+
+function customerSafeEvidenceId(value, index = 0, prefix = "AUD") {
+  const raw = text(value);
+  if (!raw) return `${prefix}-${safeOrdinal(index)}`;
+  const homeMatch = raw.match(/^GOV-HOME-EVIDENCE-(request|audit)-(\d+)$/i);
+  if (homeMatch) {
+    const safePrefix = homeMatch[1].toLowerCase() === "request" ? "GOV" : "AUD";
+    return `${safePrefix}-${String(Number(homeMatch[2])).padStart(2, "0")}`;
+  }
+  if (/^(ga-home-seed|ga-taxonomy-seed|prototype|mock|fixture|seed)/i.test(raw)) return "";
+  if (/GOV-HOME-EVIDENCE/i.test(raw)) return `${prefix}-${safeOrdinal(index)}`;
+  return raw;
+}
+
+function sanitizeCustomerEvidenceText(value, index = 0) {
+  const raw = text(value);
+  if (!raw) return raw;
+  if (hasNonAuthoritativeAuditMarker(raw)) return "";
+  return raw
+    .replace(/GOV-HOME-EVIDENCE-request-(\d+)/gi, (_, ordinal) => `GOV-${String(Number(ordinal)).padStart(2, "0")}`)
+    .replace(/GOV-HOME-EVIDENCE-audit-(\d+)/gi, (_, ordinal) => `AUD-${String(Number(ordinal)).padStart(2, "0")}`)
+    .replace(/\bga-taxonomy-node-[a-z0-9-]+\b/gi, "Glossary parent record")
+    .replace(/\bga-home-[a-z0-9-]+\b/gi, `Governance evidence ${safeOrdinal(index)}`);
+}
+
+function hasNonAuthoritativeAuditMarker(...values) {
+  const haystack = values.map((value) => {
+    if (value == null) return "";
+    if (typeof value === "object") {
+      try {
+        return JSON.stringify(value);
+      } catch (_error) {
+        return "";
+      }
+    }
+    return String(value);
+  }).join(" ").toLowerCase();
+  return /prototype|mock|fixture|validation[_\s-]*seed|validation sample|home[_\s-]*northstar[_\s-]*seed|home[_\s-]*evidence[_\s-]*plane|ga[_\s-]*home[_\s-]*seed|ga[_\s-]*taxonomy[_\s-]*seed/.test(haystack);
+}
+
+function isNonAuthoritativeAuditEvent(event = {}) {
+  return Boolean(
+    hasNonAuthoritativeAuditMarker(event) ||
+      isNonAuthoritativeMockEvidence(
+        event,
+        event?.meta,
+        event?.provenance,
+        event?.warnings,
+      ),
+  );
 }
 
 function eventId(event, index = 0) {
@@ -90,6 +152,10 @@ function parseJsonValue(value) {
   }
 }
 
+function isInternalAuditField(key) {
+  return /(^|\.|_)(before_json|after_json|beforeJson|afterJson|diff_before_json|diff_after_json|requested_payload_json|actor_entry_id|assignee_entry_id|reviewer_entry_id|entry_id|uc_full_name|identity_key|row_hash)$/i.test(String(key || ""));
+}
+
 function flattenObject(value, prefix = "", rows = []) {
   if (rows.length >= 48) return rows;
   if (value == null) {
@@ -106,7 +172,7 @@ function flattenObject(value, prefix = "", rows = []) {
     return rows;
   }
   if (typeof value === "object") {
-    const entries = Object.entries(value);
+    const entries = Object.entries(value).filter(([key]) => !isInternalAuditField(prefix ? `${prefix}.${key}` : key));
     if (!entries.length && prefix) rows.push([prefix, "{}"]);
     entries.slice(0, 12).forEach(([key, nested]) => flattenObject(nested, prefix ? `${prefix}.${key}` : key, rows));
     if (entries.length > 12) rows.push([prefix || "fields", `+${entries.length - 12} more`]);
@@ -142,9 +208,12 @@ function auditCsv(events, provenance = {}) {
     "status",
     "target",
     "evidence",
-    "request_id",
+    "evidence_id",
     "evidence_kind",
     "authoritative",
+    "runtime_authoritative",
+    "live_databricks_evidence",
+    "evidence_boundary",
   ];
   const rows = events.map((event) => [
     event.createdAt,
@@ -152,10 +221,13 @@ function auditCsv(events, provenance = {}) {
     event.action,
     event.status,
     event.objectLabel,
-    evidenceReference(event, provenance.evidenceKind === "prototype_mock"),
-    event.requestId,
+    evidenceReference(event),
+    event.displayRequestId || event.displayAuditId,
     provenance.evidenceKind || "unavailable",
     provenance.authoritative ? "true" : "false",
+    provenance.runtimeAuthoritative ? "true" : "false",
+    provenance.liveDatabricksEvidence ? "true" : "false",
+    provenance.evidenceBoundary || "unavailable",
   ]);
   return [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n");
 }
@@ -176,6 +248,12 @@ function downloadText(filename, textBody, mimeType) {
   return true;
 }
 
+function isDeployedDatabricksAppHost() {
+  if (typeof window === "undefined") return false;
+  const host = String(window.location?.hostname || "").toLowerCase();
+  return host.endsWith(".databricksapps.com");
+}
+
 function normalizeEvent(event, index = 0) {
   const value = event && typeof event === "object" ? event : {};
   const id = eventId(value, index);
@@ -184,26 +262,49 @@ function normalizeEvent(event, index = 0) {
   const entityType = text(value.entity_type || value.entityType || value.kind || "Audit object");
   const actor = text(value.actor_email || value.actorEmail || value.created_by || value.createdBy);
   const requestId = text(value.request_id || value.requestId);
+  const displayRequestId = customerSafeEvidenceId(
+    value.display_request_id || value.displayRequestId || requestId,
+    index,
+    "GOV",
+  );
+  const displayAuditId = customerSafeEvidenceId(
+    value.display_audit_id || value.displayAuditId || value.audit_id || value.auditId || value.id,
+    index,
+    "AUD",
+  );
   const createdAt = text(value.created_at || value.createdAt);
   return {
     ...value,
     id,
+    displayAuditId,
+    displayRequestId,
     actor,
     actorRole: text(value.actor_role || value.actorRole || "Audit actor"),
     entityFqn,
     entityId,
     entityType,
-    objectLabel: entityFqn || entityId || "Unavailable object",
-    action: text(value.action) || "change recorded",
-    source: text(value.source) || "Evidence source unavailable",
+    objectLabel: sanitizeCustomerEvidenceText(text(value.object_label || value.objectLabel) || entityFqn || entityId || "Unavailable object", index),
+    action: sanitizeCustomerEvidenceText(text(value.action) || "change recorded", index),
+    source: sanitizeCustomerEvidenceText(text(value.display_source || value.displaySource || value.source) || "Evidence source unavailable", index),
     status: text(value.status) || "unavailable",
     requestId,
-    detail: text(value.detail),
+    detail: sanitizeCustomerEvidenceText(text(value.display_detail || value.displayDetail || value.detail), index),
     createdAt,
     beforeJson: value.before_json ?? value.beforeJson ?? value.before ?? "",
     afterJson: value.after_json ?? value.afterJson ?? value.after ?? "",
     domain: text(value.domain) || inferDomain(entityFqn || entityId),
   };
+}
+
+function isInternalMaintenanceEvent(event = {}) {
+  const haystack = [
+    event.action,
+    event.detail,
+    event.objectLabel,
+    event.entityType,
+    event.source,
+  ].map(text).join(" ");
+  return /identity directory upserted|identity directory|actor_entry_id|assignee_entry_id|reviewer_entry_id/i.test(haystack);
 }
 
 function inferDomain(value) {
@@ -272,19 +373,51 @@ function responseStatus(error) {
   );
 }
 
-function evidenceReference(event = {}, prototypeMockEvidence = false) {
-  const reference = auditEvidenceSummary(event);
-  return prototypeMockEvidence && reference !== "Evidence reference unavailable"
-    ? `Prototype fixture - not live audit proof: ${reference}`
-    : reference;
+function roleSlug(value) {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
+function auditRoleAllowed(shell) {
+  if (!shell) return true;
+  const email = roleSlug(shell.userEmail || shell.actorEmail);
+  if (!email || email === "unknown") return false;
+  const role = roleSlug(shell.role || shell.actorRole);
+  if (!role) return Boolean(shell.roleProvisional);
+  return role.includes("admin") || role.includes("steward");
+}
+
+function evidenceReference(event = {}) {
+  return auditEvidenceSummary(event);
 }
 
 function auditEvidenceSummary(event = {}) {
   const parts = [
-    event.requestId ? `Request ${event.requestId}` : "",
+    event.displayRequestId ? `Evidence ${event.displayRequestId}` : "",
     event.source || event.detail || "Evidence reference unavailable",
   ].filter(Boolean);
   return parts.join(" · ");
+}
+
+function auditReportEvent(event, provenance = {}) {
+  return {
+    auditId: event.displayAuditId || event.id,
+    occurredAt: event.createdAt || "unavailable",
+    actor: event.actor || "unavailable",
+    actorRole: event.actorRole || "unavailable",
+    action: eventDisplayLabel(event.action) || "Change Recorded",
+    status: displayLabel(event.status),
+    target: event.objectLabel || "unavailable",
+    targetType: event.entityType || "unavailable",
+    evidenceId: event.displayRequestId || event.displayAuditId || null,
+    evidence: evidenceReference(event),
+    detail: event.detail || "No detail recorded",
+    authoritative: Boolean(provenance.authoritative),
+    runtimeAuthoritative: Boolean(provenance.runtimeAuthoritative),
+    liveDatabricksEvidence: Boolean(provenance.liveDatabricksEvidence),
+    evidenceKind: provenance.evidenceKind || "unavailable",
+    evidenceSource: provenance.source || "unavailable",
+    evidenceBoundary: provenance.evidenceBoundary || "unavailable",
+  };
 }
 
 function AuditActionIcon({ name }) {
@@ -349,27 +482,41 @@ function ActorMark({ actor }) {
 }
 
 /**
- * @param {{ onOpenAsset?: (assetFqn: string, nextTab?: string) => void }} props
+ * @param {{ onOpenAsset?: (assetFqn: string, nextTab?: string) => void, shell?: Record<string, any> | null }} props
  */
-export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) {
+export default function AuditBrowserWorkspace({ onOpenAsset = undefined, shell = null } = {}) {
   const [selectedId, setSelectedId] = useState("");
   const [activeFilter, setActiveFilter] = useState("All events");
   const [dateRange, setDateRange] = useState("24h");
   const [dateMenuOpen, setDateMenuOpen] = useState(false);
   const [status, setStatus] = useState("");
 
+  const canReadAudit = auditRoleAllowed(shell);
   const query = useQuery({
-    queryKey: ["atlas", "audit-evidence", selectedId || "latest", dateRange, DEFAULT_LIMIT],
-    queryFn: ({ signal }) => fetchAuditEvidence({ auditId: selectedId, dateRange, limit: DEFAULT_LIMIT, signal }),
+    queryKey: ["atlas", "audit-evidence", dateRange, DEFAULT_LIMIT],
+    queryFn: ({ signal }) => fetchAuditEvidence({ dateRange, limit: DEFAULT_LIMIT, signal }),
+    enabled: canReadAudit,
     placeholderData: (previousData) => previousData,
+    refetchInterval: (currentQuery) => envelopeHydrating(currentQuery?.state?.data) ? 3_000 : false,
     retry: false,
     staleTime: 60_000,
   });
 
-  const payload = envelopeData(query.data) || {};
-  const meta = envelopeMeta(query.data);
+  const rawPayload = envelopeData(query.data) || {};
+  const rawMeta = envelopeMeta(query.data);
+  const nonAuthoritativeAuditPayload = isNonAuthoritativeMockEvidence(
+    query.data,
+    rawPayload,
+    rawPayload?.summary,
+    rawMeta,
+  );
+  const payload = nonAuthoritativeAuditPayload ? {} : rawPayload;
+  const meta = nonAuthoritativeAuditPayload ? {} : rawMeta;
   const events = useMemo(
-    () => (Array.isArray(payload.events) ? payload.events : []).map(normalizeEvent),
+    () => (Array.isArray(payload.events) ? payload.events : [])
+      .filter((event) => !isNonAuthoritativeAuditEvent(event))
+      .map(normalizeEvent)
+      .filter((event) => !isInternalMaintenanceEvent(event)),
     [payload.events],
   );
   const summary = payload.summary || {};
@@ -384,7 +531,7 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
 
   const pageRows = filteredEvents.slice(0, 8);
   const selectedInFiltered = selectedId ? filteredEvents.find((event) => event.id === selectedId) : null;
-  const selected = selectedInFiltered || null;
+  const selected = selectedInFiltered || filteredEvents.find((event) => event.entityFqn && event.requestId) || null;
 
   useEffect(() => {
     if (!filteredEvents.length) {
@@ -396,9 +543,9 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
     }
   }, [filteredEvents, selectedId]);
 
-  const loading = query.isLoading;
-  const queryError = query.error?.message || "";
-  const forbidden = responseStatus(query.error) === 403;
+  const loading = canReadAudit && query.isLoading;
+  const queryError = canReadAudit ? query.error?.message || "" : "Audit trail requires steward or admin permissions.";
+  const forbidden = !canReadAudit || responseStatus(query.error) === 403;
   const events24h = numberOrNull(summary.events24h ?? summary.totalChanges);
   const policyViolations = numberOrNull(summary.policyViolations ?? summary.failedActions);
   const accessReviews = numberOrNull(summary.accessReviewsOpen ?? summary.approvals);
@@ -411,11 +558,7 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
       payload.source ||
       meta?.source,
   );
-  const prototypeMockEvidence =
-    auditSource === "local-prototype-mock" ||
-    String(meta?.state || "").trim().toLowerCase() === "prototype_mock";
   const degradedEvidence =
-    !prototypeMockEvidence &&
     (
       meta?.authoritative === false ||
       meta?.degraded === true ||
@@ -423,30 +566,26 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
       (Array.isArray(meta?.warnings) && meta.warnings.length > 0)
     );
   const authoritativeEvidence =
-    !prototypeMockEvidence &&
     !degradedEvidence &&
     Boolean(auditSource) &&
     (meta?.authoritative === true || payload.authoritative === true || summary.authoritative === true);
-  const evidenceKind = prototypeMockEvidence
-    ? "prototype_mock"
-    : authoritativeEvidence ? "runtime_evidence" : (auditSource ? "degraded" : "unavailable");
+  const evidenceKind = authoritativeEvidence ? "runtime_evidence" : (auditSource ? "degraded" : "unavailable");
+  const deployedDatabricksAppEvidence = authoritativeEvidence && isDeployedDatabricksAppHost();
+  const closureAuthoritativeEvidence = authoritativeEvidence && deployedDatabricksAppEvidence;
+  const evidenceBoundary = deployedDatabricksAppEvidence ? "deployed-databricks-app" : "local-runtime";
   const auditEvidenceNote = text(
     summary.evidenceNote ||
       summary.auditEvidenceNote ||
       payload.evidenceNote ||
       payload.auditEvidenceNote,
     auditSource
-      ? prototypeMockEvidence
-        ? "Append-only Delta table governance_state.audit_log · 7-year retention · time-travel queries via VERSION AS OF. No raw row values are stored - only metadata + references."
-      : `Append-only Delta audit log ${auditSource} · time-travel evidence references only, no raw row values.`
+      ? `Append-only Delta audit log ${auditSource} · time-travel evidence references only, no raw row values.`
       : `Audit evidence source unavailable · ${dateRange} scope`,
   );
-  const retentionSupport = prototypeMockEvidence
-    ? text(summary.retentionNote || summary.retentionSource, "Delta · time-travel enabled")
-    : retentionYears == null
+  const retentionSupport = retentionYears == null
     ? "Retention policy not reported"
     : text(summary.retentionNote || summary.retentionSource, "Retention reported by audit API");
-  const eventSupport = prototypeMockEvidence ? text(summary.eventsDeltaText || summary.eventsSupport, "+312 vs prev") : text(
+  const eventSupport = text(
     summary.eventsDeltaText ||
       summary.eventsSupport ||
       summary.eventsSource ||
@@ -454,14 +593,14 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
       meta?.source,
     events24h == null ? "No scoped event summary reported; showing loaded rows" : "Event summary source unavailable",
   );
-  const policySupport = prototypeMockEvidence ? text(summary.policyViolationsDeltaText || summary.policyViolationsSupport, "-2 vs prev") : text(
+  const policySupport = text(
     summary.policyViolationsDeltaText ||
       summary.policyViolationsSupport ||
       summary.policySource ||
       summary.summarySource,
     "Policy summary unavailable unless reported by audit API",
   );
-  const accessSupport = prototypeMockEvidence ? text(summary.accessReviewsDeltaText || summary.accessReviewsSupport, "0 vs prev") : text(
+  const accessSupport = text(
     summary.accessReviewsDeltaText ||
       summary.accessReviewsSupport ||
       summary.accessReviewSource ||
@@ -470,10 +609,9 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
   );
   const auditSummaryUnavailable =
     events24h == null &&
-    events.length === 0 &&
     (degradedEvidence || meta?.degraded === true || payload?.degraded === true || summary?.degraded === true);
-  const scopedEventMetric = events24h ?? (auditSummaryUnavailable ? null : events.length);
-  const eventsMetricLabel = summary.events24h == null && !auditSummaryUnavailable ? "Events · loaded" : `Events · ${dateRange}`;
+  const scopedEventMetric = events24h ?? null;
+  const eventsMetricLabel = `Events · ${dateRange}`;
   const filters = [
     ["All events", events.length],
     ["By users", events.filter((event) => !/^svc-|bot|service/i.test(event.actor)).length],
@@ -481,6 +619,10 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
     ["Violations", events.filter((event) => /violation|failed|exception/i.test(`${event.action} ${event.status} ${event.detail}`)).length],
   ];
   const dateRanges = ["24h", "7d", "30d", "90d"];
+  const auditExportUnavailableReason = loading
+    ? "Audit export unavailable while audit rows are still loading."
+    : "Audit export unavailable because no audit rows match the current filter.";
+  const auditExportDisabled = loading || !filteredEvents.length;
   const selectDateRange = (nextRange) => {
     setDateRange(nextRange);
     setDateMenuOpen(false);
@@ -493,7 +635,13 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
     }
     const ok = downloadText(
       `governance-audit-${dateRange}.csv`,
-      auditCsv(filteredEvents, { authoritative: authoritativeEvidence, evidenceKind }),
+      auditCsv(filteredEvents, {
+        authoritative: closureAuthoritativeEvidence,
+        runtimeAuthoritative: authoritativeEvidence,
+        evidenceKind,
+        liveDatabricksEvidence: deployedDatabricksAppEvidence,
+        evidenceBoundary,
+      }),
       "text/csv;charset=utf-8",
     );
     setStatus(ok
@@ -509,30 +657,37 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
       generatedAt: new Date().toISOString(),
       dateRange,
       source: auditSource || "unavailable",
-      authoritative: authoritativeEvidence,
+      authoritative: closureAuthoritativeEvidence,
       evidenceKind,
-      prototypeMockEvidence,
+      databricksBackedRuntime: authoritativeEvidence,
+      runtimeAuthoritative: authoritativeEvidence,
+      liveDatabricksEvidence: deployedDatabricksAppEvidence,
+      closureEvidence: closureAuthoritativeEvidence,
+      evidenceBoundary,
+      warning: deployedDatabricksAppEvidence
+        ? ""
+        : "This report was generated from the local runtime boundary and is not deployed Databricks App closure evidence.",
       summary: {
         events: filteredEvents.length,
         policyViolations: policyViolations ?? null,
         accessReviewsOpen: accessReviews ?? null,
         retentionYears: retentionYears ?? null,
-        authoritative: authoritativeEvidence,
+        authoritative: closureAuthoritativeEvidence,
         evidenceKind,
-        source: prototypeMockEvidence
-          ? "prototype mock audit payload"
-          : auditSource || "unavailable",
-        liveDatabricksEvidence: authoritativeEvidence,
+        source: auditSource || "unavailable",
+        databricksBackedRuntime: authoritativeEvidence,
+        runtimeAuthoritative: authoritativeEvidence,
+        liveDatabricksEvidence: deployedDatabricksAppEvidence,
+        closureEvidence: closureAuthoritativeEvidence,
+        evidenceBoundary,
       },
-      events: filteredEvents.slice(0, 25).map((event) => ({
-        ...event,
-        source: evidenceReference(event, prototypeMockEvidence),
-        authoritative: authoritativeEvidence,
+      events: filteredEvents.slice(0, 25).map((event) => auditReportEvent(event, {
+        authoritative: closureAuthoritativeEvidence,
+        runtimeAuthoritative: authoritativeEvidence,
         evidenceKind,
-        evidenceSource: prototypeMockEvidence
-          ? "prototype mock audit payload"
-          : auditSource || "unavailable",
-        liveDatabricksEvidence: authoritativeEvidence,
+        source: auditSource || "unavailable",
+        liveDatabricksEvidence: deployedDatabricksAppEvidence,
+        evidenceBoundary,
       })),
     };
     const ok = downloadText(
@@ -551,18 +706,19 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
     }
     onOpenAsset(selected.entityFqn);
   };
-  const copySelectedRequest = async () => {
-    if (!selected?.requestId) {
-      setStatus("Request ID unavailable for this audit row.");
+  const copySelectedEvidenceId = async () => {
+    const evidenceId = selected?.displayRequestId || selected?.displayAuditId || "";
+    if (!evidenceId) {
+      setStatus("Evidence ID unavailable for this audit row.");
       return;
     }
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(selected.requestId);
+        await navigator.clipboard.writeText(evidenceId);
       }
-      setStatus(`Request ID ${selected.requestId} copied.`);
+      setStatus(`Evidence ID ${evidenceId} copied.`);
     } catch {
-      setStatus(`Request ID ${selected.requestId} selected for review.`);
+      setStatus(`Evidence ID ${evidenceId} selected for review.`);
     }
   };
 
@@ -575,9 +731,9 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
               <span className="gh-prototype-eyebrow">Audit Evidence</span>
               <h1>Immutable governance event log</h1>
 	              <p>
-	                {queryError && !prototypeMockEvidence
+	                {queryError
 	                  ? "Audit evidence is unavailable for this workspace. The evidence log structure remains visible so exports, filters, and retention state can fail closed."
-	                  : "Every governance action by humans or services is appended to a Delta audit log. Events are searchable, time-ordered, and exportable for SOC 2 / SOX evidence."}
+                  : "Governance Atlas records backed metadata workflow events in a searchable Delta audit log. Export and retention controls stay unavailable until the runtime reports those capabilities."}
 	              </p>
             </div>
             <div className="gh-audit-prototype-actions">
@@ -609,8 +765,23 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
                   </div>
                 ) : null}
               </div>
-              <button onClick={generateReport} type="button"><AuditActionIcon name="report" /><span>Generate report</span></button>
-              <button className="is-primary" onClick={exportCsv} type="button"><AuditActionIcon name="download" /><span>Export CSV</span></button>
+              <button
+                disabled={auditExportDisabled}
+                onClick={generateReport}
+                title={auditExportDisabled ? auditExportUnavailableReason : "Generate an audit evidence report for the current filtered rows."}
+                type="button"
+              >
+                <AuditActionIcon name="report" /><span>Generate report</span>
+              </button>
+              <button
+                className="is-primary"
+                disabled={auditExportDisabled}
+                onClick={exportCsv}
+                title={auditExportDisabled ? auditExportUnavailableReason : "Export the current filtered audit rows as CSV."}
+                type="button"
+              >
+                <AuditActionIcon name="download" /><span>Export CSV</span>
+              </button>
             </div>
           </header>
 
@@ -678,9 +849,8 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
                   <span><ActionBadge action={event.action} /><small>{event.detail || "No detail recorded"}</small></span>
                   <span className="gh-audit-object"><strong>{event.objectLabel}</strong></span>
                   <span className="gh-audit-source">
-                    <small title={evidenceReference(event, prototypeMockEvidence)}>
+                    <small title={evidenceReference(event)}>
                       <span>{auditEvidenceSummary(event)}</span>
-                      {prototypeMockEvidence ? <em>Prototype fixture</em> : null}
                     </small>
                     <button
                       aria-label={`Open evidence target for ${event.objectLabel}`}
@@ -717,8 +887,8 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
               <dl>
                 <div><dt>Actor</dt><dd>{selected.actor || "Unavailable"}</dd></div>
                 <div><dt>Target</dt><dd>{selected.objectLabel}</dd></div>
-                <div><dt>Evidence</dt><dd>{evidenceReference(selected, prototypeMockEvidence)}</dd></div>
-                <div><dt>Request ID</dt><dd>{selected.requestId ? (prototypeMockEvidence ? `Prototype ${selected.requestId}` : selected.requestId) : "Unavailable"}</dd></div>
+                <div><dt>Evidence</dt><dd>{evidenceReference(selected)}</dd></div>
+                <div><dt>Evidence ID</dt><dd>{selected.displayRequestId || selected.displayAuditId || "Unavailable"}</dd></div>
               </dl>
               {diffRows(selected.beforeJson, selected.afterJson).length ? (
                 <div className="gh-audit-diff-preview">
@@ -730,11 +900,21 @@ export default function AuditBrowserWorkspace({ onOpenAsset = undefined } = {}) 
                 <Unavailable>No before/after metadata diff was reported for this event.</Unavailable>
               )}
               <div className="gh-audit-selected-actions">
-                <button disabled={!selected.entityFqn || !onOpenAsset} onClick={openSelectedAsset} type="button">
+                <button
+                  disabled={!selected.entityFqn || !onOpenAsset}
+                  onClick={openSelectedAsset}
+                  title={!selected.entityFqn || !onOpenAsset ? "Open asset unavailable because this audit row has no backed asset route." : undefined}
+                  type="button"
+                >
                   Open asset
                 </button>
-                <button disabled={!selected.requestId} onClick={copySelectedRequest} type="button">
-                  Copy request ID
+                <button
+                  disabled={!selected.displayRequestId && !selected.displayAuditId}
+                  onClick={copySelectedEvidenceId}
+                  title={!selected.displayRequestId && !selected.displayAuditId ? "Evidence ID unavailable for this audit row." : undefined}
+                  type="button"
+                >
+                  Copy evidence ID
                 </button>
               </div>
             </aside>

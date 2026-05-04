@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 export function AtlasAiMark() {
   return (
     <svg aria-hidden="true" className="ga-ai-mark" viewBox="0 0 24 24" width="20" height="20" fill="none">
@@ -23,7 +25,7 @@ export function AtlasAiMark() {
 
 export function AtlasAiPanel({
   title = "Atlas AI",
-  groundingLine = "Grounded in available governance metadata - no raw rows read",
+  groundingLine = "Unavailable until an evidence-backed Atlas AI endpoint is configured",
   prompts = [],
   promptsDisabled = false,
   promptsDisabledTitle = "Atlas AI is working on the current question.",
@@ -33,6 +35,8 @@ export function AtlasAiPanel({
   onMoreSuggestions = undefined,
   footer = null,
 }) {
+  const [accuracyNoticeOpen, setAccuracyNoticeOpen] = useState(false);
+
   return (
     <section className="ga-atlas-ai-panel">
       <header>
@@ -80,13 +84,20 @@ export function AtlasAiPanel({
         <span>Atlas AI uses AI. Review for accuracy.</span>
         <button
           aria-label="Atlas AI accuracy notice"
+          aria-expanded={accuracyNoticeOpen}
           className="ga-ai-disclaimer-info"
-          title="Atlas AI answers are grounded in available governance metadata and should be reviewed for accuracy."
+          onClick={() => setAccuracyNoticeOpen((open) => !open)}
+          title="Atlas AI output must be reviewed against returned evidence before action."
           type="button"
         >
           i
         </button>
       </p>
+      {accuracyNoticeOpen ? (
+        <p className="ga-ai-accuracy-notice" role="status">
+          Atlas AI answers must be reviewed against returned evidence before action.
+        </p>
+      ) : null}
     </section>
   );
 }

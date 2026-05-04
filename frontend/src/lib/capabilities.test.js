@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { runtimeFeatureFlagAvailable, tableLineageAvailable } from "./capabilities";
+import {
+  runtimeFeatureFlagAvailable,
+  systemInventoryAvailable,
+  tableLineageAvailable,
+} from "./capabilities";
 
 describe("capability helpers", () => {
   it("does not treat unknown lineage capability state as openable", () => {
@@ -27,6 +31,19 @@ describe("capability helpers", () => {
         ],
         "table_lineage_surface",
       ),
+    ).toBe(false);
+  });
+
+  it("does not treat prototype system-inventory capability as available", () => {
+    expect(
+      systemInventoryAvailable({
+        capabilities: {
+          systemInventoryRead: {
+            available: true,
+            state: "prototype_mock",
+          },
+        },
+      }),
     ).toBe(false);
   });
 });

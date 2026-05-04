@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   fetchAdminControlCenter,
+  fetchAtlasAiRecommendations,
+  fetchAssetDetail,
   fetchCdeDashboard,
   fetchCdeDetail,
+  fetchClassificationRecommendations,
   fetchAuditEvidence,
+  fetchGovernanceAuditTimeline,
   fetchInsightsDashboard,
   fetchRuntimeStatus,
   fetchTaxonomyOverview,
@@ -11,6 +15,16 @@ import {
   getAssetMetadataApiContract,
   normalizeGovernancePayload,
 } from "./api";
+
+function stubJsonResponse(payload) {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    headers: new Headers({ "content-type": "application/json" }),
+    json: async () => payload,
+    text: async () => JSON.stringify(payload),
+  }));
+}
 
 describe("asset metadata API contract", () => {
   afterEach(() => {
@@ -47,9 +61,40 @@ describe("asset metadata API contract", () => {
       updatePath: "/api/assets/main.sales.orders/metadata",
     });
   });
+
+  it("keeps backed asset detail while filtering non-authoritative nested audit rows", async () => {
+    stubJsonResponse({
+      fqn: "datapact.enterprise_metadata_ops.risk_data_quality_review",
+      name: "risk_data_quality_review",
+      objectType: "View",
+      source: "unity-catalog-inventory",
+      authoritative: true,
+      metadataAudit: [
+        { id: "GOV-HOME-EVIDENCE-audit-02", source: "home-evidence-plane" },
+        { id: "audit-live-01", source: "store" },
+      ],
+      activity: [
+        { id: "GOV-HOME-EVIDENCE-request-05", title: "Seed request" },
+        { id: "activity-live-01", title: "Backed request", source: "governance-store" },
+      ],
+    });
+
+    await expect(fetchAssetDetail("datapact.enterprise_metadata_ops.risk_data_quality_review")).resolves.toEqual(
+      expect.objectContaining({
+        fqn: "datapact.enterprise_metadata_ops.risk_data_quality_review",
+        metadataAudit: [{ id: "audit-live-01", source: "store" }],
+        activity: [{ id: "activity-live-01", title: "Backed request", source: "governance-store" }],
+      }),
+    );
+  });
 });
 
 describe("governance API normalization", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it("preserves stewardship badge counts from the governance inbox payload", () => {
     expect(
       normalizeGovernancePayload({
@@ -66,6 +111,139 @@ describe("governance API normalization", () => {
       unreadCount: 2,
       stewardshipCount: 184,
       items: [],
+    });
+  });
+
+  it("rejects non-authoritative classification recommendations before they reach governance surfaces", async () => {
+    stubJsonResponse({
+      recommendations: [{
+        recommendationId: "rec-1",
+        assetFqn: "main.sales.orders",
+        evidenceKind: "non_authoritative_mock_capture",
+        evidence: [{ source: "local-prototype-mock" }],
+        sampleValues: ["123-45-6789"],
+      }],
+      count: 1,
+      pendingCount: 1,
+    });
+
+    await expect(fetchClassificationRecommendations()).resolves.toEqual({
+      recommendations: [],
+      count: 0,
+      pendingCount: 0,
+      nonAuthoritative: true,
+    });
+  });
+
+  it("rejects classification recommendation payloads marked explicitly non-authoritative", async () => {
+    stubJsonResponse({
+      nonAuthoritative: true,
+      recommendations: [{
+        recommendationId: "rec-1",
+        assetFqn: "main.sales.orders",
+        sampleValues: ["123-45-6789"],
+      }],
+      count: 1,
+      pendingCount: 1,
+    });
+
+    await expect(fetchClassificationRecommendations()).resolves.toEqual({
+      recommendations: [],
+      count: 0,
+      pendingCount: 0,
+      nonAuthoritative: true,
+    });
+  });
+
+  it("rejects non-authoritative governance audit timeline entries before drawer rendering", async () => {
+    stubJsonResponse({
+      fqn: "main.sales.orders",
+      entries: [{
+        action: "grant",
+        actor: "reviewer@example.com",
+        evidenceKind: "non_authoritative_mock_capture",
+      }],
+      total: 1,
+    });
+
+    await expect(fetchGovernanceAuditTimeline("main.sales.orders")).resolves.toEqual({
+      fqn: "main.sales.orders",
+      entries: [],
+      total: 0,
+      nonAuthoritative: true,
+    });
+  });
+
+  it("rejects governance audit timelines marked explicitly non-authoritative", async () => {
+    stubJsonResponse({
+      fqn: "main.sales.orders",
+      nonAuthoritative: true,
+      entries: [{
+        action: "grant",
+        actor: "reviewer@example.com",
+      }],
+      total: 1,
+    });
+
+    await expect(fetchGovernanceAuditTimeline("main.sales.orders")).resolves.toEqual({
+      fqn: "main.sales.orders",
+      entries: [],
+      total: 0,
+      nonAuthoritative: true,
+    });
+  });
+
+  it("returns an unavailable Atlas AI recommendation response for non-authoritative providers", async () => {
+    stubJsonResponse({
+      provider: "local-prototype-mock",
+      recommendations: [{
+        title: "Fake recommendation",
+        detail: "Do not render.",
+      }],
+    });
+
+    await expect(fetchAtlasAiRecommendations("recommend assets")).resolves.toEqual({
+      recommendations: [],
+      authoritative: false,
+      nonAuthoritative: true,
+      warning: "Atlas AI recommendations unavailable until live evidence-backed provider returns results.",
+    });
+  });
+
+  it("returns an unavailable Atlas AI recommendation response for explicitly non-authoritative payloads", async () => {
+    stubJsonResponse({
+      nonAuthoritative: true,
+      recommendations: [{
+        title: "Unbacked recommendation",
+        detail: "Do not render.",
+      }],
+    });
+
+    await expect(fetchAtlasAiRecommendations("recommend assets")).resolves.toEqual({
+      recommendations: [],
+      authoritative: false,
+      nonAuthoritative: true,
+      warning: "Atlas AI recommendations unavailable until live evidence-backed provider returns results.",
+    });
+  });
+
+  it("rejects populated Atlas AI recommendations from authoritative-false degraded live envelopes", async () => {
+    stubJsonResponse({
+      authoritative: false,
+      state: "degraded",
+      source: "databricks-genie",
+      recommendations: [{
+        title: "Genie text without evidence",
+        detail: "Do not render.",
+      }],
+      evidence: [],
+    });
+
+    await expect(fetchAtlasAiRecommendations("recommend assets")).resolves.toEqual({
+      recommendations: [],
+      authoritative: false,
+      nonAuthoritative: true,
+      warning: "Atlas AI recommendations unavailable until live evidence-backed provider returns results.",
     });
   });
 });

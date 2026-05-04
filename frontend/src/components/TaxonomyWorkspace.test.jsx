@@ -2,9 +2,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import TaxonomyWorkspace from "./TaxonomyWorkspace";
-import { fetchTaxonomyOverview } from "../lib/api";
+import { fetchCdeDashboard, fetchTaxonomyOverview } from "../lib/api";
 
 vi.mock("../lib/api", () => ({
+  fetchCdeDashboard: vi.fn(),
   fetchTaxonomyOverview: vi.fn(),
 }));
 
@@ -114,11 +115,13 @@ const taxonomyPayload = {
 describe("TaxonomyWorkspace", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/glossary-cdes");
+    fetchCdeDashboard.mockReset();
+    fetchCdeDashboard.mockResolvedValue({ data: { items: [] }, meta: { state: "available" } });
     fetchTaxonomyOverview.mockReset();
     fetchTaxonomyOverview.mockResolvedValue(taxonomyPayload);
   });
 
-  it("renders the prototype Glossary & CDE Registry glossary cards", () => {
+  it("renders the Glossary & CDE Registry glossary cards", () => {
     renderTaxonomy(taxonomyPayload);
 
     expect(screen.getByText("Glossary & CDE Registry")).toBeDefined();
@@ -143,12 +146,12 @@ describe("TaxonomyWorkspace", () => {
     expect(within(table).getByText("Net Revenue (USD)")).toBeDefined();
     expect(within(table).getByText("finance_prod.curated.revenue_daily.net_revenue_usd")).toBeDefined();
     expect(within(table).getByText("Finance Stewards")).toBeDefined();
-    expect(within(table).getByText("Fixture Recert Due (8d)")).toBeDefined();
+    expect(within(table).getByText("Recert Due (8d)")).toBeDefined();
     expect(within(table).getByText("SOX")).toBeDefined();
-    expect(screen.getByText("Status and recertification are prototype registry fixtures - not live Unity Catalog, quality test-run, or recertification workflow proof.")).toBeDefined();
+    expect(screen.getByText("Status and recertification are registry metadata values. Quality test-run or recertification workflow proof appears only when backed evidence is returned.")).toBeDefined();
   });
 
-  it("keeps CDE registry rows in prototype priority order without extra first-viewport controls", () => {
+  it("keeps CDE registry rows in priority order without extra first-viewport controls", () => {
     renderTaxonomy(taxonomyPayload);
 
     fireEvent.click(screen.getByRole("tab", { name: "CDE Registry 3" }));
@@ -164,13 +167,16 @@ describe("TaxonomyWorkspace", () => {
     expect(screen.queryByLabelText("Sort CDE registry")).toBeNull();
   });
 
-  it("wires prototype actions to backed route callbacks or local draft status", () => {
+  it("wires registry actions to backed route callbacks and disables unavailable workflow mutations", () => {
     const onOpenAsset = vi.fn();
     const onOpenLineage = vi.fn();
     renderTaxonomy(taxonomyPayload, { onOpenAsset, onOpenLineage });
 
-    fireEvent.click(screen.getByRole("button", { name: "+ New term" }));
-    expect(screen.getByText("New term request is unavailable until a backed glossary workflow is configured.")).toBeDefined();
+    const newTerm = screen.getByRole("button", { name: "+ New term" });
+    expect(newTerm.disabled).toBe(false);
+    expect(newTerm.getAttribute("title")).toBe("Show New term unavailable reason");
+    fireEvent.click(newTerm);
+    expect(screen.getByText("New term request is unavailable until a backed glossary workflow is configured; no local draft was created.")).toBeDefined();
 
     fireEvent.click(screen.getByRole("button", { name: "4 assets" }));
     const detail = screen.getByRole("complementary", { name: "Net Revenue detail" });
@@ -207,8 +213,9 @@ describe("TaxonomyWorkspace", () => {
     expect(onOpenLineage).toHaveBeenCalledWith("finance_prod.curated.revenue_daily", "Data Lineage");
     fireEvent.click(within(detail).getByRole("button", { name: "Browse all associations" }));
     expect(within(detail).getByRole("heading", { name: "Associated assets" })).toBeDefined();
-    fireEvent.click(within(detail).getByRole("button", { name: "Show reviewer workflow note" }));
-    expect(screen.getByText("Net Revenue reviewer workflow is unavailable on this route; no glossary mutation was submitted.")).toBeDefined();
+    const reviewerWorkflow = within(detail).getByRole("button", { name: "Reviewer workflow unavailable" });
+    expect(reviewerWorkflow.disabled).toBe(true);
+    expect(reviewerWorkflow.getAttribute("title")).toMatch(/backed glossary task workflow/);
     fireEvent.click(within(detail).getByRole("button", { name: "Close Net Revenue detail" }));
     expect(screen.queryByRole("complementary", { name: "Net Revenue detail" })).toBeNull();
   });
@@ -254,25 +261,32 @@ describe("TaxonomyWorkspace", () => {
     renderTaxonomy(taxonomyPayload, { onOpenAsset, onOpenLineage });
 
     fireEvent.click(screen.getByRole("tab", { name: "CDE Registry 3" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ New term" }));
-    expect(screen.getByText("New CDE request is unavailable until a backed CDE registry workflow is configured.")).toBeDefined();
+    const newCde = screen.getByRole("button", { name: "+ New term" });
+    expect(newCde.disabled).toBe(false);
+    expect(newCde.getAttribute("title")).toBe("Show New CDE unavailable reason");
+    fireEvent.click(newCde);
+    expect(screen.getByText("New CDE request is unavailable until a backed CDE registry workflow is configured; no local draft was created.")).toBeDefined();
     const table = screen.getByRole("table", { name: "CDE registry table" });
     fireEvent.click(within(table).getByText("Net Revenue (USD)").closest("[role='row']"));
 
     const detail = screen.getByRole("complementary", { name: "Net Revenue (USD) detail" });
     expect(within(detail).getByRole("heading", { name: "Source-of-record column" })).toBeDefined();
     expect(within(detail).getByText("finance_prod.curated.revenue_daily.net_revenue_usd")).toBeDefined();
-    expect(within(detail).getByText("Prototype fixture - not live quality, recertification, or Unity Catalog proof.")).toBeDefined();
+    expect(within(detail).getByText("Quality, recertification, and Unity Catalog proof require returned backing evidence.")).toBeDefined();
 
     fireEvent.click(within(detail).getByRole("button", { name: "Open source asset" }));
     expect(onOpenAsset).toHaveBeenCalledWith("finance_prod.curated.revenue_daily", "Overview");
     fireEvent.click(within(detail).getByRole("button", { name: "Open lineage" }));
     expect(onOpenLineage).toHaveBeenCalledWith("finance_prod.curated.revenue_daily", "Data Lineage");
-    expect(within(detail).getByRole("button", { name: "Request recertification unavailable" }).disabled).toBe(true);
-    fireEvent.click(within(detail).getByRole("button", { name: "Show owner workflow note" }));
-    expect(screen.getByText("Net Revenue (USD) owner workflow is unavailable on this route; no CDE owner mutation was submitted.")).toBeDefined();
-    fireEvent.click(within(detail).getByRole("button", { name: "Show recertification note" }));
-    expect(screen.getByText("Net Revenue (USD) recertification workflow is unavailable on this route; no CDE mutation was submitted.")).toBeDefined();
+    const recertRequest = within(detail).getByRole("button", { name: /Request recertification unavailable/i });
+    expect(recertRequest.disabled).toBe(true);
+    expect(recertRequest.getAttribute("title")).toMatch(/not backed/);
+    const ownerWorkflow = within(detail).getByRole("button", { name: /Owner workflow unavailable/i });
+    expect(ownerWorkflow.disabled).toBe(true);
+    expect(ownerWorkflow.getAttribute("title")).toMatch(/backed CDE registry mutation workflow/);
+    const recertWorkflow = within(detail).getByRole("button", { name: /Recertification evidence unavailable/i });
+    expect(recertWorkflow.disabled).toBe(true);
+    expect(recertWorkflow.getAttribute("title")).toMatch(/backed CDE registry mutation workflow/);
     fireEvent.click(within(detail).getByRole("button", { name: "Close Net Revenue (USD) detail" }));
     expect(screen.queryByRole("complementary", { name: "Net Revenue (USD) detail" })).toBeNull();
   });
@@ -293,5 +307,35 @@ describe("TaxonomyWorkspace", () => {
     expect(screen.getAllByText("CDE evidence unavailable")).toHaveLength(5);
     expect(screen.getAllByTitle("Recertification workflow evidence unavailable").length).toBeGreaterThan(0);
     expect(screen.getAllByTitle("Quality/test-run evidence unavailable").length).toBeGreaterThan(0);
+  });
+
+  it("rejects non-authoritative taxonomy and CDE payload rows", async () => {
+    fetchCdeDashboard.mockResolvedValue({
+      data: {
+        items: [
+          {
+            id: "flagged-cde",
+            name: "Flagged CDE",
+            column: "main.sales.orders.flagged",
+          },
+        ],
+      },
+      meta: { evidenceKind: "non_authoritative_mock_capture" },
+    });
+
+    renderTaxonomy({
+      ...taxonomyPayload,
+      meta: {
+        source: "prototype-mock",
+        warnings: ["not live Databricks evidence"],
+      },
+    });
+
+    expect(screen.getByText("Non-authoritative glossary and taxonomy payload rejected.")).toBeDefined();
+    expect(screen.queryByText("Net Revenue")).toBeNull();
+    expect(screen.getAllByText("Glossary term unavailable")).toHaveLength(4);
+    fireEvent.click(screen.getByRole("tab", { name: "CDE Registry 0" }));
+    expect(screen.queryByText("Flagged CDE")).toBeNull();
+    expect(screen.getAllByText("CDE evidence unavailable")).toHaveLength(5);
   });
 });

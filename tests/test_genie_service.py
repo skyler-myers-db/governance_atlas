@@ -36,6 +36,13 @@ class GenieServiceTests(unittest.TestCase):
         data.update(overrides)
         return AppConfig(**data)
 
+    def test_provider_status_without_genie_is_unavailable_not_local_evidence(self) -> None:
+        status = genie.provider_status(self._config(atlas_ai_provider="local"))
+
+        self.assertEqual(status["provider"], "unavailable")
+        self.assertEqual(status["state"], "unavailable")
+        self.assertIn("configured Databricks Genie space", status["message"])
+
     def test_provider_status_requires_space_id_for_genie(self) -> None:
         status = genie.provider_status(self._config(atlas_ai_provider="genie"))
 

@@ -241,6 +241,13 @@ class UCSQLClient:
                 product="atlas",
                 product_version="atlas-runtime",
             )
+            if not self._client_context.get("host"):
+                sdk_host = str(
+                    getattr(getattr(client, "config", None), "host", "") or ""
+                ).strip()
+                if sdk_host:
+                    self._client_context["host"] = sdk_host.rstrip("/")
+                    self._client_context["hostPresent"] = True
             if self._client_context["authMode"] == "default":
                 self._client_context["authMode"] = "default"
             return client

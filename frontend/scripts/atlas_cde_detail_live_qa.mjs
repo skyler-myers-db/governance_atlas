@@ -173,7 +173,9 @@ async function main() {
         ownership: /Ownership/i.test(detailText),
         reviewerWorkflow: /Reviewer workflow/i.test(detailText),
         associationSource: /Association source/i.test(detailText),
-        prototypeBoundary: /Prototype fixture|not live quality|not live Unity Catalog/i.test(detailText) || /prototype registry fixtures/i.test(document.body?.innerText || ""),
+        backingEvidenceBoundary:
+          /returned backing evidence|Quality, recertification, and Unity Catalog proof require returned backing evidence/i.test(detailText) ||
+          /Status and recertification are registry metadata values/i.test(document.body?.innerText || ""),
       };
       if (Object.values(checks).some((value) => value === false)) {
         throw new Error(`CDE detail screenshot failed checks: ${JSON.stringify(checks)}`);

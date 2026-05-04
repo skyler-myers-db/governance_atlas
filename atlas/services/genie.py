@@ -38,9 +38,9 @@ def provider_status(config: AppConfig) -> Dict[str, Any]:
     space_title = normalize_str(_cfg(config, "genie_space_title")) or "Governance Atlas Metadata Room"
     if provider != "genie":
         return GenieProviderStatus(
-            state="degraded",
-            provider="local",
-            message="Atlas AI is using the local evidence engine until a Genie space is configured.",
+            state="unavailable",
+            provider="unavailable",
+            message="Atlas AI recommendations require a configured Databricks Genie space.",
             space_title=space_title,
         ).as_dict()
     if not space_id:

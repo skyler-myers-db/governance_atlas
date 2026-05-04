@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchDiscoverySearch } from "../lib/api";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 
 const DISCOVERY_DEFAULT_FETCH_LIMIT = 80;
 const DISCOVERY_MAX_FETCH_LIMIT = 200;
@@ -21,6 +22,7 @@ function scopeKey(filters = {}) {
 
 function payloadAuthoritative(payload) {
   if (!payload || typeof payload !== "object") return false;
+  if (isNonAuthoritativeMockEvidence(payload, payload.meta, payload.queryState, payload.warnings)) return false;
   const meta = payload.meta && typeof payload.meta === "object" ? payload.meta : {};
   const state = String(meta.state || meta.discoveryState || payload.state || "").trim().toLowerCase();
   const source = String(meta.source || payload.source || "").trim().toLowerCase();
@@ -28,6 +30,18 @@ function payloadAuthoritative(payload) {
   if (typeof payload.authoritative === "boolean") return payload.authoritative;
   if (typeof meta.authoritative === "boolean") return meta.authoritative;
   return ["authoritative", "live"].includes(state);
+}
+
+function payloadPrototypeMock(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  return isNonAuthoritativeMockEvidence(payload, payload.meta, payload.queryState, payload.warnings);
+}
+
+function discoveryRefetchInterval(query) {
+  const payload = query?.state?.data;
+  const meta = payload?.meta && typeof payload.meta === "object" ? payload.meta : {};
+  const state = String(meta.state || meta.discoveryState || payload?.queryState?.state || "").trim().toLowerCase();
+  return state === "loading" || meta.inventoryHydrating === true ? 3_000 : false;
 }
 
 export function useDiscoveryResults(filters, options = {}) {
@@ -131,14 +145,16 @@ export function useDiscoveryResults(filters, options = {}) {
         if (pendingRefresh) setPendingRefresh(false);
       }),
     placeholderData,
+    refetchInterval: options?.refetchInterval ?? discoveryRefetchInterval,
   });
   const refreshActorScope = useCallback(() => {
     setPendingRefresh(true);
     queryClient.invalidateQueries({ queryKey: ["discoveryResults"] });
   }, [queryClient]);
   const usingPlaceholder = query.isPlaceholderData === true;
-  const assets = query.data?.assets || seededFallback.assets;
-  const count = typeof query.data?.count === "number" ? query.data.count : seededFallback.count;
+  const currentPayloadPrototypeMock = query.isSuccess && !usingPlaceholder && payloadPrototypeMock(query.data);
+  const assets = currentPayloadPrototypeMock ? [] : query.data?.assets || seededFallback.assets;
+  const count = currentPayloadPrototypeMock ? 0 : typeof query.data?.count === "number" ? query.data.count : seededFallback.count;
   /** @type {{ status?: number, payload?: { invalidQuery?: { state?: string, message?: string, syntaxHint?: string, supportedFields?: string[] } } } | null} */
   const discoveryError =
     query.error && typeof query.error === "object"
@@ -149,7 +165,15 @@ export function useDiscoveryResults(filters, options = {}) {
       ? discoveryError.payload.invalidQuery
       : null;
 
-  const currentPayloadAuthoritative = payloadAuthoritative(query.data);
+  const currentPayloadAuthoritative = !currentPayloadPrototypeMock && payloadAuthoritative(query.data);
+  const currentMeta = query.data?.meta && typeof query.data.meta === "object" ? query.data.meta : null;
+  const currentMetaState = String(
+    currentMeta?.state ||
+      currentMeta?.discoveryState ||
+      query.data?.queryState?.state ||
+      "",
+  ).trim().toLowerCase();
+  const inventoryHydrating = currentMetaState === "loading" || currentMeta?.inventoryHydrating === true;
 
   useEffect(() => {
     if (query.isSuccess && !usingPlaceholder && currentPayloadAuthoritative) {
@@ -161,22 +185,20 @@ export function useDiscoveryResults(filters, options = {}) {
   }, [currentPayloadAuthoritative, currentScopeKey, query.data, query.isSuccess, seededFallback, usingPlaceholder]);
 
   return {
-    loading: query.isPending || (query.isFetching && usingPlaceholder),
+    loading: query.isPending || (query.isFetching && usingPlaceholder) || inventoryHydrating,
     error:
       query.isError && !invalidQuery
         ? query.error?.message || "Failed to search metadata assets."
         : "",
     assets,
     count,
-    facets: query.data?.facets || seededFallback.facets,
-    queryState: invalidQuery || query.data?.queryState || null,
+    facets: currentPayloadPrototypeMock ? null : query.data?.facets || seededFallback.facets,
+    queryState: invalidQuery || (currentPayloadPrototypeMock ? { state: "unavailable", message: "Non-authoritative discovery payload rejected." } : query.data?.queryState) || null,
     // Expose the envelope `meta` block so downstream surfaces (diagnostics
     // strip for A1.4) can read the fine-grained discoveryState vocabulary
     // and observedAt timestamp without refetching.
     meta:
-      query.data?.meta && typeof query.data.meta === "object"
-        ? query.data.meta
-        : null,
+      currentMeta,
     oboScopeFallback: Boolean(query.data?.meta?.oboScopeFallback),
     oboFallbackReason: query.data?.meta?.oboFallbackReason || "",
     refreshActorScope,
@@ -184,7 +206,7 @@ export function useDiscoveryResults(filters, options = {}) {
     requestKey: currentScopeKey,
     fetching: query.isFetching,
     fetchLimit: safeLimit,
-    settled: query.isError || (query.isSuccess && !usingPlaceholder),
+    settled: query.isError || (query.isSuccess && !usingPlaceholder && !inventoryHydrating),
     authoritative: query.isSuccess && !usingPlaceholder && currentPayloadAuthoritative,
   };
 }

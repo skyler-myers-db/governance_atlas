@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -15,18 +16,65 @@ from atlas.api.response import (
 from atlas.services import capabilities as capability_service
 from atlas.services import lineage as lineage_service
 
+_LINEAGE_FULL_WARMING: set[str] = set()
+_LINEAGE_FULL_WARMING_LOCK = threading.Lock()
+
 
 def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
     from runtime_app import (
         _asset_visibility_record,
         _ensure_live_runtime,
         _lineage_payload,
+        _request_cache_scope,
+        _store_for_read,
+        _uc,
+        _uc_for_request,
     )
 
     _ensure_live_runtime()
     actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
+    try:
+        requested_profile = str(request.query_params.get("profile") or "full")
+    except Exception:
+        requested_profile = "full"
+    try:
+        refresh_requested = str(request.query_params.get("refresh") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+    except Exception:
+        refresh_requested = False
+    profile_name = lineage_service._lineage_profile(requested_profile)
+    if refresh_requested:
+        lineage_service.invalidate_lineage_caches(asset_fqn)
+    if profile_name == lineage_service.LINEAGE_PROFILE_INITIAL:
+        payload = _lineage_payload(asset_fqn, request=request)
+        return _cacheable_json_response(
+            _with_meta(
+                payload,
+                request,
+                source="unity-catalog-lineage",
+                state="loading",
+                authoritative=False,
+                entity_fqn=asset_fqn,
+                entity_id=asset_fqn,
+                capabilities={
+                    "visibilityState": "unverified",
+                    "visibilityScope": "initial-route-shell",
+                    "lineageProfile": payload.get("profile") or "initial",
+                    "progressive": (payload.get("stats") or {}).get("progressive") or {},
+                },
+                warnings=[
+                    "Initial lineage shell does not verify asset visibility; backed detail and full lineage requests remain permission-gated."
+                ],
+            ),
+            request,
+            max_age=30,
+            stale_while_revalidate=120,
+        )
     visibility = _asset_visibility_record(asset_fqn, request)
-    if not visibility.get("openable"):
+    if not visibility.get("openable") and visibility.get("visibilityState") != "loading":
         if visibility.get("visibilityState") == "hidden":
             return _error_response(
                 request,
@@ -64,7 +112,176 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
                 "visibilityState": visibility.get("visibilityState") or "missing"
             },
         )
-    payload = _lineage_payload(asset_fqn, request=request)
+    request_uc = _uc_for_request(request)
+    cache_scope = _request_cache_scope(request)
+    system_uc = request_uc if actor_scoped else _uc()
+
+    def loading_lineage_response(reason: str) -> JSONResponse:
+        initial_payload = lineage_service.lineage_payload(
+            request_uc,
+            None,
+            asset_fqn,
+            cache_scope=cache_scope,
+            system_uc=system_uc,
+            profile=lineage_service.LINEAGE_PROFILE_INITIAL,
+        )
+        return _cacheable_json_response(
+            _with_meta(
+                initial_payload,
+                request,
+                source="unity-catalog-lineage",
+                state="loading",
+                authoritative=False,
+                entity_fqn=asset_fqn,
+                entity_id=asset_fqn,
+                capabilities={
+                    "visibilityState": visibility.get("visibilityState") or "loading",
+                    "visibilityScope": "full-lineage-hydrating",
+                    "lineageProfile": initial_payload.get("profile") or "initial",
+                    "requestedLineageProfile": "full",
+                    "hydrating": True,
+                    "progressive": (initial_payload.get("stats") or {}).get("progressive") or {},
+                },
+                warnings=[reason],
+            ),
+            request,
+            max_age=5,
+            stale_while_revalidate=30,
+        )
+
+    cached_full = lineage_service.cached_lineage_payload(
+        request_uc,
+        asset_fqn,
+        cache_scope=cache_scope,
+        profile=lineage_service.LINEAGE_PROFILE_FULL,
+    )
+    if cached_full is None:
+        warm_key = lineage_service.lineage_cache_key(
+            request_uc,
+            asset_fqn,
+            cache_scope=cache_scope,
+            profile=lineage_service.LINEAGE_PROFILE_FULL,
+        )
+        with _LINEAGE_FULL_WARMING_LOCK:
+            should_warm = warm_key not in _LINEAGE_FULL_WARMING
+            if should_warm:
+                _LINEAGE_FULL_WARMING.add(warm_key)
+
+        if should_warm:
+            store = _store_for_read()
+
+            def warm_full_lineage() -> None:
+                try:
+                    try:
+                        lineage_service.lineage_payload(
+                            request_uc,
+                            store,
+                            asset_fqn,
+                            cache_scope=cache_scope,
+                            system_uc=system_uc,
+                            profile=lineage_service.LINEAGE_PROFILE_FULL,
+                        )
+                    except Exception:
+                        pass
+                finally:
+                    with _LINEAGE_FULL_WARMING_LOCK:
+                        _LINEAGE_FULL_WARMING.discard(warm_key)
+
+            threading.Thread(
+                target=warm_full_lineage,
+                name=f"atlas-lineage-full-warm-{asset_fqn}",
+                daemon=True,
+            ).start()
+
+        if visibility.get("visibilityState") == "loading":
+            return loading_lineage_response(
+                visibility.get("reason")
+                or "Lineage is hydrating after actor-visible inventory starts."
+            )
+        if visibility.get("openable"):
+            return loading_lineage_response(
+                "Full lineage topology is hydrating from Unity Catalog system lineage tables."
+            )
+
+    if not visibility.get("openable"):
+        if visibility.get("visibilityState") == "loading":
+            if cached_full is not None and (
+                len(((cached_full.get("graphs") or {}).get("data") or {}).get("nodes") or [])
+                > 1
+                or len(((cached_full.get("graphs") or {}).get("operational") or {}).get("nodes") or [])
+                > 1
+            ):
+                payload = cached_full
+                return _cacheable_json_response(
+                    _with_meta(
+                        payload,
+                        request,
+                        source="unity-catalog-lineage",
+                        state="degraded",
+                        authoritative=False,
+                        entity_fqn=asset_fqn,
+                        entity_id=asset_fqn,
+                        capabilities={
+                            "visibilityState": "loading",
+                            "includesOperationalContext": bool(
+                                (payload.get("graphs") or {}).get("operational")
+                            ),
+                            "visibilityScope": "workspace-app-principal-cached-topology",
+                            "lineageProfile": payload.get("profile") or "full",
+                            "progressive": (payload.get("stats") or {}).get("progressive") or {},
+                        },
+                        warnings=[
+                            visibility.get("reason")
+                            or "Actor-visible inventory is still hydrating; showing cached workspace-scoped lineage topology.",
+                            "Lineage is shown from workspace-scoped app-principal reads; per-user authorization is not available.",
+                        ],
+                    ),
+                    request,
+                    max_age=30,
+                    stale_while_revalidate=120,
+                )
+            return loading_lineage_response(
+                visibility.get("reason")
+                or "Lineage is hydrating while actor-visible inventory catches up."
+            )
+        if visibility.get("visibilityState") == "hidden":
+            return _error_response(
+                request,
+                status_code=404,
+                source="unity-catalog-lineage",
+                detail="Asset exists but is not visible in the current workspace scope.",
+                entity_fqn=asset_fqn,
+                entity_id=asset_fqn,
+                capabilities={"visibilityState": "hidden"},
+            )
+        if visibility.get("visibilityState") == "unknown":
+            detail = (
+                visibility.get("reason")
+                or "Asset visibility could not be verified in the current workspace scope."
+            )
+            return _error_response(
+                request,
+                status_code=503,
+                source="unity-catalog-lineage",
+                detail=detail,
+                state="unknown",
+                entity_fqn=asset_fqn,
+                entity_id=asset_fqn,
+                capabilities={"visibilityState": "unknown"},
+                warnings=[detail],
+            )
+        return _error_response(
+            request,
+            status_code=404,
+            source="unity-catalog-lineage",
+            detail="Asset not found.",
+            entity_fqn=asset_fqn,
+            entity_id=asset_fqn,
+            capabilities={
+                "visibilityState": visibility.get("visibilityState") or "missing"
+            },
+        )
+    payload = cached_full or _lineage_payload(asset_fqn, request=request)
     return _cacheable_json_response(
         _with_meta(
             payload,

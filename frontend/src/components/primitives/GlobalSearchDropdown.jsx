@@ -37,6 +37,12 @@ export function GlobalSearchDropdown({
 
       {error ? <div className="gh-search-empty">{error}</div> : null}
       {!error && notice ? <div className="gh-search-empty">{notice}</div> : null}
+      {!error && loading ? (
+        <div className="gh-search-state-row is-loading" role="status">
+          <span aria-hidden="true" className="gh-search-loading-indicator" />
+          <span>Searching the current catalog scope...</span>
+        </div>
+      ) : null}
 
       {!error && assets.length ? (
         <div className="gh-search-results">
@@ -65,7 +71,7 @@ export function GlobalSearchDropdown({
       ) : null}
 
       {!error && !loading && trimmedQuery && !assets.length ? (
-        <div className="gh-search-empty">
+        <div className="gh-search-empty" role="status">
           No direct asset matches yet. Press Enter to open the full discovery workspace.
         </div>
       ) : null}

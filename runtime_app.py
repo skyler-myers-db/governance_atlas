@@ -12,7 +12,7 @@ import uuid
 from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Tuple
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Sequence, Tuple
 from urllib.parse import unquote
 
 import pandas as pd
@@ -554,6 +554,9 @@ def _uc_runtime_status() -> Dict[str, Any]:
     return _ttl_value("runtime_uc_status", 300, _loader)
 
 
+_UC_STATUS_WARMING = False
+
+
 def _uc_runtime_status_fast(background: bool = True) -> Dict[str, Any]:
     """Non-blocking variant for bootstrap: return cached value if fresh, else an
     optimistic "warming" payload and kick the real probe off in the background.
@@ -568,9 +571,24 @@ def _uc_runtime_status_fast(background: bool = True) -> Dict[str, Any]:
     if cached and now - cached[0] < 300:
         return cached[1]
     if background:
-        thread = threading.Thread(target=_uc_runtime_status, daemon=True)
-        thread.daemon = True
-        thread.start()
+        global _UC_STATUS_WARMING
+        should_start = False
+        with _CACHE_LOCK:
+            if not _UC_STATUS_WARMING:
+                _UC_STATUS_WARMING = True
+                should_start = True
+        if should_start:
+            def warm_runtime_status() -> None:
+                global _UC_STATUS_WARMING
+                try:
+                    _uc_runtime_status()
+                finally:
+                    with _CACHE_LOCK:
+                        _UC_STATUS_WARMING = False
+
+            thread = threading.Thread(target=warm_runtime_status, daemon=True)
+            thread.daemon = True
+            thread.start()
     return {
         "state": "loading",
         "message": (
@@ -598,6 +616,42 @@ def _store_status() -> Dict[str, str]:
             }
 
     return _ttl_value("runtime_store_status", 60, _loader)
+
+
+_STORE_STATUS_WARMING = False
+
+
+def _store_status_fast(background: bool = True) -> Dict[str, str]:
+    cached = _TTL_CACHE.get("runtime_store_status")
+    now = time.time()
+    if cached and now - cached[0] < 60:
+        return cached[1]
+    if background:
+        global _STORE_STATUS_WARMING
+        should_start = False
+        with _CACHE_LOCK:
+            if not _STORE_STATUS_WARMING:
+                _STORE_STATUS_WARMING = True
+                should_start = True
+
+        if should_start:
+            def warm_store_status() -> None:
+                global _STORE_STATUS_WARMING
+                try:
+                    _store_status()
+                finally:
+                    with _CACHE_LOCK:
+                        _STORE_STATUS_WARMING = False
+
+            threading.Thread(
+                target=warm_store_status,
+                name="atlas-store-status-warmup",
+                daemon=True,
+            ).start()
+    return {
+        "state": "loading",
+        "message": "Governance store health is warming; status will hydrate automatically.",
+    }
 
 
 def _store_for_read() -> GovernanceStore | _NullGovernanceStore:
@@ -655,12 +709,16 @@ def _user_role_slug(request: Optional[Request]) -> str:
     email = _user_email(request)
     if email == "unknown":
         return "reader"
-    store = _store_for_read()
-    try:
-        role = store.get_role(email, admin_emails=_config().admin_emails)
-    except Exception:
-        return "reader"
-    return (role or "reader").strip().lower() or "reader"
+
+    def load_role() -> str:
+        store = _store_for_read()
+        try:
+            role = store.get_role(email, admin_emails=_config().admin_emails)
+        except Exception:
+            return "reader"
+        return (role or "reader").strip().lower() or "reader"
+
+    return _ttl_value(f"runtime_user_role:{email.lower()}", 60, load_role)
 
 
 def _user_role(request: Optional[Request]) -> str:
@@ -829,8 +887,13 @@ def _capabilities_payload(
         }
     )
     resolved_summary = summary or {}
+    actor_role_slug = (
+        _lightweight_user_role_slug(request)
+        if request is not None and _normalize_str(resolved_store_status.get("state")) != "live"
+        else (_user_role_slug(request) if request is not None else "reader")
+    )
     return capability_service.bootstrap_capabilities(
-        actor_role=_user_role_slug(request) if request is not None else "reader",
+        actor_role=actor_role_slug,
         authenticated=_user_email(request) != "unknown"
         if request is not None
         else False,
@@ -862,6 +925,11 @@ def _runtime_diagnostics_payload(
     capabilities: Dict[str, Dict[str, Any]],
     boot_message: str = "",
 ) -> Dict[str, Any]:
+    actor_role_slug = (
+        _lightweight_user_role_slug(request)
+        if request is not None and _normalize_str(store_status.get("state")) != "live"
+        else _user_role_slug(request)
+    )
     setup = runtime_setup_service.setup_payload(
         runtime_status=runtime_status,
         store_status=store_status,
@@ -870,7 +938,7 @@ def _runtime_diagnostics_payload(
         gov_catalog=_config().gov_catalog,
         gov_schema=_config().gov_schema,
         authenticated=_user_email(request) != "unknown",
-        actor_role=_user_role_slug(request),
+        actor_role=actor_role_slug,
         diagnostics_enabled=_config().diagnostics_enabled,
         per_user_authorization=bool(_request_obo_token(request)),
     )
@@ -903,6 +971,7 @@ from atlas.services.inventory import (
     asset_exists as _asset_exists,
     asset_is_openable as _asset_is_openable,
     asset_is_visible as _asset_is_visible,
+    cached_visible_assets as _cached_visible_assets,
     inventory as _inventory,
     inventory_catalogs as _inventory_catalogs,
     inventory_row as _inventory_row,
@@ -934,6 +1003,8 @@ def _direct_actor_identity_visible(
     hidden = {str(value).lower() for value in HIDDEN_CATALOGS}
     if catalog.lower() in hidden:
         return False
+    if asset_service.asset_fqn_is_hidden(asset_fqn, hidden_catalogs=HIDDEN_CATALOGS):
+        return False
     try:
         uc_client = _uc_for_request(request)
         exact_row = asset_service.exact_identity_row(uc_client, asset_fqn)
@@ -951,6 +1022,22 @@ def _direct_actor_identity_visible(
     return True
 
 
+def _direct_workspace_identity_visible(asset_fqn: str) -> bool:
+    """Resolve exact UC identity for workspace-scoped app-principal reads.
+
+    This is intentionally not actor-scoped proof. It only prevents a stale or
+    still-hydrating bulk inventory cache from hiding a real table in the
+    degraded app-principal product mode.
+    """
+    if asset_service.asset_fqn_is_hidden(asset_fqn, hidden_catalogs=HIDDEN_CATALOGS):
+        return False
+    try:
+        exact_row = asset_service.exact_identity_row(_uc(), asset_fqn)
+    except Exception:
+        return False
+    return exact_row is not None
+
+
 def _asset_visibility_record(
     asset_fqn: str,
     request: Optional[Request] = None,
@@ -959,8 +1046,94 @@ def _asset_visibility_record(
         actor_scoped = (
             _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
         )
-        visible = _asset_is_visible(asset_fqn, request)
-        direct_visible = False if visible else _direct_actor_identity_visible(asset_fqn, request)
+        direct_visible = False
+        if actor_scoped and not asset_service.asset_fqn_is_hidden(asset_fqn, hidden_catalogs=HIDDEN_CATALOGS):
+            try:
+                uc_client = _uc_for_request(request)
+                exact_row = asset_service.exact_identity_row(uc_client, asset_fqn)
+                direct_visible = exact_row is not None
+                runtime_context = getattr(uc_client, "runtime_context", None)
+                if direct_visible and actor_scoped and callable(runtime_context):
+                    try:
+                        if bool((runtime_context() or {}).get("obo_scope_fallback")):
+                            direct_visible = False
+                    except Exception:
+                        direct_visible = False
+            except Exception:
+                direct_visible = False
+        if direct_visible:
+            return {
+                "exists": True,
+                "visible": True,
+                "openable": True,
+                "visibilityState": "visible",
+                "visibilityMethod": "direct-identity",
+            }
+        cached_inventory = _cached_visible_assets(request)
+        if cached_inventory is None:
+            _fast_bootstrap_inventory_summary(
+                _request_cache_scope(request),
+                start_background=True,
+            )
+            if not actor_scoped:
+                if asset_service.asset_fqn_is_hidden(asset_fqn, hidden_catalogs=HIDDEN_CATALOGS):
+                    return {
+                        "exists": False,
+                        "visible": False,
+                        "openable": False,
+                        "visibilityState": "missing",
+                        "visibilityMethod": "inventory-loading",
+                    }
+                return {
+                    "exists": False,
+                    "visible": False,
+                    "openable": False,
+                    "visibilityState": "loading",
+                    "visibilityMethod": "inventory-loading",
+                    "reason": "Actor-visible inventory is hydrating from live Unity Catalog metadata.",
+                }
+            if not asset_service.asset_fqn_is_hidden(asset_fqn, hidden_catalogs=HIDDEN_CATALOGS):
+                try:
+                    fast_header = asset_service.asset_header_payload_from_exact_identity(
+                        _uc_for_request(request),
+                        _store_for_read(),
+                        asset_fqn,
+                        hidden_catalogs=HIDDEN_CATALOGS,
+                    )
+                except Exception:
+                    fast_header = None
+                if fast_header is not None:
+                    return {
+                        "exists": True,
+                        "visible": True,
+                        "openable": True,
+                        "visibilityState": "visible",
+                        "visibilityMethod": "direct-identity",
+                    }
+            if actor_scoped:
+                exists = _asset_exists(asset_fqn, request)
+                return {
+                    "exists": exists,
+                    "visible": False,
+                    "openable": False,
+                    "visibilityState": "hidden" if exists else "missing",
+                    "visibilityMethod": "inventory",
+                }
+            return {
+                "exists": False,
+                "visible": False,
+                "openable": False,
+                "visibilityState": "missing",
+                "visibilityMethod": "inventory-loading",
+            }
+        visible = asset_service.asset_is_visible(cached_inventory, asset_fqn)
+        direct_visible = False
+        if not visible:
+            direct_visible = (
+                _direct_actor_identity_visible(asset_fqn, request)
+                if actor_scoped
+                else _direct_workspace_identity_visible(asset_fqn)
+            )
         visible = visible or direct_visible
         exists = visible or (actor_scoped and _asset_exists(asset_fqn, request))
         if visible:
@@ -974,7 +1147,13 @@ def _asset_visibility_record(
             "visible": visible,
             "openable": visible,
             "visibilityState": visibility_state,
-            "visibilityMethod": "direct-identity" if direct_visible else "inventory",
+            "visibilityMethod": (
+                "direct-identity"
+                if direct_visible and actor_scoped
+                else "workspace-direct-identity"
+                if direct_visible
+                else "inventory"
+            ),
         }
     except Exception as exc:
         return {
@@ -995,6 +1174,13 @@ def _invalidate_asset_caches(asset_fqn: str) -> None:
     _ttl_cache_pop(f"runtime_lineage:{asset_fqn}")
     _invalidate_cache_prefix("runtime_inventory:")
     _invalidate_cache_prefix("runtime_bootstrap_inventory_summary:")
+    _invalidate_cache_prefix("atlas_command_center_payload:")
+    _invalidate_cache_prefix("atlas_governance_workbench_payload:")
+    _invalidate_cache_prefix("atlas_governance_request_detail_payload:")
+    _invalidate_cache_prefix("atlas_insights_dashboard_payload:")
+    _invalidate_cache_prefix("atlas_cde_dashboard_payload:")
+    _invalidate_cache_prefix("atlas_cde_detail_payload:")
+    _invalidate_cache_prefix("atlas_audit_evidence_payload:")
     _ttl_cache_pop("runtime_governance")
 
 
@@ -1052,6 +1238,46 @@ def _asset_detail_payload(
     *,
     sections: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
+    requested_sections = asset_service.normalize_asset_detail_sections(sections)
+    if set(requested_sections).issubset({"header", "activity"}):
+        cached_inventory = _cached_visible_assets(request)
+        fast_header = None
+        if cached_inventory is not None:
+            fast_header = asset_service.asset_header_payload_from_inventory(
+                cached_inventory,
+                asset_fqn,
+            )
+        if fast_header is None:
+            fast_header = asset_service.asset_header_payload_from_exact_identity(
+                _uc_for_request(request),
+                _store_for_read(),
+                asset_fqn,
+                hidden_catalogs=HIDDEN_CATALOGS,
+            )
+        if fast_header is not None:
+            _fast_bootstrap_inventory_summary(
+                _request_cache_scope(request),
+                start_background=True,
+            )
+            payload = dict(fast_header)
+            if "activity" in requested_sections:
+                store = _store_for_read()
+                payload["ownerAssignments"] = asset_service.owner_assignment_records(
+                    store,
+                    asset_fqn,
+                )
+                payload["activity"] = asset_service.activity_records(store, asset_fqn)
+                payload["metadataAudit"] = asset_service.metadata_audit_records(
+                    store,
+                    asset_fqn,
+                )
+            payload["loadedSections"] = list(requested_sections)
+            payload["deferredSections"] = [
+                section
+                for section in asset_service.ASSET_DETAIL_SECTIONS
+                if section not in requested_sections
+            ]
+            return payload
     return asset_service.asset_detail_payload(
         _uc_for_request(request),
         _store_for_read(),
@@ -1091,12 +1317,17 @@ def _lineage_payload(
     )
 
 
-def _governance_summary(request: Optional[Request] = None) -> Dict[str, Any]:
+def _governance_summary(
+    request: Optional[Request] = None,
+    *,
+    sections: Sequence[str] | None = None,
+) -> Dict[str, Any]:
     payload = governance_service.governance_summary(
         _uc_for_request(request),
         _store(),
         actor_email=_user_email(request),
         hidden_catalogs=HIDDEN_CATALOGS,
+        sections=sections,
     )
     payload["authoritative"] = True
     payload["provenance"] = {
@@ -1110,6 +1341,7 @@ def _governance_summary(request: Optional[Request] = None) -> Dict[str, Any]:
 
 from atlas.services.inventory import (
     bootstrap_inventory_summary as _bootstrap_inventory_summary,
+    fast_bootstrap_inventory_summary as _fast_bootstrap_inventory_summary,
 )
 
 
@@ -1493,11 +1725,65 @@ def _asset_availability_payload(
     availability: Dict[str, Dict[str, Any]] = {}
     warnings: List[str] = []
     actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
-    for asset_fqn in unique_assets[:200]:
-        record = _asset_visibility_record(asset_fqn, request)
-        availability[asset_fqn] = record
-        if record.get("visibilityState") == "unknown" and record.get("reason"):
-            warnings.append(str(record["reason"]))
+    if len(unique_assets) > 5:
+        try:
+            visible_inventory = _visible_assets(request)
+        except Exception as exc:
+            visible_inventory = None
+            warnings.append(
+                _normalize_str(exc)
+                or "Bulk asset visibility could not be determined from inventory."
+            )
+        for asset_fqn in unique_assets[:200]:
+            try:
+                hidden = asset_service.asset_fqn_is_hidden(
+                    asset_fqn,
+                    hidden_catalogs=HIDDEN_CATALOGS,
+                )
+                visible = False if hidden else (
+                    visible_inventory is not None
+                    and asset_service.asset_is_visible(visible_inventory, asset_fqn)
+                )
+                exists = visible
+                visibility_state = "visible" if visible else (
+                    "hidden" if actor_scoped and exists else "missing"
+                )
+                availability[asset_fqn] = {
+                    "exists": exists,
+                    "visible": visible,
+                    "openable": visible,
+                    "visibilityState": visibility_state,
+                    "visibilityMethod": "bulk-inventory",
+                }
+            except Exception as exc:
+                availability[asset_fqn] = {
+                    "exists": False,
+                    "visible": False,
+                    "openable": False,
+                    "visibilityState": "unknown",
+                    "reason": _normalize_str(exc)
+                    or "Asset visibility could not be determined.",
+                }
+                warnings.append(str(availability[asset_fqn]["reason"]))
+    else:
+        for asset_fqn in unique_assets[:200]:
+            record = _asset_visibility_record(asset_fqn, request)
+            if (
+                not actor_scoped
+                and record.get("visibilityState") == "loading"
+                and not record.get("openable")
+            ):
+                record = {
+                    **record,
+                    "exists": False,
+                    "visible": False,
+                    "openable": False,
+                    "visibilityState": "missing",
+                    "visibilityMethod": "availability-fail-closed",
+                }
+            availability[asset_fqn] = record
+            if record.get("visibilityState") == "unknown" and record.get("reason"):
+                warnings.append(str(record["reason"]))
     return {
         "assets": availability,
         "meta": _response_meta(
@@ -1627,29 +1913,20 @@ def _shell_payload(
         "state": "loading" if state == "loading" else state,
         "message": message,
     }
-    # Pre-hydrated discovery envelope: on live bootstrap we run a zero-
-    # filter discovery search inside the same request so the first table
-    # paints from the bootstrap payload instead of waiting on a second
-    # client round-trip. The resulting count also drives the shell
-    # capability state; otherwise the UI can truthfully render live rows
-    # while the preview rail still receives a stale "no visible assets"
-    # warning from the hardcoded shell defaults.
+    # Keep bootstrap on the fast path. Full inventory searches are allowed to
+    # hydrate after the shell is interactive; blocking here is what made a cold
+    # Databricks warehouse feel like the entire app was frozen.
     discovery_shell = _shell_discovery_payload()
-    preloaded_visible_asset_count = 0
-    if state == "live" and request is not None:
-        try:
-            pre = _discovery_search_payload(request, query="", limit=60, offset=0)
-            preloaded_visible_asset_count = int(pre.get("count") or 0)
-            discovery_shell = {
-                **discovery_shell,
-                "defaultResults": list(pre.get("assets") or []),
-                "defaultFacets": pre.get("facets") or {},
-                "defaultCount": preloaded_visible_asset_count,
-            }
-        except Exception:
-            # Cold warehouse, scope issues, or transient UC errors —
-            # leave bootstrap shell-only, frontend will re-query.
-            pass
+    bootstrap_summary = (
+        _fast_bootstrap_inventory_summary(_request_cache_scope(request), start_background=True)
+        if request is not None
+        else {}
+    )
+    preloaded_visible_asset_count = (
+        int(bootstrap_summary.get("visibleAssets") or 0)
+        if state == "live"
+        else 0
+    )
 
     capabilities = capability_service.bootstrap_capabilities(
         actor_role=_lightweight_user_role_slug(request),
@@ -1662,8 +1939,8 @@ def _shell_payload(
         store_state="skipped",
         store_message="Governance control-plane checks load after the shell becomes interactive.",
         visible_asset_count=preloaded_visible_asset_count,
-        available_catalog_count=0,
-        observed_catalog_count=0,
+        available_catalog_count=int(bootstrap_summary.get("availableCatalogCount") or 0),
+        observed_catalog_count=int(bootstrap_summary.get("observedCatalogCount") or 0),
         boot_message=message,
         per_user_authorization=bool(_request_obo_token(request)),
     )

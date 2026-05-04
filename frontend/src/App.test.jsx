@@ -716,6 +716,199 @@ describe("App", () => {
     });
   });
 
+  it("does not let non-authoritative shell AI metadata mark live bootstrap data unavailable", async () => {
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "live",
+        shell: {
+          role: "Admin",
+          userEmail: "admin@example.com",
+          diagnosticsEnabled: true,
+          ai: {
+            state: "available",
+            provider: "local-prototype-mock",
+            message: "Atlas AI provider is unavailable.",
+          },
+        },
+        discovery: {
+          summary: {
+            visibleAssets: 1,
+          },
+          defaultResults: [{ fqn: "main.sales.orders", name: "orders" }],
+          defaultCount: 1,
+        },
+        governance: {
+          metrics: [],
+          backlog: [],
+          glossary: [],
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+      refresh: vi.fn(),
+    });
+
+    render(<App />);
+
+    const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
+    expect(appFrameProps?.bootState).toBe("live");
+    await waitFor(() => {
+      const discoveryProps = discoveryWorkspaceMock.mock.calls.at(-1)?.[0];
+      expect(discoveryProps?.effectiveBootState).toBe("live");
+      expect(discoveryProps?.atlasAiAvailable).toBe(false);
+      expect(discoveryProps?.bootstrap?.discovery?.defaultResults).toEqual([
+        { fqn: "main.sales.orders", name: "orders" },
+      ]);
+    });
+  });
+
+  it("does not let non-authoritative bootstrap assets seed shell search after boot is blocked", async () => {
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "live",
+        meta: {
+          state: "prototype-mock",
+          source: "local-prototype-mock",
+          authoritative: false,
+        },
+        shell: {
+          role: "Reader",
+          userEmail: "reader@example.com",
+        },
+        discovery: {
+          defaultResults: [{ fqn: "main.sales.orders", name: "orders" }],
+          defaultCount: 1,
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+      refresh: vi.fn(),
+    });
+
+    render(<App />);
+
+    const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
+    expect(appFrameProps?.bootState).toBe("unavailable");
+    expect(appFrameProps?.searchSeedAssets).toEqual([]);
+    expect(appFrameProps?.visibleAssetSet?.size).toBe(0);
+  });
+
+  it("rejects populated degraded live bootstrap rows instead of rendering them as degraded evidence", async () => {
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "degraded",
+        meta: {
+          state: "degraded",
+          source: "unity-catalog-inventory",
+          authoritative: false,
+          oboScopeFallback: true,
+          warnings: ["The forwarded user token is missing the sql scope."],
+        },
+        shell: {
+          role: "Reader",
+          userEmail: "reader@example.com",
+        },
+        discovery: {
+          summary: {
+            visibleAssets: 1,
+          },
+          defaultResults: [{ fqn: "main.sales.orders", name: "orders" }],
+          defaultCount: 1,
+        },
+        governance: {
+          metrics: [],
+          backlog: [],
+          glossary: [],
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+      refresh: vi.fn(),
+    });
+
+    render(<App />);
+
+    const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
+    expect(appFrameProps?.bootState).toBe("unavailable");
+    expect(appFrameProps?.searchSeedAssets).toEqual([]);
+  });
+
+  it("rejects populated degraded runtime-shell bootstrap rows instead of seeding shell search", async () => {
+    useBootstrapMock.mockReturnValue({
+      loading: false,
+      error: "",
+      refreshError: "",
+      data: {
+        bootState: "degraded",
+        meta: {
+          state: "degraded",
+          source: "runtime-shell",
+          authoritative: false,
+          warnings: ["Runtime setup is still resolving Databricks capabilities."],
+        },
+        shell: {
+          role: "Reader",
+          userEmail: "reader@example.com",
+        },
+        discovery: {
+          summary: {
+            visibleAssets: 1,
+          },
+          defaultResults: [{ fqn: "main.sales.orders", name: "orders" }],
+          defaultCount: 1,
+        },
+        governance: {
+          metrics: [],
+          backlog: [],
+          glossary: [],
+        },
+        assets: [{ fqn: "main.sales.orders", name: "orders" }],
+      },
+    });
+    useRuntimeStatusMock.mockReturnValue({
+      loading: false,
+      refreshing: false,
+      error: "",
+      refreshError: "",
+      data: null,
+      refresh: vi.fn(),
+    });
+
+    render(<App />);
+
+    const appFrameProps = appFrameMock.mock.calls.at(-1)?.[0];
+    expect(appFrameProps?.bootState).toBe("unavailable");
+    expect(appFrameProps?.searchSeedAssets).toEqual([]);
+    expect(appFrameProps?.visibleAssetSet?.has("main.sales.orders")).toBe(false);
+  });
+
   it("passes discovery route query, sort, and saved view seeds into DiscoveryWorkspace", async () => {
     const setDiscoveryRouteFilterGroups = vi.fn();
     const setDiscoveryRoutePreview = vi.fn();

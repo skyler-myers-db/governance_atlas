@@ -1517,6 +1517,24 @@
     "/api/atlas/admin/control-center": {
       "get": {
         "operationId": "api_admin_control_center_api_atlas_admin_control_center_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "refresh",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Refresh"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1525,6 +1543,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Api Admin Control Center",
@@ -1620,6 +1648,22 @@
               "title": "Limit",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "refresh",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Refresh"
+            }
           }
         ],
         "responses": {
@@ -1651,6 +1695,24 @@
     "/api/atlas/cde": {
       "get": {
         "operationId": "api_cde_dashboard_api_atlas_cde_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "refresh",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Refresh"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1659,6 +1721,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Api Cde Dashboard",
@@ -1835,6 +1907,24 @@
     "/api/atlas/taxonomy/overview": {
       "get": {
         "operationId": "api_taxonomy_overview_api_atlas_taxonomy_overview_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "refresh",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Refresh"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1843,6 +1933,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Api Taxonomy Overview",
@@ -3171,6 +3271,18 @@
             "schema": {
               "title": "Request Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Return a minimal response for row-level status updates that already update local UI state.",
+            "in": "query",
+            "name": "fast",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Return a minimal response for row-level status updates that already update local UI state.",
+              "title": "Fast",
+              "type": "boolean"
             }
           }
         ],

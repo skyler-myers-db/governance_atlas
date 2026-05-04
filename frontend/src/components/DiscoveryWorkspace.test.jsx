@@ -219,6 +219,43 @@ describe("DiscoveryWorkspace", () => {
     openAssetRecordSafelyMock.mockResolvedValue(true);
   });
 
+  it("does not auto-load operational evidence for the selected preview", () => {
+    render(
+      <DiscoveryWorkspace
+        bootstrap={bootstrapPayload({
+          capabilityAvailable: true,
+          capabilityReason: "",
+        })}
+        effectiveBootMessage=""
+        effectiveBootState="live"
+        effectiveVisibleCount={1}
+        initialQuery=""
+        onLiveCatalogStateChange={() => {}}
+        onNavigationStateChange={() => {}}
+        onOpenAsset={() => {}}
+        onOpenGovernance={() => {}}
+        onOpenLineage={() => {}}
+        onRouteQueryChange={() => {}}
+        onSurfaceReady={() => {}}
+        querySeedFresh={false}
+        querySeedKey="test-preview-sections"
+        runtimeFeatureFlags={[
+          {
+            key: "table_lineage_surface",
+            enabled: true,
+            state: "available",
+          },
+        ]}
+        sharedVisibleAssetSet={new Set([asset.fqn])}
+        workspaceAccess={fullWorkspaceAccess}
+      />,
+    );
+
+    expect(useAssetDetailMock.mock.calls[0]?.[1]?.sections).toEqual(["header"]);
+    expect(useAssetDetailMock.mock.calls[1]?.[1]?.sections).toEqual(["header", "schema"]);
+    expect(useAssetDetailMock.mock.calls[1]?.[1]?.sections).not.toContain("operational");
+  });
+
   it("disables lineage affordances when the lineage rollout is disabled", () => {
     render(
       <DiscoveryWorkspace
@@ -1884,6 +1921,87 @@ describe("DiscoveryWorkspace", () => {
     expect(document.querySelector(".gh-filters-popover")).toBeNull();
   });
 
+  it("applies the high-coverage live filter from the bottom asset panel without opening one asset", () => {
+    const setFilters = vi.fn();
+    const openAsset = vi.fn();
+    const assets = [
+      { ...asset, coverageScore: 88 },
+      { ...secondAsset, coverageScore: 72 },
+    ];
+    useDiscoveryWorkspaceMock.mockReturnValue({
+      filters: discoveryFilters(),
+      setFilters,
+      results: {
+        authoritative: true,
+        assets,
+        count: assets.length,
+        settled: true,
+        loading: false,
+        error: "",
+        facets: {},
+        requestKey: "recommended-assets-request",
+        resolvedQuery: "",
+      },
+    });
+
+    render(
+      <DiscoveryWorkspace
+        {...defaultDiscoveryProps({
+          bootstrap: bootstrapPayload({
+            assets,
+            capabilityAvailable: true,
+            capabilityReason: "",
+          }),
+          effectiveVisibleCount: assets.length,
+          onOpenAsset: openAsset,
+          sharedVisibleAssetSet: new Set(assets.map((entry) => entry.fqn)),
+        })}
+      />,
+    );
+
+    setFilters.mockClear();
+    const highCoverageCard = screen
+      .getByRole("heading", { name: "High Coverage Assets" })
+      .closest(".gh-discovery-bottom-card");
+    if (!highCoverageCard) throw new Error("Expected High Coverage Assets card");
+    fireEvent.click(within(highCoverageCard).getByRole("button", { name: "Filter all" }));
+
+    expect(setFilters).toHaveBeenCalledTimes(1);
+    expect(setFilters.mock.calls[0][0](discoveryFilters())).toMatchObject({
+      views: ["High coverage"],
+    });
+    expect(openAsset).not.toHaveBeenCalled();
+  });
+
+  it("keeps saved-search controls unavailable until backed preferences exist", () => {
+    const setFilters = vi.fn();
+    useDiscoveryWorkspaceMock.mockReturnValue({
+      filters: discoveryFilters(),
+      setFilters,
+      results: {
+        authoritative: true,
+        assets: [asset],
+        count: 1,
+        settled: true,
+        loading: false,
+        error: "",
+        facets: {},
+        requestKey: "saved-search-unavailable-request",
+        resolvedQuery: "",
+      },
+    });
+
+    render(<DiscoveryWorkspace {...defaultDiscoveryProps()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Saved searches/i }));
+
+    expect(screen.getByRole("dialog", { name: "Saved searches" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: /Saved search inventory unavailable/i }).disabled).toBe(true);
+    expect(screen.getByRole("button", { name: /Pinned team searches unavailable/i }).disabled).toBe(true);
+    expect(screen.getByRole("button", { name: /Recent search shortcuts unavailable/i }).disabled).toBe(true);
+    expect(setFilters).not.toHaveBeenCalled();
+  });
+
   it("does not hydrate dynamic filter options from bootstrap when live facets are empty", () => {
     useDiscoveryWorkspaceMock.mockReturnValue({
       filters: discoveryFilters(),
@@ -2179,7 +2297,7 @@ describe("DiscoveryWorkspace", () => {
     expect(within(preview).getByRole("tab", { name: "Columns · 8" })).not.toBeNull();
     expect(within(preview).getByRole("tab", { name: "Lineage · 1" })).not.toBeNull();
     expect(within(preview).getByText("Tags & Glossary")).not.toBeNull();
-    expect(within(preview).getByText("Buildability Note")).not.toBeNull();
+    expect(within(preview).getByText("Workflow Availability")).not.toBeNull();
 
     fireEvent.click(within(preview).getByRole("tab", { name: "Columns · 8" }));
     expect(within(preview).getByText("order_id")).not.toBeNull();
@@ -2191,8 +2309,16 @@ describe("DiscoveryWorkspace", () => {
     expect(
       within(preview).getByText("Comment and access-request creation are disabled here until a backed governance workflow is configured."),
     ).not.toBeNull();
-    expect(within(preview).getByRole("button", { name: "Comment" }).disabled).toBe(true);
-    expect(within(preview).getByRole("button", { name: "Request access" }).disabled).toBe(true);
+    expect(
+      within(preview).getByRole("button", {
+        name: "Comment unavailable: comment threads require a backed workflow before they can be created from Discover.",
+      }).disabled,
+    ).toBe(true);
+    expect(
+      within(preview).getByRole("button", {
+        name: "Request access unavailable: access requests require a backed workflow before they can be created from Discover.",
+      }).disabled,
+    ).toBe(true);
     fireEvent.click(within(preview).getByRole("button", { name: "Certify" }));
     expect(onOpenGovernance).toHaveBeenCalledWith(enrichedAsset.fqn);
   });
@@ -2870,6 +2996,69 @@ describe("DiscoveryWorkspace", () => {
       );
     });
     expect(await screen.findByText("Review revenue_daily recertification")).not.toBeNull();
+  });
+
+  it("does not render non-authoritative Atlas AI recommendation responses", async () => {
+    apiMocks.fetchAtlasAiRecommendations.mockResolvedValueOnce({
+      provider: "local-prototype-mock",
+      recommendations: [
+        {
+          title: "Prototype recommendation",
+          detail: "This should not render.",
+          evidence: [{ id: asset.fqn }],
+        },
+      ],
+    });
+
+    render(<DiscoveryWorkspace {...defaultDiscoveryProps()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Run Atlas AI recommendations/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Atlas AI recommendations unavailable until live evidence-backed provider returns results.")).not.toBeNull();
+    });
+    expect(screen.queryByText("Prototype recommendation")).toBeNull();
+  });
+
+  it("surfaces unavailable Atlas AI responses without caching stale unavailable state", async () => {
+    apiMocks.fetchAtlasAiRecommendations
+      .mockResolvedValueOnce({
+        authoritative: false,
+        state: "unavailable",
+        source: "runtime-configuration+databricks-genie",
+        recommendations: [],
+        evidence: [],
+        warnings: [
+          "Genie-backed Atlas AI requires the forwarded Databricks user token.",
+        ],
+      })
+      .mockResolvedValueOnce({
+        provider: "genie",
+        authoritative: true,
+        recommendations: [
+          {
+            title: "Review revenue_daily recertification",
+            detail: "Revenue source needs governance review.",
+            evidence: [{ id: asset.fqn }],
+          },
+        ],
+      });
+
+    render(<DiscoveryWorkspace {...defaultDiscoveryProps()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Run Atlas AI recommendations/i }));
+    await waitFor(() => {
+      expect(
+        screen.getByText("Genie-backed Atlas AI requires the forwarded Databricks user token."),
+      ).not.toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Run Atlas AI recommendations/i }));
+
+    await waitFor(() => {
+      expect(apiMocks.fetchAtlasAiRecommendations).toHaveBeenCalledTimes(2);
+      expect(screen.getByText("Review revenue_daily recertification")).not.toBeNull();
+    });
   });
 
   it("disables bottom-card Atlas AI recommendations when no backed endpoint is available", () => {

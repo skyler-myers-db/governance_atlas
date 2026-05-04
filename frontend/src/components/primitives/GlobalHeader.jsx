@@ -1,4 +1,5 @@
 import { PRODUCT } from "../../config/product";
+import { isNonAuthoritativeMockEvidence } from "../../lib/nonAuthoritativeEvidence";
 
 const BellIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -70,7 +71,7 @@ function resolveUcStatusLabel(environmentTone = "", coverageScore = null, status
   const state = String(statusState || "").toLowerCase();
   if (state === "loading") return "UC status loading";
   const numericCoverage = Number(coverageScore);
-  if (state === "prototype_mock") return "Prototype mock · UC not verified";
+  if (isNonAuthoritativeMockEvidence(state)) return "UC unavailable";
   if (state === "degraded") return "UC status degraded";
   if (state === "unavailable" || state === "error" || state === "failed") return "UC unavailable";
   if (environmentTone === "good" && Number.isFinite(numericCoverage)) {

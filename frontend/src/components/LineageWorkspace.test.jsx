@@ -151,7 +151,7 @@ describe("LineageWorkspace", () => {
     expect(screen.getByText("Lineage Unavailable")).not.toBeNull();
     expect(screen.getByText(lineageUnavailableReason)).not.toBeNull();
     expect(screen.getByRole("button", { name: "Open metadata record" })).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false);
+    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false, { fullProfile: true });
   });
 
   it("fetches focused lineage through transient warehouse warmup instead of blocking the route", () => {
@@ -180,7 +180,7 @@ describe("LineageWorkspace", () => {
 
     expect(screen.queryByText("Lineage Unavailable")).toBeNull();
     expect(screen.getByTestId("lineage-stage")).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, true);
+    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, true, { fullProfile: true });
   });
 
   it("shows a truthful unavailable panel when the lineage rollout is disabled", () => {
@@ -217,7 +217,7 @@ describe("LineageWorkspace", () => {
 
     expect(screen.getByText("Lineage Unavailable")).not.toBeNull();
     expect(screen.getByText("Table lineage rollout is disabled in this workspace.")).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false);
+    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false, { fullProfile: true });
   });
 
   it("opens the lineage surface from bootstrap capabilities while workspace access resolves", () => {
@@ -252,7 +252,7 @@ describe("LineageWorkspace", () => {
 
     expect(screen.queryByText("Resolving live lineage access...")).toBeNull();
     expect(screen.getByTestId("lineage-stage")).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, true);
+    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, true, { fullProfile: true });
   });
 
   it("keeps the empty Lineage surface usable as an asset search even before lineage gates resolve", () => {
@@ -272,7 +272,7 @@ describe("LineageWorkspace", () => {
     expect(screen.getByTestId("lineage-stage")).not.toBeNull();
     expect(screen.getByText("Search for an asset and open the graph directly from there.")).not.toBeNull();
     expect(screen.queryByText("Lineage Unavailable")).toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith("", false);
+    expect(useLineageMock).toHaveBeenCalledWith("", false, { fullProfile: true });
   });
 
   it("fails closed when the lineage rollout flag is missing", () => {
@@ -304,7 +304,7 @@ describe("LineageWorkspace", () => {
     expect(
       screen.getByText("Table lineage rollout is not available in this workspace right now."),
     ).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false);
+    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false, { fullProfile: true });
   });
 
   it("fails closed when workspace access blocks lineage despite available capability and rollout", () => {
@@ -349,7 +349,7 @@ describe("LineageWorkspace", () => {
 
     expect(screen.getByText("Lineage Unavailable")).not.toBeNull();
     expect(screen.getByText("Lineage is blocked by workspace access.")).not.toBeNull();
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false);
+    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, false, { fullProfile: true });
   });
 
   it("opens live lineage without passing the seeded bootstrap graph into useLineage", () => {
@@ -392,7 +392,7 @@ describe("LineageWorkspace", () => {
       [asset],
       { allowFallback: false },
     );
-    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, true);
+    expect(useLineageMock).toHaveBeenCalledWith(asset.fqn, true, { fullProfile: true });
   });
 
   it("remembers a denied lineage open until the focused asset changes", async () => {

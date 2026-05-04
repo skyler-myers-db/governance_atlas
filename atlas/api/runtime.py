@@ -61,20 +61,21 @@ def _api_runtime_status_response(request: Request) -> JSONResponse:
     # state immediately lets the OBO / degraded banner surface within seconds.
     from runtime_app import (
         IDENTITY_SOURCE,
-        _bootstrap_inventory_summary,
         _capabilities_payload,
         _config,
         _empty_inventory_boot_message,
+        _fast_bootstrap_inventory_summary,
         _request_cache_scope,
         _runtime_diagnostics_payload,
-        _store_status,
+        _store_status_fast,
         _uc_runtime_status_fast,
+        _lightweight_user_role,
         _user_role,
     )
 
     runtime_status = _uc_runtime_status_fast()
     store_status = (
-        _store_status()
+        _store_status_fast()
         if runtime_status.get("state") == "live"
         else {
             "state": "skipped",
@@ -82,7 +83,7 @@ def _api_runtime_status_response(request: Request) -> JSONResponse:
         }
     )
     summary = (
-        _bootstrap_inventory_summary(_request_cache_scope(request))
+        _fast_bootstrap_inventory_summary(_request_cache_scope(request))
         if runtime_status.get("state") == "live"
         else {"visibleAssets": 0, "availableCatalogCount": 0, "observedCatalogCount": 0}
     )
@@ -99,6 +100,11 @@ def _api_runtime_status_response(request: Request) -> JSONResponse:
         summary=summary,
         boot_message=boot_message,
     )
+    actor_role = (
+        _user_role(request)
+        if store_status.get("state") == "live"
+        else _lightweight_user_role(request)
+    )
     payload = {
         "runtime": runtime_status,
         "store": store_status,
@@ -112,7 +118,7 @@ def _api_runtime_status_response(request: Request) -> JSONResponse:
         "identity": {
             "actorEmail": _user_email(request),
             "actorName": _user_display_name(request),
-            "actorRole": _user_role(request),
+            "actorRole": actor_role,
             "actorRoleProvisional": False,
             "authenticatedUserPresent": _user_email(request) != "unknown",
             "authMode": _request_auth_mode(request),

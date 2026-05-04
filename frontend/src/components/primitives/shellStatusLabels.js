@@ -45,6 +45,7 @@ export function inboxStatusTone(state) {
 export function inboxStatusLabel(state) {
   const normalized = String(state || "").trim().toLowerCase();
   if (normalized === "ready" || normalized === "available") return "Inbox ready";
+  if (normalized === "loading") return "Inbox loading";
   if (normalized === "degraded") return "Inbox degraded";
   if (normalized === "unavailable") return "Inbox unavailable";
   if (normalized === "attention_required") return "Inbox attention";

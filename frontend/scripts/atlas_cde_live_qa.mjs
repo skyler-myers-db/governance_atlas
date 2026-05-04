@@ -230,7 +230,7 @@ async function captureViewport(page, viewport) {
         headings.includes("Owner") &&
         headings.includes("Recert") &&
         headings.includes("Status"),
-      provenance: /Status and recertification are prototype registry fixtures/i.test(bodyText),
+      provenance: /Status and recertification are registry metadata values/i.test(bodyText),
       detail:
         detailCards.length === 0 ||
         (
@@ -240,7 +240,7 @@ async function captureViewport(page, viewport) {
           detailCards.includes("Association source")
         ),
       truthfulUnavailable:
-        /not live Unity Catalog|not live quality|prototype registry fixtures/i.test(bodyText) &&
+        /returned backing evidence|quality test-run|recertification workflow proof|Unity Catalog proof/i.test(bodyText) &&
         !/Certified Candidates/i.test(bodyText),
     };
     return {
@@ -343,7 +343,9 @@ async function runInteractions(page) {
       ownership: /Ownership/i.test(detailText),
       reviewerWorkflow: /Reviewer workflow/i.test(detailText),
       associationSource: /Association source/i.test(detailText),
-      prototypeBoundary: /Prototype fixture|not live quality|not live Unity Catalog/i.test(detailText) || /prototype registry fixtures/i.test(document.body?.innerText || ""),
+      backingEvidenceBoundary:
+        /returned backing evidence|Quality, recertification, and Unity Catalog proof require returned backing evidence/i.test(detailText) ||
+        /Status and recertification are registry metadata values/i.test(document.body?.innerText || ""),
     };
     if (Object.values(checks).some((value) => value === false)) {
       throw new Error(`CDE selected detail failed checks: ${JSON.stringify(checks)}`);

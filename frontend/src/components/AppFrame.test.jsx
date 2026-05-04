@@ -303,7 +303,7 @@ describe("AppFrame", () => {
     expect(screen.getByRole("button", { name: /Open profile menu/i })).not.toBeNull();
   });
 
-  it("disables Atlas AI when runtime marks the provider unavailable", () => {
+  it("opens an unavailable Atlas AI panel when runtime marks the provider unavailable", () => {
     render(
       <FrameHarness
         shellOverrides={{
@@ -315,13 +315,19 @@ describe("AppFrame", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "Atlas AI" });
-    expect(button.disabled).toBe(true);
-    expect(button.getAttribute("title")).toMatch(/GOVAT_GENIE_SPACE_ID/);
-    expect(screen.getByRole("button", { name: "Open Atlas AI" }).disabled).toBe(true);
+    const headerButton = screen.getByRole("button", { name: "Atlas AI" });
+    expect(headerButton.disabled).toBe(true);
+    const button = screen.getByRole("button", {
+      name: /Open Atlas AI unavailable state: Atlas AI is configured for Genie/i,
+    });
+    expect(button.disabled).toBe(false);
+    fireEvent.click(button);
+    expect(screen.getByRole("dialog", { name: "Atlas AI" })).not.toBeNull();
+    expect(screen.getByText(/GOVAT_GENIE_SPACE_ID is missing/i)).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Ask Atlas AI" }).disabled).toBe(true);
   });
 
-  it("keeps prototype-mock Atlas AI visible while labeling it as non-live evidence", () => {
+  it("keeps non-authoritative Atlas AI answers unavailable while preserving the panel workflow", () => {
     render(
       <FrameHarness
         bootState="degraded"
@@ -335,32 +341,21 @@ describe("AppFrame", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Atlas AI" }).disabled).toBe(false);
-    expect(screen.getByRole("button", { name: "Open Atlas AI" }).disabled).toBe(false);
-    if (!screen.queryByRole("dialog", { name: "Atlas AI" })) {
-      fireEvent.click(screen.getByRole("button", { name: "Open Atlas AI" }));
-    }
+    const headerButton = screen.getByRole("button", { name: "Atlas AI" });
+    expect(headerButton.disabled).toBe(true);
+    const button = screen.getByRole("button", {
+      name: /Open Atlas AI unavailable state: Prototype mock data/i,
+    });
+    expect(button.disabled).toBe(false);
+    fireEvent.click(button);
     expect(screen.getByRole("dialog", { name: "Atlas AI" })).not.toBeNull();
-    expect(screen.getByText("Prototype mock evidence - not live Databricks")).not.toBeNull();
-    expect(screen.getByText(/prototype mock governance metadata, not live Unity Catalog evidence/i)).not.toBeNull();
-    expect(screen.getByText("TRY ASKING")).not.toBeNull();
-    expect(screen.getByPlaceholderText("Ask about search results, owners, or glossary coverage...")).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Atlas AI accuracy notice" }));
-    expect(screen.getByText(/prototype answers use mock governance metadata/i)).not.toBeNull();
+    expect(screen.getByText(/Prototype mock data, not live Databricks evidence/i)).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Ask Atlas AI" }).disabled).toBe(true);
   });
 
   it("uses route-specific Atlas AI prompts and input copy", () => {
     const { rerender } = render(
-      <FrameHarness
-        activeModule="admin"
-        shellOverrides={{
-          ai: {
-            state: "prototype_mock",
-            provider: "prototype-mock",
-            message: "Prototype mock data, not live Databricks evidence.",
-          },
-        }}
-      />,
+      <FrameHarness activeModule="admin" shellOverrides={{ ai: { state: "available", provider: "genie" } }} />,
     );
 
     if (!screen.queryByRole("dialog", { name: "Atlas AI" })) {
@@ -369,19 +364,10 @@ describe("AppFrame", () => {
 
     expect(screen.getByText("Which runtime job or integration needs attention?")).not.toBeNull();
     expect(screen.getByPlaceholderText("Ask about runtime jobs, integrations, or policies...")).not.toBeNull();
-    expect(screen.getByText(/prototype runtime health, integrations, policy coverage/i)).not.toBeNull();
+    expect(screen.getByText(/runtime health, integrations, policy coverage/i)).not.toBeNull();
 
     rerender(
-      <FrameHarness
-        activeModule="audit"
-        shellOverrides={{
-          ai: {
-            state: "prototype_mock",
-            provider: "prototype-mock",
-            message: "Prototype mock data, not live Databricks evidence.",
-          },
-        }}
-      />,
+      <FrameHarness activeModule="audit" shellOverrides={{ ai: { state: "available", provider: "genie" } }} />,
     );
 
     expect(screen.getByText("Summarize audit evidence for the selected window.")).not.toBeNull();
@@ -438,6 +424,43 @@ describe("AppFrame", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /finance_prod\.curated\.revenue_daily/i }));
     expect(onSearchResultSelect).toHaveBeenCalledWith("finance_prod.curated.revenue_daily");
+  });
+
+  it("opens generated SQL evidence from Atlas AI as an operational detail panel", async () => {
+    fetchAtlasAiRecommendations.mockResolvedValueOnce({
+      answer: "There are **three critical assets** without certification.",
+      evidence: [
+        {
+          type: "genie_query",
+          metric: "generatedSql",
+          statementId: "stmt-123",
+          rowCount: 3,
+          sql: "SELECT asset_fqn FROM datapact.atlas_ai.atlas_ai_assets_current WHERE is_certified = FALSE",
+          resultColumns: ["asset_fqn", "domain"],
+          resultRows: [
+            { asset_fqn: "datapact.governance_atlas_demo.customer_identity_quality", domain: "Customer" },
+          ],
+        },
+      ],
+    });
+
+    render(<FrameHarness activeModule="home" shellOverrides={{ ai: { state: "available", provider: "genie" } }} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Atlas AI" }));
+    const input = screen.getByPlaceholderText("Ask about a dashboard, owner, or risk signal...");
+    fireEvent.change(input, { target: { value: "Which critical assets are not certified?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask Atlas AI" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("1 evidence record returned.")).not.toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Generated SQL evidence/i }));
+
+    expect(screen.getByRole("region", { name: "Atlas AI query evidence" })).not.toBeNull();
+    expect(screen.getByText("3 metadata rows returned")).not.toBeNull();
+    expect(screen.getByTestId("atlas-ai-query-evidence-sql").textContent).toContain("atlas_ai_assets_current");
+    expect(screen.getByText("datapact.governance_atlas_demo.customer_identity_quality")).not.toBeNull();
   });
 
   it("renders Atlas AI markdown without raw formatting artifacts or unsafe links", async () => {
@@ -561,6 +584,31 @@ describe("AppFrame", () => {
 
     rerender(<FrameHarness bootState="degraded" diagnosticsStatus={{ state: "ready" }} />);
     expect(screen.getByText("UC status degraded").closest(".ga-env-chip")?.className).toContain("tone-warn");
+  });
+
+  it("keeps non-authoritative Atlas AI provider metadata from changing UC app liveness", () => {
+    render(
+      <FrameHarness
+        shellOverrides={{
+          ai: {
+            state: "available",
+            provider: "local-prototype-mock",
+            message: "Atlas AI provider is unavailable.",
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("UC connected · 87.4% coverage").closest(".ga-env-chip")?.className).toContain("tone-good");
+    const headerButton = screen.getByRole("button", { name: "Atlas AI" });
+    expect(headerButton.disabled).toBe(true);
+    const button = screen.getByRole("button", {
+      name: /Open Atlas AI unavailable state: Atlas AI provider is unavailable/i,
+    });
+    expect(button.disabled).toBe(false);
+    fireEvent.click(button);
+    expect(screen.getByRole("dialog", { name: "Atlas AI" })).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Ask Atlas AI" }).disabled).toBe(true);
   });
 
   it("keeps diagnostics reachable via the profile menu even without a 'Workspace setup' trigger", () => {

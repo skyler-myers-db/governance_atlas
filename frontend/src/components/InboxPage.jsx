@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { InboxPanel } from "./primitives/InboxPanel";
 
 export function InboxPage({ bootState = "live", governanceInbox, onInboxItemAction, onBack }) {
-  const prototypeEvidence = String(bootState || "").toLowerCase() === "prototype_mock";
   useEffect(() => {
     if (typeof document === "undefined") return;
     const previous = document.title;
@@ -19,9 +18,7 @@ export function InboxPage({ bootState = "live", governanceInbox, onInboxItemActi
           <div className="gh-eyebrow">Governance</div>
           <h1 className="gh-inbox-page-title">Inbox</h1>
           <p className="gh-inbox-page-lede">
-            {prototypeEvidence
-              ? "Prototype inbox rows are local mock governance notifications, not live Databricks workflow evidence."
-              : "Workflow notifications tied to your governance activity - stewardship requests assigned to you, ownership changes on assets you watch, quality run breaches, and glossary term reviews awaiting approval."}
+            Workflow notifications tied to your governance activity - stewardship requests assigned to you, ownership changes on assets you watch, quality run breaches, and glossary term reviews awaiting approval.
           </p>
         </div>
         {onBack ? (

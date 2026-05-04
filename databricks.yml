@@ -36,6 +36,9 @@ variables:
   gov_schema:
     description: "UC schema within the catalog for governance tables"
     default: ""
+  discovery_catalogs:
+    description: "Optional comma-separated UC catalog allowlist for representative discovery and lineage coverage; empty means all accessible non-system catalogs"
+    default: ""
   admin_emails:
     description: "Comma-separated bootstrap admin emails"
     default: ""
@@ -96,6 +99,8 @@ resources:
             value: ${var.gov_catalog}
           - name: GOVAT_SCHEMA
             value: ${var.gov_schema}
+          - name: GOVAT_DISCOVERY_CATALOGS
+            value: ${var.discovery_catalogs}
           - name: GOVAT_ADMIN_EMAILS
             value: ${var.admin_emails}
           - name: GOVAT_ENVIRONMENT_LABEL
@@ -157,6 +162,7 @@ targets:
     variables:
       gov_catalog: datapact
       gov_schema: atlas
+      discovery_catalogs: "datapact,finance_prod,customer_360,sales_prod,product_events,hr_secure,marketing_mart"
       admin_emails: "skyler@entrada.ai"
       environment_label: "Dev - DEFAULT"
       deploy_target: "Dev"

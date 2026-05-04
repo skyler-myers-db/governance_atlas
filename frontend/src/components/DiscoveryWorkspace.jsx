@@ -9,6 +9,7 @@ import { useLineage } from "../hooks/useLineage";
 import { useDiscoveryWorkspace } from "../hooks/useDiscoveryWorkspace";
 import { fetchAtlasAiRecommendations } from "../lib/api";
 import { displayObjectType } from "../lib/assetPresentation";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 import { AssetTypeIcon } from "./primitives";
 import { OwnerAvatar, OwnerAvatarStack } from "./primitives/OwnerAvatar";
 import {
@@ -60,11 +61,44 @@ function discoveryAiCacheKey(requestKey = "default", query = "") {
   return `${DISCOVERY_AI_CACHE_PREFIX}${raw.replace(/[^a-z0-9._:-]+/gi, "_").slice(0, 180)}`;
 }
 
+function atlasAiUnavailableResponseMessage(response = null) {
+  if (!response || response.nonAuthoritative) return "";
+  const recommendations = Array.isArray(response.recommendations) ? response.recommendations : [];
+  if (recommendations.length) return "";
+  const state = String(
+    response.state ||
+      response.status ||
+      response.intent ||
+      response.meta?.state ||
+      response.providerState?.state ||
+      "",
+  ).toLowerCase();
+  const authorityFalse =
+    response.authoritative === false ||
+    response.meta?.authoritative === false ||
+    response.liveDatabricksEvidence === false;
+  if (!authorityFalse || !/(unavailable|degraded|error|limited|unknown)/i.test(state)) return "";
+  const warnings = Array.isArray(response.warnings)
+    ? response.warnings
+    : Array.isArray(response.meta?.warnings)
+      ? response.meta.warnings
+      : [];
+  return (
+    warnings.map((warning) => String(warning || "").trim()).find(Boolean) ||
+    String(response.warning || response.message || response.reason || response.providerState?.message || "").trim() ||
+    "Atlas AI recommendations are unavailable until Databricks Genie returns evidence."
+  );
+}
+
 function readDiscoveryAiCache(cacheKey = "") {
   if (!cacheKey || typeof window === "undefined" || !window.sessionStorage) return null;
   try {
     const payload = JSON.parse(window.sessionStorage.getItem(cacheKey) || "null");
     if (!payload?.response || !payload?.cachedAt) return null;
+    if (atlasAiUnavailableResponseMessage(payload.response)) {
+      window.sessionStorage.removeItem(cacheKey);
+      return null;
+    }
     if (Date.now() - Number(payload.cachedAt) > DISCOVERY_AI_CACHE_TTL_MS) {
       window.sessionStorage.removeItem(cacheKey);
       return null;
@@ -77,6 +111,7 @@ function readDiscoveryAiCache(cacheKey = "") {
 
 function writeDiscoveryAiCache(cacheKey = "", response = null) {
   if (!cacheKey || !response || typeof window === "undefined" || !window.sessionStorage) return;
+  if (atlasAiUnavailableResponseMessage(response)) return;
   try {
     window.sessionStorage.setItem(
       cacheKey,
@@ -1769,11 +1804,10 @@ function compactCount(value, suffix = "") {
   return `${Math.round(number).toLocaleString()}${suffix}`;
 }
 
-function prototypeSafeDiscoveryText(value = "") {
+function discoveryDisplayText(value = "") {
   return String(value || "")
-    .replace(/\bAuthoritative\b/gi, "Prototype")
-    .replace(/\bSource-of-record\b/gi, "Prototype reference")
-    .replace(/\bsource-of-record\b/gi, "prototype reference");
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function discoveryResultMetadata(asset, primaryOwner = "", sourceAuthoritative = true) {
@@ -1796,7 +1830,7 @@ function discoveryResultMetadata(asset, primaryOwner = "", sourceAuthoritative =
       queries ? { key: "usage", label: queries } : null,
       lineage ? { key: "lineage", label: lineage } : null,
       rows ? { key: "rows", label: rows } : null,
-      { key: "prototype-proof", label: "Prototype fixture - not live proof", hidden: true },
+      { key: "evidence-unavailable", label: "Live proof unavailable", hidden: true },
     ].filter(Boolean);
   }
   const freshness = String(asset?.freshness || asset?.freshnessLabel || asset?.updatedAgo || "").trim();
@@ -1975,6 +2009,7 @@ function DiscoverySearchHero({
   ownerFilterValue = "",
   onOwnerFilterChange,
   sourceAuthoritative = true,
+  sourceWorkspaceScoped = false,
 }) {
   const selectedOne = (values = []) => (Array.isArray(values) && values.length === 1 ? values[0] : "");
   const setSingle = (key) => (value) =>
@@ -1988,9 +2023,11 @@ function DiscoverySearchHero({
         <div className="ga-eyebrow">Discover</div>
         <h1>Find trusted, governed data</h1>
         <p>
-          {sourceAuthoritative
+          {sourceWorkspaceScoped
+            ? "Search across catalogs, schemas, tables, columns, models, and glossary terms. Workspace-scoped results use Unity Catalog and governance store signals; actor-scoped protected reads remain restricted."
+            : sourceAuthoritative
             ? "Search across catalogs, schemas, tables, columns, models, and glossary terms. Results are permission-aware and ranked by governed trust signals."
-            : "Search across catalogs, schemas, tables, columns, models, and glossary terms. Prototype results are permission-aware in shape and ranked by non-live trust fixtures."}
+            : "Search across catalogs, schemas, tables, columns, models, and glossary terms. Non-authoritative payloads are rejected and live trust ranking remains unavailable."}
         </p>
       </div>
       <div className="gh-discovery-search-row">
@@ -2009,7 +2046,7 @@ function DiscoverySearchHero({
                 query: event.target.value,
               }))
             }
-            placeholder="Try: revenue, customer_id, churn, marisol, sox-relevant..."
+            placeholder="Try: revenue, customer_id, policy exception, critical data element..."
             value={filters.query || ""}
           />
         </label>
@@ -2246,37 +2283,31 @@ function FilterRailGroup({ eyebrow, count = null, children }) {
   );
 }
 
-function DiscoverySavedSearchesPopover({ savedViewCounts = {}, onDiscoveryStateChange, onClose }) {
-  const savedViews = [
-    { label: "Revenue CDEs", view: "Certified", query: "tag:CDE domain:Finance" },
-    { label: "PII assets", view: "Needs attention", query: "tag:pii" },
-    { label: "High coverage certified", view: "High coverage", query: "certification:Certified" },
-  ];
+function DiscoverySavedSearchesPopover({ onClose }) {
   return (
     <div className="gh-discovery-saved-searches-popover" role="dialog" aria-label="Saved searches">
-      {savedViews.map((view) => (
+      {[
+        ["Saved search inventory unavailable", "No backed user-preference store has reported saved searches."],
+        ["Pinned team searches unavailable", "Team-scoped saved-search state is not configured for this workspace."],
+        ["Recent search shortcuts unavailable", "Recent-search history is not persisted by the live runtime."],
+      ].map(([label, detail]) => (
         <button
-          key={view.label}
-          onClick={() => {
-            onDiscoveryStateChange((current) => ({
-              ...current,
-              query: view.query,
-              views: view.view ? [view.view] : current.views || [],
-            }));
-            onClose?.();
-          }}
+          aria-disabled="true"
+          disabled
+          key={label}
+          title={detail}
           type="button"
         >
-          <strong>{view.label}</strong>
-          <span>{view.query}</span>
-          <small>{Number(savedViewCounts[view.view] || 0).toLocaleString()} visible</small>
+          <strong>{label}</strong>
+          <span>{detail}</span>
+          <small>Disabled</small>
         </button>
       ))}
       <div className="gh-discovery-saved-searches-actions" aria-label="Saved search management">
         <button
           aria-disabled="true"
           disabled
-          title="Creating saved searches requires a backed user-preference store; this prototype-mock evidence does not mutate Databricks."
+          title="Creating saved searches requires a backed user-preference store; this control does not mutate Databricks without one."
           type="button"
         >
           <strong>Create saved search unavailable</strong>
@@ -2286,12 +2317,17 @@ function DiscoverySavedSearchesPopover({ savedViewCounts = {}, onDiscoveryStateC
         <button
           aria-disabled="true"
           disabled
-          title="Managing saved searches requires a backed user-preference store; this prototype-mock evidence does not mutate Databricks."
+          title="Managing saved searches requires a backed user-preference store; this control does not mutate Databricks without one."
           type="button"
         >
           <strong>Manage saved searches unavailable</strong>
           <span>Requires backed preferences</span>
           <small>Disabled</small>
+        </button>
+        <button onClick={onClose} type="button">
+          <strong>Close saved searches</strong>
+          <span>No saved-search state was changed.</span>
+          <small>Close</small>
         </button>
       </div>
     </div>
@@ -2457,7 +2493,6 @@ function DiscoveryResultsTable({
   recordUnavailableReason = "",
   sourceAuthoritative = false,
   sourceLabel = "",
-  sourceIsPrototype = false,
 }) {
   const [displayMode, setDisplayMode] = useState("list");
   const tabs = resultTabDefinitions({ resultsCount, assets, facets });
@@ -2490,10 +2525,10 @@ function DiscoveryResultsTable({
       <div className="gh-visually-hidden">
         Showing {Math.min(assets.length, resultsCount || assets.length).toLocaleString()} of {(resultsCount || assets.length).toLocaleString()} assets
       </div>
-      {!sourceAuthoritative && !sourceIsPrototype ? (
+      {!sourceAuthoritative ? (
         <div className="gh-discovery-source-strip" role="status">
           <strong>{sourceLabel || "Degraded discovery payload"}</strong>
-          <span>Asset values shown here are not live Databricks proof unless the source is explicitly live and authoritative.</span>
+          <span>Asset values shown here require an explicitly live and authoritative source before they can be used for product-readiness evidence.</span>
         </div>
       ) : null}
       <div className="gh-discovery-results-tabs">
@@ -2562,7 +2597,7 @@ function DiscoveryResultsTable({
           <div role="columnheader">Owner</div>
           <div role="columnheader">Certification</div>
           <div role="columnheader">Domain</div>
-          <div role="columnheader">{sourceAuthoritative ? "Trust Signal" : "Prototype Trust"}</div>
+          <div role="columnheader">Trust Signal</div>
           <div role="columnheader">Sensitivity</div>
           <div role="columnheader">Glossary Linkage</div>
           <div role="columnheader">Description</div>
@@ -2711,7 +2746,7 @@ function DiscoveryResultTableRow({
   const terms = glossaryLabels(asset);
   const metadataItems = discoveryResultMetadata(asset, primaryOwner, sourceAuthoritative);
   const recordUnavailable = recordOpenable === false;
-  const description = prototypeSafeDiscoveryText(asset.description || "");
+  const description = discoveryDisplayText(asset.description || "");
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -2751,11 +2786,7 @@ function DiscoveryResultTableRow({
       tabIndex={0}
     >
       <div className="gh-discovery-cell gh-discovery-name-cell" role="cell">
-        {sourceAuthoritative ? (
-          <AssetTypeIcon asset={asset} size="lg" />
-        ) : (
-          <PrototypeDiscoveryAssetGlyph asset={asset} />
-        )}
+        <AssetTypeIcon asset={asset} size="lg" />
         <div className="gh-discovery-name-stack">
           <button
             className="gh-discovery-row-title"
@@ -2806,11 +2837,7 @@ function DiscoveryResultTableRow({
               <span className="gh-discovery-asset-trust gh-visually-hidden">{coverage}%</span>
             </>
           ) : (
-            <>
-              <span className="gh-discovery-trust-score">{coverage}</span>
-              <span className="gh-discovery-trust-label">Trust</span>
-              <span className="gh-visually-hidden">Prototype trust fixture, not live score proof</span>
-            </>
+            <span className="gh-discovery-muted">Unavailable</span>
           )
         ) : (
           <span className="gh-discovery-muted">—</span>
@@ -2995,7 +3022,7 @@ function DiscoveryDegradedResultsState({
         className="gh-discovery-empty-state"
         eyebrow="Discovery Unavailable"
         message={
-          "The prototype row shape is preserved with unavailable trust, usage, lineage, and row metrics instead of synthetic values."
+          "The result row shape is preserved with unavailable trust, usage, lineage, and row metrics instead of synthetic values."
         }
         title={title}
         tone="bad"
@@ -3014,33 +3041,40 @@ function DiscoveryBottomPanels({
   atlasAiAvailable = true,
   atlasAiUnavailableReason = "",
 }) {
-  const savedViews = [
+  const governanceViews = [
     { label: "Needs Owner", view: "Needs owner", count: savedViewCounts["Needs owner"] },
     { label: "Needs Certification", view: "Needs certification", count: savedViewCounts["Needs certification"] },
     { label: "Certified Data", view: "Certified", count: savedViewCounts["Certified"] },
     { label: "High Coverage Assets", view: "High coverage", count: savedViewCounts["High coverage"] },
   ];
-  const recommendedAssets = [...assets]
+  const highCoverageAssets = [...assets]
     .filter((asset) => coveragePercent(asset) !== null)
     .sort((a, b) => (coveragePercent(b) || 0) - (coveragePercent(a) || 0))
     .slice(0, 3);
-  const aiRecommendations = Array.isArray(aiState?.response?.recommendations)
+  const aiResponseNonAuthoritative = isNonAuthoritativeMockEvidence(
+    aiState?.response,
+    aiState?.response?.recommendations,
+    aiState?.response?.warnings,
+  ) || Boolean(aiState?.response?.nonAuthoritative);
+  const aiUnavailableMessage = atlasAiUnavailableResponseMessage(aiState?.response);
+  const aiRecommendations = !aiResponseNonAuthoritative && !aiUnavailableMessage && Array.isArray(aiState?.response?.recommendations)
     ? aiState.response.recommendations
     : [];
   return (
     <section className="gh-discovery-bottom-grid" aria-label="Discovery accelerators">
       <div className="gh-discovery-bottom-card">
         <header>
-          <h2>Saved Views</h2>
+          <h2>Governance Views</h2>
           <button
             onClick={() => onDiscoveryStateChange((current) => ({ ...current, views: [] }))}
+            title="Clear live governance filters"
             type="button"
           >
-            View all
+            Clear
           </button>
         </header>
         <div className="gh-discovery-saved-list">
-          {savedViews.map((view) => (
+          {governanceViews.map((view) => (
             <button
               key={view.label}
               onClick={() =>
@@ -3061,13 +3095,22 @@ function DiscoveryBottomPanels({
       </div>
       <div className="gh-discovery-bottom-card">
         <header>
-          <h2>Recommended Assets</h2>
-          <button onClick={() => recommendedAssets[0] && onSelect(recommendedAssets[0].fqn)} type="button">
-            View all
+          <h2>High Coverage Assets</h2>
+          <button
+            onClick={() =>
+              onDiscoveryStateChange((current) => ({
+                ...current,
+                views: ["High coverage"],
+              }))
+            }
+            title="Apply the live high-coverage filter"
+            type="button"
+          >
+            Filter all
           </button>
         </header>
         <div className="gh-discovery-recommended-list">
-          {recommendedAssets.length ? recommendedAssets.map((asset) => {
+          {highCoverageAssets.length ? highCoverageAssets.map((asset) => {
             const coverage = coveragePercent(asset);
             return (
               <button key={asset.fqn} onClick={() => onSelect(asset.fqn)} type="button">
@@ -3080,7 +3123,7 @@ function DiscoveryBottomPanels({
               </button>
             );
           }) : (
-            <div className="gh-discovery-bottom-empty">Recommendations appear after live coverage evidence is available.</div>
+            <div className="gh-discovery-bottom-empty">High-coverage assets appear after live coverage evidence is available.</div>
           )}
         </div>
       </div>
@@ -3108,10 +3151,10 @@ function DiscoveryBottomPanels({
               const evidenceId = evidence?.id || "";
               const asset = evidenceId ? assets.find((candidate) => candidate.fqn === evidenceId) : null;
               const provider = recommendation.provider || aiState.response?.recommendationsProvider || aiState.response?.provider || "AI";
-              const localEvidenceProvider = /local-evidence|prototype/i.test(String(provider));
+              const nonAuthoritativeProvider = /local-evidence|prototype/i.test(String(provider));
               const authorityLabel =
-                aiState.response?.authoritative === false || localEvidenceProvider
-                  ? "Local evidence recommendation - not live Genie proof"
+                aiState.response?.authoritative === false || nonAuthoritativeProvider
+                  ? "Recommendation unavailable without live Genie proof"
                   : "Evidence-backed recommendation from Atlas AI";
               return (
                 <button
@@ -3131,11 +3174,15 @@ function DiscoveryBottomPanels({
           </div>
         ) : (
           <div className="gh-discovery-bottom-empty">
-            {!atlasAiAvailable
-              ? atlasAiUnavailableReason || "Atlas AI recommendations require a configured evidence-backed endpoint."
-              : aiState.loading
-              ? "Atlas AI is gathering governed metadata evidence."
-              : "Run Atlas AI to generate evidence-backed recommendations for this result set."}
+	            {!atlasAiAvailable
+	              ? atlasAiUnavailableReason || "Atlas AI recommendations require a configured evidence-backed endpoint."
+	              : aiResponseNonAuthoritative
+	              ? "Atlas AI recommendations unavailable until live evidence-backed provider returns results."
+	              : aiUnavailableMessage
+	              ? aiUnavailableMessage
+	              : aiState.loading
+	              ? "Atlas AI is gathering governed metadata evidence."
+	              : "Run Atlas AI to generate evidence-backed recommendations for this result set."}
           </div>
         )}
       </div>
@@ -3408,7 +3455,7 @@ function SelectionPreview({
   );
   const linkedLineagePreview = lineageAvailable && lineage.loading ? (
     <div className="gh-support-copy">
-      {sourceAuthoritative ? "Refreshing live lineage context..." : "Refreshing prototype lineage context..."}
+      {sourceAuthoritative ? "Refreshing live lineage context..." : "Refreshing lineage context..."}
     </div>
   ) : lineageAvailable && lineageNodes.length ? (
     <div className="gh-lineage-mini-preview">
@@ -3460,16 +3507,16 @@ function SelectionPreview({
       {lineageAvailable
         ? sourceAuthoritative
           ? "No live upstream lineage edges are surfaced for this asset yet."
-          : "Live upstream lineage is not verified in this prototype capture."
+          : "Live upstream lineage is not verified for this asset."
         : lineageUnavailableReason || "Lineage preview not available for this asset."}
     </div>
   );
-  const buildabilityNote = recordUnavailable
-    ? "Asset 360 is unavailable with current permissions, so workflow mutations remain disabled."
+  const workflowAvailabilityNote = recordUnavailable
+    ? "Asset 360 is unavailable with current permissions, so workflow actions remain disabled."
     : previewColumns.length || shortDescription || terms.length || governanceTags.length
       ? sourceAuthoritative
-        ? "This preview is assembled from live Discover and Asset 360 fields. Unsupported workflow mutations remain unavailable here."
-        : "Prototype buildability mirrors system.information_schema.tables, information_schema.table_tags, UC grants, Lakeflow freshness, and governance_state.asset_trust. This is not live Databricks proof; unsupported workflow mutations remain unavailable here."
+        ? "Available metadata is shown for review. Actions that require write permissions, certification authority, or missing lineage evidence remain unavailable here."
+        : "This preview is limited until Unity Catalog grants, freshness, and governance-state evidence are available. Unsupported workflow actions remain disabled."
       : "The record is openable, but descriptive, schema, and governance metadata are sparse.";
 
   return (
@@ -3634,7 +3681,7 @@ function SelectionPreview({
               </section>
 
               <section className="gh-asset-preview-section">
-                <div className="gh-panel-title">{sourceAuthoritative ? "Connected Assets" : "Prototype connected assets"}</div>
+                <div className="gh-panel-title">{sourceAuthoritative ? "Connected Assets" : "Connected Assets"}</div>
                 {linkedLineagePreview}
               </section>
 
@@ -3661,14 +3708,14 @@ function SelectionPreview({
               </section>
 
               <section className="gh-asset-preview-section gh-discovery-preview-buildability">
-                <div className="gh-panel-title">Buildability Note</div>
+                <div className="gh-panel-title">Workflow Availability</div>
                 {sourceAuthoritative || recordUnavailable ? (
-                  <p>{buildabilityNote}</p>
+                  <p>{workflowAvailabilityNote}</p>
                 ) : (
                   <>
-                    <p className="gh-discovery-buildability-subtitle">How this view is composed</p>
+                    <p className="gh-discovery-buildability-subtitle">Evidence required</p>
                     <div className="gh-discovery-buildability-box">
-                      Metadata sourced from <code>system.information_schema.tables</code>: description and tags from <code>information_schema.table_tags</code>; ownership from UC grants; freshness from a Lakeflow Job that records last-write timestamp; trust score is computed nightly into <code>governance_state.asset_trust</code>. This is not live Databricks proof.
+                      Field-level provenance is unavailable for this degraded payload. The preview preserves the target layout until a live metadata source returns backed description, tag, ownership, freshness, and trust-score evidence.
                     </div>
                   </>
                 )}
@@ -3792,6 +3839,7 @@ function SelectionPreview({
         </div>
         <footer className="gh-discovery-preview-footer" aria-label="Preview workflow actions">
           <button
+            aria-label="Comment unavailable: comment threads require a backed workflow before they can be created from Discover."
             className="gh-secondary-button"
             disabled
             title="Comment threads require a backed workflow before they can be created from Discover."
@@ -3800,6 +3848,7 @@ function SelectionPreview({
             Comment
           </button>
           <button
+            aria-label="Request access unavailable: access requests require a backed workflow before they can be created from Discover."
             className="gh-secondary-button"
             disabled
             title="Access requests require a backed workflow before they can be created from Discover."
@@ -3816,7 +3865,7 @@ function SelectionPreview({
                 ? recordUnavailableReason
                 : sourceAuthoritative
                   ? "Open governance workspace"
-                  : "Open governance certification review context; this does not certify metadata in prototype mode."
+                  : "Open governance certification review context; this does not certify metadata without a backed mutation workflow."
             }
             type="button"
           >
@@ -4015,6 +4064,26 @@ function labelForInventorySource(source, authMode) {
   }
   if (normalizedSource) return normalizedSource;
   return "Unity Catalog";
+}
+
+function isDatabricksBackedDiscoveryMeta(meta = {}) {
+  if (!meta || typeof meta !== "object") return false;
+  const source = String(meta.source || meta.inventorySource || meta.dataSource || "").toLowerCase();
+  const visibilityScope = String(meta.visibilityScope || meta.readScope || "").toLowerCase();
+  const authMode = String(meta.authMode || meta.productMode || "").toLowerCase();
+  const discoveryState = String(meta.discoveryState || meta.state || "").toLowerCase();
+  const trustedSource =
+    source.includes("unity-catalog") ||
+    source.includes("unity_catalog") ||
+    source.includes("databricks") ||
+    source.includes("governance-store") ||
+    source.includes("governance_store");
+  const workspaceScoped =
+    visibilityScope === "workspace-app-principal" ||
+    visibilityScope === "workspace_app_principal" ||
+    authMode === "app-principal-only" ||
+    authMode === "app_principal_only";
+  return trustedSource && workspaceScoped && (discoveryState === "live" || discoveryState === "degraded");
 }
 
 function labelForRuntimeState(state) {
@@ -4620,10 +4689,10 @@ export default function DiscoveryWorkspace({
     enabled: Boolean(selectedSeedAsset?.fqn) && previewSurfaceAvailable,
   });
   const previewSchemaDetail = useAssetDetail(selectedSeedAsset?.fqn || "", {
-    // Include the `operational` section too so the sidecar can render
-    // REAL usage counts (producer / consumer / query counts from lineage)
-    // and a REAL column schema preview, instead of placeholder zeros.
-    sections: ["header", "schema", "operational"],
+    // Keep the initial preview bounded to fast metadata. Operational evidence
+    // stays behind the explicit lineage/context workflow so preview load cannot
+    // block on slower query-history or lineage probes.
+    sections: ["header", "schema"],
     enabled: Boolean(selectedSeedAsset?.fqn) && previewSurfaceAvailable,
   });
   const previewAsset = isUsableAssetDetail(previewSchemaDetail.detail)
@@ -4678,15 +4747,14 @@ export default function DiscoveryWorkspace({
   const resultsError = discoveryResults.error;
   const resultsSettled = discoveryResults.settled;
   const resultsFacets = discoveryResults.facets;
-  const discoverySourceAuthoritative = discoveryResults.authoritative === true;
-  const discoverySourceIsPrototype =
-    effectiveBootState === "prototype_mock" ||
-    /prototype/i.test(String(discoveryResults.meta?.state || "")) ||
-    /prototype/i.test(String(discoveryResults.meta?.source || ""));
-  const discoverySourceLabel = discoverySourceAuthoritative
+  const discoveryMeta = discoveryResults.meta || null;
+  const discoveryDatabricksBacked = isDatabricksBackedDiscoveryMeta(discoveryMeta);
+  const discoverySourceAuthoritative =
+    discoveryResults.authoritative === true || discoveryDatabricksBacked;
+  const discoverySourceLabel = discoveryResults.authoritative === true
     ? "Live Unity Catalog"
-    : discoverySourceIsPrototype
-      ? "Prototype mock · not live Databricks evidence"
+    : discoveryDatabricksBacked
+      ? "Databricks-backed · workspace scope"
       : "Degraded discovery payload";
   useEffect(() => {
     if (!showAdvancedFilters) return undefined;
@@ -4941,10 +5009,32 @@ export default function DiscoveryWorkspace({
         window.clearTimeout(timeoutId);
         if (atlasAiRequestSeqRef.current !== requestId) {
           return;
+	        }
+	        if (atlasAiAbortRef.current === controller) atlasAiAbortRef.current = null;
+	        if (response?.nonAuthoritative || isNonAuthoritativeMockEvidence(response, response?.recommendations, response?.warnings)) {
+	          setAtlasAiState({
+	            loading: false,
+	            response: {
+	              nonAuthoritative: true,
+	              recommendations: [],
+	            },
+	            error: "",
+	            cacheKey: requestCacheKey,
+	          });
+	          return;
+	        }
+        const unavailableMessage = atlasAiUnavailableResponseMessage(response);
+        if (unavailableMessage) {
+          setAtlasAiState({
+            loading: false,
+            response,
+            error: "",
+            cacheKey: requestCacheKey,
+          });
+          return;
         }
-        if (atlasAiAbortRef.current === controller) atlasAiAbortRef.current = null;
-        writeDiscoveryAiCache(requestCacheKey, response);
-        setAtlasAiState({
+	        writeDiscoveryAiCache(requestCacheKey, response);
+	        setAtlasAiState({
           loading: false,
           response,
           error: "",
@@ -5174,7 +5264,6 @@ export default function DiscoveryWorkspace({
   // A1.4: operator-facing diagnostics strip. Only materialize the
   // props object when an empty-state branch will render, so we never
   // pay the render cost on the happy path.
-  const discoveryMeta = discoveryResults.meta || null;
   const discoveryDiagnostics = {
     runtimeState: effectiveBootState || discoveryMeta?.state || bootstrap?.bootState || "",
     authMode:
@@ -5864,8 +5953,9 @@ export default function DiscoveryWorkspace({
             onOwnerFilterChange={(value) => setOwnerFilterText(value || "")}
             ownerFilterValue={ownerFilterText === "__unassigned__" ? "" : ownerFilterText}
             ownerOptions={ownerFilterOptions}
-            savedSearchesOpen={showSavedSearches}
-            sourceAuthoritative={discoverySourceAuthoritative}
+          savedSearchesOpen={showSavedSearches}
+          sourceAuthoritative={discoverySourceAuthoritative}
+          sourceWorkspaceScoped={discoveryDatabricksBacked && discoveryResults.authoritative !== true}
           />
           {showSavedSearches ? (
             <DiscoverySavedSearchesPopover
@@ -5984,7 +6074,6 @@ export default function DiscoveryWorkspace({
                 selectedAssetFqn={previewOverlayOpen ? selectedAssetFqn : ""}
                 sortOptions={bootstrap.discovery.sortOptions}
                 sourceAuthoritative={discoverySourceAuthoritative}
-                sourceIsPrototype={discoverySourceIsPrototype}
                 sourceLabel={discoverySourceLabel}
               />
               <DiscoveryBottomPanels

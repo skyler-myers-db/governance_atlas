@@ -58,4 +58,27 @@ describe("useAsset360", () => {
     expect(result.current.loading).toBe(false);
     expect(result.current.data).toBeNull();
   });
+
+  it("rejects non-authoritative Asset 360 payload variants", async () => {
+    fetchAsset360Mock.mockResolvedValue({
+      meta: {
+        evidenceKind: "non_authoritative_mock_capture",
+      },
+      asset: { fqn: "main.sales.orders", name: "orders" },
+      usage: { queryCount: 9 },
+    });
+
+    const { result } = renderHook(() => useAsset360("main.sales.orders"), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.data?.meta?.state).toBe("non_authoritative");
+    });
+
+    expect(result.current.data.asset).toBeNull();
+    expect(result.current.data.sameAsset).toBe(false);
+    expect(result.current.data.usage).toEqual({});
+  });
 });

@@ -66,7 +66,7 @@ describe("AdminWorkspace", () => {
     fetchAdminControlCenter.mockResolvedValue(controlCenterPayload);
   });
 
-  it("renders the prototype Control Center surface", async () => {
+  it("renders the Control Center surface", async () => {
     renderAdmin();
 
     expect(await screen.findByText("Control Center")).toBeDefined();
@@ -81,7 +81,15 @@ describe("AdminWorkspace", () => {
     expect(screen.getByText("Owner required on production")).toBeDefined();
   });
 
-  it("preserves the prototype shell while diagnostics load", () => {
+  it("does not call the admin endpoint for a reader shell", () => {
+    renderAdmin({ shell: { role: "Reader", userEmail: "reader@example.com" } });
+
+    expect(fetchAdminControlCenter).not.toHaveBeenCalled();
+    expect(screen.getByText("Control Center is admin-only")).toBeDefined();
+    expect(screen.getByText("Ask a workspace admin to grant administration access.")).toBeDefined();
+  });
+
+  it("preserves the Control Center shell while diagnostics load", () => {
     fetchAdminControlCenter.mockReturnValue(new Promise(() => {}));
     renderAdmin();
 
@@ -89,7 +97,7 @@ describe("AdminWorkspace", () => {
     expect(screen.getByText("Loading control center")).toBeDefined();
   });
 
-  it("preserves the prototype shell when diagnostics are unavailable", async () => {
+  it("preserves the Control Center shell when diagnostics are unavailable", async () => {
     fetchAdminControlCenter.mockRejectedValue(new Error("Admin endpoint failed"));
     renderAdmin();
 
@@ -101,17 +109,14 @@ describe("AdminWorkspace", () => {
     fetchAdminControlCenter.mockResolvedValue({ environment: { displayLabel: "Dev · empty" } });
     renderAdmin();
 
-    expect(await screen.findByText("UC metadata sweeper")).toBeDefined();
-    expect(screen.getAllByText("Schedule unavailable").length).toBeGreaterThan(0);
+    expect(await screen.findByText("No backed scheduled-job inventory is available yet.")).toBeDefined();
     expect(screen.getAllByText("Runtime signal unavailable").length).toBeGreaterThan(0);
-    expect(screen.getByText("Owner required on production")).toBeDefined();
+    expect(screen.getByText("No backed policy-coverage rows are available yet.")).toBeDefined();
     expect(screen.getAllByText("Unavailable").length).toBeGreaterThan(0);
-
-    fireEvent.click(screen.getByRole("button", { name: /Owner required on production/ }));
-    expect(screen.getByText("Coverage is unavailable in diagnostics.")).toBeDefined();
+    expect(screen.queryByRole("button", { name: /Unavailable policy signal/ })).toBeNull();
   });
 
-  it("suppresses prototype-mock provenance banners while preserving real warnings", async () => {
+  it("suppresses non-authoritative provenance banners while preserving real warnings", async () => {
     fetchAdminControlCenter.mockResolvedValue({
       ...controlCenterPayload,
       meta: {
@@ -119,13 +124,13 @@ describe("AdminWorkspace", () => {
         warnings: ["Prototype mock data, not live Databricks evidence."],
       },
     });
-    const prototypeRender = renderAdmin();
-    await screen.findByText("Every 15 min");
+    const nonAuthoritativeRender = renderAdmin();
+    await screen.findByText("Non-authoritative Control Center diagnostics were rejected. Live diagnostics are required for populated runtime, integration, and policy rows.");
     expect(screen.queryByText("Prototype mock data, not live Databricks evidence.")).toBeNull();
-    fireEvent.click(screen.getByText("Every 15 min").closest("button"));
-    expect(screen.getByRole("button", { name: /Open linked resource/i }).disabled).toBe(true);
-    expect(screen.getByText("Prototype URL withheld; not live Databricks resource proof.")).toBeDefined();
-    prototypeRender.unmount();
+    expect(screen.queryByText("Connected live")).toBeNull();
+    expect(screen.getByText("No backed scheduled-job inventory is available yet.")).toBeDefined();
+    expect(screen.getAllByText("Runtime signal unavailable").length).toBeGreaterThan(0);
+    nonAuthoritativeRender.unmount();
 
     fetchAdminControlCenter.mockResolvedValue({
       ...controlCenterPayload,
@@ -141,7 +146,7 @@ describe("AdminWorkspace", () => {
   it("reports local row selections without route mutation", async () => {
     renderAdmin();
 
-    await screen.findByText("Every 1 hr");
+    await screen.findByText("21 min ago");
     const lineageCollector = screen.getByText("Every 1 hr").closest("button");
     fireEvent.click(lineageCollector);
     expect(screen.getByText("Lineage collector diagnostics selected.")).toBeDefined();
@@ -161,7 +166,7 @@ describe("AdminWorkspace", () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     renderAdmin();
 
-    await screen.findByText("Every 15 min");
+    await screen.findByText("4 min ago");
     fireEvent.click(screen.getByText("Every 15 min").closest("button"));
     const openLinked = screen.getByRole("button", { name: /Open linked resource/i });
     expect(openLinked.disabled).toBe(false);
@@ -182,5 +187,21 @@ describe("AdminWorkspace", () => {
     await screen.findByText("96%");
     fireEvent.click(screen.getByText("96%").closest("button"));
     expect(screen.getByText("96% coverage from diagnostics.")).toBeDefined();
+  });
+
+  it("rejects diagnostics flagged by evidenceKind before rendering runtime rows", async () => {
+    fetchAdminControlCenter.mockResolvedValue({
+      ...controlCenterPayload,
+      meta: {
+        ...controlCenterPayload.meta,
+        evidenceKind: "non_authoritative_mock_capture",
+      },
+    });
+    renderAdmin();
+
+    expect(await screen.findByText("Non-authoritative Control Center diagnostics were rejected. Live diagnostics are required for populated runtime, integration, and policy rows.")).toBeDefined();
+    expect(screen.queryByText("Connected live")).toBeNull();
+    expect(screen.getByText("No backed scheduled-job inventory is available yet.")).toBeDefined();
+    expect(screen.getAllByText("Runtime signal unavailable").length).toBeGreaterThan(0);
   });
 });

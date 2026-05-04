@@ -396,6 +396,104 @@ describe("useDiscoveryWorkspace", () => {
     );
   });
 
+  it("keeps live bootstrap discovery seeds when only shell AI is non-authoritative", () => {
+    const bootstrap = bootstrapPayload({
+      shell: {
+        userEmail: "admin@example.com",
+        ai: {
+          state: "available",
+          provider: "local-prototype-mock",
+        },
+      },
+      discovery: {
+        ...bootstrapPayload().discovery,
+        defaultResults: [{ fqn: "main.sales.orders", name: "orders" }],
+        defaultCount: 1,
+        defaultFacets: { catalogs: [{ value: "main", count: 1 }] },
+      },
+    });
+
+    renderHook(() =>
+      useDiscoveryWorkspace({
+        bootstrap,
+        initialQuery: "",
+        onRouteQueryChange: undefined,
+      }),
+    );
+
+    expect(useDiscoveryResultsMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        seedAssets: [{ fqn: "main.sales.orders", name: "orders" }],
+        seedCount: 1,
+        seedFacets: { catalogs: [{ value: "main", count: 1 }] },
+      }),
+    );
+  });
+
+  it("drops populated degraded live bootstrap discovery seeds when actor scope is degraded", () => {
+    const bootstrap = bootstrapPayload({
+      discovery: {
+        ...bootstrapPayload().discovery,
+        meta: {
+          state: "degraded",
+          source: "unity-catalog-inventory",
+          authoritative: false,
+          oboScopeFallback: true,
+        },
+        defaultResults: [{ fqn: "main.sales.orders", name: "orders" }],
+        defaultCount: 1,
+        defaultFacets: { catalogs: [{ value: "main", count: 1 }] },
+      },
+    });
+
+    renderHook(() =>
+      useDiscoveryWorkspace({
+        bootstrap,
+        initialQuery: "",
+        onRouteQueryChange: undefined,
+      }),
+    );
+
+    expect(useDiscoveryResultsMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        seedAssets: [],
+        seedCount: 0,
+        seedFacets: null,
+      }),
+    );
+  });
+
+  it("drops bootstrap discovery seeds when the discovery payload is explicitly non-authoritative", () => {
+    const bootstrap = bootstrapPayload({
+      discovery: {
+        ...bootstrapPayload().discovery,
+        meta: { state: "non_authoritative" },
+        defaultResults: [{ fqn: "main.sales.orders", name: "orders" }],
+        defaultCount: 1,
+        defaultFacets: { catalogs: [{ value: "main", count: 1 }] },
+      },
+    });
+
+    renderHook(() =>
+      useDiscoveryWorkspace({
+        bootstrap,
+        initialQuery: "",
+        onRouteQueryChange: undefined,
+      }),
+    );
+
+    expect(useDiscoveryResultsMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        seedAssets: [],
+        seedCount: 0,
+        seedFacets: null,
+      }),
+    );
+  });
+
   it("does not echo a seeded route query back through the debounced route sync", async () => {
     vi.useFakeTimers();
     const bootstrap = bootstrapPayload();

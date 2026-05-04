@@ -1,3 +1,9 @@
+import {
+  filterNonAuthoritativeRows,
+  isNonAuthoritativeEvidenceEnvelope,
+  isNonAuthoritativeMockEvidence,
+} from "./nonAuthoritativeEvidence";
+
 function bootstrapConfig() {
   if (typeof window === "undefined") return null;
   return window.__GOVAT_BOOTSTRAP__ || null;
@@ -53,6 +59,7 @@ function normalizeTagEntries(rawTags) {
 
 function normalizeAssetRecord(asset) {
   if (!asset || typeof asset !== "object" || Array.isArray(asset)) return {};
+  if (isNonAuthoritativeEvidenceEnvelope(asset)) return {};
   const operationalContext = objectValue(asset.operationalContext);
   const tagEntries = normalizeTagEntries(asset.tagEntries || asset.tags);
   const tagMap = Object.fromEntries(
@@ -74,9 +81,9 @@ function normalizeAssetRecord(asset) {
     relatedAssets: arrayValue(asset.relatedAssets),
     preview: arrayValue(asset.preview),
     columns: arrayValue(asset.columns),
-    ownerAssignments: arrayValue(asset.ownerAssignments),
-    activity: arrayValue(asset.activity),
-    metadataAudit: arrayValue(asset.metadataAudit),
+    ownerAssignments: filterNonAuthoritativeRows(asset.ownerAssignments),
+    activity: filterNonAuthoritativeRows(asset.activity),
+    metadataAudit: filterNonAuthoritativeRows(asset.metadataAudit),
     tableProperties: arrayValue(asset.tableProperties),
     customProperties: arrayValue(asset.customProperties || asset.tableProperties),
     constraints: arrayValue(asset.constraints),
@@ -316,6 +323,31 @@ function numberOrNull(value) {
 
 function normalizeCommandCenterPayload(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
+  if (isNonAuthoritativeMockEvidence(payload, payload.meta, payload.provenance, payload.warnings)) {
+    return {
+      estate: {},
+      kpis: [],
+      posture: {},
+      topDomains: [],
+      recentEvents: [],
+      recentAssets: [],
+      governance: {},
+      insights: {},
+      quickActions: [],
+      aiPrompts: [],
+      signalAvailability: {},
+      authoritative: false,
+      meta: {
+        ...objectValue(payload.meta),
+        state: "non_authoritative",
+        warnings: [
+          ...arrayValue(payload.warnings),
+          ...arrayValue(objectValue(payload.meta).warnings),
+          "Non-authoritative command-center payload rejected.",
+        ],
+      },
+    };
+  }
   const estate = objectValue(payload.estate);
   const governance = objectValue(payload.governance);
   const insights = objectValue(payload.insights);
@@ -359,6 +391,31 @@ function normalizeCommandCenterPayload(payload) {
 
 function normalizeDiscoveryPayload(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return payload;
+  if (isNonAuthoritativeMockEvidence(payload, payload.meta, payload.queryState, payload.warnings)) {
+    return {
+      ...payload,
+      assets: [],
+      count: 0,
+      facets: {},
+      authoritative: false,
+      queryState: {
+        state: "unavailable",
+        message: "Non-authoritative discovery payload rejected.",
+        syntaxHint: "",
+        supportedFields: [],
+        clauseChips: [],
+      },
+      meta: {
+        ...objectValue(payload.meta),
+        state: "non_authoritative",
+        warnings: [
+          ...arrayValue(payload.warnings),
+          ...arrayValue(objectValue(payload.meta).warnings),
+          "Non-authoritative discovery payload rejected.",
+        ],
+      },
+    };
+  }
   const queryState = objectValue(payload.queryState);
   return {
     ...payload,
@@ -648,19 +705,68 @@ function responseErrorMessage(status, payload) {
 async function request(path, options = {}) {
   const startedAt = nowMs();
   const clientRequestId = options.clientRequestId || createClientRequestId();
-  const response = await fetch(buildUrl(path), {
-    method: options.method || "GET",
-    headers: {
-      Accept: "application/json",
-      [CLIENT_REQUEST_ID_HEADER]: clientRequestId,
-      ...(options.headers || {}),
-    },
-    signal: options.signal,
-    body: options.body,
-  });
+  const requestUrl = buildUrl(path);
+  const timeoutMs = Number.isFinite(Number(options.timeoutMs)) ? Number(options.timeoutMs) : 45_000;
+  const controller = new AbortController();
+  let timeoutId = null;
+  let externalAbortHandler = null;
+  let timedOut = false;
+  if (timeoutMs > 0) {
+    timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
+  }
+  if (options.signal) {
+    if (options.signal.aborted) {
+      controller.abort();
+    } else {
+      externalAbortHandler = () => controller.abort();
+      options.signal.addEventListener("abort", externalAbortHandler, { once: true });
+    }
+  }
+  let response;
+  try {
+    response = await fetch(requestUrl, {
+      method: options.method || "GET",
+      headers: {
+        Accept: "application/json",
+        [CLIENT_REQUEST_ID_HEADER]: clientRequestId,
+        ...(options.headers || {}),
+      },
+      signal: controller.signal,
+      body: options.body,
+    });
+  } catch (error) {
+    const meta = {
+      path: requestUrl,
+      status: 0,
+      clientRequestId,
+      httpRequestId: "",
+      buildId: "",
+      serverDurationMs: 0,
+      clientDurationMs: Math.round((nowMs() - startedAt) * 10) / 10,
+      receivedAt: new Date().toISOString(),
+    };
+    recordRequestDiagnostics(meta);
+    if (timedOut) {
+      throw new ApiError(
+        "The metadata request timed out before Databricks returned a response. The surface remains available with stale or unavailable state.",
+        0,
+        { detail: "client_timeout", timeoutMs },
+        meta,
+      );
+    }
+    throw error;
+  } finally {
+    if (timeoutId) window.clearTimeout(timeoutId);
+    if (options.signal && externalAbortHandler) {
+      options.signal.removeEventListener("abort", externalAbortHandler);
+    }
+  }
   const payload = await parseResponse(response);
   const meta = {
-    path: buildUrl(path),
+    path: requestUrl,
     status: response.status,
     clientRequestId,
     httpRequestId: response.headers.get(REQUEST_ID_HEADER) || payloadRequestId(payload),
@@ -716,6 +822,12 @@ function routeToken(pathTemplate, token, value) {
     .replaceAll(`[${token}]`, encoded);
 }
 
+function appendQueryFlag(path, key, enabled) {
+  if (!enabled) return path;
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}${encodeURIComponent(key)}=1`;
+}
+
 function columnRoute(pathTemplate, assetFqn, columnName) {
   if (!pathTemplate) return "";
   const assetEncoded = encodeURIComponent(assetFqn || "");
@@ -765,7 +877,18 @@ export function fetchAtlasAiRecommendations(question = "", options = {}) {
   const path = contractPath("atlasAiRecommendations") || "/atlas-ai/recommendations";
   return requestJson(path, "POST", { question: String(question || "").trim() }, {
     signal: options.signal,
-  }).then(unwrapEnvelope);
+  }).then((payload) => {
+    const response = unwrapEnvelope(payload);
+    if (isNonAuthoritativeMockEvidence(response, response?.recommendations, response?.warnings)) {
+      return {
+        recommendations: [],
+        authoritative: false,
+        nonAuthoritative: true,
+        warning: "Atlas AI recommendations unavailable until live evidence-backed provider returns results.",
+      };
+    }
+    return response;
+  });
 }
 
 export function fetchAsset360(assetFqn, options = {}) {
@@ -794,12 +917,18 @@ export function fetchInsightsDashboard(options = {}) {
 
 export function fetchTaxonomyOverview(options = {}) {
   const path = contractPath("taxonomyOverview") || "/atlas/taxonomy/overview";
-  return request(path, { signal: options.signal });
+  const params = new URLSearchParams();
+  if (options.refresh) params.set("refresh", "1");
+  const query = params.toString();
+  return request(`${path}${query ? `?${query}` : ""}`, { signal: options.signal });
 }
 
 export function fetchCdeDashboard(options = {}) {
   const path = contractPath("cdeDashboard") || "/atlas/cde";
-  return request(path, { signal: options.signal });
+  const params = new URLSearchParams();
+  if (options.refresh) params.set("refresh", "1");
+  const query = params.toString();
+  return request(`${path}${query ? `?${query}` : ""}`, { signal: options.signal });
 }
 
 export function fetchCdeDetail(cdeId, options = {}) {
@@ -812,6 +941,7 @@ export function fetchAuditEvidence(options = {}) {
   if (options.auditId) params.set("audit_id", options.auditId);
   if (options.dateRange) params.set("date_range", options.dateRange);
   if (options.limit) params.set("limit", String(options.limit));
+  if (options.refresh) params.set("refresh", "1");
   const query = params.toString();
   const path = contractPath("auditEvidence") || "/atlas/audit/evidence";
   return request(`${path}${query ? `?${query}` : ""}`, { signal: options.signal });
@@ -819,7 +949,10 @@ export function fetchAuditEvidence(options = {}) {
 
 export function fetchAdminControlCenter(options = {}) {
   const path = contractPath("adminControlCenter") || "/atlas/admin/control-center";
-  return request(path, { signal: options.signal });
+  const params = new URLSearchParams();
+  if (options.refresh) params.set("refresh", "1");
+  const query = params.toString();
+  return request(`${path}${query ? `?${query}` : ""}`, { signal: options.signal });
 }
 
 export function fetchAdminBackgroundStatus(options = {}) {
@@ -916,7 +1049,17 @@ export function fetchLineage(assetFqn, options = {}) {
 }
 
 export function fetchGovernanceSummary(options = {}) {
-  return request("/governance/summary", options).then((payload) => normalizeGovernancePayload(payload));
+  const params = new URLSearchParams();
+  const sections = Array.isArray(options.sections)
+    ? options.sections
+    : options.section
+      ? [options.section]
+      : [];
+  sections
+    .filter(Boolean)
+    .forEach((section) => params.append("sections", String(section)));
+  const query = params.toString();
+  return request(`/governance/summary${query ? `?${query}` : ""}`, options).then((payload) => normalizeGovernancePayload(payload));
 }
 
 export function fetchGapAnalysis(options = {}) {
@@ -940,6 +1083,20 @@ export function fetchGovernanceAuditTimeline(assetFqn, options = {}) {
   if (!normalized) return Promise.resolve({ fqn: "", entries: [], total: 0 });
   return request(`/governance/audit-timeline/${encodeURIComponent(normalized)}`, {
     signal: options.signal,
+  }).then((payload) => {
+    if (isNonAuthoritativeMockEvidence(payload, payload?.meta, payload?.provenance, payload?.warnings)) {
+      return { fqn: normalized, entries: [], total: 0, nonAuthoritative: true };
+    }
+    const entries = arrayValue(payload?.entries);
+    if (entries.some((entry) => isNonAuthoritativeMockEvidence(entry, entry?.meta, entry?.provenance, entry?.warnings))) {
+      return { fqn: normalized, entries: [], total: 0, nonAuthoritative: true };
+    }
+    return {
+      ...objectValue(payload),
+      fqn: String(payload?.fqn || normalized),
+      entries,
+      total: entries.length,
+    };
   });
 }
 
@@ -962,9 +1119,10 @@ export function upsertGovernanceGlossaryTerm(payload) {
   return requestJson("/governance/glossary", "POST", payload);
 }
 
-export function updateGovernanceRequest(requestId, payload) {
+export function updateGovernanceRequest(requestId, payload, options = {}) {
   const template = contractPath("governanceRequest") || "/governance/requests/:id";
-  return requestJson(routeToken(template, "id", requestId), "PATCH", payload);
+  const path = appendQueryFlag(routeToken(template, "id", requestId), "fast", options.fast);
+  return requestJson(path, "PATCH", payload, { signal: options.signal });
 }
 
 export function updateGovernanceNotification(notificationId, payload) {
@@ -981,6 +1139,9 @@ export function updateGovernanceGlossaryTerm(termId, payload) {
 
 function normalizeClassificationRecord(record) {
   if (!record || typeof record !== "object" || Array.isArray(record)) return null;
+  if (isNonAuthoritativeMockEvidence(record, record.meta, record.provenance, record.warnings, record.evidence)) {
+    return null;
+  }
   return {
     recommendationId: String(record.recommendationId || record.recommendation_id || "").trim(),
     assetFqn: String(record.assetFqn || record.asset_fqn || "").trim(),
@@ -1017,10 +1178,17 @@ export function fetchClassificationRecommendations({ status = "pending", assetFq
     ? `/classification-recommendations?${qs}`
     : "/classification-recommendations";
   return request(path, { signal }).then((payload) => {
+    if (isNonAuthoritativeMockEvidence(payload, payload?.meta, payload?.provenance, payload?.warnings)) {
+      return { recommendations: [], count: 0, pendingCount: 0, nonAuthoritative: true };
+    }
     const recs = Array.isArray(payload?.recommendations) ? payload.recommendations : [];
+    if (recs.some((record) => isNonAuthoritativeMockEvidence(record, record?.meta, record?.provenance, record?.warnings, record?.evidence))) {
+      return { recommendations: [], count: 0, pendingCount: 0, nonAuthoritative: true };
+    }
+    const recommendations = recs.map(normalizeClassificationRecord).filter(Boolean);
     return {
-      recommendations: recs.map(normalizeClassificationRecord).filter(Boolean),
-      count: Number(payload?.count || recs.length || 0),
+      recommendations,
+      count: Number(payload?.count || recommendations.length || 0),
       pendingCount: Number(payload?.pendingCount || 0),
     };
   });
@@ -1036,7 +1204,12 @@ export function fetchClassificationRecommendation(recommendationId, { signal } =
   return request(
     `/classification-recommendations/${encodeURIComponent(normalized)}`,
     { signal },
-  ).then((payload) => normalizeClassificationRecord(payload?.recommendation));
+  ).then((payload) => {
+    if (isNonAuthoritativeMockEvidence(payload, payload?.meta, payload?.provenance, payload?.warnings)) {
+      return null;
+    }
+    return normalizeClassificationRecord(payload?.recommendation);
+  });
 }
 
 /**
@@ -1052,7 +1225,12 @@ export function reviewClassificationRecommendation(recommendationId, { decision,
     `/classification-recommendations/${encodeURIComponent(normalized)}/review`,
     "POST",
     { decision, note },
-  ).then((payload) => normalizeClassificationRecord(payload?.recommendation));
+  ).then((payload) => {
+    if (isNonAuthoritativeMockEvidence(payload, payload?.meta, payload?.provenance, payload?.warnings)) {
+      return null;
+    }
+    return normalizeClassificationRecord(payload?.recommendation);
+  });
 }
 
 export function scanClassificationRecommendations(assetFqn) {
@@ -1065,13 +1243,34 @@ export function scanClassificationRecommendations(assetFqn) {
     "POST",
     {},
   ).then((payload) => {
+    if (isNonAuthoritativeMockEvidence(payload, payload?.meta, payload?.provenance, payload?.warnings)) {
+      return {
+        ok: false,
+        assetFqn: normalized,
+        scanned: 0,
+        generated: 0,
+        recommendations: [],
+        nonAuthoritative: true,
+      };
+    }
     const recs = Array.isArray(payload?.recommendations) ? payload.recommendations : [];
+    if (recs.some((record) => isNonAuthoritativeMockEvidence(record, record?.meta, record?.provenance, record?.warnings, record?.evidence))) {
+      return {
+        ok: false,
+        assetFqn: String(payload?.assetFqn || normalized),
+        scanned: 0,
+        generated: 0,
+        recommendations: [],
+        nonAuthoritative: true,
+      };
+    }
+    const recommendations = recs.map(normalizeClassificationRecord).filter(Boolean);
     return {
       ok: Boolean(payload?.ok),
       assetFqn: String(payload?.assetFqn || normalized),
       scanned: Number(payload?.scanned || 0),
-      generated: Number(payload?.generated || 0),
-      recommendations: recs.map(normalizeClassificationRecord).filter(Boolean),
+      generated: Number(payload?.generated || recommendations.length || 0),
+      recommendations,
     };
   });
 }

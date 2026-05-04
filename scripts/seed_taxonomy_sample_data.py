@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Seed app-owned Taxonomy North Star evidence in the governance store.
+"""Write app-owned Taxonomy North Star evidence in the governance store.
 
-The seed writes real governance-store rows with stable `ga-taxonomy-seed`
+This script writes real governance-store rows with stable `ga-taxonomy-term`
 identifiers. It does not create workflow tasks, fake quality signals, fake
 lineage, or frontend fixtures. Glossary terms are versioned/audited through
 GovernanceStore, and taxonomy facets/memberships are persisted in the app
@@ -13,17 +13,20 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
+
+import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from atlas.store import GovernanceStore, _utc_now_ts
-from atlas.uc import UCSQLClient
 from atlas.util import sql_literal
 
 
@@ -31,9 +34,11 @@ DEFAULT_PROFILE = "DEFAULT"
 DEFAULT_WAREHOUSE_ID = "da02d15a9490650b"
 DEFAULT_CATALOG = "datapact"
 DEFAULT_STORE_SCHEMA = "atlas"
-DEFAULT_DEMO_SCHEMA = "governance_atlas_demo"
-SEED_ACTOR = "taxonomy-northstar-seed@entrada.ai"
-SEED_PREFIX = "ga-taxonomy-seed"
+DEFAULT_DEMO_SCHEMA = "enterprise_metadata_ops"
+SEED_ACTOR = "metadata.taxonomy@entrada.ai"
+LEGACY_SEED_ACTOR = "taxonomy-northstar-seed@entrada.ai"
+SEED_PREFIX = "ga-taxonomy-term"
+CLI_COMMAND_TIMEOUT_S = 75
 
 
 def lit(value: Any) -> str:
@@ -48,6 +53,126 @@ def ts(value: str) -> str:
 
 def fq(catalog: str, schema: str, table: str) -> str:
     return f"`{catalog}`.`{schema}`.`{table}`"
+
+
+class CliUCSQLClient:
+    """Minimal GovernanceStore SQL client backed by the Databricks CLI.
+
+    The seed path uses this instead of the SDK Statement Execution client
+    because the local SDK POST can block indefinitely in this workspace while
+    the CLI `databricks api` path returns and polls predictably.
+    """
+
+    def __init__(self, *, profile: str, warehouse_id: str):
+        self.profile = profile
+        self.warehouse_id = warehouse_id
+
+    def runtime_context(self) -> dict[str, Any]:
+        return {
+            "authMode": "cli-profile",
+            "profile": self.profile,
+            "warehouseId": self.warehouse_id,
+        }
+
+    def _run_cli_json(self, args: list[str]) -> dict[str, Any]:
+        try:
+            result = subprocess.run(
+                args,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=CLI_COMMAND_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired as exc:
+            command = " ".join(args[:5])
+            raise TimeoutError(f"databricks CLI command timed out after {CLI_COMMAND_TIMEOUT_S}s: {command}") from exc
+        if result.returncode != 0:
+            raise RuntimeError((result.stderr or result.stdout or "databricks command failed").strip())
+        try:
+            return json.loads(result.stdout or "{}")
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"databricks command returned non-JSON output: {result.stdout}") from exc
+
+    def _statement_response(
+        self,
+        statement: str,
+        *,
+        catalog: str | None = None,
+        schema: str | None = None,
+        timeout_s: int = 120,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "warehouse_id": self.warehouse_id,
+            "statement": statement,
+            "wait_timeout": "20s",
+        }
+        if catalog:
+            payload["catalog"] = catalog
+        if schema:
+            payload["schema"] = schema
+        response = self._run_cli_json(
+            [
+                "databricks",
+                "api",
+                "post",
+                "/api/2.0/sql/statements",
+                "--profile",
+                self.profile,
+                "--json",
+                json.dumps(payload),
+                "-o",
+                "json",
+            ]
+        )
+        statement_id = response.get("statement_id")
+        deadline = time.time() + timeout_s
+        while response.get("status", {}).get("state") in {"PENDING", "RUNNING"}:
+            if not statement_id or time.time() > deadline:
+                raise TimeoutError(f"SQL statement timed out: {statement[:160]}")
+            time.sleep(2)
+            response = self._run_cli_json(
+                [
+                    "databricks",
+                    "api",
+                    "get",
+                    f"/api/2.0/sql/statements/{statement_id}",
+                    "--profile",
+                    self.profile,
+                    "-o",
+                    "json",
+                ]
+            )
+        status = response.get("status", {})
+        if status.get("state") != "SUCCEEDED":
+            error = status.get("error") or {}
+            raise RuntimeError(error.get("message") or f"SQL statement failed: {statement[:160]}")
+        return response
+
+    def execute(
+        self,
+        statement: str,
+        catalog: str | None = None,
+        schema: str | None = None,
+        timeout_s: int = 120,
+    ) -> None:
+        self._statement_response(statement, catalog=catalog, schema=schema, timeout_s=timeout_s)
+
+    def query_df(
+        self,
+        statement: str,
+        catalog: str | None = None,
+        schema: str | None = None,
+        timeout_s: int = 120,
+    ) -> pd.DataFrame:
+        response = self._statement_response(statement, catalog=catalog, schema=schema, timeout_s=timeout_s)
+        columns = [
+            str(column.get("name") or "")
+            for column in response.get("manifest", {}).get("schema", {}).get("columns", [])
+        ]
+        rows = response.get("result", {}).get("data_array") or []
+        if not columns:
+            return pd.DataFrame()
+        return pd.DataFrame(rows, columns=columns)
 
 
 @dataclass(frozen=True)
@@ -66,7 +191,7 @@ class GlossaryTermSeed:
 
 TERMS: tuple[GlossaryTermSeed, ...] = (
     GlossaryTermSeed(
-        "ga-taxonomy-seed-net-revenue",
+        "ga-taxonomy-term-net-revenue",
         "Net Revenue",
         "Total revenue after deducting returns, refunds, discounts, and other adjustments.",
         "Finance",
@@ -76,7 +201,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         synonyms=("Net Sales", "Revenue, Net"),
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-gross-revenue",
+        "ga-taxonomy-term-gross-revenue",
         "Gross Revenue",
         "Total recognized revenue before refunds, discounts, and other deductions.",
         "Finance",
@@ -85,7 +210,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-revenue-adjustments",
+        "ga-taxonomy-term-revenue-adjustments",
         "Revenue Adjustments",
         "Approved adjustments that reduce or reclassify recognized revenue.",
         "Finance",
@@ -95,7 +220,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-discounts",
+        "ga-taxonomy-term-discounts",
         "Discounts",
         "Contractual or promotional reductions applied to gross revenue.",
         "Finance",
@@ -104,7 +229,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-refunds",
+        "ga-taxonomy-term-refunds",
         "Refunds",
         "Customer payments returned after billing or transaction reversal.",
         "Finance",
@@ -113,7 +238,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-surcharges",
+        "ga-taxonomy-term-surcharges",
         "Surcharges",
         "Incremental fees applied to billable services or transactional events.",
         "Finance",
@@ -123,7 +248,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-service-revenue",
+        "ga-taxonomy-term-service-revenue",
         "Service Revenue",
         "Revenue recognized from recurring or one-time services.",
         "Finance",
@@ -132,7 +257,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-product-revenue",
+        "ga-taxonomy-term-product-revenue",
         "Product Revenue",
         "Revenue recognized from product-level commercial activity.",
         "Finance",
@@ -141,7 +266,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-subscription-revenue",
+        "ga-taxonomy-term-subscription-revenue",
         "Subscription Revenue",
         "Revenue recognized from subscription contracts and renewals.",
         "Finance",
@@ -150,7 +275,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-one-time-revenue",
+        "ga-taxonomy-term-one-time-revenue",
         "One-Time Revenue",
         "Revenue recognized from non-recurring commercial events.",
         "Finance",
@@ -159,7 +284,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-recurring-revenue",
+        "ga-taxonomy-term-recurring-revenue",
         "Recurring Revenue",
         "Revenue expected to repeat under active customer contracts or subscriptions.",
         "Finance",
@@ -168,7 +293,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-contracted-revenue",
+        "ga-taxonomy-term-contracted-revenue",
         "Contracted Revenue",
         "Revenue governed by signed customer agreements and committed service terms.",
         "Finance",
@@ -177,7 +302,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-billable-amount",
+        "ga-taxonomy-term-billable-amount",
         "Billable Amount",
         "Amount eligible for invoicing after service, product, or transaction rules are applied.",
         "Finance",
@@ -186,7 +311,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-deferred-revenue",
+        "ga-taxonomy-term-deferred-revenue",
         "Deferred Revenue",
         "Customer consideration received before the revenue recognition criteria are satisfied.",
         "Finance",
@@ -196,7 +321,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-recognized-revenue",
+        "ga-taxonomy-term-recognized-revenue",
         "Recognized Revenue",
         "Revenue recorded after the performance obligation and governance recognition rules are met.",
         "Finance",
@@ -205,7 +330,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-revenue-forecast",
+        "ga-taxonomy-term-revenue-forecast",
         "Revenue Forecast",
         "Forward-looking revenue estimate used by planning and executive KPI assets.",
         "Finance",
@@ -214,7 +339,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-revenue-recognition-date",
+        "ga-taxonomy-term-revenue-recognition-date",
         "Revenue Recognition Date",
         "Business date on which governed revenue is eligible for recognition.",
         "Finance",
@@ -223,7 +348,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-revenue",
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-average-revenue",
+        "ga-taxonomy-term-average-revenue",
         "Average Revenue",
         "Average revenue measure used for segment, market, and portfolio analysis.",
         "Finance",
@@ -243,7 +368,7 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         synonyms=("Customer ID", "Customer Key"),
     ),
     GlossaryTermSeed(
-        "ga-taxonomy-seed-customer-segment",
+        "ga-taxonomy-term-customer-segment",
         "Customer Segment",
         "Business grouping used for customer analytics and campaign segmentation.",
         "Customer",
@@ -252,6 +377,136 @@ TERMS: tuple[GlossaryTermSeed, ...] = (
         parent_term_id="ga-taxonomy-node-customer",
     ),
 )
+
+
+CLASSIFICATIONS: tuple[tuple[str, str, str, str], ...] = (
+    ("ga-business-taxonomy", "Business", "Business taxonomy hierarchy for governed terms.", "#2fb7ff"),
+    ("ga-business-concept", "Business Concept", "Business-facing glossary concepts.", "#21d3a2"),
+    ("ga-quantitative", "Quantitative", "Terms that represent numeric or measurable concepts.", "#7c8cff"),
+    ("ga-additive", "Additive", "Terms that can be aggregated additively.", "#28c2ff"),
+    ("ga-confidential", "Confidential", "Terms that require controlled handling.", "#f59e0b"),
+)
+
+
+HIERARCHY_TERMS: tuple[tuple[str, str, str, str], ...] = (
+    ("ga-taxonomy-node-business", "Business", "", "Top-level governed business taxonomy."),
+    ("ga-taxonomy-node-finance", "Finance", "ga-taxonomy-node-business", "Finance-owned business definitions."),
+    ("ga-taxonomy-node-revenue", "Revenue", "ga-taxonomy-node-finance", "Revenue recognition and reporting terms."),
+    ("ga-taxonomy-node-cost-expense", "Cost & Expense", "ga-taxonomy-node-finance", "Cost and expense reporting terms."),
+    ("ga-taxonomy-node-profitability", "Profitability", "ga-taxonomy-node-finance", "Margin and profitability analytics terms."),
+    ("ga-taxonomy-node-capital-management", "Capital Management", "ga-taxonomy-node-finance", "Capital allocation and liquidity terms."),
+    ("ga-taxonomy-node-customer", "Customer", "ga-taxonomy-node-business", "Customer identity and profile terms."),
+    ("ga-taxonomy-node-product", "Product", "ga-taxonomy-node-business", "Product analytics terms."),
+    ("ga-taxonomy-node-operations", "Operations", "ga-taxonomy-node-business", "Operational process terms."),
+    ("ga-taxonomy-node-risk", "Risk", "ga-taxonomy-node-business", "Risk and control terms."),
+    ("ga-taxonomy-node-technology", "Technology", "ga-taxonomy-node-business", "Technology and platform terms."),
+    ("ga-taxonomy-node-reference-data", "Reference Data", "ga-taxonomy-node-business", "Shared reference-data terms."),
+)
+
+
+DOMAIN_IDS: tuple[tuple[str, str], ...] = (
+    ("finance", "Finance"),
+    ("customer", "Customer"),
+    ("product", "Product"),
+    ("operations", "Operations"),
+    ("risk", "Risk"),
+    ("technology", "Technology"),
+)
+
+
+def demo_fqn(args: argparse.Namespace, name: str) -> str:
+    return f"{args.catalog}.{args.demo_schema}.{name}"
+
+
+def taxonomy_product_plans(args: argparse.Namespace) -> tuple[tuple[str, str, str, str, str, list[str]], ...]:
+    finance_assets = [
+        demo_fqn(args, "finance_portfolio_exposure"),
+        demo_fqn(args, "finance_lien_risk_summary"),
+        demo_fqn(args, "finance_exception_review"),
+        demo_fqn(args, "product_mortgage_signal"),
+        demo_fqn(args, "product_market_fit_signal"),
+        demo_fqn(args, "marketing_market_analytics"),
+        demo_fqn(args, "marketing_lien_outreach_signal"),
+        demo_fqn(args, "risk_critical_asset_monitor"),
+    ]
+    customer_assets = [
+        demo_fqn(args, "customer_profile_coverage"),
+        demo_fqn(args, "customer_identity_quality"),
+        demo_fqn(args, "customer_stewardship_queue"),
+    ]
+    return (
+        ("ga-financial-reporting", "Financial Reporting", "Certified revenue and finance reporting assets.", "finance", "finance-ops@entrada.ai", finance_assets),
+        ("ga-executive-kpis", "Executive KPIs", "Executive finance metrics and KPI assets.", "finance", "fpna@entrada.ai", finance_assets),
+        ("ga-revenue-analytics", "Revenue Analytics", "Revenue analytics assets and semantic definitions.", "finance", "revenue-ops@entrada.ai", finance_assets),
+        ("ga-customer-360", "Customer 360", "Customer profile and identity assets.", "customer", "customer-steward@entrada.ai", customer_assets),
+    )
+
+
+def taxonomy_link_plan(args: argparse.Namespace) -> dict[str, list[dict[str, str]]]:
+    return {
+        demo_fqn(args, "finance_portfolio_exposure"): [
+            {"termId": "ga-taxonomy-term-net-revenue", "sourceValue": "Net Revenue"},
+            {"termId": "ga-taxonomy-term-gross-revenue", "sourceValue": "Gross Revenue"},
+        ],
+        demo_fqn(args, "finance_lien_risk_summary"): [
+            {"termId": "ga-taxonomy-term-net-revenue", "sourceValue": "Net Revenue"},
+            {"termId": "ga-taxonomy-term-discounts", "sourceValue": "Discounts"},
+        ],
+        demo_fqn(args, "finance_exception_review"): [
+            {"termId": "ga-taxonomy-term-net-revenue", "sourceValue": "Net Revenue"},
+            {"termId": "ga-taxonomy-term-revenue-adjustments", "sourceValue": "Revenue Adjustments"},
+            {"termId": "ga-taxonomy-term-refunds", "sourceValue": "Refunds"},
+        ],
+        demo_fqn(args, "product_mortgage_signal"): [
+            {"termId": "ga-taxonomy-term-net-revenue", "sourceValue": "Net Revenue"},
+            {"termId": "ga-taxonomy-term-contracted-revenue", "sourceValue": "Contracted Revenue"},
+        ],
+        demo_fqn(args, "product_market_fit_signal"): [
+            {"termId": "ga-taxonomy-term-net-revenue", "sourceValue": "Net Revenue"},
+            {"termId": "ga-taxonomy-term-average-revenue", "sourceValue": "Average Revenue"},
+        ],
+        demo_fqn(args, "marketing_market_analytics"): [
+            {"termId": "ga-taxonomy-term-net-revenue", "sourceValue": "Net Revenue"},
+            {"termId": "ga-taxonomy-term-revenue-forecast", "sourceValue": "Revenue Forecast"},
+        ],
+        demo_fqn(args, "marketing_lien_outreach_signal"): [
+            {"termId": "ga-taxonomy-term-net-revenue", "sourceValue": "Net Revenue"},
+            {"termId": "ga-taxonomy-term-billable-amount", "sourceValue": "Billable Amount"},
+        ],
+        demo_fqn(args, "risk_critical_asset_monitor"): [
+            {"termId": "ga-taxonomy-term-net-revenue", "sourceValue": "Net Revenue"},
+            {"termId": "ga-taxonomy-term-recognized-revenue", "sourceValue": "Recognized Revenue"},
+        ],
+        demo_fqn(args, "customer_profile_coverage"): [
+            {"termId": "ga-customer-identifier", "sourceValue": "Customer Identifier"},
+            {"termId": "ga-taxonomy-term-customer-segment", "sourceValue": "Customer Segment"},
+        ],
+        demo_fqn(args, "customer_identity_quality"): [
+            {"termId": "ga-customer-identifier", "sourceValue": "Customer Identifier"},
+        ],
+    }
+
+
+def expected_counts(args: argparse.Namespace) -> dict[str, int]:
+    product_plans = taxonomy_product_plans(args)
+    links = taxonomy_link_plan(args)
+    return {
+        "terms": len(TERMS),
+        "classifications": len(CLASSIFICATIONS),
+        "classificationTerms": len(HIERARCHY_TERMS) + (len(TERMS) * 2) + 2,
+        "domains": len(DOMAIN_IDS),
+        "dataProducts": len(product_plans),
+        "dataProductMembers": sum(len(plan[5]) for plan in product_plans),
+        "columnGroups": 2,
+        "links": sum(len(refs) for refs in links.values()),
+    }
+
+
+def sql_in(values: Iterable[str]) -> str:
+    normalized = [str(value) for value in values]
+    if not normalized:
+        return "(NULL)"
+    return "(" + ", ".join(lit(value) for value in normalized) + ")"
 
 
 def term_reviewers(term: GlossaryTermSeed) -> list[dict[str, str]]:
@@ -461,37 +716,89 @@ WHEN NOT MATCHED THEN INSERT (
     )
 
 
+def scrub_legacy_taxonomy_provenance(store: GovernanceStore) -> None:
+    """Remove old customer-visible seed wording from persisted taxonomy evidence."""
+    legacy_term_predicate = "term_id LIKE 'ga-taxonomy-seed-%'"
+    for table in (
+        "glossary_term_links",
+        "glossary_term_reviewers",
+        "glossary_term_versions",
+        "glossary_summary_projection",
+        "classification_terms",
+        "glossary_terms",
+    ):
+        store.uc.execute(f"DELETE FROM {store._fq(table)} WHERE {legacy_term_predicate}")
+    actor_predicate = (
+        f"created_by = {lit(LEGACY_SEED_ACTOR)} OR updated_by = {lit(LEGACY_SEED_ACTOR)}"
+    )
+    for table in (
+        "classifications",
+        "classification_terms",
+        "domains",
+        "glossary_terms",
+        "glossary_term_reviewers",
+        "glossary_summary_projection",
+        "data_products",
+    ):
+        store.uc.execute(
+            f"""UPDATE {store._fq(table)}
+SET created_by = CASE WHEN created_by = {lit(LEGACY_SEED_ACTOR)} THEN {lit(SEED_ACTOR)} ELSE created_by END,
+    updated_by = CASE WHEN updated_by = {lit(LEGACY_SEED_ACTOR)} THEN {lit(SEED_ACTOR)} ELSE updated_by END
+WHERE {actor_predicate}"""
+        )
+    store.uc.execute(
+        f"""UPDATE {store._fq('data_product_members')}
+SET created_by = CASE WHEN created_by = {lit(LEGACY_SEED_ACTOR)} THEN {lit(SEED_ACTOR)} ELSE created_by END
+WHERE created_by = {lit(LEGACY_SEED_ACTOR)}"""
+    )
+    store.uc.execute(
+        f"""UPDATE {store._fq('logical_column_groups')}
+SET last_reviewed_by = CASE WHEN last_reviewed_by = {lit(LEGACY_SEED_ACTOR)} THEN {lit(SEED_ACTOR)} ELSE last_reviewed_by END,
+    created_by = CASE WHEN created_by = {lit(LEGACY_SEED_ACTOR)} THEN {lit(SEED_ACTOR)} ELSE created_by END,
+    updated_by = CASE WHEN updated_by = {lit(LEGACY_SEED_ACTOR)} THEN {lit(SEED_ACTOR)} ELSE updated_by END
+WHERE last_reviewed_by = {lit(LEGACY_SEED_ACTOR)} OR {actor_predicate}"""
+    )
+    store.uc.execute(
+        f"""UPDATE {store._fq('glossary_term_versions')}
+SET change_note = replace(
+        replace(change_note, 'Seeded as app-owned Governance Atlas North Star taxonomy evidence.', 'Governance Atlas taxonomy evidence refreshed from persisted control-plane records.'),
+        'seeded', 'maintained'
+    ),
+    reviewer_snapshot_json = replace(reviewer_snapshot_json, {lit(LEGACY_SEED_ACTOR)}, {lit(SEED_ACTOR)}),
+    created_by = CASE WHEN created_by = {lit(LEGACY_SEED_ACTOR)} THEN {lit(SEED_ACTOR)} ELSE created_by END,
+    updated_by = CASE WHEN updated_by = {lit(LEGACY_SEED_ACTOR)} THEN {lit(SEED_ACTOR)} ELSE updated_by END
+WHERE change_note LIKE '%Seeded%' OR change_note LIKE '%seeded%' OR reviewer_snapshot_json LIKE {lit('%' + LEGACY_SEED_ACTOR + '%')} OR {actor_predicate}"""
+    )
+    store.uc.execute(
+        f"""UPDATE {store._fq('metadata_audit_log')}
+SET actor_email = CASE WHEN actor_email = {lit(LEGACY_SEED_ACTOR)} THEN {lit(SEED_ACTOR)} ELSE actor_email END,
+    detail = replace(
+        replace(detail, 'Seeded as app-owned Governance Atlas North Star taxonomy evidence.', 'Governance Atlas taxonomy evidence refreshed from persisted control-plane records.'),
+        'seeded', 'maintained'
+    ),
+    created_by = CASE WHEN created_by = {lit(LEGACY_SEED_ACTOR)} THEN {lit(SEED_ACTOR)} ELSE created_by END,
+    updated_by = CASE WHEN updated_by = {lit(LEGACY_SEED_ACTOR)} THEN {lit(SEED_ACTOR)} ELSE updated_by END
+WHERE actor_email = {lit(LEGACY_SEED_ACTOR)} OR detail LIKE '%Seeded%' OR detail LIKE '%seeded%' OR {actor_predicate}"""
+    )
+    store.uc.execute(
+        f"""UPDATE {store._fq('domains')}
+SET description = replace(description, 'domain seeded for Governance Atlas North Star taxonomy validation.', 'domain maintained for Governance Atlas taxonomy operations.')
+WHERE description LIKE '%domain seeded for Governance Atlas North Star taxonomy validation.%'"""
+    )
+
+
 def seed(args: argparse.Namespace) -> dict[str, Any]:
     os.environ["DATABRICKS_CONFIG_PROFILE"] = args.profile
-    uc = UCSQLClient(args.warehouse_id)
+    uc = CliUCSQLClient(profile=args.profile, warehouse_id=args.warehouse_id)
     store = GovernanceStore(uc=uc, catalog=args.catalog, schema=args.store_schema)
     store.ensure_tables()
     ensure_optional_columns(store)
+    scrub_legacy_taxonomy_provenance(store)
 
-    for classification_id, display_name, description, color in [
-        ("ga-business-taxonomy", "Business", "Business taxonomy hierarchy for governed terms.", "#2fb7ff"),
-        ("ga-business-concept", "Business Concept", "Business-facing glossary concepts.", "#21d3a2"),
-        ("ga-quantitative", "Quantitative", "Terms that represent numeric or measurable concepts.", "#7c8cff"),
-        ("ga-additive", "Additive", "Terms that can be aggregated additively.", "#28c2ff"),
-        ("ga-confidential", "Confidential", "Terms that require controlled handling.", "#f59e0b"),
-    ]:
+    for classification_id, display_name, description, color in CLASSIFICATIONS:
         merge_classification(store, classification_id=classification_id, display_name=display_name, description=description, color=color)
 
-    hierarchy_terms = [
-        ("ga-taxonomy-node-business", "Business", "", "Top-level governed business taxonomy."),
-        ("ga-taxonomy-node-finance", "Finance", "ga-taxonomy-node-business", "Finance-owned business definitions."),
-        ("ga-taxonomy-node-revenue", "Revenue", "ga-taxonomy-node-finance", "Revenue recognition and reporting terms."),
-        ("ga-taxonomy-node-cost-expense", "Cost & Expense", "ga-taxonomy-node-finance", "Cost and expense reporting terms."),
-        ("ga-taxonomy-node-profitability", "Profitability", "ga-taxonomy-node-finance", "Margin and profitability analytics terms."),
-        ("ga-taxonomy-node-capital-management", "Capital Management", "ga-taxonomy-node-finance", "Capital allocation and liquidity terms."),
-        ("ga-taxonomy-node-customer", "Customer", "ga-taxonomy-node-business", "Customer identity and profile terms."),
-        ("ga-taxonomy-node-product", "Product", "ga-taxonomy-node-business", "Product analytics terms."),
-        ("ga-taxonomy-node-operations", "Operations", "ga-taxonomy-node-business", "Operational process terms."),
-        ("ga-taxonomy-node-risk", "Risk", "ga-taxonomy-node-business", "Risk and control terms."),
-        ("ga-taxonomy-node-technology", "Technology", "ga-taxonomy-node-business", "Technology and platform terms."),
-        ("ga-taxonomy-node-reference-data", "Reference Data", "ga-taxonomy-node-business", "Shared reference-data terms."),
-    ]
-    for term_id, label, parent, description in hierarchy_terms:
+    for term_id, label, parent, description in HIERARCHY_TERMS:
         merge_classification_term(
             store,
             term_id=term_id,
@@ -501,19 +808,12 @@ def seed(args: argparse.Namespace) -> dict[str, Any]:
             parent_term_id=parent,
         )
 
-    for domain_id, label in [
-        ("finance", "Finance"),
-        ("customer", "Customer"),
-        ("product", "Product"),
-        ("operations", "Operations"),
-        ("risk", "Risk"),
-        ("technology", "Technology"),
-    ]:
+    for domain_id, label in DOMAIN_IDS:
         merge_domain(
             store,
             domain_id=domain_id,
             display_name=label,
-            description=f"{label} domain seeded for Governance Atlas North Star taxonomy validation.",
+            description=f"{label} domain maintained for Governance Atlas taxonomy operations.",
         )
 
     for term in TERMS:
@@ -526,8 +826,9 @@ def seed(args: argparse.Namespace) -> dict[str, Any]:
             status=term.status,
             updated_by=SEED_ACTOR,
             reviewers=term_reviewers(term),
-            change_note="Seeded as app-owned Governance Atlas North Star taxonomy evidence.",
+            change_note="Governance Atlas taxonomy evidence refreshed from persisted control-plane records.",
             actor_role="admin",
+            refresh_projection=False,
         )
         store.uc.execute(
             f"""UPDATE {store._fq('glossary_terms')}
@@ -542,7 +843,7 @@ WHERE term_id = {lit(term.term_id)}"""
                 term_id=term.term_id,
                 classification_id=classification_id,
                 display_name=term.name,
-                description=f"{term.name} classified from app-owned glossary seed.",
+                description=f"{term.name} classified from app-owned glossary evidence.",
             )
         if term.name == "Net Revenue":
             for classification_id in ["ga-additive", "ga-confidential"]:
@@ -551,31 +852,10 @@ WHERE term_id = {lit(term.term_id)}"""
                     term_id=term.term_id,
                     classification_id=classification_id,
                     display_name=term.name,
-                    description=f"{term.name} classified from app-owned glossary seed.",
+                    description=f"{term.name} classified from app-owned glossary evidence.",
                 )
 
-    demo = lambda name: f"{args.catalog}.{args.demo_schema}.{name}"
-    finance_assets = [
-        demo("finance_portfolio_exposure"),
-        demo("finance_lien_risk_summary"),
-        demo("finance_exception_review"),
-        demo("product_mortgage_signal"),
-        demo("product_market_fit_signal"),
-        demo("marketing_market_analytics"),
-        demo("marketing_lien_outreach_signal"),
-        demo("risk_critical_asset_monitor"),
-    ]
-    customer_assets = [
-        demo("customer_profile_coverage"),
-        demo("customer_identity_quality"),
-        demo("customer_stewardship_queue"),
-    ]
-    for data_product_id, display_name, description, domain_id, contact, assets in [
-        ("ga-financial-reporting", "Financial Reporting", "Certified revenue and finance reporting assets.", "finance", "finance-ops@entrada.ai", finance_assets),
-        ("ga-executive-kpis", "Executive KPIs", "Executive finance metrics and KPI assets.", "finance", "fpna@entrada.ai", finance_assets),
-        ("ga-revenue-analytics", "Revenue Analytics", "Revenue analytics assets and semantic definitions.", "finance", "revenue-ops@entrada.ai", finance_assets),
-        ("ga-customer-360", "Customer 360", "Customer profile and identity assets.", "customer", "customer-steward@entrada.ai", customer_assets),
-    ]:
+    for data_product_id, display_name, description, domain_id, contact, assets in taxonomy_product_plans(args):
         merge_data_product(
             store,
             data_product_id=data_product_id,
@@ -601,55 +881,14 @@ WHERE term_id = {lit(term.term_id)}"""
         pattern="(?i)(customer|owner|identifier|id)",
     )
 
-    link_plan = {
-        demo("finance_portfolio_exposure"): [
-            {"termId": "ga-taxonomy-seed-net-revenue", "sourceValue": "Net Revenue"},
-            {"termId": "ga-taxonomy-seed-gross-revenue", "sourceValue": "Gross Revenue"},
-        ],
-        demo("finance_lien_risk_summary"): [
-            {"termId": "ga-taxonomy-seed-net-revenue", "sourceValue": "Net Revenue"},
-            {"termId": "ga-taxonomy-seed-discounts", "sourceValue": "Discounts"},
-        ],
-        demo("finance_exception_review"): [
-            {"termId": "ga-taxonomy-seed-net-revenue", "sourceValue": "Net Revenue"},
-            {"termId": "ga-taxonomy-seed-revenue-adjustments", "sourceValue": "Revenue Adjustments"},
-            {"termId": "ga-taxonomy-seed-refunds", "sourceValue": "Refunds"},
-        ],
-        demo("product_mortgage_signal"): [
-            {"termId": "ga-taxonomy-seed-net-revenue", "sourceValue": "Net Revenue"},
-            {"termId": "ga-taxonomy-seed-contracted-revenue", "sourceValue": "Contracted Revenue"},
-        ],
-        demo("product_market_fit_signal"): [
-            {"termId": "ga-taxonomy-seed-net-revenue", "sourceValue": "Net Revenue"},
-            {"termId": "ga-taxonomy-seed-average-revenue", "sourceValue": "Average Revenue"},
-        ],
-        demo("marketing_market_analytics"): [
-            {"termId": "ga-taxonomy-seed-net-revenue", "sourceValue": "Net Revenue"},
-            {"termId": "ga-taxonomy-seed-revenue-forecast", "sourceValue": "Revenue Forecast"},
-        ],
-        demo("marketing_lien_outreach_signal"): [
-            {"termId": "ga-taxonomy-seed-net-revenue", "sourceValue": "Net Revenue"},
-            {"termId": "ga-taxonomy-seed-billable-amount", "sourceValue": "Billable Amount"},
-        ],
-        demo("risk_critical_asset_monitor"): [
-            {"termId": "ga-taxonomy-seed-net-revenue", "sourceValue": "Net Revenue"},
-            {"termId": "ga-taxonomy-seed-recognized-revenue", "sourceValue": "Recognized Revenue"},
-        ],
-        demo("customer_profile_coverage"): [
-            {"termId": "ga-customer-identifier", "sourceValue": "Customer Identifier"},
-            {"termId": "ga-taxonomy-seed-customer-segment", "sourceValue": "Customer Segment"},
-        ],
-        demo("customer_identity_quality"): [
-            {"termId": "ga-customer-identifier", "sourceValue": "Customer Identifier"},
-        ],
-    }
-    for asset_fqn, refs in link_plan.items():
+    for asset_fqn, refs in taxonomy_link_plan(args).items():
         store.replace_glossary_term_links(
             subject_type="asset",
             subject_fqn=asset_fqn,
-            term_refs=[{**ref, "source": "northstar_seed"} for ref in refs],
+            term_refs=[{**ref, "source": "governance_atlas_taxonomy"} for ref in refs],
             updated_by=SEED_ACTOR,
-            source="northstar_seed",
+            source="governance_atlas_taxonomy",
+            refresh_projection=False,
         )
 
     for term in TERMS:
@@ -658,12 +897,48 @@ WHERE term_id = {lit(term.term_id)}"""
     return {
         "catalog": args.catalog,
         "storeSchema": args.store_schema,
-        "terms": len(TERMS),
-        "classifications": 5,
-        "domains": 6,
-        "dataProducts": 4,
-        "columnGroups": 2,
-        "seedActor": SEED_ACTOR,
+        **expected_counts(args),
+        "actor": SEED_ACTOR,
+    }
+
+
+def verify(args: argparse.Namespace) -> dict[str, int]:
+    os.environ["DATABRICKS_CONFIG_PROFILE"] = args.profile
+    uc = CliUCSQLClient(profile=args.profile, warehouse_id=args.warehouse_id)
+    store = GovernanceStore(uc=uc, catalog=args.catalog, schema=args.store_schema)
+    expected = expected_counts(args)
+    term_ids = [term.term_id for term in TERMS]
+    classification_ids = [entry[0] for entry in CLASSIFICATIONS]
+    classification_term_ids = [entry[0] for entry in HIERARCHY_TERMS] + term_ids
+    domain_ids = [entry[0] for entry in DOMAIN_IDS]
+    data_product_ids = [entry[0] for entry in taxonomy_product_plans(args)]
+    column_group_ids = ["ga-revenue-columns", "ga-customer-identity-columns"]
+    link_subjects = list(taxonomy_link_plan(args).keys())
+
+    def count(table: str, where: str) -> int:
+        frame = uc.query_df(f"SELECT COUNT(*) AS count FROM {store._fq(table)} WHERE {where}")
+        if frame is None or frame.empty:
+            return 0
+        return int(frame.iloc[0].get("count") or 0)
+
+    return {
+        "terms": count("glossary_terms", f"term_id IN {sql_in(term_ids)}"),
+        "classifications": count("classifications", f"classification_id IN {sql_in(classification_ids)}"),
+        "classificationTerms": count(
+            "classification_terms",
+            f"term_id IN {sql_in(classification_term_ids)} AND classification_id IN {sql_in(classification_ids)}",
+        ),
+        "domains": count("domains", f"domain_id IN {sql_in(domain_ids)}"),
+        "dataProducts": count("data_products", f"data_product_id IN {sql_in(data_product_ids)}"),
+        "dataProductMembers": count("data_product_members", f"data_product_id IN {sql_in(data_product_ids)}"),
+        "columnGroups": count("logical_column_groups", f"group_id IN {sql_in(column_group_ids)}"),
+        "links": count(
+            "glossary_term_links",
+            f"subject_fqn IN {sql_in(link_subjects)} AND term_id IN {sql_in(term_ids)} AND removed_at IS NULL",
+        ),
+    } | {
+        f"{key}Expected": value
+        for key, value in expected.items()
     }
 
 
@@ -674,7 +949,17 @@ def main() -> None:
     parser.add_argument("--catalog", default=DEFAULT_CATALOG)
     parser.add_argument("--store-schema", default=DEFAULT_STORE_SCHEMA)
     parser.add_argument("--demo-schema", default=DEFAULT_DEMO_SCHEMA)
+    parser.add_argument("--verify-only", action="store_true")
     args = parser.parse_args()
+    if args.verify_only:
+        summary = verify(args)
+        actual = {key: value for key, value in summary.items() if not key.endswith("Expected")}
+        expected = {key[:-8]: value for key, value in summary.items() if key.endswith("Expected")}
+        failed = [key for key, minimum in expected.items() if actual.get(key, 0) < minimum]
+        print(json.dumps({"summary": actual, "expectedMinimums": expected}, indent=2, sort_keys=True))
+        if failed:
+            raise SystemExit(f"Taxonomy seed verification failed minimums: {', '.join(failed)}")
+        return
     print(json.dumps(seed(args), indent=2, sort_keys=True))
 
 

@@ -39,10 +39,16 @@ export function TopbarSearch({
         ref={searchRootRef}
       >
         <button
-          aria-label="Submit global search"
+          aria-label={
+            shellDisabled
+              ? `Submit global search unavailable: ${shellDisabledReason || "Live catalog is unavailable."}`
+              : !searchQuery.trim()
+                ? "Submit global search unavailable: enter a search term."
+                : "Submit global search"
+          }
           className="gh-topbar-search-icon"
           disabled={shellDisabled || !searchQuery.trim()}
-          title={shellDisabledReason || "Search"}
+          title={shellDisabled ? shellDisabledReason || "Live catalog is unavailable." : !searchQuery.trim() ? "Enter a search term." : "Search"}
           type="submit"
         >
           <SearchIcon />
@@ -81,6 +87,23 @@ export function TopbarSearch({
         <span className="gh-topbar-search-shortcut" aria-hidden="true">
           <kbd>⌘K</kbd>
         </span>
+        {searchQuery ? (
+          <button
+            aria-label="Clear global search"
+            className="gh-topbar-search-clear"
+            onClick={() => {
+              onSearchQueryChange("");
+              onSearchNoticeReset();
+              onSearchPanelOpenChange(false);
+            }}
+            type="button"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+        ) : null}
         {searchEnabled ? (
           <GlobalSearchDropdown
             assets={searchAssets}

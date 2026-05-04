@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAsset360 } from "../lib/api";
+import { isNonAuthoritativeMockEvidence } from "../lib/nonAuthoritativeEvidence";
 
 export const EMPTY_ASSET_360 = {
   asset: null,
@@ -26,6 +27,16 @@ export const EMPTY_ASSET_360 = {
 
 function normalizeAsset360Payload(payload, assetFqn = "") {
   const data = payload && typeof payload === "object" ? payload : {};
+  if (isNonAuthoritativeMockEvidence(data, data.meta, data.asset, data.warnings)) {
+    return {
+      ...EMPTY_ASSET_360,
+      meta: {
+        state: "non_authoritative",
+        warnings: ["Non-authoritative Asset 360 payload rejected."],
+      },
+      sameAsset: false,
+    };
+  }
   const asset = data.asset && typeof data.asset === "object" ? data.asset : null;
   return {
     ...EMPTY_ASSET_360,
@@ -60,6 +71,23 @@ function normalizeAsset360Payload(payload, assetFqn = "") {
   };
 }
 
+function asset360RefetchInterval(query) {
+  const payload = query?.state?.data;
+  const meta = payload?.meta && typeof payload.meta === "object" ? payload.meta : {};
+  const state = String(meta.state || "").trim().toLowerCase();
+  const capabilities = meta.capabilities && typeof meta.capabilities === "object"
+    ? meta.capabilities
+    : {};
+  const loadedSections = Array.isArray(capabilities.loadedSections)
+    ? capabilities.loadedSections
+    : Array.isArray(payload?.loadedSections)
+      ? payload.loadedSections
+      : [];
+  if (state === "loading" || capabilities.hydrating === true) return 3_000;
+  if (loadedSections.length && !loadedSections.includes("schema")) return 3_000;
+  return false;
+}
+
 export function useAsset360(assetFqn, options = {}) {
   /** @type {{ enabled?: boolean, staleTime?: number, gcTime?: number }} */
   const resolvedOptions = options && typeof options === "object" ? options : {};
@@ -71,6 +99,7 @@ export function useAsset360(assetFqn, options = {}) {
     enabled,
     staleTime: resolvedOptions.staleTime ?? 60_000,
     gcTime: resolvedOptions.gcTime ?? 5 * 60_000,
+    refetchInterval: resolvedOptions.refetchInterval ?? asset360RefetchInterval,
   });
   const data = useMemo(
     () => (query.data ? normalizeAsset360Payload(query.data, normalizedFqn) : null),

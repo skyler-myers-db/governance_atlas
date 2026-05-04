@@ -37,6 +37,13 @@ def _ttl_value(key: str, ttl_s: int, loader: Callable[[], Any]) -> Any:
     return value
 
 
+def _ttl_fresh_value(key: str, ttl_s: int) -> Any:
+    cached = _TTL_CACHE.get(key)
+    if cached and time.time() - cached[0] < ttl_s:
+        return cached[1]
+    return None
+
+
 def _ttl_cache_pop(key: str) -> None:
     with _CACHE_LOCK:
         _TTL_CACHE.pop(key, None)

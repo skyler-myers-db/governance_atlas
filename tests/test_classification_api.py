@@ -213,6 +213,35 @@ class ListEndpointTests(unittest.TestCase):
         self.assertEqual(payload["pendingCount"], 1)
         self.assertEqual(payload["recommendations"][0]["recommendationId"], "r1")
 
+    def test_list_normalizes_nan_nullable_fields_before_json_response(self) -> None:
+        self.store.upsert_classification_recommendation(
+            {
+                "recommendation_id": "r-nan",
+                "asset_fqn": "main.sales.customers",
+                "column_name": "email",
+                "status": "pending",
+                "evidence_json": "[]",
+                "sample_values_json": "",
+                "remediation_suggestions_json": "[]",
+                "sample_redacted": float("nan"),
+                "suggested_tier": float("nan"),
+                "suggested_certification": float("nan"),
+                "reviewed_by": float("nan"),
+            }
+        )
+
+        response = classification_api.api_list_classification_recommendations(
+            request=SimpleNamespace(headers={}), status="pending"
+        )
+        payload = _parse_response(response)
+
+        record = payload["recommendations"][0]
+        self.assertEqual(record["recommendationId"], "r-nan")
+        self.assertEqual(record["suggestedTier"], "")
+        self.assertEqual(record["suggestedCertification"], "")
+        self.assertEqual(record["reviewedBy"], "")
+        self.assertIs(record["sampleRedacted"], True)
+
     def test_list_with_asset_filter_requires_open_asset(self) -> None:
         from fastapi import HTTPException
 

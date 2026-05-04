@@ -99,6 +99,123 @@ def _inventory_df() -> pd.DataFrame:
 
 
 class StructuredDiscoverySearchTests(unittest.TestCase):
+    def test_visible_assets_excludes_run_scoped_synthetic_validation_assets(self) -> None:
+        inventory = pd.DataFrame(
+            [
+                {
+                    "fqn": "datapact.enterprise_metadata_ops.customer_profile_coverage",
+                    "table_catalog": "datapact",
+                    "table_schema": "enterprise_metadata_ops",
+                    "table_name": "customer_profile_coverage",
+                    "tags": {},
+                },
+                {
+                    "fqn": "datapact.atlas_ga_stress_20260502120000_deadbee.workflow_entities",
+                    "table_catalog": "datapact",
+                    "table_schema": "atlas_ga_stress_20260502120000_deadbee",
+                    "table_name": "workflow_entities",
+                    "tags": {},
+                },
+                {
+                    "fqn": "datapact.ops.validation_events",
+                    "table_catalog": "datapact",
+                    "table_schema": "ops",
+                    "table_name": "validation_events",
+                    "tags": {
+                        "governance_atlas.exclude_from_organic_evidence": "true",
+                    },
+                },
+            ]
+        )
+
+        visible = assets.visible_assets(inventory)
+
+        self.assertEqual(
+            visible["fqn"].tolist(),
+            ["datapact.enterprise_metadata_ops.customer_profile_coverage"],
+        )
+
+    def test_visible_assets_excludes_control_plane_schemas(self) -> None:
+        inventory = pd.DataFrame(
+            [
+                {
+                    "fqn": "datapact.enterprise_metadata_ops.customer_profile_coverage",
+                    "table_catalog": "datapact",
+                    "table_schema": "enterprise_metadata_ops",
+                    "table_name": "customer_profile_coverage",
+                    "tags": {},
+                },
+                {
+                    "fqn": "datapact.governance_atlas_demo.customer_profile_coverage",
+                    "table_catalog": "datapact",
+                    "table_schema": "governance_atlas_demo",
+                    "table_name": "customer_profile_coverage",
+                    "tags": {},
+                },
+                {
+                    "fqn": "datapact.atlas.change_requests",
+                    "table_catalog": "datapact",
+                    "table_schema": "atlas",
+                    "table_name": "change_requests",
+                    "tags": {},
+                },
+                {
+                    "fqn": "datapact.governance_hub.metadata_audit",
+                    "table_catalog": "datapact",
+                    "table_schema": "governance_hub",
+                    "table_name": "metadata_audit",
+                    "tags": {},
+                },
+                {
+                    "fqn": "datapact.atlas_ai.atlas_ai_assets_current",
+                    "table_catalog": "datapact",
+                    "table_schema": "atlas_ai",
+                    "table_name": "atlas_ai_assets_current",
+                    "tags": {},
+                },
+            ]
+        )
+
+        with patch.dict("os.environ", {"GOVAT_CATALOG": "datapact", "GOVAT_SCHEMA": "atlas"}):
+            visible = assets.visible_assets(inventory)
+
+        self.assertEqual(
+            visible["fqn"].tolist(),
+            ["datapact.enterprise_metadata_ops.customer_profile_coverage"],
+        )
+
+    def test_asset_payload_hides_internal_governance_tags(self) -> None:
+        payload = assets.base_asset_payload(
+            pd.Series(
+                {
+                    "fqn": "datapact.governance_atlas_demo.customer_profile_coverage",
+                    "table_catalog": "datapact",
+                    "table_schema": "governance_atlas_demo",
+                    "table_name": "customer_profile_coverage",
+                    "tags": {
+                        "domain": "Customer",
+                        "governance_atlas_evidence_source": "home-northstar",
+                        "governance_atlas.exclude_from_organic_evidence": "false",
+                    },
+                    "domain": "Customer",
+                }
+            )
+        )
+
+        self.assertEqual(payload["tags"], {"domain": "Customer"})
+        self.assertNotIn("governance_atlas_evidence_source=home-northstar", payload["tagLabels"])
+
+    def test_hidden_schema_deep_links_are_marked_hidden_before_exact_identity(self) -> None:
+        with patch.dict("os.environ", {"GOVAT_CATALOG": "datapact", "GOVAT_SCHEMA": "atlas"}):
+            self.assertTrue(assets.asset_fqn_is_hidden("datapact.atlas.change_requests"))
+            self.assertTrue(assets.asset_fqn_is_hidden("datapact.atlas_ai.atlas_ai_assets_current"))
+            self.assertTrue(
+                assets.asset_fqn_is_hidden("datapact.governance_atlas_demo.customer_profile_coverage")
+            )
+            self.assertFalse(
+                assets.asset_fqn_is_hidden("datapact.enterprise_metadata_ops.customer_profile_coverage")
+            )
+
     def test_structured_query_supports_grouped_boolean_field_terms(self) -> None:
         payload = assets.discovery_search_payload(
             _inventory_df(),

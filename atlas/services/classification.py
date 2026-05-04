@@ -9,6 +9,7 @@ APIs. Remediation suggestions are informational only.
 from __future__ import annotations
 
 import json
+import math
 import re
 import uuid
 from typing import Any, Dict, List, Optional, Sequence
@@ -421,33 +422,59 @@ def _row_to_payload(row: Any) -> Dict[str, Any]:
         except Exception:
             return None
 
+    def _is_nullish(value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, float) and not math.isfinite(value):
+            return True
+        try:
+            return bool(value != value)
+        except Exception:
+            return False
+
+    def _text(value: Any) -> str:
+        if _is_nullish(value):
+            return ""
+        return str(value)
+
+    def _bool(value: Any, *, default: bool = False) -> bool:
+        if _is_nullish(value):
+            return default
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "y"}:
+                return True
+            if normalized in {"0", "false", "no", "n"}:
+                return False
+        return bool(value)
+
     evidence = _json_or_default(_get("evidence_json"), [])
     remediation = _json_or_default(_get("remediation_suggestions_json"), [])
     sample_values = _json_or_default(_get("sample_values_json"), [])
-    sample_redacted = bool(_get("sample_redacted"))
+    sample_redacted = _bool(_get("sample_redacted"), default=True)
     if sample_redacted:
         # Belt-and-suspenders: never surface persisted sample values when
         # the record is marked redacted.
         sample_values = []
     return {
-        "recommendationId": str(_get("recommendation_id") or ""),
-        "assetFqn": str(_get("asset_fqn") or ""),
-        "columnName": str(_get("column_name") or ""),
-        "suggestedSensitivity": _get("suggested_sensitivity") or "",
-        "suggestedTier": _get("suggested_tier") or "",
-        "suggestedCertification": _get("suggested_certification") or "",
+        "recommendationId": _text(_get("recommendation_id")),
+        "assetFqn": _text(_get("asset_fqn")),
+        "columnName": _text(_get("column_name")),
+        "suggestedSensitivity": _text(_get("suggested_sensitivity")),
+        "suggestedTier": _text(_get("suggested_tier")),
+        "suggestedCertification": _text(_get("suggested_certification")),
         "evidence": evidence if isinstance(evidence, list) else [],
         "sampleRedacted": sample_redacted,
         "sampleValues": sample_values if isinstance(sample_values, list) else [],
-        "status": str(_get("status") or "pending"),
+        "status": _text(_get("status")) or "pending",
         "remediationSuggestions": remediation if isinstance(remediation, list) else [],
-        "reviewNote": _get("review_note") or "",
-        "reviewedBy": _get("reviewed_by") or "",
-        "reviewedAt": str(_get("reviewed_at") or ""),
-        "createdAt": str(_get("created_at") or ""),
-        "createdBy": _get("created_by") or "",
-        "updatedAt": str(_get("updated_at") or ""),
-        "updatedBy": _get("updated_by") or "",
+        "reviewNote": _text(_get("review_note")),
+        "reviewedBy": _text(_get("reviewed_by")),
+        "reviewedAt": _text(_get("reviewed_at")),
+        "createdAt": _text(_get("created_at")),
+        "createdBy": _text(_get("created_by")),
+        "updatedAt": _text(_get("updated_at")),
+        "updatedBy": _text(_get("updated_by")),
     }
 
 

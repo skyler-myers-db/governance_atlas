@@ -61,9 +61,9 @@ describe("GlobalHeader", () => {
     expect(screen.queryByRole("button", { name: "UC connected · 87.4% coverage" })).toBeNull();
   });
 
-  it("labels prototype shell status without claiming live UC verification", () => {
+  it("treats prototype shell status as unavailable UC evidence", () => {
     renderHeader({ environmentTone: "warn", ucStatusState: "prototype_mock" });
-    expect(screen.getByText("Prototype mock · UC not verified")).not.toBeNull();
+    expect(screen.getByText("UC unavailable")).not.toBeNull();
   });
 
   it("opens the Atlas AI surface without routing through the command palette", () => {

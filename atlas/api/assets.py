@@ -13,6 +13,7 @@ from atlas.api.response import (
     _with_meta,
 )
 from atlas.services import capabilities as capability_service
+from atlas.services import assets as asset_service
 from atlas.services import governance as governance_service
 from atlas.services import input_safety
 from atlas.services.assets import normalize_str as _normalize_str
@@ -148,6 +149,33 @@ def api_asset_detail(
 
     _ensure_live_runtime()
     visibility = _asset_visibility_record(asset_fqn, request)
+    if visibility.get("visibilityState") == "loading":
+        payload = asset_service.asset_loading_payload(asset_fqn)
+        reason = (
+            visibility.get("reason")
+            or "Asset metadata is hydrating from live Unity Catalog inventory."
+        )
+        return _cacheable_json_response(
+            _with_meta(
+                payload,
+                request,
+                source="unity-catalog-detail",
+                state="loading",
+                authoritative=False,
+                entity_fqn=asset_fqn,
+                entity_id=asset_fqn,
+                capabilities={
+                    "visibilityState": "loading",
+                    "requestedSections": list(sections or []),
+                    "resolvedSections": [],
+                    "hydrating": True,
+                },
+                warnings=[reason],
+            ),
+            request,
+            max_age=5,
+            stale_while_revalidate=30,
+        )
     if not visibility.get("openable"):
         if visibility.get("visibilityState") == "hidden":
             return _error_response(

@@ -45,11 +45,10 @@ export function useBootstrap(routeContext = {}) {
   });
   const message = query.error?.message || "Failed to load Governance Atlas bootstrap payload.";
   const shellOnly = isInlineShellBootstrap(query.data);
-  const routeBootstrapLoading = isLoadingRouteBootstrap(query.data);
   const hasData = Boolean(query.data);
 
   return {
-    loading: !hasData || ((shellOnly || routeBootstrapLoading) && query.isFetching),
+    loading: !hasData,
     refreshing: query.isFetching,
     shellOnly,
     error: !hasData && query.isError ? message : "",

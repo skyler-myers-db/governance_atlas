@@ -422,12 +422,43 @@ describe("GovernanceWorkspace", () => {
     expect(screen.getByRole("button", { name: "All 1" })).not.toBeNull();
   });
 
-  it("shows prototype stewardship rows as non-authoritative and disables mutations", async () => {
+  it("keeps Databricks-backed evidence rows in the live stewardship queue", async () => {
+    const evidenceRequest = {
+      ...workbenchDetail,
+      requestId: "ga-home-evidence-request-09",
+      id: "ga-home-evidence-request-09",
+      title: "Evidence-backed owner review",
+      rawTitle: "Evidence-backed owner review",
+      kind: "Evidence-backed owner review",
+      source: "governance-store",
+      validationSample: false,
+    };
+    apiMocks.fetchGovernanceWorkbench.mockResolvedValueOnce({
+      ...workbenchPayload,
+      summary: {
+        openWorkItems: 1,
+        slaBreaches: 0,
+      },
+      requests: [evidenceRequest],
+      selectedRequest: evidenceRequest,
+    });
+    apiMocks.fetchGovernanceRequestDetail.mockResolvedValueOnce(evidenceRequest);
+
+    renderGovernance();
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "1 open work items · 1 SLA breaches" })).not.toBeNull();
+    });
+    expectVisibleText("Evidence-backed owner review");
+    expect(screen.getAllByText("GOV-09").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("rejects prototype stewardship rows instead of rendering them as product data", async () => {
     apiMocks.fetchGovernanceWorkbench.mockResolvedValueOnce({
       ...workbenchPayload,
       meta: {
-        state: "prototype_mock",
-        source: "prototype_mock",
+        source: "prototype-mock",
+        warnings: ["not live Databricks evidence"],
       },
       requests: [workbenchDetail],
       selectedRequest: workbenchDetail,
@@ -437,16 +468,13 @@ describe("GovernanceWorkspace", () => {
     renderGovernance();
 
     await waitFor(() => {
-      expect(screen.getByText(/Prototype stewardship rows preserve the target queue/)).not.toBeNull();
+      expect(screen.getByText(/Non-authoritative stewardship payloads were rejected/)).not.toBeNull();
     });
-
-    const commentButton = screen.getByRole("button", { name: "Comment" });
-    const resolveButton = screen.getByRole("button", { name: "Resolve" });
-    expect(commentButton.disabled).toBe(true);
-    expect(resolveButton.disabled).toBe(true);
-    expect(commentButton.getAttribute("title")).toContain("Prototype work items");
-    fireEvent.click(commentButton);
-    fireEvent.click(resolveButton);
+    expect(screen.getByRole("heading", { name: "0 open work items · SLA evidence unavailable" })).not.toBeNull();
+    expect(screen.getByText("No work items in this filter")).not.toBeNull();
+    expect(screen.queryByText(workbenchDetail.requestId)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Comment" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Resolve" })).toBeNull();
     expect(apiMocks.updateGovernanceRequest).not.toHaveBeenCalled();
   });
 
@@ -490,7 +518,7 @@ describe("GovernanceWorkspace", () => {
       expect(apiMocks.updateGovernanceRequest).toHaveBeenCalledWith("SI-2491", {
         status: "Pending",
         reviewNote: "Comment recorded from Stewardship Workbench.",
-      });
+      }, { fast: true });
     });
     expect(screen.getByText("Comment recorded.")).not.toBeNull();
 
@@ -499,9 +527,38 @@ describe("GovernanceWorkspace", () => {
       expect(apiMocks.updateGovernanceRequest).toHaveBeenLastCalledWith("SI-2491", {
         status: "resolved",
         reviewNote: "Resolved from Stewardship Workbench.",
-      });
+      }, { fast: true });
     });
     expect(screen.getByText("Work item resolved.")).not.toBeNull();
+  });
+
+  it("disables stewardship mutation controls for reader actors", async () => {
+    renderGovernance({
+      bootstrap: {
+        assets: [],
+        shell: {
+          role: "Reader",
+          diagnosticsEnabled: true,
+        },
+      },
+      currentUser: {
+        email: "reader@example.com",
+        name: "Reader User",
+        role: "Reader",
+      },
+    });
+
+    await waitFor(() => {
+      expectVisibleText("Owner missing");
+    });
+
+    expect(screen.getByText("Comment and resolve require Steward or Admin role. Current actor role: Reader.")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Comment" }).disabled).toBe(true);
+    expect(screen.getByRole("button", { name: "Resolve" }).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Comment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Resolve" }));
+    expect(apiMocks.updateGovernanceRequest).not.toHaveBeenCalled();
   });
 
   it("wires affected asset route handoff without exposing non-prototype close or lineage chrome", async () => {
