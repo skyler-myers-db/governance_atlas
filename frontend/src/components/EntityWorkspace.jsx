@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   updateAssetColumnDescription,
   updateAssetColumnMetadata,
@@ -605,14 +606,14 @@ function Asset360Hero({
         {criticality ? <span className="ga-asset360-chip tone-critical">{criticality}</span> : null}
         {sensitivity ? <span className="ga-asset360-chip tone-sensitive">{sensitivity}</span> : null}
         {domain && domain !== "Unassigned" ? (
-          <a
+          <Link
             className="ga-asset360-kv-chip is-link"
-            href={`/discovery?domain=${encodeURIComponent(domain)}`}
             title={`See all assets in the ${domain} domain`}
+            to={`/discovery?domain=${encodeURIComponent(domain)}`}
           >
             <span>Domain</span>
             <strong>{domain}</strong>
-          </a>
+          </Link>
         ) : domain ? (
           <span className="ga-asset360-kv-chip"><span>Domain</span><strong>{domain}</strong></span>
         ) : null}

@@ -3855,9 +3855,19 @@ function SelectionPreview({
         {actionNotice ? (
           <div
             aria-live="polite"
-            className="gh-support-copy gh-discovery-preview-workflow-note is-action"
+            className="gh-discovery-preview-action-toast"
+            role="status"
           >
-            {actionNotice}
+            <span aria-hidden="true" className="gh-discovery-preview-action-toast-icon">✓</span>
+            <span>{actionNotice}</span>
+            <button
+              aria-label="Dismiss notice"
+              className="gh-discovery-preview-action-toast-close"
+              onClick={() => setActionNotice("")}
+              type="button"
+            >
+              ×
+            </button>
           </div>
         ) : (
           <div className="gh-support-copy gh-discovery-preview-workflow-note">
@@ -6199,14 +6209,15 @@ export default function DiscoveryWorkspace({
           )}
         </section>
 
-        {previewOverlayOpen ? (
-          <button
-            aria-label="Close asset preview overlay"
-            className="gh-discovery-preview-scrim"
-            onClick={closePreviewOverlay}
-            type="button"
-          />
-        ) : null}
+        {/*
+          Previously rendered a full-grid scrim with onClick=closePreviewOverlay,
+          but the scrim covered every asset card so clicks meant to switch
+          to a different card landed on the scrim first and dismissed the
+          preview instead. The Asset 360 preview is a docked side panel,
+          not a true modal — switching to a different card should swap the
+          preview content, and only the close X / Escape should dismiss it.
+          Scrim removed; SelectionPreview retains its own close affordance.
+        */}
         <SelectionPreview
           asset={previewAsset}
           detailError={
