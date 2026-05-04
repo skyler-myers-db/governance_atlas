@@ -1139,6 +1139,11 @@ function NorthStarLineageExplorer({
 }) {
   const [lineageMode, setLineageMode] = useState(includeColumns ? "column" : "table");
   const [selectedNodeId, setSelectedNodeId] = useState("");
+  // Hover-trace state — when the user hovers a node, the connected upstream
+  // and downstream subgraph stays at full intensity while everything else
+  // dims to ~22%. This mirrors the design's "trace the path" interaction
+  // and is purely visual (no data fetched, no selection changed).
+  const [hoveredNodeId, setHoveredNodeId] = useState("");
   const [status, setStatus] = useState("");
   const [versionPanelOpen, setVersionPanelOpen] = useState(false);
   const [graphSearchOpen, setGraphSearchOpen] = useState(false);
@@ -1555,6 +1560,36 @@ function NorthStarLineageExplorer({
   ];
   const topologyEdgePaths = buildTopologyEdgePaths(graphBands, viewModel.edges);
   const selectedEdgePath = topologyEdgePaths.find((edgePath) => edgePath.key === selectedEdgeKey) || null;
+  const focusNodeIdForRing = viewModel.focus?.id || nodeFqn(viewModel.focus);
+  // Compute the connected subgraph reachable from the hovered node. We walk
+  // both directions via the edge list, so the visual highlight shows every
+  // node on the source-of-record path and every downstream consumer that
+  // ultimately depends on what the user is pointing at. Empty when nothing
+  // is hovered, so the dim CSS stays inert in the default state.
+  const tracedNodeIds = useMemo(() => {
+    if (!hoveredNodeId) return new Set();
+    const adjacency = new Map();
+    topologyEdgePaths.forEach((edgePath) => {
+      if (!edgePath.source || !edgePath.target) return;
+      if (!adjacency.has(edgePath.source)) adjacency.set(edgePath.source, new Set());
+      if (!adjacency.has(edgePath.target)) adjacency.set(edgePath.target, new Set());
+      adjacency.get(edgePath.source).add(edgePath.target);
+      adjacency.get(edgePath.target).add(edgePath.source);
+    });
+    const visited = new Set([hoveredNodeId]);
+    const queue = [hoveredNodeId];
+    while (queue.length) {
+      const next = queue.shift();
+      const neighbors = adjacency.get(next);
+      if (!neighbors) continue;
+      neighbors.forEach((id) => {
+        if (visited.has(id)) return;
+        visited.add(id);
+        queue.push(id);
+      });
+    }
+    return visited;
+  }, [hoveredNodeId, topologyEdgePaths]);
   const generatedAt = backedLineageGraph
     ? viewModel.generatedAt
       ? `Topology refreshed ${viewModel.generatedAt}`
@@ -2063,8 +2098,9 @@ function NorthStarLineageExplorer({
                 }}
               >
                 <div
-                  className={`ga-lineage-graph-bands ${lineageMode === "column" ? "is-column-mode" : ""}`.trim()}
+                  className={`ga-lineage-graph-bands ${lineageMode === "column" ? "is-column-mode" : ""} ${hoveredNodeId ? "is-tracing" : ""}`.trim()}
                   data-zoom-level={graphZoom.toFixed(2)}
+                  data-hovered-node={hoveredNodeId || undefined}
                 >
                   {topologyEdgePaths.length ? (
                     <svg
@@ -2087,15 +2123,44 @@ function NorthStarLineageExplorer({
                           <path d="M0 0 7 3.5 0 7z" />
                         </marker>
                       </defs>
-                      {topologyEdgePaths.map((edgePath) => (
-                        <g key={edgePath.key}>
+                      {topologyEdgePaths.map((edgePath) => {
+                        const isFocusEdge = focusNodeIdForRing && (edgePath.source === focusNodeIdForRing || edgePath.target === focusNodeIdForRing);
+                        const isTraced = !hoveredNodeId || (tracedNodeIds.has(edgePath.source) && tracedNodeIds.has(edgePath.target));
+                        return (
+                        <g
+                          key={edgePath.key}
+                          data-edge-traced={isTraced ? "true" : "false"}
+                        >
                           <path
-                            className={`${edgePath.className || ""} ${selectedEdgeKey === edgePath.key ? "is-selected" : ""}`.trim() || undefined}
+                            className={`${edgePath.className || ""} ${selectedEdgeKey === edgePath.key ? "is-selected" : ""} ${isFocusEdge ? "is-focus-edge" : ""}`.trim() || undefined}
                             d={edgePath.d}
                             data-edge-source={edgePath.source || undefined}
                             data-edge-target={edgePath.target || undefined}
                             data-testid="lineage-topology-edge"
                           />
+                          {/* Animated flow particles travel along edges that touch the focus
+                              node, giving an at-a-glance signal of which subgraph powers the
+                              currently selected asset. Particles are pure SVG and animate
+                              via SMIL <animateMotion>; they're suppressed for browsers that
+                              honor prefers-reduced-motion via CSS on the parent group. */}
+                          {isFocusEdge ? (
+                            <>
+                              <circle
+                                aria-hidden="true"
+                                className="ga-lineage-flow-particle"
+                                r="2.4"
+                              >
+                                <animateMotion dur="2.4s" path={edgePath.d} repeatCount="indefinite" rotate="auto" />
+                              </circle>
+                              <circle
+                                aria-hidden="true"
+                                className="ga-lineage-flow-particle is-trail"
+                                r="1.6"
+                              >
+                                <animateMotion begin="0.6s" dur="2.4s" path={edgePath.d} repeatCount="indefinite" rotate="auto" />
+                              </circle>
+                            </>
+                          ) : null}
                           <path
                             aria-label={`Select lineage edge from ${edgePath.sourceTitle} to ${edgePath.targetTitle}`}
                             className={`ga-lineage-edge-hit ${selectedEdgeKey === edgePath.key ? "is-selected" : ""}`.trim()}
@@ -2111,7 +2176,8 @@ function NorthStarLineageExplorer({
                             tabIndex={0}
                           />
                         </g>
-                      ))}
+                        );
+                      })}
                     </svg>
                   ) : null}
                   {graphBands.map((band) => (
@@ -2121,16 +2187,31 @@ function NorthStarLineageExplorer({
                         band.nodes.map((node) => {
                           const nodeKey = node?.id || nodeFqn(node);
                           const inspectorKey = inspectorNode?.id || nodeFqn(inspectorNode);
+                          // is-traced marks whether the node is part of the
+                          // hovered subgraph. When nothing is hovered, every
+                          // node renders at full intensity (no class applied).
+                          const traced = hoveredNodeId
+                            ? tracedNodeIds.has(nodeKey)
+                            : true;
                           return (
-                            <NodeButton
-                              active={band.role === "focus" || nodeKey === selectedNodeId || (!selectedNodeId && nodeKey === inspectorKey)}
-                              asset={asset}
+                            <div
+                              className={`ga-lineage-node-wrap ${traced ? "is-traced" : "is-untraced"}`}
+                              data-node-id={nodeKey || undefined}
                               key={nodeKey}
-                              node={node}
-                              role={band.role}
-                              authoritative={authoritative}
-                              onSelect={selectNode}
-                            />
+                              onMouseEnter={() => nodeKey && setHoveredNodeId(nodeKey)}
+                              onMouseLeave={() => setHoveredNodeId("")}
+                              onFocus={() => nodeKey && setHoveredNodeId(nodeKey)}
+                              onBlur={() => setHoveredNodeId("")}
+                            >
+                              <NodeButton
+                                active={band.role === "focus" || nodeKey === selectedNodeId || (!selectedNodeId && nodeKey === inspectorKey)}
+                                asset={asset}
+                                node={node}
+                                role={band.role}
+                                authoritative={authoritative}
+                                onSelect={selectNode}
+                              />
+                            </div>
                           );
                         })
                       ) : (

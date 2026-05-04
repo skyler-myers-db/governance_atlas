@@ -27,6 +27,7 @@ const HomePage = lazy(() => import("./components/HomePage"));
 const AdminWorkspace = lazy(() => import("./components/AdminWorkspace"));
 const CapabilityDashboard = lazy(() => import("./components/CapabilityDashboard"));
 const InsightsWorkspace = lazy(() => import("./components/InsightsWorkspace"));
+const Asset360Drawer = lazy(() => import("./components/Asset360Drawer"));
 
 function seedAssetHasNonAuthoritativeEvidence(asset) {
   return isNonAuthoritativeMockEvidence(asset, asset?.meta, asset?.provenance, asset?.warnings);
@@ -243,6 +244,18 @@ export default function App() {
   });
   const [liveGovernanceState, setLiveGovernanceState] = useState(null);
   const [shellInboxOpen, setShellInboxOpen] = useState(false);
+  // Asset 360 drawer overlay — sits on top of any surface so users can
+  // inspect assets without losing their place in Discover, Lineage,
+  // Activity stream, etc. The drawer is read-only; "Open full record"
+  // expands into the existing EntityWorkspace surface for write actions.
+  const [asset360DrawerFqn, setAsset360DrawerFqn] = useState("");
+  const openAsset360Drawer = useCallback((assetFqn) => {
+    if (!assetFqn) return;
+    setAsset360DrawerFqn(String(assetFqn));
+  }, []);
+  const closeAsset360Drawer = useCallback(() => {
+    setAsset360DrawerFqn("");
+  }, []);
   const {
     surface,
     routeAssetFqn,
@@ -971,6 +984,7 @@ export default function App() {
             onRetry={commandCenter.oboScopeFallback ? commandCenter.refreshActorScope : commandCenter.refresh}
             recentAssets={commandCenter.data.recentAssets}
             onNavigate={(surfaceKey) => handleModuleSurfaceChange(surfaceKey)}
+            onOpenAsset360Drawer={openAsset360Drawer}
           />
         </Suspense>
       );
@@ -1044,7 +1058,10 @@ export default function App() {
       onSearchResultSelect={(assetFqn) => {
         setShellDiagnosticsOpen(false);
         setShellInboxOpen(false);
-        openEntityWorkspace(assetFqn, "Overview");
+        // Open in the slide-in Asset 360 drawer so the user keeps their
+        // current surface; "Open full record" inside the drawer expands
+        // into the full EntityWorkspace when needed.
+        openAsset360Drawer(assetFqn);
       }}
       diagnosticsAvailable={diagnosticsAvailable}
       diagnosticsStatus={setupReadiness}
@@ -1059,6 +1076,20 @@ export default function App() {
       workspaceAccess={workspaceAccess}
     >
       {content}
+      <Suspense fallback={null}>
+        <Asset360Drawer
+          assetFqn={asset360DrawerFqn}
+          onClose={closeAsset360Drawer}
+          onExpand={(fqn) => {
+            closeAsset360Drawer();
+            openEntityWorkspace(fqn || asset360DrawerFqn, "Overview");
+          }}
+          onOpenLineage={(fqn) => {
+            closeAsset360Drawer();
+            openLineageWorkspace(fqn || asset360DrawerFqn, "Data Lineage");
+          }}
+        />
+      </Suspense>
     </AppFrame>
   );
 }

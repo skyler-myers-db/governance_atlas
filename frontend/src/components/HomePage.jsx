@@ -86,6 +86,106 @@ const UNAVAILABLE_CDE_ROWS = Array.from(
   (_, index) => `Unavailable CDE signal ${index + 1}`,
 );
 
+// ----- CountUp helper -----
+// Animates a numeric value from 0 to `to` over `dur` ms using cubic ease-out.
+// Honours prefers-reduced-motion and shows the final value immediately when
+// the input is non-numeric or the user prefers reduced motion. The component
+// renders a span with role="text" for screen readers; the formatted final
+// value is announced once via aria-label so assistive tech doesn't read every
+// frame.
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return false;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const handler = (event) => setReduced(event.matches);
+    mq.addEventListener?.("change", handler);
+    return () => mq.removeEventListener?.("change", handler);
+  }, []);
+  return reduced;
+}
+
+function CountUp({ to, dur = 1100, decimals = 0, prefix = "", suffix = "", format }) {
+  const reduced = useReducedMotion();
+  const numericTarget = typeof to === "number" && Number.isFinite(to) ? to : null;
+  const [value, setValue] = useState(() => {
+    if (numericTarget === null) return null;
+    if (reduced) return numericTarget;
+    return 0;
+  });
+  useEffect(() => {
+    if (numericTarget === null) {
+      setValue(null);
+      return undefined;
+    }
+    if (reduced) {
+      setValue(numericTarget);
+      return undefined;
+    }
+    let raf;
+    const start = performance.now();
+    const from = 0;
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    const tick = (now) => {
+      const elapsed = now - start;
+      const t = Math.min(1, elapsed / dur);
+      setValue(from + (numericTarget - from) * ease(t));
+      if (t < 1) raf = window.requestAnimationFrame(tick);
+    };
+    raf = window.requestAnimationFrame(tick);
+    return () => raf && window.cancelAnimationFrame(raf);
+  }, [numericTarget, dur, reduced]);
+  if (numericTarget === null || value === null) {
+    return <span aria-label="Signal unavailable">-</span>;
+  }
+  const display = format
+    ? format(value)
+    : value.toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+  const finalDisplay = format
+    ? format(numericTarget)
+    : numericTarget.toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+  return (
+    <span className="ga-count-up tnum" aria-label={`${prefix}${finalDisplay}${suffix}`}>
+      {prefix}
+      {display}
+      {suffix}
+    </span>
+  );
+}
+
+// Parse a value that may already be formatted (e.g. "1,247", "87.4%", "+9 pts")
+// into a raw numeric for the CountUp animation. Returns { numeric, prefix,
+// suffix, decimals } so we can re-render the original formatting at the end of
+// the animation. Returns numeric=null when the input isn't a number-bearing
+// string, in which case CountUp falls back to "-".
+function parseAnimatable(rawValue) {
+  if (rawValue === null || rawValue === undefined) return { numeric: null };
+  if (typeof rawValue === "number") {
+    return Number.isFinite(rawValue)
+      ? { numeric: rawValue, prefix: "", suffix: "", decimals: 0 }
+      : { numeric: null };
+  }
+  const text = String(rawValue).trim();
+  if (!text || text === "-") return { numeric: null };
+  // Pull leading non-digit characters (e.g. currency, "+", "-") as the prefix
+  // and trailing non-digit characters (e.g. "%", " pts", "/ 100") as suffix.
+  const match = text.match(/^([^0-9.,-]*)(-?[\d,]+(?:\.[\d]+)?)(.*)$/);
+  if (!match) return { numeric: null };
+  const numeric = parseFloat(match[2].replace(/,/g, ""));
+  if (!Number.isFinite(numeric)) return { numeric: null };
+  const decimals = match[2].includes(".") ? match[2].split(".")[1].length : 0;
+  return { numeric, prefix: match[1], suffix: match[3], decimals };
+}
+
 function Icon({ name }) {
   const paths = {
     assets: (
@@ -1259,6 +1359,11 @@ export function HomePage({
   atlasAiRequest = fetchAtlasAiRecommendations,
   onRetry,
   onNavigate,
+  // When provided, activity-stream events whose `target` looks like a fully-
+  // qualified asset name (catalog.schema.table) open the Asset 360 drawer
+  // overlay instead of jumping the surface to the Audit browser. Falls back
+  // to the existing onNavigate("audit") flow when no FQN is present.
+  onOpenAsset360Drawer = null,
 }) {
   const atlasAi = useAtlasAiConversation({ request: atlasAiRequest });
   const [suggestionPage, setSuggestionPage] = useState(0);
@@ -1829,10 +1934,23 @@ export function HomePage({
         </section>
 
         <section className="gh-command-center-kpi-row" aria-label="Governance summary metrics">
-          {commandCenterKpis.map((metric) => (
-            <article className={`gh-command-center-kpi tone-${metric.tone}`} key={metric.label}>
+          {commandCenterKpis.map((metric) => {
+            const animatable = parseAnimatable(metric.value);
+            return (
+            <article className={`gh-command-center-kpi tone-${metric.tone} ga-tile-glow`} key={metric.label}>
               <span>{metric.label}</span>
-              <strong>{metric.value}</strong>
+              <strong>
+                {animatable.numeric !== null ? (
+                  <CountUp
+                    to={animatable.numeric}
+                    decimals={animatable.decimals}
+                    prefix={animatable.prefix}
+                    suffix={animatable.suffix}
+                  />
+                ) : (
+                  metric.value
+                )}
+              </strong>
               <em>{metric.delta}</em>
               <div className="gh-command-center-kpi-spark">
                 {metric.sparkline?.length >= 2 ? (
@@ -1856,7 +1974,8 @@ export function HomePage({
                 )}
               </div>
             </article>
-          ))}
+            );
+          })}
         </section>
 
         <div className="gh-command-center-grid">
@@ -2095,9 +2214,19 @@ export function HomePage({
                 { id: "activity-placeholder-2", actor: "Audit evidence", title: "Activity stream will populate when events are returned.", time: "Unavailable", tone: "info", state: "placeholder" },
               ]).map((event) => {
                 const isPlaceholder = event.state === "placeholder";
+                // Treat target as an asset FQN if it looks like a UC three-part
+                // name (catalog.schema.table). Anything else routes to Audit.
+                const looksLikeFqn = typeof event.target === "string" && /^[\w-]+\.[\w-]+\.[\w-]+$/.test(event.target);
+                const handleClick = () => {
+                  if (looksLikeFqn && onOpenAsset360Drawer) {
+                    onOpenAsset360Drawer(event.target);
+                  } else {
+                    openCommandCenterSurface("audit");
+                  }
+                };
                 return (
                   <li className={`tone-${event.tone}`} key={event.id}>
-                    <button type="button" disabled={isPlaceholder} onClick={() => openCommandCenterSurface("audit")}>
+                    <button type="button" disabled={isPlaceholder} onClick={handleClick}>
                       <b aria-hidden="true" />
                       <span>
                         <span className="gh-command-center-activity-line"><strong>{event.actor}</strong> {event.title}</span>
