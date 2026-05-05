@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+import { copyChromeProfileToTemp, resolveChromeProfileName } from "./chrome_profile_tmp.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const BASE_URL =
@@ -17,7 +18,6 @@ const CHROME_PROFILE_ROOT =
 const OUT_DIR =
   process.env.GOVAT_TAXONOMY_OUT_DIR ||
   path.join(REPO_ROOT, "docs/northstar_visual_qa/taxonomy-current");
-const CHROME_PROFILE_COPY_ROOT = path.join(OUT_DIR, "chrome-profile-taxonomy");
 const DEPLOYMENT_ID = process.env.GOVAT_DEPLOYMENT_ID || "";
 const BUILD_ID = process.env.GOVAT_BUILD_ID || "";
 const DATABRICKS_TOKEN = process.env.GOVAT_DATABRICKS_TOKEN || "";
@@ -84,52 +84,32 @@ function attachRuntimeListeners(page) {
   });
 }
 
-async function resolveChromeProfileName() {
-  try {
-    const localStateRaw = await fs.readFile(path.join(CHROME_PROFILE_ROOT, "Local State"), "utf8");
-    const localState = JSON.parse(localStateRaw);
-    return localState?.profile?.last_used || "Default";
-  } catch {
-    return "Default";
-  }
-}
-
-async function copyChromeProfile(profileName) {
-  await fs.rm(CHROME_PROFILE_COPY_ROOT, { recursive: true, force: true });
-  await fs.mkdir(CHROME_PROFILE_COPY_ROOT, { recursive: true });
-  for (const sourcePath of [
-    path.join(CHROME_PROFILE_ROOT, "Local State"),
-    path.join(CHROME_PROFILE_ROOT, profileName),
-  ]) {
-    const targetPath = path.join(CHROME_PROFILE_COPY_ROOT, path.basename(sourcePath));
-    try {
-      const stats = await fs.stat(sourcePath);
-      if (stats.isDirectory()) {
-        await fs.cp(sourcePath, targetPath, { recursive: true, force: true });
-      } else {
-        await fs.copyFile(sourcePath, targetPath);
-      }
-    } catch {
-      // Missing auth files surface as navigation failures.
-    }
-  }
-}
-
 async function launchCopiedProfile() {
-  const profileName = await resolveChromeProfileName();
-  await copyChromeProfile(profileName);
-  const context = await chromium.launchPersistentContext(CHROME_PROFILE_COPY_ROOT, {
-    channel: "chrome",
-    headless: false,
-    viewport: { width: 1536, height: 1024 },
-    args: [`--profile-directory=${profileName}`],
+  const profileName = await resolveChromeProfileName(CHROME_PROFILE_ROOT);
+  const copiedProfile = await copyChromeProfileToTemp({
+    chromeProfileRoot: CHROME_PROFILE_ROOT,
+    profileName,
+    prefix: "govat-taxonomy-chrome-profile-",
   });
+  let context;
+  try {
+    context = await chromium.launchPersistentContext(copiedProfile.profileRoot, {
+      channel: "chrome",
+      headless: false,
+      viewport: { width: 1536, height: 1024 },
+      args: [`--profile-directory=${profileName}`],
+    });
+  } catch (error) {
+    await copiedProfile.cleanup();
+    throw error;
+  }
   const page = context.pages()[0] || (await context.newPage());
   attachRuntimeListeners(page);
   return {
     page,
     close: async () => {
       await context.close().catch(() => {});
+      await copiedProfile.cleanup();
     },
   };
 }

@@ -19171,3 +19171,77 @@ demo-enhancement branch line. No North Star page is approved by this entry.
     through `v226` are neither manifest-allowed nor retired.
   - No visual parity, functional closure, deployed Databricks App browser proof, or
     North Star signoff is claimed by this merge.
+
+## 2026-05-04 20:24 EDT - Repository Bloat Prune And Visual QA Retention Guard
+
+Pruned generated artifacts and historical visual QA evidence so the checkout keeps
+source, North Star contracts, and manifest-pinned evidence without carrying local
+runtime/build/cache state. No North Star page is approved by this entry.
+
+- Trigger:
+  - User reported the checkout had grown to roughly `50GB` and asked to remove
+    extra/useless items while keeping strictly necessary repo functionality and
+    future-hardening assets such as North Star materials.
+- Initial size findings:
+  - `du -sh .` reported `48G`.
+  - Main size drivers were `docs/northstar_visual_qa` at about `33G`,
+    `build/atlas-app` at about `12G`, and `.git` at about `4.3G`.
+  - `docs/northstar_visual_qa` contained 861 top-level evidence directories; the
+    current `reference_manifest.json` pins 124 of them.
+  - Copied Chrome profile directories under visual QA accounted for roughly `21GB`
+    of ignored local state and were not tracked by git.
+- Decisions:
+  - Kept `northstar/`, `docs/northstar_gap_analysis/`, the root
+    `docs/northstar_visual_qa/live-synthetic-stress-latest.json` artifact, and
+    every visual QA directory referenced by `reference_manifest.json`.
+  - Removed unregistered historical visual QA directories, root-level ad hoc
+    screenshots, tracked `frontend/dist` output, ignored build/cache/env folders,
+    visual-QA `downloads/`, and copied browser profile folders.
+  - Did not rewrite git history; `.git` still carries historical blobs and needs a
+    coordinated history rewrite if clone size must be reduced, not just checkout size.
+  - Repo instructions request subagent review roles for non-trivial passes, but this
+    session's higher-priority tool rule only allows subagents when the user explicitly
+    asks for them. No subagents were spawned.
+- Changes:
+  - Added `frontend/scripts/chrome_profile_tmp.mjs`.
+  - Updated `frontend/scripts/atlas_lineage_live_qa.mjs`,
+    `frontend/scripts/atlas_live_qa.mjs`,
+    `frontend/scripts/atlas_deployed_smoke.mjs`, and
+    `frontend/scripts/atlas_taxonomy_live_qa.mjs` so copied Chrome profile fallback
+    state is written under OS temp directories and cleaned on close instead of being
+    stored under evidence output directories.
+  - Added root screenshot ignore rules to `.gitignore`.
+  - Updated `scripts/check_northstar_audit_contract.py` with a visual-QA retention
+    guard that fails on unregistered top-level `docs/northstar_visual_qa`
+    directories or generated `downloads`/`chrome-profile*` state under evidence.
+  - Removed unregistered historical visual QA directories and tracked generated
+    frontend/root screenshot artifacts.
+- Resulting size:
+  - `du -sh .` is now about `5.4G`.
+  - `docs/northstar_visual_qa` is now about `1.2G` with 124 top-level directories.
+  - `.git` is still about `4.1G` because no history rewrite was performed.
+- Verification:
+  - Before dependency/cache removal, `npm --prefix frontend test -- --run` passed
+    with `60` test files, `490` passed tests, and `27` skipped tests.
+  - Before dependency/cache removal, `npm --prefix frontend run build` passed; Vite
+    emitted the existing large-chunk warning.
+  - `node --check` passed for the new helper and all updated QA scripts.
+  - `python3 -m py_compile` passed for the updated audit guard, packaging script,
+    runtime entrypoints, and touched backend modules.
+  - `python3 scripts/validate_repo_hygiene.py` passed.
+  - `databricks bundle validate --profile DEFAULT --var=warehouse_id=b50e5cec5077ea22`
+    passed with expected warnings for pruned local-only paths
+    (`frontend/node_modules`, `.venv`, `node_modules`, and `frontend/dist`).
+  - `databricks bundle summary --profile DEFAULT --var=warehouse_id=b50e5cec5077ea22`
+    passed.
+- Failed or open gates:
+  - `python3 scripts/check_northstar_audit_contract.py` still fails on existing open
+    companion audit blockers:
+    `docs/northstar_gap_analysis/functional_control_audit.md`,
+    `docs/northstar_gap_analysis/lineage_reopened_visual_audit.md`, and
+    `docs/northstar_gap_analysis/reopened_2026_05_02_visual_functional_audit.md`.
+    The previous unregistered v222-v226 evidence problem is addressed by the prune,
+    but this entry does not attempt to close North Star audit rows.
+  - Full local frontend/backend validation after cleanup requires reinstalling
+    dependencies because `.venv/` and `frontend/node_modules/` were intentionally
+    removed as local generated state.

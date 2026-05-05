@@ -25,6 +25,8 @@ CHANGELOG_PATH = ROOT / "AGENT_CHANGELOG.md"
 PROTOTYPE_CONTRACT_PATH = ROOT / "docs/northstar_gap_analysis/prototype_contract.md"
 FUNCTIONAL_AUDIT_PATH = ROOT / "docs/northstar_gap_analysis/functional_control_audit.md"
 SIGNOFF_MATRIX_PATH = ROOT / "docs/northstar_gap_analysis/signoff_matrix.md"
+VISUAL_QA_ROOT = ROOT / "docs/northstar_visual_qa"
+VISUAL_QA_PREFIX_PARTS = ("docs", "northstar_visual_qa")
 COMPANION_AUDIT_GLOB = "docs/northstar_gap_analysis/*audit*.md"
 STATUS_HISTORY_MARKER = "## Superseded Historical Checkpoints - Do Not Use As Current State"
 REQUIRED_REVIEWER_ROLES = {
@@ -372,6 +374,94 @@ def _sha256_file(relative_path: str) -> str:
 
 def _relative_path(value: str) -> str:
     return value.replace("../", "").strip()
+
+
+def _visual_qa_top_dir(value: str) -> str:
+    path = Path(_relative_path(str(value or "")))
+    parts = path.parts
+    if len(parts) < 3 or parts[:2] != VISUAL_QA_PREFIX_PARTS:
+        return ""
+    return Path(*parts[:3]).as_posix()
+
+
+def _manifest_visual_qa_dirs(manifest: dict) -> set[str]:
+    dirs: set[str] = set()
+
+    def add(value: str | None) -> None:
+        top_dir = _visual_qa_top_dir(str(value or ""))
+        if top_dir:
+            dirs.add(top_dir)
+
+    add(str(manifest.get("global_current_evidence_dir") or ""))
+    for key in (
+        "allowed_functional_evidence_reports",
+        "allowed_capture_health_evidence_reports",
+        "allowed_live_truth_evidence_reports",
+        "retired_current_evidence_reports",
+    ):
+        for value in manifest.get(key) or []:
+            add(str(value))
+    for key in (
+        "allowed_functional_evidence_report_pins",
+        "allowed_capture_health_evidence_report_pins",
+        "allowed_live_truth_evidence_report_pins",
+        "global_current_evidence_hashes",
+    ):
+        values = manifest.get(key) or {}
+        if isinstance(values, dict):
+            for value in values:
+                add(str(value))
+    for key in (
+        "allowed_process_evidence_artifacts",
+        "allowed_current_visual_evidence_artifacts",
+        "allowed_extra_visual_state_artifacts",
+        "allowed_live_visual_evidence_artifacts",
+    ):
+        for item in manifest.get(key) or []:
+            if not isinstance(item, dict):
+                continue
+            for field in (
+                "path",
+                "current",
+                "sourceReport",
+                "sourceManifest",
+                "fullPageScreenshot",
+                "fullPagePath",
+            ):
+                add(str(item.get(field) or ""))
+    return dirs
+
+
+def validate_visual_qa_retention() -> None:
+    manifest = _load_manifest()
+    allowed_dirs = _manifest_visual_qa_dirs(manifest)
+    if not VISUAL_QA_ROOT.exists():
+        return
+    unexpected_dirs = []
+    generated_state_dirs = []
+    for child in sorted(VISUAL_QA_ROOT.iterdir()):
+        if not child.is_dir():
+            continue
+        relative = child.relative_to(ROOT).as_posix()
+        if relative not in allowed_dirs:
+            unexpected_dirs.append(relative)
+    for path in sorted(VISUAL_QA_ROOT.rglob("*")):
+        if not path.is_dir():
+            continue
+        if path.name == "downloads" or path.name.startswith("chrome-profile"):
+            generated_state_dirs.append(path.relative_to(ROOT).as_posix())
+    if unexpected_dirs:
+        raise AssertionError(
+            "unregistered North Star visual QA directories must be pruned or manifest-pinned: "
+            + ", ".join(unexpected_dirs[:25])
+            + (f", ... {len(unexpected_dirs) - 25} more" if len(unexpected_dirs) > 25 else "")
+        )
+    if generated_state_dirs:
+        raise AssertionError(
+            "generated browser/download state must not live under North Star visual QA evidence: "
+            + ", ".join(generated_state_dirs[:25])
+            + (f", ... {len(generated_state_dirs) - 25} more" if len(generated_state_dirs) > 25 else "")
+        )
 
 
 def validate_manifest() -> None:
@@ -2112,6 +2202,7 @@ def main() -> int:
     try:
         validate_manifest()
         validate_no_unregistered_current_evidence_reports()
+        validate_visual_qa_retention()
         validate_companion_audit_blockers()
         validate_current_evidence()
         validate_audit()
