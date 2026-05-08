@@ -6,24 +6,34 @@ import { EmptyStateBlock, SkeletonBlock } from "../ShellStatePrimitives";
  * Paints the most recent profile_run from /api/assets/:fqn/profile.
  */
 export function ProfilePanel({ assetFqn }) {
-  const { loading, error, run, tableMetric, columnMetrics } = useAssetProfile(assetFqn);
+  const { loading, error, run, tableMetric, columnMetrics, databricksProfile } = useAssetProfile(assetFqn);
   if (loading) {
     return <SkeletonBlock lines={5} message="Loading profile metrics…" />;
   }
   if (error) {
     return <EmptyStateBlock title="Profile unavailable" message={error} />;
   }
-  if (!run) {
+  const metricRows = Array.isArray(databricksProfile?.rows) ? databricksProfile.rows : [];
+  const monitor = databricksProfile?.monitor || {};
+  const hasConfiguredMonitor = monitor.configured === true || Boolean(monitor.profileMetricsTableName || monitor.driftMetricsTableName);
+  const hasDatabricksProfile = databricksProfile?.state === "available" && (metricRows.length > 0 || hasConfiguredMonitor);
+  if (!run && !hasDatabricksProfile) {
     return (
       <EmptyStateBlock
         title="No profile runs recorded"
-        message="Once a profile run has been recorded for this entity, row counts, null fractions, distinct-value estimates, and column-level metrics will show here."
+        message={databricksProfile?.state === "empty"
+          ? "Databricks did not return a data profiling monitor or default metric tables for this table, and Atlas has no persisted profile run."
+          : "Once a profile run has been recorded for this entity, row counts, null fractions, distinct-value estimates, and column-level metrics will show here."}
       />
     );
   }
   return (
     <div className="gh-profile-panel">
       <div className="gh-profile-summary">
+        <ProfileStat
+          label="Databricks profile"
+          value={hasDatabricksProfile ? monitor.status || "Observed" : "Unavailable"}
+        />
         <ProfileStat
           label="Rows"
           value={tableMetric?.row_count ?? tableMetric?.rowCount ?? "—"}
@@ -40,9 +50,43 @@ export function ProfilePanel({ assetFqn }) {
           label="Distinct keys"
           value={tableMetric?.distinct_keys ?? tableMetric?.distinctKeys ?? "—"}
         />
-        <ProfileStat label="Status" value={run.status || "—"} />
-        <ProfileStat label="Started" value={run.startedAt || "—"} />
+        <ProfileStat label="Status" value={run?.status || "—"} />
+        <ProfileStat label="Started" value={run?.startedAt || "—"} />
       </div>
+
+      {hasDatabricksProfile ? (
+        <div className="gh-profile-columns">
+          <div className="gh-panel-title">Databricks metric tables</div>
+          <div className="gh-profile-columns-table">
+            <div className="gh-profile-columns-head">
+              <div>Table</div>
+              <div>Schema</div>
+              <div>Type</div>
+              <div>Owner</div>
+              <div>Last altered</div>
+            </div>
+            {metricRows.length ? (
+              metricRows.map((metric) => (
+                <div className="gh-profile-columns-row" key={`${metric.table_catalog}.${metric.table_schema}.${metric.table_name}`}>
+                  <div className="gh-profile-col-name">{metric.table_name || "—"}</div>
+                  <div>{[metric.table_catalog, metric.table_schema].filter(Boolean).join(".") || "—"}</div>
+                  <div>{metric.table_type || "—"}</div>
+                  <div>{metric.table_owner || "—"}</div>
+                  <div className="gh-profile-col-range">{metric.last_altered || metric.created || "—"}</div>
+                </div>
+              ))
+            ) : (
+              <div className="gh-profile-columns-row">
+                <div className="gh-profile-col-name">{monitor.profileMetricsTableName || "Monitor configured"}</div>
+                <div>{monitor.driftMetricsTableName || "Metric table visibility unavailable"}</div>
+                <div>Monitor</div>
+                <div>{monitor.status || "Configured"}</div>
+                <div className="gh-profile-col-range">{monitor.latestMonitorFailureMessage || "Metric table rows not visible to this actor."}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {columnMetrics.length ? (
         <div className="gh-profile-columns">

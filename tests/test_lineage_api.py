@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -127,6 +128,136 @@ class LineageApiTests(unittest.TestCase):
         self.assertIn("empty graph", payload["tableLineage"]["reason"])
         self.assertEqual(payload["columnLineage"]["state"], "available")
         self.assertTrue(payload["columnLineage"]["available"])
+
+    def test_lineage_recommendations_wrap_live_uc_evidence_metadata(self) -> None:
+        request = SimpleNamespace(
+            headers={
+                "x-forwarded-email": "analyst@example.com",
+                "x-forwarded-access-token": "token",
+            },
+            query_params={},
+        )
+        recommendation_payload = {
+            "items": [
+                {
+                    "fqn": "main.gold.mortgage_signal",
+                    "name": "mortgage_signal",
+                    "edgeCount": 5,
+                    "source": "system.access.table_lineage",
+                }
+            ],
+            "meta": {
+                "source": "system.access.table_lineage",
+                "visibleAssetCount": 42,
+                "scannedAssetCount": 42,
+                "recommendationLimit": 1,
+            },
+        }
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _uc_for_request=lambda request: SimpleNamespace(warehouse_id="actor-wh"),
+            _uc=lambda: SimpleNamespace(warehouse_id="app-wh"),
+            _store_for_read=lambda: object(),
+            _request_cache_scope=lambda request: "analyst@example.com",
+        ):
+            lineage_api.lineage_service._TTL_CACHE.clear()
+            cache_key = "lineage_recommendations:actor-wh:analyst@example.com:actor-wh:1"
+            lineage_api.lineage_service._TTL_CACHE[cache_key] = (time.time(), recommendation_payload)
+            response = lineage_api.api_lineage_recommendations(request, limit=1)
+
+        payload = _response_json(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["items"][0]["fqn"], "main.gold.mortgage_signal")
+        self.assertEqual(payload["recommendationMeta"]["source"], "system.access.table_lineage")
+        self.assertEqual(payload["meta"]["source"], "unity-catalog-lineage")
+        self.assertTrue(payload["meta"]["authoritative"])
+        self.assertEqual(
+            payload["meta"]["capabilities"]["evidenceSource"],
+            "system.access.table_lineage",
+        )
+
+    def test_lineage_recommendations_return_loading_envelope_while_cache_warms(self) -> None:
+        request = SimpleNamespace(
+            headers={"x-forwarded-email": "reader@example.com"},
+            query_params={},
+        )
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _uc_for_request=lambda request: SimpleNamespace(warehouse_id="actor-wh"),
+            _uc=lambda: SimpleNamespace(warehouse_id="app-wh"),
+            _store_for_read=lambda: object(),
+            _request_cache_scope=lambda request: "reader@example.com",
+        ):
+            lineage_api.lineage_service._TTL_CACHE.clear()
+            lineage_api._LINEAGE_RECOMMENDATIONS_WARMING.clear()
+            with patch.object(
+                lineage_api.threading,
+                "Thread",
+                autospec=True,
+            ) as thread_cls:
+                response = lineage_api.api_lineage_recommendations(request, limit=2)
+            lineage_api._LINEAGE_RECOMMENDATIONS_WARMING.clear()
+
+        payload = _response_json(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["items"], [])
+        self.assertEqual(payload["meta"]["state"], "loading")
+        self.assertFalse(payload["meta"]["authoritative"])
+        self.assertTrue(payload["recommendationMeta"]["hydrating"])
+        thread_cls.assert_called_once()
+
+    def test_lineage_recommendations_aggregate_fallback_is_degraded_not_authoritative(self) -> None:
+        request = SimpleNamespace(
+            headers={
+                "x-forwarded-email": "analyst@example.com",
+                "x-forwarded-access-token": "token",
+            },
+            query_params={},
+        )
+        recommendation_payload = {
+            "items": [
+                {
+                    "fqn": "main.datapact.run_history",
+                    "edgeCount": 626,
+                    "upstreamCount": 622,
+                    "downstreamCount": 4,
+                    "source": "system.access.table_lineage",
+                }
+            ],
+            "meta": {
+                "source": "system.access.table_lineage",
+                "rankingSource": "system.access.table_lineage.aggregate-fallback",
+                "visibleAssetCount": 22,
+                "scannedAssetCount": 32,
+                "recommendationLimit": 1,
+            },
+        }
+
+        with patch.multiple(
+            runtime_app,
+            _ensure_live_runtime=lambda: None,
+            _uc_for_request=lambda request: SimpleNamespace(warehouse_id="actor-wh"),
+            _uc=lambda: SimpleNamespace(warehouse_id="app-wh"),
+            _store_for_read=lambda: object(),
+            _request_cache_scope=lambda request: "analyst@example.com",
+        ):
+            lineage_api.lineage_service._TTL_CACHE.clear()
+            cache_key = "lineage_recommendations:actor-wh:analyst@example.com:actor-wh:1"
+            lineage_api.lineage_service._TTL_CACHE[cache_key] = (time.time(), recommendation_payload)
+            response = lineage_api.api_lineage_recommendations(request, limit=1)
+
+        payload = _response_json(response)
+        self.assertEqual(payload["meta"]["state"], "degraded")
+        self.assertFalse(payload["meta"]["authoritative"])
+        self.assertEqual(
+            payload["meta"]["capabilities"]["relationshipVisibilityScope"],
+            "actor-openable-candidate-aggregate",
+        )
+        self.assertTrue(payload["meta"]["warnings"])
 
 
 if __name__ == "__main__":

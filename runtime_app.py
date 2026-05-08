@@ -184,6 +184,7 @@ SHELL_API_CONTRACT = {
     "discoverySearch": "/api/discovery/search",
     "assetDetail": "/api/assets/:fqn",
     "assetAvailability": "/api/assets/availability",
+    "assetHeaders": "/api/assets/headers",
     "assetMetadataUpdate": "/api/assets/:fqn/metadata",
     "assetColumnMetadataUpdate": "/api/assets/:fqn/columns/:column/metadata",
     "lineage": "/api/lineage/:fqn",
@@ -1883,6 +1884,109 @@ def _asset_availability_payload(
             allowed_actions={},
             warnings=[*dict.fromkeys(warnings)],
             unavailable_reason=warnings[0] if warnings else "",
+        ),
+        "errors": [],
+    }
+
+
+def _asset_headers_payload(
+    asset_fqns: List[str],
+    request: Optional[Request] = None,
+) -> Dict[str, Any]:
+    unique_assets = [
+        asset_fqn
+        for asset_fqn in dict.fromkeys(asset_fqns or [])
+        if _normalize_str(asset_fqn)
+    ][:64]
+    headers: Dict[str, Dict[str, Any]] = {}
+    warnings: List[str] = []
+    actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
+    cached_inventory = _cached_visible_assets(request)
+    if cached_inventory is None:
+        _fast_bootstrap_inventory_summary(
+            _request_cache_scope(request),
+            start_background=True,
+        )
+        message = "Actor-visible asset inventory is hydrating; lineage card headers are deferred."
+        warnings.append(message)
+        for asset_fqn in unique_assets:
+            payload = asset_service.asset_loading_payload(asset_fqn)
+            payload["headerSource"] = "inventory-loading"
+            payload["loadedSections"] = []
+            payload["deferredSections"] = ["header"]
+            headers[asset_fqn] = payload
+        return {
+            "assets": headers,
+            "meta": _response_meta(
+                request,
+                source="unity-catalog-visible-inventory",
+                state="loading",
+                authoritative=False,
+                capabilities={
+                    "hydrating": True,
+                    "requestedCount": len(unique_assets),
+                    "returnedCount": len(headers),
+                    "visibilityScope": (
+                        capability_service.ACTOR_SCOPED_VISIBILITY
+                        if actor_scoped
+                        else capability_service.WORKSPACE_APP_PRINCIPAL_VISIBILITY
+                    ),
+                },
+                warnings=warnings,
+                unavailable_reason=message,
+            ),
+            "errors": [],
+        }
+
+    for asset_fqn in unique_assets:
+        try:
+            if asset_service.asset_fqn_is_hidden(asset_fqn, hidden_catalogs=HIDDEN_CATALOGS):
+                headers[asset_fqn] = {
+                    "fqn": asset_fqn,
+                    "name": asset_fqn.split(".")[-1],
+                    "error": "Asset is hidden by catalog filtering.",
+                    "headerSource": "hidden-catalog-filter",
+                }
+                continue
+            header = asset_service.asset_header_payload_from_inventory(
+                cached_inventory,
+                asset_fqn,
+            )
+            if header is None:
+                headers[asset_fqn] = {
+                    "fqn": asset_fqn,
+                    "name": asset_fqn.split(".")[-1],
+                    "error": "Asset is not present in the current visible inventory.",
+                    "headerSource": "visible-inventory-miss",
+                }
+                continue
+            headers[asset_fqn] = header
+        except Exception as exc:
+            headers[asset_fqn] = {
+                "fqn": asset_fqn,
+                "name": asset_fqn.split(".")[-1],
+                "error": _normalize_str(exc) or "Asset header unavailable.",
+                "headerSource": "visible-inventory-error",
+            }
+    return {
+        "assets": headers,
+        "meta": _response_meta(
+            request,
+            source="unity-catalog-visible-inventory",
+            state="available" if actor_scoped else "degraded",
+            authoritative=actor_scoped,
+            capabilities={
+                "requestedCount": len(unique_assets),
+                "returnedCount": len(headers),
+                "visibilityScope": (
+                    capability_service.ACTOR_SCOPED_VISIBILITY
+                    if actor_scoped
+                    else capability_service.WORKSPACE_APP_PRINCIPAL_VISIBILITY
+                ),
+            },
+            warnings=[] if actor_scoped else [
+                "Lineage card headers are hydrated from workspace-scoped visible inventory; per-user authorization is not available."
+            ],
         ),
         "errors": [],
     }

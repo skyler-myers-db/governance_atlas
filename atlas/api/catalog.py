@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field, field_validator
 from atlas.api.identity import _request_auth_mode, _user_email
 from atlas.services import capabilities as capability_service
 from atlas.services import custom_properties as cp_service
+from atlas.services import databricks_evidence
 from atlas.services import input_safety
 from atlas.services import quality as quality_service
 from atlas.services.assets import normalize_str as _normalize_str
@@ -463,17 +464,36 @@ def api_asset_profile(asset_fqn: str, request: Request) -> JSONResponse:
     if not asset_fqn:
         raise HTTPException(status_code=400, detail="asset_fqn is required.")
     _require_open_asset(asset_fqn, request)
+    from runtime_app import _uc_for_request
+
     store = _store_read()
     import json
     try:
         run = store.latest_profile_run_for_entity(asset_fqn)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to read profile: {exc}")
+    try:
+        databricks_profile = databricks_evidence.profile_metric_tables_payload(
+            _uc_for_request(request),
+            asset_fqn,
+        )
+    except Exception as exc:
+        databricks_profile = {
+            "state": "unavailable",
+            "source": databricks_evidence.PROFILE_METRICS_SOURCE,
+            "rows": [],
+            "warnings": [str(exc).splitlines()[0][:500]],
+        }
     if not run:
         return JSONResponse(
             status_code=200,
             content=_envelope(
-                {"run": None, "tableMetrics": None, "columnMetrics": []},
+                {
+                    "run": None,
+                    "tableMetrics": None,
+                    "columnMetrics": [],
+                    "databricksProfile": databricks_profile,
+                },
                 extra={"degraded": True, "warnings": ["No profile runs recorded for this entity."]},
             ),
         )
@@ -515,6 +535,7 @@ def api_asset_profile(asset_fqn: str, request: Request) -> JSONResponse:
                 "run": run_payload,
                 "tableMetrics": _expand(table_rows)[:1] or None,
                 "columnMetrics": _expand(column_rows),
+                "databricksProfile": databricks_profile,
             }
         ),
     )
@@ -573,12 +594,31 @@ def api_asset_quality(asset_fqn: str, request: Request) -> JSONResponse:
     if not asset_fqn:
         raise HTTPException(status_code=400, detail="asset_fqn is required.")
     _require_open_asset(asset_fqn, request)
+    from runtime_app import _uc_for_request
+
     store = _store_read()
     try:
         results_frame = store.list_quality_run_results(entity_fqn=asset_fqn, limit=200)
         runs_frame = store.list_quality_runs(entity_fqn=asset_fqn, limit=25)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to read quality: {exc}")
+    try:
+        databricks_monitoring = databricks_evidence.quality_monitoring_payload(
+            _uc_for_request(request),
+            asset_fqn,
+        )
+    except Exception as exc:
+        databricks_monitoring = {
+            "state": "unavailable",
+            "source": databricks_evidence.QUALITY_MONITORING_SOURCE,
+            "rows": [],
+            "warnings": [str(exc).splitlines()[0][:500]],
+            "summary": {
+                "healthStatus": "Unavailable",
+                "freshnessStatus": "Unavailable",
+                "completenessStatus": "Unavailable",
+            },
+        }
     import json
     results = _df_records(results_frame)
     for row in results:
@@ -596,7 +636,75 @@ def api_asset_quality(asset_fqn: str, request: Request) -> JSONResponse:
     summary = quality_service.summarize_run_results(results)
     return JSONResponse(
         status_code=200,
-        content=_envelope({"runs": runs, "results": results, "summary": summary}),
+        content=_envelope(
+            {
+                "runs": runs,
+                "results": results,
+                "summary": summary,
+                "databricksMonitoring": databricks_monitoring,
+            }
+        ),
+    )
+
+
+def api_asset_databricks_evidence(asset_fqn: str, request: Request) -> JSONResponse:
+    asset_fqn = _normalize_str(asset_fqn)
+    if not asset_fqn:
+        raise HTTPException(status_code=400, detail="asset_fqn is required.")
+    _require_open_asset(asset_fqn, request)
+    from runtime_app import _uc_for_request
+
+    try:
+        payload = databricks_evidence.asset_databricks_evidence_payload(
+            _uc_for_request(request),
+            asset_fqn,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        payload = {
+            "assetFqn": asset_fqn,
+            "qualityMonitoring": {
+                "state": "unavailable",
+                "source": databricks_evidence.QUALITY_MONITORING_SOURCE,
+                "rows": [],
+                "warnings": [str(exc).splitlines()[0][:500]],
+            },
+            "profileMetrics": {
+                "state": "unavailable",
+                "source": databricks_evidence.PROFILE_METRICS_SOURCE,
+                "rows": [],
+                "warnings": [str(exc).splitlines()[0][:500]],
+            },
+            "lakeflow": {
+                "state": "unavailable",
+                "source": databricks_evidence.LAKEFLOW_SOURCE,
+                "jobs": [],
+                "pipelines": [],
+                "warnings": [str(exc).splitlines()[0][:500]],
+            },
+            "pipelineEvents": {
+                "state": "unavailable",
+                "source": databricks_evidence.PIPELINE_EVENT_LOG_SOURCE,
+                "rows": [],
+                "warnings": [str(exc).splitlines()[0][:500]],
+            },
+            "provenance": [],
+        }
+    return JSONResponse(
+        status_code=200,
+        content=_envelope(
+            payload,
+            source="databricks-system-tables",
+            extra={
+                "capabilities": {
+                    "dataQualityMonitoring": payload.get("qualityMonitoring", {}).get("state"),
+                    "profileMetrics": payload.get("profileMetrics", {}).get("state"),
+                    "lakeflow": payload.get("lakeflow", {}).get("state"),
+                    "pipelineEvents": payload.get("pipelineEvents", {}).get("state"),
+                }
+            },
+        ),
     )
 
 
@@ -1089,6 +1197,12 @@ def build_catalog_router() -> APIRouter:
         api_asset_profile,
         methods=["GET"],
         name="api_asset_profile",
+    )
+    router.add_api_route(
+        "/api/assets/{asset_fqn:path}/databricks-evidence",
+        api_asset_databricks_evidence,
+        methods=["GET"],
+        name="api_asset_databricks_evidence",
     )
 
     # Phase 10 — quality

@@ -26,9 +26,14 @@ const VIEWPORTS = [
 const report = {
   generatedAt: new Date().toISOString(),
   appUrl: BASE_URL,
+  evidenceKind: /\.databricksapps\.com$/i.test(new URL(APP_ORIGIN).hostname)
+    ? "deployed_databricks_app_backed"
+    : "local_runtime_databricks_backed",
+  mockApi: false,
   deploymentId: DEPLOYMENT_ID,
   buildId: BUILD_ID,
   assetFqn: ASSET_FQN,
+  databricksEvidenceApi: null,
   captures: [],
   interactions: [],
   pageErrors: [],
@@ -108,6 +113,40 @@ async function screenshot(page, name) {
   return filePath;
 }
 
+async function fetchJson(pathname) {
+  const response = await fetch(route(pathname), {
+    headers: {
+      Accept: "application/json",
+      ...(DATABRICKS_TOKEN ? { Authorization: `Bearer ${DATABRICKS_TOKEN}` } : {}),
+    },
+  });
+  const text = await response.text();
+  let body = null;
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = { rawText: text.slice(0, 1200) };
+  }
+  return {
+    status: response.status,
+    ok: response.ok,
+    buildId: response.headers.get("x-govat-build-id") || "",
+    body,
+  };
+}
+
+async function recordApiInteraction(name, fn) {
+  const item = { name, passed: false };
+  try {
+    const detail = (await fn()) || {};
+    Object.assign(item, detail, { passed: true });
+  } catch (error) {
+    item.error = error?.message || String(error);
+  }
+  report.interactions.push(item);
+  await flushReport();
+}
+
 async function waitForAsset360(page, { ensureOverview = true } = {}) {
   await page.waitForSelector(".ga-asset360-hero", { timeout: 120_000 });
   await page.waitForSelector(".gh-entity-record-tabs", { timeout: 120_000 });
@@ -121,6 +160,7 @@ async function waitForAsset360(page, { ensureOverview = true } = {}) {
         /Overview/i.test(text) &&
         /Columns/i.test(text) &&
         /Governance/i.test(text) &&
+        /Profile/i.test(text) &&
         /Quality/i.test(text) &&
         /Access/i.test(text) &&
         /Activity/i.test(text) &&
@@ -262,12 +302,13 @@ async function captureViewport(page, viewport) {
           /Freshness/i.test(bodyText) &&
           /Rows/i.test(bodyText) &&
           /Size/i.test(bodyText),
-        tabs:
-          tabs.includes("Overview") &&
-          tabs.includes("Columns") &&
-          tabs.includes("Governance") &&
-          tabs.includes("Quality") &&
-          tabs.includes("Access") &&
+          tabs:
+            tabs.includes("Overview") &&
+            tabs.includes("Columns") &&
+            tabs.includes("Governance") &&
+            tabs.includes("Profile") &&
+            tabs.includes("Quality") &&
+            tabs.includes("Access") &&
           tabs.includes("Activity"),
         overview:
           /Business Description/i.test(bodyText) &&
@@ -282,7 +323,8 @@ async function captureViewport(page, viewport) {
     };
   });
   const regionsOk = Object.values(metrics.regionText).every(Boolean);
-  const footerTop = metrics.footer?.top ?? Number.POSITIVE_INFINITY;
+  const footerPresent = Boolean(metrics.footer && metrics.footer.width > 0 && metrics.footer.height > 0);
+  const footerTop = footerPresent ? metrics.footer.top : Number.POSITIVE_INFINITY;
   const mainAboveFooter =
     (!metrics.mainGrid || metrics.mainGrid.bottom <= footerTop + 1) &&
     (!metrics.rail || metrics.rail.bottom <= footerTop + 1);
@@ -330,11 +372,23 @@ async function runInteractions(page) {
     await page.waitForSelector(".gh-schema-table, .gh-schema-empty-row", { timeout: 30_000 });
     await entityTabs.getByRole("button", { name: /^Governance$/ }).click();
     await page.waitForFunction(() => /Governance classifications/i.test(document.body?.innerText || ""), undefined, { timeout: 30_000 });
+    await entityTabs.getByRole("button", { name: /^Profile$/ }).click();
+    await page.waitForFunction(
+      () => /Profiler & Evidence|Databricks metric tables|No profile runs recorded/i.test(document.body?.innerText || ""),
+      undefined,
+      { timeout: 30_000 },
+    );
+    await entityTabs.getByRole("button", { name: /^Quality$/ }).click();
+    await page.waitForFunction(
+      () => /Databricks DQ|Databricks monitoring|No quality evidence recorded|Latest results|Recent runs/i.test(document.body?.innerText || ""),
+      undefined,
+      { timeout: 30_000 },
+    );
     await entityTabs.getByRole("button", { name: /^Access$/ }).click();
     await page.waitForFunction(() => /Live Record Signals|Access/i.test(document.body?.innerText || ""), undefined, { timeout: 30_000 });
     await entityTabs.getByRole("button", { name: /^Activity$/ }).click();
     await page.waitForFunction(() => /Activity & Tasks/i.test(document.body?.innerText || ""), undefined, { timeout: 30_000 });
-    return { tabs: ["Columns", "Governance", "Access", "Activity"] };
+    return { tabs: ["Columns", "Governance", "Profile", "Quality", "Access", "Activity"] };
   });
 
   await recordInteraction(page, "Overview View all columns", async () => {
@@ -458,6 +512,27 @@ async function runInteractions(page) {
 
 async function main() {
   await fs.mkdir(OUT_DIR, { recursive: true });
+  await recordApiInteraction("Databricks evidence API states", async () => {
+    const encoded = encodeURIComponent(ASSET_FQN);
+    const result = await fetchJson(`/api/assets/${encoded}/databricks-evidence`);
+    const data = result.body?.data || {};
+    const detail = {
+      status: result.status,
+      buildId: result.buildId,
+      qualityMonitoring: data.qualityMonitoring?.state || "",
+      profileMetrics: data.profileMetrics?.state || "",
+      lakeflow: data.lakeflow?.state || "",
+      pipelineEvents: data.pipelineEvents?.state || "",
+      source: result.body?.meta?.source || "",
+      authoritative: result.body?.meta?.authoritative === true,
+    };
+    report.databricksEvidenceApi = detail;
+    if (!result.ok) throw new Error(`Databricks evidence API returned ${result.status}`);
+    if (result.body?.meta?.source !== "databricks-system-tables") {
+      throw new Error("Databricks evidence API did not return databricks-system-tables provenance.");
+    }
+    return detail;
+  });
   const { page, close } = await connect();
   try {
     for (const viewport of VIEWPORTS) {
