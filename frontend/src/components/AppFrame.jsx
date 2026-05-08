@@ -604,7 +604,8 @@ export default function AppFrame({
           : bootState === "loading"
             ? "loading"
             : "";
-  const hasUcCoverage = Number.isFinite(Number(ucCoverageScore));
+  const numericUcCoverage = Number(ucCoverageScore);
+  const hasUcCoverage = Number.isFinite(numericUcCoverage) && numericUcCoverage > 0;
   const footerStatusTone =
     goodHealthStates.includes(shellHealthState) && hasUcCoverage
       ? "good"

@@ -235,3 +235,4 @@ node_modules/
 !frontend/dist/
 !frontend/dist/**
 !frontend/dist/atlas-build-manifest.json
+AGENT*

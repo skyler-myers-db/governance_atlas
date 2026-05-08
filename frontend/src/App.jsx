@@ -836,6 +836,7 @@ export default function App() {
             onOpenGovernance={openGovernanceWorkspace}
             onOpenAsset={(assetFqn, nextTab = "Overview") => openEntityWorkspace(assetFqn, nextTab)}
             runtimeFeatureFlags={runtimeRolloutFlags}
+            sharedVisibleAssetSet={visibleAssetSet}
             workspaceAccess={surfaceWorkspaceAccess}
             userEmail={shell?.userEmail || ""}
           />

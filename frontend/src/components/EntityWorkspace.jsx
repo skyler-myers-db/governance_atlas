@@ -36,6 +36,7 @@ import {
   workloadVisibilityAvailable,
   workloadVisibilityReason,
   workspaceAccessAvailable,
+  workspaceAccessGate,
   workspaceAccessReason,
 } from "../lib/capabilities";
 import { openAssetRecordSafely } from "../lib/assetRecordNavigation";
@@ -283,6 +284,7 @@ function entityTabs(previewAvailable = true, lineageAvailable = true, workloadAv
     { key: "Overview", label: "Overview", iconId: "overview" },
     { key: "Schema", label: "Columns", iconId: "schema" },
     { key: "Governance", label: "Governance", iconId: "governance" },
+    { key: "Profiler", label: "Profile", iconId: "profiler" },
     { key: "Quality", label: "Quality", iconId: "quality" },
     { key: "Access", label: "Access", iconId: "properties" },
     { key: "Activity", label: "Activity", iconId: "activity" },
@@ -929,9 +931,13 @@ function Asset360Overview({
 function EntityShellPlaceholder({
   assetFqn = "",
   launchAssets = [],
+  lineageAvailable = false,
+  lineageUnavailableReason = "",
   loading = false,
   message = "",
   onBack,
+  onNavigationStateChange,
+  onOpenLineage,
   onSelectAsset,
   title = "Asset record unavailable",
   tone = "warn",
@@ -962,7 +968,19 @@ function EntityShellPlaceholder({
             </div>
             <div className="ga-asset360-actions">
               <button className="gh-secondary-button" disabled type="button">Request Change</button>
-              <button className="gh-secondary-button" disabled type="button">Lineage Unavailable</button>
+              <button
+                className="gh-secondary-button"
+                disabled={!assetFqn || !lineageAvailable}
+                onClick={() => {
+                  if (!assetFqn || !lineageAvailable) return;
+                  onNavigationStateChange?.(true, "Opening lineage...");
+                  onOpenLineage?.(assetFqn, "Data Lineage");
+                }}
+                title={!lineageAvailable ? lineageUnavailableReason : undefined}
+                type="button"
+              >
+                {assetFqn && lineageAvailable ? "Open Lineage" : "Lineage Unavailable"}
+              </button>
               <button className="gh-primary-button ga-asset360-certify-button" disabled type="button">Certify</button>
               <button aria-label="More asset actions unavailable" className="gh-tertiary-button ga-asset360-kebab" disabled type="button">⋮</button>
             </div>
@@ -1516,6 +1534,11 @@ export default function EntityWorkspace({
   const prototypeEvidence = bootstrapNonAuthoritative;
   const workspacePreviewAvailable = workspaceAccessAvailable(workspaceAccess, "canUseAssetPreview", false);
   const workspaceLineageAvailable = workspaceAccessAvailable(workspaceAccess, "canUseLineage", false);
+  const lineageAccessGate = workspaceAccessGate(workspaceAccess, "table_lineage");
+  const lineageAccessGateReason = `${lineageAccessGate?.reason || ""} ${lineageAccessGate?.proofSource || ""}`;
+  const lineageCoverageProbeOnly =
+    String(lineageAccessGate?.state || "").toLowerCase() === "unknown" &&
+    /no lineage-observed catalogs/i.test(lineageAccessGateReason);
   const workspaceWorkloadAvailable = workspaceAccessAvailable(workspaceAccess, "canUseQueryHistory", false);
   const lineageRolloutAvailable = runtimeFeatureFlagAvailable(
     runtimeFeatureFlags,
@@ -1536,16 +1559,21 @@ export default function EntityWorkspace({
         typeof workspaceAccess.canUseQueryHistory === "boolean"
       ),
   );
+  const workspaceLineageRouteAvailable =
+    !workspaceAccessResolved || workspaceLineageAvailable || lineageCoverageProbeOnly;
   const previewTabAvailable = previewAvailable && (!workspaceAccessResolved || workspacePreviewAvailable);
   const lineageTabAvailable =
-    lineageAvailable && lineageRolloutAvailable && (!workspaceAccessResolved || workspaceLineageAvailable);
+    lineageAvailable && lineageRolloutAvailable && workspaceLineageRouteAvailable;
   const workloadTabAvailable =
     workloadAvailable && workloadRolloutAvailable && (!workspaceAccessResolved || workspaceWorkloadAvailable);
   const previewAccessPending = previewAvailable && !workspaceAccessResolved;
-  const lineageAccessPending = lineageAvailable && lineageRolloutAvailable && !workspaceAccessResolved;
+  // The lineage route owns the final per-asset access check. Keep the
+  // Asset 360 handoff available while runtime diagnostics are still resolving
+  // so a stale shell-only bootstrap cannot strand the user on the record page.
+  const lineageAccessPending = false;
   const workloadAccessPending = workloadAvailable && workloadRolloutAvailable && !workspaceAccessResolved;
   const lineageSurfaceAvailable =
-    lineageAvailable && lineageRolloutAvailable && workspaceAccessResolved && workspaceLineageAvailable;
+    lineageAvailable && lineageRolloutAvailable && workspaceLineageRouteAvailable;
   const previewSurfaceAvailable = previewAvailable && workspaceAccessResolved && workspacePreviewAvailable;
   const workloadSurfaceAvailable =
     workloadAvailable && workloadRolloutAvailable && workspaceAccessResolved && workspaceWorkloadAvailable;
@@ -1553,7 +1581,7 @@ export default function EntityWorkspace({
     "Table lineage rollout is not available in this workspace right now.";
   const workloadRolloutUnavailableReason =
     "Query and workload surfaces are not available in this workspace right now.";
-  const lineageSurfaceUnavailableReason = !workspaceLineageAvailable
+  const lineageSurfaceUnavailableReason = workspaceAccessResolved && !workspaceLineageRouteAvailable
     ? workspaceAccessReason(workspaceAccess, "table_lineage", lineageUnavailableReason)
     : lineageAvailable
     ? lineageRolloutAvailable
@@ -2085,9 +2113,13 @@ export default function EntityWorkspace({
       <EntityShellPlaceholder
         assetFqn={assetFqn}
         launchAssets={launchAssets}
+        lineageAvailable={lineageSurfaceAvailable}
+        lineageUnavailableReason={lineageSurfaceUnavailableReason}
         loading
         message={`Loading the record header and recent activity for ${assetFqn}.`}
         onBack={onBack}
+        onNavigationStateChange={onNavigationStateChange}
+        onOpenLineage={onOpenLineage}
         onSelectAsset={onSelectAsset}
         title="Refreshing the metadata record"
       />
@@ -2099,11 +2131,15 @@ export default function EntityWorkspace({
       <EntityShellPlaceholder
         assetFqn={assetFqn}
         launchAssets={launchAssets}
+        lineageAvailable={lineageSurfaceAvailable}
+        lineageUnavailableReason={lineageSurfaceUnavailableReason}
         message={
           assetDetail.error ||
           "This asset appears in lineage or linked navigation, but it is not currently visible in the live catalog with the current permissions."
         }
         onBack={onBack}
+        onNavigationStateChange={onNavigationStateChange}
+        onOpenLineage={onOpenLineage}
         onSelectAsset={onSelectAsset}
         title="The selected asset could not be opened"
         tone="warn"
@@ -2115,8 +2151,11 @@ export default function EntityWorkspace({
     return (
       <EntityShellPlaceholder
         launchAssets={launchAssets}
+        lineageUnavailableReason={lineageSurfaceUnavailableReason}
         message="Select an asset from discovery to inspect its metadata."
         onBack={onBack}
+        onNavigationStateChange={onNavigationStateChange}
+        onOpenLineage={onOpenLineage}
         onSelectAsset={onSelectAsset}
         title="Select an asset to inspect its metadata"
         tone="neutral"
@@ -2954,7 +2993,7 @@ export default function EntityWorkspace({
         {activeTab === "Profiler" ? (
           <EntityRecordSection
             className="gh-entity-record-profiler-section"
-            description="Live evidence currently surfaced from schema, preview, workload, and lineage reads. Persisted quality tests and runs are not available in this workspace yet."
+            description="Live evidence currently surfaced from schema, preview, workload, lineage reads, Databricks profiling metadata, and Atlas profile runs when backed records exist."
             title="Profiler & Evidence"
             titleMeta={(
               <div className="gh-chip-row">
@@ -3021,7 +3060,7 @@ export default function EntityWorkspace({
         {activeTab === "Quality" ? (
           <EntityRecordSection
             className="gh-entity-record-quality-section"
-            description="Persisted quality runs, per-case outcomes, and redaction-gated evidence."
+            description="Databricks data quality monitoring, persisted Atlas quality runs, per-case outcomes, and redaction-gated evidence when backed records exist."
             title="Quality"
           >
             <QualityPanel assetFqn={asset.fqn} />

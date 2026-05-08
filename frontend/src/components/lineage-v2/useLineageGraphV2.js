@@ -111,20 +111,16 @@ function normalizeNode(rawNode, focusFqn) {
   const role = String(rawNode.role || "").toLowerCase();
   const isFocus = role === "focus" || (focusFqn && fqn === focusFqn);
   const details = rawNode.details && typeof rawNode.details === "object" ? rawNode.details : {};
-  // Allow click navigation for ANY node that has a real FQN. The backend's
-  // isOpenable / openabilityState / resolutionState fields are conservative
-  // (they assume per-actor verification not present today and over-flag
-  // nodes as "lineage-only" / "unverified" — including the user's own
-  // focus node when bootstrap visibility hasn't fully hydrated). For
-  // admins who have full UC access, those flags hide working drill paths.
-  // Clicking "lineage-only" node either reveals new actual lineage at
-  // /lineage/<fqn>, or surfaces an honest empty state — both better than
-  // silently doing nothing. The card still shows a small "Lineage only"
-  // chip so the user knows the node may be sparse before clicking.
   const lineageOnly =
     String(details.resolutionState || "").toLowerCase() === "lineage-only" ||
     String(details.openabilityState || "").toLowerCase() === "unverified";
-  const isOpenable = Boolean(fqn);
+  const backendOpenable =
+    rawNode.isOpenable !== undefined
+      ? rawNode.isOpenable
+      : details.isOpenable !== undefined
+        ? details.isOpenable
+        : null;
+  const isOpenable = backendOpenable === null ? Boolean(fqn) : backendOpenable === true;
   const owners = Array.isArray(rawNode.owners) ? rawNode.owners : [];
   const recentActivity = Array.isArray(rawNode.recentActivity) ? rawNode.recentActivity : [];
   const columns = Array.isArray(rawNode.columns) ? rawNode.columns.slice(0, 5) : [];
@@ -212,10 +208,14 @@ function normalizeEdge(rawEdge) {
  *   nodes: object[],
  *   edges: object[],
  *   columnEdges: object[],
+ *   columnLineage: object,
+ *   edgeDetails: object,
  *   hydrating: boolean,
  *   loading: boolean,
  *   error: string,
  *   meta: object|null,
+ *   stats: object,
+ *   payload: object|null,
  *   refresh: () => Promise<void>,
  * }}
  */
@@ -232,10 +232,14 @@ export function useLineageGraphV2(assetFqn, options = {}) {
       nodes: [],
       edges: [],
       columnEdges: [],
+      columnLineage: { upstream: [], downstream: [], meta: {} },
+      edgeDetails: {},
       hydrating: false,
       loading: lineage.loading,
       error: lineage.error || "",
       meta: payload?.meta || null,
+      stats: payload?.stats || {},
+      payload: payload || null,
       refresh: lineage.refresh,
     };
     if (!payload || typeof payload !== "object") return empty;
@@ -288,10 +292,18 @@ export function useLineageGraphV2(assetFqn, options = {}) {
       nodes,
       edges,
       columnEdges,
+      columnLineage: {
+        upstream: columnUpstream,
+        downstream: columnDownstream,
+        meta: payload.columnLineage?.meta || {},
+      },
+      edgeDetails: payload.edgeDetails || {},
       hydrating,
       loading: lineage.loading,
       error: lineage.error || "",
       meta,
+      stats,
+      payload,
       refresh: lineage.refresh,
     };
   }, [payload, focusFqn, lineage.error, lineage.loading, lineage.refresh]);

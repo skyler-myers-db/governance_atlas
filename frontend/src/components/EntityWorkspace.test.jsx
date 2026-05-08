@@ -2308,14 +2308,14 @@ describe("EntityWorkspace North Star Asset 360 contract", () => {
             { key: "query_history_surface", enabled: true, state: "available" },
           ]}
           sharedVisibleAssetSet={new Set([asset.fqn])}
-          workspaceAccess={{
+          workspaceAccess={overrides.workspaceAccess === undefined ? {
             mode: "obo-available",
             observedAt: "2026-04-25T00:00:00Z",
             canUseAssetPreview: true,
             canUseLineage: true,
             canUseQueryHistory: true,
             gates: [],
-          }}
+          } : overrides.workspaceAccess}
         />
       </MemoryRouter>,
     );
@@ -2338,6 +2338,74 @@ describe("EntityWorkspace North Star Asset 360 contract", () => {
     expect(screen.getByText("Business Description")).not.toBeNull();
     expect(screen.getByText("Recent Activity")).not.toBeNull();
     expect(screen.getByText("Downstream Dashboards (1)")).not.toBeNull();
+  });
+
+  it("keeps the lineage handoff available while workspace access diagnostics are still resolving", () => {
+    const onOpenLineage = vi.fn();
+    renderAsset360({ onOpenLineage, workspaceAccess: null });
+
+    const lineageButton = screen.getByRole("button", { name: "Open Lineage" });
+    expect(lineageButton.disabled).toBe(false);
+
+    fireEvent.click(lineageButton);
+
+    expect(onOpenLineage).toHaveBeenCalledWith(asset.fqn, "Data Lineage");
+  });
+
+  it("keeps the lineage handoff available when runtime has only a workspace-wide lineage coverage miss", () => {
+    const onOpenLineage = vi.fn();
+    const coverageMissAccess = {
+      mode: "obo-available",
+      observedAt: "2026-05-05T00:00:00Z",
+      canUseAssetPreview: true,
+      canUseLineage: false,
+      canUseQueryHistory: false,
+      gates: [
+        {
+          key: "table_lineage",
+          state: "unknown",
+          reason: "No lineage-observed catalogs are detected yet.",
+          proofSource: "No lineage-observed catalogs are detected yet.",
+        },
+      ],
+    };
+    renderAsset360({
+      onOpenLineage,
+      workspaceAccess: coverageMissAccess,
+    });
+
+    const lineageButton = screen.getByRole("button", { name: "Open Lineage" });
+    expect(lineageButton.disabled).toBe(false);
+
+    fireEvent.click(lineageButton);
+
+    expect(onOpenLineage).toHaveBeenCalledWith(asset.fqn, "Data Lineage");
+  });
+
+  it("keeps the lineage handoff available from an unavailable asset-detail placeholder", () => {
+    const onOpenLineage = vi.fn();
+    useAssetDetailMock.mockReturnValue({
+      detail: null,
+      loading: false,
+      error: "The metadata request timed out before Databricks returned a response.",
+    });
+    useSeededAssetContextMock.mockReturnValue({ summary: null });
+    useAsset360Mock.mockReturnValue({
+      data: null,
+      loading: false,
+      refreshing: false,
+      error: "",
+    });
+
+    renderAsset360({ onOpenLineage });
+
+    expect(screen.getByRole("heading", { name: "Asset unavailable" })).not.toBeNull();
+    const lineageButton = screen.getByRole("button", { name: "Open Lineage" });
+    expect(lineageButton.disabled).toBe(false);
+
+    fireEvent.click(lineageButton);
+
+    expect(onOpenLineage).toHaveBeenCalledWith(asset.fqn, "Data Lineage");
   });
 
   it("preserves the Asset 360 shell while the selected record is loading", () => {

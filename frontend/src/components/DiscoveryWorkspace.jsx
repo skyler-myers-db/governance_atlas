@@ -4357,7 +4357,6 @@ export default function DiscoveryWorkspace({
     error: "",
     cacheKey: "",
   });
-  const atlasAiAutoRunKeyRef = useRef("");
   const atlasAiAbortRef = useRef(null);
   const atlasAiCacheKeyRef = useRef("");
   const atlasAiRequestSeqRef = useRef(0);
@@ -5178,49 +5177,6 @@ export default function DiscoveryWorkspace({
         });
       });
   }, [atlasAiAvailable, atlasAiCacheKey, atlasAiState.cacheKey, atlasAiState.loading, atlasAiUnavailableReason, filters.query]);
-  useEffect(() => {
-    if (
-      !atlasAiAvailable ||
-      !resultsSettled ||
-      resultsLoading ||
-      invalidQuery ||
-      !renderableDiscoveryAssets.length ||
-      visibleAtlasAiState.loading ||
-      visibleAtlasAiState.response ||
-      visibleAtlasAiState.error
-    ) {
-      return undefined;
-    }
-    const autoRunKey = atlasAiCacheKey;
-    if (atlasAiAutoRunKeyRef.current === autoRunKey) return undefined;
-    const cached = readDiscoveryAiCache(atlasAiCacheKey);
-    if (cached) {
-      atlasAiAutoRunKeyRef.current = autoRunKey;
-      setAtlasAiState({
-        loading: false,
-        response: cached,
-        error: "",
-        cacheKey: atlasAiCacheKey,
-      });
-      return undefined;
-    }
-    atlasAiAutoRunKeyRef.current = autoRunKey;
-    const timeoutId = window.setTimeout(() => {
-      askAtlasForDiscovery();
-    }, 900);
-    return () => window.clearTimeout(timeoutId);
-  }, [
-    atlasAiCacheKey,
-    atlasAiAvailable,
-    askAtlasForDiscovery,
-    invalidQuery,
-    renderableDiscoveryAssets.length,
-    resultsLoading,
-    resultsSettled,
-    visibleAtlasAiState.error,
-    visibleAtlasAiState.loading,
-    visibleAtlasAiState.response,
-  ]);
   const resetBrowse = () => {
     // Resetting browse returns the workspace to a clean discovery scope rather
     // than preserving an earlier explicit preview selection.

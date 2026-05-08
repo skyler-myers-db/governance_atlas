@@ -3,11 +3,13 @@ import dagre from "dagre";
 import {
   Background,
   Controls,
+  // @ts-ignore @xyflow/react exports Handle as a runtime component and a legacy type alias.
   Handle,
   MarkerType,
   Position,
   ReactFlow,
   useReactFlow,
+  useUpdateNodeInternals,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { LineageNodeCard } from "./LineageNodeCard";
@@ -33,12 +35,12 @@ import { LineageNodeCard } from "./LineageNodeCard";
  * graph viewport like the legacy `.ga-lineage-canvas-tools` did.
  */
 
-const NODE_WIDTH = 240;
+const NODE_WIDTH = 224;
 const NODE_HEIGHT_COMPACT = 96;
 const NODE_HEIGHT_TALL = 230;
-const RANK_SEP = 110; // horizontal gap between dagre ranks (pixels)
-const NODE_SEP = 22; // vertical gap between siblings in the same rank (pixels)
-const EDGE_SEP = 18;
+const RANK_SEP = 86; // horizontal gap between dagre ranks (pixels)
+const NODE_SEP = 16; // vertical gap between siblings in the same rank (pixels)
+const EDGE_SEP = 14;
 
 // ---------------------------------------------------------------------------
 // Dagre layout: feed the entire (nodes, edges) set into a directed graph
@@ -96,7 +98,10 @@ function nodeIsTall(node) {
 // connection handles. Both sides of the card have a handle so edges can
 // enter from the left and exit on the right.
 // ---------------------------------------------------------------------------
-const LineageFlowNode = memo(function LineageFlowNode({ data }) {
+/**
+ * @param {{ data: any }} props
+ */
+function LineageFlowNodeComponent({ data }) {
   return (
     <div className="ga-lineage-v2-flow-node">
       <Handle
@@ -113,6 +118,8 @@ const LineageFlowNode = memo(function LineageFlowNode({ data }) {
         isTraced={data.isTraced}
         node={data.node}
         onClick={data.onSelect}
+        onColumnSelect={data.onColumnSelect}
+        selectedColumnName={data.selectedColumnName}
         variant={nodeIsTall(data.node) ? "tall" : "compact"}
       />
       <Handle
@@ -122,7 +129,9 @@ const LineageFlowNode = memo(function LineageFlowNode({ data }) {
       />
     </div>
   );
-});
+}
+
+const LineageFlowNode = memo(LineageFlowNodeComponent);
 
 const NODE_TYPES = { lineage: LineageFlowNode };
 
@@ -158,10 +167,13 @@ function CanvasInner({
   error,
   onFocusChange,
   focusId,
-  nodeHeaders,
-  selectedNodeFqn,
+  nodeHeaders = new Map(),
+  selectedNodeFqn = "",
+  selectedColumn = null,
+  onColumnSelect = null,
 }) {
   const reactFlow = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
   const [hoveredNodeId, setHoveredNodeId] = useState("");
   // Accumulated graph: the merged superset of nodes/edges seen across
   // all lineage payloads received THIS focus session. Two regimes:
@@ -186,13 +198,25 @@ function CanvasInner({
     if (!graph.nodes.length && !graph.edges.length) return;
     setAccumulatedGraph((current) => {
       const incomingFocusId = graph.focus?.id || null;
+      const incomingFocusFqn = graph.focus?.fqn || graph.focus?.assetFqn || "";
+      const currentFqns = new Set(
+        current.nodes
+          .map((node) => node?.fqn || node?.assetFqn || "")
+          .filter(Boolean),
+      );
       // EXPAND vs RESET decision: we're expanding only when the new
       // focus is already part of the existing merged set (meaning the
       // user clicked through to it from a visible neighbor). Otherwise
       // this is external navigation — discard the previous session's
       // graph and rebuild from scratch.
       const isExpand =
-        incomingFocusId && current.nodeMap.has(incomingFocusId);
+        Boolean(
+          incomingFocusId &&
+            (
+              current.nodeMap.has(incomingFocusId) ||
+              (incomingFocusFqn && currentFqns.has(incomingFocusFqn))
+            ),
+        );
       const baseNodeMap = isExpand ? new Map(current.nodeMap) : new Map();
       const baseEdgeMap = isExpand ? new Map(current.edgeMap) : new Map();
       graph.nodes.forEach((node) => {
@@ -250,6 +274,7 @@ function CanvasInner({
   const flowNodes = useMemo(() => {
     return nodesArray.map((node) => {
       const position = positions.get(node.id) || { x: 0, y: 0 };
+      const measuredHeight = nodeIsTall(node) ? NODE_HEIGHT_TALL : NODE_HEIGHT_COMPACT;
       const isFocus = node.isFocus;
       const isHovered = hoveredNodeId === node.id;
       const isTraced = !hoveredNodeId || tracedNodeIds.has(node.id);
@@ -269,6 +294,14 @@ function CanvasInner({
         id: node.id,
         type: "lineage",
         position,
+        width: NODE_WIDTH,
+        height: measuredHeight,
+        initialWidth: NODE_WIDTH,
+        initialHeight: measuredHeight,
+        style: {
+          width: NODE_WIDTH,
+          height: measuredHeight,
+        },
         data: {
           node,
           header,
@@ -277,7 +310,10 @@ function CanvasInner({
           isTraced,
           isDimmed,
           isSelected,
+          selectedColumnName:
+            selectedColumn?.assetFqn === node.fqn ? selectedColumn?.columnName || "" : "",
           onSelect: handleNodeClick,
+          onColumnSelect,
         },
         // Disable React Flow's selection / drag — node identity is the
         // model, not a draggable artifact.
@@ -293,6 +329,9 @@ function CanvasInner({
     handleNodeClick,
     nodeHeaders,
     selectedNodeFqn,
+    selectedColumn?.assetFqn,
+    selectedColumn?.columnName,
+    onColumnSelect,
   ]);
 
   const focusReactFlowId = graph.focus?.id;
@@ -330,6 +369,29 @@ function CanvasInner({
       };
     });
   }, [edgesArray, focusReactFlowId, hoveredNodeId, tracedNodeIds, focusEdgeColor]);
+
+  // Header hydration changes node card content after React Flow's initial
+  // measurements. Refresh node internals so invisible handles keep valid
+  // bounds and edge paths do not disappear after the UC detail footers load.
+  useEffect(() => {
+    if (!flowNodes.length) return undefined;
+    let disposed = false;
+    const frames = [];
+    const refresh = () => {
+      if (disposed) return;
+      flowNodes.forEach((node) => updateNodeInternals(node.id));
+    };
+    const schedule = (callback) => {
+      const frame = window.requestAnimationFrame(callback);
+      frames.push(frame);
+    };
+    schedule(refresh);
+    schedule(() => schedule(refresh));
+    return () => {
+      disposed = true;
+      frames.forEach((frame) => window.cancelAnimationFrame(frame));
+    };
+  }, [flowNodes, updateNodeInternals]);
 
   // After the graph changes, fit the new node set into view exactly once.
   useEffect(() => {
@@ -390,7 +452,7 @@ function CanvasInner({
         edges={flowEdges}
         fitView
         fitViewOptions={{ padding: 0.2 }}
-        maxZoom={1.4}
+        maxZoom={2.25}
         minZoom={0.5}
         nodes={flowNodes}
         nodeTypes={NODE_TYPES}
@@ -417,8 +479,10 @@ export function LineageCanvasV2({
   error,
   focusId,
   onFocusChange,
-  nodeHeaders,
-  selectedNodeFqn,
+  nodeHeaders = new Map(),
+  selectedNodeFqn = "",
+  selectedColumn = null,
+  onColumnSelect = null,
 }) {
   // ReactFlowProvider is mounted at the application root in main.jsx, so we
   // don't need to wrap the canvas here. CanvasInner consumes the provider
@@ -431,6 +495,8 @@ export function LineageCanvasV2({
       hydrating={hydrating}
       nodeHeaders={nodeHeaders}
       onFocusChange={onFocusChange}
+      onColumnSelect={onColumnSelect}
+      selectedColumn={selectedColumn}
       selectedNodeFqn={selectedNodeFqn}
     />
   );

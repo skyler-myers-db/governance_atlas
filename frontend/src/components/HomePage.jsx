@@ -1745,32 +1745,40 @@ export function HomePage({
       tone: data.signalAvailability?.lineage ? "info" : "muted",
     },
   ];
-  const narrativeTarget = data.narrative?.target || "90% Q2 target";
-  const narrativeTargetWeek = data.narrative?.targetWeek || "week 30";
+  const narrativeTarget = typeof data.narrative?.target === "string" ? data.narrative.target.trim() : "";
+  const narrativeTargetWeek = typeof data.narrative?.targetWeek === "string" ? data.narrative.targetWeek.trim() : "";
   const governedCount = numericValue(governedAssetsKpi.value);
+  const previousCoverageValue = numericValue(coverageKpi.previousValue ?? coverageKpi.previous);
+  const currentCoverageValue = postureValue ?? numericValue(coverageKpi.value);
+  const coverageDeltaPoints =
+    currentCoverageValue !== null && previousCoverageValue !== null
+      ? Math.round(currentCoverageValue) - Math.round(previousCoverageValue)
+      : null;
   const narrativeHeadline = baselineAssetCount !== null && governedCount !== null
     ? (
       <>
         <strong>{formatMetricValue(governedAssetsKpi)}</strong> of {formatCount(baselineAssetCount)} productionized assets meet baseline policy.
-        {" "}Coverage is up <strong>{Math.round(postureValue ?? numericValue(coverageKpi.value) ?? 0) - Math.round(numericValue(coverageKpi.previousValue ?? coverageKpi.previous ?? 78.4) ?? 78.4)} points</strong>
-        {" "}this quarter - on track to hit the <span>{narrativeTarget}</span> by {narrativeTargetWeek}.
+        {coverageDeltaPoints !== null ? (
+          <>
+            {" "}Coverage is {coverageDeltaPoints >= 0 ? "up" : "down"} <strong>{Math.abs(coverageDeltaPoints)} points</strong> over the returned comparison window.
+          </>
+        ) : null}
+        {narrativeTarget && narrativeTargetWeek ? (
+          <> Target: <span>{narrativeTarget}</span> by {narrativeTargetWeek}.</>
+        ) : null}
       </>
     )
     : governedCount !== null
     ? (
       <>
         <strong>{formatMetricValue(governedAssetsKpi)}</strong> governed assets are in scope.
-        {" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")}.
+        {" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")} when backed coverage evidence is returned.
       </>
     )
     : (
-      // No governed-asset count available — render an honest fallback
-      // headline instead of the literal "- governed assets are in scope"
-      // string the user reported. Coverage continues to surface its own
-      // honest "unavailable" copy in the second clause.
       <>
-        <strong>Governed asset count unavailable.</strong>
-        {" "}Coverage is {percentLabel(coverageKpi.value, "unavailable")}.
+        <strong>Command Center is waiting on backed governance metrics.</strong>
+        {" "}Unavailable values stay blank until Unity Catalog or the governance store returns evidence.
       </>
     );
   const heroCertifiedKpi = certifiedKpi;

@@ -9,6 +9,7 @@
     "test": "NODE_OPTIONS=--no-experimental-webstorage node --no-experimental-webstorage ./node_modules/vitest/vitest.mjs run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "vite build && node scripts/write_build_manifest.mjs",
+    "prewarm:demo": "node scripts/atlas_demo_prewarm.mjs",
     "smoke:deployed": "node scripts/atlas_deployed_smoke.mjs",
     "screenshots:phase2": "node scripts/phase2_screenshot_pack.mjs",
     "qa:deployed": "node scripts/atlas_comprehensive_qa.mjs",

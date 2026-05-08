@@ -1086,6 +1086,13 @@ export function fetchAssetAvailability(assetFqns = [], options = {}) {
   return requestJson(path, "POST", { assets: targets }, { signal: options.signal });
 }
 
+export function fetchAssetHeaders(assetFqns = [], options = {}) {
+  const targets = [...new Set((assetFqns || []).filter(Boolean))].slice(0, 64);
+  if (!targets.length) return Promise.resolve({ assets: {} });
+  const path = contractPath("assetHeaders") || "/assets/headers";
+  return requestJson(path, "POST", { assets: targets }, { signal: options.signal });
+}
+
 export function fetchLineage(assetFqn, options = {}) {
   const params = new URLSearchParams();
   if (options.profile) params.set("profile", String(options.profile));
@@ -1114,6 +1121,15 @@ export function fetchLineage(assetFqn, options = {}) {
       });
     }
     throw error;
+  });
+}
+
+export function fetchLineageRecommendations(options = {}) {
+  const params = new URLSearchParams();
+  if (options.limit) params.set("limit", String(options.limit));
+  const query = params.toString();
+  return request(`/lineage/recommendations${query ? `?${query}` : ""}`, {
+    signal: options.signal,
   });
 }
 
@@ -1176,8 +1192,9 @@ export function fetchGovernanceGlossaryTerm(termId, options = {}) {
   );
 }
 
-export function createGovernanceRequest(payload) {
-  return requestJson("/governance/requests", "POST", payload);
+export function createGovernanceRequest(payload, options = {}) {
+  const path = appendQueryFlag("/governance/requests", "fast", options.fast);
+  return requestJson(path, "POST", payload, { signal: options.signal });
 }
 
 export function upsertGovernanceOwner(payload) {
@@ -1475,6 +1492,13 @@ export function fetchAssetProfile(assetFqn, options = {}) {
 export function fetchAssetQuality(assetFqn, options = {}) {
   return request(
     `/assets/${encodeURIComponent(assetFqn)}/quality`,
+    { signal: options.signal },
+  ).then(unwrapEnvelope);
+}
+
+export function fetchAssetDatabricksEvidence(assetFqn, options = {}) {
+  return request(
+    `/assets/${encodeURIComponent(assetFqn)}/databricks-evidence`,
     { signal: options.signal },
   ).then(unwrapEnvelope);
 }

@@ -91,11 +91,9 @@ describe("useLineageGraphV2", () => {
     expect(focus.totalColumns).toBe(12);
     expect(focus.columns).toHaveLength(2);
     const upstream = result.current.nodes.find((n) => n.fqn === "raw.x.y");
-    // The adapter intentionally allows click navigation for any node with
-    // a real FQN — backend's isOpenable / openabilityState / resolutionState
-    // flags are conservative and over-flag visible nodes as "lineage-only".
-    // The card surfaces a separate "Lineage only" chip for sparse references.
-    expect(upstream.isOpenable).toBe(true);
+    // Preserve backend openability: lineage-only nodes can stay in lineage
+    // context without opening a hollow Asset 360 record.
+    expect(upstream.isOpenable).toBe(false);
     expect(upstream.lineageOnly).toBe(true);
     expect(result.current.edges).toEqual([
       expect.objectContaining({ source: "u1", target: "focus-a.b.c" }),

@@ -47,6 +47,10 @@ LINEAGE_GRAPH_DEPTH_LIMIT = 1
 LINEAGE_GRAPH_NODE_LIMIT = 48
 LINEAGE_GRAPH_PER_HOP_LIMIT = 16
 LINEAGE_GRAPH_SECONDARY_SEED_LIMIT = 0
+LINEAGE_RECOMMENDATION_VISIBLE_ASSET_LIMIT = 600
+LINEAGE_RECOMMENDATION_CANDIDATE_LIMIT = 600
+LINEAGE_RECOMMENDATION_BATCH_SIZE = 60
+LINEAGE_RECOMMENDATION_PER_SEED_LIMIT = 40
 LINEAGE_PROFILE_FULL = "full"
 LINEAGE_PROFILE_INITIAL = "initial"
 GOVERNED_LINEAGE_FOCUS_TAG = "governance_atlas_lineage_focus_asset"
@@ -780,6 +784,283 @@ def _lineage_graph_direction_counts(data_graph: Dict[str, Any]) -> Dict[str, int
         "downstream": len(traverse(focus_id, forward)),
         "directUpstream": len(direct_upstream),
         "directDownstream": len(direct_downstream),
+    }
+
+
+def _row_text(row: Any, *keys: str) -> str:
+    for key in keys:
+        value = asset_service.normalize_str(row.get(key))
+        if value:
+            return value
+    return ""
+
+
+def _row_int(row: Any, *keys: str) -> int:
+    for key in keys:
+        value = row.get(key)
+        try:
+            number = int(value)
+        except Exception:
+            continue
+        return max(0, number)
+    return 0
+
+
+def _recommendation_row_payload(row: Any, counts: Dict[str, int]) -> Dict[str, Any]:
+    fqn = asset_service.normalize_str(row.get("fqn"))
+    name = _row_text(row, "table_name", "name") or fqn.split(".")[-1]
+    catalog = _row_text(row, "table_catalog", "catalogName", "catalog")
+    schema = _row_text(row, "table_schema", "schemaName", "schema")
+    return {
+        "fqn": fqn,
+        "name": name,
+        "catalogName": catalog,
+        "schemaName": schema,
+        "objectType": asset_service.friendly_table_type(
+            row.get("table_type"),
+            row.get("data_source_format"),
+        ),
+        "domain": _row_text(row, "domain"),
+        "tier": _row_text(row, "tier"),
+        "certification": _row_text(row, "certification"),
+        "sensitivity": _row_text(row, "sensitivity"),
+        "criticality": _row_text(row, "criticality", "business_criticality", "businessCriticality"),
+        "owner": _row_text(row, "owners_summary", "business_owner", "technical_owner", "steward"),
+        "upstreamCount": int(counts.get("upstream", 0)),
+        "downstreamCount": int(counts.get("downstream", 0)),
+        "edgeCount": int(counts.get("upstream", 0)) + int(counts.get("downstream", 0)),
+        "source": "system.access.table_lineage",
+    }
+
+
+def _rankable_visible_assets(uc: UCSQLClient, store: Any) -> pd.DataFrame:
+    try:
+        visible = asset_service.visible_assets(uc, store)
+    except Exception:
+        return pd.DataFrame()
+    if visible is None or visible.empty or "fqn" not in visible.columns:
+        return pd.DataFrame()
+    filtered = visible.copy()
+    filtered["fqn"] = filtered["fqn"].map(asset_service.normalize_str)
+    filtered = filtered[filtered["fqn"].ne("")]
+    if filtered.empty:
+        return pd.DataFrame()
+    return filtered.head(LINEAGE_RECOMMENDATION_VISIBLE_ASSET_LIMIT).reset_index(drop=True)
+
+
+def _lineage_density_candidates(system_client: UCSQLClient, *, limit: int) -> pd.DataFrame:
+    resolved_limit = max(1, min(int(limit or LINEAGE_RECOMMENDATION_CANDIDATE_LIMIT), 500))
+    query = f"""
+WITH lineage_assets AS (
+  SELECT
+    CAST(source_table_full_name AS STRING) AS asset_fqn,
+    0 AS upstream_count,
+    COUNT(DISTINCT CAST(target_table_full_name AS STRING)) AS downstream_count
+  FROM system.access.table_lineage
+  WHERE source_table_full_name IS NOT NULL
+    AND target_table_full_name IS NOT NULL
+    AND source_table_full_name <> target_table_full_name
+  GROUP BY CAST(source_table_full_name AS STRING)
+  UNION ALL
+  SELECT
+    CAST(target_table_full_name AS STRING) AS asset_fqn,
+    COUNT(DISTINCT CAST(source_table_full_name AS STRING)) AS upstream_count,
+    0 AS downstream_count
+  FROM system.access.table_lineage
+  WHERE source_table_full_name IS NOT NULL
+    AND target_table_full_name IS NOT NULL
+    AND source_table_full_name <> target_table_full_name
+  GROUP BY CAST(target_table_full_name AS STRING)
+)
+SELECT
+  asset_fqn,
+  SUM(upstream_count) AS upstreamCount,
+  SUM(downstream_count) AS downstreamCount,
+  SUM(upstream_count + downstream_count) AS edgeCount
+FROM lineage_assets
+WHERE asset_fqn IS NOT NULL AND asset_fqn <> ''
+GROUP BY asset_fqn
+HAVING SUM(upstream_count + downstream_count) > 0
+ORDER BY edgeCount DESC, downstreamCount DESC, upstreamCount DESC, asset_fqn
+LIMIT {resolved_limit}
+"""
+    df = system_client.query_df(query)
+    if df is None or df.empty:
+        return pd.DataFrame(columns=["asset_fqn", "upstreamCount", "downstreamCount", "edgeCount"])
+    return df
+
+
+def _visible_candidate_row(
+    uc: UCSQLClient,
+    rows_by_fqn: Dict[str, Any],
+    asset_fqn: str,
+) -> Optional[pd.Series]:
+    normalized = asset_service.normalize_str(asset_fqn)
+    if not normalized or asset_service.asset_fqn_is_hidden(normalized):
+        return None
+    if normalized in rows_by_fqn:
+        return rows_by_fqn[normalized]
+    try:
+        return asset_service.exact_identity_row(uc, normalized)
+    except Exception:
+        return None
+
+
+def lineage_recommendations_payload(
+    uc: UCSQLClient,
+    store: Any,
+    *,
+    system_uc: Optional[UCSQLClient] = None,
+    limit: int = 8,
+) -> Dict[str, Any]:
+    """Rank visible assets by backed Unity Catalog table-lineage density.
+
+    This is intentionally a recommendation list, not demo data. The payload only
+    includes assets already present in the visible inventory and only counts
+    relationships returned by ``system.access.table_lineage``. If the system
+    table is unavailable or returns no rows, the caller gets an honest empty
+    recommendation list with source metadata.
+    """
+
+    visible = _rankable_visible_assets(uc, store)
+    if visible.empty:
+        return {
+            "items": [],
+            "meta": {
+                "source": "system.access.table_lineage",
+                "visibleAssetCount": 0,
+                "scannedAssetCount": 0,
+                "edgeSampleLimit": LINEAGE_RECOMMENDATION_PER_SEED_LIMIT,
+                "recommendationLimit": max(1, min(int(limit or 8), 25)),
+                "unavailableReason": "No visible assets were available for lineage ranking.",
+            },
+        }
+
+    system_client = system_uc or uc
+    visible_fqns = [
+        asset_service.normalize_str(value)
+        for value in visible["fqn"].dropna().astype(str).tolist()
+        if asset_service.normalize_str(value)
+    ]
+    rows_by_fqn = {
+        asset_service.normalize_str(row.get("fqn")): row
+        for _, row in visible.iterrows()
+        if asset_service.normalize_str(row.get("fqn"))
+    }
+    resolved_limit = max(1, min(int(limit or 8), 25))
+    visible_set = set(visible_fqns)
+    counts: Dict[str, Dict[str, int]] = {
+        fqn: {"upstream": 0, "downstream": 0} for fqn in visible_fqns
+    }
+    query_failed = False
+    scanned = 0
+
+    for start in range(0, len(visible_fqns), LINEAGE_RECOMMENDATION_BATCH_SIZE):
+        batch = visible_fqns[start:start + LINEAGE_RECOMMENDATION_BATCH_SIZE]
+        if not batch:
+            continue
+        scanned += len(batch)
+        try:
+            edges_df = system_client.get_table_lineage_edges_batch(
+                batch,
+                directions=("upstream", "downstream"),
+                per_seed_limit=LINEAGE_RECOMMENDATION_PER_SEED_LIMIT,
+            )
+        except Exception:
+            query_failed = True
+            continue
+        if edges_df is None or edges_df.empty:
+            continue
+        for _, edge in edges_df.iterrows():
+            source = asset_service.normalize_str(edge.get("source_table_full_name"))
+            target = asset_service.normalize_str(edge.get("target_table_full_name"))
+            if source in visible_set and target and source != target:
+                counts[source]["downstream"] += 1
+            if target in visible_set and source and source != target:
+                counts[target]["upstream"] += 1
+
+    ranked = [
+        _recommendation_row_payload(rows_by_fqn[fqn], asset_counts)
+        for fqn, asset_counts in counts.items()
+        if fqn in rows_by_fqn and (asset_counts.get("upstream", 0) or asset_counts.get("downstream", 0))
+    ]
+    ranked.sort(
+        key=lambda item: (
+            -int(item.get("edgeCount") or 0),
+            -int(item.get("downstreamCount") or 0),
+            -int(item.get("upstreamCount") or 0),
+            item.get("fqn") or "",
+        ),
+    )
+    if not ranked:
+        density_candidates = pd.DataFrame()
+        try:
+            density_candidates = _lineage_density_candidates(
+                system_client,
+                limit=max(LINEAGE_RECOMMENDATION_CANDIDATE_LIMIT, resolved_limit * 10),
+            )
+        except Exception:
+            density_candidates = pd.DataFrame()
+        if density_candidates is not None and not density_candidates.empty:
+            inspected = 0
+            for _, candidate in density_candidates.iterrows():
+                fqn = _row_text(candidate, "asset_fqn", "ASSET_FQN")
+                row = _visible_candidate_row(uc, rows_by_fqn, fqn)
+                inspected += 1
+                if row is None:
+                    continue
+                ranked.append(
+                    _recommendation_row_payload(
+                        row,
+                        {
+                            "upstream": _row_int(candidate, "upstreamCount", "upstream_count", "UPSTREAMCOUNT"),
+                            "downstream": _row_int(candidate, "downstreamCount", "downstream_count", "DOWNSTREAMCOUNT"),
+                        },
+                    )
+                )
+                if len(ranked) >= resolved_limit:
+                    break
+            if ranked:
+                return {
+                    "items": ranked[:resolved_limit],
+                    "meta": {
+                        "source": "system.access.table_lineage",
+                        "rankingSource": "system.access.table_lineage.aggregate-fallback",
+                        "visibleAssetCount": len(visible_fqns),
+                        "scannedAssetCount": scanned + inspected,
+                        "candidateLimit": max(LINEAGE_RECOMMENDATION_CANDIDATE_LIMIT, resolved_limit * 10),
+                        "edgeSampleLimit": LINEAGE_RECOMMENDATION_PER_SEED_LIMIT,
+                        "recommendationLimit": resolved_limit,
+                        "bounded": True,
+                        "scannedAssetLimit": LINEAGE_RECOMMENDATION_VISIBLE_ASSET_LIMIT,
+                        "batchSize": LINEAGE_RECOMMENDATION_BATCH_SIZE,
+                        "queryFailed": bool(query_failed),
+                        "relationshipVisibilityScope": "actor-openable-candidate-aggregate",
+                        "fallbackReason": "Visible-inventory lineage batches returned no ranked assets; used actor-openable density candidates from the Unity Catalog lineage aggregate.",
+                        "unavailableReason": "",
+                    },
+                }
+    return {
+        "items": ranked[:resolved_limit],
+        "meta": {
+            "source": "system.access.table_lineage",
+            "rankingSource": "visible-inventory-batched-lineage",
+            "visibleAssetCount": len(visible_fqns),
+            "scannedAssetCount": scanned,
+            "candidateLimit": LINEAGE_RECOMMENDATION_CANDIDATE_LIMIT,
+            "edgeSampleLimit": LINEAGE_RECOMMENDATION_PER_SEED_LIMIT,
+            "recommendationLimit": resolved_limit,
+            "bounded": True,
+            "scannedAssetLimit": LINEAGE_RECOMMENDATION_VISIBLE_ASSET_LIMIT,
+            "batchSize": LINEAGE_RECOMMENDATION_BATCH_SIZE,
+            "queryFailed": bool(query_failed),
+            "relationshipVisibilityScope": "visible-inventory-seed-lineage",
+            "unavailableReason": (
+                "Lineage ranking query failed for one or more visible-asset batches."
+                if query_failed and not ranked
+                else ""
+            ),
+        },
     }
 
 

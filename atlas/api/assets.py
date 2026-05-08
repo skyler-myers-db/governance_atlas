@@ -133,6 +133,27 @@ class AssetAvailabilityRequest(BaseModel):
     assets: List[str] = Field(default_factory=list)
 
 
+class AssetHeadersRequest(BaseModel):
+    assets: List[str] = Field(default_factory=list)
+
+    @field_validator("assets", mode="before")
+    @classmethod
+    def _sanitize_assets(cls, value):
+        if value is None:
+            return []
+        raw_values = value if isinstance(value, list) else [value]
+        cleaned: List[str] = []
+        for raw_value in raw_values:
+            text = input_safety.sanitize_plain_text(
+                raw_value,
+                field="assets",
+                max_length=512,
+            )
+            if text:
+                cleaned.append(text)
+        return cleaned[:64]
+
+
 class ColumnDescriptionPatch(BaseModel):
     description: str = ""
 
@@ -174,6 +195,16 @@ def api_asset_availability(
 
     _ensure_live_runtime()
     return JSONResponse(_asset_availability_payload(payload.assets, request))
+
+
+def api_asset_headers(
+    payload: AssetHeadersRequest,
+    request: Request,
+) -> JSONResponse:
+    from runtime_app import _asset_headers_payload, _ensure_live_runtime
+
+    _ensure_live_runtime()
+    return JSONResponse(_asset_headers_payload(payload.assets, request))
 
 
 def api_asset_detail(
@@ -743,6 +774,13 @@ def build_assets_router() -> APIRouter:
         methods=["POST"],
         response_class=JSONResponse,
         name="api_asset_availability",
+    )
+    router.add_api_route(
+        "/api/assets/headers",
+        api_asset_headers,
+        methods=["POST"],
+        response_class=JSONResponse,
+        name="api_asset_headers",
     )
     router.add_api_route(
         "/api/assets/{asset_fqn:path}",
