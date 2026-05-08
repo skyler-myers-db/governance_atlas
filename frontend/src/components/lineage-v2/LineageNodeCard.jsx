@@ -158,7 +158,13 @@ const KIND_ACCENT = {
 
 function KindGlyph({ kind, size = 14 }) {
   // Inline SVG glyphs so we don't pull lucide into the canvas bundle.
-  const stroke = { stroke: "currentColor", strokeWidth: 1.6, fill: "none", strokeLinecap: "round", strokeLinejoin: "round" };
+  const stroke = /** @type {const} */ ({
+    stroke: "currentColor",
+    strokeWidth: 1.6,
+    fill: "none",
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+  });
   const paths = {
     table: <><rect x="3" y="4" width="18" height="16" rx="1" {...stroke} /><path d="M3 9h18M3 14h18M9 4v16M15 4v16" {...stroke} /></>,
     pipeline: <><circle cx="6" cy="6" r="2.4" {...stroke} /><circle cx="18" cy="6" r="2.4" {...stroke} /><circle cx="6" cy="18" r="2.4" {...stroke} /><circle cx="18" cy="18" r="2.4" {...stroke} /><path d="M8.4 6h7.2M8.4 18h7.2M6 8.4v7.2M18 8.4v7.2" {...stroke} /></>,
@@ -251,7 +257,9 @@ export function LineageNodeCard({
   isSelected = false,
   isTraced = true,
   isDimmed = false,
+  selectedColumnName = "",
   onClick,
+  onColumnSelect,
 }) {
   const accent = KIND_ACCENT[node?.kind] || KIND_ACCENT.table;
   const visibleColumns = Array.isArray(node?.columns) ? node.columns.slice(0, 5) : [];
@@ -281,6 +289,13 @@ export function LineageNodeCard({
     if (!onClick) return;
     if (event.target.closest?.(".ga-lineage-v2-card-col")) return;
     onClick(node);
+  };
+
+  const handleColumnClick = (event, column) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!column?.name) return;
+    onColumnSelect?.(node, column);
   };
 
   return (
@@ -324,12 +339,20 @@ export function LineageNodeCard({
       {variant === "tall" && visibleColumns.length ? (
         <div className="ga-lineage-v2-card-cols">
           {visibleColumns.map((col) => (
-            <div className="ga-lineage-v2-card-col" key={col.name}>
+            <button
+              className={`ga-lineage-v2-card-col ${
+                selectedColumnName && selectedColumnName === col.name ? "is-selected" : ""
+              }`.trim()}
+              key={col.name}
+              onClick={(event) => handleColumnClick(event, col)}
+              title={`Trace column lineage for ${col.name}`}
+              type="button"
+            >
               <span className="ga-lineage-v2-card-col-name">{col.name}</span>
               <span className="ga-lineage-v2-card-col-type">
                 {String(col.type || "").toUpperCase()}
               </span>
-            </div>
+            </button>
           ))}
           {hiddenColumns > 0 ? (
             <div className="ga-lineage-v2-card-col-more">

@@ -61,6 +61,12 @@ describe("GlobalHeader", () => {
     expect(screen.queryByRole("button", { name: "UC connected · 87.4% coverage" })).toBeNull();
   });
 
+  it("does not promote zero coverage as a backed global status", () => {
+    renderHeader({ ucCoverageScore: 0 });
+    expect(screen.getByText("UC connected")).not.toBeNull();
+    expect(screen.queryByText(/0% coverage/i)).toBeNull();
+  });
+
   it("treats prototype shell status as unavailable UC evidence", () => {
     renderHeader({ environmentTone: "warn", ucStatusState: "prototype_mock" });
     expect(screen.getByText("UC unavailable")).not.toBeNull();

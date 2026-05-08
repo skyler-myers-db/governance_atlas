@@ -20,6 +20,10 @@ export function useAssetProfile(assetFqn, options = {}) {
     run: query.data?.run || null,
     tableMetric: Array.isArray(query.data?.tableMetrics) ? query.data.tableMetrics[0] : query.data?.tableMetrics || null,
     columnMetrics: Array.isArray(query.data?.columnMetrics) ? query.data.columnMetrics : [],
+    databricksProfile:
+      query.data?.databricksProfile && typeof query.data.databricksProfile === "object"
+        ? query.data.databricksProfile
+        : null,
     refresh: query.refetch,
   };
 }

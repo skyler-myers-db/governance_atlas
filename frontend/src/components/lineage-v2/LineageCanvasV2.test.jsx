@@ -4,8 +4,8 @@ import * as helpers from "./LineageCanvasV2.test-helpers";
 
 vi.mock("@xyflow/react", () => {
   const Handle = () => null;
-  const ReactFlow = ({ children, nodes, onNodeMouseEnter, onNodeMouseLeave }) => (
-    <div data-testid="rf-canvas">
+  const ReactFlow = ({ children, maxZoom, nodes, onNodeMouseEnter, onNodeMouseLeave }) => (
+    <div data-max-zoom={maxZoom} data-testid="rf-canvas">
       {nodes.map((node) => {
         const NodeType = node.type ? helpers.TYPES[node.type] : null;
         return (
@@ -30,6 +30,7 @@ vi.mock("@xyflow/react", () => {
     Position: { Left: "left", Right: "right" },
     ReactFlow,
     useReactFlow: () => ({ fitView: vi.fn() }),
+    useUpdateNodeInternals: () => vi.fn(),
   };
 });
 
@@ -128,6 +129,19 @@ describe("LineageCanvasV2", () => {
     expect(screen.getByTestId("rf-node-u2")).toBeTruthy();
   });
 
+  it("keeps enough max zoom headroom for visible canvas controls", () => {
+    render(
+      <LineageCanvasV2
+        error=""
+        focusId="datapact.x.focus"
+        graph={baseGraph}
+        hydrating={false}
+        onFocusChange={() => {}}
+      />,
+    );
+    expect(Number(screen.getByTestId("rf-canvas").dataset.maxZoom)).toBeGreaterThan(2);
+  });
+
   it("calls onFocusChange when a navigable node card is clicked", () => {
     const onFocusChange = vi.fn();
     render(
@@ -156,6 +170,52 @@ describe("LineageCanvasV2", () => {
     );
     fireEvent.click(screen.getByTestId("card-u2"));
     expect(onFocusChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps accumulated topology when the same FQN returns with a new focus node id", async () => {
+    const nextGraph = {
+      focus: { id: "focus-upstream", fqn: "datapact.x.upstream", isFocus: true, label: "upstream" },
+      nodes: [
+        {
+          id: "focus-upstream",
+          fqn: "datapact.x.upstream",
+          label: "upstream",
+          kind: "table",
+          isFocus: true,
+          isOpenable: true,
+        },
+        {
+          id: "target-new",
+          fqn: "datapact.x.new_target",
+          label: "new_target",
+          kind: "table",
+          isOpenable: true,
+        },
+      ],
+      edges: [{ id: "e-new", source: "focus-upstream", target: "target-new" }],
+      columnEdges: [],
+    };
+    const { rerender } = render(
+      <LineageCanvasV2
+        error=""
+        focusId="datapact.x.focus"
+        graph={baseGraph}
+        hydrating={false}
+        onFocusChange={() => {}}
+      />,
+    );
+    rerender(
+      <LineageCanvasV2
+        error=""
+        focusId="datapact.x.upstream"
+        graph={nextGraph}
+        hydrating={false}
+        onFocusChange={() => {}}
+      />,
+    );
+    expect(await screen.findByTestId("rf-node-focus-a")).toBeTruthy();
+    expect(screen.getByTestId("rf-node-focus-upstream")).toBeTruthy();
+    expect(screen.getByTestId("rf-node-target-new")).toBeTruthy();
   });
 
   it("DOES call onFocusChange when clicking the focus node — selection state, not refetch", () => {

@@ -30,6 +30,13 @@ function isStaleChunkError(error) {
     || /error loading dynamically imported module/i.test(message);
 }
 
+function isResizeObserverLoopError(error, message = "") {
+  const errorMessage = typeof error === "string" ? error : error?.message || "";
+  const candidate = `${message || ""} ${errorMessage || ""}`.trim();
+  return /ResizeObserver loop completed with undelivered notifications/i.test(candidate)
+    || /ResizeObserver loop limit exceeded/i.test(candidate);
+}
+
 export default class AppErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -49,6 +56,10 @@ export default class AppErrorBoundary extends Component {
 
   componentDidMount() {
     this.handleWindowError = (event) => {
+      if (isResizeObserverLoopError(event?.error, event?.message)) {
+        event?.preventDefault?.();
+        return;
+      }
       this.setState({ eventError: event?.error || new Error(event?.message || "Unhandled window error.") });
     };
     this.handleUnhandledRejection = (event) => {

@@ -66,6 +66,275 @@ class LineageCacheTests(unittest.TestCase):
             lineage_service._TTL_CACHE,
         )
 
+    def test_lineage_recommendations_rank_visible_assets_from_uc_edges(self) -> None:
+        class RecommendationUC(FakeUC):
+            def get_table_lineage_edges_batch(
+                self,
+                _asset_fqns,
+                *,
+                directions=("upstream", "downstream"),
+                per_seed_limit=80,
+            ) -> pd.DataFrame:
+                self.directions = directions
+                self.per_seed_limit = per_seed_limit
+                return pd.DataFrame(
+                    [
+                        {
+                            "source_table_full_name": "main.raw.loans",
+                            "target_table_full_name": "main.silver.mortgage_events",
+                        },
+                        {
+                            "source_table_full_name": "main.silver.mortgage_events",
+                            "target_table_full_name": "main.gold.mortgage_signal",
+                        },
+                        {
+                            "source_table_full_name": "main.gold.mortgage_signal",
+                            "target_table_full_name": "main.analytics.executive_dashboard",
+                        },
+                        {
+                            "source_table_full_name": "main.external.hidden_source",
+                            "target_table_full_name": "main.gold.mortgage_signal",
+                        },
+                    ]
+                )
+
+        visible = pd.DataFrame(
+            [
+                {
+                    "fqn": "main.raw.loans",
+                    "table_catalog": "main",
+                    "table_schema": "raw",
+                    "table_name": "loans",
+                    "table_type": "TABLE",
+                    "data_source_format": "DELTA",
+                    "domain": "Mortgage",
+                },
+                {
+                    "fqn": "main.silver.mortgage_events",
+                    "table_catalog": "main",
+                    "table_schema": "silver",
+                    "table_name": "mortgage_events",
+                    "table_type": "TABLE",
+                    "data_source_format": "DELTA",
+                    "certification": "Certified",
+                },
+                {
+                    "fqn": "main.gold.mortgage_signal",
+                    "table_catalog": "main",
+                    "table_schema": "gold",
+                    "table_name": "mortgage_signal",
+                    "table_type": "VIEW",
+                    "data_source_format": "",
+                    "sensitivity": "Confidential",
+                    "business_criticality": "Critical",
+                },
+                {
+                    "fqn": "main.analytics.executive_dashboard",
+                    "table_catalog": "main",
+                    "table_schema": "analytics",
+                    "table_name": "executive_dashboard",
+                    "table_type": "TABLE",
+                    "data_source_format": "DELTA",
+                },
+            ]
+        )
+        uc = RecommendationUC()
+
+        with patch("atlas.services.lineage.asset_service.visible_assets", return_value=visible):
+            payload = lineage_service.lineage_recommendations_payload(uc, object(), limit=2)
+
+        self.assertEqual([item["fqn"] for item in payload["items"]], [
+            "main.gold.mortgage_signal",
+            "main.silver.mortgage_events",
+        ])
+        self.assertEqual(payload["items"][0]["upstreamCount"], 2)
+        self.assertEqual(payload["items"][0]["downstreamCount"], 1)
+        self.assertEqual(payload["items"][0]["source"], "system.access.table_lineage")
+        self.assertEqual(payload["meta"]["visibleAssetCount"], 4)
+        self.assertEqual(payload["meta"]["recommendationLimit"], 2)
+        self.assertEqual(uc.directions, ("upstream", "downstream"))
+        self.assertEqual(uc.per_seed_limit, lineage_service.LINEAGE_RECOMMENDATION_PER_SEED_LIMIT)
+
+    def test_lineage_recommendations_rank_only_visible_scoped_edges_without_global_scan(self) -> None:
+        class DensityUC(FakeUC):
+            def __init__(self) -> None:
+                super().__init__()
+                self.identity_calls: list[str] = []
+                self.scanned_batches: list[list[str]] = []
+
+            def query_df(self, _query: str) -> pd.DataFrame:
+                raise AssertionError("recommendations must not cold-scan the global lineage aggregate")
+
+            def get_table_lineage_edges_batch(
+                self,
+                asset_fqns,
+                *,
+                directions=("upstream", "downstream"),
+                per_seed_limit=40,
+            ) -> pd.DataFrame:
+                self.scanned_batches.append(list(asset_fqns))
+                return pd.DataFrame(
+                    [
+                        {
+                            "source_table_full_name": "main.visible.seed",
+                            "target_table_full_name": "main.gold.mortgage_signal",
+                        },
+                        {
+                            "source_table_full_name": "main.gold.mortgage_signal",
+                            "target_table_full_name": "main.analytics.executive_dashboard",
+                        },
+                        {
+                            "source_table_full_name": "system.hidden.internal_lineage",
+                            "target_table_full_name": "main.gold.mortgage_signal",
+                        },
+                    ]
+                )
+
+            def get_table_identity(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
+                fqn = f"{catalog}.{schema}.{table}"
+                self.identity_calls.append(fqn)
+                return pd.DataFrame(
+                    [
+                        {
+                            "table_catalog": catalog,
+                            "table_schema": schema,
+                            "table_name": table,
+                            "table_type": "TABLE",
+                            "data_source_format": "DELTA",
+                            "comment": "",
+                        }
+                    ]
+                )
+
+            def get_table_tags(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
+                if table == "mortgage_signal":
+                    return pd.DataFrame(
+                        [
+                            {"tag_name": "sensitivity", "tag_value": "Confidential"},
+                            {"tag_name": "criticality", "tag_value": "Critical"},
+                        ]
+                    )
+                return pd.DataFrame()
+
+        visible = pd.DataFrame(
+            [
+                {
+                    "fqn": "main.visible.seed",
+                    "table_catalog": "main",
+                    "table_schema": "visible",
+                    "table_name": "seed",
+                    "table_type": "TABLE",
+                    "data_source_format": "DELTA",
+                },
+                {
+                    "fqn": "main.gold.mortgage_signal",
+                    "table_catalog": "main",
+                    "table_schema": "gold",
+                    "table_name": "mortgage_signal",
+                    "table_type": "VIEW",
+                    "data_source_format": "",
+                    "sensitivity": "Confidential",
+                    "business_criticality": "Critical",
+                },
+                {
+                    "fqn": "main.analytics.executive_dashboard",
+                    "table_catalog": "main",
+                    "table_schema": "analytics",
+                    "table_name": "executive_dashboard",
+                    "table_type": "TABLE",
+                    "data_source_format": "DELTA",
+                },
+            ]
+        )
+        uc = DensityUC()
+
+        with patch("atlas.services.lineage.asset_service.visible_assets", return_value=visible):
+            payload = lineage_service.lineage_recommendations_payload(uc, object(), limit=2)
+
+        self.assertEqual([item["fqn"] for item in payload["items"]], [
+            "main.gold.mortgage_signal",
+            "main.visible.seed",
+        ])
+        self.assertEqual(payload["items"][0]["edgeCount"], 3)
+        self.assertEqual(payload["items"][0]["sensitivity"], "Confidential")
+        self.assertEqual(payload["items"][0]["criticality"], "Critical")
+        self.assertEqual(payload["meta"]["rankingSource"], "visible-inventory-batched-lineage")
+        self.assertTrue(payload["meta"]["bounded"])
+        self.assertEqual(uc.identity_calls, [])
+        self.assertEqual(
+            uc.scanned_batches,
+            [[
+                "main.visible.seed",
+                "main.gold.mortgage_signal",
+                "main.analytics.executive_dashboard",
+            ]],
+        )
+
+    def test_lineage_recommendations_use_density_fallback_when_visible_batches_are_empty(self) -> None:
+        class DensityFallbackUC(FakeUC):
+            def __init__(self) -> None:
+                super().__init__()
+                self.identity_calls: list[str] = []
+
+            def get_table_lineage_edges_batch(
+                self,
+                _asset_fqns,
+                *,
+                directions=("upstream", "downstream"),
+                per_seed_limit=40,
+            ) -> pd.DataFrame:
+                return pd.DataFrame()
+
+            def query_df(self, _query: str) -> pd.DataFrame:
+                return pd.DataFrame(
+                    [
+                        {
+                            "asset_fqn": "main.datapact.run_history",
+                            "upstreamCount": 3,
+                            "downstreamCount": 7,
+                            "edgeCount": 10,
+                        },
+                    ]
+                )
+
+            def get_table_identity(self, catalog: str, schema: str, table: str) -> pd.DataFrame:
+                fqn = f"{catalog}.{schema}.{table}"
+                self.identity_calls.append(fqn)
+                return pd.DataFrame(
+                    [
+                        {
+                            "table_catalog": catalog,
+                            "table_schema": schema,
+                            "table_name": table,
+                            "table_type": "TABLE",
+                            "data_source_format": "DELTA",
+                            "comment": "Backed run history",
+                        }
+                    ]
+                )
+
+        visible = pd.DataFrame(
+            [
+                {
+                    "fqn": "datapact.visible.seed",
+                    "table_catalog": "datapact",
+                    "table_schema": "visible",
+                    "table_name": "seed",
+                    "table_type": "TABLE",
+                    "data_source_format": "DELTA",
+                },
+            ]
+        )
+        uc = DensityFallbackUC()
+
+        with patch("atlas.services.lineage.asset_service.visible_assets", return_value=visible):
+            payload = lineage_service.lineage_recommendations_payload(uc, object(), limit=1)
+
+        self.assertEqual([item["fqn"] for item in payload["items"]], ["main.datapact.run_history"])
+        self.assertEqual(payload["items"][0]["edgeCount"], 10)
+        self.assertEqual(payload["meta"]["rankingSource"], "system.access.table_lineage.aggregate-fallback")
+        self.assertEqual(uc.identity_calls, ["main.datapact.run_history"])
+
     def test_invalidate_lineage_caches_clears_all_scoped_variants_for_asset(self) -> None:
         uc = FakeUC()
         store = object()

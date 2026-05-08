@@ -1,0 +1,32 @@
+{
+  "generatedAt": "2026-05-05T04:32:35.191Z",
+  "screenshots": [
+    {
+      "name": "02b-discovery-mortgage-results",
+      "route": "/discovery?q=mortgage",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/discovery?q=mortgage"
+    },
+    {
+      "name": "07-governance-workbench-live",
+      "route": "/governance",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/governance"
+    },
+    {
+      "name": "08-glossary-and-cdes-live",
+      "route": "/glossary",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/taxonomy"
+    },
+    {
+      "name": "09-cde-registry-live",
+      "route": "/cde",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/taxonomy?tab=cdes"
+    },
+    {
+      "name": "10-insights-recommendations-live",
+      "route": "/insights",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/insights"
+    }
+  ],
+  "errors": [],
+  "console": []
+}

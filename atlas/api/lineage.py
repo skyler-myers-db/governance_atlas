@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -19,6 +20,8 @@ from atlas.services import lineage as lineage_service
 
 _LINEAGE_FULL_WARMING: set[str] = set()
 _LINEAGE_FULL_WARMING_LOCK = threading.Lock()
+_LINEAGE_RECOMMENDATIONS_WARMING: set[str] = set()
+_LINEAGE_RECOMMENDATIONS_WARMING_LOCK = threading.Lock()
 
 # Surface failures from the background lineage-warming thread. Previously
 # the warmer caught and dropped every exception silently, which meant a
@@ -333,6 +336,159 @@ def api_lineage(asset_fqn: str, request: Request) -> JSONResponse:
     )
 
 
+def api_lineage_recommendations(
+    request: Request,
+    limit: int = 8,
+) -> JSONResponse:
+    from runtime_app import (
+        _ensure_live_runtime,
+        _request_cache_scope,
+        _store_for_read,
+        _uc,
+        _uc_for_request,
+    )
+
+    _ensure_live_runtime()
+    actor_scoped = _request_auth_mode(request) == capability_service.OBO_AVAILABLE_MODE
+    request_uc = _uc_for_request(request)
+    system_uc = request_uc if actor_scoped else _uc()
+    cache_scope = _request_cache_scope(request)
+    resolved_limit = max(1, min(int(limit or 8), 25))
+    cache_key = (
+        "lineage_recommendations:"
+        f"{lineage_service._warehouse_key(request_uc)}:"
+        f"{lineage_service._cache_scope_key(cache_scope)}:"
+        f"{lineage_service._warehouse_key(system_uc)}:"
+        f"{resolved_limit}"
+    )
+
+    cached = lineage_service._TTL_CACHE.get(cache_key)
+    payload = cached[1] if cached and time.time() - cached[0] < 180 else None
+    if payload is None:
+        with _LINEAGE_RECOMMENDATIONS_WARMING_LOCK:
+            should_warm = cache_key not in _LINEAGE_RECOMMENDATIONS_WARMING
+            if should_warm:
+                _LINEAGE_RECOMMENDATIONS_WARMING.add(cache_key)
+
+        if should_warm:
+            store = _store_for_read()
+
+            def warm_recommendations() -> None:
+                try:
+                    try:
+                        warmed_payload = lineage_service.lineage_recommendations_payload(
+                            request_uc,
+                            store,
+                            system_uc=system_uc,
+                            limit=resolved_limit,
+                        )
+                        lineage_service._TTL_CACHE[cache_key] = (time.time(), warmed_payload)
+                    except Exception:
+                        _LINEAGE_LOGGER.warning(
+                            "lineage recommendations warmer failed",
+                            exc_info=True,
+                        )
+                finally:
+                    with _LINEAGE_RECOMMENDATIONS_WARMING_LOCK:
+                        _LINEAGE_RECOMMENDATIONS_WARMING.discard(cache_key)
+
+            threading.Thread(
+                target=warm_recommendations,
+                name="atlas-lineage-recommendations-warm",
+                daemon=True,
+            ).start()
+
+        service_meta = {
+            "source": "system.access.table_lineage",
+            "rankingSource": "visible-inventory-batched-lineage",
+            "visibleAssetCount": None,
+            "scannedAssetCount": 0,
+            "candidateLimit": lineage_service.LINEAGE_RECOMMENDATION_CANDIDATE_LIMIT,
+            "edgeSampleLimit": lineage_service.LINEAGE_RECOMMENDATION_PER_SEED_LIMIT,
+            "recommendationLimit": resolved_limit,
+            "hydrating": True,
+            "unavailableReason": "Lineage recommendations are warming from actor-visible Unity Catalog inventory.",
+        }
+        response_payload = {"items": [], "recommendationMeta": service_meta}
+        return _cacheable_json_response(
+            _with_meta(
+                response_payload,
+                request,
+                source="unity-catalog-lineage",
+                state="loading",
+                authoritative=False,
+                capabilities={
+                    "visibilityScope": (
+                        capability_service.ACTOR_SCOPED_VISIBILITY
+                        if actor_scoped
+                        else capability_service.WORKSPACE_APP_PRINCIPAL_VISIBILITY
+                    ),
+                    "recommendationLimit": resolved_limit,
+                    "evidenceSource": service_meta["source"],
+                    "lineageRecommendation": service_meta,
+                    "hydrating": True,
+                },
+                warnings=[
+                    "Lineage recommendations are warming from Unity Catalog system lineage tables; no recommendations are shown until backed evidence is returned."
+                ],
+            ),
+            request,
+            max_age=5,
+            stale_while_revalidate=30,
+        )
+
+    service_meta = dict(payload.get("meta") or {})
+    response_payload = dict(payload)
+    response_payload.pop("meta", None)
+    if service_meta:
+        response_payload["recommendationMeta"] = service_meta
+    ranking_source = str(service_meta.get("rankingSource") or "")
+    aggregate_fallback = ranking_source == "system.access.table_lineage.aggregate-fallback"
+    recommendations_authoritative = actor_scoped and not aggregate_fallback
+    recommendation_warnings = []
+    if aggregate_fallback:
+        recommendation_warnings.append(
+            "Lineage recommendations used the aggregate fallback: candidate assets were verified openable, but edge counts may include relationships whose opposite endpoint is not actor-openable."
+        )
+    if not actor_scoped:
+        recommendation_warnings.append(
+            "Lineage recommendations are ranked from workspace-scoped app-principal reads; per-user authorization is not available."
+        )
+
+    return _cacheable_json_response(
+        _with_meta(
+            response_payload,
+            request,
+            source="unity-catalog-lineage",
+            state="available" if recommendations_authoritative else "degraded",
+            authoritative=recommendations_authoritative,
+            capabilities={
+                "visibilityScope": (
+                    capability_service.ACTOR_SCOPED_VISIBILITY
+                    if actor_scoped
+                    else capability_service.WORKSPACE_APP_PRINCIPAL_VISIBILITY
+                ),
+                "relationshipVisibilityScope": (
+                    "actor-openable-candidate-aggregate"
+                    if aggregate_fallback
+                    else (
+                        capability_service.ACTOR_SCOPED_VISIBILITY
+                        if actor_scoped
+                        else capability_service.WORKSPACE_APP_PRINCIPAL_VISIBILITY
+                    )
+                ),
+                "recommendationLimit": resolved_limit,
+                "evidenceSource": service_meta.get("source") or "system.access.table_lineage",
+                "lineageRecommendation": service_meta,
+            },
+            warnings=recommendation_warnings,
+        ),
+        request,
+        max_age=120,
+        stale_while_revalidate=300,
+    )
+
+
 def api_column_lineage_trace_query(
     request: Request,
     asset_fqn: str = "",
@@ -411,8 +567,13 @@ def api_column_lineage_trace(
 
 def build_lineage_router() -> APIRouter:
     router = APIRouter(tags=["lineage"])
-    # Register the more-specific column trace route FIRST so the generic
-    # catch-all below doesn't swallow /api/lineage/columns/... paths.
+    # Register specific lineage subroutes before the generic catch-all below.
+    router.add_api_route(
+        "/api/lineage/recommendations",
+        api_lineage_recommendations,
+        methods=["GET"],
+        name="api_lineage_recommendations",
+    )
     router.add_api_route(
         "/api/lineage/column-trace",
         api_column_lineage_trace_query,

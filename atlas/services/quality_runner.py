@@ -425,6 +425,23 @@ def run_quality_suite(
             continue
 
     final_status = "succeeded" if summary["failed"] == 0 and summary["errored"] == 0 else "partial"
+    try:
+        finalize = getattr(store, "finalize_quality_run")
+        finalize(
+            run_id=run_id,
+            status=final_status,
+            summary=summary,
+            error_detail=None,
+        )
+    except Exception:
+        return QualityRunResult(
+            run_id=run_id,
+            status="failed",
+            passed=summary["passed"],
+            failed=summary["failed"],
+            errored=summary["errored"],
+            skipped=summary["skipped"],
+        )
     return QualityRunResult(
         run_id=run_id,
         status=final_status,

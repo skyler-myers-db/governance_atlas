@@ -8,6 +8,7 @@ const DEEP_LINK_ASSET =
   process.env.GOVAT_SMOKE_ASSET_FQN ||
   process.env.GOVAT_SMOKE_ASSET_FQN ||
   "prod.silver.ap_self_assessed_tax_dist";
+const DATABRICKS_TOKEN = process.env.GOVAT_DATABRICKS_TOKEN || "";
 const CDP_URL = process.env.GOVAT_CDP_URL || "http://127.0.0.1:9223";
 const OUT_DIR = process.env.GOVAT_SMOKE_OUT_DIR || "/tmp/govat-deployed-smoke";
 const SMOKE_TIMEOUT_MS = Number(process.env.GOVAT_SMOKE_TIMEOUT_MS || 15000);
@@ -147,9 +148,23 @@ async function launchCopiedChromeContext() {
 }
 
 async function connect() {
+  if (DATABRICKS_TOKEN) {
+    const browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext({
+      extraHTTPHeaders: { Authorization: `Bearer ${DATABRICKS_TOKEN}` },
+      viewport: { width: 1600, height: 1040 },
+    });
+    const page = await context.newPage();
+    attachRuntimeListeners(page);
+    await pushCheck("browser-connect-token", "ok", { auth: "bearer-token" }, { blocking: false });
+    return { browser, context, page };
+  }
   try {
     const browser = await chromium.connectOverCDP(CDP_URL);
     const context = browser.contexts()[0] || (await browser.newContext());
+    if (DATABRICKS_TOKEN) {
+      await context.setExtraHTTPHeaders({ Authorization: `Bearer ${DATABRICKS_TOKEN}` });
+    }
     const page = await context.newPage();
     await page.setViewportSize({ width: 1600, height: 1040 });
     attachRuntimeListeners(page);

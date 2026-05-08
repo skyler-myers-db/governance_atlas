@@ -41,12 +41,16 @@ class FakeStore:
     def __init__(self) -> None:
         self.runs: List[Dict[str, Any]] = []
         self.results: List[Dict[str, Any]] = []
+        self.finalized: List[Dict[str, Any]] = []
 
     def insert_quality_run(self, **kwargs) -> None:
         self.runs.append(kwargs)
 
     def insert_quality_run_result(self, **kwargs) -> None:
         self.results.append(kwargs)
+
+    def finalize_quality_run(self, **kwargs) -> None:
+        self.finalized.append(kwargs)
 
 
 def _spec(**kwargs):
@@ -72,6 +76,8 @@ class RunQualitySuiteTests(unittest.TestCase):
         )
         self.assertEqual(result.passed, 1)
         self.assertEqual(result.status, "succeeded")
+        self.assertEqual(store.finalized[0]["status"], "succeeded")
+        self.assertEqual(store.finalized[0]["summary"]["passed"], 1)
         self.assertEqual(store.results[0]["outcome"], "passed")
         self.assertEqual(store.results[0]["metric_value"], 500)
 
@@ -91,6 +97,8 @@ class RunQualitySuiteTests(unittest.TestCase):
             )],
         )
         self.assertEqual(result.failed, 1)
+        self.assertEqual(result.status, "partial")
+        self.assertEqual(store.finalized[0]["status"], "partial")
         self.assertEqual(store.results[0]["outcome"], "failed")
 
     def test_null_fraction_passes_under_threshold(self) -> None:

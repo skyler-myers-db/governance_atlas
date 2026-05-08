@@ -83,6 +83,23 @@ describe("LineageNodeCard", () => {
     expect(onClick).toHaveBeenCalledWith(baseNode);
   });
 
+  it("fires onColumnSelect without firing card navigation when a column is clicked", () => {
+    const onClick = vi.fn();
+    const onColumnSelect = vi.fn();
+    render(
+      <LineageNodeCard
+        node={baseNode}
+        onClick={onClick}
+        onColumnSelect={onColumnSelect}
+        selectedColumnName="amount"
+        variant="tall"
+      />,
+    );
+    fireEvent.click(screen.getByText("amount").closest("button"));
+    expect(onColumnSelect).toHaveBeenCalledWith(baseNode, { name: "amount", type: "DECIMAL" });
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
   it("does NOT mark the card navigable when isOpenable=false", () => {
     const lineageOnly = { ...baseNode, isOpenable: false };
     const { container } = render(<LineageNodeCard node={lineageOnly} onClick={() => {}} />);
