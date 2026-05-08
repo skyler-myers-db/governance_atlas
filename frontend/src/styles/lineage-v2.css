@@ -6,11 +6,12 @@
 
 /* ---------- Node card ---------- */
 .ga-lineage-v2-card {
+  box-sizing: border-box;
   display: grid;
   gap: 8px;
   width: 220px;
-  padding: 12px 14px 10px;
-  border-radius: 12px;
+  padding: 10px 12px 9px;
+  border-radius: 8px;
   border: 1px solid rgba(61, 132, 173, 0.32);
   background: linear-gradient(180deg, rgba(17, 44, 72, 0.96), rgba(8, 23, 42, 0.96));
   color: var(--ga-text, #dce6ed);
@@ -51,8 +52,8 @@
 .ga-lineage-v2-card.is-focus::before {
   content: "";
   position: absolute;
-  inset: -7px;
-  border-radius: 16px;
+  inset: -5px;
+  border-radius: 12px;
   border: 1px solid rgba(102, 197, 255, 0.55);
   box-shadow: 0 0 22px rgba(102, 197, 255, 0.35);
   pointer-events: none;
@@ -194,7 +195,20 @@
   align-items: center;
   gap: 8px;
   padding: 3px 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+.ga-lineage-v2-card-col:hover,
+.ga-lineage-v2-card-col:focus-visible,
+.ga-lineage-v2-card-col.is-selected {
+  background: rgba(92, 225, 230, 0.12);
+  outline: none;
 }
 .ga-lineage-v2-card-col-name {
   font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
@@ -249,7 +263,7 @@
 .ga-lineage-v2-card-compact {
   width: 210px;
   gap: 6px;
-  padding: 10px 12px 8px;
+  padding: 9px 11px 8px;
 }
 .ga-lineage-v2-card-compact .ga-lineage-v2-card-foot {
   border-top: 0;
@@ -265,7 +279,7 @@
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: clamp(420px, calc(100dvh - 320px), 720px);
+  min-height: clamp(420px, calc(100dvh - 300px), 760px);
   background:
     radial-gradient(ellipse 60% 80% at 50% 0%, rgba(102, 197, 255, 0.04), transparent 65%),
     linear-gradient(180deg, rgba(8, 23, 42, 0.55), rgba(5, 14, 24, 0.55));
@@ -275,6 +289,8 @@
 }
 
 .ga-lineage-v2-flow-node {
+  width: 224px;
+  height: 100%;
   position: relative;
 }
 
@@ -282,8 +298,8 @@
    already provides the visual edge anchor and we don't allow the user
    to draw new edges. */
 .ga-lineage-v2-flow-handle {
-  width: 0 !important;
-  height: 0 !important;
+  width: 8px !important;
+  height: 8px !important;
   border: 0 !important;
   background: transparent !important;
   opacity: 0 !important;
@@ -466,7 +482,7 @@
 /* ---------- Workbench layout ---------- */
 .ga-lineage-v2-workbench {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 380px;
   gap: 16px;
   align-items: stretch;
   min-height: clamp(480px, calc(100dvh - 220px), 760px);
@@ -487,7 +503,7 @@
   gap: 14px;
   padding: 16px 16px 20px;
   border: 1px solid rgba(20, 44, 70, 0.85);
-  border-radius: 16px;
+  border-radius: 10px;
   background: linear-gradient(180deg, rgba(17, 44, 72, 0.92), rgba(8, 23, 42, 0.92));
   color: var(--ga-text, #dce6ed);
   overflow-y: auto;
@@ -556,6 +572,35 @@
 .ga-lineage-v2-rail-section {
   display: grid;
   gap: 6px;
+}
+
+.ga-lineage-v2-rail-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(20, 44, 70, 0.85);
+  border-radius: 8px;
+  background: rgba(8, 23, 42, 0.66);
+}
+.ga-lineage-v2-rail-tabs button {
+  min-width: 0;
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ga-text-muted, #b2bdc2);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ga-lineage-v2-rail-tabs button:hover,
+.ga-lineage-v2-rail-tabs button:focus-visible,
+.ga-lineage-v2-rail-tabs button.is-active {
+  background: rgba(102, 197, 255, 0.14);
+  color: var(--ga-text-strong, #ffffff);
+  outline: none;
 }
 .ga-lineage-v2-rail-section header {
   display: flex;
@@ -640,6 +685,244 @@
   margin-top: 4px;
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ga-lineage-zero-state,
+.ga-lineage-empty-recommendations {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(244, 183, 64, 0.28);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(77, 55, 18, 0.34), rgba(8, 23, 42, 0.76));
+  padding: 14px;
+}
+.ga-lineage-zero-state {
+  margin-bottom: 12px;
+  grid-template-columns: minmax(0, 0.92fr) minmax(320px, 0.72fr);
+  align-items: start;
+}
+.ga-lineage-zero-state strong {
+  display: block;
+  color: var(--ga-text-strong, #ffffff);
+  font-size: 15px;
+}
+.ga-lineage-zero-state p {
+  margin: 6px 0 0;
+  color: var(--ga-text-muted, #b2bdc2);
+  line-height: 1.45;
+  font-size: 12.5px;
+}
+
+.ga-lineage-v2-section-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ga-lineage-v2-section-title span {
+  color: var(--ga-text-strong, #ffffff);
+  font-size: 12px;
+  font-weight: 760;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.ga-lineage-v2-section-title small {
+  color: var(--ga-text-subtle, #7e8c97);
+  font-size: 11px;
+}
+
+.ga-lineage-recommendations {
+  display: grid;
+  gap: 6px;
+}
+.ga-lineage-recommendation-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(61, 132, 173, 0.28);
+  background: rgba(8, 23, 42, 0.72);
+  color: var(--ga-text, #dce6ed);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ga-lineage-recommendation-row:hover,
+.ga-lineage-recommendation-row:focus-visible {
+  border-color: rgba(92, 225, 230, 0.55);
+  background: rgba(61, 132, 173, 0.18);
+  outline: none;
+}
+.ga-lineage-recommendation-row span,
+.ga-lineage-recommendation-row em {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-style: normal;
+}
+.ga-lineage-recommendation-row strong {
+  color: var(--ga-text-strong, #ffffff);
+  font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ga-lineage-recommendation-row small {
+  color: var(--ga-text-subtle, #7e8c97);
+  font-size: 10.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ga-lineage-recommendation-row em {
+  color: #f4b740;
+  font-size: 11px;
+  text-align: right;
+}
+
+.ga-lineage-impact-panel,
+.ga-lineage-column-panel,
+.ga-lineage-evidence-panel {
+  display: grid;
+  gap: 12px;
+}
+.ga-lineage-impact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.ga-lineage-impact-fact {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid rgba(20, 44, 70, 0.85);
+  border-radius: 8px;
+  background: rgba(8, 23, 42, 0.62);
+}
+.ga-lineage-impact-fact span,
+.ga-lineage-impact-fact small {
+  color: var(--ga-text-subtle, #7e8c97);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.ga-lineage-impact-fact small {
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+}
+.ga-lineage-impact-fact strong {
+  color: var(--ga-text-strong, #ffffff);
+  font-size: 18px;
+}
+.ga-lineage-impact-fact.tone-info strong { color: #66c5ff; }
+.ga-lineage-impact-fact.tone-warn strong { color: #f4b740; }
+.ga-lineage-impact-fact.tone-crit strong { color: #f47174; }
+.ga-lineage-impact-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ga-lineage-impact-list li {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(8, 23, 42, 0.54);
+  color: var(--ga-text-muted, #b2bdc2);
+  font-size: 12px;
+}
+.ga-lineage-impact-list li strong {
+  color: var(--ga-text-strong, #ffffff);
+}
+.ga-lineage-impact-list li span {
+  color: var(--ga-text-subtle, #7e8c97);
+  font-size: 11px;
+}
+.ga-lineage-request-status {
+  margin: 0;
+  color: #34d399;
+  font-size: 12px;
+}
+.ga-lineage-request-status.tone-error {
+  color: #f47174;
+}
+
+.ga-lineage-column-trace-card,
+.ga-lineage-sql-placeholder {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(20, 44, 70, 0.85);
+  background: rgba(8, 23, 42, 0.58);
+}
+.ga-lineage-column-trace-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ga-text-strong, #ffffff);
+  font-size: 12px;
+  font-weight: 700;
+}
+.ga-lineage-column-path-list {
+  display: grid;
+  gap: 5px;
+}
+.ga-lineage-column-path-list div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(61, 132, 173, 0.12);
+}
+.ga-lineage-column-path-list strong {
+  color: var(--ga-text-strong, #ffffff);
+  font-family: var(--ga-font-mono, "JetBrains Mono", monospace);
+  font-size: 12px;
+}
+.ga-lineage-column-path-list span,
+.ga-lineage-column-path-list p,
+.ga-lineage-sql-placeholder span {
+  color: var(--ga-text-muted, #b2bdc2);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.ga-lineage-sql-placeholder strong {
+  color: #f4b740;
+  font-size: 12px;
+}
+.ga-lineage-sql-snippets {
+  display: grid;
+  gap: 8px;
+}
+.ga-lineage-sql-snippets pre {
+  margin: 0;
+  max-height: 180px;
+  overflow: auto;
+  border-radius: 6px;
+  border: 1px solid rgba(92, 225, 230, 0.18);
+  background: rgba(2, 10, 22, 0.82);
+  color: var(--ga-text, #dce6ed);
+  font: 11px/1.45 var(--ga-font-mono, "JetBrains Mono", monospace);
+  padding: 8px;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 1180px) {
+  .ga-lineage-zero-state {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ---------- Empty-state search dropdown styling ---------- */

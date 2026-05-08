@@ -74,7 +74,7 @@ function resolveUcStatusLabel(environmentTone = "", coverageScore = null, status
   if (isNonAuthoritativeMockEvidence(state)) return "UC unavailable";
   if (state === "degraded") return "UC status degraded";
   if (state === "unavailable" || state === "error" || state === "failed") return "UC unavailable";
-  if (environmentTone === "good" && Number.isFinite(numericCoverage)) {
+  if (environmentTone === "good" && Number.isFinite(numericCoverage) && numericCoverage > 0) {
     return `UC connected · ${numericCoverage.toFixed(1).replace(/\.0$/, "")}% coverage`;
   }
   if (environmentTone === "good" || environmentTone === "warn") {

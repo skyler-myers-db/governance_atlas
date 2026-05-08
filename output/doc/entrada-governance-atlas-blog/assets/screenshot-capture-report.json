@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-05-05T04:29:47.375Z",
+  "baseUrl": "https://atlas-2543889327043640.aws.databricksapps.com",
+  "mockApi": false,
+  "target": "deployed-databricks-app",
+  "screenshots": [
+    {
+      "name": "01-command-center-live",
+      "filePath": "/Users/entrada-mac/repos/governance_atlas/frontend/output/doc/entrada-governance-atlas-blog/assets/01-command-center-live.png",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/home"
+    },
+    {
+      "name": "02-discovery-mortgage-search",
+      "filePath": "/Users/entrada-mac/repos/governance_atlas/frontend/output/doc/entrada-governance-atlas-blog/assets/02-discovery-mortgage-search.png",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/discovery?q=mortgage"
+    },
+    {
+      "name": "03-lineage-rich-graph",
+      "filePath": "/Users/entrada-mac/repos/governance_atlas/frontend/output/doc/entrada-governance-atlas-blog/assets/03-lineage-rich-graph.png",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/main.datapact.run_history"
+    },
+    {
+      "name": "04-lineage-impact-brief",
+      "filePath": "/Users/entrada-mac/repos/governance_atlas/frontend/output/doc/entrada-governance-atlas-blog/assets/04-lineage-impact-brief.png",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/main.datapact.run_history"
+    },
+    {
+      "name": "05-column-lineage-trace",
+      "filePath": "/Users/entrada-mac/repos/governance_atlas/frontend/output/doc/entrada-governance-atlas-blog/assets/05-column-lineage-trace.png",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/main.datapact.run_history"
+    },
+    {
+      "name": "06-control-center-integrations",
+      "filePath": "/Users/entrada-mac/repos/governance_atlas/frontend/output/doc/entrada-governance-atlas-blog/assets/06-control-center-integrations.png",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/admin"
+    }
+  ],
+  "console": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 ()",
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/lineage/main.datapact.run_history"
+    }
+  ],
+  "errors": [
+    {
+      "status": 404,
+      "url": "https://atlas-2543889327043640.aws.databricksapps.com/api/assets/main.datapact.run_history/quality"
+    }
+  ],
+  "pageErrors": []
+}

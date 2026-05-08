@@ -3356,6 +3356,24 @@ ORDER BY column_name ASC"""
 )"""
         )
 
+    def finalize_quality_run(
+        self,
+        *,
+        run_id: str,
+        status: str,
+        summary: dict | None,
+        error_detail: str | None = None,
+    ) -> None:
+        ts = _utc_now_ts()
+        self.uc.execute(
+            f"""UPDATE {self._fq('quality_runs')}
+SET status = {sql_literal(status)},
+    finished_at = timestamp({sql_literal(ts)}),
+    error_detail = {sql_literal(error_detail)},
+    summary_json = {sql_literal(_json_text(summary)) if summary else 'NULL'}
+WHERE run_id = {sql_literal(run_id)}"""
+        )
+
     def list_quality_runs(
         self,
         *,

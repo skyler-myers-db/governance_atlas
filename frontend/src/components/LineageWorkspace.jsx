@@ -3,9 +3,15 @@ import { LineageCanvasV2 } from "./lineage-v2/LineageCanvasV2";
 import { useLineageGraphV2 } from "./lineage-v2/useLineageGraphV2";
 import { useLineageNodeHeaders } from "./lineage-v2/useLineageNodeHeaders";
 import { useAssetDetail } from "../hooks/useAssetDetail";
+import { useAssetDatabricksEvidence } from "../hooks/useAssetDatabricksEvidence";
+import { useAssetQuality } from "../hooks/useAssetQuality";
 import { useAssetSearch } from "../hooks/useAssetSearch";
+import { useAccessExplain } from "../hooks/useAccessExplain";
+import { useColumnLineageTrace } from "../hooks/useColumnLineageTrace";
+import { useLineageRecommendations } from "../hooks/useLineageRecommendations";
 import { useSeededAssetContext } from "../hooks/useSeededAssetContext";
 import { assetPathLabel } from "../lib/assetPresentation";
+import { createGovernanceRequest } from "../lib/api";
 import {
   runtimeFeatureFlagAvailable,
   runtimeFeatureFlagReason,
@@ -33,7 +39,318 @@ import { consumeWorkspaceIntent, peekWorkspaceIntent, setWorkspaceIntent } from 
  * and full-metadata node cards.
  */
 
-function LineageHeroEmpty({ onSearch, query, onQueryChange, results, loading }) {
+function compactCount(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "Unavailable";
+  return Math.max(0, Math.trunc(number)).toLocaleString();
+}
+
+function displayCount(value) {
+  if (value == null || value === "") return "Unavailable";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  return Math.max(0, Math.trunc(number)).toLocaleString();
+}
+
+function isUcAssetFqn(value) {
+  const parts = String(value || "").split(".").filter(Boolean);
+  return parts.length === 3 && parts.every((part) => part.trim());
+}
+
+function ownerLabel(asset, fallbackNode) {
+  const owners = Array.isArray(asset?.owners) && asset.owners.length
+    ? asset.owners
+    : Array.isArray(fallbackNode?.owners)
+      ? fallbackNode.owners
+      : [];
+  const first = owners[0] || {};
+  return (
+    asset?.ownerDisplayName ||
+    asset?.owner ||
+    asset?.steward ||
+    first.displayName ||
+    first.email ||
+    first.name ||
+    ""
+  );
+}
+
+function buildColumnDirectLineage(columnLineage, selectedColumn, focusFqn) {
+  const columnName = selectedColumn?.columnName || "";
+  if (!columnName || selectedColumn?.assetFqn !== focusFqn) {
+    return { upstream: [], downstream: [], appliesToFocus: false };
+  }
+  const upstreamEntry = (columnLineage?.upstream || []).find((entry) => entry.column === columnName);
+  const downstreamEntry = (columnLineage?.downstream || []).find((entry) => entry.column === columnName);
+  return {
+    upstream: upstreamEntry?.sources || [],
+    downstream: downstreamEntry?.targets || [],
+    appliesToFocus: true,
+  };
+}
+
+function arrayValue(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function firstMeaningful(...values) {
+  for (const value of values) {
+    if (value == null) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return "";
+}
+
+function buildEvidenceRecords({
+  accessExplain,
+  columnLineageCount,
+  databricksEvidence,
+  focusedAsset,
+  graph,
+  quality,
+}) {
+  const graphSource = graph?.payload?.source || graph?.meta?.source || "unity-catalog-lineage";
+  const graphAuthoritative = graph?.payload?.authoritative === true || graph?.meta?.authoritative === true;
+  const graphVisibility = graph?.meta?.visibilityScope || graph?.meta?.capabilities?.visibilityScope || "";
+  const graphDegraded = graph?.meta?.degraded === true || graph?.meta?.authoritative === false;
+  const columnMeta = graph?.columnLineage?.meta || {};
+  const columnAvailable = columnLineageCount > 0 || (
+    Object.keys(columnMeta).length > 0 &&
+    columnMeta.deferred !== true
+  );
+  const governanceAvailable = Boolean(
+    focusedAsset &&
+      (
+        focusedAsset.openRequests != null ||
+        arrayValue(focusedAsset.glossaryTerms).length ||
+        focusedAsset.isCde != null ||
+        firstMeaningful(focusedAsset.certification, focusedAsset.sensitivity, focusedAsset.criticality)
+      ),
+  );
+  const qualityAvailable = Boolean(
+    quality?.summaryBacked ||
+      arrayValue(quality?.runs).length ||
+      arrayValue(quality?.results).length ||
+      evidenceState(quality?.databricksMonitoring) === "available" ||
+      evidenceState(databricksEvidence?.qualityMonitoring) === "available",
+  );
+  const accessAvailable = Boolean(accessExplain?.data && !accessExplain?.error);
+  const dqm = databricksEvidence?.qualityMonitoring || quality?.databricksMonitoring || {};
+  const profileMetrics = databricksEvidence?.profileMetrics || {};
+  const lakeflow = databricksEvidence?.lakeflow || {};
+  const pipelineEvents = databricksEvidence?.pipelineEvents || {};
+  return [
+    {
+      source: graphSource,
+      status: graphDegraded ? "degraded" : "available",
+      detail: graphAuthoritative
+        ? `Actor-scoped lineage${graphVisibility ? ` (${graphVisibility})` : ""}.`
+        : `Lineage returned without actor-scoped authority${graphVisibility ? ` (${graphVisibility})` : ""}.`,
+    },
+    {
+      source: "system.access.table_lineage",
+      status: graph?.edges?.length || graph?.stats?.progressive?.tableLineageDeferred === false ? "available" : "unavailable",
+      detail: graph?.edges?.length
+        ? `${graph.edges.length} visible graph edge(s) loaded.`
+        : "No table-lineage edges are loaded for this focus.",
+    },
+    {
+      source: "system.access.column_lineage",
+      status: columnAvailable ? "available" : "unavailable",
+      detail: columnAvailable
+        ? `${columnLineageCount} direct column lineage path(s) loaded.`
+        : "Column lineage did not return backed paths for the current focus/selection.",
+    },
+    {
+      source: "governance-store",
+      status: governanceAvailable ? "available" : "unavailable",
+      detail: governanceAvailable
+        ? "Governance fields or request counts are present on the asset record."
+        : "Governance request/control rows are not available for this asset in the current payload.",
+    },
+    {
+      source: "quality-runner+databricks-dqm",
+      status: qualityAvailable ? "available" : "unavailable",
+      detail: qualityAvailable
+        ? `${arrayValue(quality?.runs).length} Atlas quality run(s), ${arrayValue(quality?.results).length} result row(s), Databricks DQM ${evidenceState(dqm) || "unavailable"}.`
+        : quality?.error || "No backed quality or Databricks monitoring evidence is available for this asset.",
+    },
+    {
+      source: dqm?.source || "system.data_quality_monitoring.table_results",
+      status: sourceStateToEvidenceStatus(evidenceState(dqm)),
+      detail: dqm?.summary?.healthStatus
+        ? `Health ${dqm.summary.healthStatus}; freshness ${dqm.summary.freshnessStatus || "Unavailable"}; completeness ${dqm.summary.completenessStatus || "Unavailable"}.`
+        : (arrayValue(dqm?.warnings)[0] || "No Databricks data quality monitoring rows returned."),
+    },
+    {
+      source: profileMetrics?.source || "databricks-data-profiling",
+      status: sourceStateToEvidenceStatus(evidenceState(profileMetrics)),
+      detail: evidenceState(profileMetrics) === "available"
+        ? `${evidenceRows(profileMetrics).length} metric table row(s); lookup ${profileMetrics?.summary?.lookupMethod || "unknown"}.`
+        : (arrayValue(profileMetrics?.warnings)[0] || "No Databricks profile metric tables returned."),
+    },
+    {
+      source: lakeflow?.source || "system.lakeflow",
+      status: sourceStateToEvidenceStatus(evidenceState(lakeflow)),
+      detail: evidenceState(lakeflow) === "available"
+        ? `${evidenceRows(lakeflow, "jobs").length} job run(s), ${evidenceRows(lakeflow, "pipelines").length} pipeline update(s) joined from lineage.`
+        : (arrayValue(lakeflow?.warnings)[0] || "No Lakeflow workflow rows returned for this asset."),
+    },
+    {
+      source: pipelineEvents?.source || "event_log",
+      status: sourceStateToEvidenceStatus(evidenceState(pipelineEvents)),
+      detail: evidenceState(pipelineEvents) === "available"
+        ? `${evidenceRows(pipelineEvents).length} pipeline event-log row(s) returned.`
+        : (arrayValue(pipelineEvents?.warnings)[0] || "No pipeline event-log rows returned."),
+    },
+    {
+      source: "access-explain",
+      status: accessAvailable ? "available" : "unavailable",
+      detail: accessAvailable
+        ? accessExplain.data?.visibilityScope || accessExplain.data?.authMode || "Access explainer payload returned."
+        : accessExplain?.error || "Access-grant detail is not available in this payload.",
+    },
+  ].filter((record) => record.source);
+}
+
+function collectSqlSnippets(edgeDetails, selectedColumn) {
+  if (!selectedColumn?.columnName || !edgeDetails || typeof edgeDetails !== "object") return [];
+  const columnName = String(selectedColumn.columnName).trim().toLowerCase();
+  return Object.entries(edgeDetails)
+    .map(([edgeId, detail]) => ({ edgeId, detail }))
+    .filter(({ detail }) => {
+      const snippet = firstMeaningful(detail?.sqlSnippet, detail?.sql);
+      if (!snippet) return false;
+      const mappings = arrayValue(detail?.columnMappings);
+      if (!mappings.length) return true;
+      return mappings.some((mapping) =>
+        String(mapping?.sourceColumn || "").trim().toLowerCase() === columnName ||
+        String(mapping?.targetColumn || "").trim().toLowerCase() === columnName,
+      );
+    })
+    .slice(0, 3)
+    .map(({ edgeId, detail }) => ({
+      edgeId,
+      sourceAssetFqn: detail?.sourceAssetFqn || "",
+      targetAssetFqn: detail?.targetAssetFqn || "",
+      sqlSnippet: firstMeaningful(detail?.sqlSnippet, detail?.sql),
+    }));
+}
+
+function evidenceSourceNames(records) {
+  return [
+    ...new Set(
+      arrayValue(records)
+        .filter((record) => record.status === "available" || record.status === "degraded")
+        .map((record) => record.source)
+        .filter(Boolean),
+    ),
+  ];
+}
+
+function evidenceState(section) {
+  return String(section?.state || "").trim().toLowerCase();
+}
+
+function evidenceRows(section, key = "rows") {
+  return Array.isArray(section?.[key]) ? section[key] : [];
+}
+
+function sourceStateToEvidenceStatus(state) {
+  const normalized = String(state || "").toLowerCase();
+  if (normalized === "available") return "available";
+  if (normalized === "empty") return "unavailable";
+  if (normalized === "loading") return "loading";
+  if (normalized === "degraded") return "degraded";
+  if (normalized === "unavailable" || normalized === "not_authorized" || normalized === "timeout") return "unavailable";
+  return normalized || "unavailable";
+}
+
+function downloadImpactPacket(packet) {
+  if (typeof document === "undefined") return;
+  const blob = new Blob([JSON.stringify(packet, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const safeFqn = String(packet?.assetFqn || "lineage-impact")
+    .replace(/[^a-zA-Z0-9_.-]/g, "_")
+    .slice(0, 120);
+  link.href = url;
+  link.download = `atlas-impact-brief-${safeFqn}-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function RecommendationList({
+  recommendations,
+  loading,
+  error,
+  onSelect,
+  compact = false,
+  degraded = false,
+  visibilityScope = "",
+  relationshipVisibilityScope = "",
+}) {
+  if (loading) {
+    return <p className="ga-lineage-v2-rail-empty">Loading ranked lineage assets from system.access.table_lineage...</p>;
+  }
+  if (error) {
+    return <p className="ga-lineage-v2-rail-empty">{error}</p>;
+  }
+  if (!recommendations?.length) {
+    return (
+      <p className="ga-lineage-v2-rail-empty">
+        No ranked high-lineage assets were returned for the current visibility scope.
+      </p>
+    );
+  }
+  return (
+    <div className={`ga-lineage-recommendations ${compact ? "is-compact" : ""}`.trim()}>
+      {degraded ? (
+        <p className="ga-lineage-v2-rail-empty">
+          Ranked from degraded Databricks lineage evidence. Candidate assets were verified openable
+          {visibilityScope ? ` for ${visibilityScope}` : ""}, but edge counts may include relationships outside the actor-openable endpoint set
+          {relationshipVisibilityScope ? ` (${relationshipVisibilityScope})` : ""}.
+        </p>
+      ) : null}
+      {recommendations.slice(0, compact ? 4 : 6).map((item) => (
+        <button
+          className="ga-lineage-recommendation-row"
+          key={item.fqn}
+          onClick={() => onSelect?.(item.fqn)}
+          type="button"
+        >
+          <span>
+            <strong>{item.name}</strong>
+            <small>{[item.catalogName, item.schemaName].filter(Boolean).join(" / ") || item.fqn}</small>
+          </span>
+          <em>
+            {compactCount(item.edgeCount)} edges
+            <small>{compactCount(item.upstreamCount)} up / {compactCount(item.downstreamCount)} down</small>
+          </em>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function LineageHeroEmpty({
+  onSearch,
+  query,
+  onQueryChange,
+  results,
+  loading,
+  recommendations,
+  recommendationsLoading,
+  recommendationsError,
+  recommendationsDegraded = false,
+  recommendationsVisibilityScope = "",
+  recommendationsRelationshipVisibilityScope = "",
+}) {
   return (
     <section className="ga-lineage-explorer ga-lineage-explorer-empty" data-testid="lineage-northstar-explorer">
       <div className="ga-lineage-empty-hero">
@@ -43,7 +360,7 @@ function LineageHeroEmpty({ onSearch, query, onQueryChange, results, loading }) 
           <p>
             Search for a Unity Catalog asset to open its lineage graph. Atlas
             walks <code>system.access.table_lineage</code> outward from the focus
-            node and renders every actor-visible upstream and downstream hop.
+            node and preserves capped depth, visibility, and truncation limits.
           </p>
           <div className="ga-lineage-empty-search">
             <input
@@ -98,13 +415,31 @@ function LineageHeroEmpty({ onSearch, query, onQueryChange, results, loading }) 
               <span data-node-type={type} key={type}>{label}</span>
             ))}
           </div>
+          <div className="ga-lineage-empty-recommendations">
+            <div className="ga-lineage-v2-section-title">
+              <span>High-lineage assets</span>
+              <small>
+                {recommendationsDegraded ? "Ranked from degraded Databricks lineage evidence" : "Ranked from actor-visible Unity Catalog lineage"}
+              </small>
+            </div>
+            <RecommendationList
+              compact
+              degraded={recommendationsDegraded}
+              error={recommendationsError}
+              loading={recommendationsLoading}
+              onSelect={onSearch}
+              recommendations={recommendations}
+              relationshipVisibilityScope={recommendationsRelationshipVisibilityScope}
+              visibilityScope={recommendationsVisibilityScope}
+            />
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-function FocusChip({ tone, children, title }) {
+function FocusChip({ tone, children, title = "" }) {
   return (
     <span className={`ga-lineage-v2-chip tone-${tone || "neutral"}`} title={title || undefined}>
       {children}
@@ -194,22 +529,96 @@ function LineageHero({ asset, focusFqn, focus, hydrating, edgeCount, onClear }) 
   );
 }
 
+function ImpactFact({ label, value, detail, tone = "neutral" }) {
+  return (
+    <div className={`ga-lineage-impact-fact tone-${tone}`.trim()}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {detail ? <small>{detail}</small> : null}
+    </div>
+  );
+}
+
+function LineageRows({ items, empty, onSelectAsset }) {
+  if (!items?.length) return <p className="ga-lineage-v2-rail-empty">{empty}</p>;
+  return (
+    <ul>
+      {items.map((node) => (
+        <li key={node.id}>
+          <button
+            className="ga-lineage-v2-rail-row"
+            disabled={node.isOpenable === false}
+            onClick={() => node.isOpenable !== false && onSelectAsset(node.fqn)}
+            type="button"
+          >
+            <strong>{node.label}</strong>
+            <span>{node.subtitle}</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ColumnTracePath({ title, trace, directItems, error }) {
+  const nodes = Array.isArray(trace?.nodes) ? trace.nodes : [];
+  const truncated = Boolean(trace?.meta?.truncated);
+  return (
+    <div className="ga-lineage-column-trace-card">
+      <header>
+        <span>{title}</span>
+        <strong>{trace ? `${Math.max(0, nodes.length - 1)} traced` : `${directItems.length} direct`}</strong>
+      </header>
+      {trace ? (
+        <>
+          <div className="ga-lineage-column-path-list">
+            {nodes.slice(1, 6).map((node) => (
+              <div key={node.id || `${node.assetFqn}-${node.column}`}>
+                <strong>{node.column}</strong>
+                <span>{node.assetFqn}</span>
+              </div>
+            ))}
+            {nodes.length <= 1 ? <p>No multi-hop column paths returned.</p> : null}
+          </div>
+          {truncated ? <p className="ga-lineage-v2-rail-empty">Trace truncated by bounded fan-out limits.</p> : null}
+        </>
+      ) : error ? (
+        <p className="ga-lineage-v2-rail-empty">{error}</p>
+      ) : directItems.length ? (
+        <div className="ga-lineage-column-path-list">
+          {directItems.slice(0, 6).map((item) => (
+            <div key={`${item.assetFqn}-${item.column}`}>
+              <strong>{item.column}</strong>
+              <span>{item.assetFqn}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="ga-lineage-v2-rail-empty">No column paths returned for this direction.</p>
+      )}
+    </div>
+  );
+}
+
 function LineageDetailRail({
   graph,
   focus,
   asset,
   selectedNode,
+  selectedColumn,
+  columnTrace,
+  quality,
+  databricksEvidence,
+  accessExplain,
+  impactRequestState,
+  onCreateImpactRequest,
+  onExportImpactBrief,
   onOpenAsset,
   onSelectAsset,
   onReAnchor,
   isFocusSelected,
 }) {
-  // The "subject" of the rail is whatever node the user has currently
-  // clicked on the canvas (selectedNode). When the URL focus node IS the
-  // selected node we have richer asset-detail data available (from the
-  // workspace-level useAssetDetail call); otherwise we fall back to what
-  // the lineage payload itself surfaced about the selected node, plus
-  // anything the per-node header batch fetch retrieved.
+  const [activeTab, setActiveTab] = useState("impact");
   const subject = selectedNode || focus;
   const subjectId = subject?.id;
   const sources = useMemo(
@@ -228,18 +637,26 @@ function LineageDetailRail({
         .filter(Boolean),
     [graph.edges, graph.nodes, subjectId],
   );
-  // Only use the workspace-level asset detail when the user has the URL
-  // focus selected. For OTHER nodes, we don't have the rich asset detail
-  // loaded, so the rail shows what's available from the lineage payload
-  // and per-node header batch (which the canvas card already renders).
   const focusedAsset = isFocusSelected ? asset : null;
-  // The lineage payload doesn't carry per-node rows/freshness/owners — those
-  // live on the asset detail endpoint (already fetched by the workspace via
-  // useAssetDetail). Pull them off the focus asset so the rail surfaces real
-  // data instead of "Unavailable" for all three stats. Falls through to the
-  // pre-formatted lineage-payload values when asset detail hasn't loaded yet.
-  // The asset header endpoint exposes a raw `updatedAt` ISO timestamp; we
-  // turn that into a relative "Xh ago" label to match UC's lineage panel.
+  const RAIL_PLACEHOLDERS = new Set([
+    "—",
+    "-",
+    "–",
+    "n/a",
+    "na",
+    "unknown",
+    "unassigned",
+    "unavailable",
+    "none",
+    "null",
+  ]);
+  const railMeaningful = (value) => {
+    if (value == null) return "";
+    const trimmed = String(value).trim();
+    if (!trimmed) return "";
+    if (RAIL_PLACEHOLDERS.has(trimmed.toLowerCase())) return "";
+    return trimmed;
+  };
   const updatedAtIso =
     focusedAsset?.updatedAt ||
     focusedAsset?.lastRefresh ||
@@ -272,219 +689,369 @@ function LineageDetailRail({
     focusedAsset?.refreshedAt ||
     focusedAsset?.detail?.freshness ||
     "";
-  const detailRowCount =
-    focusedAsset?.rowCountDisplay ||
-    focusedAsset?.rowCount ||
-    focusedAsset?.rows;
-  const detailOwner =
-    focusedAsset?.ownerDisplayName ||
-    focusedAsset?.owner ||
-    focusedAsset?.steward ||
-    (Array.isArray(focusedAsset?.owners)
-      ? focusedAsset.owners[0]?.displayName ||
-        focusedAsset.owners[0]?.email ||
-        focusedAsset.owners[0]?.name
-      : "");
-  // Backend returns "—" / "Unassigned" / "N/A" / etc. for genuinely
-  // unknown values (e.g. managementType is "—" for views, since UC's
-  // MANAGED/EXTERNAL distinction only applies to tables). The rail
-  // displays these only when meaningful; otherwise we drop the field
-  // entirely to avoid the literal "— · View" rendering bug the user
-  // flagged on finance_portfolio_exposure.
-  const RAIL_PLACEHOLDERS = new Set([
-    "—",
-    "-",
-    "–",
-    "n/a",
-    "na",
-    "unknown",
-    "unassigned",
-    "unavailable",
-    "none",
-    "null",
-  ]);
-  const railMeaningful = (value) => {
-    if (value == null) return "";
-    const trimmed = String(value).trim();
-    if (!trimmed) return "";
-    if (RAIL_PLACEHOLDERS.has(trimmed.toLowerCase())) return "";
-    return trimmed;
-  };
+  const detailRowCount = focusedAsset?.rowCountDisplay || focusedAsset?.rowCount || focusedAsset?.rows;
+  const detailOwner = ownerLabel(focusedAsset, subject);
   const detailSize = railMeaningful(focusedAsset?.size);
   const detailFiles = railMeaningful(focusedAsset?.files);
-  const detailManagement = railMeaningful(focusedAsset?.managementType);
-  const detailObjectType = railMeaningful(focusedAsset?.objectType);
   const detailType =
-    [detailManagement, detailObjectType].filter(Boolean).join(" · ") || "";
+    [railMeaningful(focusedAsset?.managementType), railMeaningful(focusedAsset?.objectType)]
+      .filter(Boolean)
+      .join(" · ") || "";
   const detailActivity = Array.isArray(focusedAsset?.recentActivity)
     ? focusedAsset.recentActivity
     : Array.isArray(focusedAsset?.activity)
-    ? focusedAsset.activity
-    : [];
+      ? focusedAsset.activity
+      : [];
   const recentActivity = detailActivity.length ? detailActivity : subject?.recentActivity || [];
   const recentActivityCount = recentActivity.length || subject?.recentActivityCount || 0;
   const columnLineageCount = Array.isArray(graph.columnEdges) ? graph.columnEdges.length : 0;
+  const downstreamDashboards = consumers.filter((node) => node.kind === "dashboard");
+  const downstreamJobs = consumers.filter((node) => node.kind === "job");
+  const linkedPolicies = arrayValue(focusedAsset?.policies || focusedAsset?.linkedPolicies);
+  const linkedControls = arrayValue(focusedAsset?.controls || focusedAsset?.linkedControls);
+  const accessGrants = arrayValue(accessExplain?.data?.grants || accessExplain?.data?.permissions);
+  const approvalBlockers = arrayValue(focusedAsset?.approvalBlockers || focusedAsset?.requiredApprovals);
+  const directColumnLineage = buildColumnDirectLineage(
+    graph.columnLineage,
+    selectedColumn,
+    focus?.fqn,
+  );
+  const qualityRuns = arrayValue(quality?.runs).length;
+  const qualityResults = arrayValue(quality?.results).length;
+  const dqm = databricksEvidence?.qualityMonitoring || quality?.databricksMonitoring || {};
+  const dqmRows = evidenceRows(dqm);
+  const dqmSummary = dqm?.summary || {};
+  const profileMetrics = databricksEvidence?.profileMetrics || {};
+  const profileMetricRows = evidenceRows(profileMetrics);
+  const lakeflow = databricksEvidence?.lakeflow || {};
+  const lakeflowJobs = evidenceRows(lakeflow, "jobs");
+  const lakeflowPipelines = evidenceRows(lakeflow, "pipelines");
+  const pipelineEvents = databricksEvidence?.pipelineEvents || {};
+  const pipelineEventRows = evidenceRows(pipelineEvents);
+  const qualityAvailable = Boolean(
+    quality?.summaryBacked ||
+      qualityRuns ||
+      qualityResults ||
+      evidenceState(dqm) === "available",
+  );
+  const failedQuality = qualityAvailable
+    ? Number(quality?.summary?.failed || 0) + Number(quality?.summary?.errored || 0)
+    : null;
+  const truncated = graph.stats?.truncated || {};
+  const progressive = graph.stats?.progressive || {};
+  const evidenceRecords = buildEvidenceRecords({
+    accessExplain,
+    columnLineageCount,
+    databricksEvidence,
+    focusedAsset,
+    graph,
+    quality,
+  });
+  const evidenceSources = evidenceSourceNames(evidenceRecords);
+  const sqlSnippets = collectSqlSnippets(graph.edgeDetails, selectedColumn);
+  const impactPacket = {
+    generatedAt: new Date().toISOString(),
+    assetFqn: subject?.fqn || focus?.fqn || "",
+    selectedColumn: selectedColumn || null,
+    lineage: {
+      edgeCount: graph.edges.length,
+      upstreamCount: sources.length,
+      downstreamCount: consumers.length,
+      stats: graph.stats || {},
+      truncated,
+      progressive,
+      source: graph.payload?.source || graph.meta?.source || "unity-catalog-lineage",
+      authoritative: graph.payload?.authoritative === true || graph.meta?.authoritative === true,
+      visibilityScope: graph.meta?.visibilityScope || graph.meta?.capabilities?.visibilityScope || "",
+    },
+    sources: sources.map((node) => ({ fqn: node.fqn, label: node.label, kind: node.kind })),
+    consumers: consumers.map((node) => ({ fqn: node.fqn, label: node.label, kind: node.kind })),
+    columnLineage: {
+      directUpstream: directColumnLineage.upstream,
+      directDownstream: directColumnLineage.downstream,
+      upstreamTrace: columnTrace?.upstream || null,
+      downstreamTrace: columnTrace?.downstream || null,
+      upstreamError: columnTrace?.upstreamError || "",
+      downstreamError: columnTrace?.downstreamError || "",
+    },
+    governance: {
+      owner: detailOwner || "",
+      certification: focusedAsset?.certification || subject?.raw?.details?.certification || "",
+      sensitivity: focusedAsset?.sensitivity || subject?.classification || "",
+      openRequests: focusedAsset?.openRequests ?? null,
+      glossaryTerms: focusedAsset?.glossaryTerms || [],
+      cde: focusedAsset?.isCde ?? null,
+    },
+    quality: {
+      runs: quality?.runs || [],
+      summary: qualityAvailable ? quality?.summary || null : null,
+      databricksMonitoring: dqm,
+      available: qualityAvailable,
+      error: quality?.error || "",
+    },
+    databricksEvidence: {
+      qualityMonitoring: dqm,
+      profileMetrics,
+      lakeflow,
+      pipelineEvents,
+      provenance: databricksEvidence?.provenance || [],
+    },
+    access: accessExplain?.data || null,
+    evidenceSources,
+    evidenceRecords,
+  };
+  const createNote = [
+    `Asset: ${impactPacket.assetFqn}`,
+    selectedColumn?.columnName ? `Selected column: ${selectedColumn.columnName}` : "",
+    `Visible lineage edges: ${graph.edges.length}`,
+    `Downstream consumers in current graph: ${consumers.length}`,
+    qualityAvailable
+      ? `Quality failures/errors returned: ${failedQuality}`
+      : "Quality evidence unavailable in the current payload.",
+    `Evidence records: ${evidenceRecords.map((record) => `${record.source} (${record.status})`).join(", ")}`,
+  ].filter(Boolean).join("\n");
 
   return (
     <aside className="ga-lineage-v2-rail">
       <div className="ga-lineage-v2-rail-head">
-        <span className="ga-lineage-eyebrow">
-          {isFocusSelected ? "Lineage Details" : "Selected Node"}
-        </span>
+        <span className="ga-lineage-eyebrow">{isFocusSelected ? "Impact Inspector" : "Selected Node"}</span>
         <h2>{subject?.label || "Lineage Details"}</h2>
         {subject?.subtitle ? <small>{subject.subtitle}</small> : null}
         {!isFocusSelected && subject?.fqn ? (
           <button
             className="ga-lineage-v2-rail-reanchor"
             onClick={() => onReAnchor?.(subject.fqn)}
+            title="Re-anchor the canvas on this node"
             type="button"
-            title="Re-anchor the canvas on this node (refetches lineage)"
           >
-            ↻ Re-anchor lineage on this node
+            Re-anchor lineage
           </button>
         ) : null}
       </div>
 
-      {subject ? (
-        <div className="ga-lineage-v2-rail-stats">
-          <div>
-            <span>Last refresh</span>
-            <strong>{detailFreshness || subject.freshness || "Unavailable"}</strong>
-          </div>
-          <div>
-            <span>Rows</span>
-            <strong>
-              {(() => {
-                if (detailRowCount != null && detailRowCount !== "") {
-                  const num = Number(detailRowCount);
-                  if (Number.isFinite(num)) return num.toLocaleString();
-                  // Non-numeric (e.g. already-formatted "1.2M") — render as-is
-                  return String(detailRowCount);
-                }
-                return subject.rowCount || "Unavailable";
-              })()}
-            </strong>
-          </div>
-          <div>
-            <span>Owner</span>
-            <strong>
-              {detailOwner ||
-                subject.owners?.[0]?.displayName ||
-                subject.owners?.[0]?.email ||
-                "Unavailable"}
-            </strong>
-          </div>
-          {detailType ? (
-            <div>
-              <span>Type</span>
-              <strong>{detailType}</strong>
-            </div>
-          ) : null}
-          {detailSize ? (
-            <div>
-              <span>Size</span>
-              <strong>
-                {detailSize}
-                {detailFiles ? ` · ${detailFiles} files` : ""}
-              </strong>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {columnLineageCount > 0 ? (
-        <div className="ga-lineage-v2-rail-section">
-          <header>
-            <span>Column lineage</span>
-            <span className="ga-lineage-v2-rail-count">{columnLineageCount}</span>
-          </header>
-          <p className="ga-lineage-v2-rail-empty">
-            {columnLineageCount} column-level link{columnLineageCount === 1 ? "" : "s"}{" "}
-            traced through this asset (upstream + downstream).
-          </p>
-        </div>
-      ) : null}
-
-      <div className="ga-lineage-v2-rail-section">
-        <header>
-          <span>Sources</span>
-          <span className="ga-lineage-v2-rail-count">{sources.length}</span>
-        </header>
-        {sources.length ? (
-          <ul>
-            {sources.map((node) => (
-              <li key={node.id}>
-                <button
-                  className="ga-lineage-v2-rail-row"
-                  disabled={node.isOpenable === false}
-                  onClick={() => node.isOpenable !== false && onSelectAsset(node.fqn)}
-                  type="button"
-                >
-                  <strong>{node.label}</strong>
-                  <span>{node.subtitle}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="ga-lineage-v2-rail-empty">No source-system details returned.</p>
-        )}
-      </div>
-
-      <div className="ga-lineage-v2-rail-section">
-        <header>
-          <span>Consumers</span>
-          <span className="ga-lineage-v2-rail-count">{consumers.length}</span>
-        </header>
-        {consumers.length ? (
-          <ul>
-            {consumers.map((node) => (
-              <li key={node.id}>
-                <button
-                  className="ga-lineage-v2-rail-row"
-                  disabled={node.isOpenable === false}
-                  onClick={() => node.isOpenable !== false && onSelectAsset(node.fqn)}
-                  type="button"
-                >
-                  <strong>{node.label}</strong>
-                  <span>{node.subtitle}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="ga-lineage-v2-rail-empty">No downstream consumer details returned.</p>
-        )}
-      </div>
-
-      <div className="ga-lineage-v2-rail-section">
-        <header>
-          <span>Recent activity</span>
-          <span className="ga-lineage-v2-rail-count">{recentActivityCount}</span>
-        </header>
-        {recentActivity.length ? (
-          <ul>
-            {recentActivity.slice(0, 5).map((event, index) => (
-              <li key={`${event.id || event.kind || "event"}-${index}`}>
-                <strong>{event.kind || event.title || event.action || "Activity"}</strong>
-                <span>{event.timestamp || event.observedAt || event.at || ""}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="ga-lineage-v2-rail-empty">No recent lineage activity returned.</p>
-        )}
-      </div>
-
-      {focus?.fqn ? (
-        <div className="ga-lineage-v2-rail-actions">
+      <div className="ga-lineage-v2-rail-tabs" role="tablist" aria-label="Lineage inspector tabs">
+        {[
+          ["impact", "Impact Brief"],
+          ["details", "Details"],
+          ["columns", "Columns"],
+          ["evidence", "Evidence"],
+        ].map(([key, label]) => (
           <button
-            className="gh-tertiary-button"
-            onClick={() => onOpenAsset?.(focus.fqn, "Overview")}
+            aria-selected={activeTab === key}
+            className={activeTab === key ? "is-active" : ""}
+            key={key}
+            onClick={() => setActiveTab(key)}
+            role="tab"
             type="button"
           >
-            Open asset record
+            {label}
           </button>
+        ))}
+      </div>
+
+      {activeTab === "impact" ? (
+        <div className="ga-lineage-impact-panel">
+          <div className="ga-lineage-impact-grid">
+            <ImpactFact label="Downstream" value={compactCount(consumers.length)} detail="visible graph consumers" tone={consumers.length ? "warn" : "neutral"} />
+            <ImpactFact label="Column paths" value={compactCount(columnLineageCount)} detail="direct UC column links" tone={columnLineageCount ? "info" : "neutral"} />
+            <ImpactFact
+              label="Quality issues"
+              value={qualityAvailable ? compactCount(failedQuality) : "Unavailable"}
+              detail={qualityAvailable ? `${qualityRuns} Atlas run(s) · DQM ${dqmSummary.healthStatus || evidenceState(dqm) || "unavailable"}` : "quality evidence unavailable"}
+              tone={failedQuality ? "crit" : "neutral"}
+            />
+            <ImpactFact
+              label="DQM health"
+              value={dqmSummary.healthStatus || (evidenceState(dqm) === "available" ? "Observed" : "Unavailable")}
+              detail={dqmRows.length ? `${dqmRows.length} monitoring row(s)` : "system.data_quality_monitoring"}
+              tone={String(dqmSummary.healthStatus || "").toLowerCase() === "healthy" ? "good" : String(dqmSummary.healthStatus || "").toLowerCase() === "unhealthy" ? "crit" : "neutral"}
+            />
+            <ImpactFact label="Open requests" value={focusedAsset?.openRequests ?? "Unavailable"} detail="governance store" tone={Number(focusedAsset?.openRequests) ? "warn" : "neutral"} />
+            <ImpactFact label="Dashboards" value={compactCount(downstreamDashboards.length)} detail="downstream dashboard nodes" tone={downstreamDashboards.length ? "info" : "neutral"} />
+            <ImpactFact label="Jobs" value={compactCount(Math.max(downstreamJobs.length, lakeflowJobs.length))} detail={lakeflowJobs.length ? "Lakeflow job runs" : "downstream job nodes"} tone={downstreamJobs.length || lakeflowJobs.length ? "warn" : "neutral"} />
+            <ImpactFact label="Pipelines" value={compactCount(lakeflowPipelines.length)} detail={pipelineEventRows.length ? `${pipelineEventRows.length} event-log row(s)` : "Lakeflow updates"} tone={lakeflowPipelines.length ? "info" : "neutral"} />
+          </div>
+          <div className="ga-lineage-v2-rail-section">
+            <header><span>Decision packet</span></header>
+            <ul className="ga-lineage-impact-list">
+              <li>Owners: {detailOwner || "Unavailable"}</li>
+              <li>Sensitivity: {focusedAsset?.sensitivity || subject?.classification || "Unavailable"}</li>
+              <li>Access scope: {accessExplain?.data?.visibilityScope || graph.meta?.visibilityScope || "Unavailable"}</li>
+              <li>Access grants: {accessGrants.length ? `${accessGrants.length} grant row(s) returned` : "Unavailable: no access-grant rows returned"}</li>
+              <li>Policies: {linkedPolicies.length ? linkedPolicies.map((policy) => firstMeaningful(policy?.name, policy?.title, policy?.id, policy)).slice(0, 3).join(", ") : "Unavailable: no linked policy records returned"}</li>
+              <li>Controls affected: {linkedControls.length ? `${linkedControls.length} linked control(s)` : "Unavailable: no control coverage records returned"}</li>
+              <li>Databricks DQM: {dqmSummary.healthStatus ? `${dqmSummary.healthStatus} · freshness ${dqmSummary.freshnessStatus || "Unavailable"} · completeness ${dqmSummary.completenessStatus || "Unavailable"}` : "Unavailable: no DQM status returned"}</li>
+              <li>Databricks profile: {profileMetricRows.length ? `${profileMetricRows.length} metric table row(s)` : profileMetrics?.monitor?.profileMetricsTableName ? "Monitor configured; metric table visibility unavailable" : "Unavailable: no profile monitor or metric tables returned"}</li>
+              <li>Lakeflow: {lakeflowJobs.length || lakeflowPipelines.length ? `${lakeflowJobs.length} job run(s), ${lakeflowPipelines.length} pipeline update(s)` : "Unavailable: no Lakeflow workflow rows joined from lineage"}</li>
+              <li>Required approvals: {focusedAsset?.openRequests == null ? "Unavailable" : Number(focusedAsset.openRequests) ? `${focusedAsset.openRequests} open request(s)` : "No open approval requests returned"}</li>
+              <li>Approval blockers: {approvalBlockers.length ? approvalBlockers.map((item) => firstMeaningful(item?.title, item?.name, item?.id, item)).join(", ") : "Unavailable: no approval-blocker records returned"}</li>
+              <li>Truncation: {Object.values(truncated).some(Boolean) ? "One or more lineage limits were reached" : "No truncation flag returned"}</li>
+              <li>Hydration: {Object.values(progressive).some(Boolean) ? "Progressive lineage state is active" : "Full profile currently displayed"}</li>
+            </ul>
+          </div>
+          <div className="ga-lineage-v2-rail-section">
+            <header>
+              <span>Downstream consumers</span>
+              <span className="ga-lineage-v2-rail-count">{consumers.length}</span>
+            </header>
+            <LineageRows items={consumers.slice(0, 5)} empty="No downstream consumers returned for this asset." onSelectAsset={onSelectAsset} />
+          </div>
+          <div className="ga-lineage-v2-rail-section">
+            <header>
+              <span>Downstream dashboards</span>
+              <span className="ga-lineage-v2-rail-count">{downstreamDashboards.length}</span>
+            </header>
+            <LineageRows items={downstreamDashboards.slice(0, 4)} empty="No downstream dashboard nodes returned." onSelectAsset={onSelectAsset} />
+          </div>
+          <div className="ga-lineage-v2-rail-section">
+            <header>
+              <span>Downstream jobs</span>
+              <span className="ga-lineage-v2-rail-count">{Math.max(downstreamJobs.length, lakeflowJobs.length)}</span>
+            </header>
+            <LineageRows items={downstreamJobs.slice(0, 4)} empty="No downstream job nodes returned." onSelectAsset={onSelectAsset} />
+            {lakeflowJobs.length ? (
+              <ul className="ga-lineage-impact-list">
+                {lakeflowJobs.slice(0, 3).map((job, index) => (
+                  <li key={`${job.job_id || "job"}-${job.run_id || index}`}>
+                    <strong>{job.job_name || job.job_id || "Lakeflow job"}</strong>
+                    <span>{job.result_state || "Result unavailable"} · {job.period_start_time || job.last_lineage_event || "time unavailable"}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+          <div className="ga-lineage-v2-rail-actions">
+            <button
+              className="gh-tertiary-button"
+              onClick={() => onExportImpactBrief?.(impactPacket)}
+              type="button"
+            >
+              Export packet
+            </button>
+            <button
+              className="gh-tertiary-button"
+              disabled={!impactPacket.assetFqn || impactRequestState?.loading}
+              onClick={() =>
+                onCreateImpactRequest?.({
+                  assetFqn: impactPacket.assetFqn,
+                  title: `Lineage impact review: ${subject?.label || impactPacket.assetFqn}`,
+                  note: createNote,
+                })
+              }
+              title={!impactPacket.assetFqn ? "Select an openable asset before creating a request." : undefined}
+              type="button"
+            >
+              {impactRequestState?.loading ? "Creating request..." : "Create request"}
+            </button>
+          </div>
+          {impactRequestState?.message ? <p className="ga-lineage-request-status">{impactRequestState.message}</p> : null}
+          {impactRequestState?.error ? <p className="ga-lineage-request-status tone-error">{impactRequestState.error}</p> : null}
+        </div>
+      ) : null}
+
+      {activeTab === "details" ? (
+        <>
+          {subject ? (
+            <div className="ga-lineage-v2-rail-stats">
+              <div><span>Last refresh</span><strong>{detailFreshness || subject.freshness || "Unavailable"}</strong></div>
+              <div><span>Rows</span><strong>{detailRowCount != null && detailRowCount !== "" ? displayCount(detailRowCount) : subject.rowCount || "Unavailable"}</strong></div>
+              <div><span>Owner</span><strong>{detailOwner || "Unavailable"}</strong></div>
+              {detailType ? <div><span>Type</span><strong>{detailType}</strong></div> : null}
+              {detailSize ? <div><span>Size</span><strong>{detailSize}{detailFiles ? ` · ${detailFiles} files` : ""}</strong></div> : null}
+            </div>
+          ) : null}
+          <div className="ga-lineage-v2-rail-section">
+            <header><span>Sources</span><span className="ga-lineage-v2-rail-count">{sources.length}</span></header>
+            <LineageRows items={sources} empty="No source-system details returned." onSelectAsset={onSelectAsset} />
+          </div>
+          <div className="ga-lineage-v2-rail-section">
+            <header><span>Recent activity</span><span className="ga-lineage-v2-rail-count">{recentActivityCount}</span></header>
+            {recentActivity.length ? (
+              <ul>
+                {recentActivity.slice(0, 5).map((event, index) => (
+                  <li key={`${event.id || event.kind || "event"}-${index}`}>
+                    <strong>{event.kind || event.title || event.action || "Activity"}</strong>
+                    <span>{event.timestamp || event.observedAt || event.at || ""}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="ga-lineage-v2-rail-empty">No recent lineage activity returned.</p>
+            )}
+          </div>
+          {focus?.fqn ? (
+            <div className="ga-lineage-v2-rail-actions">
+              <button className="gh-tertiary-button" onClick={() => onOpenAsset?.(focus.fqn, "Overview")} type="button">
+                Open asset record
+              </button>
+            </div>
+          ) : null}
+        </>
+      ) : null}
+
+      {activeTab === "columns" ? (
+        <div className="ga-lineage-column-panel">
+          <div className="ga-lineage-v2-rail-section">
+            <header>
+              <span>{selectedColumn?.columnName ? "Selected column" : "Column lineage"}</span>
+              <span className="ga-lineage-v2-rail-count">{columnLineageCount}</span>
+            </header>
+            <p className="ga-lineage-v2-rail-empty">
+              {selectedColumn?.columnName
+                ? `${selectedColumn.columnName} on ${selectedColumn.assetFqn}`
+                : "Select a column on a table card to trace column-level impact."}
+            </p>
+          </div>
+          {selectedColumn?.columnName ? (
+            <>
+              <ColumnTracePath
+                directItems={directColumnLineage.upstream}
+                error={columnTrace?.upstreamError}
+                title="Upstream"
+                trace={columnTrace?.upstream}
+              />
+              <ColumnTracePath
+                directItems={directColumnLineage.downstream}
+                error={columnTrace?.downstreamError}
+                title="Downstream"
+                trace={columnTrace?.downstream}
+              />
+              <div className="ga-lineage-sql-placeholder">
+                <strong>Transformation SQL</strong>
+                {sqlSnippets.length ? (
+                  <div className="ga-lineage-sql-snippets">
+                    {sqlSnippets.map((snippet) => (
+                      <pre key={snippet.edgeId}>{snippet.sqlSnippet}</pre>
+                    ))}
+                  </div>
+                ) : (
+                  <span>Unity Catalog column lineage did not return transformation SQL for this path. SQL remains unavailable unless a backed query, view, job, or pipeline source supplies it.</span>
+                )}
+              </div>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      {activeTab === "evidence" ? (
+        <div className="ga-lineage-evidence-panel">
+          <div className="ga-lineage-v2-rail-section">
+            <header><span>Evidence sources</span></header>
+            <ul className="ga-lineage-impact-list">
+              {evidenceRecords.map((record) => (
+                <li key={record.source}>
+                  <strong>{record.source}</strong> · {record.status}
+                  <span>{record.detail}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="ga-lineage-v2-rail-section">
+            <header><span>Atlas AI evidence boundary</span></header>
+            <p className="ga-lineage-v2-rail-empty">
+              The impact packet is generated from the currently loaded lineage, governance, access, and quality evidence. Atlas AI should answer from this packet and returned evidence records; if the AI provider is unavailable, the exported packet remains the backed artifact.
+            </p>
+          </div>
         </div>
       ) : null}
     </aside>
@@ -501,11 +1068,19 @@ export default function LineageWorkspace({
   onOpenGovernance,
   onOpenAsset,
   runtimeFeatureFlags = [],
+  sharedVisibleAssetSet = null,
   workspaceAccess = null,
   userEmail = "",
 }) {
   const focusAssetFqn = initialAssetFqn || "";
   const [assetSearchQuery, setAssetSearchQuery] = useState("");
+  const [selectedColumn, setSelectedColumn] = useState(null);
+  const [impactRequestState, setImpactRequestState] = useState({
+    loading: false,
+    message: "",
+    error: "",
+  });
+  const [defaultRouteSuppressed, setDefaultRouteSuppressed] = useState(false);
   // selectedNodeFqn is CLIENT-SIDE state — it tracks which node the user
   // last clicked on the canvas. It is NOT the URL focus. The URL focus
   // (focusAssetFqn) drives the lineage HTTP query; selectedNodeFqn drives
@@ -573,17 +1148,51 @@ export default function LineageWorkspace({
   const lineageEnabled = Boolean(focusAssetFqn);
 
   const graph = useLineageGraphV2(focusAssetFqn || "", { enabled: lineageEnabled });
-  // Batch-fetch the asset header for every visible node so each card can
-  // render UC-grade per-node detail (size, freshness, type, owner). The
-  // lineage payload itself doesn't carry these fields — they live on
-  // /api/assets/<fqn>?sections=header — so without this hook every card
-  // would only show the bare "Table" footer the lineage API returned,
-  // which is exactly the gap the user flagged vs Databricks UC's native
-  // lineage UX. The hook caches results module-wide and caps parallel
-  // fetches at 8, so we don't fan out 20 warehouse calls per click.
+  const lineageRecommendations = useLineageRecommendations({ enabled: true, limit: 8 });
+  const recommendedAssets = useMemo(
+    () =>
+      (lineageRecommendations.items || [])
+        .filter((item) => item.fqn && item.fqn !== focusAssetFqn)
+        .sort((left, right) => Number(right.edgeCount || 0) - Number(left.edgeCount || 0)),
+    [focusAssetFqn, lineageRecommendations.items],
+  );
+  const recommendationsDegraded = Boolean(
+    lineageRecommendations.degraded ||
+      lineageRecommendations.authoritative === false ||
+      String(lineageRecommendations.visibilityScope || "").includes("workspace-app-principal"),
+  );
+  const recommendationsVisibilityScope = lineageRecommendations.visibilityScope || "";
+  const recommendationsRelationshipVisibilityScope = lineageRecommendations.relationshipVisibilityScope || "";
+  const assetHeaderHydrated = Boolean(assetDetail.detail?.fqn) && !assetDetail.loading && !assetDetail.detail?.error;
+  const focusAssetHasQualityVisibility = Boolean(
+    focusAssetFqn &&
+      sharedVisibleAssetSet &&
+      typeof sharedVisibleAssetSet.has === "function" &&
+      sharedVisibleAssetSet.has(focusAssetFqn),
+  );
+  const quality = useAssetQuality(focusAssetFqn || "", {
+    enabled: Boolean(focusAssetFqn && assetHeaderHydrated && focusAssetHasQualityVisibility),
+  });
+  const databricksEvidence = useAssetDatabricksEvidence(focusAssetFqn || "", {
+    enabled: Boolean(focusAssetFqn && assetHeaderHydrated && focusAssetHasQualityVisibility),
+  });
+  const accessExplain = useAccessExplain(focusAssetFqn || "", { enabled: Boolean(focusAssetFqn) });
+  const columnTrace = useColumnLineageTrace(
+    selectedColumn?.assetFqn || "",
+    selectedColumn?.columnName || "",
+    {
+      enabled: Boolean(selectedColumn?.assetFqn && selectedColumn?.columnName),
+      depth: 3,
+    },
+  );
+  // Batch-fetch bounded card headers from visible inventory. This enriches
+  // the first visible cards without turning a lineage render into N full
+  // asset-detail requests.
   const lineageNodeFqns = useMemo(
-    () => (graph.nodes || []).map((node) => node.fqn).filter(Boolean),
-    [graph.nodes],
+    () => (graph.nodes || [])
+      .map((node) => node.fqn)
+      .filter((fqn) => isUcAssetFqn(fqn) && fqn !== focusAssetFqn),
+    [focusAssetFqn, graph.nodes],
   );
   const { headers: nodeHeaders } = useLineageNodeHeaders(lineageNodeFqns);
   const asset =
@@ -600,11 +1209,37 @@ export default function LineageWorkspace({
   // the legacy LineageWorkspace contract that other surfaces relied on.
   useEffect(() => {
     setAssetSearchQuery("");
+    setSelectedColumn(null);
+    setImpactRequestState({ loading: false, message: "", error: "" });
+    if (focusAssetFqn) {
+      setDefaultRouteSuppressed(false);
+    }
     // When the URL focus changes (e.g. user re-anchored or navigated in),
     // reset the locally selected node back to the URL focus so the rail
     // and highlight start aligned with the new graph.
     setSelectedNodeFqn(focusAssetFqn);
   }, [focusAssetFqn]);
+
+  useEffect(() => {
+    if (
+      focusAssetFqn ||
+      defaultRouteSuppressed ||
+      assetSearchQuery.trim() ||
+      lineageRecommendations.loading ||
+      !recommendedAssets[0]?.fqn
+    ) {
+      return;
+    }
+    onRouteAssetChange?.(recommendedAssets[0].fqn, "Data Lineage");
+  }, [
+    assetSearchQuery,
+    defaultRouteSuppressed,
+    focusAssetFqn,
+    lineageRecommendations.loading,
+    onRouteAssetChange,
+    recommendedAssets,
+    recommendationsDegraded,
+  ]);
 
   useEffect(() => {
     if (initialAssetFqn) {
@@ -671,9 +1306,52 @@ export default function LineageWorkspace({
     onRouteAssetChange?.(nextAssetFqn, "Data Lineage");
   };
 
+  const handleColumnSelect = (node, column) => {
+    if (!node?.fqn || !column?.name) return;
+    setSelectedNodeFqn(node.fqn);
+    setSelectedColumn({
+      assetFqn: node.fqn,
+      columnName: column.name,
+      type: column.type || "",
+    });
+  };
+
   const handleClearFocus = () => {
     setAssetSearchQuery("");
+    setSelectedColumn(null);
+    setDefaultRouteSuppressed(true);
     onRouteAssetChange?.("", "Data Lineage");
+  };
+
+  const handleExportImpactBrief = (packet) => {
+    downloadImpactPacket(packet);
+    setImpactRequestState({
+      loading: false,
+      message: "Impact packet exported from the current loaded evidence.",
+      error: "",
+    });
+  };
+
+  const handleCreateImpactRequest = async (payload) => {
+    if (!payload?.assetFqn || impactRequestState.loading) return;
+    setImpactRequestState({ loading: true, message: "", error: "" });
+    try {
+      const response = await createGovernanceRequest(payload, { fast: true });
+      const requestId = response?.requestId || response?.id || "";
+      setImpactRequestState({
+        loading: false,
+        message: requestId
+          ? `Governance request created: ${requestId}`
+          : "Governance request created.",
+        error: "",
+      });
+    } catch (error) {
+      setImpactRequestState({
+        loading: false,
+        message: "",
+        error: error?.message || "Governance request creation is unavailable.",
+      });
+    }
   };
 
   // Track whether we've ever shown a populated canvas this session. Once
@@ -699,6 +1377,12 @@ export default function LineageWorkspace({
           onQueryChange={setAssetSearchQuery}
           onSearch={handleSelectAsset}
           query={assetSearchQuery}
+          recommendations={recommendedAssets}
+          recommendationsDegraded={recommendationsDegraded}
+          recommendationsError={lineageRecommendations.error}
+          recommendationsLoading={lineageRecommendations.loading}
+          recommendationsRelationshipVisibilityScope={recommendationsRelationshipVisibilityScope}
+          recommendationsVisibilityScope={recommendationsVisibilityScope}
           results={assetSearch.assets}
         />
       </section>
@@ -731,6 +1415,24 @@ export default function LineageWorkspace({
     );
   }
 
+  const zeroEdgeLoaded = Boolean(
+    focusAssetFqn &&
+      !graph.loading &&
+      !graph.hydrating &&
+      !graph.error &&
+      graph.nodes.length <= 1 &&
+      graph.edges.length === 0,
+  );
+  const visibilityScope = String(
+    graph.meta?.visibilityScope ||
+      graph.meta?.capabilities?.visibilityScope ||
+      graph.payload?.meta?.visibilityScope ||
+      "",
+  );
+  const lineageScopeLabel = visibilityScope.includes("workspace-app-principal")
+    ? "workspace-scoped"
+    : "actor-visible";
+
   return (
     <section className="gh-lineage-shell" data-testid="lineage-northstar-explorer">
       <LineageHero
@@ -743,26 +1445,61 @@ export default function LineageWorkspace({
       />
       <div className="ga-lineage-v2-workbench">
         <div className="ga-lineage-v2-workbench-canvas">
+          {zeroEdgeLoaded ? (
+            <div className="ga-lineage-zero-state" role="status">
+              <div>
+                <span className="ga-lineage-eyebrow">
+                  {lineageScopeLabel === "workspace-scoped" ? "No Workspace-Scoped Lineage" : "No Actor-Visible Lineage"}
+                </span>
+                <strong>No {lineageScopeLabel} lineage edges returned for this asset.</strong>
+                <p>
+                  Unity Catalog did not return upstream or downstream table-lineage edges
+                  for the selected focus. Open a ranked high-lineage asset below, or keep
+                  this asset selected to inspect its unavailable evidence boundaries.
+                </p>
+              </div>
+              <RecommendationList
+                compact
+                degraded={recommendationsDegraded}
+                error={lineageRecommendations.error}
+                loading={lineageRecommendations.loading}
+                onSelect={handleSelectAsset}
+                recommendations={recommendedAssets}
+                relationshipVisibilityScope={recommendationsRelationshipVisibilityScope}
+                visibilityScope={recommendationsVisibilityScope}
+              />
+            </div>
+          ) : null}
           <LineageCanvasV2
             error={graph.error}
             focusId={focusAssetFqn}
             graph={graph}
             hydrating={graph.hydrating}
             nodeHeaders={nodeHeaders}
+            onColumnSelect={handleColumnSelect}
             onFocusChange={handleNodeSelect}
+            selectedColumn={selectedColumn}
             selectedNodeFqn={selectedNodeFqn}
           />
         </div>
         <LineageDetailRail
+          accessExplain={accessExplain}
           asset={asset}
+          columnTrace={columnTrace}
           graph={graph}
           focus={graph.focus}
+          impactRequestState={impactRequestState}
           isFocusSelected={!selectedNodeFqn || selectedNodeFqn === focusAssetFqn}
+          onCreateImpactRequest={handleCreateImpactRequest}
+          onExportImpactBrief={handleExportImpactBrief}
           selectedNode={
             selectedNodeFqn
               ? graph.nodes.find((n) => n.fqn === selectedNodeFqn) || null
               : null
           }
+          selectedColumn={selectedColumn}
+          quality={quality}
+          databricksEvidence={databricksEvidence}
           onOpenAsset={onOpenAsset}
           onReAnchor={handleReAnchor}
           onSelectAsset={handleNodeSelect}
