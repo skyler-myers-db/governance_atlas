@@ -1650,9 +1650,11 @@ def _synthesized_request_title(
     queue rows. Derive the intent from what the request actually changes.
     """
     asset_short = asset_fqn.split(".")[-1] if asset_fqn else ""
+    # Request-metadata keys stashed in new_uc_tags_json (migration-free
+    # storage) are not tag CHANGES; everything else in the map is.
     meta_keys = {
         "title", "priority", "dueat", "due_at", "slastate", "sla_state",
-        "assignedto", "assigned_to", "domain",
+        "assignedto", "assigned_to",
     }
     changed_tags = [
         key for key in request_tags

@@ -2526,7 +2526,11 @@ function DiscoverySavedSearchesPopover({ filters, onApply, onClose }) {
       </div>
       {savedSearches.length ? (
         savedSearches.map((entry) => (
-          <div className="gh-discovery-saved-search-row" key={entry.id}>
+          <div
+            className="gh-discovery-saved-search-row"
+            key={entry.id}
+            style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 8 }}
+          >
             <button
               onClick={() => {
                 onApply?.(entry);
@@ -3056,8 +3060,10 @@ function DiscoveryResultTableRow({
           <span className="gh-discovery-muted">Unassigned</span>
         )}
       </div>
+      {/* Labeled fallbacks (matching the card view's "Unassigned"/"Untagged"
+          chips) instead of bare em-dashes, which read as broken cells. */}
       <div className="gh-discovery-cell gh-discovery-cert-cell" role="cell">
-        {cert ? <span className="gh-discovery-status-pill certified">{cert}</span> : <span className="gh-discovery-muted">—</span>}
+        {cert ? <span className="gh-discovery-status-pill certified">{cert}</span> : <span className="gh-discovery-muted">Not certified</span>}
       </div>
       <div className="gh-discovery-cell gh-discovery-domain-cell" role="cell">{asset.domain && asset.domain !== "Unassigned" ? asset.domain : "Unassigned"}</div>
       <div className="gh-discovery-cell gh-discovery-coverage-cell" role="cell">
@@ -3074,11 +3080,11 @@ function DiscoveryResultTableRow({
             <span className="gh-discovery-muted">Unavailable</span>
           )
         ) : (
-          <span className="gh-discovery-muted">—</span>
+          <span className="gh-discovery-muted">Unscored</span>
         )}
       </div>
       <div className="gh-discovery-cell gh-discovery-sensitivity-cell" role="cell">
-        {sensitivity ? <span className={`gh-discovery-sensitivity-pill ${sensitivityToneClass(sensitivity)}`.trim()}>{sensitivity}</span> : <span className="gh-discovery-muted">—</span>}
+        {sensitivity ? <span className={`gh-discovery-sensitivity-pill ${sensitivityToneClass(sensitivity)}`.trim()}>{sensitivity}</span> : <span className="gh-discovery-muted">Unclassified</span>}
       </div>
       <div className="gh-discovery-cell gh-discovery-linkage-cell" role="cell">
         {assetHasCdeSignal(asset) || assetHasPiiSignal(asset) ? (
@@ -3089,7 +3095,7 @@ function DiscoveryResultTableRow({
         ) : terms.length ? (
           <span className="gh-discovery-linkage">{terms.length} term{terms.length === 1 ? "" : "s"}</span>
         ) : (
-          <span className="gh-discovery-muted">—</span>
+          <span className="gh-discovery-muted">No links</span>
         )}
       </div>
       <div className="gh-discovery-cell gh-discovery-description-cell" role="cell">
@@ -3503,16 +3509,26 @@ function SelectionPreview({
   visibleAssetSet = new Set(),
   sourceAuthoritative = false,
   sourceLabel = "",
+  canWriteGovernance = false,
+  actorRoleLabel = "",
 }) {
   const [lineageWarm, setLineageWarm] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [actionNotice, setActionNotice] = useState("");
+  // Preview write-action state. Hooks live above the !asset early return
+  // (React hook-order rule) even though they only matter with an asset.
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [workflowBusy, setWorkflowBusy] = useState("");
 
   useEffect(() => {
     setNavigating(false);
     setActiveTab("overview");
     setActionNotice("");
+    setCommentOpen(false);
+    setCommentDraft("");
+    setWorkflowBusy("");
   }, [asset?.fqn, interactionResetKey]);
 
   const lineage = useLineage(
@@ -3752,6 +3768,39 @@ function SelectionPreview({
         ? "Available metadata is shown for review. Actions that require write permissions, certification authority, or missing lineage evidence remain unavailable here."
         : "This preview is limited until Unity Catalog grants, freshness, and governance-state evidence are available. Unsupported workflow actions remain disabled."
       : "The record is openable, but descriptive, schema, and governance metadata are sparse.";
+
+  // Files a real governance request (comment thread / access request) via
+  // the same create API the Stewardship workbench uses. Imported lazily so
+  // environments that stub ../lib/api without this export degrade to an
+  // honest error toast instead of crashing at module load.
+  const fileGovernanceWorkflowRequest = async (kind, title, note) => {
+    if (!asset?.fqn || workflowBusy) return;
+    setWorkflowBusy(kind);
+    try {
+      const { createGovernanceRequest } = await import("../lib/api");
+      if (typeof createGovernanceRequest !== "function") {
+        throw new Error("The governance request API is unavailable in this build.");
+      }
+      const response = await createGovernanceRequest(
+        { assetFqn: asset.fqn, title, note },
+        { fast: true },
+      );
+      const requestId = String(response?.requestId || "").trim();
+      setActionNotice(
+        kind === "comment"
+          ? `Comment filed as governance request${requestId ? ` ${requestId}` : ""}.`
+          : `Access request filed${requestId ? ` as ${requestId}` : ""}.`,
+      );
+      if (kind === "comment") {
+        setCommentOpen(false);
+        setCommentDraft("");
+      }
+    } catch (error) {
+      setActionNotice(error?.message || "Unable to file the governance request right now.");
+    } finally {
+      setWorkflowBusy("");
+    }
+  };
 
   return (
     <aside
@@ -4106,29 +4155,109 @@ function SelectionPreview({
           </div>
         ) : (
           <div className="gh-support-copy gh-discovery-preview-workflow-note">
-            Comment and access-request creation are disabled here until a
-            backed governance workflow is configured.
+            {canWriteGovernance
+              ? "Comment and Request access file real governance requests for stewards to review."
+              : "Comment and access-request creation are disabled here until a backed governance workflow is configured."}
           </div>
         )}
+        {canWriteGovernance && commentOpen ? (
+          <div className="gh-form-stack gh-discovery-preview-comment-form">
+            <textarea
+              aria-label="Comment for governance stewards"
+              className="gh-input gh-textarea"
+              onChange={(event) => setCommentDraft(event.target.value)}
+              placeholder={`Comment on ${asset.name} — files a governance request for stewards.`}
+              rows={3}
+              value={commentDraft}
+            />
+            <div className="gh-action-row">
+              <button
+                className="gh-primary-button"
+                disabled={!commentDraft.trim() || Boolean(workflowBusy)}
+                onClick={() =>
+                  fileGovernanceWorkflowRequest(
+                    "comment",
+                    `Comment: ${asset.name}`,
+                    commentDraft.trim(),
+                  )
+                }
+                title={
+                  commentDraft.trim()
+                    ? "File this comment as a governance request."
+                    : "Write a comment before filing it."
+                }
+                type="button"
+              >
+                {workflowBusy === "comment" ? "Filing…" : "File comment"}
+              </button>
+              <button
+                className="gh-tertiary-button gh-inline-link-button"
+                onClick={() => {
+                  setCommentOpen(false);
+                  setCommentDraft("");
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
         <footer className="gh-discovery-preview-footer" aria-label="Preview workflow actions">
-          <button
-            aria-label="Comment unavailable: comment threads require a backed workflow before they can be created from Discover."
-            className="gh-secondary-button"
-            disabled
-            title="Comment threads require a backed workflow before they can be created from Discover."
-            type="button"
-          >
-            Comment
-          </button>
-          <button
-            aria-label="Request access unavailable: access requests require a backed workflow before they can be created from Discover."
-            className="gh-secondary-button"
-            disabled
-            title="Access requests require a backed workflow before they can be created from Discover."
-            type="button"
-          >
-            Request access
-          </button>
+          {/* Item 17: gate on the LIVE actor role, not the conservative
+              governance-write capability flag — the same actor mutates fine
+              on Stewardship. Read-only actors keep the honest disabled state. */}
+          {canWriteGovernance ? (
+            <button
+              aria-expanded={commentOpen}
+              aria-label={`Comment on ${asset.name}`}
+              className="gh-secondary-button"
+              disabled={Boolean(workflowBusy)}
+              onClick={() => setCommentOpen((current) => !current)}
+              title={`Comment files a governance request on ${asset.fqn} (actor role: ${actorRoleLabel || "writer"}).`}
+              type="button"
+            >
+              Comment
+            </button>
+          ) : (
+            <button
+              aria-label="Comment unavailable: comment threads require a backed workflow before they can be created from Discover."
+              className="gh-secondary-button"
+              disabled
+              title="Comment threads require a backed workflow before they can be created from Discover."
+              type="button"
+            >
+              Comment
+            </button>
+          )}
+          {canWriteGovernance ? (
+            <button
+              aria-label={`Request access to ${asset.name}`}
+              className="gh-secondary-button"
+              disabled={Boolean(workflowBusy)}
+              onClick={() =>
+                fileGovernanceWorkflowRequest(
+                  "access",
+                  `Access request: ${asset.name}`,
+                  "Access requested from the Discover preview.",
+                )
+              }
+              title={`Files an access request for ${asset.fqn} into the governance queue.`}
+              type="button"
+            >
+              {workflowBusy === "access" ? "Requesting…" : "Request access"}
+            </button>
+          ) : (
+            <button
+              aria-label="Request access unavailable: access requests require a backed workflow before they can be created from Discover."
+              className="gh-secondary-button"
+              disabled
+              title="Access requests require a backed workflow before they can be created from Discover."
+              type="button"
+            >
+              Request access
+            </button>
+          )}
           <button
             className="gh-primary-button"
             disabled={recordUnavailable}
@@ -5036,6 +5165,18 @@ export default function DiscoveryWorkspace({
     : discoveryDatabricksBacked
       ? "Databricks-backed · workspace scope"
       : "Degraded discovery payload";
+  // Live-role gating for preview write actions (Comment / Request access).
+  // The conservative governance-write capability flag stays pessimistic even
+  // when the same actor mutates fine on Stewardship; per the repo rule we
+  // trust live evidence — here, the actor's actual role from bootstrap
+  // identity.
+  const actorRoleLabel = String(
+    bootstrap?.shell?.role ||
+      bootstrap?.shell?.actorRole ||
+      bootstrap?.identity?.role ||
+      "",
+  ).trim();
+  const canWriteGovernance = /\b(?:admin|steward|writer)\b/i.test(actorRoleLabel);
   useEffect(() => {
     if (!showAdvancedFilters) return undefined;
     const onPointerDown = (event) => {
@@ -6208,9 +6349,19 @@ export default function DiscoveryWorkspace({
           />
           {showSavedSearches ? (
             <DiscoverySavedSearchesPopover
+              filters={filters}
+              onApply={(entry) =>
+                onDiscoveryStateChange((current) => ({
+                  ...current,
+                  query: String(entry.query || ""),
+                  cdeOnly: Boolean(entry.cdeOnly),
+                  ...SAVED_SEARCH_FILTER_KEYS.reduce((acc, key) => {
+                    acc[key] = Array.isArray(entry[key]) ? [...entry[key]] : [];
+                    return acc;
+                  }, {}),
+                }))
+              }
               onClose={() => setShowSavedSearches(false)}
-              onDiscoveryStateChange={onDiscoveryStateChange}
-              savedViewCounts={savedViewCounts}
             />
           ) : null}
           <DiscoveryActiveFilterRow
@@ -6442,6 +6593,8 @@ export default function DiscoveryWorkspace({
           sourceAuthoritative={discoverySourceAuthoritative}
           sourceLabel={discoverySourceLabel}
           visibleAssetSet={visibleAssetSet}
+          actorRoleLabel={actorRoleLabel}
+          canWriteGovernance={canWriteGovernance}
         />
       </section>
     </section>
